@@ -3,7 +3,8 @@ package io.github.nidaba.skyforge.kernel.graph;
 import java.util.List;
 
 /** An immutable, typed operation in a procedural graph. */
-public sealed interface GraphNode permits ArithmeticNode, ConstantNode, CoordinateNode, PlanarValueSignalNode {
+public sealed interface GraphNode
+        permits ArithmeticNode, ConstantNode, CoordinateNode, IntersectionNode, PlanarValueSignalNode {
     /** Returns this node's graph-local identifier. */
     NodeId id();
 
