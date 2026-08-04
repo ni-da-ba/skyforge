@@ -8,6 +8,7 @@ import io.github.nidaba.skyforge.kernel.graph.CoordinateNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphValueType;
 import io.github.nidaba.skyforge.kernel.graph.NodeId;
+import io.github.nidaba.skyforge.kernel.graph.PlanarValueSignalNode;
 import io.github.nidaba.skyforge.kernel.graph.ProceduralGraph;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -15,6 +16,7 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,8 +25,11 @@ import java.util.Set;
 
 /** Versioned, dependency-free canonical JSON serialization for procedural graphs. */
 public final class CanonicalGraphJson {
-    /** The only graph schema understood by this codec. */
+    /** Base graph schema retained for signal-free canonical compatibility. */
     public static final int SCHEMA_VERSION = 1;
+
+    /** Latest graph schema, adding the planar value signal node. */
+    public static final int LATEST_SCHEMA_VERSION = 2;
 
     /** Serializes a graph to its canonical UTF-8 byte representation. */
     public byte[] write(ProceduralGraph graph) {
@@ -35,7 +40,7 @@ public final class CanonicalGraphJson {
     public String writeString(ProceduralGraph graph) {
         Objects.requireNonNull(graph, "graph");
         StringBuilder result = new StringBuilder();
-        result.append("{\"schemaVersion\":").append(SCHEMA_VERSION);
+        result.append("{\"schemaVersion\":").append(schemaVersion(graph));
         result.append(",\"output\":");
         appendString(result, graph.output().value());
         result.append(",\"nodes\":[");
@@ -50,6 +55,14 @@ public final class CanonicalGraphJson {
             appendNode(result, nodes.get(index));
         }
         return result.append("]}").toString();
+    }
+
+    /** Returns the minimum canonical schema required to encode {@code graph}. */
+    public int schemaVersion(ProceduralGraph graph) {
+        Objects.requireNonNull(graph, "graph");
+        return graph.nodes().stream().anyMatch(PlanarValueSignalNode.class::isInstance)
+                ? LATEST_SCHEMA_VERSION
+                : SCHEMA_VERSION;
     }
 
     /** Reads a graph from strict UTF-8 JSON and validates the reconstructed DAG. */
@@ -75,7 +88,7 @@ public final class CanonicalGraphJson {
             Map<String, Object> root = requireObject(parsed, "graph");
             requireFields(root, Set.of("schemaVersion", "output", "nodes"), "graph");
             int schemaVersion = requireInteger(root.get("schemaVersion"), "schemaVersion");
-            if (schemaVersion != SCHEMA_VERSION) {
+            if (schemaVersion != SCHEMA_VERSION && schemaVersion != LATEST_SCHEMA_VERSION) {
                 throw new GraphSerializationException("unsupported graph schema version: " + schemaVersion);
             }
 
@@ -83,9 +96,16 @@ public final class CanonicalGraphJson {
             List<Object> encodedNodes = requireArray(root.get("nodes"), "nodes");
             List<GraphNode> nodes = new ArrayList<>(encodedNodes.size());
             for (int index = 0; index < encodedNodes.size(); index++) {
-                nodes.add(readNode(requireObject(encodedNodes.get(index), "nodes[" + index + "]")));
+                nodes.add(readNode(
+                        requireObject(encodedNodes.get(index), "nodes[" + index + "]"),
+                        schemaVersion));
             }
-            return new ProceduralGraph(nodes, output);
+            ProceduralGraph graph = new ProceduralGraph(nodes, output);
+            if (schemaVersion(graph) != schemaVersion) {
+                throw new GraphSerializationException(
+                        "graph schema version is not the minimum required by its node set");
+            }
+            return graph;
         } catch (GraphSerializationException exception) {
             throw exception;
         } catch (IllegalArgumentException | NullPointerException exception) {
@@ -115,20 +135,82 @@ public final class CanonicalGraphJson {
             result.append(',');
             appendString(result, arithmetic.right().value());
             result.append(']');
+        } else if (node instanceof PlanarValueSignalNode signal) {
+            result.append(",\"signalVersion\":").append(signal.signalVersion());
+            result.append(",\"seedVersion\":").append(signal.seedVersion());
+            result.append(",\"rootSeed\":");
+            appendString(result, "0x" + HexFormat.of().toHexDigits(signal.rootSeed()));
+            result.append(",\"namespace\":");
+            appendString(result, signal.namespace());
+            result.append(",\"scale\":");
+            appendString(result, Double.toHexString(signal.scale()));
         } else {
             throw new GraphSerializationException("unsupported node kind: " + node.kind());
         }
         result.append('}');
     }
 
-    private static GraphNode readNode(Map<String, Object> encoded) {
+    private static GraphNode readNode(Map<String, Object> encoded, int schemaVersion) {
         String kind = requireString(encoded.get("kind"), "node.kind");
         return switch (kind) {
             case "constant" -> readConstant(encoded);
             case "coordinate" -> readCoordinate(encoded);
             case "arithmetic" -> readArithmetic(encoded);
+            case "planar-value-signal" -> {
+                if (schemaVersion < LATEST_SCHEMA_VERSION) {
+                    throw new GraphSerializationException(
+                            "planar-value-signal requires graph schema version 2");
+                }
+                yield readPlanarValueSignal(encoded);
+            }
             default -> throw new GraphSerializationException("unknown node kind: " + kind);
         };
+    }
+
+    private static PlanarValueSignalNode readPlanarValueSignal(Map<String, Object> encoded) {
+        requireFields(
+                encoded,
+                Set.of(
+                        "id",
+                        "kind",
+                        "outputType",
+                        "signalVersion",
+                        "seedVersion",
+                        "rootSeed",
+                        "namespace",
+                        "scale"),
+                "planar value signal node");
+        String rootSeed = requireString(encoded.get("rootSeed"), "planarValueSignal.rootSeed");
+        if (!rootSeed.matches("0x[0-9a-f]{16}")) {
+            throw new GraphSerializationException(
+                    "planarValueSignal.rootSeed must be 16 lowercase hexadecimal digits");
+        }
+        long parsedSeed;
+        try {
+            parsedSeed = Long.parseUnsignedLong(rootSeed.substring(2), 16);
+        } catch (NumberFormatException exception) {
+            throw new GraphSerializationException("planarValueSignal.rootSeed is invalid", exception);
+        }
+        String scaleText = requireString(encoded.get("scale"), "planarValueSignal.scale");
+        double scale;
+        try {
+            scale = Double.parseDouble(scaleText);
+        } catch (NumberFormatException exception) {
+            throw new GraphSerializationException(
+                    "planarValueSignal.scale is not binary64 hexadecimal", exception);
+        }
+        if (!Double.isFinite(scale) || !Double.toHexString(scale).equals(scaleText)) {
+            throw new GraphSerializationException(
+                    "planarValueSignal.scale is not canonical finite binary64 hexadecimal");
+        }
+        return new PlanarValueSignalNode(
+                nodeId(encoded.get("id"), "planarValueSignal.id"),
+                valueType(encoded.get("outputType")),
+                requireInteger(encoded.get("signalVersion"), "planarValueSignal.signalVersion"),
+                requireInteger(encoded.get("seedVersion"), "planarValueSignal.seedVersion"),
+                parsedSeed,
+                requireString(encoded.get("namespace"), "planarValueSignal.namespace"),
+                scale);
     }
 
     private static ConstantNode readConstant(Map<String, Object> encoded) {
