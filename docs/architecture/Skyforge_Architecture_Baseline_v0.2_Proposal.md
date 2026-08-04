@@ -112,7 +112,7 @@ Minecraft backend.
 
 1. [x] `SF-IMP-0012` — accept the suspended-volume descriptor, signed-density semantics, graph
    intersection primitive, graph schema 3, and exact 3D evidence domain.
-2. [ ] `SF-IMP-0013` — implement the signal-free upper/underside recipe and provenance graphs.
+2. [x] `SF-IMP-0013` — implement the signal-free upper/underside recipe and provenance graphs.
 3. [ ] `SF-IMP-0014` — implement deterministic 3D sampling, metrics, slices, and visual evidence.
 4. [ ] `SF-IMP-0015` — execute the signal-free suspended-volume acceptance suite and pin a golden
    specimen.
