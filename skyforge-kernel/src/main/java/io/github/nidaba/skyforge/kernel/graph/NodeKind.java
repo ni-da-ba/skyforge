@@ -5,6 +5,7 @@ public enum NodeKind {
     CONSTANT("constant"),
     COORDINATE("coordinate"),
     ARITHMETIC("arithmetic"),
+    INTERSECTION("intersection"),
     PLANAR_VALUE_SIGNAL("planar-value-signal");
 
     private final String identifier;
