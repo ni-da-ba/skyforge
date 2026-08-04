@@ -8,10 +8,11 @@ Sprint One and the v0.1 architecture proof are complete. The private canonical r
 `ni-da-ba/skyforge`, the durable Java package root is `io.github.nidaba.skyforge`, and the release
 version is `0.1.0`.
 
-The proof contains six canonical seeded islands, exact regression hashes, a visual atlas, and an
+The proof contains six canonical seeded surface specimens, exact regression hashes, a visual atlas, and an
 observational reference-evaluator benchmark. It proves the descriptor-to-graph-to-evidence
-pipeline independently of Minecraft; it is not a content-complete world generator. The next
-project action is to define the v0.2 composition and secondary-morphology boundary.
+pipeline independently of Minecraft; it is not yet a suspended sky-island generator. Its current
+density field extends indefinitely downward. The next project action is therefore to accept the
+v0.2 suspended-volume boundary before adding composition or secondary morphology.
 
 ## Modules
 
@@ -70,6 +71,9 @@ The implementation contract, acceptance gates, source authority, work register, 
 
 The exact gate-to-test trace, corpus facts, visual-reading guide, deferrals, and release procedure
 are recorded in [`docs/releases/Skyforge_v0.1.0_Release_Record.md`](docs/releases/Skyforge_v0.1.0_Release_Record.md).
+
+The proposed correction from surface terrain to a finite mass suspended in air is defined in
+[`docs/architecture/Skyforge_Architecture_Baseline_v0.2_Proposal.md`](docs/architecture/Skyforge_Architecture_Baseline_v0.2_Proposal.md).
 
 ## License
 

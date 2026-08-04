@@ -368,13 +368,20 @@ The next document version should be `v0.2` only after the open identity/toolchai
 
 ## 14. Immediate next ticket
 
-**Ticket:** SF-IMP-0011 - v0.2 composition and secondary-morphology scope proposal
-**Objective:** Define the smallest next architectural proof that composes meaningful morphology
-without coupling Skyforge to Minecraft or optimizing away the v0.1 reference behavior.
+**Ticket:** SF-IMP-0011 - v0.2 suspended-volume scope proposal
+**Objective:** Define the smallest next architectural proof that turns the v0.1 downward-filled
+terrain field into a finite geological mass suspended in air, without coupling Skyforge to
+Minecraft or changing the v0.1 reference behavior.
 **Done when:**
 
-- composition has explicit semantic ownership, graph behavior, and measurable acceptance gates;
-- one secondary-morphology family enriches rather than replaces primary island identity;
+- upper surface, underside, and signed solid density have explicit semantic ownership and graph
+  behavior;
+- finite closure, suspension, connectedness, control response, and visual evidence have measurable
+  acceptance gates;
+- the implementation order places the suspended primary volume before secondary morphology and
+  composition;
 - reference-evaluator differential identity remains the optimization boundary;
 - NeoForge integration, materials, climate, ecology, and decoration remain explicitly outside the
   proposed slice unless separately accepted.
+
+ADR-0015 records why this correction precedes the earlier composition proposal.

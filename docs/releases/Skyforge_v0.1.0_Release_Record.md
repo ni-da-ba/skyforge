@@ -108,7 +108,11 @@ The release procedure is:
 
 ## 8. Next boundary
 
-`SF-IMP-0011` will propose v0.2 around semantic composition and one secondary-morphology family.
-It will preserve the reference evaluator and v0.1 corpus as differential/regression authorities.
-NeoForge integration, premature optimization, and broad content systems remain outside that default
-next slice.
+`SF-IMP-0011` will propose v0.2 around a finite suspended geological volume. The v0.1 equation
+`D(x,y,z) = H(x,z) - y` is a valid terrain-kernel proof but extends indefinitely downward and is
+therefore not yet sufficient evidence of a sky island. The next proof will define separate upper
+and underside morphology, full air separation, three-dimensional volume gates, and underside-aware
+visual evidence before semantic composition or secondary morphology begins.
+
+The reference evaluator and v0.1 corpus remain differential/regression authorities. NeoForge
+integration, premature optimization, and broad content systems remain outside the next slice.
