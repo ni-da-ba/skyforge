@@ -67,4 +67,29 @@ final class GraphNodeTest {
                         List.of(GraphValueType.SCALAR_FIELD_2, GraphValueType.SCALAR_FIELD_2),
                         node.inputTypes()));
     }
+
+    @Test
+    void planarSignalsExposeVersionedSeedIdentityWithoutGraphInputs() {
+        PlanarValueSignalNode node = new PlanarValueSignalNode(
+                new NodeId("detail"),
+                GraphValueType.SCALAR_FIELD_3,
+                1,
+                1,
+                Long.MIN_VALUE,
+                "island.height-detail",
+                32.0);
+
+        assertAll(
+                () -> assertEquals(NodeKind.PLANAR_VALUE_SIGNAL, node.kind()),
+                () -> assertEquals(List.of(), node.inputs()),
+                () -> assertEquals(List.of(), node.inputTypes()),
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> new PlanarValueSignalNode(
+                                node.id(), node.outputType(), 2, 1, 0L, node.namespace(), node.scale())),
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> new PlanarValueSignalNode(
+                                node.id(), node.outputType(), 1, 1, 0L, node.namespace(), 0.0)));
+    }
 }

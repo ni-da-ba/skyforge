@@ -16,7 +16,10 @@ import io.github.nidaba.skyforge.kernel.graph.CoordinateNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphValueType;
 import io.github.nidaba.skyforge.kernel.graph.NodeId;
+import io.github.nidaba.skyforge.kernel.graph.PlanarValueSignalNode;
 import io.github.nidaba.skyforge.kernel.graph.ProceduralGraph;
+import io.github.nidaba.skyforge.kernel.seed.SeedDerivation;
+import io.github.nidaba.skyforge.kernel.signal.PlanarValueSignal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -79,6 +82,38 @@ final class ReferenceEvaluatorTest {
         assertAll(
                 () -> assertEquals(expected, Double.doubleToRawLongBits(field.sample(coordinate))),
                 () -> assertEquals(expected, Double.doubleToRawLongBits(field.sample(coordinate))));
+    }
+
+    @Test
+    void evaluatesPlanarSignalsIdenticallyInTwoAndThreeDimensions() {
+        NodeId output = new NodeId("signal");
+        PlanarValueSignalNode signal2 = new PlanarValueSignalNode(
+                output,
+                GraphValueType.SCALAR_FIELD_2,
+                PlanarValueSignal.VERSION,
+                SeedDerivation.VERSION,
+                17L,
+                "island.height-detail",
+                32.0);
+        PlanarValueSignalNode signal3 = new PlanarValueSignalNode(
+                output,
+                GraphValueType.SCALAR_FIELD_3,
+                PlanarValueSignal.VERSION,
+                SeedDerivation.VERSION,
+                17L,
+                "island.height-detail",
+                32.0);
+        ScalarField2 field2 = evaluator.field2(new ProceduralGraph(List.of(signal2), output));
+        ScalarField3 field3 = evaluator.field3(new ProceduralGraph(List.of(signal3), output));
+        long expected = Double.doubleToRawLongBits(field2.sample(new Coordinate2(12.5, -7.25)));
+
+        assertAll(
+                () -> assertEquals(
+                        expected,
+                        Double.doubleToRawLongBits(field3.sample(new Coordinate3(12.5, -1000.0, -7.25)))),
+                () -> assertEquals(
+                        expected,
+                        Double.doubleToRawLongBits(field3.sample(new Coordinate3(12.5, 1000.0, -7.25)))));
     }
 
     @Test

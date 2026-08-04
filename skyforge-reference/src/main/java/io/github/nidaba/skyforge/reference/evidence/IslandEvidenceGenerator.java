@@ -12,7 +12,7 @@ import io.github.nidaba.skyforge.reference.sampling.ScalarGrid;
 import java.util.ArrayDeque;
 import java.util.Objects;
 
-/** Generates deterministic numerical evidence from a compiled signal-free island. */
+/** Generates deterministic numerical evidence from a compiled island. */
 public final class IslandEvidenceGenerator {
     /** Half-width of the standard square in nominal-radius units. */
     public static final double STANDARD_HALF_WIDTH_FACTOR = 1.5;

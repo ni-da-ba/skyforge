@@ -1,6 +1,6 @@
 package io.github.nidaba.skyforge.reference.evidence;
 
-/** Measured signal-free morphology facts used by the island acceptance gates. */
+/** Measured morphology facts used by the island acceptance gates. */
 public record IslandMetrics(
         int landSampleCount,
         int connectedLandComponents,

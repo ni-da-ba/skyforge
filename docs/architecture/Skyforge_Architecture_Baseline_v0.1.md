@@ -168,7 +168,7 @@ Forbidden dependencies are tested. In particular, `skyforge-kernel`, `skyforge-m
 
 ### ADR-004 - Determinism contract
 
-**Status:** Provisional
+**Status:** Accepted by ADR-0012 for v0.1
 
 For the same Skyforge version, canonical descriptor, root seed, graph, and coordinate set:
 
@@ -181,7 +181,8 @@ For the same Skyforge version, canonical descriptor, root seed, graph, and coord
 
 Not promised in v0.1: identical results across Skyforge versions, arbitrary JVM implementations, CPU architectures, or changed numerical modes. Any future compatibility promise must be explicit and tested.
 
-The exact seed-mixing and canonical JSON algorithms must be accepted before the first seeded signal is merged. The signal-free island may be implemented before that decision.
+ADR-0008 accepts canonical graph JSON, and ADR-0012 accepts semantic seed derivation version 1 plus
+the first bounded signal family. Cross-version bitwise compatibility remains outside v0.1.
 
 ### ADR-005 - Graph contract
 
@@ -272,8 +273,8 @@ Unless an acceptance test specifies otherwise:
 | SF-ISL-009 | Explainable output | evidence report links every descriptor property to graph substructure and measured effects |
 
 ADR-0011 records the passing signal-free envelopes for `SF-ISL-001` through `SF-ISL-006`,
-`SF-ISL-008`, and `SF-ISL-009`. `SF-ISL-007` remains explicitly deferred until seed derivation and
-the first bounded signal family are accepted; it is not waived and Sprint One is not yet complete.
+`SF-ISL-008`, and `SF-ISL-009`. ADR-0012 executes `SF-ISL-007` across the fixed seed suite and
+preserves the exact base land mask by construction.
 
 ### 8.3 Sprint One completion gate
 
@@ -315,7 +316,7 @@ Every bug involving determinism or a violated invariant receives a regression te
 - [x] Accept the canonical graph serialization algorithm in ADR-0008; no general serialization library is required.
 - [x] Resolve image output for the first evidence ticket: use the Java standard PNG encoder and
   introduce no third-party image dependency (ADR-0010).
-- [ ] Accept the exact seed derivation algorithm before the first seeded signal is merged.
+- [x] Accept seed derivation version 1 and the first bounded signal family in ADR-0012.
 
 ### 10.2 Sprint One - implementation order
 
@@ -327,19 +328,18 @@ Every bug involving determinism or a violated invariant receives a regression te
 6. [x] Implement the signal-free island descriptor and recipe.
 7. [x] Implement the reference sampler, raster outputs, statistics, and evidence manifest.
 8. [x] Pass every currently applicable signal-free island gate and pin its golden corpus.
-9. Accept and implement stable seed derivation plus one signal family.
+9. [x] Accept and implement stable seed derivation plus one signal family.
 10. Pass the full fixed-seed corpus and publish the first benchmark baseline.
 
 ## 11. Remaining open decisions
 
-These decisions should not be guessed because they govern ownership, compatibility, or long-term identity:
+Future decisions should not be guessed because they govern ownership, compatibility, or long-term
+identity.
 
-| ID | Decision | Needed by | Default if temporarily deferred |
-|---|---|---|---|
-| SF-OPEN-005 | Exact seed derivation algorithm | seeded signal work | no seeded node may merge |
 SF-OPEN-001 through SF-OPEN-004 are resolved by ADR-0007. SF-OPEN-006 is resolved for graphs by
-ADR-0008; descriptor serialization remains deferred until the evidence-manifest ticket. A future
-public distribution requires a new explicit license decision.
+ADR-0008. SF-OPEN-005 is resolved by ADR-0012. Descriptor serialization is implemented narrowly by
+the evidence manifest; a future general descriptor codec remains deferred. A future public
+distribution requires a new explicit license decision.
 
 ## 12. Risk register
 
@@ -361,14 +361,14 @@ The next document version should be `v0.2` only after the open identity/toolchai
 
 ## 14. Immediate next ticket
 
-**Ticket:** SF-IMP-0008 - Stable seed derivation and first bounded signal
-**Objective:** Accept one versioned semantic seed-derivation algorithm and implement the first
-signal family as bounded enrichment of the accepted base morphology.
+**Ticket:** SF-IMP-0009 - Fixed-seed evidence corpus and benchmark baseline
+**Objective:** Publish canonical evidence for the accepted fixed seed suite and measure the
+deliberately simple reference evaluator before optimization.
 **Done when:**
 
-- seed derivation is centralized, versioned, namespaced by stable semantic identifiers, and recorded
-  in an accepted ADR;
-- one deterministic signal node has canonical serialization and analytical/determinism tests;
-- the island recipe bounds signal displacement so the accepted base morphology remains primary;
-- zero amplitude still reproduces the exact signal-free golden corpus;
-- the new fixed-seed corpus provides the evidence required to execute `SF-ISL-007`.
+- every fixed seed produces a versioned canonical evidence package with pinned descriptor, graph,
+  grid, cross-section, statistics, and morphology checksums;
+- corpus regeneration is one documented command and fails on any unexpected drift;
+- reference evaluation wall time and throughput are recorded with environment metadata as
+  observations rather than arbitrary pass/fail targets;
+- Sprint One's complete fixed-corpus gate passes from a clean Java 25 checkout.

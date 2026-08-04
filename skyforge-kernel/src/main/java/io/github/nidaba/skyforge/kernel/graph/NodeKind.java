@@ -4,7 +4,8 @@ package io.github.nidaba.skyforge.kernel.graph;
 public enum NodeKind {
     CONSTANT("constant"),
     COORDINATE("coordinate"),
-    ARITHMETIC("arithmetic");
+    ARITHMETIC("arithmetic"),
+    PLANAR_VALUE_SIGNAL("planar-value-signal");
 
     private final String identifier;
 

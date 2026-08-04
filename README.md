@@ -6,9 +6,9 @@ Skyforge is a backend-neutral procedural world synthesis engine. Its first proof
 
 Sprint Zero is documented and the Sprint One repository skeleton is ready. The private canonical repository is `ni-da-ba/skyforge`, and the durable Java package root is `io.github.nidaba.skyforge`.
 
-The latest completed ticket is `SF-IMP-0007`: the fixed signal-free acceptance corpus, explicit
-morphology envelopes, and pinned golden evidence. The next planned ticket is `SF-IMP-0008`: accept
-stable seed derivation and implement the first bounded signal family.
+The latest completed ticket is `SF-IMP-0008`: versioned semantic seed derivation, the first bounded
+planar signal family, and the seeded identity gate. The next planned ticket is `SF-IMP-0009`: pin the
+full fixed-seed evidence corpus and publish the first reference benchmark baseline.
 
 ## Modules
 
@@ -44,6 +44,9 @@ The package contains canonical raw grids and hexadecimal cross-section data alon
 images. Its manifest records versions, bounds, statistics, morphology metrics, and SHA-256 hashes.
 The signal-free acceptance suite executes the named `SF-ISL` gates and pins the normative standard
 package hashes; run it with the ordinary `./gradlew check` command.
+Seeded graphs use canonical graph schema 2 while signal-free graphs retain byte-identical schema-1
+serialization. The seeded recipe caps relative height modulation at 15 percent and preserves the
+base land mask exactly.
 
 ## Project record
 
