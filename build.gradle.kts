@@ -1,3 +1,4 @@
+import io.github.nidaba.skyforge.buildlogic.VerifyBackendIndependenceTask
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
@@ -39,36 +40,16 @@ val engineModules = listOf(
     project(":skyforge-recipes"),
 )
 
-val verifyBackendIndependence by tasks.registering {
+val verifyBackendIndependence = tasks.register<VerifyBackendIndependenceTask>("verifyBackendIndependence") {
     group = "verification"
     description = "Rejects Minecraft or NeoForge imports from backend-neutral modules."
+    projectRoot.set(layout.projectDirectory)
 
-    val forbiddenImport = Regex("""^\s*import\s+(net\.minecraft|net\.neoforged)(\.|;)""")
-    val sourceTrees = engineModules.map { module ->
+    sourceFiles.from(engineModules.map { module ->
         module.fileTree("src") {
             include("**/*.java")
         }
-    }
-
-    inputs.files(sourceTrees)
-
-    doLast {
-        val violations = sourceTrees
-            .flatMap { tree -> tree.files }
-            .flatMap { source ->
-                source.readLines().mapIndexedNotNull { index, line ->
-                    if (forbiddenImport.containsMatchIn(line)) {
-                        "${source.relativeTo(rootDir)}:${index + 1}: $line"
-                    } else {
-                        null
-                    }
-                }
-            }
-
-        check(violations.isEmpty()) {
-            "Backend dependencies found in engine modules:\n${violations.joinToString("\n")}"
-        }
-    }
+    })
 }
 
 tasks.named("check") {
