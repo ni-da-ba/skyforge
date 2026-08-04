@@ -7,6 +7,7 @@ import io.github.nidaba.skyforge.kernel.graph.CoordinateAxis;
 import io.github.nidaba.skyforge.kernel.graph.CoordinateNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphValueType;
+import io.github.nidaba.skyforge.kernel.graph.IntersectionNode;
 import io.github.nidaba.skyforge.kernel.graph.NodeId;
 import io.github.nidaba.skyforge.kernel.graph.PlanarValueSignalNode;
 import io.github.nidaba.skyforge.kernel.graph.ProceduralGraph;
@@ -28,8 +29,14 @@ public final class CanonicalGraphJson {
     /** Base graph schema retained for signal-free canonical compatibility. */
     public static final int SCHEMA_VERSION = 1;
 
-    /** Latest graph schema, adding the planar value signal node. */
-    public static final int LATEST_SCHEMA_VERSION = 2;
+    /** Graph schema adding the planar value signal node. */
+    public static final int PLANAR_SIGNAL_SCHEMA_VERSION = 2;
+
+    /** Graph schema adding positive-inside three-dimensional intersections. */
+    public static final int INTERSECTION_SCHEMA_VERSION = 3;
+
+    /** Latest graph schema. */
+    public static final int LATEST_SCHEMA_VERSION = INTERSECTION_SCHEMA_VERSION;
 
     /** Serializes a graph to its canonical UTF-8 byte representation. */
     public byte[] write(ProceduralGraph graph) {
@@ -60,9 +67,13 @@ public final class CanonicalGraphJson {
     /** Returns the minimum canonical schema required to encode {@code graph}. */
     public int schemaVersion(ProceduralGraph graph) {
         Objects.requireNonNull(graph, "graph");
-        return graph.nodes().stream().anyMatch(PlanarValueSignalNode.class::isInstance)
-                ? LATEST_SCHEMA_VERSION
-                : SCHEMA_VERSION;
+        if (graph.nodes().stream().anyMatch(IntersectionNode.class::isInstance)) {
+            return INTERSECTION_SCHEMA_VERSION;
+        }
+        if (graph.nodes().stream().anyMatch(PlanarValueSignalNode.class::isInstance)) {
+            return PLANAR_SIGNAL_SCHEMA_VERSION;
+        }
+        return SCHEMA_VERSION;
     }
 
     /** Reads a graph from strict UTF-8 JSON and validates the reconstructed DAG. */
@@ -88,7 +99,7 @@ public final class CanonicalGraphJson {
             Map<String, Object> root = requireObject(parsed, "graph");
             requireFields(root, Set.of("schemaVersion", "output", "nodes"), "graph");
             int schemaVersion = requireInteger(root.get("schemaVersion"), "schemaVersion");
-            if (schemaVersion != SCHEMA_VERSION && schemaVersion != LATEST_SCHEMA_VERSION) {
+            if (schemaVersion < SCHEMA_VERSION || schemaVersion > LATEST_SCHEMA_VERSION) {
                 throw new GraphSerializationException("unsupported graph schema version: " + schemaVersion);
             }
 
@@ -135,6 +146,12 @@ public final class CanonicalGraphJson {
             result.append(',');
             appendString(result, arithmetic.right().value());
             result.append(']');
+        } else if (node instanceof IntersectionNode intersection) {
+            result.append(",\"inputs\":[");
+            appendString(result, intersection.left().value());
+            result.append(',');
+            appendString(result, intersection.right().value());
+            result.append(']');
         } else if (node instanceof PlanarValueSignalNode signal) {
             result.append(",\"signalVersion\":").append(signal.signalVersion());
             result.append(",\"seedVersion\":").append(signal.seedVersion());
@@ -156,8 +173,15 @@ public final class CanonicalGraphJson {
             case "constant" -> readConstant(encoded);
             case "coordinate" -> readCoordinate(encoded);
             case "arithmetic" -> readArithmetic(encoded);
+            case "intersection" -> {
+                if (schemaVersion < INTERSECTION_SCHEMA_VERSION) {
+                    throw new GraphSerializationException(
+                            "intersection requires graph schema version 3");
+                }
+                yield readIntersection(encoded);
+            }
             case "planar-value-signal" -> {
-                if (schemaVersion < LATEST_SCHEMA_VERSION) {
+                if (schemaVersion < PLANAR_SIGNAL_SCHEMA_VERSION) {
                     throw new GraphSerializationException(
                             "planar-value-signal requires graph schema version 2");
                 }
@@ -165,6 +189,22 @@ public final class CanonicalGraphJson {
             }
             default -> throw new GraphSerializationException("unknown node kind: " + kind);
         };
+    }
+
+    private static IntersectionNode readIntersection(Map<String, Object> encoded) {
+        requireFields(encoded, Set.of("id", "kind", "outputType", "inputs"), "intersection node");
+        if (valueType(encoded.get("outputType")) != GraphValueType.SCALAR_FIELD_3) {
+            throw new GraphSerializationException("intersection outputType must be scalar-field-3");
+        }
+        List<Object> inputs = requireArray(encoded.get("inputs"), "intersection.inputs");
+        if (inputs.size() != 2) {
+            throw new GraphSerializationException(
+                    "intersection.inputs must contain exactly two node ids");
+        }
+        return new IntersectionNode(
+                nodeId(encoded.get("id"), "intersection.id"),
+                nodeId(inputs.get(0), "intersection.inputs[0]"),
+                nodeId(inputs.get(1), "intersection.inputs[1]"));
     }
 
     private static PlanarValueSignalNode readPlanarValueSignal(Map<String, Object> encoded) {

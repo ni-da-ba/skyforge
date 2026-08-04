@@ -14,6 +14,7 @@ import io.github.nidaba.skyforge.kernel.graph.CoordinateAxis;
 import io.github.nidaba.skyforge.kernel.graph.CoordinateNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphValueType;
+import io.github.nidaba.skyforge.kernel.graph.IntersectionNode;
 import io.github.nidaba.skyforge.kernel.graph.NodeId;
 import io.github.nidaba.skyforge.kernel.graph.PlanarValueSignalNode;
 import io.github.nidaba.skyforge.kernel.graph.ProceduralGraph;
@@ -162,7 +163,7 @@ final class CanonicalGraphJsonTest {
         ProceduralGraph restored = codec.readString(expected);
 
         assertAll(
-                () -> assertEquals(CanonicalGraphJson.LATEST_SCHEMA_VERSION, codec.schemaVersion(graph)),
+                () -> assertEquals(CanonicalGraphJson.PLANAR_SIGNAL_SCHEMA_VERSION, codec.schemaVersion(graph)),
                 () -> assertEquals(expected, codec.writeString(graph)),
                 () -> assertEquals(graph.requireNode(output), restored.requireNode(output)),
                 () -> assertArrayEquals(codec.write(graph), codec.write(restored)));
@@ -173,6 +174,59 @@ final class CanonicalGraphJsonTest {
         assertAll(
                 () -> assertEquals(CanonicalGraphJson.SCHEMA_VERSION, codec.schemaVersion(graph(nodes()))),
                 () -> assertEquals(CANONICAL_GRAPH, codec.writeString(graph(nodes()))));
+    }
+
+    @Test
+    void emitsSchemaThreeAndRoundTripsTheIntersectionContract() {
+        NodeId upper = new NodeId("upper");
+        NodeId lower = new NodeId("lower");
+        NodeId output = new NodeId("solid");
+        ProceduralGraph graph = new ProceduralGraph(
+                List.of(
+                        new ConstantNode(upper, GraphValueType.SCALAR_FIELD_3, 1.0),
+                        new ConstantNode(lower, GraphValueType.SCALAR_FIELD_3, -2.0),
+                        new IntersectionNode(output, upper, lower)),
+                output);
+        String expected = "{\"schemaVersion\":3,\"output\":\"solid\",\"nodes\":["
+                + "{\"id\":\"lower\",\"kind\":\"constant\",\"outputType\":\"scalar-field-3\","
+                + "\"value\":\"-0x1.0p1\"},"
+                + "{\"id\":\"solid\",\"kind\":\"intersection\","
+                + "\"outputType\":\"scalar-field-3\",\"inputs\":[\"upper\",\"lower\"]},"
+                + "{\"id\":\"upper\",\"kind\":\"constant\",\"outputType\":\"scalar-field-3\","
+                + "\"value\":\"0x1.0p0\"}]}";
+
+        ProceduralGraph restored = codec.readString(expected);
+
+        assertAll(
+                () -> assertEquals(CanonicalGraphJson.INTERSECTION_SCHEMA_VERSION, codec.schemaVersion(graph)),
+                () -> assertEquals(expected, codec.writeString(graph)),
+                () -> assertEquals(graph.requireNode(output), restored.requireNode(output)),
+                () -> assertArrayEquals(codec.write(graph), codec.write(restored)));
+    }
+
+    @Test
+    void intersectionRequiresSchemaThreeAndThreeDimensionalType() {
+        String canonical = "{\"schemaVersion\":3,\"output\":\"solid\",\"nodes\":["
+                + "{\"id\":\"left\",\"kind\":\"constant\",\"outputType\":\"scalar-field-3\","
+                + "\"value\":\"0x1.0p0\"},"
+                + "{\"id\":\"right\",\"kind\":\"constant\",\"outputType\":\"scalar-field-3\","
+                + "\"value\":\"0x1.0p1\"},"
+                + "{\"id\":\"solid\",\"kind\":\"intersection\","
+                + "\"outputType\":\"scalar-field-3\",\"inputs\":[\"left\",\"right\"]}]}";
+
+        assertAll(
+                () -> assertThrows(
+                        GraphSerializationException.class,
+                        () -> codec.readString(canonical.replace("\"schemaVersion\":3", "\"schemaVersion\":2"))),
+                () -> assertThrows(
+                        GraphSerializationException.class,
+                        () -> codec.readString(canonical.replace(
+                                "\"kind\":\"intersection\",\"outputType\":\"scalar-field-3\"",
+                                "\"kind\":\"intersection\",\"outputType\":\"scalar-field-2\""))),
+                () -> assertThrows(
+                        GraphSerializationException.class,
+                        () -> codec.readString(canonical.replace(
+                                "[\"left\",\"right\"]", "[\"left\"]"))));
     }
 
     @Test
@@ -191,7 +245,7 @@ final class CanonicalGraphJsonTest {
 
     @Test
     void rejectsUnsupportedVersionsUnknownAndDuplicateMembers() {
-        String unsupported = CANONICAL_GRAPH.replace("\"schemaVersion\":1", "\"schemaVersion\":2");
+        String unsupported = CANONICAL_GRAPH.replace("\"schemaVersion\":1", "\"schemaVersion\":4");
         String unknown = CANONICAL_GRAPH.replace(
                 "\"schemaVersion\":1", "\"schemaVersion\":1,\"future\":true");
         String duplicate = CANONICAL_GRAPH.replace(

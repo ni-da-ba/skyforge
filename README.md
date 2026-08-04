@@ -10,9 +10,11 @@ version is `0.1.0`.
 
 The proof contains six canonical seeded surface specimens, exact regression hashes, a visual atlas, and an
 observational reference-evaluator benchmark. It proves the descriptor-to-graph-to-evidence
-pipeline independently of Minecraft; it is not yet a suspended sky-island generator. Its current
-density field extends indefinitely downward. The next project action is therefore to accept the
-v0.2 suspended-volume boundary before adding composition or secondary morphology.
+pipeline independently of Minecraft; it is not yet a suspended sky-island generator. Its released
+density field extends indefinitely downward. The v0.2 boundary now accepts a semantic suspended-
+volume descriptor, exact signed-density convention, three-dimensional intersection node, graph
+schema 3, and canonical evidence domain. The next action is the first signal-free upper/underside
+recipe, before composition or secondary morphology.
 
 ## Modules
 
@@ -49,7 +51,8 @@ images. Its manifest records versions, bounds, statistics, morphology metrics, a
 The signal-free acceptance suite executes the named `SF-ISL` gates and pins the normative standard
 package hashes; run it with the ordinary `./gradlew check` command.
 Seeded graphs use canonical graph schema 2 while signal-free graphs retain byte-identical schema-1
-serialization. The seeded recipe caps relative height modulation at 15 percent and preserves the
+serialization. Suspended-volume intersections use schema 3 without changing either released
+encoding. The seeded v0.1 recipe caps relative height modulation at 15 percent and preserves the
 base land mask exactly.
 
 Regenerate and verify the complete fixed-seed corpus with:
@@ -72,7 +75,7 @@ The implementation contract, acceptance gates, source authority, work register, 
 The exact gate-to-test trace, corpus facts, visual-reading guide, deferrals, and release procedure
 are recorded in [`docs/releases/Skyforge_v0.1.0_Release_Record.md`](docs/releases/Skyforge_v0.1.0_Release_Record.md).
 
-The proposed correction from surface terrain to a finite mass suspended in air is defined in
+The accepted implementation boundary from surface terrain to a finite mass suspended in air is defined in
 [`docs/architecture/Skyforge_Architecture_Baseline_v0.2_Proposal.md`](docs/architecture/Skyforge_Architecture_Baseline_v0.2_Proposal.md).
 
 ## License

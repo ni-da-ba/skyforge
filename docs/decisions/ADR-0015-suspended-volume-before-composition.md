@@ -1,6 +1,6 @@
 # ADR-0015: Suspended volume before composition
 
-**Status:** Proposed
+**Status:** Accepted by SF-IMP-0012
 **Date:** 2026-08-03
 **Ticket:** SF-IMP-0011
 
@@ -30,9 +30,10 @@ valleys, or composition to the half-space density would enrich the wrong primary
 5. Model the upper surface and underside as separately inspectable morphology. Their shared
    intersection determines the outer silhouette; neither a ground plane nor an implicit
    downward-filled half-space may participate in the result.
-6. Add the smallest graph-composition primitive needed to combine upper and lower constraints
-   only after its binary64, validation, canonical-serialization, and compatibility behavior is
-   accepted. A pointwise minimum is the current candidate, not an accepted implementation detail.
+6. Add only the smallest graph-composition primitive needed to combine upper and lower constraints.
+   ADR-0016 accepts a three-dimensional positive-inside intersection evaluated as exact pointwise
+   `Math.min`, together with its binary64, validation, canonical-serialization, and compatibility
+   behavior.
 7. Require three-dimensional numerical evidence and views that reveal the underside. A top-down
    height map remains useful, but it cannot by itself satisfy a suspended-volume gate.
 

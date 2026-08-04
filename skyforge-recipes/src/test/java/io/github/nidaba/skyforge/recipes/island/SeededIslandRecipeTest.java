@@ -47,7 +47,9 @@ final class SeededIslandRecipeTest {
 
         assertAll(
                 () -> assertEquals(SeededIslandRecipe.RECIPE_VERSION, compiled.recipeVersion()),
-                () -> assertEquals(CanonicalGraphJson.LATEST_SCHEMA_VERSION, compiled.graphSchemaVersion()),
+                () -> assertEquals(
+                        CanonicalGraphJson.PLANAR_SIGNAL_SCHEMA_VERSION,
+                        compiled.graphSchemaVersion()),
                 () -> assertEquals(new NodeId("height.seeded"), compiled.heightGraph().output()),
                 () -> assertEquals(new NodeId("density"), compiled.densityGraph().output()),
                 () -> assertEquals(descriptor.seed(), signal.rootSeed()),

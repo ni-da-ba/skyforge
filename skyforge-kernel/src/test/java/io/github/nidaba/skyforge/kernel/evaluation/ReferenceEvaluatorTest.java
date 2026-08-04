@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.kernel.evaluation;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.kernel.coordinate.Coordinate2;
 import io.github.nidaba.skyforge.kernel.coordinate.Coordinate3;
@@ -15,6 +16,7 @@ import io.github.nidaba.skyforge.kernel.graph.CoordinateAxis;
 import io.github.nidaba.skyforge.kernel.graph.CoordinateNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphValueType;
+import io.github.nidaba.skyforge.kernel.graph.IntersectionNode;
 import io.github.nidaba.skyforge.kernel.graph.NodeId;
 import io.github.nidaba.skyforge.kernel.graph.PlanarValueSignalNode;
 import io.github.nidaba.skyforge.kernel.graph.ProceduralGraph;
@@ -114,6 +116,64 @@ final class ReferenceEvaluatorTest {
                 () -> assertEquals(
                         expected,
                         Double.doubleToRawLongBits(field3.sample(new Coordinate3(12.5, 1000.0, -7.25)))));
+    }
+
+    @Test
+    void intersectsPositiveInsideDensityConstraintsWithExactMinimumSemantics() {
+        NodeId upper = new NodeId("upper");
+        NodeId lower = new NodeId("lower");
+        NodeId output = new NodeId("solid");
+        ProceduralGraph graph = new ProceduralGraph(
+                List.of(
+                        new ConstantNode(upper, GraphValueType.SCALAR_FIELD_3, 7.5),
+                        new ConstantNode(lower, GraphValueType.SCALAR_FIELD_3, -2.25),
+                        new IntersectionNode(output, upper, lower)),
+                output);
+        ScalarField3 field = evaluator.field3(graph);
+
+        assertAll(
+                () -> assertEquals(-2.25, field.sample(new Coordinate3(0.0, 0.0, 0.0))),
+                () -> assertEquals(
+                        Double.doubleToRawLongBits(-2.25),
+                        Double.doubleToRawLongBits(field.sample(new Coordinate3(1.0, 2.0, 3.0)))));
+    }
+
+    @Test
+    void intersectionPreservesNegativeZeroAndPropagatesNonfiniteArithmetic() {
+        NodeId positiveZero = new NodeId("positive-zero");
+        NodeId negativeZero = new NodeId("negative-zero");
+        NodeId zeroIntersection = new NodeId("zero-intersection");
+        ProceduralGraph signedZeroGraph = new ProceduralGraph(
+                List.of(
+                        new ConstantNode(positiveZero, GraphValueType.SCALAR_FIELD_3, 0.0),
+                        new ConstantNode(negativeZero, GraphValueType.SCALAR_FIELD_3, -0.0),
+                        new IntersectionNode(zeroIntersection, positiveZero, negativeZero)),
+                zeroIntersection);
+
+        NodeId zero = new NodeId("zero");
+        NodeId invalid = new NodeId("invalid");
+        NodeId one = new NodeId("one");
+        NodeId invalidIntersection = new NodeId("invalid-intersection");
+        ProceduralGraph nonfiniteGraph = new ProceduralGraph(
+                List.of(
+                        new ConstantNode(zero, GraphValueType.SCALAR_FIELD_3, 0.0),
+                        new ConstantNode(one, GraphValueType.SCALAR_FIELD_3, 1.0),
+                        new ArithmeticNode(
+                                invalid,
+                                GraphValueType.SCALAR_FIELD_3,
+                                ArithmeticOperator.DIVIDE,
+                                zero,
+                                zero),
+                        new IntersectionNode(invalidIntersection, one, invalid)),
+                invalidIntersection);
+
+        assertAll(
+                () -> assertEquals(
+                        Double.doubleToRawLongBits(-0.0),
+                        Double.doubleToRawLongBits(evaluator.field3(signedZeroGraph)
+                                .sample(new Coordinate3(0.0, 0.0, 0.0)))),
+                () -> assertTrue(Double.isNaN(evaluator.field3(nonfiniteGraph)
+                        .sample(new Coordinate3(0.0, 0.0, 0.0)))));
     }
 
     @Test
