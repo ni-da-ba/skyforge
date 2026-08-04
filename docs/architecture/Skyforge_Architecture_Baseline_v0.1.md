@@ -1,9 +1,9 @@
 # Skyforge Architecture Baseline v0.1
 
 **Document ID:** SF-BASE-0001
-**Status:** Proposed baseline for implementation
+**Status:** Accepted v0.1 architecture proof
 **Date:** 2026-08-03
-**Project phase:** Sprint Zero
+**Project phase:** Sprint One complete; v0.1.0 release candidate
 **Owner:** Nicholas
 **Change rule:** A decision marked *Accepted* is binding until superseded by a later decision record. A decision marked *Provisional* may be changed when implementation evidence justifies it.
 
@@ -35,13 +35,16 @@ This is a proof of architecture, not a content-complete world generator.
 
 ### 2.3 Maturity statement
 
-At the start of this baseline:
+At v0.1 closure:
 
 - Conceptual foundation: strong.
-- Architectural direction: strong but incomplete.
-- Software contracts: newly proposed here.
-- Implementation: not yet begun.
-- Empirical validation: not yet begun.
+- Architectural direction: validated for the first narrow vertical slice.
+- Software contracts: implemented and accepted for v0.1.
+- Implementation: complete for the declared v0.1 scope.
+- Empirical validation: complete for the named kernel and first-island gates.
+
+The proof remains intentionally narrow. Composition, secondary morphology, multiple landform
+archetypes, backend realization, and content systems remain future work.
 
 ## 3. Doctrine carried forward
 
@@ -135,13 +138,13 @@ A minimal end-to-end proof crossing semantic description, recipe compilation, gr
 
 ### ADR-001 - Language and build
 
-**Status:** Provisional
+**Status:** Accepted for v0.1 by ADR-0007
 **Decision:** Use Java with Gradle Kotlin DSL and a checked-in Gradle wrapper. Use a Java toolchain rather than the developer machine's ambient JDK.
 **Reason:** Java provides a direct path to the planned Minecraft backend while allowing the engine to remain ordinary backend-neutral Java. The exact language level will be pinned during repository scaffolding after the first backend compatibility check.
 
 ### ADR-002 - Initial module boundaries
 
-**Status:** Provisional
+**Status:** Accepted for v0.1 by ADR-0014
 
 | Module | Owns | May depend on |
 |---|---|---|
@@ -155,7 +158,7 @@ Forbidden dependencies are tested. In particular, `skyforge-kernel`, `skyforge-m
 
 ### ADR-003 - Coordinate contract
 
-**Status:** Provisional
+**Status:** Accepted for v0.1 by ADR-0014
 
 - Kernel coordinates are continuous IEEE-754 binary64 values.
 - The coordinate system is right-handed: `x` and `z` span the horizontal plane and `y` is up.
@@ -186,20 +189,20 @@ the first bounded signal family. Cross-version bitwise compatibility remains out
 
 ### ADR-005 - Graph contract
 
-**Status:** Provisional
+**Status:** Accepted for v0.1 by ADR-0014
 
 - A graph is typed and acyclic.
 - Every node declares a stable node-kind identifier, output type, ordered inputs, and immutable parameters.
 - Node equality is structural, not based on object identity.
 - Construction rejects cycles, missing inputs, type mismatches, unknown node kinds, and non-finite parameters.
-- v0.1 node kinds are limited to constants, coordinates, arithmetic, minimum/maximum, clamp, remap, smooth minimum/maximum, distance primitives, affine coordinate transforms, and one versioned seeded signal family.
+- The implemented v0.1 node kinds are constants, coordinates, four basic arithmetic operators, and one versioned seeded planar value-signal family. Additional convenience, distance, transform, blend, and shaping nodes are deferred until a recipe demonstrates their need.
 - The reference evaluator favors clarity and correctness over speed.
 - Later compiled or optimized evaluators must pass differential tests against the reference evaluator.
 - Graph serialization is versioned, human-readable, and canonical for checksum purposes.
 
 ### ADR-006 - Semantic hierarchy in v0.1
 
-**Status:** Provisional
+**Status:** Accepted for v0.1 by ADR-0014
 **Decision:** The hierarchy is a semantic provenance requirement, not a requirement to preserve every layer as a runtime object after compilation. The first evidence package records World, Province, Cluster, and Island provenance even though only the Island has meaningful generation behavior. A compiler may fuse or eliminate intermediate calculations while retaining inspectable provenance.
 
 ## 7. First island specification
@@ -308,7 +311,7 @@ Every bug involving determinism or a violated invariant receives a regression te
 - [x] Propose module, coordinate, determinism, graph, and hierarchy contracts.
 - [x] Define the first island descriptor and recipe obligations.
 - [x] Define acceptance gates and evidence policy.
-- [ ] Nicholas accepts or amends this baseline.
+- [x] Nicholas accepts or amends this baseline through the reviewed Sprint One implementation and closure record.
 - [x] Choose repository host, visibility, ownership, and private-development license posture.
 - [x] Choose the durable Java package namespace.
 - [x] Pin Java and Gradle after compatibility checks.
@@ -320,11 +323,11 @@ Every bug involving determinism or a violated invariant receives a regression te
 
 ### 10.2 Sprint One - implementation order
 
-1. Create the repository and Gradle modules with dependency-enforcement tests.
-2. Add continuous integration for build and test on a clean environment.
-3. Implement coordinate values, scalar field interfaces, and finite-value validation.
-4. Implement the minimal graph model, node types, cycle/type validation, and reference evaluator.
-5. Implement canonical graph serialization and round-trip tests.
+1. [x] Create the repository and Gradle modules with dependency-enforcement tests.
+2. [x] Add continuous integration for build and test on a clean environment.
+3. [x] Implement coordinate values, scalar field interfaces, and finite-value validation.
+4. [x] Implement the minimal graph model, node types, cycle/type validation, and reference evaluator.
+5. [x] Implement canonical graph serialization and round-trip tests.
 6. [x] Implement the signal-free island descriptor and recipe.
 7. [x] Implement the reference sampler, raster outputs, statistics, and evidence manifest.
 8. [x] Pass every currently applicable signal-free island gate and pin its golden corpus.
@@ -340,6 +343,10 @@ SF-OPEN-001 through SF-OPEN-004 are resolved by ADR-0007. SF-OPEN-006 is resolve
 ADR-0008. SF-OPEN-005 is resolved by ADR-0012. Descriptor serialization is implemented narrowly by
 the evidence manifest; a future general descriptor codec remains deferred. A future public
 distribution requires a new explicit license decision.
+
+No open decision blocks the v0.1 architecture proof. Cross-version identity, public distribution,
+additional node families, composition rules, secondary morphology, optimization, and backend
+integration require explicit later decisions rather than being inferred from this release.
 
 ## 12. Risk register
 
@@ -361,13 +368,13 @@ The next document version should be `v0.2` only after the open identity/toolchai
 
 ## 14. Immediate next ticket
 
-**Ticket:** SF-IMP-0010 - v0.1 closure audit and release record
-**Objective:** Verify that every Sprint One contract and accepted decision is represented by merged
-code, passing evidence, and a durable release record before the v0.2 boundary is proposed.
+**Ticket:** SF-IMP-0011 - v0.2 composition and secondary-morphology scope proposal
+**Objective:** Define the smallest next architectural proof that composes meaningful morphology
+without coupling Skyforge to Minecraft or optimizing away the v0.1 reference behavior.
 **Done when:**
 
-- all `SF-KER` and `SF-ISL` gates are traced to passing tests and fixed evidence;
-- ADRs, work register, risk register, README, and generated corpus agree on the released v0.1 proof;
-- the release commit is tagged only after the protected `main` build passes;
-- the v0.2 proposal begins from explicit composition and secondary-morphology scope rather than
-  backend integration or premature optimization.
+- composition has explicit semantic ownership, graph behavior, and measurable acceptance gates;
+- one secondary-morphology family enriches rather than replaces primary island identity;
+- reference-evaluator differential identity remains the optimization boundary;
+- NeoForge integration, materials, climate, ecology, and decoration remain explicitly outside the
+  proposed slice unless separately accepted.
