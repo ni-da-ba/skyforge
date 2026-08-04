@@ -1,6 +1,5 @@
 package io.github.nidaba.skyforge.reference;
 
-import io.github.nidaba.skyforge.model.island.IslandDescriptor;
 import io.github.nidaba.skyforge.recipes.island.CompiledIsland;
 import io.github.nidaba.skyforge.recipes.island.SignalFreeIslandRecipe;
 import io.github.nidaba.skyforge.reference.evidence.EvidencePackageWriter;
@@ -22,18 +21,7 @@ public final class EvidenceCli {
         Path output = arguments.length == 1
                 ? Path.of(arguments[0])
                 : Path.of("build", "evidence", "signal-free-island-v1");
-        IslandDescriptor descriptor = new IslandDescriptor(
-                IslandDescriptor.SCHEMA_VERSION,
-                0x534b59464f524745L,
-                0.0,
-                0.0,
-                256.0,
-                96.0,
-                64.0,
-                Math.PI / 6.0,
-                0.65,
-                0.0,
-                32.0);
+        var descriptor = SignalFreeReferenceCorpus.standardDescriptor();
         CompiledIsland compiled = new SignalFreeIslandRecipe().compile(descriptor);
         IslandEvidenceGenerator generator = new IslandEvidenceGenerator();
         IslandEvidence evidence = generator.generate(
