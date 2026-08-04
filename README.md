@@ -6,9 +6,9 @@ Skyforge is a backend-neutral procedural world synthesis engine. Its first proof
 
 Sprint Zero is documented and the Sprint One repository skeleton is ready. The private canonical repository is `ni-da-ba/skyforge`, and the durable Java package root is `io.github.nidaba.skyforge`.
 
-The latest completed ticket is `SF-IMP-0005`: the validated signal-free island descriptor and
-descriptor-to-graph recipe. The next planned ticket is `SF-IMP-0006`: the neutral reference
-sampler, statistics, raster outputs, and evidence manifest.
+The latest completed ticket is `SF-IMP-0006`: deterministic reference sampling, statistics,
+checksums, neutral raster outputs, cross-sections, and a versioned evidence manifest. The next
+planned ticket is `SF-IMP-0007`: execute and formalize the signal-free island acceptance gates.
 
 ## Modules
 
@@ -33,6 +33,15 @@ Run:
 ```
 
 The wrapper is pinned to Gradle 9.6.1 and verifies the distribution checksum before use.
+
+Generate the standard 1024 by 1024 signal-free evidence package with:
+
+```shell
+./gradlew :skyforge-reference:run --args='build/evidence/signal-free-island-v1'
+```
+
+The package contains canonical raw grids and hexadecimal cross-section data alongside PNG review
+images. Its manifest records versions, bounds, statistics, morphology metrics, and SHA-256 hashes.
 
 ## Project record
 
