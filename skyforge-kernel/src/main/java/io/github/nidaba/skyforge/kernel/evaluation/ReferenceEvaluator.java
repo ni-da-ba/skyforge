@@ -12,7 +12,9 @@ import io.github.nidaba.skyforge.kernel.graph.CoordinateNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphValueType;
 import io.github.nidaba.skyforge.kernel.graph.NodeId;
+import io.github.nidaba.skyforge.kernel.graph.PlanarValueSignalNode;
 import io.github.nidaba.skyforge.kernel.graph.ProceduralGraph;
+import io.github.nidaba.skyforge.kernel.signal.PlanarValueSignal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -83,6 +85,8 @@ public final class ReferenceEvaluator {
                     arithmetic.operator(),
                     evaluateNode2(graph, arithmetic.left(), coordinate, values),
                     evaluateNode2(graph, arithmetic.right(), coordinate, values));
+        } else if (node instanceof PlanarValueSignalNode signal) {
+            value = PlanarValueSignal.sample(signal, coordinate.x(), coordinate.z());
         } else {
             throw new IllegalStateException("unsupported node kind: " + node.kind());
         }
@@ -111,6 +115,8 @@ public final class ReferenceEvaluator {
                     arithmetic.operator(),
                     evaluateNode3(graph, arithmetic.left(), coordinate, values),
                     evaluateNode3(graph, arithmetic.right(), coordinate, values));
+        } else if (node instanceof PlanarValueSignalNode signal) {
+            value = PlanarValueSignal.sample(signal, coordinate.x(), coordinate.z());
         } else {
             throw new IllegalStateException("unsupported node kind: " + node.kind());
         }
