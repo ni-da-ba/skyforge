@@ -307,8 +307,10 @@ Every bug involving determinism or a violated invariant receives a regression te
 - [x] Choose repository host, visibility, ownership, and private-development license posture.
 - [x] Choose the durable Java package namespace.
 - [x] Pin Java and Gradle after compatibility checks.
-- [ ] Pin the test framework, serialization library, and image-output dependencies when their first implementation tickets require them.
-- [ ] Accept the exact seed derivation and canonical serialization algorithms.
+- [x] Pin JUnit when the first test ticket requires it.
+- [x] Accept the canonical graph serialization algorithm in ADR-0008; no general serialization library is required.
+- [ ] Pin image-output dependencies when the first evidence-export ticket requires them.
+- [ ] Accept the exact seed derivation algorithm before the first seeded signal is merged.
 
 ### 10.2 Sprint One - implementation order
 
