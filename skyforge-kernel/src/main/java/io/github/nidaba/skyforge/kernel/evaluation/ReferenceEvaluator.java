@@ -11,6 +11,7 @@ import io.github.nidaba.skyforge.kernel.graph.CoordinateAxis;
 import io.github.nidaba.skyforge.kernel.graph.CoordinateNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphValueType;
+import io.github.nidaba.skyforge.kernel.graph.IntersectionNode;
 import io.github.nidaba.skyforge.kernel.graph.NodeId;
 import io.github.nidaba.skyforge.kernel.graph.PlanarValueSignalNode;
 import io.github.nidaba.skyforge.kernel.graph.ProceduralGraph;
@@ -85,6 +86,8 @@ public final class ReferenceEvaluator {
                     arithmetic.operator(),
                     evaluateNode2(graph, arithmetic.left(), coordinate, values),
                     evaluateNode2(graph, arithmetic.right(), coordinate, values));
+        } else if (node instanceof IntersectionNode) {
+            throw new IllegalStateException("intersection nodes require a three-dimensional graph");
         } else if (node instanceof PlanarValueSignalNode signal) {
             value = PlanarValueSignal.sample(signal, coordinate.x(), coordinate.z());
         } else {
@@ -115,6 +118,10 @@ public final class ReferenceEvaluator {
                     arithmetic.operator(),
                     evaluateNode3(graph, arithmetic.left(), coordinate, values),
                     evaluateNode3(graph, arithmetic.right(), coordinate, values));
+        } else if (node instanceof IntersectionNode intersection) {
+            value = Math.min(
+                    evaluateNode3(graph, intersection.left(), coordinate, values),
+                    evaluateNode3(graph, intersection.right(), coordinate, values));
         } else if (node instanceof PlanarValueSignalNode signal) {
             value = PlanarValueSignal.sample(signal, coordinate.x(), coordinate.z());
         } else {
