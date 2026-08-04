@@ -4,11 +4,14 @@ Skyforge is a backend-neutral procedural world synthesis engine. Its first proof
 
 ## Current phase
 
-Sprint Zero is documented and the Sprint One repository skeleton is ready. The private canonical repository is `ni-da-ba/skyforge`, and the durable Java package root is `io.github.nidaba.skyforge`.
+Sprint One and the v0.1 architecture proof are complete. The private canonical repository is
+`ni-da-ba/skyforge`, the durable Java package root is `io.github.nidaba.skyforge`, and the release
+version is `0.1.0`.
 
-The latest completed implementation milestone is the Sprint One fixed-seed corpus: six canonical
-seeded islands, exact regression hashes, a visual atlas, and an observational reference-evaluator
-benchmark. The next project action is the v0.1 closure audit and release record.
+The proof contains six canonical seeded islands, exact regression hashes, a visual atlas, and an
+observational reference-evaluator benchmark. It proves the descriptor-to-graph-to-evidence
+pipeline independently of Minecraft; it is not a content-complete world generator. The next
+project action is to define the v0.2 composition and secondary-morphology boundary.
 
 ## Modules
 
@@ -64,6 +67,9 @@ checksums. Every CI run publishes the generated directory as a downloadable work
 ## Project record
 
 The implementation contract, acceptance gates, source authority, work register, and risk register are maintained in [`docs/architecture/Skyforge_Architecture_Baseline_v0.1.md`](docs/architecture/Skyforge_Architecture_Baseline_v0.1.md).
+
+The exact gate-to-test trace, corpus facts, visual-reading guide, deferrals, and release procedure
+are recorded in [`docs/releases/Skyforge_v0.1.0_Release_Record.md`](docs/releases/Skyforge_v0.1.0_Release_Record.md).
 
 ## License
 
