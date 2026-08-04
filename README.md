@@ -6,9 +6,9 @@ Skyforge is a backend-neutral procedural world synthesis engine. Its first proof
 
 Sprint Zero is documented and the Sprint One repository skeleton is ready. The private canonical repository is `ni-da-ba/skyforge`, and the durable Java package root is `io.github.nidaba.skyforge`.
 
-The latest completed ticket is `SF-IMP-0008`: versioned semantic seed derivation, the first bounded
-planar signal family, and the seeded identity gate. The next planned ticket is `SF-IMP-0009`: pin the
-full fixed-seed evidence corpus and publish the first reference benchmark baseline.
+The latest completed implementation milestone is the Sprint One fixed-seed corpus: six canonical
+seeded islands, exact regression hashes, a visual atlas, and an observational reference-evaluator
+benchmark. The next project action is the v0.1 closure audit and release record.
 
 ## Modules
 
@@ -47,6 +47,19 @@ package hashes; run it with the ordinary `./gradlew check` command.
 Seeded graphs use canonical graph schema 2 while signal-free graphs retain byte-identical schema-1
 serialization. The seeded recipe caps relative height modulation at 15 percent and preserves the
 base land mask exactly.
+
+Regenerate and verify the complete fixed-seed corpus with:
+
+```shell
+./gradlew :skyforge-reference:fixedSeedCorpus
+```
+
+The command produces six complete 1024 by 1024 evidence packages under
+`skyforge-reference/build/evidence/fixed-seed-island-v1`, verifies 49 canonical artifacts against
+the checked-in golden corpus, writes environment-qualified benchmark observations, and creates an
+`index.html` atlas for side-by-side review of height, land-mask, slope, and cross-section images.
+Benchmark timings are observations, not pass/fail thresholds, and are excluded from canonical
+checksums. Every CI run publishes the generated directory as a downloadable workflow artifact.
 
 ## Project record
 
