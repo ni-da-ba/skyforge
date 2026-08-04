@@ -64,7 +64,10 @@ The images are diagnostic projections of exact numerical evidence:
   are exactly identical, not merely visually similar.
 - **Slope magnitude:** brighter pixels change height more rapidly. This view reveals steep coasts,
   abrupt transitions, and discontinuities that the height shading can conceal. Bright does not mean
-  high; it means steep.
+  high; it means steep. The calculation covers the complete square, including below-sea terrain, so
+  bright outer corners describe the submerged analytical field rather than visible island cliffs.
+  Each member is normalized to its own maximum slope; compare spatial patterns in the PNGs and use
+  the recorded statistics for absolute comparisons between seeds.
 - **East-west and north-south cross-sections:** the gray horizontal line is sea level and the black
   curve is the terrain surface through the descriptor center. The crossings show the two coasts;
   the curve between them shows the broad primary ridge plus bounded signal variation.
