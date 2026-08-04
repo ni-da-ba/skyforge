@@ -25,3 +25,12 @@ tasks.register<JavaExec>("fixedSeedCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/fixed-seed-island-v1").get().asFile.absolutePath)
 }
+
+tasks.register<JavaExec>("suspendedVolumeEvidence") {
+    group = "verification"
+    description = "Generates the canonical signal-free suspended-volume evidence package."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.SuspendedVolumeEvidenceCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/signal-free-suspended-volume-v1").get().asFile.absolutePath)
+}

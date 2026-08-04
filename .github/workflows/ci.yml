@@ -27,12 +27,19 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Build, test, and verify fixed-seed corpus
-        run: ./gradlew check :skyforge-reference:fixedSeedCorpus
+      - name: Build, test, and generate evidence
+        run: ./gradlew check :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence
 
       - name: Publish fixed-seed evidence and visual atlas
         uses: actions/upload-artifact@v4
         with:
           name: skyforge-fixed-seed-v0.1-${{ github.sha }}
           path: skyforge-reference/build/evidence/fixed-seed-island-v1
+          if-no-files-found: error
+
+      - name: Publish suspended-volume evidence and visual atlas
+        uses: actions/upload-artifact@v4
+        with:
+          name: skyforge-suspended-volume-v0.2-${{ github.sha }}
+          path: skyforge-reference/build/evidence/signal-free-suspended-volume-v1
           if-no-files-found: error

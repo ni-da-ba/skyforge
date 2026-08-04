@@ -13,8 +13,10 @@ observational reference-evaluator benchmark. It proves the descriptor-to-graph-t
 pipeline independently of Minecraft; it is not yet a suspended sky-island generator. Its released
 density field extends indefinitely downward. The v0.2 boundary now accepts a semantic suspended-
 volume descriptor, exact signed-density convention, three-dimensional intersection node, graph
-schema 3, and canonical evidence domain. The next action is the first signal-free upper/underside
-recipe, before composition or secondary morphology.
+schema 3, canonical evidence domain, signal-free upper/underside recipe, and deterministic 3D
+evidence format. The next action is to execute the signal-free `SF-VOL` acceptance suite and pin
+one golden suspended-volume specimen, before seeded enrichment, composition, or secondary
+morphology.
 
 ## Modules
 
@@ -68,6 +70,19 @@ the checked-in golden corpus, writes environment-qualified benchmark observation
 Benchmark timings are observations, not pass/fail thresholds, and are excluded from canonical
 checksums. Every CI run publishes the generated directory as a downloadable workflow artifact.
 
+Generate the canonical signal-free suspended-volume evidence package with:
+
+```shell
+./gradlew :skyforge-reference:suspendedVolumeEvidence
+```
+
+This command evaluates 4,805,121 signed-density samples and writes canonical density and occupancy
+volumes, surface grids, exact center slices, topology and air-clearance metrics, graph provenance,
+six review images, an HTML guide, a manifest, and a SHA-256 listing. The images explain the exact
+arrays but do not replace their numerical acceptance. CI publishes the complete package; its
+golden hashes remain deliberately unpinned until `SF-IMP-0015` executes the full signal-free
+volume gates.
+
 ## Project record
 
 The implementation contract, acceptance gates, source authority, work register, and risk register are maintained in [`docs/architecture/Skyforge_Architecture_Baseline_v0.1.md`](docs/architecture/Skyforge_Architecture_Baseline_v0.1.md).
@@ -80,6 +95,8 @@ The accepted implementation boundary from surface terrain to a finite mass suspe
 The first signal-free suspended-volume recipe and its exact upper, underside, density, and provenance
 contracts are recorded in
 [`docs/decisions/ADR-0017-signal-free-suspended-volume-recipe.md`](docs/decisions/ADR-0017-signal-free-suspended-volume-recipe.md).
+The canonical 3D grid, metrics, slice, checksum, and review-image formats are recorded in
+[`docs/decisions/ADR-0018-suspended-volume-evidence-format.md`](docs/decisions/ADR-0018-suspended-volume-evidence-format.md).
 
 ## License
 
