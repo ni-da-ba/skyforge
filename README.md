@@ -77,6 +77,9 @@ are recorded in [`docs/releases/Skyforge_v0.1.0_Release_Record.md`](docs/release
 
 The accepted implementation boundary from surface terrain to a finite mass suspended in air is defined in
 [`docs/architecture/Skyforge_Architecture_Baseline_v0.2_Proposal.md`](docs/architecture/Skyforge_Architecture_Baseline_v0.2_Proposal.md).
+The first signal-free suspended-volume recipe and its exact upper, underside, density, and provenance
+contracts are recorded in
+[`docs/decisions/ADR-0017-signal-free-suspended-volume-recipe.md`](docs/decisions/ADR-0017-signal-free-suspended-volume-recipe.md).
 
 ## License
 
