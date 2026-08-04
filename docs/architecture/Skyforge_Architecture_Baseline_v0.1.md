@@ -329,7 +329,7 @@ Every bug involving determinism or a violated invariant receives a regression te
 7. [x] Implement the reference sampler, raster outputs, statistics, and evidence manifest.
 8. [x] Pass every currently applicable signal-free island gate and pin its golden corpus.
 9. [x] Accept and implement stable seed derivation plus one signal family.
-10. Pass the full fixed-seed corpus and publish the first benchmark baseline.
+10. [x] Pass the full fixed-seed corpus and publish the first benchmark baseline.
 
 ## 11. Remaining open decisions
 
@@ -361,14 +361,13 @@ The next document version should be `v0.2` only after the open identity/toolchai
 
 ## 14. Immediate next ticket
 
-**Ticket:** SF-IMP-0009 - Fixed-seed evidence corpus and benchmark baseline
-**Objective:** Publish canonical evidence for the accepted fixed seed suite and measure the
-deliberately simple reference evaluator before optimization.
+**Ticket:** SF-IMP-0010 - v0.1 closure audit and release record
+**Objective:** Verify that every Sprint One contract and accepted decision is represented by merged
+code, passing evidence, and a durable release record before the v0.2 boundary is proposed.
 **Done when:**
 
-- every fixed seed produces a versioned canonical evidence package with pinned descriptor, graph,
-  grid, cross-section, statistics, and morphology checksums;
-- corpus regeneration is one documented command and fails on any unexpected drift;
-- reference evaluation wall time and throughput are recorded with environment metadata as
-  observations rather than arbitrary pass/fail targets;
-- Sprint One's complete fixed-corpus gate passes from a clean Java 25 checkout.
+- all `SF-KER` and `SF-ISL` gates are traced to passing tests and fixed evidence;
+- ADRs, work register, risk register, README, and generated corpus agree on the released v0.1 proof;
+- the release commit is tagged only after the protected `main` build passes;
+- the v0.2 proposal begins from explicit composition and secondary-morphology scope rather than
+  backend integration or premature optimization.

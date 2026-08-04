@@ -33,9 +33,23 @@ public final class EvidencePackageWriter {
 
     /** Writes every numerical, visual, graph, and manifest artifact, replacing named outputs. */
     public Path write(IslandEvidence evidence, Path directory, String engineVersion) throws IOException {
+        return write(
+                evidence,
+                directory,
+                engineVersion,
+                SignalFreeReferenceCorpus.STANDARD_ISLAND_ID);
+    }
+
+    /** Writes one named island package while preserving the original signal-free default API. */
+    public Path write(
+            IslandEvidence evidence,
+            Path directory,
+            String engineVersion,
+            String islandId) throws IOException {
         Objects.requireNonNull(evidence, "evidence");
         Objects.requireNonNull(directory, "directory");
         requireText("engineVersion", engineVersion);
+        requireText("islandId", islandId);
         Files.createDirectories(directory);
 
         LinkedHashMap<String, Path> artifacts = new LinkedHashMap<>();
@@ -84,7 +98,7 @@ public final class EvidencePackageWriter {
         Path manifest = directory.resolve("manifest.json");
         Files.writeString(
                 manifest,
-                manifestJson(evidence, engineVersion, artifactHashes),
+                manifestJson(evidence, engineVersion, islandId, artifactHashes),
                 StandardCharsets.UTF_8);
         return manifest;
     }
@@ -217,14 +231,17 @@ public final class EvidencePackageWriter {
     }
 
     private static String manifestJson(
-            IslandEvidence evidence, String engineVersion, Map<String, String> artifactHashes) {
+            IslandEvidence evidence,
+            String engineVersion,
+            String islandId,
+            Map<String, String> artifactHashes) {
         StringBuilder json = new StringBuilder();
         json.append("{\"schemaVersion\":").append(MANIFEST_SCHEMA_VERSION);
         json.append(",\"engineVersion\":");
         appendJsonString(json, engineVersion);
-        json.append(",\"provenance\":{\"world\":\"skyforge-v0.1-proof\",\"province\":\"reference\",\"cluster\":\"reference\",\"island\":\"")
-                .append(SignalFreeReferenceCorpus.STANDARD_ISLAND_ID)
-                .append("\"}");
+        json.append(",\"provenance\":{\"world\":\"skyforge-v0.1-proof\",\"province\":\"reference\",\"cluster\":\"reference\",\"island\":");
+        appendJsonString(json, islandId);
+        json.append('}');
         json.append(",\"descriptor\":");
         appendDescriptor(json, evidence.compiledIsland().descriptor());
         json.append(",\"recipeVersion\":").append(evidence.compiledIsland().recipeVersion());

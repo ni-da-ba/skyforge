@@ -48,8 +48,26 @@ public final class IslandEvidenceGenerator {
             CompiledIsland compiledIsland, GridSpec grid, SamplingOrder order) {
         Objects.requireNonNull(compiledIsland, "compiledIsland");
         Objects.requireNonNull(grid, "grid");
+        ScalarGrid height = sampleHeight(compiledIsland, grid, order);
+        return generateFromHeight(compiledIsland, height);
+    }
+
+    /** Samples only the canonical height grid so reference evaluation can be timed independently. */
+    public ScalarGrid sampleHeight(
+            CompiledIsland compiledIsland, GridSpec grid, SamplingOrder order) {
+        Objects.requireNonNull(compiledIsland, "compiledIsland");
+        Objects.requireNonNull(grid, "grid");
         ScalarField2 field = evaluator.field2(compiledIsland.heightGraph());
-        ScalarGrid height = sampler.sample(field, grid, Objects.requireNonNull(order, "order"));
+        return sampler.sample(field, grid, Objects.requireNonNull(order, "order"));
+    }
+
+    /** Derives all remaining evidence from an already sampled canonical height grid. */
+    public IslandEvidence generateFromHeight(
+            CompiledIsland compiledIsland, ScalarGrid height) {
+        Objects.requireNonNull(compiledIsland, "compiledIsland");
+        Objects.requireNonNull(height, "height");
+        ScalarField2 field = evaluator.field2(compiledIsland.heightGraph());
+        GridSpec grid = height.specification();
         ScalarGrid mask = landMask(height);
         ScalarGrid slope = slope(height);
         CrossSection eastWest = sampleEastWest(field, compiledIsland.descriptor(), grid);
