@@ -20,7 +20,8 @@ public final class SignalFreeIslandRecipe {
     /** Version of the signal-free polynomial morphology defined by this class. */
     public static final int RECIPE_VERSION = 1;
 
-    private static final double MAXIMUM_RIDGE_STRETCH = 0.40;
+    /** Maximum fractional extension of the principal radius at full ridge strength. */
+    public static final double MAXIMUM_RIDGE_STRETCH = 0.40;
 
     /**
      * Compiles a semantic descriptor into height and derived density graphs.

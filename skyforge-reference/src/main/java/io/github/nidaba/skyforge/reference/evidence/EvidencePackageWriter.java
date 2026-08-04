@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.reference.evidence;
 
 import io.github.nidaba.skyforge.kernel.serialization.CanonicalGraphJson;
 import io.github.nidaba.skyforge.model.island.IslandDescriptor;
+import io.github.nidaba.skyforge.reference.SignalFreeReferenceCorpus;
 import io.github.nidaba.skyforge.reference.sampling.GridSpec;
 import io.github.nidaba.skyforge.reference.sampling.ScalarGrid;
 import java.awt.image.BufferedImage;
@@ -221,7 +222,9 @@ public final class EvidencePackageWriter {
         json.append("{\"schemaVersion\":").append(MANIFEST_SCHEMA_VERSION);
         json.append(",\"engineVersion\":");
         appendJsonString(json, engineVersion);
-        json.append(",\"provenance\":{\"world\":\"skyforge-v0.1-proof\",\"province\":\"reference\",\"cluster\":\"reference\",\"island\":\"signal-free-island-v1\"}");
+        json.append(",\"provenance\":{\"world\":\"skyforge-v0.1-proof\",\"province\":\"reference\",\"cluster\":\"reference\",\"island\":\"")
+                .append(SignalFreeReferenceCorpus.STANDARD_ISLAND_ID)
+                .append("\"}");
         json.append(",\"descriptor\":");
         appendDescriptor(json, evidence.compiledIsland().descriptor());
         json.append(",\"recipeVersion\":").append(evidence.compiledIsland().recipeVersion());
