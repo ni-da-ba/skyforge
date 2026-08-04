@@ -15,7 +15,10 @@ import io.github.nidaba.skyforge.kernel.graph.CoordinateNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphNode;
 import io.github.nidaba.skyforge.kernel.graph.GraphValueType;
 import io.github.nidaba.skyforge.kernel.graph.NodeId;
+import io.github.nidaba.skyforge.kernel.graph.PlanarValueSignalNode;
 import io.github.nidaba.skyforge.kernel.graph.ProceduralGraph;
+import io.github.nidaba.skyforge.kernel.seed.SeedDerivation;
+import io.github.nidaba.skyforge.kernel.signal.PlanarValueSignal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -138,6 +141,41 @@ final class CanonicalGraphJsonTest {
     }
 
     @Test
+    void emitsSchemaTwoAndRoundTripsThePlanarSignalContract() {
+        NodeId output = new NodeId("signal");
+        ProceduralGraph graph = new ProceduralGraph(
+                List.of(new PlanarValueSignalNode(
+                        output,
+                        GraphValueType.SCALAR_FIELD_2,
+                        PlanarValueSignal.VERSION,
+                        SeedDerivation.VERSION,
+                        Long.MIN_VALUE,
+                        "island.height-detail",
+                        32.0)),
+                output);
+        String expected = "{\"schemaVersion\":2,\"output\":\"signal\",\"nodes\":["
+                + "{\"id\":\"signal\",\"kind\":\"planar-value-signal\","
+                + "\"outputType\":\"scalar-field-2\",\"signalVersion\":1,\"seedVersion\":1,"
+                + "\"rootSeed\":\"0x8000000000000000\","
+                + "\"namespace\":\"island.height-detail\",\"scale\":\"0x1.0p5\"}]}";
+
+        ProceduralGraph restored = codec.readString(expected);
+
+        assertAll(
+                () -> assertEquals(CanonicalGraphJson.LATEST_SCHEMA_VERSION, codec.schemaVersion(graph)),
+                () -> assertEquals(expected, codec.writeString(graph)),
+                () -> assertEquals(graph.requireNode(output), restored.requireNode(output)),
+                () -> assertArrayEquals(codec.write(graph), codec.write(restored)));
+    }
+
+    @Test
+    void retainsSchemaOneBytesForGraphsWithoutSignals() {
+        assertAll(
+                () -> assertEquals(CanonicalGraphJson.SCHEMA_VERSION, codec.schemaVersion(graph(nodes()))),
+                () -> assertEquals(CANONICAL_GRAPH, codec.writeString(graph(nodes()))));
+    }
+
+    @Test
     void escapesAndRestoresJsonAndUnicodeNodeIdentifiers() {
         NodeId id = new NodeId("ridge.\"north\"\\雪\nline");
         ProceduralGraph graph = new ProceduralGraph(
@@ -181,6 +219,35 @@ final class CanonicalGraphJsonTest {
                 () -> assertThrows(GraphSerializationException.class, () -> codec.readString(unknownAxis)),
                 () -> assertThrows(GraphSerializationException.class, () -> codec.readString(noncanonicalDouble)),
                 () -> assertThrows(GraphSerializationException.class, () -> codec.readString(missingInput)));
+    }
+
+    @Test
+    void rejectsSignalNodesInSchemaOneAndNoncanonicalSignalFields() {
+        String canonical = "{\"schemaVersion\":2,\"output\":\"signal\",\"nodes\":["
+                + "{\"id\":\"signal\",\"kind\":\"planar-value-signal\","
+                + "\"outputType\":\"scalar-field-2\",\"signalVersion\":1,\"seedVersion\":1,"
+                + "\"rootSeed\":\"0x8000000000000000\","
+                + "\"namespace\":\"island.height-detail\",\"scale\":\"0x1.0p5\"}]}";
+
+        assertAll(
+                () -> assertThrows(
+                        GraphSerializationException.class,
+                        () -> codec.readString(CANONICAL_GRAPH.replace(
+                                "\"schemaVersion\":1", "\"schemaVersion\":2"))),
+                () -> assertThrows(
+                        GraphSerializationException.class,
+                        () -> codec.readString(canonical.replace("\"schemaVersion\":2", "\"schemaVersion\":1"))),
+                () -> assertThrows(
+                        GraphSerializationException.class,
+                        () -> codec.readString(canonical.replace(
+                                "0x8000000000000000", "0X8000000000000000"))),
+                () -> assertThrows(
+                        GraphSerializationException.class,
+                        () -> codec.readString(canonical.replace("0x1.0p5", "32.0"))),
+                () -> assertThrows(
+                        GraphSerializationException.class,
+                        () -> codec.readString(canonical.replace(
+                                "island.height-detail", "Island.Height-Detail"))));
     }
 
     @Test
