@@ -6,9 +6,9 @@ Skyforge is a backend-neutral procedural world synthesis engine. Its first proof
 
 Sprint Zero is documented and the Sprint One repository skeleton is ready. The private canonical repository is `ni-da-ba/skyforge`, and the durable Java package root is `io.github.nidaba.skyforge`.
 
-The latest completed ticket is `SF-IMP-0002`: the minimal typed procedural-graph model and
-graph-integrity validation. The current ticket is `SF-IMP-0003`: the deliberately simple
-reference evaluator and its analytical correctness and order-independence tests.
+The latest completed ticket is `SF-IMP-0004`: versioned canonical graph JSON and round-trip
+identity. The next planned ticket is `SF-IMP-0005`: the signal-free island descriptor and first
+descriptor-to-graph recipe.
 
 ## Modules
 
