@@ -1,8 +1,8 @@
 # Skyforge Architecture Baseline v0.2 Proposal
 
 **Document ID:** SF-BASE-0002
-**Status:** Proposed by SF-IMP-0011
-**Date:** 2026-08-03
+**Status:** Accepted implementation boundary; volume proof incomplete
+**Date:** 2026-08-04
 **Owner:** Nicholas
 **Supersedes:** No released contract; extends SF-BASE-0001 after acceptance
 
@@ -33,8 +33,8 @@ The new proof must not edit the meaning or canonical serialization of the releas
 
 ## 3. Semantic ownership
 
-The proposed volume descriptor owns world meaning, not construction details. Its first schema
-should express:
+The accepted `SkyIslandVolumeDescriptor` owns world meaning, not construction details. Its first
+schema expresses:
 
 | Control | Semantic meaning | Required observable response |
 |---|---|---|
@@ -46,7 +46,7 @@ should express:
 | Coastal falloff | Upper-edge profile | Changes upper-surface approach to the silhouette |
 | Primary ridge | Direction and strength of large-scale identity | Rotates or stretches the primary horizontal axis predictably |
 | Underside taper | Distribution of mass from rim to nadir | Moves the lower profile between broad and concentrated forms |
-| Underside asymmetry | Bounded departure from bilateral lower form | Moves lower mass without breaking closure or connectedness |
+| Underside asymmetry | Signed bounded departure from bilateral lower form in `[-1,1]` | Moves lower mass without breaking closure or connectedness |
 | Signal controls | Bounded seeded enrichment | Varies detail without replacing the primary volume |
 
 The descriptor must not contain graph-node names, interpolation choices, backend concepts, voxel
@@ -61,17 +61,17 @@ The recipe emits at least:
 3. a three-dimensional signed density graph whose positive set is exactly the intended solid;
 4. provenance linking every semantic control to named graph substructure.
 
-The candidate construction combines an upper constraint (`upper(x,z) - y`) and a lower constraint
-(`y - lower(x,z)`) with an exact pointwise intersection operation. The candidate is intentionally
-recorded as a design direction rather than silently expanding the v0.1 graph schema. Its eventual
-node contract must define:
+The accepted construction combines an upper constraint (`upper(x,z) - y`) and a lower constraint
+(`y - lower(x,z)`) with `IntersectionNode`, an exact pointwise `Math.min` over two
+three-dimensional scalar fields. ADR-0016 fixes its graph schema 3 representation and its
+binary64, validation, and compatibility behavior. In particular:
 
-- raw binary64 evaluation, including signed zero, infinities, and NaN rejection or handling;
-- operand type and domain rules;
-- acyclic validation;
-- canonical JSON representation and schema version;
-- round-trip and reordered/parallel evaluation identity;
-- backward reading of graph schemas 1 and 2 without byte drift.
+- negative zero is preserved by `Math.min`, infinities follow `Math.min`, and NaN propagates;
+- final evidence classification rejects every non-finite density;
+- both inputs and the output are `SCALAR_FIELD_3`;
+- ordinary graph validation provides reference, type, and acyclic checks;
+- canonical JSON schema 3 records the ordered pair of inputs;
+- graph schemas 1 and 2 retain their minimum versions and exact canonical bytes.
 
 ## 5. Suspended-volume acceptance gates
 
@@ -92,8 +92,9 @@ Visual agreement never replaces the numerical gates.
 
 ## 6. Evidence contract
 
-The first implementation ticket should propose an exact bounded volume domain and a practical
-canonical resolution after measuring reference-evaluator cost. The evidence package must contain:
+ADR-0016 accepts an exact bounded volume domain of `x,z in [-384,384]`, `y in [0,512]`, and
+`193 x 129 x 193` inclusive samples. Every axis has four-unit spacing. Canonical traversal advances
+x first, then z, then y. The evidence package implemented in SF-IMP-0014 must contain:
 
 - the semantic descriptor and every compiled graph;
 - a canonical binary64 density grid with declared X/Y/Z traversal and bounds;
@@ -109,13 +110,13 @@ Minecraft backend.
 
 ## 7. Work order
 
-1. `SF-IMP-0012` — accept the suspended-volume descriptor, signed-density semantics, graph
-   intersection primitive, and exact 3D evidence domain.
-2. `SF-IMP-0013` — implement the signal-free upper/underside recipe and graph-schema extension.
-3. `SF-IMP-0014` — implement deterministic 3D sampling, metrics, slices, and visual evidence.
-4. `SF-IMP-0015` — execute the signal-free suspended-volume acceptance suite and pin a golden
+1. [x] `SF-IMP-0012` — accept the suspended-volume descriptor, signed-density semantics, graph
+   intersection primitive, graph schema 3, and exact 3D evidence domain.
+2. [ ] `SF-IMP-0013` — implement the signal-free upper/underside recipe and provenance graphs.
+3. [ ] `SF-IMP-0014` — implement deterministic 3D sampling, metrics, slices, and visual evidence.
+4. [ ] `SF-IMP-0015` — execute the signal-free suspended-volume acceptance suite and pin a golden
    specimen.
-5. `SF-IMP-0016` — apply bounded seeded enrichment and execute the fixed-seed identity suite.
+5. [ ] `SF-IMP-0016` — apply bounded seeded enrichment and execute the fixed-seed identity suite.
 6. Only then define secondary ridges/valleys and multi-morphology composition.
 
 This order follows Skyforge doctrine: correct primary geometry before enrichment, and enrichment
