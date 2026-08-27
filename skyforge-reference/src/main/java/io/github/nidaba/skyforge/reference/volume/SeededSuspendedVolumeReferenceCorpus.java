@@ -20,7 +20,7 @@ public final class SeededSuspendedVolumeReferenceCorpus {
     /** Returns the canonical full-amplitude suspended descriptor for one corpus member. */
     public static SkyIslandVolumeDescriptor descriptor(FixedSeedReferenceCorpus.Member member) {
         Objects.requireNonNull(member, "member");
-        SkyIslandVolumeDescriptor base = SuspendedVolumeReferenceDomain.canonicalDescriptor();
+        SkyIslandVolumeDescriptor base = SuspendedVolumeReferenceDomain.descriptor();
         return new SkyIslandVolumeDescriptor(
                 base.schemaVersion(),
                 member.seed(),
