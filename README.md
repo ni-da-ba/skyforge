@@ -10,13 +10,15 @@ version is `0.1.0`.
 
 The proof contains six canonical seeded surface specimens, exact regression hashes, a visual atlas, and an
 observational reference-evaluator benchmark. It proves the descriptor-to-graph-to-evidence
-pipeline independently of Minecraft; it is not yet a suspended sky-island generator. Its released
-density field extends indefinitely downward. The v0.2 boundary now accepts a semantic suspended-
-volume descriptor, exact signed-density convention, three-dimensional intersection node, graph
-schema 3, canonical evidence domain, signal-free upper/underside recipe, and deterministic 3D
-evidence format. The next action is to execute the signal-free `SF-VOL` acceptance suite and pin
-one golden suspended-volume specimen, before seeded enrichment, composition, or secondary
-morphology.
+pipeline independently of Minecraft; its released v0.1 density field still extends indefinitely
+downward. The v0.2 boundary now additionally accepts a semantic suspended-volume descriptor,
+exact signed-density convention, three-dimensional intersection node, graph schema 3, canonical
+3D evidence domain, signal-free upper/underside recipe, deterministic 3D evidence format, and one
+pinned golden suspended-volume specimen. The signal-free specimen passes `SF-VOL-001` through
+`SF-VOL-005` and `SF-VOL-007` through `SF-VOL-010`: 366,912 solid samples form one connected mass,
+touch no domain face, and retain at least 88 world units of sampled air clearance. `SF-VOL-006`
+remains deliberately deferred because it is the bounded seeded-enrichment gate. The next action is
+`SF-IMP-0016`, before composition or secondary morphology.
 
 ## Modules
 
@@ -79,9 +81,10 @@ Generate the canonical signal-free suspended-volume evidence package with:
 This command evaluates 4,805,121 signed-density samples and writes canonical density and occupancy
 volumes, surface grids, exact center slices, topology and air-clearance metrics, graph provenance,
 six review images, an HTML guide, a manifest, and a SHA-256 listing. The images explain the exact
-arrays but do not replace their numerical acceptance. CI publishes the complete package; its
-golden hashes remain deliberately unpinned until `SF-IMP-0015` executes the full signal-free
-volume gates.
+arrays but do not replace their numerical acceptance. The SF-IMP-0015 acceptance suite pins 19
+engine-version-independent artifact hashes and exact morphology metrics; `manifest.json` and
+`evidence.sha256` remain generated but are excluded from morphology identity because the manifest
+contains engine-version metadata. CI publishes the complete package on every run.
 
 ## Project record
 
@@ -97,6 +100,9 @@ contracts are recorded in
 [`docs/decisions/ADR-0017-signal-free-suspended-volume-recipe.md`](docs/decisions/ADR-0017-signal-free-suspended-volume-recipe.md).
 The canonical 3D grid, metrics, slice, checksum, and review-image formats are recorded in
 [`docs/decisions/ADR-0018-suspended-volume-evidence-format.md`](docs/decisions/ADR-0018-suspended-volume-evidence-format.md).
+The accepted signal-free `SF-VOL` gates, 19-artifact golden specimen, exact morphology metrics, and
+`SF-VOL-006` deferral are recorded in
+[`docs/decisions/ADR-0019-signal-free-suspended-volume-acceptance.md`](docs/decisions/ADR-0019-signal-free-suspended-volume-acceptance.md).
 
 ## License
 
