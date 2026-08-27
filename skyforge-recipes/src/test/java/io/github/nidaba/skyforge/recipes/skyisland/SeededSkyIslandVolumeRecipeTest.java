@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.recipes.skyisland;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,7 +16,7 @@ import io.github.nidaba.skyforge.kernel.graph.NodeId;
 import io.github.nidaba.skyforge.kernel.graph.PlanarValueSignalNode;
 import io.github.nidaba.skyforge.kernel.serialization.CanonicalGraphJson;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
-import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -138,13 +139,11 @@ final class SeededSkyIslandVolumeRecipeTest {
                 () -> assertArrayEquals(bytes(first.upperSurfaceGraph()), bytes(repeated.upperSurfaceGraph())),
                 () -> assertArrayEquals(bytes(first.undersideSurfaceGraph()), bytes(repeated.undersideSurfaceGraph())),
                 () -> assertArrayEquals(bytes(first.densityGraph()), bytes(repeated.densityGraph())),
-                () -> assertNotEquals(
-                        new String(bytes(first.densityGraph()), StandardCharsets.UTF_8),
-                        new String(bytes(different.densityGraph()), StandardCharsets.UTF_8)));
+                () -> assertFalse(Arrays.equals(bytes(first.densityGraph()), bytes(different.densityGraph()))));
     }
 
     private byte[] bytes(io.github.nidaba.skyforge.kernel.graph.ProceduralGraph graph) {
-        return codec.write(graph).getBytes(StandardCharsets.UTF_8);
+        return codec.write(graph);
     }
 
     private static void assertEnvelope(double suspension, double base, double seeded) {
