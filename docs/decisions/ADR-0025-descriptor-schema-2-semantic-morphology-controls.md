@@ -1,7 +1,8 @@
 # ADR-0025: Descriptor Schema 2 Semantic Morphology Controls
 
-- **Status:** Accepted by dedicated local verification; final repository-wide check and merge pending
+- **Status:** Accepted
 - **Date:** 2026-08-28
+- **Accepted:** 2026-08-28
 - **Work item:** SF-IMP-0021
 
 ## Context
@@ -71,7 +72,7 @@ The dedicated verifier covers:
 
 The full-resolution matrix evaluates all five built-in families across three independent control modes: secondary-only, detail-only, and mixed amplitudes. Every specimen is required to retain positive occupancy, exactly one face-connected solid component, zero domain-face contacts, at least 48 world units of sampled clearance, and the accepted SF-IMP-0018 primary-footprint sign.
 
-A clean repository-wide `gradlew.bat check` remains the final merge gate for SF-IMP-0021.
+A repository-wide `gradlew.bat check` also completed successfully on the exact PR head submitted for merge. PR #21 was then merged into `main` without any file-content delta beyond the merge commit. SF-IMP-0021 is therefore accepted as the descriptor-schema-2 semantic morphology-control boundary.
 
 ## Deferred work
 
