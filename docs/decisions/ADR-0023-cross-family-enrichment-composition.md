@@ -1,7 +1,8 @@
 # ADR-0023: Cross-Family Enrichment Composition
 
-- **Status:** Proposed pending local numerical and visual acceptance
+- **Status:** Accepted
 - **Date:** 2026-08-28
+- **Accepted:** 2026-08-28
 - **Work item:** SF-IMP-0019
 
 ## Context
@@ -99,9 +100,31 @@ Numerical acceptance uses the canonical v0.2 domain and 4-unit spacing (`193 x 1
 visual review uses the same world bounds at 8-unit spacing (`97 x 65 x 97`) so it can be compared
 directly with the SF-IMP-0018 primary-family atlas.
 
+## Accepted evidence
+
+Local Java 25 validation on 2026-08-28 accepted all machine requirements. The focused compatibility
+suite proves exact differential identity with the accepted SF-IMP-0017 legacy path. The fifteen-member
+full-resolution composition suite passes topology, closure, clearance, density-intersection, and
+canonical footprint-sign preservation requirements for every family/seed pair.
+
+The review-grid corpus independently contains one connected component and zero face contacts for all
+fifteen specimens, with minimum sampled clearance from 56 to 128 world units. Primary and composed
+`suspension-occupancy.png` artifacts are byte-identical for all fifteen corresponding specimens.
+
+Human visual review is recorded in
+`docs/reviews/SF-IMP-0019-cross-family-enrichment-composition-visual-review.md`. It accepts the
+composition proof: Massif, Tableland, Spine, Basin, and Lobed remain materially legible after full
+bounded detail and structured relief are applied.
+
+The review also establishes an important follow-up constraint. The generic secondary layer preserves
+family identity but gives all families a common ridge/spur/valley vocabulary. Tableland becomes more
+corrugated than a mature plateau treatment should be, while Basin's depression remains strongest in
+orthogonal sections rather than the current isometric view. Family-aware secondary morphology should
+therefore be evaluated before the present composition model is frozen into public descriptor semantics.
+
 ## Acceptance requirements
 
-SF-IMP-0019 must demonstrate:
+SF-IMP-0019 demonstrates:
 
 1. the generic enrichment transform exactly reproduces the accepted SF-IMP-0017 compiled result when
    applied to the original signal-free primary volume;
@@ -115,11 +138,8 @@ SF-IMP-0019 must demonstrate:
 7. all fifteen full-resolution specimens retain positive occupancy, exactly one face-connected
    solid component, zero domain-face contacts, and at least 48 world units of sampled clearance;
 8. the five family masks remain numerically distinct after full composition;
-9. the human atlas shows that bounded detail and structured relief add useful internal variation
+9. human review confirms that bounded detail and structured relief add useful internal variation
    without visually erasing Massif, Tableland, Spine, Basin, or Lobed primary identity.
-
-Requirement 9 is a human design gate. Numerical topology and mask identity are necessary but do not
-prove that the composed terrain remains legible as its intended family.
 
 ## Deferred work
 
@@ -127,10 +147,12 @@ SF-IMP-0019 does not yet:
 
 - add morphology family to `SkyIslandVolumeDescriptor`;
 - expose independent user-facing amplitudes for local detail versus structured relief;
+- make secondary morphology family-aware;
 - hybridize primary families;
 - generate multiple islands or archipelagos;
 - add drainage, erosion, caves, arches, materials, climate, biomes, ecology, or Minecraft realization.
 
-If this proof is accepted, the next architecture decision can evaluate descriptor-schema promotion
-versus a separate hybridization proof. The evidence from SF-IMP-0018 and SF-IMP-0019 should determine
-which family and composition controls are stable enough to become semantic API.
+The next architecture decision should evaluate family-aware secondary morphology before descriptor
+schema promotion. The evidence from SF-IMP-0018 and SF-IMP-0019 is now sufficient to distinguish
+stable primary-family semantics from generic enrichment behavior that should remain implementation
+state for another proof cycle.
