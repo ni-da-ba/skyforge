@@ -61,3 +61,12 @@ tasks.register<JavaExec>("secondaryMorphologySuspendedVolumeCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/secondary-morphology-suspended-volume-v1").get().asFile.absolutePath)
 }
+
+tasks.register<JavaExec>("morphologyFamilySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates the fifteen-member SF-IMP-0018 primary morphology-family review atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.MorphologyFamilySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/morphology-family-suspended-volume-v1").get().asFile.absolutePath)
+}
