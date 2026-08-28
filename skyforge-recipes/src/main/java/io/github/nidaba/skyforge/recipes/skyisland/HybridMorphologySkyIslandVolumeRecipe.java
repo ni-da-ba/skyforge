@@ -60,6 +60,13 @@ public final class HybridMorphologySkyIslandVolumeRecipe {
         CompiledSkyIslandVolume first = firstProvider.compilePrimary(descriptor);
         CompiledSkyIslandVolume second = secondProvider.compilePrimary(descriptor);
 
+        if (blend.secondWeight() == 0.0) {
+            return endpoint(descriptor, blend, first);
+        }
+        if (blend.secondWeight() == 1.0) {
+            return endpoint(descriptor, blend, second);
+        }
+
         ProceduralGraph upper = hybridGraph(
                 first.upperSurfaceGraph(), second.upperSurfaceGraph(), descriptor, blend, Output.UPPER);
         ProceduralGraph underside = hybridGraph(
@@ -75,6 +82,25 @@ public final class HybridMorphologySkyIslandVolumeRecipe {
                 underside,
                 density,
                 provenance(blend, firstProvider, secondProvider));
+    }
+
+    private static CompiledSkyIslandVolume endpoint(
+            SkyIslandVolumeDescriptor descriptor,
+            MorphologyBlend blend,
+            CompiledSkyIslandVolume parent) {
+        LinkedHashMap<String, List<NodeId>> provenance = new LinkedHashMap<>(parent.provenance());
+        provenance.put("morphology-hybrid-endpoint:" + blend.pairIdentifier(), List.of(
+                new NodeId("profile.remaining"),
+                new NodeId("family.upper-factor"),
+                new NodeId("family.depth-factor")));
+        return new CompiledSkyIslandVolume(
+                descriptor,
+                RECIPE_VERSION,
+                parent.graphSchemaVersion(),
+                parent.upperSurfaceGraph(),
+                parent.undersideSurfaceGraph(),
+                parent.densityGraph(),
+                provenance);
     }
 
     private static ProceduralGraph hybridGraph(
