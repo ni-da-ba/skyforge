@@ -12,6 +12,7 @@ import io.github.nidaba.skyforge.kernel.evaluation.ReferenceEvaluator;
 import io.github.nidaba.skyforge.kernel.field.ScalarField2;
 import io.github.nidaba.skyforge.kernel.field.ScalarField3;
 import io.github.nidaba.skyforge.kernel.graph.NodeId;
+import io.github.nidaba.skyforge.kernel.graph.ProceduralGraph;
 import io.github.nidaba.skyforge.kernel.serialization.CanonicalGraphJson;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
 import java.util.List;
@@ -75,7 +76,7 @@ final class FamilyAwareMorphologySkyIslandVolumeRecipeTest {
             NodeId factorId = family == MorphologyFamily.MASSIF
                     ? new NodeId("secondary.upper-factor")
                     : new NodeId("family-aware.upper-factor");
-            ScalarField2 factor = evaluator.field2(compiled.upperSurfaceGraph(), factorId);
+            ScalarField2 factor = evaluator.field2(withOutput(compiled.upperSurfaceGraph(), factorId));
             double minimum = FamilyAwareMorphologySkyIslandVolumeRecipe.minimumUpperFactor(family);
             double maximum = FamilyAwareMorphologySkyIslandVolumeRecipe.maximumUpperFactor(family);
             for (int z = -320; z <= 320; z += 40) {
@@ -96,8 +97,8 @@ final class FamilyAwareMorphologySkyIslandVolumeRecipeTest {
         Coordinate2 center = new Coordinate2(descriptor.centerX(), descriptor.centerZ());
         for (MorphologyFamily family : List.of(MorphologyFamily.TABLELAND, MorphologyFamily.BASIN)) {
             CompiledSkyIslandVolume compiled = recipe.compile(descriptor, family);
-            ScalarField2 factor = evaluator.field2(
-                    compiled.upperSurfaceGraph(), new NodeId("family-aware.upper-factor"));
+            ScalarField2 factor = evaluator.field2(withOutput(
+                    compiled.upperSurfaceGraph(), new NodeId("family-aware.upper-factor")));
             assertEquals(1.0, factor.sample(center), TOLERANCE, family.identifier());
         }
     }
@@ -184,6 +185,10 @@ final class FamilyAwareMorphologySkyIslandVolumeRecipeTest {
                     () -> assertArrayEquals(codec.write(first.undersideSurfaceGraph()), codec.write(repeated.undersideSurfaceGraph())),
                     () -> assertArrayEquals(codec.write(first.densityGraph()), codec.write(repeated.densityGraph())));
         }
+    }
+
+    private static ProceduralGraph withOutput(ProceduralGraph graph, NodeId output) {
+        return new ProceduralGraph(graph.nodes(), output);
     }
 
     private static int sign(double value) {
