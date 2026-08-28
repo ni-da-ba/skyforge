@@ -1,6 +1,6 @@
 # ADR-0027: Hybrid Family-Aware Secondary Morphology
 
-- **Status:** Proposed pending implementation and local acceptance
+- **Status:** Implemented; local numerical and visual acceptance pending
 - **Date:** 2026-08-28
 - **Work item:** SF-IMP-0023
 
@@ -41,9 +41,17 @@ The base descriptor for this proof remains schema 1 with zero signal amplitude. 
 
 ## Endpoint authority
 
-Blend endpoints must delegate to the accepted descriptor-driven semantic family recipe. For any detail/secondary amplitude combination, weight `0` and weight `1` therefore reproduce the corresponding accepted built-in family's upper, underside, and density graph bytes exactly.
+Blend endpoints delegate to the accepted descriptor-driven semantic family recipe. For any detail/secondary amplitude combination, weight `0` and weight `1` therefore reproduce the corresponding accepted built-in family's upper, underside, and density graph bytes exactly.
 
-At zero detail and zero secondary amplitude, a non-endpoint hybrid must reproduce the accepted SF-IMP-0022 primary-hybrid graph bytes exactly.
+At zero detail and zero secondary amplitude, a non-endpoint hybrid reproduces the accepted SF-IMP-0022 primary-hybrid graph bytes exactly.
+
+## Canonical blend-weight identity
+
+Focused SF-IMP-0023 testing exposed a latent SF-IMP-0022 identity defect in decimal complement handling. A literal `0.30` and the reversed expression `1.0 - 0.70` are mathematically equal but can occupy adjacent IEEE-754 representations, producing different serialized graph constants after canonical pair reversal.
+
+`MorphologyBlend` now canonicalizes weights through a stable 16-significant-digit decimal representation and computes reversed complements through decimal arithmetic before re-canonicalizing. Exact endpoint values remain exact, and the accepted SF-IMP-0022 corpus weights (`0`, `0.25`, `0.5`, `0.75`, `1`) are unchanged. Dedicated regression coverage pins literal and computed `0.30/0.70` complement cases.
+
+This correction strengthens the originally intended canonical-request contract: `(A,B,w)` and `(B,A,1-w)` must produce identical canonical blend values and graph bytes, not merely numerically close geometry.
 
 ## Analytical safety
 
@@ -67,15 +75,30 @@ SF-IMP-0023 must demonstrate:
 4. secondary-only operation preserves the signal-free hybrid underside while adding blended family-aware upper geography;
 5. the blended secondary factor remains positive and preserves the exact hybrid primary footprint sign;
 6. density remains the exact positive-inside intersection of final upper and underside surfaces;
-7. canonical pair symmetry and deterministic graph identity remain intact;
+7. canonical pair symmetry and deterministic graph identity remain intact, including decimal complement regression cases;
 8. all ten unordered family pairs remain one connected component, touch no domain face, and retain at least 48 world units sampled clearance across the accepted full-resolution corpus;
-9. human review confirms that secondary geography transitions with the primary blend instead of visibly belonging to only one parent.
+9. full enrichment preserves the exact SF-IMP-0022 primary footprint sign at every canonical horizontal sample;
+10. human review confirms that secondary geography transitions with the primary blend instead of visibly belonging to only one parent.
 
 ## Initial evidence corpus
 
-Numerical acceptance will use all ten unordered family pairs at midpoint weight `0.5` across the three established root seeds with full detail and full blended secondary morphology: 30 full-resolution canonical specimens.
+Numerical acceptance uses all ten unordered family pairs at midpoint weight `0.5` across the three established root seeds with full detail and full blended secondary morphology: 30 full-resolution canonical specimens.
 
-Human review will use the stable Skyforge seed at weights `0.25`, `0.50`, and `0.75` for all ten pairings, again with full detail and secondary morphology, producing a 30-member atlas directly comparable to SF-IMP-0022.
+Each specimen is compared directly with its accepted SF-IMP-0022 signal-free hybrid primary. In addition to topology and clearance, the full-resolution gate requires exact primary-footprint sign preservation across the canonical horizontal grid and nontrivial changes to both upper and underside surfaces.
+
+Human review uses the stable Skyforge seed at weights `0.25`, `0.50`, and `0.75` for all ten pairings, again with full detail and secondary morphology, producing a 30-member atlas directly comparable to SF-IMP-0022.
+
+## Local verifier
+
+`scripts\verify-sf-imp-0023.bat` runs, in order:
+
+1. the Java runtime check;
+2. the blend canonicalization regression;
+3. the focused enriched-hybrid differential/control suite;
+4. the thirty-member full-resolution enriched midpoint acceptance corpus;
+5. the thirty-member full-detail/full-secondary visual progression atlas.
+
+Successful generation of the atlas does not by itself constitute human visual acceptance; the atlas remains a review artifact until compared against the accepted SF-IMP-0022 primary progression.
 
 ## Deferred work
 
