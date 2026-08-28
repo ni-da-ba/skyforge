@@ -1,6 +1,6 @@
 # ADR-0021: Structured Secondary Sky-Island Morphology
 
-- **Status:** Proposed pending local acceptance and visual review
+- **Status:** Numerically accepted by local Java 25 validation; visual review pending
 - **Date:** 2026-08-28
 - **Work item:** SF-IMP-0017
 
@@ -101,7 +101,7 @@ structured upper graph.
 
 ## Acceptance requirements
 
-The SF-IMP-0017 local acceptance checkpoint must demonstrate:
+The SF-IMP-0017 local acceptance checkpoint requires:
 
 1. zero amplitude returns the accepted signal-free artifact exactly;
 2. nonzero structured compilation preserves the accepted seeded underside exactly;
@@ -119,6 +119,35 @@ The SF-IMP-0017 local acceptance checkpoint must demonstrate:
 
 Requirement 9 is a human design gate. Numerical correctness alone does not establish that the
 secondary morphology is useful.
+
+## Local acceptance record
+
+Local Java 25 validation on 2026-08-28 accepted requirements 1 through 8. The canonical six-member
+full-amplitude corpus reported:
+
+| Member | Solid samples | Components | Face contacts | Minimum clearance |
+|---|---:|---:|---:|---:|
+| `seed-min` | 378,935 | 1 | 0 | 88 |
+| `seed-negative-one` | 381,784 | 1 | 0 | 88 |
+| `seed-zero` | 382,278 | 1 | 0 | 88 |
+| `seed-one` | 377,445 | 1 | 0 | 88 |
+| `seed-skyforge` | 379,341 | 1 | 0 | 88 |
+| `seed-max` | 375,742 | 1 | 0 | 88 |
+
+The numerical acceptance test completed successfully after the optimized evaluator/evidence path
+was introduced. The complete six-seed visual corpus then generated successfully in 31 seconds.
+
+An earlier sequential run exposed a reference-harness scalability defect rather than a morphology
+defect: graph-node lookup was linear in graph size for every recursive evaluation, and the 3D
+evidence path redundantly reevaluated X/Z-only surface structure across every Y sample. The accepted
+performance correction compiles graph node references to indexed evaluator plans and, for canonical
+forward suspended-volume evidence, samples upper and underside surfaces once per horizontal cell
+before filling density with the exact intersection equation. A regression test compares that factored
+forward path against direct full-density graph evaluation byte-for-byte on a smaller 3D grid. Seed
+specimens are additionally executed with bounded two-way concurrency.
+
+Hosted GitHub Actions validation remains unavailable while the repository Actions allowance is
+exhausted. A final complete local `gradlew.bat check` remains required before merge.
 
 ## Consequences
 
