@@ -137,6 +137,9 @@ metadata; `evidence.sha256` is excluded because it includes the manifest hash.
 SF-IMP-0016 additionally defines `seeded-suspended-volume-v1`, a six-member full-amplitude review
 corpus using the canonical v0.1 root-seed suite. Its corpus atlas is intentionally human-review
 evidence; the numerical SF-VOL-006 acceptance test remains authoritative for topology and identity.
+The visual review is recorded in `docs/reviews/SF-IMP-0016-seeded-volume-visual-review.md`: it accepts
+bounded enrichment as a local-detail layer while identifying organized landscape-scale morphology
+as the next limitation.
 
 ## 7. Work order
 
@@ -147,9 +150,11 @@ evidence; the numerical SF-VOL-006 acceptance test remains authoritative for top
 4. [x] `SF-IMP-0015` — execute the signal-free suspended-volume acceptance suite and pin a golden
    specimen.
 5. [x] `SF-IMP-0016` — apply bounded seeded enrichment and execute the fixed-seed identity suite.
-6. [ ] Define and validate secondary ridges/valleys before multi-morphology composition.
-7. [ ] Define multi-morphology composition only after secondary morphology preserves the v0.2
-   suspended-volume invariants.
+6. [ ] `SF-IMP-0017` — define and validate organized secondary upper-surface ridges/valleys with a
+   rim-safe envelope, minimum-thickness protection, stable seeded namespaces, and visual evidence
+   of landscape-scale organization larger than the SF-IMP-0016 detail signal.
+7. [ ] Define multi-morphology composition only after SF-IMP-0017 preserves the v0.2 suspended-volume
+   invariants.
 
 This order follows Skyforge doctrine: correct primary geometry before enrichment, and enrichment
 before backend realization.
