@@ -18,14 +18,19 @@ pinned golden suspended-volume specimen. The signal-free specimen passes `SF-VOL
 `SF-VOL-005` and `SF-VOL-007` through `SF-VOL-010`: 366,912 solid samples form one connected mass,
 touch no domain face, and retain at least 88 world units of sampled air clearance.
 
-`SF-IMP-0016` is now implemented pending authoritative local Java 25 validation. Its bounded seeded
-enrichment independently modulates upper and underside offsets by at most 15 percent while preserving
-the signal-free rim, horizontal footprint, and signed surface ordering by construction. `SF-VOL-006`
-exercises the six-member canonical root-seed corpus at full amplitude and requires closure, one-component
-topology, at least 80 world units of sampled air clearance, and the accepted morphology identity envelope.
-Hosted GitHub Actions validation is temporarily unavailable because the repository's Actions allowance is
-exhausted; local `gradlew.bat check` is therefore the current acceptance path. Secondary ridges, valleys,
-and multi-morphology composition remain downstream of this validation checkpoint.
+`SF-IMP-0016` is accepted by local Java 25 validation. Its bounded seeded enrichment independently
+modulates upper and underside offsets by at most 15 percent while preserving the signal-free rim,
+horizontal footprint, and signed surface ordering by construction. The full-amplitude six-member
+`SF-VOL-006` corpus passed with one connected component, zero domain-face contacts, and 88 world
+units minimum sampled clearance for every member. Solid occupancy varied from 363,854 to 370,382
+samples while the accepted morphology identity envelope remained intact.
+
+The six-seed visual evidence corpus is available under
+`skyforge-reference/build/evidence/seeded-suspended-volume-v1` after local generation. Visual review
+is now the design checkpoint before secondary ridges, valleys, and multi-morphology composition.
+Hosted GitHub Actions validation remains temporarily unavailable because the repository's Actions
+allowance is exhausted. A final complete `gradlew.bat check` is still required at the merge/release
+checkpoint following the corrected signal-free golden-test temporary-directory lifecycle.
 
 ## Modules
 
@@ -112,6 +117,11 @@ per canonical seed under `skyforge-reference/build/evidence/seeded-suspended-vol
 underside, east-west and north-south sections, and suspension-plane occupancy so topology and seeded
 morphology can be inspected alongside the numerical `SF-VOL-006` gate.
 
+For Windows local development, `scripts\verify-sf-imp-0016.bat` checks the Java/Gradle environment,
+runs the repository acceptance suite, and generates the six-seed visual evidence corpus. The final
+merge/release checkpoint should still execute a complete clean `gradlew.bat check` after pulling the
+latest branch state.
+
 ## Project record
 
 The implementation contract, acceptance gates, source authority, work register, and risk register are maintained in [`docs/architecture/Skyforge_Architecture_Baseline_v0.1.md`](docs/architecture/Skyforge_Architecture_Baseline_v0.1.md).
@@ -129,8 +139,8 @@ The canonical 3D grid, metrics, slice, checksum, and review-image formats are re
 The accepted signal-free `SF-VOL` gates, 19-artifact golden specimen, exact morphology metrics, and
 `SF-VOL-006` deferral are recorded in
 [`docs/decisions/ADR-0019-signal-free-suspended-volume-acceptance.md`](docs/decisions/ADR-0019-signal-free-suspended-volume-acceptance.md).
-The bounded seeded suspended-volume enrichment contract, its six-seed acceptance corpus, and the
-current local-validation requirement are recorded in
+The accepted bounded seeded suspended-volume enrichment contract, six-seed acceptance corpus, and
+local Java 25 validation record are recorded in
 [`docs/decisions/ADR-0020-bounded-seeded-suspended-volume-enrichment.md`](docs/decisions/ADR-0020-bounded-seeded-suspended-volume-enrichment.md).
 
 ## License
