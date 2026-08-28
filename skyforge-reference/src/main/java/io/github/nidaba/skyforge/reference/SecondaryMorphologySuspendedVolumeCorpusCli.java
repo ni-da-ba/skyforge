@@ -5,6 +5,7 @@ import io.github.nidaba.skyforge.recipes.skyisland.SecondaryMorphologySkyIslandV
 import io.github.nidaba.skyforge.reference.evidence.SuspendedVolumeEvidence;
 import io.github.nidaba.skyforge.reference.evidence.SuspendedVolumeEvidenceGenerator;
 import io.github.nidaba.skyforge.reference.evidence.SuspendedVolumeEvidenceWriter;
+import io.github.nidaba.skyforge.reference.evidence.VolumeMetrics;
 import io.github.nidaba.skyforge.reference.sampling.SamplingOrder;
 import io.github.nidaba.skyforge.reference.volume.SeededSuspendedVolumeReferenceCorpus;
 import io.github.nidaba.skyforge.reference.volume.SuspendedVolumeReferenceDomain;
@@ -12,11 +13,21 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /** Generates the six-seed human-review corpus for structured secondary morphology. */
 public final class SecondaryMorphologySuspendedVolumeCorpusCli {
     /** Stable evidence-package identifier for SF-IMP-0017 review. */
     public static final String EVIDENCE_ID = "secondary-morphology-suspended-volume-v1";
+
+    private static final int PARALLELISM = 2;
 
     private SecondaryMorphologySuspendedVolumeCorpusCli() {}
 
@@ -32,22 +43,17 @@ public final class SecondaryMorphologySuspendedVolumeCorpusCli {
         Files.createDirectories(output);
 
         String version = System.getProperty("skyforge.version", "development");
-        SecondaryMorphologySkyIslandVolumeRecipe recipe =
-                new SecondaryMorphologySkyIslandVolumeRecipe();
-        SuspendedVolumeEvidenceGenerator generator = new SuspendedVolumeEvidenceGenerator();
-        SuspendedVolumeEvidenceWriter writer = new SuspendedVolumeEvidenceWriter();
+        List<FixedSeedReferenceCorpus.Member> members = SeededSuspendedVolumeReferenceCorpus.members();
+        Map<String, MemberResult> results = generateMembers(members, output, version);
         StringBuilder summary = new StringBuilder(
                 "member,seed,solidSamples,components,faceContacts,minimumClearance,minimumX,maximumX,minimumY,maximumY,minimumZ,maximumZ\n");
 
-        for (FixedSeedReferenceCorpus.Member member : SeededSuspendedVolumeReferenceCorpus.members()) {
-            CompiledSkyIslandVolume compiled = recipe.compile(
-                    SeededSuspendedVolumeReferenceCorpus.descriptor(member));
-            SuspendedVolumeEvidence evidence = generator.generate(
-                    compiled, SuspendedVolumeReferenceDomain.grid(), SamplingOrder.FORWARD);
-            Path memberDirectory = output.resolve(member.id());
-            writer.write(evidence, memberDirectory, version);
-
-            var metrics = evidence.metrics();
+        for (FixedSeedReferenceCorpus.Member member : members) {
+            MemberResult result = results.get(member.id());
+            if (result == null) {
+                throw new IOException("missing completed corpus member: " + member.id());
+            }
+            VolumeMetrics metrics = result.metrics();
             summary.append(member.id()).append(',')
                     .append(member.seed()).append(',')
                     .append(metrics.solidSampleCount()).append(',')
@@ -60,19 +66,69 @@ public final class SecondaryMorphologySuspendedVolumeCorpusCli {
                     .append(metrics.bounds().maximumY()).append(',')
                     .append(metrics.bounds().minimumZ()).append(',')
                     .append(metrics.bounds().maximumZ()).append('\n');
-
-            System.out.printf(
-                    "%s: solid=%d; components=%d; faceContacts=%d; minimumClearance=%.3f%n",
-                    member.id(),
-                    metrics.solidSampleCount(),
-                    metrics.connectedSolidComponents(),
-                    metrics.faceContacts().total(),
-                    metrics.airClearance().minimum());
         }
 
         Files.writeString(output.resolve("summary.csv"), summary, StandardCharsets.UTF_8);
         Files.writeString(output.resolve("index.html"), galleryHtml(), StandardCharsets.UTF_8);
         System.out.println(output.resolve("index.html").toAbsolutePath());
+    }
+
+    private static Map<String, MemberResult> generateMembers(
+            List<FixedSeedReferenceCorpus.Member> members,
+            Path output,
+            String version) throws IOException {
+        ExecutorService executor = Executors.newFixedThreadPool(PARALLELISM);
+        CompletionService<MemberResult> completion = new ExecutorCompletionService<>(executor);
+        for (FixedSeedReferenceCorpus.Member member : members) {
+            completion.submit(() -> generateMember(member, output, version));
+        }
+
+        Map<String, MemberResult> results = new HashMap<>();
+        try {
+            for (int completed = 0; completed < members.size(); completed++) {
+                MemberResult result = completion.take().get();
+                results.put(result.member().id(), result);
+                VolumeMetrics metrics = result.metrics();
+                System.out.printf(
+                        "%s: solid=%d; components=%d; faceContacts=%d; minimumClearance=%.3f%n",
+                        result.member().id(),
+                        metrics.solidSampleCount(),
+                        metrics.connectedSolidComponents(),
+                        metrics.faceContacts().total(),
+                        metrics.airClearance().minimum());
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IOException("structured morphology corpus generation was interrupted", exception);
+        } catch (ExecutionException exception) {
+            Throwable cause = exception.getCause();
+            if (cause instanceof IOException ioException) {
+                throw ioException;
+            }
+            if (cause instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new IOException("structured morphology corpus generation failed", cause);
+        } finally {
+            executor.shutdownNow();
+        }
+        return results;
+    }
+
+    private static MemberResult generateMember(
+            FixedSeedReferenceCorpus.Member member,
+            Path output,
+            String version) throws IOException {
+        SecondaryMorphologySkyIslandVolumeRecipe recipe =
+                new SecondaryMorphologySkyIslandVolumeRecipe();
+        SuspendedVolumeEvidenceGenerator generator = new SuspendedVolumeEvidenceGenerator();
+        SuspendedVolumeEvidenceWriter writer = new SuspendedVolumeEvidenceWriter();
+        CompiledSkyIslandVolume compiled = recipe.compile(
+                SeededSuspendedVolumeReferenceCorpus.descriptor(member));
+        SuspendedVolumeEvidence evidence = generator.generate(
+                compiled, SuspendedVolumeReferenceDomain.grid(), SamplingOrder.FORWARD);
+        writer.write(evidence, output.resolve(member.id()), version);
+        return new MemberResult(member, evidence.metrics());
     }
 
     private static String galleryHtml() {
@@ -107,4 +163,6 @@ public final class SecondaryMorphologySuspendedVolumeCorpusCli {
                 .append(member).append('/').append(file).append("\" alt=\"").append(caption)
                 .append("\"></figure>");
     }
+
+    private record MemberResult(FixedSeedReferenceCorpus.Member member, VolumeMetrics metrics) {}
 }
