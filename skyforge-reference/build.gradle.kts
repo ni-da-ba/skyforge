@@ -79,3 +79,12 @@ tasks.register<JavaExec>("composedMorphologySuspendedVolumeCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/composed-morphology-family-suspended-volume-v1").get().asFile.absolutePath)
 }
+
+tasks.register<JavaExec>("familyAwareMorphologySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates the fifteen-member SF-IMP-0020 family-aware morphology review atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.FamilyAwareMorphologySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/family-aware-morphology-suspended-volume-v1").get().asFile.absolutePath)
+}
