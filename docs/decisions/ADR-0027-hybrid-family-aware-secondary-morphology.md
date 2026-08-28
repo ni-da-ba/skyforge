@@ -1,6 +1,6 @@
 # ADR-0027: Hybrid Family-Aware Secondary Morphology
 
-- **Status:** Implemented; local numerical and visual acceptance pending
+- **Status:** Implemented; human visual acceptance passed, final local numerical/repository gate pending confirmation
 - **Date:** 2026-08-28
 - **Work item:** SF-IMP-0023
 
@@ -10,7 +10,7 @@ SF-IMP-0022 proves continuous primary-morphology hybridization across all ten un
 
 Selecting only one parent's secondary vocabulary would make a 50/50 primary hybrid semantically asymmetric. Applying the old generic ridge/spur/valley vocabulary would discard the family-aware improvements accepted in SF-IMP-0020. Re-implementing the five family-aware formulas inside the hybrid compiler would duplicate accepted mathematics and weaken regression authority.
 
-## Decision direction
+## Decision
 
 SF-IMP-0023 composes the accepted SF-IMP-0016 bounded-detail layer with a **blend of the two accepted SF-IMP-0020 parent secondary factors**.
 
@@ -80,6 +80,8 @@ SF-IMP-0023 must demonstrate:
 9. full enrichment preserves the exact SF-IMP-0022 primary footprint sign at every canonical horizontal sample;
 10. human review confirms that secondary geography transitions with the primary blend instead of visibly belonging to only one parent.
 
+Requirements 1–7 are covered by the focused recipe/regression suite. Requirement 10 has passed human review. Requirements 8–9 remain tied to the final successful local verifier record before this ADR is marked fully Accepted.
+
 ## Initial evidence corpus
 
 Numerical acceptance uses all ten unordered family pairs at midpoint weight `0.5` across the three established root seeds with full detail and full blended secondary morphology: 30 full-resolution canonical specimens.
@@ -87,6 +89,27 @@ Numerical acceptance uses all ten unordered family pairs at midpoint weight `0.5
 Each specimen is compared directly with its accepted SF-IMP-0022 signal-free hybrid primary. In addition to topology and clearance, the full-resolution gate requires exact primary-footprint sign preservation across the canonical horizontal grid and nontrivial changes to both upper and underside surfaces.
 
 Human review uses the stable Skyforge seed at weights `0.25`, `0.50`, and `0.75` for all ten pairings, again with full detail and secondary morphology, producing a 30-member atlas directly comparable to SF-IMP-0022.
+
+## Human visual acceptance
+
+The uploaded `enriched-hybrid-morphology-suspended-volume-v1` corpus was compared specimen-for-specimen against the accepted SF-IMP-0022 `hybrid-morphology-suspended-volume-v1` corpus.
+
+Exact review-grid evidence:
+
+- all 30 enriched `suspension-occupancy.png` files are byte-identical to their SF-IMP-0022 primary-hybrid counterparts;
+- all 30 enriched review specimens contain one connected component;
+- all 30 have zero face contacts;
+- review-grid minimum clearance spans 64–128 world units;
+- solid-sample counts increase by 268–1,818 samples versus matching primary hybrids;
+- maximum sampled elevations rise by 8–40 world units.
+
+Human review found coherent enriched interpolation across all ten pairings. In particular, Basin depression/ring behavior, Spine axial relief/keel organization, Tableland broad/shallow character, and Lobed shoulder/saddle semantics remain tied to the same blend progression as the primary morphology. No pairing shows an abrupt secondary-parent switch or an enriched silhouette drift.
+
+Detailed review record:
+
+- `docs/reviews/SF-IMP-0023-enriched-hybrid-morphology-visual-review.md`
+
+**Visual gate: passed.**
 
 ## Local verifier
 
@@ -98,7 +121,7 @@ Human review uses the stable Skyforge seed at weights `0.25`, `0.50`, and `0.75`
 4. the thirty-member full-resolution enriched midpoint acceptance corpus;
 5. the thirty-member full-detail/full-secondary visual progression atlas.
 
-Successful generation of the atlas does not by itself constitute human visual acceptance; the atlas remains a review artifact until compared against the accepted SF-IMP-0022 primary progression.
+Successful generation of the atlas does not by itself constitute the numerical acceptance record; the final verifier success line is retained as the authoritative local proof that the full-resolution stage completed before atlas generation.
 
 ## Deferred work
 
