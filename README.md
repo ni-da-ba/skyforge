@@ -46,9 +46,20 @@ lighter fifteen-member visual atlas. All fifteen accepted specimens remain one c
 mass with zero domain-face contacts, and the families are materially distinguishable in primary
 silhouette and/or vertical profile.
 
-The next development target is composition: applying the accepted SF-IMP-0016 bounded-detail and
-SF-IMP-0017 structured-relief layers across the accepted SF-IMP-0018 family matrix before promoting
-family controls into a new semantic descriptor schema.
+`SF-IMP-0019` is accepted numerically and visually pending the final repository-wide merge check. It
+introduces a generic enrichment-composition transform plus recipe version 5, applying the accepted
+SF-IMP-0016 bounded detail and SF-IMP-0017 structured relief across all five SF-IMP-0018 primary
+families. The generic path is differential-identical to the accepted SF-IMP-0017 legacy result on the
+original primary body. All fifteen full-resolution composed specimens preserve topology, clearance,
+exact density reconstruction, and every canonical primary-footprint sign. The paired review atlases
+retain Massif, Tableland, Spine, Basin, and Lobed identity; all fifteen review-grid suspension-plane
+PNGs are byte-identical before and after composition.
+
+The visual review also identifies the next development target: family-aware secondary morphology.
+The generic ridge/spur/valley vocabulary composes safely, but Tableland should eventually preserve
+larger plateau-like regions, Basin should organize relief around its depression/rim identity, Spine
+should emphasize longitudinal structure, and Lobed should respond to its shoulders. These semantics
+should be proven before family/composition controls are promoted into a new descriptor schema.
 
 Hosted GitHub Actions validation remains temporarily unavailable because the repository's Actions
 allowance is exhausted. Local Java 25 validation is the authoritative temporary merge gate.
@@ -161,10 +172,22 @@ bounds as canonical acceptance but 8-unit review spacing (`97 x 65 x 97`) to kee
 practical. The numerical family acceptance test separately samples the full canonical
 `193 x 129 x 193` domain.
 
-For Windows local development, `scripts\verify-sf-imp-0018.bat` checks Java, runs the primary-family
-recipe tests, executes the fifteen-member full-resolution topology acceptance suite, and generates
-the lightweight visual atlas. A clean `gradlew.bat check` completed successfully at the accepted
-SF-IMP-0018 merge checkpoint.
+Generate the accepted SF-IMP-0019 composed-family review atlas with:
+
+```shell
+./gradlew :skyforge-reference:composedMorphologySuspendedVolumeCorpus
+```
+
+The output is written under
+`skyforge-reference/build/evidence/composed-morphology-family-suspended-volume-v1`. It uses the same
+five families, three seeds, world bounds, and 8-unit review grid as the SF-IMP-0018 atlas, but applies
+full bounded detail and structured relief. The corresponding full-resolution acceptance test verifies
+canonical footprint preservation and suspended-volume topology separately.
+
+For Windows local development, `scripts\verify-sf-imp-0019.bat` checks Java, runs generic composition
+compatibility and family recipe tests, executes the fifteen-member full-resolution composed-family
+acceptance suite, and generates the lightweight composed atlas. A clean repository-wide
+`gradlew.bat check` is required at the SF-IMP-0019 merge checkpoint.
 
 ## Project record
 
@@ -192,8 +215,11 @@ are recorded in
 The accepted five-family primary morphology proof, bounded recipe-level seed variation, and
 fifteen-member acceptance/visual corpus are recorded in
 [`docs/decisions/ADR-0022-primary-morphology-family-proof.md`](docs/decisions/ADR-0022-primary-morphology-family-proof.md).
-The human visual acceptance is recorded in
-[`docs/reviews/SF-IMP-0018-primary-morphology-family-visual-review.md`](docs/reviews/SF-IMP-0018-primary-morphology-family-visual-review.md).
+The accepted cross-family enrichment-composition contract is recorded in
+[`docs/decisions/ADR-0023-cross-family-enrichment-composition.md`](docs/decisions/ADR-0023-cross-family-enrichment-composition.md).
+The corresponding human visual reviews are recorded in
+[`docs/reviews/SF-IMP-0018-primary-morphology-family-visual-review.md`](docs/reviews/SF-IMP-0018-primary-morphology-family-visual-review.md) and
+[`docs/reviews/SF-IMP-0019-cross-family-enrichment-composition-visual-review.md`](docs/reviews/SF-IMP-0019-cross-family-enrichment-composition-visual-review.md).
 
 ## License
 
