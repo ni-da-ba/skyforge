@@ -1,8 +1,8 @@
 # Skyforge Architecture Baseline v0.2 Proposal
 
 **Document ID:** SF-BASE-0002
-**Status:** Accepted implementation boundary; volume proof incomplete
-**Date:** 2026-08-04
+**Status:** Accepted signal-free volume proof; bounded enrichment incomplete
+**Date:** 2026-08-27
 **Owner:** Nicholas
 **Supersedes:** No released contract; extends SF-BASE-0001 after acceptance
 
@@ -16,6 +16,9 @@ Skyforge v0.2 should prove one new claim before broadening into secondary morpho
 
 This is the minimum correction needed to make the first morphology a sky island rather than a
 top-down island surface over a downward-filled terrain field.
+
+The signal-free portion of this claim is now accepted by SF-IMP-0015. Bounded seeded enrichment
+remains the final proof segment before this v0.2 boundary can close.
 
 ## 2. Preserved v0.1 authority
 
@@ -90,6 +93,12 @@ binary64, validation, and compatibility behavior. In particular:
 
 Visual agreement never replaces the numerical gates.
 
+SF-IMP-0015 accepts `SF-VOL-001` through `SF-VOL-005` and `SF-VOL-007` through `SF-VOL-010` for
+`signal-free-suspended-volume-v1`. The accepted canonical specimen contains 366,912 solid samples,
+one connected component, zero domain-face contacts, and 88 world units of minimum sampled air
+clearance. `SF-VOL-006` remains deferred until SF-IMP-0016 because nonzero signal amplitude is
+outside the signal-free recipe contract.
+
 ## 6. Evidence contract
 
 ADR-0016 accepts an exact bounded volume domain of `x,z in [-384,384]`, `y in [0,512]`, and
@@ -108,13 +117,17 @@ x first, then z, then y. The evidence package implemented in SF-IMP-0014 must co
 The isometric image is a review projection of occupancy, not a substitute for a mesh, renderer, or
 Minecraft backend.
 
+ADR-0019 pins 19 engine-version-independent files from this package as the golden specimen. The
+manifest remains inspectable but is excluded from golden identity because it records engine-version
+metadata; `evidence.sha256` is excluded because it includes the manifest hash.
+
 ## 7. Work order
 
 1. [x] `SF-IMP-0012` — accept the suspended-volume descriptor, signed-density semantics, graph
    intersection primitive, graph schema 3, and exact 3D evidence domain.
 2. [x] `SF-IMP-0013` — implement the signal-free upper/underside recipe and provenance graphs.
 3. [x] `SF-IMP-0014` — implement deterministic 3D sampling, metrics, slices, and visual evidence.
-4. [ ] `SF-IMP-0015` — execute the signal-free suspended-volume acceptance suite and pin a golden
+4. [x] `SF-IMP-0015` — execute the signal-free suspended-volume acceptance suite and pin a golden
    specimen.
 5. [ ] `SF-IMP-0016` — apply bounded seeded enrichment and execute the fixed-seed identity suite.
 6. Only then define secondary ridges/valleys and multi-morphology composition.
