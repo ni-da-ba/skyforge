@@ -1,7 +1,8 @@
 # ADR-0020: Bounded Seeded Suspended-Volume Enrichment
 
-- **Status:** Proposed pending local acceptance validation
+- **Status:** Accepted by local Java 25 validation
 - **Date:** 2026-08-27
+- **Accepted:** 2026-08-28
 - **Work item:** SF-IMP-0016
 
 ## Context
@@ -78,6 +79,25 @@ At the canonical `193 x 129 x 193` suspended-volume domain, every full-amplitude
 
 The existing SF-VOL-007 deterministic sampling-order contract remains separately authoritative for schedule invariance.
 
-## Validation state
+## Validation record
 
-The implementation and acceptance tests are present on `agent/sf-imp-0016`, stacked on the SF-IMP-0015 acceptance commit. GitHub-hosted Actions are currently unavailable because the repository's Actions allowance is exhausted. This ADR remains **Proposed** until the relevant Gradle test suites complete successfully in a local Java 25 environment or hosted CI capacity is restored.
+On 2026-08-28 the focused seeded recipe tests and the complete six-member SF-VOL-006 acceptance suite completed successfully under Eclipse Temurin OpenJDK 25.0.4.1 and Gradle 9.6.1 on Windows 11.
+
+The generated full-amplitude corpus reported:
+
+| Member | Solid samples | Components | Face contacts | Minimum clearance |
+| --- | ---: | ---: | ---: | ---: |
+| `seed-min` | 367,356 | 1 | 0 | 88.000 |
+| `seed-negative-one` | 369,847 | 1 | 0 | 88.000 |
+| `seed-zero` | 370,382 | 1 | 0 | 88.000 |
+| `seed-one` | 365,864 | 1 | 0 | 88.000 |
+| `seed-skyforge` | 367,732 | 1 | 0 | 88.000 |
+| `seed-max` | 363,854 | 1 | 0 | 88.000 |
+
+Every member therefore preserved the required one-component topology, zero domain-face contact, and clearance margin. The acceptance test additionally verified the exact horizontal identity/sign envelope and 15 percent relative displacement bound over the complete canonical horizontal grid.
+
+During the same local verification run, the signal-free golden-specimen test exposed an unrelated JUnit temporary-directory lifecycle defect: `@TestInstance(PER_CLASS)` allowed a cached evidence path to outlive its `@TempDir`. The test was corrected to use the normal per-method lifecycle while retaining the canonical volume as static shared data. The formerly failing golden-specimen method subsequently passed in isolation in 51 seconds.
+
+The six-seed visual evidence corpus then generated successfully in 5 minutes 48 seconds under `skyforge-reference/build/evidence/seeded-suspended-volume-v1`. Visual morphology review remains a human design-quality activity rather than a numerical acceptance prerequisite.
+
+GitHub-hosted Actions remain unavailable because the repository's Actions allowance is exhausted. A final complete `gradlew.bat check` after the lifecycle fix is still required at the merge/release checkpoint, but SF-VOL-006 itself is accepted by the local Java 25 evidence above.
