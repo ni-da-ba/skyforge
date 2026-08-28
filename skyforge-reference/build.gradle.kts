@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.Test
+
 plugins {
     application
 }
@@ -15,6 +17,13 @@ dependencies {
 application {
     mainClass.set("io.github.nidaba.skyforge.reference.EvidenceCli")
     applicationDefaultJvmArgs = listOf("-Dskyforge.version=${project.version}")
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("junit.jupiter.execution.parallel.enabled", "true")
+    systemProperty("junit.jupiter.execution.parallel.mode.default", "same_thread")
+    systemProperty("junit.jupiter.execution.parallel.config.strategy", "fixed")
+    systemProperty("junit.jupiter.execution.parallel.config.fixed.parallelism", "2")
 }
 
 tasks.register<JavaExec>("fixedSeedCorpus") {
