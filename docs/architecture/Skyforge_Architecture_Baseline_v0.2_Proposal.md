@@ -1,9 +1,9 @@
 # Skyforge Architecture Baseline v0.2 Proposal
 
 **Document ID:** SF-BASE-0002
-**Status:** Accepted through structured secondary morphology; composition next
+**Status:** Accepted through primary morphology families; enrichment composition next
 **Date:** 2026-08-27
-**Accepted through SF-IMP-0017:** 2026-08-28
+**Accepted through SF-IMP-0018:** 2026-08-28
 **Owner:** Nicholas
 **Supersedes:** No released contract; extends SF-BASE-0001 after acceptance
 
@@ -21,7 +21,9 @@ top-down island surface over a downward-filled terrain field.
 The signal-free portion of this claim is accepted by SF-IMP-0015. SF-IMP-0016 completes the bounded
 seeded-enrichment proof across the fixed six-seed corpus. SF-IMP-0017 then demonstrates that
 organized landscape-scale upper-surface structure can be layered above the accepted volume while
-preserving the suspended-volume identity and topology invariants.
+preserving the suspended-volume identity and topology invariants. SF-IMP-0018 establishes that the
+same architectural contract supports several materially different primary suspended-landform
+families before composition or backend realization.
 
 ## 2. Preserved v0.1 authority
 
@@ -59,8 +61,10 @@ The descriptor must not contain graph-node names, interpolation choices, backend
 terms, or evidence-rendering settings.
 
 SF-IMP-0017 deliberately keeps its first ridge/spur/valley construction parameters recipe-versioned
-rather than extending descriptor schema 1. Semantic controls for composition are deferred until
-visual evidence establishes which morphology controls are stable enough to expose publicly.
+rather than extending descriptor schema 1. SF-IMP-0018 follows the same discipline for the accepted
+Massif, Tableland, Spine, Basin, and Lobed family vocabulary. Family semantics remain recipe-layer
+state until composition evidence establishes which concepts are stable enough to expose in a future
+descriptor schema.
 
 ## 4. Graph and recipe boundary
 
@@ -93,6 +97,12 @@ SF-IMP-0017 adds a structured upper-only factor built from deterministic directi
 form `1 / (1 + across^2 + along^4)`. A broad ridge, oblique spur, and valley corridor combine into an
 upper-offset factor bounded analytically in `[0.76, 1.48]`. The factor remains strictly positive,
 so the accepted rim, horizontal footprint, upper sign envelope, and underside remain unchanged.
+
+SF-IMP-0018 keeps graph schema 3. The family proof changes primary footprint and vertical profile
+using existing arithmetic nodes. Lobed morphology uses a positive bounded directional radial divisor
+rather than a new union primitive, keeping its footprint star-shaped about the common center and
+analytically connected. Every family derives one shared signed footprint residual used by both upper
+and underside surfaces.
 
 ## 5. Suspended-volume acceptance gates
 
@@ -129,6 +139,12 @@ comparison with SF-IMP-0016 confirms landscape-scale ridge, spur, and valley org
 than uniform crown inflation. The accepted underside and suspension-plane occupancy evidence remain
 byte-identical to SF-IMP-0016 for all six seeds.
 
+SF-IMP-0018 accepts five signal-free primary families across three bounded root-seed variants each.
+All fifteen full-resolution specimens preserve positive occupancy, exactly one face-connected solid
+component, zero domain-face contacts, and at least 48 world units of sampled clearance. Human review
+accepts materially distinct primary identity in silhouette and/or vertical profile across Massif,
+Tableland, Spine, Basin, and Lobed before local detail or structured relief is applied.
+
 ## 6. Evidence contract
 
 ADR-0016 accepts an exact bounded volume domain of `x,z in [-384,384]`, `y in [0,512]`, and
@@ -145,9 +161,9 @@ x first, then z, then y. The evidence package implemented in SF-IMP-0014 must co
 - a manifest and SHA-256 listing that excludes environment-qualified timing.
 
 The isometric image is a review projection of occupancy, not a substitute for a mesh, renderer, or
-Minecraft backend. SF-IMP-0017 review also establishes that this projection can visually understate
-upper-surface relief; future evidence work should supplement it with relief-aware shading, contours,
-or explicit height/delta views.
+Minecraft backend. SF-IMP-0017 and SF-IMP-0018 reviews establish that this projection can visually
+understate upper-surface relief and Tableland flatness; future evidence work should supplement it
+with relief-aware shading, contours, or explicit height/delta views.
 
 ADR-0019 pins 19 engine-version-independent files from this package as the golden specimen. The
 manifest remains inspectable but is excluded from golden identity because it records engine-version
@@ -162,6 +178,13 @@ corpus. Its visual review is recorded in
 `docs/reviews/SF-IMP-0017-secondary-morphology-visual-review.md` and accepts organized secondary
 landforms as distinct from the SF-IMP-0016 detail signal.
 
+SF-IMP-0018 defines `morphology-family-suspended-volume-v1` as a fifteen-member design corpus: five
+primary families by three root seeds. Full topology acceptance uses the canonical 4-unit grid. The
+human review atlas uses the same world bounds at 8-unit spacing (`97 x 65 x 97`) so primary-family
+visual iteration does not require writing fifteen complete canonical density packages. Its accepted
+visual review is recorded in
+`docs/reviews/SF-IMP-0018-primary-morphology-family-visual-review.md`.
+
 ## 7. Work order
 
 1. [x] `SF-IMP-0012` — accept the suspended-volume descriptor, signed-density semantics, graph
@@ -174,8 +197,13 @@ landforms as distinct from the SF-IMP-0016 detail signal.
 6. [x] `SF-IMP-0017` — define and validate organized secondary upper-surface ridges/valleys with a
    rim-safe positive envelope, preserved underside, fixed-seed topology acceptance, and visual
    evidence of landscape-scale organization larger than the SF-IMP-0016 detail signal.
-7. [ ] Define and validate multi-morphology composition while preserving the accepted v0.2
-   suspended-volume invariants and deterministic evidence contract.
+7. [x] `SF-IMP-0018` — define and validate Massif, Tableland, Spine, Basin, and Lobed primary
+   morphology families with shared closure semantics, full-resolution topology acceptance, bounded
+   primary seed variation, and a fifteen-member human review atlas.
+8. [ ] Compose the accepted SF-IMP-0016 and SF-IMP-0017 enrichment layers across accepted primary
+   families before promoting family controls into a new semantic descriptor schema.
+9. [ ] Define family hybridization and multi-morphology composition only after the family matrix
+   preserves the v0.2 suspended-volume invariants and deterministic evidence contract.
 
 This order follows Skyforge doctrine: correct primary geometry before enrichment, enrichment before
 secondary landforms, and isolated morphology proofs before composition and backend realization.

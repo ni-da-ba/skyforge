@@ -29,18 +29,29 @@ Visual review of that corpus showed that SF-IMP-0016 is a successful determinist
 not yet a landform hierarchy: the suspension-plane silhouettes are intentionally identical and the
 isometric specimens remain dominated by the same smooth primary mass.
 
-`SF-IMP-0017` is therefore in development on `agent/sf-imp-0017`. It introduces organized secondary
-upper-surface morphology as a separate recipe layer above SF-IMP-0016. A deterministic main ridge,
-oblique spur, and valley are expressed entirely with existing arithmetic graph nodes through smooth
-directional basis functions. Their combined upper-offset factor is analytically bounded to
-`[0.76, 1.48]`, preserving the exact rim and horizontal footprint while creating substantially
-larger-scale relief. The accepted seeded underside remains byte-identical. Local Java 25 numerical
-and visual validation is required before this layer is accepted or promoted into semantic descriptor
-controls.
+`SF-IMP-0017` is accepted by local Java 25 numerical validation and human visual review. It adds an
+organized upper-surface layer above SF-IMP-0016 using a deterministic main ridge, oblique spur, and
+valley expressed entirely with existing arithmetic graph nodes. Their combined upper-offset factor
+is analytically bounded to `[0.76, 1.48]`, preserving the exact rim and horizontal footprint while
+creating larger-scale relief. The accepted seeded underside remains byte-identical. The six-member
+structured corpus retains one connected component, zero domain-face contacts, and 88 world units of
+minimum sampled clearance for every seed.
+
+`SF-IMP-0018` is accepted by local Java 25 numerical validation and human visual review. It adds five
+primary suspended-landform families before local detail or structured relief is reintroduced:
+Massif, Tableland, Spine, Basin, and Lobed. Descriptor schema 1 and graph schemas 1 through 3 remain
+unchanged. The family proof uses bounded recipe-level seed variation, a shared signed
+upper/underside footprint residual, full-resolution fifteen-member topology acceptance, and a
+lighter fifteen-member visual atlas. All fifteen accepted specimens remain one connected suspended
+mass with zero domain-face contacts, and the families are materially distinguishable in primary
+silhouette and/or vertical profile.
+
+The next development target is composition: applying the accepted SF-IMP-0016 bounded-detail and
+SF-IMP-0017 structured-relief layers across the accepted SF-IMP-0018 family matrix before promoting
+family controls into a new semantic descriptor schema.
 
 Hosted GitHub Actions validation remains temporarily unavailable because the repository's Actions
-allowance is exhausted. A final complete `gradlew.bat check` remains required at the merge/release
-checkpoint.
+allowance is exhausted. Local Java 25 validation is the authoritative temporary merge gate.
 
 ## Modules
 
@@ -137,10 +148,23 @@ The output is written under
 `skyforge-reference/build/evidence/secondary-morphology-suspended-volume-v1`. It intentionally uses
 the same six descriptors as SF-IMP-0016 so the two atlases can be compared seed-for-seed.
 
-For Windows local development, `scripts\verify-sf-imp-0017.bat` checks Java, runs the structured
-recipe tests, executes the six-seed topology/identity acceptance test, and generates the visual
-corpus. It does not repeat the complete repository suite; a clean `gradlew.bat check` is reserved for
-the acceptance/merge checkpoint after the visual design gate passes.
+Generate the accepted SF-IMP-0018 primary morphology-family review atlas with:
+
+```shell
+./gradlew :skyforge-reference:morphologyFamilySuspendedVolumeCorpus
+```
+
+The output is written under
+`skyforge-reference/build/evidence/morphology-family-suspended-volume-v1`. It contains Massif,
+Tableland, Spine, Basin, and Lobed specimens for three root seeds. The atlas uses the same world
+bounds as canonical acceptance but 8-unit review spacing (`97 x 65 x 97`) to keep visual iteration
+practical. The numerical family acceptance test separately samples the full canonical
+`193 x 129 x 193` domain.
+
+For Windows local development, `scripts\verify-sf-imp-0018.bat` checks Java, runs the primary-family
+recipe tests, executes the fifteen-member full-resolution topology acceptance suite, and generates
+the lightweight visual atlas. A clean `gradlew.bat check` completed successfully at the accepted
+SF-IMP-0018 merge checkpoint.
 
 ## Project record
 
@@ -162,9 +186,14 @@ The accepted signal-free `SF-VOL` gates, 19-artifact golden specimen, exact morp
 The accepted bounded seeded suspended-volume enrichment contract, six-seed acceptance corpus, and
 local Java 25 validation record are recorded in
 [`docs/decisions/ADR-0020-bounded-seeded-suspended-volume-enrichment.md`](docs/decisions/ADR-0020-bounded-seeded-suspended-volume-enrichment.md).
-The proposed structured secondary-morphology contract and its numerical/visual acceptance boundary
+The accepted structured secondary-morphology contract and its numerical/visual acceptance boundary
 are recorded in
 [`docs/decisions/ADR-0021-structured-secondary-morphology.md`](docs/decisions/ADR-0021-structured-secondary-morphology.md).
+The accepted five-family primary morphology proof, bounded recipe-level seed variation, and
+fifteen-member acceptance/visual corpus are recorded in
+[`docs/decisions/ADR-0022-primary-morphology-family-proof.md`](docs/decisions/ADR-0022-primary-morphology-family-proof.md).
+The human visual acceptance is recorded in
+[`docs/reviews/SF-IMP-0018-primary-morphology-family-visual-review.md`](docs/reviews/SF-IMP-0018-primary-morphology-family-visual-review.md).
 
 ## License
 
