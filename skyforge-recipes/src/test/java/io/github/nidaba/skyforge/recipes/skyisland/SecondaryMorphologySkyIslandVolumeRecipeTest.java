@@ -170,8 +170,9 @@ final class SecondaryMorphologySkyIslandVolumeRecipeTest {
             }
         }
 
-        assertTrue(maximumDifference >= 8.0,
-                () -> "structured morphology should create visible multi-block relief; max="
+        assertTrue(
+                maximumDifference >= 8.0,
+                "structured morphology should create visible multi-block relief; max="
                         + maximumDifference);
     }
 
