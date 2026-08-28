@@ -16,9 +16,16 @@ exact signed-density convention, three-dimensional intersection node, graph sche
 3D evidence domain, signal-free upper/underside recipe, deterministic 3D evidence format, and one
 pinned golden suspended-volume specimen. The signal-free specimen passes `SF-VOL-001` through
 `SF-VOL-005` and `SF-VOL-007` through `SF-VOL-010`: 366,912 solid samples form one connected mass,
-touch no domain face, and retain at least 88 world units of sampled air clearance. `SF-VOL-006`
-remains deliberately deferred because it is the bounded seeded-enrichment gate. The next action is
-`SF-IMP-0016`, before composition or secondary morphology.
+touch no domain face, and retain at least 88 world units of sampled air clearance.
+
+`SF-IMP-0016` is now implemented pending authoritative local Java 25 validation. Its bounded seeded
+enrichment independently modulates upper and underside offsets by at most 15 percent while preserving
+the signal-free rim, horizontal footprint, and signed surface ordering by construction. `SF-VOL-006`
+exercises the six-member canonical root-seed corpus at full amplitude and requires closure, one-component
+topology, at least 80 world units of sampled air clearance, and the accepted morphology identity envelope.
+Hosted GitHub Actions validation is temporarily unavailable because the repository's Actions allowance is
+exhausted; local `gradlew.bat check` is therefore the current acceptance path. Secondary ridges, valleys,
+and multi-morphology composition remain downstream of this validation checkpoint.
 
 ## Modules
 
@@ -36,10 +43,16 @@ Requirements:
 - A 64-bit JDK 25 installation.
 - No system Gradle installation; use the checked-in wrapper.
 
-Run:
+Linux/macOS:
 
 ```shell
 ./gradlew check
+```
+
+Windows:
+
+```bat
+gradlew.bat check
 ```
 
 The wrapper is pinned to Gradle 9.6.1 and verifies the distribution checksum before use.
@@ -70,7 +83,8 @@ The command produces six complete 1024 by 1024 evidence packages under
 the checked-in golden corpus, writes environment-qualified benchmark observations, and creates an
 `index.html` atlas for side-by-side review of height, land-mask, slope, and cross-section images.
 Benchmark timings are observations, not pass/fail thresholds, and are excluded from canonical
-checksums. Every CI run publishes the generated directory as a downloadable workflow artifact.
+checksums. Every CI run publishes the generated directory as a downloadable workflow artifact when
+hosted Actions capacity is available.
 
 Generate the canonical signal-free suspended-volume evidence package with:
 
@@ -84,7 +98,19 @@ six review images, an HTML guide, a manifest, and a SHA-256 listing. The images 
 arrays but do not replace their numerical acceptance. The SF-IMP-0015 acceptance suite pins 19
 engine-version-independent artifact hashes and exact morphology metrics; `manifest.json` and
 `evidence.sha256` remain generated but are excluded from morphology identity because the manifest
-contains engine-version metadata. CI publishes the complete package on every run.
+contains engine-version metadata.
+
+Generate the full-amplitude six-seed SF-IMP-0016 suspended-volume review corpus with:
+
+```shell
+./gradlew :skyforge-reference:seededSuspendedVolumeCorpus
+```
+
+On Windows use `gradlew.bat` instead of `./gradlew`. The command creates one complete evidence package
+per canonical seed under `skyforge-reference/build/evidence/seeded-suspended-volume-v1`, plus a corpus
+`summary.csv` and an `index.html` atlas. Each seed is rendered as isometric occupancy, upper surface,
+underside, east-west and north-south sections, and suspension-plane occupancy so topology and seeded
+morphology can be inspected alongside the numerical `SF-VOL-006` gate.
 
 ## Project record
 
@@ -103,6 +129,9 @@ The canonical 3D grid, metrics, slice, checksum, and review-image formats are re
 The accepted signal-free `SF-VOL` gates, 19-artifact golden specimen, exact morphology metrics, and
 `SF-VOL-006` deferral are recorded in
 [`docs/decisions/ADR-0019-signal-free-suspended-volume-acceptance.md`](docs/decisions/ADR-0019-signal-free-suspended-volume-acceptance.md).
+The bounded seeded suspended-volume enrichment contract, its six-seed acceptance corpus, and the
+current local-validation requirement are recorded in
+[`docs/decisions/ADR-0020-bounded-seeded-suspended-volume-enrichment.md`](docs/decisions/ADR-0020-bounded-seeded-suspended-volume-enrichment.md).
 
 ## License
 
