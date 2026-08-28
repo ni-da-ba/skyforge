@@ -1,6 +1,6 @@
 # ADR-0026: Primary Morphology Hybridization and Provider Seam
 
-- **Status:** Proposed pending local numerical and visual acceptance
+- **Status:** Visual gate accepted; dedicated numerical verification and final repository-wide check pending
 - **Date:** 2026-08-28
 - **Work item:** SF-IMP-0022
 
@@ -88,6 +88,26 @@ three established family root seeds: 30 full-resolution specimens on the canonic
 Endpoint and symmetry properties are tested separately at recipe/reference resolution. Human review
 uses a lighter atlas with representative `0.25`, `0.50`, and `0.75` blends so progression between
 parents can be inspected directly.
+
+## Human visual acceptance
+
+On 2026-08-28 the generated `hybrid-morphology-suspended-volume-v1` atlas was reviewed against the
+accepted SF-IMP-0018 Skyforge-seed parent specimens, producing explicit `0.00`, `0.25`, `0.50`,
+`0.75`, and `1.00` progressions for all ten unordered family pairs.
+
+The visual gate is accepted. Every pair changes coherently between its parents in suspension-plane
+silhouette and/or vertical profile. No progression exhibits abrupt parent switching, detached lobes,
+pinched-through rims, obvious self-intersection, or a visually disconnected suspended mass.
+Massif/Spine, Massif/Basin, Tableland/Spine, and Spine/Basin are especially strong interpolation axes;
+Tableland/Basin correctly expresses much of its transition in vertical profile rather than silhouette.
+Lobed influence is visually somewhat back-loaded but remains continuous and non-pathological.
+
+The uploaded review-grid summary reports one connected component and zero face contacts for all 30
+visual specimens, with review-grid minimum clearance from 72 to 128 world units. These are descriptive
+review-grid facts, not substitutes for the canonical full-resolution numerical gate.
+
+The detailed review is recorded in
+`docs/reviews/SF-IMP-0022-primary-morphology-hybridization-visual-review.md`.
 
 ## Deferred work
 
