@@ -14,12 +14,12 @@ call gradlew.bat --version
 if errorlevel 1 goto :failed
 
 echo.
-echo [3/5] Focused seeded recipe and SF-VOL-006 acceptance tests
-call gradlew.bat :skyforge-recipes:test --tests "io.github.nidaba.skyforge.recipes.skyisland.SeededSkyIslandVolumeRecipeTest" :skyforge-reference:test --tests "io.github.nidaba.skyforge.reference.acceptance.SeededSuspendedVolumeAcceptanceTest"
+echo [3/5] Focused seeded recipe tests
+call gradlew.bat :skyforge-recipes:test --tests "io.github.nidaba.skyforge.recipes.skyisland.SeededSkyIslandVolumeRecipeTest"
 if errorlevel 1 goto :failed
 
 echo.
-echo [4/5] Complete repository verification
+echo [4/5] Complete repository verification, including SF-VOL-006 acceptance
 call gradlew.bat check
 if errorlevel 1 goto :failed
 
