@@ -1,6 +1,6 @@
 # ADR-0022: Primary Suspended-Landform Morphology Families
 
-- **Status:** Proposed pending local numerical and visual acceptance
+- **Status:** Accepted by local Java 25 numerical validation and human visual review
 - **Date:** 2026-08-28
 - **Work item:** SF-IMP-0018
 
@@ -133,6 +133,14 @@ SF-IMP-0018 must demonstrate:
 
 Requirement 9 remains a human design gate. Numerical mask inequality alone is insufficient; differences must be visually meaningful.
 
+## Acceptance record
+
+Local Java 25 validation on 2026-08-28 accepted requirements 1 through 8 through `scripts\verify-sf-imp-0018.bat`. The verifier completed successfully after running the focused family recipe tests, fifteen-member full-resolution topology acceptance, and the lightweight family visual corpus.
+
+Human review of `morphology-family-suspended-volume-v1` accepted requirement 9. Massif, Tableland, Spine, Basin, and Lobed are materially distinguishable in primary silhouette and/or vertical profile before SF-IMP-0016 local detail or SF-IMP-0017 structured relief is applied. The visual decision and evidence-system follow-ups are recorded in `docs/reviews/SF-IMP-0018-primary-morphology-family-visual-review.md`.
+
+A final repository-wide Java 25 `gradlew.bat check` completed successfully after the visual-review commit was pulled. Hosted GitHub Actions validation remains unavailable while the repository Actions allowance is exhausted.
+
 ## Deferred work
 
 SF-IMP-0018 does not yet:
@@ -144,4 +152,4 @@ SF-IMP-0018 does not yet:
 - generate multiple islands or archipelagos;
 - add caves, arches, disconnected hanging fragments, materials, climate, biomes, ecology, or Minecraft realization.
 
-If the five-family proof is accepted, the next work item should test composition of the accepted enrichment layers across the family matrix before any descriptor-schema promotion.
+The next work item should test composition of the accepted SF-IMP-0016 and SF-IMP-0017 enrichment layers across the accepted family matrix before any descriptor-schema promotion.
