@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.Test
+
 plugins {
     application
 }
@@ -15,6 +17,13 @@ dependencies {
 application {
     mainClass.set("io.github.nidaba.skyforge.reference.EvidenceCli")
     applicationDefaultJvmArgs = listOf("-Dskyforge.version=${project.version}")
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("junit.jupiter.execution.parallel.enabled", "true")
+    systemProperty("junit.jupiter.execution.parallel.mode.default", "same_thread")
+    systemProperty("junit.jupiter.execution.parallel.config.strategy", "fixed")
+    systemProperty("junit.jupiter.execution.parallel.config.fixed.parallelism", "2")
 }
 
 tasks.register<JavaExec>("fixedSeedCorpus") {
@@ -42,4 +51,13 @@ tasks.register<JavaExec>("seededSuspendedVolumeCorpus") {
     mainClass.set("io.github.nidaba.skyforge.reference.SeededSuspendedVolumeCorpusCli")
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/seeded-suspended-volume-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("secondaryMorphologySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates six-seed SF-IMP-0017 structured-morphology visual evidence."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.SecondaryMorphologySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/secondary-morphology-suspended-volume-v1").get().asFile.absolutePath)
 }

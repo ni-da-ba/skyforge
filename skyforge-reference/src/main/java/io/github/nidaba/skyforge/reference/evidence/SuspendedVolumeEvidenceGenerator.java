@@ -20,7 +20,15 @@ public final class SuspendedVolumeEvidenceGenerator {
     private final DeterministicVolumeSampler volumeSampler = new DeterministicVolumeSampler();
     private final DeterministicGridSampler surfaceSampler = new DeterministicGridSampler();
 
-    /** Samples the density graph and derives all exact numerical evidence. */
+    /**
+     * Samples the suspended-volume contract and derives all exact numerical evidence.
+     *
+     * <p>The canonical forward path samples the X/Z upper and underside surfaces once and then
+     * evaluates the exact density identity {@code min(upper - y, y - underside)} for each Y level.
+     * This is bit-equivalent to the recipe density graph while avoiding redundant reevaluation of
+     * Y-invariant surface subgraphs. Non-forward schedules retain direct density-graph sampling so
+     * schedule-invariance validation continues to exercise the normative graph evaluator.
+     */
     public SuspendedVolumeEvidence generate(
             CompiledSkyIslandVolume compiled,
             VolumeGridSpec grid,
@@ -28,9 +36,6 @@ public final class SuspendedVolumeEvidenceGenerator {
         Objects.requireNonNull(compiled, "compiled");
         Objects.requireNonNull(grid, "grid");
         Objects.requireNonNull(order, "order");
-        ScalarField3 densityField = evaluator.field3(compiled.densityGraph());
-        ScalarVolumeGrid density = volumeSampler.sample(densityField, grid, order);
-        OccupancyVolumeGrid occupancy = OccupancyVolumeGrid.fromDensity(density);
 
         GridSpec horizontalGrid = new GridSpec(
                 grid.minimumX(),
@@ -43,6 +48,15 @@ public final class SuspendedVolumeEvidenceGenerator {
         ScalarField2 undersideField = evaluator.field2(compiled.undersideSurfaceGraph());
         ScalarGrid upper = surfaceSampler.sample(upperField, horizontalGrid, order);
         ScalarGrid underside = surfaceSampler.sample(undersideField, horizontalGrid, order);
+
+        ScalarVolumeGrid density;
+        if (order == SamplingOrder.FORWARD) {
+            density = forwardDensityFromSurfaces(upper, underside, grid);
+        } else {
+            ScalarField3 densityField = evaluator.field3(compiled.densityGraph());
+            density = volumeSampler.sample(densityField, grid, order);
+        }
+        OccupancyVolumeGrid occupancy = OccupancyVolumeGrid.fromDensity(density);
 
         int suspensionY = nearestIndex(
                 compiled.descriptor().suspensionElevation(),
@@ -72,6 +86,31 @@ public final class SuspendedVolumeEvidenceGenerator {
                 eastWest,
                 northSouth,
                 measure(occupancy));
+    }
+
+    private static ScalarVolumeGrid forwardDensityFromSurfaces(
+            ScalarGrid upper,
+            ScalarGrid underside,
+            VolumeGridSpec grid) {
+        double[] upperValues = upper.values();
+        double[] undersideValues = underside.values();
+        double[] density = new double[grid.sampleCount()];
+        int width = grid.xSamples();
+        int horizontalLayer = width * grid.zSamples();
+        for (int y = 0; y < grid.ySamples(); y++) {
+            double worldY = grid.yAt(y);
+            int layerOffset = y * horizontalLayer;
+            for (int z = 0; z < grid.zSamples(); z++) {
+                int rowOffset = z * width;
+                for (int x = 0; x < width; x++) {
+                    int horizontal = rowOffset + x;
+                    density[layerOffset + horizontal] = Math.min(
+                            upperValues[horizontal] - worldY,
+                            worldY - undersideValues[horizontal]);
+                }
+            }
+        }
+        return new ScalarVolumeGrid(grid, density);
     }
 
     private static ScalarGrid horizontalSlice(

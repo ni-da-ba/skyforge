@@ -1,9 +1,9 @@
 # Skyforge Architecture Baseline v0.2 Proposal
 
 **Document ID:** SF-BASE-0002
-**Status:** Accepted suspended-volume proof; secondary morphology next
+**Status:** Accepted through structured secondary morphology; composition next
 **Date:** 2026-08-27
-**Accepted through SF-IMP-0016:** 2026-08-28
+**Accepted through SF-IMP-0017:** 2026-08-28
 **Owner:** Nicholas
 **Supersedes:** No released contract; extends SF-BASE-0001 after acceptance
 
@@ -18,9 +18,10 @@ Skyforge v0.2 proves one new claim before broadening into secondary morphology:
 This is the minimum correction needed to make the first morphology a sky island rather than a
 top-down island surface over a downward-filled terrain field.
 
-The signal-free portion of this claim is accepted by SF-IMP-0015. SF-IMP-0016 completes the proof
-boundary by accepting bounded deterministic seeded enrichment across the fixed six-seed corpus under
-local Java 25 validation.
+The signal-free portion of this claim is accepted by SF-IMP-0015. SF-IMP-0016 completes the bounded
+seeded-enrichment proof across the fixed six-seed corpus. SF-IMP-0017 then demonstrates that
+organized landscape-scale upper-surface structure can be layered above the accepted volume while
+preserving the suspended-volume identity and topology invariants.
 
 ## 2. Preserved v0.1 authority
 
@@ -57,6 +58,10 @@ schema expresses:
 The descriptor must not contain graph-node names, interpolation choices, backend concepts, voxel
 terms, or evidence-rendering settings.
 
+SF-IMP-0017 deliberately keeps its first ridge/spur/valley construction parameters recipe-versioned
+rather than extending descriptor schema 1. Semantic controls for composition are deferred until
+visual evidence establishes which morphology controls are stable enough to expose publicly.
+
 ## 4. Graph and recipe boundary
 
 The recipe emits at least:
@@ -83,6 +88,11 @@ offset from the suspension plane by an independent positive factor in `[0.85, 1.
 amplitude. Because those factors never change sign, the rim, suspension-plane footprint, and
 inside/outside surface ordering are preserved analytically while upper and underside detail vary
 independently.
+
+SF-IMP-0017 adds a structured upper-only factor built from deterministic directional bases of the
+form `1 / (1 + across^2 + along^4)`. A broad ridge, oblique spur, and valley corridor combine into an
+upper-offset factor bounded analytically in `[0.76, 1.48]`. The factor remains strictly positive,
+so the accepted rim, horizontal footprint, upper sign envelope, and underside remain unchanged.
 
 ## 5. Suspended-volume acceptance gates
 
@@ -112,6 +122,13 @@ air clearance while preserving the complete horizontal identity/sign envelope an
 15-percent relative surface-displacement bound. Solid occupancy ranges from 363,854 to 370,382
 samples across the accepted corpus.
 
+SF-IMP-0017 accepts organized secondary upper-surface morphology across the same six seeds. The
+canonical structured corpus contains 375,742 to 382,278 solid samples; every member retains one
+component, zero domain-face contacts, and 88 world units of minimum sampled clearance. Direct visual
+comparison with SF-IMP-0016 confirms landscape-scale ridge, spur, and valley organization rather
+than uniform crown inflation. The accepted underside and suspension-plane occupancy evidence remain
+byte-identical to SF-IMP-0016 for all six seeds.
+
 ## 6. Evidence contract
 
 ADR-0016 accepts an exact bounded volume domain of `x,z in [-384,384]`, `y in [0,512]`, and
@@ -128,18 +145,22 @@ x first, then z, then y. The evidence package implemented in SF-IMP-0014 must co
 - a manifest and SHA-256 listing that excludes environment-qualified timing.
 
 The isometric image is a review projection of occupancy, not a substitute for a mesh, renderer, or
-Minecraft backend.
+Minecraft backend. SF-IMP-0017 review also establishes that this projection can visually understate
+upper-surface relief; future evidence work should supplement it with relief-aware shading, contours,
+or explicit height/delta views.
 
 ADR-0019 pins 19 engine-version-independent files from this package as the golden specimen. The
 manifest remains inspectable but is excluded from golden identity because it records engine-version
 metadata; `evidence.sha256` is excluded because it includes the manifest hash.
 
-SF-IMP-0016 additionally defines `seeded-suspended-volume-v1`, a six-member full-amplitude review
-corpus using the canonical v0.1 root-seed suite. Its corpus atlas is intentionally human-review
-evidence; the numerical SF-VOL-006 acceptance test remains authoritative for topology and identity.
-The visual review is recorded in `docs/reviews/SF-IMP-0016-seeded-volume-visual-review.md`: it accepts
-bounded enrichment as a local-detail layer while identifying organized landscape-scale morphology
-as the next limitation.
+SF-IMP-0016 defines `seeded-suspended-volume-v1`, a six-member full-amplitude review corpus using the
+canonical v0.1 root-seed suite. Its visual review accepts bounded enrichment as a local-detail layer
+while identifying organized landscape-scale morphology as the next limitation.
+
+SF-IMP-0017 defines `secondary-morphology-suspended-volume-v1`, a directly comparable six-member
+corpus. Its visual review is recorded in
+`docs/reviews/SF-IMP-0017-secondary-morphology-visual-review.md` and accepts organized secondary
+landforms as distinct from the SF-IMP-0016 detail signal.
 
 ## 7. Work order
 
@@ -150,19 +171,19 @@ as the next limitation.
 4. [x] `SF-IMP-0015` — execute the signal-free suspended-volume acceptance suite and pin a golden
    specimen.
 5. [x] `SF-IMP-0016` — apply bounded seeded enrichment and execute the fixed-seed identity suite.
-6. [ ] `SF-IMP-0017` — define and validate organized secondary upper-surface ridges/valleys with a
-   rim-safe envelope, minimum-thickness protection, stable seeded namespaces, and visual evidence
-   of landscape-scale organization larger than the SF-IMP-0016 detail signal.
-7. [ ] Define multi-morphology composition only after SF-IMP-0017 preserves the v0.2 suspended-volume
-   invariants.
+6. [x] `SF-IMP-0017` — define and validate organized secondary upper-surface ridges/valleys with a
+   rim-safe positive envelope, preserved underside, fixed-seed topology acceptance, and visual
+   evidence of landscape-scale organization larger than the SF-IMP-0016 detail signal.
+7. [ ] Define and validate multi-morphology composition while preserving the accepted v0.2
+   suspended-volume invariants and deterministic evidence contract.
 
-This order follows Skyforge doctrine: correct primary geometry before enrichment, and enrichment
-before backend realization.
+This order follows Skyforge doctrine: correct primary geometry before enrichment, enrichment before
+secondary landforms, and isolated morphology proofs before composition and backend realization.
 
 ## 8. Explicit exclusions
 
 The accepted v0.2 proof does not include NeoForge, chunks, blocks, materials, climate, ecology,
 decoration, erosion simulation, drainage, mesh extraction, level-of-detail systems, caching,
-compiler optimization, multiple islands, provinces, or world-scale placement.
+production compiler optimization, multiple islands, provinces, or world-scale placement.
 
 Those remain future consumers or extensions of a proven suspended primary volume.
