@@ -1,6 +1,6 @@
 # ADR-0021: Structured Secondary Sky-Island Morphology
 
-- **Status:** Numerically accepted by local Java 25 validation; visual review pending
+- **Status:** Accepted by local Java 25 validation and visual review
 - **Date:** 2026-08-28
 - **Work item:** SF-IMP-0017
 
@@ -146,6 +146,21 @@ before filling density with the exact intersection equation. A regression test c
 forward path against direct full-density graph evaluation byte-for-byte on a smaller 3D grid. Seed
 specimens are additionally executed with bounded two-way concurrency.
 
+Visual review of the generated corpus accepted requirement 9. Compared directly with the
+SF-IMP-0016 corpus, the structured layer creates elongated ridge corridors, oblique spur structures,
+and coherent valley depressions at scales materially larger than the local detail signal. Across the
+positive footprint, maximum upper-surface changes are approximately 30 to 39 world units upward and
+up to about 11 world units downward depending on seed, while mean change remains only about +3.6 to
++3.7 world units. This concentration shows organized relief rather than uniform crown inflation.
+The accepted underside grid/render and suspension-plane occupancy render are byte-identical to
+SF-IMP-0016 for all six seeds.
+
+The detailed review is recorded in
+`docs/reviews/SF-IMP-0017-secondary-morphology-visual-review.md`. The current isometric occupancy
+renderer is retained for topology and silhouette review but should later be supplemented with
+relief-aware shading, contours, or explicit height/delta visualization because it visually
+understates upper-surface organization.
+
 Hosted GitHub Actions validation remains unavailable while the repository Actions allowance is
 exhausted. A final complete local `gradlew.bat check` remains required before merge.
 
@@ -160,5 +175,5 @@ This design separates three levels that were previously conflated:
 Because all three remain explicit graph structure, later Minecraft realization can evaluate the
 same field incrementally without changing the reference definition.
 
-Multi-morphology composition remains deferred until this first organized upper-surface layer is
-both numerically accepted and visually convincing.
+SF-IMP-0017 is accepted. Multi-morphology composition is the next morphology milestone, subject to
+the final repository-wide local merge check for the stacked v0.2 implementation branches.
