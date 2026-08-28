@@ -111,7 +111,6 @@ final class SecondaryMorphologySuspendedVolumeAcceptanceTest {
 
         assertTrue(
                 maximumRelief >= MINIMUM_VISIBLE_RELIEF,
-                () -> "secondary morphology must create visible organized relief; max="
-                        + maximumRelief);
+                "secondary morphology must create visible organized relief; max=" + maximumRelief);
     }
 }
