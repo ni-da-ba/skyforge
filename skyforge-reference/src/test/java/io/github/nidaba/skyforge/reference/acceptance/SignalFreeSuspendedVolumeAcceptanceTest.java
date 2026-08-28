@@ -37,11 +37,9 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Executable signal-free SF-VOL acceptance gates and golden-specimen contract. */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 final class SignalFreeSuspendedVolumeAcceptanceTest {
     private static final double NUMERICAL_TOLERANCE = 1.0e-10;
     private static final SignalFreeSkyIslandVolumeRecipe RECIPE = new SignalFreeSkyIslandVolumeRecipe();

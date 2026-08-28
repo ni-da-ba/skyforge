@@ -34,3 +34,12 @@ tasks.register<JavaExec>("suspendedVolumeEvidence") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/signal-free-suspended-volume-v1").get().asFile.absolutePath)
 }
+
+tasks.register<JavaExec>("seededSuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates six-seed SF-IMP-0016 suspended-volume visual evidence."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.SeededSuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/seeded-suspended-volume-v1").get().asFile.absolutePath)
+}

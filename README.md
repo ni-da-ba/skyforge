@@ -16,9 +16,21 @@ exact signed-density convention, three-dimensional intersection node, graph sche
 3D evidence domain, signal-free upper/underside recipe, deterministic 3D evidence format, and one
 pinned golden suspended-volume specimen. The signal-free specimen passes `SF-VOL-001` through
 `SF-VOL-005` and `SF-VOL-007` through `SF-VOL-010`: 366,912 solid samples form one connected mass,
-touch no domain face, and retain at least 88 world units of sampled air clearance. `SF-VOL-006`
-remains deliberately deferred because it is the bounded seeded-enrichment gate. The next action is
-`SF-IMP-0016`, before composition or secondary morphology.
+touch no domain face, and retain at least 88 world units of sampled air clearance.
+
+`SF-IMP-0016` is accepted by local Java 25 validation. Its bounded seeded enrichment independently
+modulates upper and underside offsets by at most 15 percent while preserving the signal-free rim,
+horizontal footprint, and signed surface ordering by construction. The full-amplitude six-member
+`SF-VOL-006` corpus passed with one connected component, zero domain-face contacts, and 88 world
+units minimum sampled clearance for every member. Solid occupancy varied from 363,854 to 370,382
+samples while the accepted morphology identity envelope remained intact.
+
+The six-seed visual evidence corpus is available under
+`skyforge-reference/build/evidence/seeded-suspended-volume-v1` after local generation. Visual review
+is now the design checkpoint before secondary ridges, valleys, and multi-morphology composition.
+Hosted GitHub Actions validation remains temporarily unavailable because the repository's Actions
+allowance is exhausted. A final complete `gradlew.bat check` is still required at the merge/release
+checkpoint following the corrected signal-free golden-test temporary-directory lifecycle.
 
 ## Modules
 
@@ -36,10 +48,16 @@ Requirements:
 - A 64-bit JDK 25 installation.
 - No system Gradle installation; use the checked-in wrapper.
 
-Run:
+Linux/macOS:
 
 ```shell
 ./gradlew check
+```
+
+Windows:
+
+```bat
+gradlew.bat check
 ```
 
 The wrapper is pinned to Gradle 9.6.1 and verifies the distribution checksum before use.
@@ -70,7 +88,8 @@ The command produces six complete 1024 by 1024 evidence packages under
 the checked-in golden corpus, writes environment-qualified benchmark observations, and creates an
 `index.html` atlas for side-by-side review of height, land-mask, slope, and cross-section images.
 Benchmark timings are observations, not pass/fail thresholds, and are excluded from canonical
-checksums. Every CI run publishes the generated directory as a downloadable workflow artifact.
+checksums. Every CI run publishes the generated directory as a downloadable workflow artifact when
+hosted Actions capacity is available.
 
 Generate the canonical signal-free suspended-volume evidence package with:
 
@@ -84,7 +103,24 @@ six review images, an HTML guide, a manifest, and a SHA-256 listing. The images 
 arrays but do not replace their numerical acceptance. The SF-IMP-0015 acceptance suite pins 19
 engine-version-independent artifact hashes and exact morphology metrics; `manifest.json` and
 `evidence.sha256` remain generated but are excluded from morphology identity because the manifest
-contains engine-version metadata. CI publishes the complete package on every run.
+contains engine-version metadata.
+
+Generate the full-amplitude six-seed SF-IMP-0016 suspended-volume review corpus with:
+
+```shell
+./gradlew :skyforge-reference:seededSuspendedVolumeCorpus
+```
+
+On Windows use `gradlew.bat` instead of `./gradlew`. The command creates one complete evidence package
+per canonical seed under `skyforge-reference/build/evidence/seeded-suspended-volume-v1`, plus a corpus
+`summary.csv` and an `index.html` atlas. Each seed is rendered as isometric occupancy, upper surface,
+underside, east-west and north-south sections, and suspension-plane occupancy so topology and seeded
+morphology can be inspected alongside the numerical `SF-VOL-006` gate.
+
+For Windows local development, `scripts\verify-sf-imp-0016.bat` checks the Java/Gradle environment,
+runs the repository acceptance suite, and generates the six-seed visual evidence corpus. The final
+merge/release checkpoint should still execute a complete clean `gradlew.bat check` after pulling the
+latest branch state.
 
 ## Project record
 
@@ -103,6 +139,9 @@ The canonical 3D grid, metrics, slice, checksum, and review-image formats are re
 The accepted signal-free `SF-VOL` gates, 19-artifact golden specimen, exact morphology metrics, and
 `SF-VOL-006` deferral are recorded in
 [`docs/decisions/ADR-0019-signal-free-suspended-volume-acceptance.md`](docs/decisions/ADR-0019-signal-free-suspended-volume-acceptance.md).
+The accepted bounded seeded suspended-volume enrichment contract, six-seed acceptance corpus, and
+local Java 25 validation record are recorded in
+[`docs/decisions/ADR-0020-bounded-seeded-suspended-volume-enrichment.md`](docs/decisions/ADR-0020-bounded-seeded-suspended-volume-enrichment.md).
 
 ## License
 
