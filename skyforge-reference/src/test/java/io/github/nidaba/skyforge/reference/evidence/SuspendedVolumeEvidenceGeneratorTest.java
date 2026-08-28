@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
 import io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume;
+import io.github.nidaba.skyforge.recipes.skyisland.SecondaryMorphologySkyIslandVolumeRecipe;
 import io.github.nidaba.skyforge.recipes.skyisland.SignalFreeSkyIslandVolumeRecipe;
 import io.github.nidaba.skyforge.reference.sampling.SamplingOrder;
 import io.github.nidaba.skyforge.reference.sampling.VolumeGridSpec;
@@ -61,6 +63,39 @@ final class SuspendedVolumeEvidenceGeneratorTest {
                 () -> assertTrue(forward.undersideSurface().rawValuesEqual(parallel.undersideSurface())),
                 () -> assertTrue(forward.suspensionDensity().rawValuesEqual(parallel.suspensionDensity())),
                 () -> assertEquals(forward.metrics(), parallel.metrics()));
+    }
+
+    @Test
+    void structuredForwardFactoringMatchesDirectDensityGraphEvaluation() {
+        SkyIslandVolumeDescriptor base = SuspendedVolumeReferenceDomain.descriptor();
+        SkyIslandVolumeDescriptor descriptor = new SkyIslandVolumeDescriptor(
+                SkyIslandVolumeDescriptor.SCHEMA_VERSION,
+                0x534b59464f524745L,
+                base.centerX(),
+                base.centerZ(),
+                base.suspensionElevation(),
+                base.nominalRadius(),
+                base.upperElevation(),
+                base.undersideDepth(),
+                base.coastalFalloff(),
+                base.ridgeAzimuth(),
+                base.ridgeStrength(),
+                base.undersideTaper(),
+                base.undersideAsymmetry(),
+                1.0,
+                base.signalScale());
+        CompiledSkyIslandVolume compiled =
+                new SecondaryMorphologySkyIslandVolumeRecipe().compile(descriptor);
+        SuspendedVolumeEvidenceGenerator generator = new SuspendedVolumeEvidenceGenerator();
+        SuspendedVolumeEvidence factored = generator.generate(compiled, SMALL_GRID, SamplingOrder.FORWARD);
+        SuspendedVolumeEvidence direct = generator.generate(compiled, SMALL_GRID, SamplingOrder.PARALLEL);
+
+        assertAll(
+                () -> assertTrue(factored.density().rawValuesEqual(direct.density())),
+                () -> assertEquals(factored.occupancy().sha256(), direct.occupancy().sha256()),
+                () -> assertTrue(factored.upperSurface().rawValuesEqual(direct.upperSurface())),
+                () -> assertTrue(factored.undersideSurface().rawValuesEqual(direct.undersideSurface())),
+                () -> assertEquals(factored.metrics(), direct.metrics()));
     }
 
     private static SuspendedVolumeEvidence evidence(SamplingOrder order) {
