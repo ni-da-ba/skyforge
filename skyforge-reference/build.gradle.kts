@@ -43,3 +43,12 @@ tasks.register<JavaExec>("seededSuspendedVolumeCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/seeded-suspended-volume-v1").get().asFile.absolutePath)
 }
+
+tasks.register<JavaExec>("secondaryMorphologySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates six-seed SF-IMP-0017 structured-morphology visual evidence."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.SecondaryMorphologySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/secondary-morphology-suspended-volume-v1").get().asFile.absolutePath)
+}
