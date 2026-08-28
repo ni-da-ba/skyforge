@@ -25,12 +25,22 @@ horizontal footprint, and signed surface ordering by construction. The full-ampl
 units minimum sampled clearance for every member. Solid occupancy varied from 363,854 to 370,382
 samples while the accepted morphology identity envelope remained intact.
 
-The six-seed visual evidence corpus is available under
-`skyforge-reference/build/evidence/seeded-suspended-volume-v1` after local generation. Visual review
-is now the design checkpoint before secondary ridges, valleys, and multi-morphology composition.
+Visual review of that corpus showed that SF-IMP-0016 is a successful deterministic detail layer but
+not yet a landform hierarchy: the suspension-plane silhouettes are intentionally identical and the
+isometric specimens remain dominated by the same smooth primary mass.
+
+`SF-IMP-0017` is therefore in development on `agent/sf-imp-0017`. It introduces organized secondary
+upper-surface morphology as a separate recipe layer above SF-IMP-0016. A deterministic main ridge,
+oblique spur, and valley are expressed entirely with existing arithmetic graph nodes through smooth
+directional basis functions. Their combined upper-offset factor is analytically bounded to
+`[0.76, 1.48]`, preserving the exact rim and horizontal footprint while creating substantially
+larger-scale relief. The accepted seeded underside remains byte-identical. Local Java 25 numerical
+and visual validation is required before this layer is accepted or promoted into semantic descriptor
+controls.
+
 Hosted GitHub Actions validation remains temporarily unavailable because the repository's Actions
-allowance is exhausted. A final complete `gradlew.bat check` is still required at the merge/release
-checkpoint following the corrected signal-free golden-test temporary-directory lifecycle.
+allowance is exhausted. A final complete `gradlew.bat check` remains required at the merge/release
+checkpoint.
 
 ## Modules
 
@@ -117,10 +127,20 @@ per canonical seed under `skyforge-reference/build/evidence/seeded-suspended-vol
 underside, east-west and north-south sections, and suspension-plane occupancy so topology and seeded
 morphology can be inspected alongside the numerical `SF-VOL-006` gate.
 
-For Windows local development, `scripts\verify-sf-imp-0016.bat` checks the Java/Gradle environment,
-runs the repository acceptance suite, and generates the six-seed visual evidence corpus. The final
-merge/release checkpoint should still execute a complete clean `gradlew.bat check` after pulling the
-latest branch state.
+Generate the six-seed SF-IMP-0017 structured secondary-morphology review corpus with:
+
+```shell
+./gradlew :skyforge-reference:secondaryMorphologySuspendedVolumeCorpus
+```
+
+The output is written under
+`skyforge-reference/build/evidence/secondary-morphology-suspended-volume-v1`. It intentionally uses
+the same six descriptors as SF-IMP-0016 so the two atlases can be compared seed-for-seed.
+
+For Windows local development, `scripts\verify-sf-imp-0017.bat` checks Java, runs the structured
+recipe tests, executes the six-seed topology/identity acceptance test, and generates the visual
+corpus. It does not repeat the complete repository suite; a clean `gradlew.bat check` is reserved for
+the acceptance/merge checkpoint after the visual design gate passes.
 
 ## Project record
 
@@ -142,6 +162,9 @@ The accepted signal-free `SF-VOL` gates, 19-artifact golden specimen, exact morp
 The accepted bounded seeded suspended-volume enrichment contract, six-seed acceptance corpus, and
 local Java 25 validation record are recorded in
 [`docs/decisions/ADR-0020-bounded-seeded-suspended-volume-enrichment.md`](docs/decisions/ADR-0020-bounded-seeded-suspended-volume-enrichment.md).
+The proposed structured secondary-morphology contract and its numerical/visual acceptance boundary
+are recorded in
+[`docs/decisions/ADR-0021-structured-secondary-morphology.md`](docs/decisions/ADR-0021-structured-secondary-morphology.md).
 
 ## License
 
