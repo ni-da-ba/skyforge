@@ -118,8 +118,8 @@ public record SkyIslandVolumeDescriptor(
                 throw new IllegalArgumentException(
                         "schema 1 secondaryMorphologyAmplitude must equal signalAmplitude");
             }
-        } else {
-            Objects.requireNonNull(morphologyFamily, "morphologyFamily");
+        } else if (morphologyFamily == null) {
+            throw new IllegalArgumentException("schema 2 requires morphologyFamily");
         }
         ridgeAzimuth = canonicalRidgeAzimuth(ridgeAzimuth);
     }
