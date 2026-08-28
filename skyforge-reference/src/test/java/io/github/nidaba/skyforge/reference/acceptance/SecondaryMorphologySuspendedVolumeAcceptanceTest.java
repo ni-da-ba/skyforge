@@ -19,7 +19,11 @@ import io.github.nidaba.skyforge.reference.sampling.SamplingOrder;
 import io.github.nidaba.skyforge.reference.sampling.VolumeGridSpec;
 import io.github.nidaba.skyforge.reference.volume.SeededSuspendedVolumeReferenceCorpus;
 import io.github.nidaba.skyforge.reference.volume.SuspendedVolumeReferenceDomain;
-import org.junit.jupiter.api.Test;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /** Fixed-seed acceptance for organized upper-surface ridges, spurs, and valleys. */
 final class SecondaryMorphologySuspendedVolumeAcceptanceTest {
@@ -34,32 +38,36 @@ final class SecondaryMorphologySuspendedVolumeAcceptanceTest {
             new SuspendedVolumeEvidenceGenerator();
     private final ReferenceEvaluator evaluator = new ReferenceEvaluator();
 
-    @Test
-    void fixedSeedSuitePreservesSuspendedTopologyWhileAddingOrganizedRelief() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("members")
+    @Execution(ExecutionMode.CONCURRENT)
+    void preservesSuspendedTopologyWhileAddingOrganizedRelief(
+            FixedSeedReferenceCorpus.Member member) {
         VolumeGridSpec grid = SuspendedVolumeReferenceDomain.grid();
+        SkyIslandVolumeDescriptor descriptor =
+                SeededSuspendedVolumeReferenceCorpus.descriptor(member);
+        CompiledSkyIslandVolume seeded = seededRecipe.compile(descriptor);
+        CompiledSkyIslandVolume structured = recipe.compile(descriptor);
+        SuspendedVolumeEvidence evidence = evidenceGenerator.generate(
+                structured, grid, SamplingOrder.FORWARD);
+        VolumeMetrics metrics = evidence.metrics();
 
-        for (FixedSeedReferenceCorpus.Member member : SeededSuspendedVolumeReferenceCorpus.members()) {
-            SkyIslandVolumeDescriptor descriptor =
-                    SeededSuspendedVolumeReferenceCorpus.descriptor(member);
-            CompiledSkyIslandVolume seeded = seededRecipe.compile(descriptor);
-            CompiledSkyIslandVolume structured = recipe.compile(descriptor);
-            SuspendedVolumeEvidence evidence = evidenceGenerator.generate(
-                    structured, grid, SamplingOrder.FORWARD);
-            VolumeMetrics metrics = evidence.metrics();
+        assertAll(
+                member.id(),
+                () -> assertTrue(metrics.solidSampleCount() > 0),
+                () -> assertEquals(0, metrics.faceContacts().total()),
+                () -> assertEquals(1, metrics.connectedSolidComponents()),
+                () -> assertTrue(metrics.airClearance().minimum() >= MINIMUM_ACCEPTED_CLEARANCE),
+                () -> assertEquals(-296.0, metrics.bounds().minimumX(), TOLERANCE),
+                () -> assertEquals(296.0, metrics.bounds().maximumX(), TOLERANCE),
+                () -> assertEquals(-236.0, metrics.bounds().minimumZ(), TOLERANCE),
+                () -> assertEquals(236.0, metrics.bounds().maximumZ(), TOLERANCE));
 
-            assertAll(
-                    member.id(),
-                    () -> assertTrue(metrics.solidSampleCount() > 0),
-                    () -> assertEquals(0, metrics.faceContacts().total()),
-                    () -> assertEquals(1, metrics.connectedSolidComponents()),
-                    () -> assertTrue(metrics.airClearance().minimum() >= MINIMUM_ACCEPTED_CLEARANCE),
-                    () -> assertEquals(-296.0, metrics.bounds().minimumX(), TOLERANCE),
-                    () -> assertEquals(296.0, metrics.bounds().maximumX(), TOLERANCE),
-                    () -> assertEquals(-236.0, metrics.bounds().minimumZ(), TOLERANCE),
-                    () -> assertEquals(236.0, metrics.bounds().maximumZ(), TOLERANCE));
+        assertStructuredIdentityEnvelope(descriptor, grid, seeded, structured);
+    }
 
-            assertStructuredIdentityEnvelope(descriptor, grid, seeded, structured);
-        }
+    private static Stream<FixedSeedReferenceCorpus.Member> members() {
+        return SeededSuspendedVolumeReferenceCorpus.members().stream();
     }
 
     private void assertStructuredIdentityEnvelope(
