@@ -1,6 +1,6 @@
 # ADR-0024: Family-Aware Secondary Morphology
 
-- **Status:** Proposed pending local numerical and visual acceptance
+- **Status:** Accepted by local numerical validation and human visual review
 - **Date:** 2026-08-28
 - **Work item:** SF-IMP-0020
 
@@ -162,7 +162,7 @@ and the SF-IMP-0019 generic-composition atlas.
 
 ## Acceptance requirements
 
-SF-IMP-0020 must demonstrate:
+SF-IMP-0020 demonstrates:
 
 1. zero amplitude returns the exact accepted SF-IMP-0018 primary-family artifact;
 2. Massif reproduces the SF-IMP-0019 generic upper/density semantics as the control;
@@ -176,11 +176,14 @@ SF-IMP-0020 must demonstrate:
    component, zero domain-face contacts, and at least 48 world units of sampled clearance;
 10. every non-control family has a measurable upper-surface departure from the generic SF-IMP-0019
     selection, while Massif remains semantically identical to the generic control;
-11. the human atlas shows that family-specific secondary organization improves or preserves family
+11. human review confirms that family-specific secondary organization improves or preserves family
     legibility without introducing obvious pathological terrain structure.
 
-Requirement 11 remains a human design gate. Numerical identity and bounded factors cannot establish
-whether the selected secondary vocabulary is visually appropriate.
+Local Java 25 validation completed successfully with `scripts\verify-sf-imp-0020.bat` and a final
+repository-wide `gradlew.bat check`. Human review accepted the family-aware atlas against the
+SF-IMP-0019 generic-composition baseline. Tableland preserves a materially flatter interior, Basin
+strengthens center/ring contrast, Spine reinforces axial organization, Massif remains the control,
+and Lobed receives shoulder/saddle-aware relief.
 
 ## Deferred work
 
@@ -193,7 +196,7 @@ SF-IMP-0020 does not yet:
 - generate multiple islands, archipelagos, provinces, climate, materials, biomes, ecology, or
   Minecraft realization.
 
-If the proof is accepted, the project will have evidence for both safe generic composition and
-family-aware specialization. The next architecture decision should then choose between descriptor
-schema promotion and primary-family hybridization based on which controls have demonstrated stable
-semantic meaning across the accepted corpus.
+With this proof accepted, the project now has evidence for both safe generic composition and
+family-aware specialization. The next architecture decision should choose between descriptor schema
+promotion and primary-family hybridization based on which controls have demonstrated stable semantic
+meaning across the accepted corpus.
