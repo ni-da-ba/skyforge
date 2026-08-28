@@ -97,3 +97,12 @@ tasks.register<JavaExec>("hybridMorphologySuspendedVolumeCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/hybrid-morphology-suspended-volume-v1").get().asFile.absolutePath)
 }
+
+tasks.register<JavaExec>("enrichedHybridMorphologySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates the thirty-member SF-IMP-0023 enriched hybrid progression atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.EnrichedHybridMorphologySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/enriched-hybrid-morphology-suspended-volume-v1").get().asFile.absolutePath)
+}
