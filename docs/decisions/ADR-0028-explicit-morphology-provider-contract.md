@@ -1,6 +1,6 @@
 # ADR-0028: Explicit Morphology Provider Contract
 
-- **Status:** Proposed pending implementation and local acceptance
+- **Status:** Implemented through provider-neutral hybrid proof; local acceptance pending
 - **Date:** 2026-08-29
 - **Work item:** SF-IMP-0024
 
@@ -14,11 +14,11 @@ The existing `SkyIslandPrimaryMorphologyProvider` is package-internal and intent
 
 The project now needs an explicit provider contract so future mods, authored extensions, and eventually data-driven definitions can introduce morphology types that are not members of the built-in enum. The same contract will later be consumed by island-chain/group composition.
 
-## Decision direction
+## Decision
 
 SF-IMP-0024 introduces a public recipe-layer provider SPI with no global mutable registry.
 
-A provider has a stable namespaced `MorphologyProviderId` such as `skyforge:massif` or `example:crescent`.
+A provider has a stable namespaced `MorphologyProviderId` such as `skyforge:massif` or `reference:crescent`.
 
 A provider compiles a `PrimaryMorphologyContribution` containing:
 
@@ -58,7 +58,32 @@ All five accepted built-in families receive provider adapters using IDs:
 
 The built-in provider primary output must remain graph-byte-identical to the accepted SF-IMP-0018 primary family recipe for the same descriptor and family.
 
-The built-in secondary contribution must be derived from the accepted SF-IMP-0020 family-aware carrier rather than re-implementing its formulas. Its factor graph must use the accepted analytical positive envelope.
+The built-in secondary contribution is derived from the accepted SF-IMP-0020 family-aware carrier rather than re-implementing its formulas. Its factor graph retains the accepted analytical positive envelope.
+
+## Provider-neutral hybrid composition
+
+The work item also proves that the SPI is sufficient for real composition rather than stopping at registration.
+
+`MorphologyProviderBlend` supplies a canonical weighted pair of provider IDs using the same decimal-complement identity discipline introduced for built-in hybrids in SF-IMP-0023.
+
+`ProviderHybridMorphologySkyIslandVolumeRecipe`:
+
+1. resolves both providers from an explicit immutable registry;
+2. compiles each provider's `PrimaryMorphologyContribution`;
+3. namespaces the provider graphs without assuming provider-local node names;
+4. blends the declared footprint residual, along/across frame, upper-profile factor, and underside-depth factor;
+5. rebuilds upper and underside from one shared blended footprint;
+6. rebuilds density as their exact intersection.
+
+The compiler does not inspect or switch on `MorphologyFamily`. Endpoint weights delegate to the selected provider's exact primary graph bytes.
+
+## Genuine non-built-in proof provider
+
+`skyforge-reference` implements `ReferenceCrescentMorphologyProvider` with ID `reference:crescent`. It is deliberately outside the recipes module and does not delegate primary geometry to any built-in family.
+
+Its primary footprint bends the normalized transverse coordinate quadratically as longitudinal position moves away from the center, producing a simply connected crescent/boomerang-like body. The transform is intentionally hole-free so this provider can test visible non-enum morphology without weakening the current connected-volume invariant.
+
+The reference provider also supplies its own optional positive secondary ridge factor, demonstrating that a consumer can implement both halves of the public SPI.
 
 ## Provider validation boundary
 
@@ -67,9 +92,9 @@ The provider SPI does not trust declarations blindly. Contribution constructors 
 - referenced structural nodes exist in the supplied graphs;
 - required graph dimensionality is correct;
 - secondary factor bounds are finite, strictly positive, and ordered;
-- provider IDs are canonical and filesystem/provenance-safe.
+- provider IDs are canonical and provenance-safe.
 
-Finite closure, connectedness, domain clearance, and other geometric properties remain evidence/acceptance responsibilities. Later registry policies may attach certification metadata, but SF-IMP-0024 will not pretend topology can be proven from an interface declaration alone.
+Finite closure, connectedness, domain clearance, and other geometric properties remain evidence/acceptance responsibilities. Later registry policies may attach certification metadata, but SF-IMP-0024 does not pretend topology can be proven from an interface declaration alone.
 
 ## Acceptance requirements
 
@@ -83,11 +108,30 @@ SF-IMP-0024 must demonstrate:
 6. built-in secondary factors come from the accepted SF-IMP-0020 carrier and retain their accepted positive envelopes;
 7. a provider not represented in `MorphologyFamily` can be registered and resolved;
 8. malformed contributions and invalid secondary envelopes fail early;
-9. existing SF-IMP-0022/SF-IMP-0023 APIs and accepted graph outputs remain unchanged.
+9. existing SF-IMP-0022/SF-IMP-0023 APIs and accepted graph outputs remain unchanged;
+10. a genuinely non-built-in provider implemented by the reference module produces a finite connected suspended primary volume across all three established seeds;
+11. that custom provider hybridizes with every accepted built-in family without enum knowledge in the hybrid compiler;
+12. provider-hybrid endpoints preserve exact provider primary graph bytes and reversed decimal weights preserve canonical graph identity;
+13. every custom↔built-in midpoint preserves one exact shared upper/underside footprint, one connected component, zero face contacts, and at least 48 world units sampled clearance on the canonical domain.
 
-## Next proof after the contract
+## Acceptance corpus
 
-Once this SPI is accepted, the next provider work item should refactor hybrid composition to accept provider IDs/registry entries directly and prove at least one genuinely non-built-in morphology can hybridize and enrich with a built-in provider. That will be the bridge from provider registration to mixed user-authored island chains and groups.
+The first full-resolution custom-provider corpus uses:
+
+- standalone `reference:crescent` at all three established seeds;
+- `reference:crescent` midpoint-hybridized with each of the five accepted built-in providers at all three established seeds.
+
+This yields 18 full-resolution provider specimens before visual progression review. A later visual atlas will use the stable Skyforge seed and 25/50/75-percent blend weights for each custom↔built-in pairing.
+
+## Architectural implication for island groups
+
+Island-chain/group generation should depend on stable provider identities and registry snapshots rather than built-in enums. A future chain entry can therefore select:
+
+- one built-in provider;
+- one registered custom provider;
+- or a provider-composition/hybrid specification.
+
+This keeps group placement orthogonal to the morphology implementation that generated each member island.
 
 ## Deferred work
 
@@ -98,4 +142,5 @@ SF-IMP-0024 does not yet:
 - define data-authored morphology JSON or a morphology DSL;
 - guarantee arbitrary provider topology from declarations alone;
 - promote provider selection into descriptor schema 3;
-- place multiple islands into chains, groups, provinces, or archipelagos.
+- place multiple islands into chains, groups, provinces, or archipelagos;
+- apply blended secondary morphology across custom↔built-in hybrids (the SPI exposes the required contribution, but enriched provider-hybrid composition remains the next composition step).
