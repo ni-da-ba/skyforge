@@ -1,8 +1,10 @@
 # ADR-0027: Hybrid Family-Aware Secondary Morphology
 
-- **Status:** Implemented; human visual acceptance passed, final local numerical/repository gate pending confirmation
+- **Status:** Accepted
 - **Date:** 2026-08-28
+- **Accepted:** 2026-08-29
 - **Work item:** SF-IMP-0023
+- **Merge commit:** `1c3224042a7fcb7f49c42d802f28b2043cf57278`
 
 ## Context
 
@@ -67,7 +69,7 @@ This is evidence toward the eventual user/mod-defined morphology contract rather
 
 ## Acceptance requirements
 
-SF-IMP-0023 must demonstrate:
+SF-IMP-0023 demonstrates:
 
 1. exact accepted built-in graph identity at both blend endpoints for independent detail/secondary amplitudes;
 2. exact SF-IMP-0022 primary-hybrid graph identity when both enrichment amplitudes are zero;
@@ -80,7 +82,7 @@ SF-IMP-0023 must demonstrate:
 9. full enrichment preserves the exact SF-IMP-0022 primary footprint sign at every canonical horizontal sample;
 10. human review confirms that secondary geography transitions with the primary blend instead of visibly belonging to only one parent.
 
-Requirements 1–7 are covered by the focused recipe/regression suite. Requirement 10 has passed human review. Requirements 8–9 remain tied to the final successful local verifier record before this ADR is marked fully Accepted.
+Requirements 1–7 are covered by the focused recipe and regression suite. Requirements 8–9 passed in the thirty-member full-resolution acceptance stage of `scripts\verify-sf-imp-0023.bat`. Requirement 10 passed the recorded human visual review.
 
 ## Initial evidence corpus
 
@@ -111,9 +113,9 @@ Detailed review record:
 
 **Visual gate: passed.**
 
-## Local verifier
+## Local acceptance record
 
-`scripts\verify-sf-imp-0023.bat` runs, in order:
+`scripts\verify-sf-imp-0023.bat` completed successfully locally, covering:
 
 1. the Java runtime check;
 2. the blend canonicalization regression;
@@ -121,7 +123,9 @@ Detailed review record:
 4. the thirty-member full-resolution enriched midpoint acceptance corpus;
 5. the thirty-member full-detail/full-secondary visual progression atlas.
 
-Successful generation of the atlas does not by itself constitute the numerical acceptance record; the final verifier success line is retained as the authoritative local proof that the full-resolution stage completed before atlas generation.
+A repository-wide `gradlew.bat check` also completed successfully on the reviewed branch state before merge. Hosted GitHub Actions remained unavailable because the repository Actions allowance was exhausted, so the local Java 25 verification remained the authoritative merge gate.
+
+**Numerical gate: passed. Repository-wide gate: passed. SF-IMP-0023: accepted.**
 
 ## Deferred work
 
