@@ -23,7 +23,7 @@ public record MorphologyProviderBlend(
         if (!Double.isFinite(secondWeight) || secondWeight < 0.0 || secondWeight > 1.0) {
             throw new IllegalArgumentException("secondWeight must be finite and in [0, 1]");
         }
-        if (first.value().compareTo(second.value()) > 0) {
+        if (first.compareTo(second) > 0) {
             MorphologyProviderId swap = first;
             first = second;
             second = swap;
@@ -41,7 +41,7 @@ public record MorphologyProviderBlend(
 
     /** Stable pair identifier independent of weight. */
     public String pairIdentifier() {
-        return first.value() + "+" + second.value();
+        return first + "+" + second;
     }
 
     private static double canonicalWeight(double value) {
