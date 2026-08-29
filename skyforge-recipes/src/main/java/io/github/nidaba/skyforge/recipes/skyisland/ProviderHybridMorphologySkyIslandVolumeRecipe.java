@@ -82,7 +82,7 @@ public final class ProviderHybridMorphologySkyIslandVolumeRecipe {
             CompiledSkyIslandVolume parent) {
         LinkedHashMap<String, List<NodeId>> provenance = new LinkedHashMap<>(parent.provenance());
         provenance.put("provider-hybrid-endpoint:" + blend.pairIdentifier(), List.of());
-        provenance.put("provider-hybrid-selected:" + provider.id().value(), List.of());
+        provenance.put("provider-hybrid-selected:" + provider.id(), List.of());
         return new CompiledSkyIslandVolume(
                 descriptor,
                 RECIPE_VERSION,
@@ -232,8 +232,8 @@ public final class ProviderHybridMorphologySkyIslandVolumeRecipe {
                 new NodeId("profile.remaining"),
                 new NodeId("provider.upper-factor"),
                 new NodeId("provider.depth-factor")));
-        result.put("provider:first:" + first.id().value(), List.of());
-        result.put("provider:second:" + second.id().value(), List.of());
+        result.put("provider:first:" + first.id(), List.of());
+        result.put("provider:second:" + second.id(), List.of());
         return result;
     }
 
