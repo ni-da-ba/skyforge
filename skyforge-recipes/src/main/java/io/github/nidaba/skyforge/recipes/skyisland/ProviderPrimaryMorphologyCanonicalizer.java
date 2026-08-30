@@ -22,14 +22,18 @@ import java.util.Objects;
 /**
  * Re-expresses one provider primary contribution under Skyforge's canonical enrichment carrier IDs.
  *
- * <p>The adapter consumes only public structural handles. It does not assume provider-local node
- * names and does not inspect {@link MorphologyFamily}. Exact provider graph bytes remain authoritative
- * when no enrichment is requested; this carrier exists only so generic enrichment can operate on a
- * standalone provider endpoint using the same structural semantics used by provider hybridization.
+ * <p>The provider's authored upper and underside surfaces remain authoritative. The adapter derives
+ * canonical offsets from those surfaces and consumes public structural handles only for the shared
+ * footprint/directional vocabulary needed by enrichment. It therefore does not assume that an
+ * external provider uses Skyforge's built-in upper or underside construction formulas.
+ *
+ * <p>Exact provider graph bytes remain authoritative when no enrichment is requested; this carrier
+ * exists only so generic enrichment can operate on a standalone provider endpoint using canonical
+ * structural IDs.
  */
 final class ProviderPrimaryMorphologyCanonicalizer {
-    private static final double MAXIMUM_UNDERSIDE_ASYMMETRY = 0.25;
     private static final String SOURCE_PREFIX = "provider-canonical.source.";
+    private static final String UNDERSIDE_SOURCE_PREFIX = "provider-canonical.underside-source.";
 
     private ProviderPrimaryMorphologyCanonicalizer() {}
 
@@ -60,33 +64,78 @@ final class ProviderPrimaryMorphologyCanonicalizer {
             PrimaryMorphologyContribution contribution,
             SkyIslandVolumeDescriptor descriptor,
             Output output) {
-        ProceduralGraph source = switch (output) {
-            case UPPER -> contribution.volume().upperSurfaceGraph();
-            case UNDERSIDE -> contribution.volume().undersideSurfaceGraph();
-            case DENSITY -> contribution.volume().densityGraph();
-        };
-        Builder graph = new Builder(source.outputType());
-        graph.appendPrefixed(source, SOURCE_PREFIX);
+        ProceduralGraph upperSource = contribution.volume().upperSurfaceGraph();
+        ProceduralGraph undersideSource = contribution.volume().undersideSurfaceGraph();
+        GraphValueType targetType = output == Output.DENSITY
+                ? GraphValueType.SCALAR_FIELD_3
+                : GraphValueType.SCALAR_FIELD_2;
+        Builder graph = new Builder(targetType);
+
+        String structuralPrefix;
+        String depthPrefix;
+        NodeId providerUpperSurface = null;
+        NodeId providerUndersideSurface = null;
+        switch (output) {
+            case UPPER -> {
+                graph.appendPrefixed(upperSource, SOURCE_PREFIX);
+                structuralPrefix = SOURCE_PREFIX;
+                depthPrefix = SOURCE_PREFIX;
+                providerUpperSurface = prefixed(SOURCE_PREFIX, upperSource.output());
+            }
+            case UNDERSIDE -> {
+                graph.appendPrefixed(undersideSource, SOURCE_PREFIX);
+                structuralPrefix = SOURCE_PREFIX;
+                depthPrefix = SOURCE_PREFIX;
+                providerUndersideSurface = prefixed(SOURCE_PREFIX, undersideSource.output());
+            }
+            case DENSITY -> {
+                // Promote the two provider-authored 2-D surface graphs independently into the 3-D
+                // carrier. This preserves their exact x/z functions without requiring the provider's
+                // density graph to expose any particular local surface node names.
+                graph.appendPrefixed(upperSource, SOURCE_PREFIX);
+                graph.appendPrefixed(undersideSource, UNDERSIDE_SOURCE_PREFIX);
+                structuralPrefix = SOURCE_PREFIX;
+                depthPrefix = UNDERSIDE_SOURCE_PREFIX;
+                providerUpperSurface = prefixed(SOURCE_PREFIX, upperSource.output());
+                providerUndersideSurface = prefixed(UNDERSIDE_SOURCE_PREFIX, undersideSource.output());
+            }
+            default -> throw new IllegalStateException("unknown canonical carrier output: " + output);
+        }
 
         NodeId one = graph.constant("profile.one", 1.0);
         NodeId remaining = graph.alias(
-                "profile.remaining", prefixed(contribution.footprintResidual()), one);
+                "profile.remaining",
+                prefixed(structuralPrefix, contribution.footprintResidual()),
+                one);
         NodeId radiusSquared = graph.arithmetic(
                 "profile.radius-squared", ArithmeticOperator.SUBTRACT, one, remaining);
-        NodeId along = graph.alias(
-                "profile.along-normalized", prefixed(contribution.alongNormalized()), one);
         graph.alias(
-                "profile.across-normalized", prefixed(contribution.acrossNormalized()), one);
+                "profile.along-normalized",
+                prefixed(structuralPrefix, contribution.alongNormalized()),
+                one);
+        graph.alias(
+                "profile.across-normalized",
+                prefixed(structuralPrefix, contribution.acrossNormalized()),
+                one);
+        // Retain provider factor handles as inspectable canonical aliases even though the provider's
+        // authored surfaces, rather than a Skyforge reconstruction formula, define the base offsets.
+        graph.alias(
+                "provider.upper-factor",
+                prefixed(structuralPrefix, contribution.upperFactor()),
+                one);
+        graph.alias(
+                "provider.depth-factor",
+                prefixed(depthPrefix, contribution.undersideDepthFactor()),
+                one);
         NodeId suspension = graph.constant(
                 "descriptor.suspension-elevation", descriptor.suspensionElevation());
-        CommonProfile profile = new CommonProfile(remaining, radiusSquared, along, one, suspension);
 
         return switch (output) {
-            case UPPER -> graph.build(addUpper(graph, descriptor, contribution, profile));
-            case UNDERSIDE -> graph.build(addUnderside(graph, descriptor, contribution, profile));
+            case UPPER -> graph.build(addUpper(graph, providerUpperSurface, suspension));
+            case UNDERSIDE -> graph.build(addUnderside(graph, providerUndersideSurface, suspension));
             case DENSITY -> {
-                NodeId upper = addUpper(graph, descriptor, contribution, profile);
-                NodeId underside = addUnderside(graph, descriptor, contribution, profile);
+                NodeId upper = addUpper(graph, providerUpperSurface, suspension);
+                NodeId underside = addUnderside(graph, providerUndersideSurface, suspension);
                 NodeId y = graph.coordinate("position.y", CoordinateAxis.Y);
                 NodeId upperConstraint = graph.arithmetic(
                         "density.upper-constraint", ArithmeticOperator.SUBTRACT, upper, y);
@@ -99,60 +148,21 @@ final class ProviderPrimaryMorphologyCanonicalizer {
     }
 
     private static NodeId addUpper(
-            Builder graph,
-            SkyIslandVolumeDescriptor descriptor,
-            PrimaryMorphologyContribution contribution,
-            CommonProfile profile) {
-        NodeId factor = graph.alias(
-                "provider.upper-factor", prefixed(contribution.upperFactor()), profile.one());
-        NodeId crown = graph.arithmetic(
-                "provider.crown-profile", ArithmeticOperator.MULTIPLY, profile.remaining(), factor);
-        NodeId elevation = graph.constant("descriptor.upper-elevation", descriptor.upperElevation());
+            Builder graph, NodeId providerSurface, NodeId suspension) {
+        Objects.requireNonNull(providerSurface, "providerSurface");
         NodeId offset = graph.arithmetic(
-                "upper.offset", ArithmeticOperator.MULTIPLY, elevation, crown);
+                "upper.offset", ArithmeticOperator.SUBTRACT, providerSurface, suspension);
         return graph.arithmetic(
-                "upper.surface", ArithmeticOperator.ADD, profile.suspension(), offset);
+                "upper.surface", ArithmeticOperator.ADD, suspension, offset);
     }
 
     private static NodeId addUnderside(
-            Builder graph,
-            SkyIslandVolumeDescriptor descriptor,
-            PrimaryMorphologyContribution contribution,
-            CommonProfile profile) {
-        NodeId taper = graph.constant("descriptor.underside-taper", descriptor.undersideTaper());
-        NodeId taperRadius = graph.arithmetic(
-                "underside.taper-radius", ArithmeticOperator.MULTIPLY, taper, profile.radiusSquared());
-        NodeId taperDenominator = graph.arithmetic(
-                "underside.taper-denominator", ArithmeticOperator.ADD, profile.one(), taperRadius);
-        NodeId taperedRemaining = graph.arithmetic(
-                "underside.tapered-remaining", ArithmeticOperator.DIVIDE, profile.remaining(), taperDenominator);
-
-        NodeId asymmetryStrength = graph.constant(
-                "descriptor.underside-asymmetry",
-                MAXIMUM_UNDERSIDE_ASYMMETRY * descriptor.undersideAsymmetry());
-        NodeId asymmetryTerm = graph.arithmetic(
-                "underside.asymmetry-term", ArithmeticOperator.MULTIPLY, asymmetryStrength, profile.along());
-        NodeId asymmetrySquared = graph.arithmetic(
-                "underside.asymmetry-squared", ArithmeticOperator.MULTIPLY, asymmetryTerm, asymmetryTerm);
-        NodeId onePlusAsymmetry = graph.arithmetic(
-                "underside.one-plus-asymmetry", ArithmeticOperator.ADD, profile.one(), asymmetryTerm);
-        NodeId asymmetryFactor = graph.arithmetic(
-                "underside.asymmetry-factor", ArithmeticOperator.ADD, onePlusAsymmetry, asymmetrySquared);
-
-        NodeId depthFactor = graph.alias(
-                "provider.depth-factor", prefixed(contribution.undersideDepthFactor()), profile.one());
-        NodeId familyRemaining = graph.arithmetic(
-                "underside.provider-remaining",
-                ArithmeticOperator.MULTIPLY,
-                taperedRemaining,
-                depthFactor);
-        NodeId shapedDepth = graph.arithmetic(
-                "underside.shaped-depth", ArithmeticOperator.MULTIPLY, familyRemaining, asymmetryFactor);
-        NodeId depth = graph.constant("descriptor.underside-depth", descriptor.undersideDepth());
+            Builder graph, NodeId providerSurface, NodeId suspension) {
+        Objects.requireNonNull(providerSurface, "providerSurface");
         NodeId offset = graph.arithmetic(
-                "underside.offset", ArithmeticOperator.MULTIPLY, depth, shapedDepth);
+                "underside.offset", ArithmeticOperator.SUBTRACT, suspension, providerSurface);
         return graph.arithmetic(
-                "underside.surface", ArithmeticOperator.SUBTRACT, profile.suspension(), offset);
+                "underside.surface", ArithmeticOperator.SUBTRACT, suspension, offset);
     }
 
     private static Map<String, List<NodeId>> provenance(SkyIslandMorphologyProvider provider) {
@@ -168,18 +178,11 @@ final class ProviderPrimaryMorphologyCanonicalizer {
         return result;
     }
 
-    private static NodeId prefixed(NodeId id) {
-        return new NodeId(SOURCE_PREFIX + id.value());
+    private static NodeId prefixed(String prefix, NodeId id) {
+        return new NodeId(prefix + id.value());
     }
 
     private enum Output { UPPER, UNDERSIDE, DENSITY }
-
-    private record CommonProfile(
-            NodeId remaining,
-            NodeId radiusSquared,
-            NodeId along,
-            NodeId one,
-            NodeId suspension) {}
 
     private static final class Builder {
         private final GraphValueType type;
@@ -189,17 +192,18 @@ final class ProviderPrimaryMorphologyCanonicalizer {
             this.type = type;
         }
 
+        /** Copies a provider graph into this carrier, promoting 2-D nodes to 3-D when required. */
         private void appendPrefixed(ProceduralGraph source, String prefix) {
             for (GraphNode node : source.nodes()) {
                 NodeId id = new NodeId(prefix + node.id().value());
                 if (node instanceof ConstantNode constant) {
-                    nodes.add(new ConstantNode(id, constant.outputType(), constant.value()));
+                    nodes.add(new ConstantNode(id, type, constant.value()));
                 } else if (node instanceof CoordinateNode coordinate) {
-                    nodes.add(new CoordinateNode(id, coordinate.outputType(), coordinate.axis()));
+                    nodes.add(new CoordinateNode(id, type, coordinate.axis()));
                 } else if (node instanceof ArithmeticNode arithmetic) {
                     nodes.add(new ArithmeticNode(
                             id,
-                            arithmetic.outputType(),
+                            type,
                             arithmetic.operator(),
                             new NodeId(prefix + arithmetic.left().value()),
                             new NodeId(prefix + arithmetic.right().value())));
@@ -211,7 +215,7 @@ final class ProviderPrimaryMorphologyCanonicalizer {
                 } else if (node instanceof PlanarValueSignalNode signal) {
                     nodes.add(new PlanarValueSignalNode(
                             id,
-                            signal.outputType(),
+                            type,
                             signal.signalVersion(),
                             signal.seedVersion(),
                             signal.rootSeed(),
