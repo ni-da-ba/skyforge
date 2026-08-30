@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.nidaba.skyforge.kernel.graph.ConstantNode;
 import io.github.nidaba.skyforge.kernel.graph.IntersectionNode;
 import io.github.nidaba.skyforge.kernel.graph.NodeId;
+import io.github.nidaba.skyforge.kernel.graph.ProceduralGraph;
 import io.github.nidaba.skyforge.kernel.serialization.CanonicalGraphJson;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
 import java.util.Optional;
@@ -108,14 +109,14 @@ final class EnrichedProviderHybridMorphologySkyIslandVolumeRecipeTest {
                 new ProviderHybridMorphologyEnrichment(blend, 0.0, 1.0),
                 registry);
 
-        assertEquals(1.0, constant(detailOnly, "descriptor.signal-amplitude.upper"));
-        assertEquals(1.0, constant(detailOnly, "descriptor.signal-amplitude.underside"));
-        assertEquals(1.0, constant(detailOnly, "provider-secondary.minimum-factor"));
-        assertEquals(1.0, constant(detailOnly, "provider-secondary.maximum-factor"));
+        assertEquals(1.0, constant(detailOnly.upperSurfaceGraph(), "descriptor.signal-amplitude.upper"));
+        assertEquals(1.0, constant(detailOnly.undersideSurfaceGraph(), "descriptor.signal-amplitude.underside"));
+        assertEquals(1.0, constant(detailOnly.upperSurfaceGraph(), "provider-secondary.minimum-factor"));
+        assertEquals(1.0, constant(detailOnly.upperSurfaceGraph(), "provider-secondary.maximum-factor"));
 
-        assertEquals(0.0, constant(secondaryOnly, "descriptor.signal-amplitude.upper"));
-        assertEquals(0.0, constant(secondaryOnly, "descriptor.signal-amplitude.underside"));
-        assertTrue(constant(secondaryOnly, "provider-secondary.maximum-factor") > 1.0);
+        assertEquals(0.0, constant(secondaryOnly.upperSurfaceGraph(), "descriptor.signal-amplitude.upper"));
+        assertEquals(0.0, constant(secondaryOnly.undersideSurfaceGraph(), "descriptor.signal-amplitude.underside"));
+        assertTrue(constant(secondaryOnly.upperSurfaceGraph(), "provider-secondary.maximum-factor") > 1.0);
         assertNotEquals(
                 json.writeString(detailOnly.upperSurfaceGraph()),
                 json.writeString(secondaryOnly.upperSurfaceGraph()));
@@ -138,7 +139,7 @@ final class EnrichedProviderHybridMorphologySkyIslandVolumeRecipeTest {
                 ConstantNode.class,
                 compiled.upperSurfaceGraph().requireNode(new NodeId(neutralId)));
         assertEquals(1.0, neutral.value());
-        assertTrue(constant(compiled, "provider-secondary.minimum-factor") > 0.0);
+        assertTrue(constant(compiled.upperSurfaceGraph(), "provider-secondary.minimum-factor") > 0.0);
     }
 
     @Test
@@ -248,10 +249,10 @@ final class EnrichedProviderHybridMorphologySkyIslandVolumeRecipeTest {
                 32.0);
     }
 
-    private static double constant(CompiledSkyIslandVolume compiled, String id) {
+    private static double constant(ProceduralGraph graph, String id) {
         ConstantNode node = assertInstanceOf(
                 ConstantNode.class,
-                compiled.upperSurfaceGraph().requireNode(new NodeId(id)));
+                graph.requireNode(new NodeId(id)));
         return node.value();
     }
 
