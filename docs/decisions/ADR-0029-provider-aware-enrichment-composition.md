@@ -24,7 +24,7 @@ The primary provider blend remains `MorphologyProviderBlend` resolved through an
 For a nonzero enrichment request:
 
 1. compile the provider-neutral primary hybrid;
-2. if the blend is an exact endpoint, re-express the selected provider's primary contribution through `ProviderPrimaryMorphologyCanonicalizer` using only its declared structural handles;
+2. if the blend is an exact endpoint, re-express the selected provider's primary contribution through `ProviderPrimaryMorphologyCanonicalizer`;
 3. apply the accepted bounded-detail carrier machinery;
 4. compile each provider's optional `SecondaryMorphologyContribution` at the requested secondary amplitude;
 5. lift each provider factor graph into the target surface/density dimensionality while preserving coordinates, operators, signal identity, and graph topology;
@@ -45,9 +45,16 @@ The canonical carrier adapter is used only when enrichment requires Skyforge's s
 
 `ProviderPrimaryMorphologyCanonicalizer` is a provider-neutral adapter over `PrimaryMorphologyContribution`.
 
-It namespaces the provider's original graph, aliases the provider-declared footprint and directional fields into Skyforge's canonical carrier IDs, and rebuilds upper/underside surfaces from the provider-declared upper/depth factors. The adapter must be numerically equivalent to the original provider primary geometry; full-resolution acceptance verifies that equivalence for the non-built-in reference provider through a primary-only wrapper whose nonzero secondary request forces canonicalization while retaining an exact neutral factor.
+The provider's authored upper and underside surfaces are authoritative. The adapter namespaces those source graphs, derives canonical `upper.offset` and `underside.offset` directly from the actual provider surfaces relative to suspension elevation, and aliases the provider-declared footprint/directional fields into Skyforge's canonical carrier IDs. Provider-declared upper/depth factors remain available as inspectable semantic handles, but the adapter does **not** reconstruct the provider surfaces from Skyforge's built-in crown/underside formula.
 
-This establishes an important SPI rule: provider-local node naming is not part of the compatibility contract. Declared structural handles are.
+For density composition, the provider's two-dimensional upper and underside graphs are independently promoted into the three-dimensional carrier before canonical offsets and the exact intersection are rebuilt. This avoids requiring a provider density graph to expose any particular local surface-node names.
+
+This rule was tightened after the first full-resolution SF-IMP-0025 run correctly failed the three-seed canonical-equivalence gate. The original adapter had reapplied Skyforge's generic underside-asymmetry formula; `reference:crescent` does not use that term in its accepted primary underside, so canonicalization changed the external provider geometry. The acceptance gate was retained unchanged and the adapter was corrected instead.
+
+This establishes two important SPI rules:
+
+- provider-local node naming is not part of the compatibility contract; declared structural handles are;
+- provider-authored primary surfaces remain authoritative unless a provider explicitly opts into a future stronger reconstruction contract.
 
 ## Secondary factor lifting
 
