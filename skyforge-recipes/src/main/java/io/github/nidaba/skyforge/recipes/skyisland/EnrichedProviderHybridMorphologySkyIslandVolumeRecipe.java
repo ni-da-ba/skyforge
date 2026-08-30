@@ -44,18 +44,25 @@ public final class EnrichedProviderHybridMorphologySkyIslandVolumeRecipe {
         requireProofDescriptor(descriptor);
 
         MorphologyProviderBlend blend = enrichment.blend();
-        CompiledSkyIslandVolume primary = primaryRecipe.compile(descriptor, blend, registry);
+        CompiledSkyIslandVolume exactPrimary = primaryRecipe.compile(descriptor, blend, registry);
         if (enrichment.detailAmplitude() == 0.0
                 && enrichment.secondaryMorphologyAmplitude() == 0.0) {
-            return wrapPrimary(descriptor, enrichment, primary);
+            return wrapPrimary(descriptor, enrichment, exactPrimary);
         }
-
-        SkyIslandVolumeDescriptor carrierDescriptor = carrierDescriptor(descriptor);
-        CompiledSkyIslandVolume genericHybrid = SuspendedVolumeEnrichmentComposition.apply(
-                primary, carrierDescriptor, RECIPE_VERSION);
 
         SkyIslandMorphologyProvider firstProvider = registry.require(blend.first());
         SkyIslandMorphologyProvider secondProvider = registry.require(blend.second());
+        CompiledSkyIslandVolume carrierPrimary = endpoint(blend)
+                ? ProviderPrimaryMorphologyCanonicalizer.canonicalize(
+                        descriptor,
+                        blend.secondWeight() == 0.0 ? firstProvider : secondProvider,
+                        RECIPE_VERSION)
+                : exactPrimary;
+
+        SkyIslandVolumeDescriptor carrierDescriptor = carrierDescriptor(descriptor);
+        CompiledSkyIslandVolume genericHybrid = SuspendedVolumeEnrichmentComposition.apply(
+                carrierPrimary, carrierDescriptor, RECIPE_VERSION);
+
         Optional<SecondaryMorphologyContribution> firstSecondary =
                 firstProvider.compileSecondaryMorphology(
                         descriptor, enrichment.secondaryMorphologyAmplitude());
@@ -82,6 +89,10 @@ public final class EnrichedProviderHybridMorphologySkyIslandVolumeRecipe {
                 underside,
                 density,
                 enrichedProvenance(composed.provenance(), enrichment));
+    }
+
+    private static boolean endpoint(MorphologyProviderBlend blend) {
+        return blend.secondWeight() == 0.0 || blend.secondWeight() == 1.0;
     }
 
     private static CompiledSkyIslandVolume wrapPrimary(
