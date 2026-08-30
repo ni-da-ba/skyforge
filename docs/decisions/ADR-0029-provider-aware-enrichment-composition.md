@@ -87,6 +87,12 @@ SF-IMP-0025 must demonstrate:
 12. full enriched custom↔built-in specimens preserve one connected component, zero face contacts, at least 48 world units canonical clearance, and the exact accepted provider-primary footprint;
 13. human visual review confirms custom provider secondary geography and built-in family-aware geography transition coherently with the same primary blend.
 
+## Generalized morphology mixtures
+
+The accepted provider model should remain extensible to a future normalized mixture of more than two morphology providers. Such an N-way mixture would generalize the same structural-field and positive-secondary-factor composition used here, but it also requires canonical provider ordering, normalized weight identity, endpoint/sparse-weight semantics, and more complex provenance.
+
+SF-IMP-0025 deliberately retains pairwise blends. Pairwise composition is sufficient for the next island-chain/group layer, and generalized mixtures should be introduced when real island-variance requirements justify that additional complexity rather than preemptively expanding the public recipe surface.
+
 ## Next step
 
 After SF-IMP-0025, morphology capability is sufficiently complete to begin the first multi-island chain/group composition layer. Group planning should consume provider IDs and provider-composition specifications rather than built-in family enums.
@@ -97,6 +103,7 @@ SF-IMP-0025 does not yet:
 
 - define provider discovery/loading;
 - define data-authored morphology schemas;
+- generalize pairwise provider blends to arbitrary normalized N-way morphology mixtures;
 - promote provider selection into descriptor schema 3;
 - place multiple islands in world space;
 - define inter-island spacing, hierarchy, chain topology, or archipelago semantics;
