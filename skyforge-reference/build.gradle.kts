@@ -106,3 +106,12 @@ tasks.register<JavaExec>("enrichedHybridMorphologySuspendedVolumeCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/enriched-hybrid-morphology-suspended-volume-v1").get().asFile.absolutePath)
 }
+
+tasks.register<JavaExec>("providerMorphologySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates the sixteen-member SF-IMP-0024 custom-provider and provider-hybrid review atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.ProviderMorphologySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/provider-morphology-suspended-volume-v1").get().asFile.absolutePath)
+}
