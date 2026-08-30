@@ -1,6 +1,6 @@
 # ADR-0029: Provider-Aware Enrichment Composition
 
-- **Status:** Implemented through focused recipe proof; local acceptance pending
+- **Status:** Focused recipe proof accepted; full-resolution and human visual acceptance pending
 - **Date:** 2026-08-30
 - **Work item:** SF-IMP-0025
 
@@ -45,7 +45,7 @@ The canonical carrier adapter is used only when enrichment requires Skyforge's s
 
 `ProviderPrimaryMorphologyCanonicalizer` is a provider-neutral adapter over `PrimaryMorphologyContribution`.
 
-It namespaces the provider's original graph, aliases the provider-declared footprint and directional fields into Skyforge's canonical carrier IDs, and rebuilds upper/underside surfaces from the provider-declared upper/depth factors. The adapter must be numerically equivalent to the original provider primary geometry; full-resolution acceptance will verify that equivalence for the non-built-in reference provider.
+It namespaces the provider's original graph, aliases the provider-declared footprint and directional fields into Skyforge's canonical carrier IDs, and rebuilds upper/underside surfaces from the provider-declared upper/depth factors. The adapter must be numerically equivalent to the original provider primary geometry; full-resolution acceptance verifies that equivalence for the non-built-in reference provider through a primary-only wrapper whose nonzero secondary request forces canonicalization while retaining an exact neutral factor.
 
 This establishes an important SPI rule: provider-local node naming is not part of the compatibility contract. Declared structural handles are.
 
@@ -87,11 +87,44 @@ SF-IMP-0025 must demonstrate:
 12. full enriched custom↔built-in specimens preserve one connected component, zero face contacts, at least 48 world units canonical clearance, and the exact accepted provider-primary footprint;
 13. human visual review confirms custom provider secondary geography and built-in family-aware geography transition coherently with the same primary blend.
 
+Requirements 1–10 are covered by the focused recipe suite, which completed successfully locally after correcting a test helper that had queried the upper graph for an underside-only amplitude node. Requirements 11–12 are covered by the full-resolution reference acceptance corpus. Requirement 13 remains a human review gate.
+
+## Full-resolution acceptance corpus
+
+The SF-IMP-0025 numerical corpus contains 18 fully enriched canonical specimens:
+
+- the `reference:crescent` endpoint at all three established seeds, exercising provider endpoint canonicalization with full detail and full custom secondary morphology;
+- `reference:crescent` midpoint-hybridized with each of the five accepted built-in providers at all three established seeds, again with full detail and full provider-aware secondary morphology.
+
+For each specimen the gate requires positive occupancy, exactly one connected component, zero domain-face contacts, at least 48 world units sampled clearance, exact provider-primary footprint-sign preservation across the canonical horizontal grid, and nontrivial changes to both upper and underside surfaces.
+
+A separate three-seed canonical-carrier check wraps the same external crescent primary with no secondary vocabulary. A nonzero secondary request forces canonicalization while composing an exact neutral factor, allowing the canonical carrier's upper and underside surfaces to be compared numerically against the external provider's original surfaces across the full canonical horizontal grid.
+
+## Human-review corpus
+
+The visual corpus uses the stable Skyforge seed and contains 16 fully enriched review specimens:
+
+- one enriched standalone `reference:crescent` endpoint;
+- 25/50/75-percent built-in contributions for each of Massif, Tableland, Spine, Basin, and Lobed.
+
+Every member uses detail amplitude `1` and provider-aware secondary amplitude `1`. Review compares these artifacts against the accepted SF-IMP-0024 signal-free provider atlas to determine whether secondary geography interpolates coherently without changing the accepted primary silhouette progression.
+
 ## Generalized morphology mixtures
 
 The accepted provider model should remain extensible to a future normalized mixture of more than two morphology providers. Such an N-way mixture would generalize the same structural-field and positive-secondary-factor composition used here, but it also requires canonical provider ordering, normalized weight identity, endpoint/sparse-weight semantics, and more complex provenance.
 
 SF-IMP-0025 deliberately retains pairwise blends. Pairwise composition is sufficient for the next island-chain/group layer, and generalized mixtures should be introduced when real island-variance requirements justify that additional complexity rather than preemptively expanding the public recipe surface.
+
+## Local verifier
+
+`scripts\verify-sf-imp-0025.bat` runs, in order:
+
+1. the Java runtime check;
+2. the focused provider-aware enrichment recipe suite;
+3. the 18-member full-resolution external-provider enrichment acceptance suite;
+4. the 16-member enriched custom-provider visual atlas.
+
+The atlas is written to `skyforge-reference\build\evidence\enriched-provider-morphology-suspended-volume-v1`.
 
 ## Next step
 
