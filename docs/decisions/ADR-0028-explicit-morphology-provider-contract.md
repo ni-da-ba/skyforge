@@ -1,6 +1,6 @@
 # ADR-0028: Explicit Morphology Provider Contract
 
-- **Status:** Implemented through provider-neutral hybrid proof; local acceptance pending
+- **Status:** Implemented; numerical and human visual acceptance passed; final repository-wide check pending confirmation
 - **Date:** 2026-08-29
 - **Work item:** SF-IMP-0024
 
@@ -81,7 +81,9 @@ The compiler does not inspect or switch on `MorphologyFamily`. Endpoint weights 
 
 `skyforge-reference` implements `ReferenceCrescentMorphologyProvider` with ID `reference:crescent`. It is deliberately outside the recipes module and does not delegate primary geometry to any built-in family.
 
-Its primary footprint bends the normalized transverse coordinate quadratically as longitudinal position moves away from the center, producing a simply connected crescent/boomerang-like body. The transform is intentionally hole-free so this provider can test visible non-enum morphology without weakening the current connected-volume invariant.
+Its primary footprint bends the normalized transverse coordinate quadratically as longitudinal position moves away from the center, producing a simply connected curved body. The transform is intentionally hole-free so this provider can test visible non-enum morphology without weakening the current connected-volume invariant.
+
+Human review finds that the current silhouette reads more naturally as a bent wedge, boomerang-like body, or curved teardrop than as a classical concave crescent. This is a non-blocking limitation of the reference specimen rather than a provider-contract failure.
 
 The reference provider also supplies its own optional positive secondary ridge factor, demonstrating that a consumer can implement both halves of the public SPI.
 
@@ -98,7 +100,7 @@ Finite closure, connectedness, domain clearance, and other geometric properties 
 
 ## Acceptance requirements
 
-SF-IMP-0024 must demonstrate:
+SF-IMP-0024 demonstrates:
 
 1. stable namespaced provider identifiers and deterministic ordering;
 2. duplicate provider registration is rejected;
@@ -112,16 +114,45 @@ SF-IMP-0024 must demonstrate:
 10. a genuinely non-built-in provider implemented by the reference module produces a finite connected suspended primary volume across all three established seeds;
 11. that custom provider hybridizes with every accepted built-in family without enum knowledge in the hybrid compiler;
 12. provider-hybrid endpoints preserve exact provider primary graph bytes and reversed decimal weights preserve canonical graph identity;
-13. every custom↔built-in midpoint preserves one exact shared upper/underside footprint, one connected component, zero face contacts, and at least 48 world units sampled clearance on the canonical domain.
+13. every custom↔built-in midpoint preserves one exact shared upper/underside footprint, one connected component, zero face contacts, and at least 48 world units sampled clearance on the canonical domain;
+14. human visual review confirms coherent custom-to-built-in 0/25/50/75/100-percent interpolation across all five built-in axes.
+
+Requirements 1–9 are covered by the provider contract suite. Requirements 10–13 passed the full-resolution provider-hybrid acceptance suite locally. Requirement 14 passed human review of the uploaded provider morphology corpus.
 
 ## Acceptance corpus
 
-The first full-resolution custom-provider corpus uses:
+The full-resolution custom-provider corpus uses:
 
 - standalone `reference:crescent` at all three established seeds;
 - `reference:crescent` midpoint-hybridized with each of the five accepted built-in providers at all three established seeds.
 
-This yields 18 full-resolution provider specimens before visual progression review. A later visual atlas will use the stable Skyforge seed and 25/50/75-percent blend weights for each custom↔built-in pairing.
+This yields 18 full-resolution provider specimens.
+
+The human-review corpus uses the stable Skyforge seed and contains:
+
+- one standalone `reference:crescent` specimen;
+- 25/50/75-percent built-in contributions for each of Massif, Tableland, Spine, Basin, and Lobed.
+
+For review, each progression was also compared against its accepted SF-IMP-0018 100-percent built-in endpoint.
+
+## Human visual acceptance
+
+Across all 16 uploaded review specimens:
+
+- connected solid components: **1 for every specimen**;
+- domain-face contacts: **0 for every specimen**;
+- sampled minimum clearance: **88 to 128 world units**;
+- solid samples: **27,862 to 45,166**.
+
+The standalone custom body is visually distinct from all five built-in silhouettes. All five custom-to-built-in sequences form coherent 0/25/50/75/100-percent progressions without a visible parent snap, disconnected lobe, or generic topology failure. Spine provides the strongest visual interpolation axis; Massif, Tableland, Basin, and Lobed likewise show ordered loss of the custom curved shoulder/tail and increasing built-in identity.
+
+The current `reference:crescent` is intentionally a proof morphology rather than a polished archetype. Its absence of a deep concave cut is consistent with preserving the simply connected proof boundary.
+
+Detailed review record:
+
+- `docs/reviews/SF-IMP-0024-provider-morphology-visual-review.md`
+
+**Visual gate: passed.**
 
 ## Architectural implication for island groups
 
