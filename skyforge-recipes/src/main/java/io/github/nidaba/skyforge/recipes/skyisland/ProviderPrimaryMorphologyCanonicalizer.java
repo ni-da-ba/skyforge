@@ -72,14 +72,13 @@ final class ProviderPrimaryMorphologyCanonicalizer {
         Builder graph = new Builder(targetType);
 
         String structuralPrefix;
-        String depthPrefix;
+        String depthPrefix = null;
         NodeId providerUpperSurface = null;
         NodeId providerUndersideSurface = null;
         switch (output) {
             case UPPER -> {
                 graph.appendPrefixed(upperSource, SOURCE_PREFIX);
                 structuralPrefix = SOURCE_PREFIX;
-                depthPrefix = SOURCE_PREFIX;
                 providerUpperSurface = prefixed(SOURCE_PREFIX, upperSource.output());
             }
             case UNDERSIDE -> {
@@ -107,7 +106,7 @@ final class ProviderPrimaryMorphologyCanonicalizer {
                 "profile.remaining",
                 prefixed(structuralPrefix, contribution.footprintResidual()),
                 one);
-        NodeId radiusSquared = graph.arithmetic(
+        graph.arithmetic(
                 "profile.radius-squared", ArithmeticOperator.SUBTRACT, one, remaining);
         graph.alias(
                 "profile.along-normalized",
@@ -117,16 +116,23 @@ final class ProviderPrimaryMorphologyCanonicalizer {
                 "profile.across-normalized",
                 prefixed(structuralPrefix, contribution.acrossNormalized()),
                 one);
-        // Retain provider factor handles as inspectable canonical aliases even though the provider's
-        // authored surfaces, rather than a Skyforge reconstruction formula, define the base offsets.
-        graph.alias(
-                "provider.upper-factor",
-                prefixed(structuralPrefix, contribution.upperFactor()),
-                one);
-        graph.alias(
-                "provider.depth-factor",
-                prefixed(depthPrefix, contribution.undersideDepthFactor()),
-                one);
+
+        // PrimaryMorphologyContribution guarantees upperFactor only in upper/density graphs and
+        // undersideDepthFactor only in underside/density graphs. Do not require a provider to emit
+        // either handle into an unrelated surface graph merely for inspectability.
+        if (output != Output.UNDERSIDE) {
+            graph.alias(
+                    "provider.upper-factor",
+                    prefixed(structuralPrefix, contribution.upperFactor()),
+                    one);
+        }
+        if (output != Output.UPPER) {
+            graph.alias(
+                    "provider.depth-factor",
+                    prefixed(Objects.requireNonNull(depthPrefix), contribution.undersideDepthFactor()),
+                    one);
+        }
+
         NodeId suspension = graph.constant(
                 "descriptor.suspension-elevation", descriptor.suspensionElevation());
 
@@ -171,8 +177,6 @@ final class ProviderPrimaryMorphologyCanonicalizer {
                 new NodeId("profile.remaining"),
                 new NodeId("profile.along-normalized"),
                 new NodeId("profile.across-normalized"),
-                new NodeId("provider.upper-factor"),
-                new NodeId("provider.depth-factor"),
                 new NodeId("upper.offset"),
                 new NodeId("underside.offset")));
         return result;
