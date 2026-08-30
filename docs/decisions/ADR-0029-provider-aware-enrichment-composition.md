@@ -1,6 +1,6 @@
 # ADR-0029: Provider-Aware Enrichment Composition
 
-- **Status:** Focused recipe proof accepted; full-resolution and human visual acceptance pending
+- **Status:** Focused recipe proof and human visual acceptance passed; final full verifier completion pending confirmation
 - **Date:** 2026-08-30
 - **Work item:** SF-IMP-0025
 
@@ -51,6 +51,8 @@ For density composition, the provider's two-dimensional upper and underside grap
 
 This rule was tightened after the first full-resolution SF-IMP-0025 run correctly failed the three-seed canonical-equivalence gate. The original adapter had reapplied Skyforge's generic underside-asymmetry formula; `reference:crescent` does not use that term in its accepted primary underside, so canonicalization changed the external provider geometry. The acceptance gate was retained unchanged and the adapter was corrected instead.
 
+A second focused regression then exposed that a canonical surface carrier must reference only the handles guaranteed for that surface by the public SPI: `upperFactor` is guaranteed in upper/density graphs, while `undersideDepthFactor` is guaranteed in underside/density graphs. The adapter now obeys that contract while density carries both.
+
 This establishes two important SPI rules:
 
 - provider-local node naming is not part of the compatibility contract; declared structural handles are;
@@ -94,7 +96,7 @@ SF-IMP-0025 must demonstrate:
 12. full enriched custom↔built-in specimens preserve one connected component, zero face contacts, at least 48 world units canonical clearance, and the exact accepted provider-primary footprint;
 13. human visual review confirms custom provider secondary geography and built-in family-aware geography transition coherently with the same primary blend.
 
-Requirements 1–10 are covered by the focused recipe suite, which completed successfully locally after correcting a test helper that had queried the upper graph for an underside-only amplitude node. Requirements 11–12 are covered by the full-resolution reference acceptance corpus. Requirement 13 remains a human review gate.
+Requirements 1–10 are covered by the focused recipe suite, which completed successfully locally after correcting a test helper that had queried the upper graph for an underside-only amplitude node and after tightening the canonical carrier to obey per-surface SPI handle guarantees. Requirement 11 passed the targeted three-seed canonical-carrier equivalence regression after provider-authored surfaces were made authoritative. Requirement 13 passed human review of the uploaded visual corpus. Requirement 12 is exercised by the full-resolution reference acceptance stage of the fail-fast local verifier; final verifier completion remains to be explicitly confirmed before the ADR is promoted to `Accepted`.
 
 ## Full-resolution acceptance corpus
 
@@ -114,7 +116,27 @@ The visual corpus uses the stable Skyforge seed and contains 16 fully enriched r
 - one enriched standalone `reference:crescent` endpoint;
 - 25/50/75-percent built-in contributions for each of Massif, Tableland, Spine, Basin, and Lobed.
 
-Every member uses detail amplitude `1` and provider-aware secondary amplitude `1`. Review compares these artifacts against the accepted SF-IMP-0024 signal-free provider atlas to determine whether secondary geography interpolates coherently without changing the accepted primary silhouette progression.
+Every member uses detail amplitude `1` and provider-aware secondary amplitude `1`. Review compares these artifacts against the accepted SF-IMP-0024 signal-free provider atlas.
+
+Across the uploaded review corpus:
+
+- connected components are **1 for all 16 members**;
+- face contacts are **0 for all 16 members**;
+- review-grid minimum clearance is **72 to 128 world units**;
+- **16/16 suspension-plane occupancy images are byte-identical** to the corresponding accepted SF-IMP-0024 images;
+- all 16 upper-surface and underside artifacts change nontrivially;
+- solid-sample increases relative to the signal-free baseline range from **981 to 2,826**;
+- maximum sampled elevation increases by **16 to 40 world units**.
+
+The lowest review-grid clearance is 72 world units for the 75-percent Spine specimen, still above the 48-unit gate.
+
+Human review finds coherent enriched progressions on all five axes. Massif and Spine provide the strongest vertical/organized-relief transitions; Basin retains its broad lower-center/ring tendency; Tableland and Lobed are visually quieter but remain ordered and do not exhibit a parent snap or generic morphology collapse. The isometric renderer continues to understate fine relief, so upper-surface and orthogonal-section artifacts carry most of the visual acceptance weight.
+
+Detailed review record:
+
+- `docs/reviews/SF-IMP-0025-enriched-provider-morphology-visual-review.md`
+
+**Human visual gate: passed.**
 
 ## Generalized morphology mixtures
 
