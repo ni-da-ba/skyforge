@@ -101,6 +101,7 @@ final class SkyforgeNeoForge1211SurfaceStageTest {
         try (AutoCloseable activeBinding = SkyforgeNeoForge1211SurfaceStage.installNativeSurfaceAdapted(
                 adapter,
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(activeBinding);
             assertTrue(SkyforgeNeoForge1211SurfaceStage.realize(chunk).isPresent());
         }
 
