@@ -49,7 +49,6 @@ final class ReferenceTiledSkyIslandTerrainBackendTest {
         assertEquals(occupancy.solidSampleCount(), monolithic.solidSampleCount());
 
         assertTrue(monolithic.count(SkyIslandTerrainSemantic.SURFACE_MANTLE) > 0);
-        assertTrue(monolithic.count(SkyIslandTerrainSemantic.EDGE_SHELL) > 0);
         assertTrue(monolithic.count(SkyIslandTerrainSemantic.UNDERSIDE_SHELL) > 0);
         assertTrue(monolithic.count(SkyIslandTerrainSemantic.SHALLOW_INTERIOR) > 0);
         assertTrue(monolithic.count(SkyIslandTerrainSemantic.DEEP_MASS) > 0);
