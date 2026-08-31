@@ -1,6 +1,6 @@
 # ADR-0030: Multi-Island Group Planning
 
-- **Status:** Proposed pending implementation and local acceptance
+- **Status:** Planner implemented and locally focused-tested; mixed group realization acceptance pending
 - **Date:** 2026-08-30
 - **Work item:** SF-IMP-0026
 
@@ -21,7 +21,7 @@ The planner must therefore depend on provider identities and provider-compositio
 
 ## Decision
 
-SF-IMP-0026 introduces a recipe-layer multi-island planning model. The first accepted boundary produces immutable member plans rather than one monolithic density graph.
+SF-IMP-0026 introduces a recipe-layer multi-island planning model. The accepted boundary produces immutable member plans rather than one monolithic density graph.
 
 A group request supplies:
 
@@ -54,6 +54,19 @@ This deliberately preserves a representation for a true single-provider island r
 
 The morphology-specification interface is intended to admit a future normalized N-way provider mixture without changing the group planner contract.
 
+## Direct single-provider enrichment
+
+Group realization exposed one missing public recipe capability: provider-aware enrichment was publicly available for pairwise provider blends, but not as a direct single-provider recipe.
+
+SF-IMP-0026 therefore adds `EnrichedProviderMorphologySkyIslandVolumeRecipe` and `ProviderMorphologyEnrichment`. This path uses the same accepted provider-primary canonicalization, bounded-detail carrier, positive provider-secondary contribution, and exact density intersection as the hybrid path, but does not manufacture a fake second parent.
+
+`SkyIslandMorphologySpecCompiler` dispatches:
+
+- `ProviderMorphologySpec` to the direct single-provider enriched recipe;
+- `ProviderBlendMorphologySpec` to the accepted provider-hybrid enriched recipe.
+
+The compiler still produces one independent `CompiledSkyIslandVolume` per group member. Zero enrichment for a single provider preserves that provider's exact primary geometry graph bytes.
+
 ## Explicit placement reservation
 
 The planner does **not** infer world-space extent from `SkyIslandVolumeDescriptor.nominalRadius()`.
@@ -66,7 +79,7 @@ Instead every request supplies an explicit `reservedHorizontalRadius`. The layou
 
 for every member pair.
 
-Later geometry/evidence stages must verify that compiled island geometry actually respects the reserved placement envelope. A future provider certification API may expose proven bounds, but SF-IMP-0026 does not invent such metadata prematurely.
+The group realization acceptance corpus verifies compiled island geometry against those reservation envelopes. A future provider certification API may expose proven bounds, but SF-IMP-0026 does not invent such metadata prematurely.
 
 ## Deterministic layouts
 
@@ -88,7 +101,7 @@ Longitudinal coordinates remain strictly ordered. Lateral curvature and jitter t
 
 A cluster is generated through deterministic candidate placement around the group anchor. Each accepted candidate must satisfy the same explicit center-separation requirement against every previously accepted member.
 
-Candidate generation is seed-derived and bounded; radial search expands deterministically until a valid point is found. Member zero occupies the group anchor.
+Candidate generation is seed-derived and bounded; radial search expands deterministically until a valid point is found. After acceptance, the complete set is translated so its actual center centroid equals the requested group anchor. Translation preserves every pairwise gap.
 
 ## Seed identity
 
@@ -101,30 +114,92 @@ This ensures that:
 - schedule or iteration changes do not silently perturb unrelated members;
 - later higher-level planners can derive independent group seeds hierarchically.
 
-## Initial acceptance requirements
+## Planner acceptance requirements
 
-SF-IMP-0026 planning must demonstrate:
+The focused planner proof demonstrates:
 
 1. invalid layouts, amplitudes, reservation radii, gaps, and templates fail early;
 2. planning is exactly deterministic for the same request;
 3. changing the root seed changes derived member identity/placement without changing requested morphology order;
 4. member geometry seeds are unique within the accepted corpus;
 5. all planned descriptors preserve template geometry controls except seed, center, suspension elevation, and ridge orientation;
-6. morphology specifications are retained byte-for-byte/equality-exact and require no built-in enum;
+6. morphology specifications are retained equality-exact and require no built-in enum;
 7. chain members remain ordered along the requested heading and satisfy the reservation/gap constraint;
 8. cluster members satisfy the reservation/gap constraint for every pair;
 9. chain and cluster member centers remain centered around the requested group anchor within numerical tolerance;
 10. group planning has no provider-registry or backend dependency.
 
-## Follow-on within or immediately after SF-IMP-0026
+The user-reported local focused planner test completed successfully before group realization work proceeded.
 
-Once the planner contract passes focused tests, the reference layer should compile a mixed group containing built-in, blended, and external-provider members and produce group-scale evidence. The preferred realization is a collection of independently compiled island volumes plus a reference union/evidence sampler, not a single giant procedural graph.
+## Reference group realization
 
-That approach keeps group planning compatible with future Minecraft/worldgen placement, where islands can be realized independently while still sharing one deterministic plan.
+The reference layer realizes a group as a collection of independently compiled member volumes plus a union sampler. It does **not** concatenate all member graphs into one giant procedural graph.
+
+The first group-scale review grid uses 16-unit horizontal and 8-unit vertical spacing. Individual morphology quality remains governed by the much finer accepted single-island corpora; this coarser grid exists to prove group organization, separation, clipping, and determinism across world-scale extents.
+
+The union sampler records:
+
+- union occupancy;
+- per-voxel member ownership;
+- horizontal upper/underside envelopes;
+- per-member sampled solid counts;
+- connected-component count;
+- overlapping-solid count;
+- domain-face contacts;
+- realized union bounds;
+- stable occupancy identity.
+
+The visual writer produces:
+
+- `plan.png` — intended centers and reservation envelopes;
+- `top-down-union.png` — realized union planforms by member;
+- `upper-envelope.png` and `underside-envelope.png` — group elevation structure;
+- east-west and north-south group-center sections;
+- `isometric.png` — group upper-surface point projection.
+
+## Mixed-provider acceptance corpus
+
+The numerical corpus realizes both chain and cluster layouts across the three established Skyforge seeds.
+
+The stable reference vocabulary deliberately mixes:
+
+- native built-in providers;
+- the genuine external `reference:crescent` provider;
+- built-in↔built-in pairwise blends;
+- external↔built-in pairwise blends;
+- full bounded detail and provider-aware secondary morphology.
+
+For every realized group the gate requires:
+
+1. every planned member contributes positive sampled occupancy;
+2. N planned islands produce exactly N disconnected union components;
+3. zero sampled solid overlap between different members;
+4. zero review-domain face contacts;
+5. actual realized horizontal samples remain inside their declared placement reservation within one review-cell tolerance;
+6. the requested minimum reserved gap remains satisfied;
+7. repeated planning, member compilation, and union sampling produce an identical occupancy SHA-256.
+
+The human visual gate must confirm that the chain reads as an intentional ordered sky-island formation and the cluster reads as an organic group rather than a regular lattice, while retaining perceptible per-island morphology variation.
+
+## Local verifier
+
+`scripts\verify-sf-imp-0026.bat` runs:
+
+1. Java runtime;
+2. focused deterministic chain/cluster planner tests;
+3. single-provider and provider-blend morphology-spec compiler tests;
+4. six-group mixed-provider realization acceptance;
+5. the stable-seed chain/cluster visual atlas.
+
+The atlas is written to `skyforge-reference\build\evidence\multi-island-group-v1`.
+
+## Next step
+
+If SF-IMP-0026 passes numerical and human visual acceptance, Skyforge will have its first accepted world-scale organization primitive. The next architectural choice should concern **hierarchical spatial organization**—for example archipelagos containing multiple groups/chains—or the first backend/worldgen realization seam, rather than returning immediately to deeper single-island morphology.
 
 ## Deferred work
 
-SF-IMP-0026 does not initially define:
+SF-IMP-0026 does not define:
 
 - biome/material assignment across a group;
 - terrain bridges or physically connected island masses;
