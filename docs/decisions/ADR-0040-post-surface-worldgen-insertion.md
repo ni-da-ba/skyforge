@@ -1,6 +1,6 @@
 # ADR-0040 — Post-Surface Worldgen Insertion
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -93,9 +93,9 @@ A mixin into `ChunkStatusTasks` could place code at almost any stage, but it wou
 8. Existing SF-IMP-0033 load-event realization remains available only as the accepted legacy/provisional lifecycle proof until superseded deliberately.
 9. Development-only preset/tag resources used for this proof are excluded from distributable artifacts.
 
-## What this seam should improve
+## What this seam improves
 
-Because Skyforge blocks exist before the later stages, this seam is intended to make them visible to:
+Because Skyforge blocks exist before the later stages, this seam makes them available to downstream generation systems including:
 
 - vanilla carvers;
 - final heightmap priming;
@@ -103,7 +103,7 @@ Because Skyforge blocks exist before the later stages, this seam is intended to 
 - biome decoration/features;
 - lighting initialization and propagation.
 
-SF-IMP-0036 must prove at least the final-heightmap consequence automatically and the real generator path interactively before this ADR can be Accepted.
+The automated proof establishes the final-heightmap consequence. The real-client proof additionally observed cave formations, ore placements, grass/vegetation behavior and trees on the elevated Massif, providing concrete evidence that multiple downstream vanilla worldgen systems can interact with the inserted terrain.
 
 ## Explicit limitations
 
@@ -119,7 +119,7 @@ Structure-aware height queries and biome-surface adaptation are separate integra
 
 ## Acceptance criteria
 
-ADR-0040 becomes Accepted only after:
+ADR-0040 is Accepted because:
 
 1. a Skyforge `NoiseBasedChunkGenerator` subtype is registered through the normal chunk-generator registry;
 2. its `buildSurface` path invokes Skyforge only after vanilla surface generation;
@@ -127,8 +127,14 @@ ADR-0040 becomes Accepted only after:
 4. an active binding performs the accepted additive realization into a real `ChunkAccess`;
 5. Skyforge AIR preserves backend-native blocks;
 6. Minecraft final heightmap priming performed after realization observes the elevated Skyforge solid;
-7. backend-neutral independence remains green;
-8. focused NeoForge tests and repository-wide validation pass;
+7. backend-neutral independence remained green;
+8. focused NeoForge tests and repository-wide validation passed;
 9. a development-only world preset selects the registered generator without entering the production jar;
-10. a real ModDev client can create a new world using that preset, observe the expected floating specimen, retain native terrain, show no obvious chunk-ownership seam, light the specimen through later vanilla stages, and preserve it across save/reload;
-11. the interactive proof uses only the post-surface runtime binding and does not depend on the legacy `ChunkEvent.Load` binding.
+10. a real ModDev client created a new world using that preset, displayed the expected floating specimen, retained native terrain, showed no reported chunk-ownership seam, lit the specimen through later vanilla stages, and preserved it across save/reload;
+11. the interactive proof used only the post-surface runtime binding and did not depend on the legacy `ChunkEvent.Load` binding.
+
+## Acceptance evidence — 2026-08-31
+
+The accepted development-client run reported a visible Massif with cave formations, ore placements, vegetation/grass behavior and trees, with no immediate catastrophic worldgen failure. Save/quit/reload preserved the Massif without observed duplication or corruption.
+
+The run log explicitly records `Skyforge post-surface development specimen enabled`, a successful first integrated-server generation and save, a clean server shutdown, a second startup of the same world, and a successful second player login without a Skyforge worldgen, codec or registry exception. The first login at approximately `y=245` is retained only as supporting evidence consistent with elevated heightmap/spawn behavior; it is not promoted to a dedicated spawn-subsystem proof.
