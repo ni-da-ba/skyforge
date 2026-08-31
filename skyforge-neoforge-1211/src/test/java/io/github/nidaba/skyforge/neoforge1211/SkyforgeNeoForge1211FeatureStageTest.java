@@ -5,13 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ProtoChunk;
-import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
 import org.junit.jupiter.api.Test;
@@ -51,7 +51,7 @@ final class SkyforgeNeoForge1211FeatureStageTest {
         try (AutoCloseable binding = SkyforgeNeoForge1211DevRuntime.installSpecimen()) {
             assertNotNull(binding);
             assertTrue(SkyforgeNeoForge1211SurfaceStage.realize(chunk).isPresent());
-            Heightmap.primeHeightmaps(chunk, ChunkStatus.FINAL_HEIGHTMAPS);
+            Heightmap.primeHeightmaps(chunk, Set.of(Heightmap.Types.WORLD_SURFACE_WG));
 
             try (SkyforgeNeoForge1211FeatureStage.Scope scope =
                     SkyforgeNeoForge1211FeatureStage.open(chunk)) {
