@@ -1,0 +1,1 @@
+SF-IMP-0033 acceptance is recorded in docs/reviews/SF-IMP-0033-neoforge-lifecycle-acceptance.md. This marker is intentionally minimal and may be removed in a later documentation cleanup.
