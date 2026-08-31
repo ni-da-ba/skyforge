@@ -19,10 +19,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-/** Replaces generic structured relief with a blend of provider-supplied secondary factors. */
+/** Replaces generic structured relief with provider-supplied secondary factors. */
 final class ProviderSecondaryMorphologyComposition {
     static final String FIRST_FACTOR_PREFIX = "provider-secondary.first.";
     static final String SECOND_FACTOR_PREFIX = "provider-secondary.second.";
+    static final String SINGLE_FACTOR_PREFIX = "provider-secondary.single.";
 
     private static final NodeId UPPER_SURFACE = new NodeId("upper.surface");
     private static final NodeId UPPER_OFFSET_SEEDED = new NodeId("upper.offset.seeded");
@@ -68,6 +69,36 @@ final class ProviderSecondaryMorphologyComposition {
                 genericHybrid.undersideSurfaceGraph(),
                 density,
                 provenance(genericHybrid.provenance(), blend));
+    }
+
+    /** Applies one provider's optional secondary vocabulary without manufacturing a fake blend. */
+    static CompiledSkyIslandVolume applySingle(
+            CompiledSkyIslandVolume genericPrimary,
+            Optional<SecondaryMorphologyContribution> contribution,
+            MorphologyProviderId providerId,
+            int recipeVersion) {
+        Objects.requireNonNull(genericPrimary, "genericPrimary");
+        Objects.requireNonNull(contribution, "contribution");
+        Objects.requireNonNull(providerId, "providerId");
+        if (recipeVersion <= 0) {
+            throw new IllegalArgumentException("recipeVersion must be positive");
+        }
+
+        requireCompatibleHybrid(genericPrimary.upperSurfaceGraph());
+        requireCompatibleHybrid(genericPrimary.densityGraph());
+        Envelope envelope = singleEnvelope(contribution);
+        ProceduralGraph upper = replaceUpperSingle(
+                genericPrimary.upperSurfaceGraph(), contribution, envelope);
+        ProceduralGraph density = replaceDensitySingle(
+                genericPrimary.densityGraph(), contribution, envelope);
+        return new CompiledSkyIslandVolume(
+                genericPrimary.descriptor(),
+                recipeVersion,
+                CanonicalGraphJson.INTERSECTION_SCHEMA_VERSION,
+                upper,
+                genericPrimary.undersideSurfaceGraph(),
+                density,
+                singleProvenance(genericPrimary.provenance(), providerId));
     }
 
     private static ProceduralGraph replaceUpper(
@@ -138,6 +169,68 @@ final class ProviderSecondaryMorphologyComposition {
         return new ProceduralGraph(nodes, DENSITY_INTERSECTION);
     }
 
+    private static ProceduralGraph replaceUpperSingle(
+            ProceduralGraph base,
+            Optional<SecondaryMorphologyContribution> contribution,
+            Envelope envelope) {
+        List<GraphNode> nodes = new ArrayList<>(base.nodes());
+        nodes.removeIf(node -> node.id().equals(UPPER_SURFACE));
+        NodeId factor = addSingleFactor(nodes, base.outputType(), contribution, envelope);
+        NodeId offset = arithmetic(
+                nodes,
+                base.outputType(),
+                "upper.offset.provider-secondary",
+                ArithmeticOperator.MULTIPLY,
+                UPPER_OFFSET_SEEDED,
+                factor);
+        nodes.add(new ArithmeticNode(
+                UPPER_SURFACE,
+                base.outputType(),
+                ArithmeticOperator.ADD,
+                SUSPENSION,
+                offset));
+        return new ProceduralGraph(nodes, UPPER_SURFACE);
+    }
+
+    private static ProceduralGraph replaceDensitySingle(
+            ProceduralGraph base,
+            Optional<SecondaryMorphologyContribution> contribution,
+            Envelope envelope) {
+        List<GraphNode> nodes = new ArrayList<>(base.nodes());
+        Set<NodeId> replaced = Set.of(
+                UPPER_SURFACE,
+                DENSITY_UPPER_CONSTRAINT,
+                DENSITY_INTERSECTION);
+        nodes.removeIf(node -> replaced.contains(node.id()));
+
+        GraphValueType type = base.outputType();
+        NodeId factor = addSingleFactor(nodes, type, contribution, envelope);
+        NodeId offset = arithmetic(
+                nodes,
+                type,
+                "upper.offset.provider-secondary",
+                ArithmeticOperator.MULTIPLY,
+                UPPER_OFFSET_SEEDED,
+                factor);
+        nodes.add(new ArithmeticNode(
+                UPPER_SURFACE,
+                type,
+                ArithmeticOperator.ADD,
+                SUSPENSION,
+                offset));
+        nodes.add(new ArithmeticNode(
+                DENSITY_UPPER_CONSTRAINT,
+                type,
+                ArithmeticOperator.SUBTRACT,
+                UPPER_SURFACE,
+                POSITION_Y));
+        nodes.add(new IntersectionNode(
+                DENSITY_INTERSECTION,
+                DENSITY_UPPER_CONSTRAINT,
+                DENSITY_LOWER_CONSTRAINT));
+        return new ProceduralGraph(nodes, DENSITY_INTERSECTION);
+    }
+
     private static NodeId addBlendedFactor(
             List<GraphNode> nodes,
             GraphValueType targetType,
@@ -177,6 +270,26 @@ final class ProviderSecondaryMorphologyComposition {
                 ArithmeticOperator.ADD,
                 firstWeighted,
                 secondWeighted);
+    }
+
+    private static NodeId addSingleFactor(
+            List<GraphNode> nodes,
+            GraphValueType targetType,
+            Optional<SecondaryMorphologyContribution> contribution,
+            Envelope envelope) {
+        NodeId factor = appendContribution(nodes, targetType, contribution, SINGLE_FACTOR_PREFIX);
+        constant(nodes, targetType, MINIMUM_FACTOR.value(), envelope.minimum());
+        constant(nodes, targetType, MAXIMUM_FACTOR.value(), envelope.maximum());
+        // Alias under the same final semantic node used by pairwise composition so downstream
+        // inspectability does not depend on whether the morphology was single-provider or blended.
+        NodeId one = constant(nodes, targetType, "provider-secondary.single-weight", 1.0);
+        return arithmetic(
+                nodes,
+                targetType,
+                "provider-secondary.upper-factor",
+                ArithmeticOperator.MULTIPLY,
+                factor,
+                one);
     }
 
     private static NodeId appendContribution(
@@ -249,13 +362,24 @@ final class ProviderSecondaryMorphologyComposition {
         double secondMaximum = secondContribution.map(SecondaryMorphologyContribution::maximumFactor).orElse(1.0);
         double minimum = blend.firstWeight() * firstMinimum + blend.secondWeight() * secondMinimum;
         double maximum = blend.firstWeight() * firstMaximum + blend.secondWeight() * secondMaximum;
+        requireEnvelope(minimum, maximum, "blended provider secondary envelope");
+        return new Envelope(minimum, maximum);
+    }
+
+    private static Envelope singleEnvelope(Optional<SecondaryMorphologyContribution> contribution) {
+        double minimum = contribution.map(SecondaryMorphologyContribution::minimumFactor).orElse(1.0);
+        double maximum = contribution.map(SecondaryMorphologyContribution::maximumFactor).orElse(1.0);
+        requireEnvelope(minimum, maximum, "provider secondary envelope");
+        return new Envelope(minimum, maximum);
+    }
+
+    private static void requireEnvelope(double minimum, double maximum, String label) {
         if (!Double.isFinite(minimum)
                 || !Double.isFinite(maximum)
                 || minimum <= 0.0
                 || maximum < minimum) {
-            throw new IllegalArgumentException("blended provider secondary envelope must remain finite and positive");
+            throw new IllegalArgumentException(label + " must remain finite and positive");
         }
-        return new Envelope(minimum, maximum);
     }
 
     private static Map<String, List<NodeId>> provenance(
@@ -265,6 +389,18 @@ final class ProviderSecondaryMorphologyComposition {
         result.put("provider-secondary-morphology:" + blend.pairIdentifier(), List.of(
                 FIRST_WEIGHT,
                 SECOND_WEIGHT,
+                MINIMUM_FACTOR,
+                MAXIMUM_FACTOR,
+                new NodeId("provider-secondary.upper-factor"),
+                new NodeId("upper.offset.provider-secondary")));
+        return result;
+    }
+
+    private static Map<String, List<NodeId>> singleProvenance(
+            Map<String, List<NodeId>> base,
+            MorphologyProviderId providerId) {
+        LinkedHashMap<String, List<NodeId>> result = new LinkedHashMap<>(base);
+        result.put("provider-secondary-morphology:" + providerId, List.of(
                 MINIMUM_FACTOR,
                 MAXIMUM_FACTOR,
                 new NodeId("provider-secondary.upper-factor"),
