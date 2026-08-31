@@ -42,6 +42,17 @@ neoForge {
         }
     }
 
+    // SF-IMP-0034 adds an isolated development client. The system property enables exactly one
+    // deterministic specimen; normal packaged Skyforge remains inert unless runtime binding is
+    // configured explicitly.
+    runs {
+        create("client") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0034")
+            systemProperty("skyforge.dev.specimen", "true")
+        }
+    }
+
     unitTest {
         enable()
         testedMod.set(mods.named("skyforge"))
@@ -50,6 +61,11 @@ neoForge {
 
 dependencies {
     api(project(":skyforge-world"))
+
+    // Minecraft 1.21.1 ModDev runs load Java libraries only when they are explicitly added to the
+    // additional runtime classpath. skyforge-world's runtime elements bring the transitive
+    // recipes/model/kernel engine modules with it without pretending those modules are mods.
+    add("additionalRuntimeClasspath", project(":skyforge-world"))
 
     testImplementation(project(":skyforge-recipes"))
 
