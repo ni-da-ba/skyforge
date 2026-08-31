@@ -117,6 +117,10 @@ final class MinecraftAdditionalSurfaceIndex {
         return positionsByColumn.get(columnIndex(localX, localZ));
     }
 
+    int totalPositions() {
+        return positionsByColumn.stream().mapToInt(List::size).sum();
+    }
+
     private static boolean isLiveLandSurface(
             ChunkAccess chunk,
             BlockPos.MutableBlockPos cursor,
