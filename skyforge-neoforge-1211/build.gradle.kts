@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
     `java-library`
@@ -10,11 +11,12 @@ plugins {
 }
 
 java {
-    // The workspace runs on JDK 25, but Minecraft 1.21.1 executes on Java 21. Compile this
-    // adapter to the backend runtime API/classfile level without requiring a second local JDK.
+    // Minecraft 1.21.1 and NeoForge require a Java 21 toolchain. The settings-level Foojay
+    // resolver allows Gradle to provision this toolchain automatically when it is not installed
+    // locally, while the overall Skyforge workspace may continue running Gradle on JDK 25.
     toolchain.languageVersion.set(
-        org.gradle.jvm.toolchain.JavaLanguageVersion.of(
-            providers.gradleProperty("skyforgeJavaVersion").get().toInt(),
+        JavaLanguageVersion.of(
+            providers.gradleProperty("skyforgeRuntimeJavaRelease").get().toInt(),
         ),
     )
 }
