@@ -1,6 +1,6 @@
 # SF-IMP-0036 — Post-Surface In-Game Worldgen Runbook
 
-**Status:** Automated implementation gates passed; manual development-client acceptance pending.
+**Status:** Automated implementation gates passed; manual worldgen-interaction checks passed; save/reload persistence confirmation pending.
 
 ## Purpose
 
@@ -107,6 +107,22 @@ The presence of any particular tree, ore, cave, or feature is **not** required. 
 Save and quit to the title screen, re-enter the same world, and return to the origin if necessary.
 
 The island must persist without duplicate realization or obvious corruption.
+
+## Observed manual evidence — 2026-08-31
+
+The development world launched successfully with the Skyforge Massif present. Inspection reported:
+
+- cave formations cutting through the Massif;
+- ore placements in the elevated terrain;
+- grass/vegetation behavior on the island;
+- trees generated on the Massif;
+- no immediate worldgen breakage or obvious catastrophic interaction.
+
+This is direct visual evidence that Minecraft is treating the inserted Skyforge volume as world terrain early enough for multiple downstream generation systems to interact with it. In particular, cave formations are consistent with post-surface carver participation, while ore and tree placement are consistent with later feature/biome-decoration stages observing the elevated terrain.
+
+Grass itself is not treated as proof that vanilla `SurfaceSystem` processed the Massif, because SF-IMP-0036 deliberately inserts after vanilla surface construction. It may result from later feature behavior or block updates. Likewise, this evidence does not imply that structure starts are Skyforge-aware.
+
+The remaining manual acceptance check is save/reload persistence through the new generator path.
 
 ## Screenshots / useful evidence
 
