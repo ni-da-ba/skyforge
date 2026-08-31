@@ -73,7 +73,7 @@ public final class SkyIslandGroupCorpusCli {
                 body{font-family:system-ui,sans-serif;max-width:1800px;margin:2rem auto;padding:0 1rem;background:#f4f0e6;color:#30343b}
                 section{margin:2rem 0;padding:1rem;border:1px solid #bbb;background:white}
                 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-                figure{margin:0} img{width:100%;border:1px solid #ccc;background:#fafafa} figcaption{font-weight:650;margin:.35rem 0}
+                figure{margin:0} img{width:100%%;border:1px solid #ccc;background:#fafafa} figcaption{font-weight:650;margin:.35rem 0}
                 @media(max-width:1100px){.grid{grid-template-columns:1fr}}
                 </style></head><body>
                 <h1>Skyforge first multi-island group realization</h1>
