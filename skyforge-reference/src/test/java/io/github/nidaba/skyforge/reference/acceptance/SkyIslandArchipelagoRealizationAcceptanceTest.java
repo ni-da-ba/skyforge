@@ -11,8 +11,6 @@ import io.github.nidaba.skyforge.reference.evidence.SkyIslandArchipelagoEvidence
 import io.github.nidaba.skyforge.reference.volume.SkyIslandArchipelagoReferenceCorpus;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.parallel.Execution;
-import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -21,7 +19,6 @@ final class SkyIslandArchipelagoRealizationAcceptanceTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("archipelagos")
-    @Execution(ExecutionMode.CONCURRENT)
     void hierarchyRealizesWithoutFlatteningOverlapOrDisappearance(Member member) {
         SkyIslandArchipelagoPlanner planner = new SkyIslandArchipelagoPlanner();
         SkyIslandArchipelagoPlan plan = planner.plan(member.request());
