@@ -1,8 +1,8 @@
 # Skyforge Current Runtime Architecture
 
 **Snapshot:** 2026-08-31  
-**Accepted through:** SF-IMP-0031  
-**Next integration boundary:** live Minecraft chunk write / registry resolution
+**Accepted through:** SF-IMP-0032  
+**Next integration boundary:** first production-shaped NeoForge world-generation lifecycle hook / in-game chunk path
 
 This document is the concise current-state handoff. Individual ADRs remain authoritative for their accepted contracts.
 
@@ -19,11 +19,13 @@ semantic island intent
     -> deterministic density realization
     -> backend-neutral structural terrain semantics
     -> minimal adapter-visible context (world position + terrain semantic)
-    -> backend-native environment/material policy
-    -> concrete backend realization
+    -> backend-owned block registry key
+    -> live Minecraft BlockState
+    -> real Minecraft ChunkAccess storage
+    -> future production worldgen lifecycle hook
 ```
 
-The first concrete backend proof now exists for Minecraft 1.21.1 / NeoForge 21.1.249.
+The concrete backend proof now reaches actual Minecraft 1.21.1 chunk-section storage under NeoForge 21.1.249.
 
 ## Accepted module ownership
 
@@ -32,7 +34,7 @@ The first concrete backend proof now exists for Minecraft 1.21.1 / NeoForge 21.1
 - `skyforge-recipes` — deterministic descriptor/provider/group/archipelago compilation and planning.
 - `skyforge-world` — bounded runtime catalog, spatial queries, terrain semantics, backend-neutral sample context.
 - `skyforge-reference` — evidence generation, reference providers, sampling, metrics, visual review artifacts.
-- `skyforge-neoforge-1211` — first concrete Minecraft/NeoForge adapter proof.
+- `skyforge-neoforge-1211` — concrete Minecraft/NeoForge adapter and live chunk-storage proof.
 
 Dependency direction remains strictly downstream:
 
@@ -127,9 +129,9 @@ Guiding rule:
 
 > Skyforge owns the concepts necessary to express Skyforge. A backend owns concepts that exist only because of that backend. Shared abstractions are introduced only after concrete integration demonstrates a genuinely shared need.
 
-## First concrete Minecraft/NeoForge adapter
+## Concrete Minecraft/NeoForge adapter
 
-SF-IMP-0031 accepts `skyforge-neoforge-1211` as the first real backend proof. The target is a historical/comparative baseline, not a permanent release-version commitment.
+SF-IMP-0031 accepted `skyforge-neoforge-1211` as the first real backend proof. Minecraft 1.21.1 / NeoForge 21.1.249 is a historical/comparative baseline, not a permanent release-version commitment.
 
 Accepted toolchain:
 
@@ -140,12 +142,7 @@ Accepted toolchain:
 
 The workspace may continue running Gradle on JDK 25. Gradle provisions Java 21 for the NeoForge module when needed, and reusable backend-neutral runtime artifacts emit Java 21-compatible bytecode/API usage.
 
-The accepted chunk proof uses real Minecraft types:
-
-- `net.minecraft.world.level.ChunkPos`;
-- `net.minecraft.resources.ResourceLocation`.
-
-Current concrete path:
+SF-IMP-0031 accepted the chunk materialization path:
 
 ```text
 Minecraft ChunkPos + vertical interval
@@ -158,7 +155,7 @@ Minecraft ChunkPos + vertical interval
     -> immutable 16 x H x 16 chunk materialization
 ```
 
-The engineering proof palette is intentionally minimal:
+The engineering proof palette remains intentionally minimal:
 
 ```text
 AIR                 -> minecraft:air
@@ -171,9 +168,38 @@ DEEP_MASS           -> minecraft:deepslate
 
 Those mappings prove representation ownership and occupancy preservation. They are not the final terrain palette.
 
+## Live BlockState and ChunkAccess storage
+
+SF-IMP-0032 extends the accepted path into real Minecraft state and storage:
+
+```text
+accepted MinecraftChunkMaterialization
+    -> strict BuiltInRegistries.BLOCK lookup
+    -> live default BlockState
+    -> ChunkAccess.setBlockState(...)
+    -> ChunkAccess.getBlockState(...) read-back proof
+```
+
+Accepted properties:
+
+- unknown registry keys fail explicitly instead of falling through Minecraft's defaulted block registry;
+- a materialization may only write to the exact matching `ChunkPos`;
+- its vertical interval must remain inside the target chunk's build interval;
+- registry resolution preserves Skyforge AIR/solid occupancy;
+- every written state reads back exactly from actual Minecraft chunk storage;
+- the stored non-air count equals the accepted materialization solid count;
+- positions outside the written interval remain untouched;
+- the x=-1 / x=0 island seam remains continuous after real storage.
+
+The proof uses real `ProtoChunk` instances under ModDevGradle's FML-aware JUnit environment. The test JVM runs on provisioned Java 21 and starts ModLauncher/FML/NeoForge before assertions execute.
+
+A test-only exploded mod identity and test-only `META-INF/neoforge.mods.toml` are used solely to satisfy the NeoForge JUnit harness. The production adapter still has no production mod entrypoint or worldgen lifecycle registration.
+
+The test-only biome registry satisfies real `LevelChunkSection` initialization by providing the required `Biomes.PLAINS` key.
+
 ## Minecraft-specific invariants now demonstrated
 
-The focused SF-IMP-0031 proof established:
+Across SF-IMP-0031 and SF-IMP-0032, the concrete backend now demonstrates:
 
 - exact negative `ChunkPos` coordinate translation;
 - real Minecraft/NeoForge compile linkage;
@@ -181,10 +207,18 @@ The focused SF-IMP-0031 proof established:
 - chunk-level catalog culling;
 - deterministic repeated realization;
 - generation-order independence;
-- continuity for an island crossing the `x=-1 / x=0` chunk ownership boundary;
-- a distant chunk receiving zero island candidates and remaining air.
+- continuity for an island crossing the x=-1 / x=0 chunk ownership boundary;
+- a distant chunk receiving zero island candidates and remaining air;
+- strict live block-registry resolution;
+- real `BlockState` creation;
+- real `ProtoChunk`/`ChunkAccess` section allocation and mutation;
+- exact stored-state read-back;
+- seam continuity after actual Minecraft storage.
 
-The validated runtime head is recorded in `docs/reviews/SF-IMP-0031-neoforge-adapter-acceptance.md`.
+Acceptance records:
+
+- `docs/reviews/SF-IMP-0031-neoforge-adapter-acceptance.md`;
+- `docs/reviews/SF-IMP-0032-live-chunk-writer-acceptance.md`.
 
 ## Predecessor inheritance
 
@@ -200,7 +234,7 @@ Detailed recovery record: `docs/history/Aetherial_Islands_Companion_Lessons_Lear
 
 ## Compatibility and suitability staging
 
-Two predecessor lessons remain deliberately next-stage requirements rather than being folded into SF-IMP-0031.
+Two predecessor lessons remain deliberately staged after the first production-shaped lifecycle proof.
 
 ### Geometry-derived suitability
 
@@ -217,7 +251,7 @@ The backend should combine those facts with native biome/tag/feature/structure r
 
 Optional compatibility must probe active registries/tags/capabilities before referencing third-party keys. Mod presence alone does not prove a historical registry ID still exists.
 
-Compatibility adapters remain backend-side and must fail gracefully.
+Compatibility adapters remain backend-side and must fail gracefully. SF-IMP-0032's strict unknown-key failure is the first concrete enforcement of that principle.
 
 Historical Companion patches are not to be ported automatically; reproduce the underlying problem first.
 
@@ -251,10 +285,10 @@ Do not promote an optimization into architecture before measurements justify it.
 
 The following are not accepted core/runtime requirements yet:
 
-- live `ChunkAccess` mutation;
-- live `BlockState` registry resolution;
-- NeoForge chunk-generator/worldgen lifecycle registration;
+- production NeoForge chunk-generator/worldgen lifecycle registration;
+- normal in-game/server world acceptance proof;
 - biome-aware material selection;
+- heightmap and lighting finalization policy;
 - broad structures/features/vegetation/ores/caves/fluids;
 - generalized N-way morphology mixtures;
 - another hierarchy level above archipelagos;
@@ -270,10 +304,11 @@ The following are not accepted core/runtime requirements yet:
 
 ## Near-term sequence
 
-1. Add the first live Minecraft write boundary: resolve accepted backend material keys to actual `BlockState` and write into a controlled `ChunkAccess`/equivalent test path without moving planning into the hot loop.
-2. Add the minimum geometry-derived suitability needed before broad vanilla/modded structures or placed features.
-3. Add registry probing/provenance infrastructure before optional-mod compatibility work.
-4. Reproduce specific predecessor compatibility problems before adapting any historical patch.
-5. Benchmark live, preloaded, and hybrid realization on identical deterministic worlds.
-6. Choose production caching/spatial-index policy from measurements.
-7. Enrich environment/material semantics only when concrete backend-independent Skyforge behavior requires it.
+1. Add the smallest production-shaped NeoForge world-generation lifecycle hook that can hand an actual generated chunk to the already-accepted Skyforge adapter/writer path. Do not add a speculative loader-neutral lifecycle abstraction first.
+2. Prove the lifecycle path in a controlled game/server or NeoForge integration harness, preserving chunk ownership, deterministic identity and seam invariants.
+3. Add the minimum geometry-derived suitability needed before broad vanilla/modded structures or placed features.
+4. Add registry probing/provenance infrastructure before optional-mod compatibility work.
+5. Reproduce specific predecessor compatibility problems before adapting any historical patch.
+6. Benchmark live, preloaded and hybrid realization on identical deterministic worlds.
+7. Choose production caching/spatial-index policy from measurements.
+8. Enrich environment/material semantics only when concrete backend-independent Skyforge behavior requires it.
