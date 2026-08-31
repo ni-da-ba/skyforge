@@ -1,14 +1,12 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import com.mojang.serialization.Lifecycle;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.RegistrationInfo;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.biome.Biome;
@@ -22,13 +20,7 @@ import net.minecraft.world.level.chunk.UpgradeData;
 final class MinecraftTestChunkFactory {
     private static final int MINIMUM_BUILD_Y = -64;
     private static final int BUILD_HEIGHT = 384;
-    private static final Registry<Biome> BIOMES;
-
-    static {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-        BIOMES = createBiomeRegistry();
-    }
+    private static final Registry<Biome> BIOMES = createBiomeRegistry();
 
     private MinecraftTestChunkFactory() {}
 
