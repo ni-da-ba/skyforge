@@ -1,6 +1,6 @@
 # SF-IMP-0038 — Supplemental Multi-Surface Feature In-Game Runbook
 
-**Status:** Automated verification and repository-wide build passed; manual in-game acceptance pending.
+**Status:** Automated verification and repository-wide build passed; first manual client run did not show lower-surface grass; diagnostic rerun pending.
 
 ## Purpose
 
@@ -32,7 +32,7 @@ scripts\verify-sf-imp-0038-multi-surface-features.bat
 gradlew.bat check
 ```
 
-Both automated gates passed on 2026-08-31. Manual client acceptance remains required before SF-IMP-0038 can be accepted.
+Both automated gates passed on 2026-08-31 before the first client run. A development-only diagnostic was subsequently added, so the focused verifier must be rerun before the next client inspection.
 
 ## Launch
 
@@ -40,7 +40,7 @@ Both automated gates passed on 2026-08-31. Manual client acceptance remains requ
 gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:runClient
 ```
 
-Create a **new disposable world** using `Skyforge Development (SF-IMP-0038)`. Do not reuse an already-generated 0037 world.
+Create a **new disposable world** using `Skyforge Development (SF-IMP-0038)`. Do not reuse an already-generated 0037 or earlier 0038 world.
 
 Teleport to the engineering specimen:
 
@@ -67,6 +67,24 @@ native ground         <- supplemental additional-surface target
 ```
 
 With future stacked islands, lower Skyforge tops can also become supplemental positions while the highest surface remains vanilla-owned.
+
+## First manual observation — 2026-08-31
+
+The first SF-IMP-0038 client run still showed the ordinary ground under the Massif as barren. This does **not** satisfy the manual acceptance criterion.
+
+The development data definitions are structurally valid and mirror vanilla plains grass placement except for the replacement height-selection modifier. To distinguish pipeline wiring from configured-feature rejection, the development runtime now logs feature-scope diagnostics for chunks within two chunks of the origin:
+
+```text
+SF-IMP-0038 feature diagnostic chunk=... availableAdditionalPositions=N modifierQueries=Q emittedPositions=E
+```
+
+Interpretation:
+
+- `availableAdditionalPositions > 0`, `modifierQueries = 0`: the copied placed feature is not reaching `skyforge:additional_surfaces`;
+- `modifierQueries > 0`, `emittedPositions = 0`: the feature reaches the modifier but its scattered `(x,z)` queries do not resolve to supplemental positions;
+- `emittedPositions > 0` with no visible grass: the placement primitive works and the configured feature or a later filter is rejecting/moving placement.
+
+This instrumentation is enabled only by the development specimen JVM property.
 
 ## Manual checks
 
