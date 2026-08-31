@@ -64,13 +64,15 @@ final class SkyIslandGroupRealizationAcceptanceTest {
                     continue;
                 }
                 var member = evidence.plan().members().get(owner);
+                double worldX = grid.xAt(x);
+                double worldZ = grid.zAt(z);
                 double distance = Math.hypot(
-                        grid.xAt(x) - member.descriptor().centerX(),
-                        grid.zAt(z) - member.descriptor().centerZ());
+                        worldX - member.descriptor().centerX(),
+                        worldZ - member.descriptor().centerZ());
                 assertTrue(
                         distance <= member.reservedHorizontalRadius() + RESERVATION_TOLERANCE,
-                        () -> label + " member " + owner + " exceeded reservation at x="
-                                + grid.xAt(x) + ", z=" + grid.zAt(z) + ", distance=" + distance);
+                        label + " member " + owner + " exceeded reservation at x="
+                                + worldX + ", z=" + worldZ + ", distance=" + distance);
             }
         }
     }
