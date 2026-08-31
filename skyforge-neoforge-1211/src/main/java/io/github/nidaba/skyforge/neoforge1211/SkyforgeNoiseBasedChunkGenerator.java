@@ -5,6 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.StructureManager;
+import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
@@ -13,10 +14,11 @@ import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.RandomState;
 
 /**
- * Vanilla noise generator with one supported Skyforge insertion immediately after surface build.
+ * Vanilla noise generator with supported Skyforge post-surface and supplemental feature seams.
  *
- * <p>All vanilla noise and surface behavior is retained. The post-surface binding is deliberately
- * inert unless an already-compiled Skyforge runtime is installed explicitly.
+ * <p>All vanilla noise, surface and biome-decoration behavior is retained. Skyforge's post-surface
+ * binding remains inert unless an already-compiled runtime is installed explicitly, and the
+ * additional-surface feature scope exists only while vanilla decorates one chunk.
  */
 public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGenerator {
     public static final MapCodec<SkyforgeNoiseBasedChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance ->
@@ -47,5 +49,16 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             ChunkAccess chunk) {
         super.buildSurface(level, structureManager, random, chunk);
         SkyforgeNeoForge1211SurfaceStage.realize(chunk);
+    }
+
+    @Override
+    public void applyBiomeDecoration(
+            WorldGenLevel level,
+            ChunkAccess chunk,
+            StructureManager structureManager) {
+        try (SkyforgeNeoForge1211FeatureStage.Scope scope = SkyforgeNeoForge1211FeatureStage.open(chunk)) {
+            scope.requireActive();
+            super.applyBiomeDecoration(level, chunk, structureManager);
+        }
     }
 }
