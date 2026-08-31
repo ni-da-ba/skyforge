@@ -1,6 +1,6 @@
 # ADR-0035: First Concrete NeoForge 1.21.1 Adapter Proof
 
-- **Status:** Implementation prepared; focused local validation pending
+- **Status:** Accepted
 - **Date:** 2026-08-31
 - **Work item:** SF-IMP-0031
 
@@ -8,7 +8,7 @@
 
 SF-IMP-0028 established the backend-neutral world catalog and seam-safe tiled realization boundary. SF-IMP-0029 added continuous structural terrain semantics. SF-IMP-0030 proved that a backend may consume only world position plus accepted terrain semantic and choose its own representation without changing Skyforge occupancy.
 
-The next question is whether that boundary survives contact with a real Minecraft/NeoForge API rather than another reference-only backend.
+SF-IMP-0031 asks whether that boundary survives contact with a real Minecraft/NeoForge API rather than another reference-only backend.
 
 The recovered Aetherial Islands / Aetherial Companion lineage gives a concrete historical baseline: the Stab City predecessor artifacts target Minecraft 1.21.1 / NeoForge 21.1-era worldgen. For that reason the first adapter proof targets Minecraft 1.21.1 and NeoForge rather than selecting a newer game version solely because it exists.
 
@@ -16,18 +16,20 @@ This is a proof baseline, not a permanent release-version commitment.
 
 ## Toolchain baseline
 
-The adapter uses:
+The accepted adapter proof uses:
 
 - Minecraft 1.21.1;
 - NeoForge 21.1.249;
 - ModDevGradle 2.0.144;
-- Java 21 bytecode/API target.
+- Java 21 for the Minecraft/NeoForge toolchain and emitted runtime bytecode/API compatibility.
 
-The Skyforge workspace itself remains validated on JDK 25. For this compile-only integration proof, the adapter compiles with the workspace JDK using `--release 21`. A later actual Minecraft process/game-server launch must be run on a Java 21 runtime.
+The overall Skyforge workspace may continue running Gradle on JDK 25. The settings-level Foojay resolver allows Gradle to provision the Java 21 toolchain required by ModDevGradle when Java 21 is not already installed locally.
+
+The backend-neutral runtime modules are built by the workspace toolchain but emit Java 21-compatible artifacts so they can be loaded by the demonstrated Minecraft backend. `skyforge-reference` remains an engineering/evidence module and is not constrained to the Minecraft runtime target.
 
 ## Module boundary
 
-A new versioned proof module is introduced:
+A versioned proof module is introduced:
 
 ```text
 skyforge-neoforge-1211
@@ -58,7 +60,7 @@ The proof deliberately uses real Minecraft 1.21.1 types while avoiding a full ga
 - `net.minecraft.world.level.ChunkPos` for actual Minecraft chunk identity and block-coordinate translation;
 - `net.minecraft.resources.ResourceLocation` for concrete vanilla block registry keys.
 
-The first proof does not yet instantiate or mutate `ChunkAccess` and does not resolve registry keys to live `BlockState` instances. That is deferred to the next lifecycle hook after this boundary is compile- and behavior-proven.
+The accepted proof does not yet instantiate or mutate `ChunkAccess` and does not resolve registry keys to live `BlockState` instances. That is deferred to the next lifecycle hook after this boundary.
 
 This keeps registry/bootstrap and server lifecycle complexity out of the first integration gate without retreating to invented Minecraft-like types.
 
@@ -77,7 +79,7 @@ Negative chunk coordinates are an explicit acceptance case.
 
 ## Materialization path
 
-The first concrete path is:
+The accepted first concrete path is:
 
 ```text
 Minecraft ChunkPos + Y interval
@@ -94,7 +96,7 @@ Composition planning is never rerun in the chunk hot path.
 
 ## Initial block-key palette
 
-The first proof uses a deliberately minimal vanilla representation:
+The proof uses a deliberately minimal vanilla representation:
 
 ```text
 AIR                 -> minecraft:air
@@ -135,9 +137,20 @@ Acceptance requires:
 
 This is the first Minecraft-specific restatement of the seam/order invariants accepted in SF-IMP-0028.
 
-## Acceptance criteria
+## Acceptance result
 
-SF-IMP-0031 focused acceptance requires:
+The runtime implementation at commit `b5befa64117615a3076c0bc1fffdeb1caf10dd0e` passed both required local gates on 2026-08-31:
+
+1. `scripts\verify-sf-imp-0031-neoforge-adapter.bat` — **PASS**;
+2. repository-wide `gradlew.bat check` — **PASS**.
+
+The focused run demonstrated actual ModDevGradle preparation of Minecraft 1.21.1 / NeoForge artifacts, successful compilation of the production adapter against real Minecraft classes, successful compilation of the Minecraft-aware test source set, and passing chunk translation/materialization tests.
+
+No visual gate is required for SF-IMP-0031 because this work item changes the backend integration boundary and concrete representation proof, not accepted morphology or terrain-semantic geometry.
+
+## Accepted criteria
+
+SF-IMP-0031 demonstrates:
 
 1. the NeoForge/Minecraft dependency resolves and the adapter compiles against real 1.21.1 classes;
 2. backend-neutral modules remain free of Minecraft/NeoForge imports;
@@ -148,7 +161,9 @@ SF-IMP-0031 focused acceptance requires:
 7. repeated generation is deterministic;
 8. chunk generation order does not alter output;
 9. an island crossing a chunk ownership boundary remains continuous;
-10. an empty distant chunk performs no island evaluation and remains air.
+10. an empty distant chunk performs no island evaluation and remains air;
+11. reusable Skyforge runtime artifacts target Java 21 compatibility required by the demonstrated backend;
+12. Gradle can provision the real Java 21 NeoForge toolchain independently of the workspace JDK.
 
 ## Explicit non-goals
 
@@ -165,10 +180,10 @@ This work item does not yet implement:
 - a final live/preload/hybrid policy;
 - commitment to Minecraft 1.21.1 as the eventual release target.
 
-Those should be introduced only after this first concrete API boundary passes.
+Those should be introduced only as concrete integration evidence requires them.
 
 ## Consequence
 
-If accepted, Skyforge will have crossed the first actual Minecraft boundary while preserving the architecture established by the predecessor lessons:
+Skyforge has crossed the first actual Minecraft API boundary while preserving the architecture established by the predecessor lessons:
 
 > Skyforge arrives at the backend with the world already semantically and geometrically correct. The backend translates and represents it; it does not recreate or repair the world model.
