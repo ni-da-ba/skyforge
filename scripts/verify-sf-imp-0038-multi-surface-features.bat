@@ -18,11 +18,23 @@ call gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:compileJava :s
 if errorlevel 1 exit /b %errorlevel%
 
 if not exist "skyforge-neoforge-1211\build\resources\development\data\skyforge\worldgen\placed_feature\additional_surface_grass.json" (
-    echo ERROR: development additional-surface placed feature was not produced
+    echo ERROR: development additional-surface grass placed feature was not produced
     exit /b 1
 )
 if not exist "skyforge-neoforge-1211\build\resources\development\data\skyforge\neoforge\biome_modifier\add_additional_surface_grass.json" (
-    echo ERROR: development biome modifier was not produced
+    echo ERROR: development grass biome modifier was not produced
+    exit /b 1
+)
+if not exist "skyforge-neoforge-1211\build\resources\development\data\skyforge\worldgen\configured_feature\additional_surface_marker.json" (
+    echo ERROR: development additional-surface marker configured feature was not produced
+    exit /b 1
+)
+if not exist "skyforge-neoforge-1211\build\resources\development\data\skyforge\worldgen\placed_feature\additional_surface_marker.json" (
+    echo ERROR: development additional-surface marker placed feature was not produced
+    exit /b 1
+)
+if not exist "skyforge-neoforge-1211\build\resources\development\data\skyforge\neoforge\biome_modifier\add_additional_surface_marker.json" (
+    echo ERROR: development marker biome modifier was not produced
     exit /b 1
 )
 if not exist "skyforge-neoforge-1211\build\resources\development\assets\skyforge\lang\en_us.json" (
@@ -59,23 +71,20 @@ if not defined PACKAGE (
     exit /b 1
 )
 jar tf "!PACKAGE!" > "!LISTING!"
-findstr /x /c:"data/skyforge/worldgen/placed_feature/additional_surface_grass.json" "!LISTING!" >nul
-if !errorlevel! equ 0 (
-    echo ERROR: development additional-surface placed feature leaked into production jar: !PACKAGE!
-    del /q "!LISTING!" >nul 2>&1
-    exit /b 1
-)
-findstr /x /c:"data/skyforge/neoforge/biome_modifier/add_additional_surface_grass.json" "!LISTING!" >nul
-if !errorlevel! equ 0 (
-    echo ERROR: development multi-surface biome modifier leaked into production jar: !PACKAGE!
-    del /q "!LISTING!" >nul 2>&1
-    exit /b 1
-)
-findstr /x /c:"data/skyforge/worldgen/world_preset/development.json" "!LISTING!" >nul
-if !errorlevel! equ 0 (
-    echo ERROR: development world preset leaked into production jar: !PACKAGE!
-    del /q "!LISTING!" >nul 2>&1
-    exit /b 1
+for %%P in (
+    "data/skyforge/worldgen/placed_feature/additional_surface_grass.json"
+    "data/skyforge/neoforge/biome_modifier/add_additional_surface_grass.json"
+    "data/skyforge/worldgen/configured_feature/additional_surface_marker.json"
+    "data/skyforge/worldgen/placed_feature/additional_surface_marker.json"
+    "data/skyforge/neoforge/biome_modifier/add_additional_surface_marker.json"
+    "data/skyforge/worldgen/world_preset/development.json"
+) do (
+    findstr /x /c:%%P "!LISTING!" >nul
+    if !errorlevel! equ 0 (
+        echo ERROR: development resource leaked into production jar: %%~P in !PACKAGE!
+        del /q "!LISTING!" >nul 2>&1
+        exit /b 1
+    )
 )
 del /q "!LISTING!" >nul 2>&1
 
@@ -83,4 +92,5 @@ echo.
 echo === SF-IMP-0038 supplemental multi-surface feature verification completed successfully ===
 echo Next automated gate: gradlew.bat check
 echo Next manual gate: gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:runClient
+echo Manual diagnostic: look for markerBlocksAtEmittedPositions greater than zero near the origin.
 endlocal
