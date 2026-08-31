@@ -35,6 +35,11 @@ public record SkyIslandGroupPlan(
         }
     }
 
+    /** Number of planned islands. */
+    public int memberCount() {
+        return members.size();
+    }
+
     /** Smallest observed horizontal center-to-center distance, or positive infinity for one member. */
     public double minimumObservedCenterSpacing() {
         if (members.size() < 2) {
