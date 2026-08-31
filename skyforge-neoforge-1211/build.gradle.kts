@@ -67,6 +67,14 @@ dependencies {
     // recipes/model/kernel engine modules with it without pretending those modules are mods.
     add("additionalRuntimeClasspath", project(":skyforge-world"))
 
+    // SF-IMP-0035 makes the distributable mod self-contained using NeoForge's supported Jar-in-Jar
+    // mechanism. Keep each backend-neutral module as an ordinary Java library: the Minecraft
+    // adapter embeds their jars instead of copying/shading their classes or turning them into mods.
+    add("jarJar", project(":skyforge-kernel"))
+    add("jarJar", project(":skyforge-model"))
+    add("jarJar", project(":skyforge-recipes"))
+    add("jarJar", project(":skyforge-world"))
+
     testImplementation(project(":skyforge-recipes"))
 
     // ModDevGradle's FML-aware JUnit launcher is currently proven against JUnit Platform 5.
