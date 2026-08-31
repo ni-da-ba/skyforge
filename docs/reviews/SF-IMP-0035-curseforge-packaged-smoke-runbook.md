@@ -1,6 +1,6 @@
 # SF-IMP-0035 CurseForge Packaged Smoke Runbook
 
-**Status:** Implementation / manual packaged-artifact acceptance pending
+**Status:** Automated packaging gate PASS / manual packaged-artifact acceptance pending
 
 ## Purpose
 
@@ -43,6 +43,18 @@ The verifier checks that the artifact contains:
 - embedded `skyforge-model`;
 - embedded `skyforge-recipes`;
 - embedded `skyforge-world`.
+
+## Automated packaging result — 2026-08-31
+
+**Result: PASS.**
+
+The local SF-IMP-0035 verifier completed successfully and identified the distributable artifact as:
+
+```text
+C:\Users\nicho\Documents\skyforge\skyforge-neoforge-1211\build\libs\skyforge-neoforge-1211-0.1.0.jar
+```
+
+The archive inspection passed for the NeoForge mod descriptor, Jar-in-Jar metadata, and all four backend-neutral Skyforge runtime libraries. The remaining acceptance step is a normal launch from the clean CurseForge profile without Gradle development classpath assistance.
 
 ## Install in CurseForge
 
