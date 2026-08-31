@@ -133,3 +133,12 @@ tasks.register<JavaExec>("multiIslandGroupCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/multi-island-group-v1").get().asFile.absolutePath)
 }
+
+tasks.register<JavaExec>("hierarchicalArchipelagoCorpus") {
+    group = "verification"
+    description = "Generates the SF-IMP-0027 hierarchical Hub and Arc regional-scale atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.SkyIslandArchipelagoCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/hierarchical-archipelago-v1").get().asFile.absolutePath)
+}
