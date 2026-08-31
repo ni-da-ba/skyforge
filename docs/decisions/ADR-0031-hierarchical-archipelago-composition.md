@@ -1,6 +1,6 @@
 # ADR-0031: Hierarchical Archipelago Composition
 
-- **Status:** Proposed; focused planner proof pending local validation
+- **Status:** Focused planner proof accepted; regional realization and human visual acceptance pending
 - **Date:** 2026-08-30
 - **Work item:** SF-IMP-0027
 
@@ -84,9 +84,9 @@ All hierarchy-local randomness uses `SeedDerivation` semantic namespaces. Child-
 
 This produces stable hierarchical identity without sharing mutable random streams across levels.
 
-## Initial acceptance requirements
+## Focused planner acceptance
 
-The focused SF-IMP-0027 planner proof must demonstrate:
+The focused SF-IMP-0027 planner proof demonstrates:
 
 1. repeated planning of the same request is equality-exact;
 2. group identifiers and semantic roles remain in requested order;
@@ -101,14 +101,96 @@ The focused SF-IMP-0027 planner proof must demonstrate:
 11. deliberately undersized higher-level reservations fail deterministically;
 12. morphology intent remains opaque to the archipelago planner, including arbitrary external provider IDs.
 
-## Follow-on
+The user-reported local planner build completed successfully before regional realization work proceeded.
 
-After focused planner acceptance, the reference layer should realize a heterogeneous archipelago containing multiple accepted child groups and produce evidence at two resolutions:
+## Regional realization
 
-- an archipelago-scale plan/occupancy view proving hierarchy, corridors, group separation, and visual dominance;
-- selected group/member drill-down views reusing the accepted lower-level evidence rather than resampling every island at full single-island resolution.
+The reference layer realizes an archipelago as independently compiled island volumes grouped beneath their accepted child plans. It does not concatenate child groups or island graphs into one procedural graph.
 
-The preferred first visual corpus should include one arc/corridor archipelago and one hub archipelago with a dominant central group, secondary formations, satellites, and at least one outlier.
+The regional evidence sampler records:
+
+- union occupancy;
+- horizontal upper and underside envelopes;
+- horizontal child-group ownership for visual review;
+- per-island and per-group sampled solid counts;
+- total connected-component count;
+- overlapping-solid count;
+- cross-group overlapping-solid count;
+- review-domain face contacts;
+- realized regional bounds;
+- stable occupancy identity.
+
+A temporary compact group-owner byte volume is used only during sampling to detect cross-group overlaps and is discarded afterward. Full voxel ownership arrays are deliberately not retained because they are unnecessary for review and would make deterministic regional replay memory-bound.
+
+The first regional topology grid uses 32-unit horizontal and 8-unit vertical spacing. Lower-level morphology and group acceptance remain authoritative at their finer resolutions; the regional grid exists to prove hierarchy, survival, separation, corridors, and clipping.
+
+## Regional reference corpus
+
+The first corpus contains two four-group archipelagos across the three established seeds:
+
+### Hub
+
+- one seven-island `ANCHOR` cluster with the largest group reservation;
+- one five-island `SECONDARY` chain;
+- one three-island `SATELLITE` cluster;
+- one two-island `OUTLIER` chain;
+- 17 islands total.
+
+### Arc
+
+- one five-island major cluster;
+- one four-island chain;
+- one three-island satellite cluster;
+- one two-island outlier pair;
+- 14 islands total;
+- broad curvature and substantial deliberate empty sky between child formations.
+
+Both scenes mix built-in providers, the genuine external `reference:crescent` provider, and provider blends with full bounded detail and provider-aware secondary morphology.
+
+For each of the six regional realizations the numerical gate requires:
+
+1. every planned child group contributes positive sampled occupancy;
+2. every planned island contributes positive sampled occupancy;
+3. N planned islands produce exactly N union connected components;
+4. zero sampled overlap between independent islands;
+5. zero sampled cross-group overlap;
+6. zero regional-domain face contacts;
+7. the planned minimum group-envelope gap remains satisfied;
+8. repeated hierarchy planning, child planning, island compilation, and regional sampling produce the identical occupancy SHA-256.
+
+## Regional visual evidence
+
+The stable-seed Hub and Arc atlas writes:
+
+- `plan.png` — child-group reservation envelopes, semantic roles, group centers, and island centers;
+- `top-down-groups.png` — realized island geometry colored by child group;
+- `upper-envelope.png` and `underside-envelope.png` — regional vertical structure;
+- `isometric.png` — fit-to-scene regional upper surfaces colored by child group.
+
+The isometric renderer fits actual realized points to the canvas rather than applying the fixed scale that made SF-IMP-0026 isometrics visually undersized.
+
+Human review must confirm more than numerical separation:
+
+- the Hub has a clearly dominant anchor formation and subordinate supporting formations;
+- the Arc reads as an ordered regional corridor rather than four unrelated groups;
+- substantial empty sky remains visually intentional rather than accidental;
+- child-group identities survive realization;
+- regional organization adds hierarchy beyond the accepted single-group cluster/chain views.
+
+## Local verifier
+
+`scripts\verify-sf-imp-0027.bat` runs:
+
+1. Java runtime;
+2. the accepted hierarchical planner proof;
+3. six-scene regional realization acceptance;
+4. the stable-seed Hub/Arc regional visual atlas.
+
+The atlas is written to `skyforge-reference\build\evidence\hierarchical-archipelago-v1`.
+
+## Next step
+
+If the numerical and human regional gates pass, Skyforge will have an accepted hierarchy from morphology provider -> island -> group -> archipelago. The next work should move toward backend/world realization semantics, biome/material interpretation, or regional authoring controls rather than immediately adding another spatial hierarchy level.
 
 ## Deferred work
 
