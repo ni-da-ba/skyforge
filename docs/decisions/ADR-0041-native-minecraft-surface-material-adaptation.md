@@ -1,6 +1,6 @@
 # ADR-0041 — Native Minecraft Surface Material Adaptation
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -98,7 +98,7 @@ SF-IMP-0037 does **not** claim that:
 - every modded surface system is automatically compatible;
 - the current Massif morphology is final.
 
-These remain separate empirical integration problems.
+A further accepted integration observation is that Minecraft's normal top-surface heightmaps are single-valued per `(x,z)`. When an elevated Skyforge island occupies a column, the upper island may become the heightmap target while preserved native ground below remains physically present. This can redirect heightmap-driven vegetation/features away from the lower ground and requires a separate multi-surface suitability/placement strategy if Skyforge needs independently decorated stacked surfaces.
 
 ## Acceptance criteria
 
@@ -114,3 +114,11 @@ ADR-0041 becomes Accepted only after:
 8. backend-neutral independence remains green;
 9. focused NeoForge tests and repository-wide `check` pass;
 10. a real ModDev world visibly retains the Massif, native terrain, later worldgen interaction and persistence while its exposed surface uses Minecraft's already-built native surface material rather than only the fixed engineering top representation.
+
+## Acceptance evidence — 2026-08-31
+
+All criteria above passed.
+
+Automated validation passed through `scripts\verify-sf-imp-0037-native-surface-adaptation.bat` and repository-wide `gradlew.bat check`, including the final regression diagnostic proving that preserved lower ground remains present while Minecraft's final single-valued world-surface heightmap selects the elevated Skyforge surface.
+
+In the real ModDev client, the Massif remained geometrically intact and persistent, native terrain remained additive, the exposed island top appeared remarkably like the surrounding Minecraft terrain, copied native material remained shallow rather than replacing the whole island interior, and later world-generation/lighting behavior remained functional. The sparse vegetation observed directly beneath the Massif is recorded as the heightmap/multi-surface integration boundary described above, not as a failure of native material adaptation.
