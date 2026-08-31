@@ -42,6 +42,17 @@ neoForge {
         }
     }
 
+    // SF-IMP-0034 adds an isolated development client. The system property enables exactly one
+    // deterministic specimen; normal packaged Skyforge remains inert unless runtime binding is
+    // configured explicitly.
+    runs {
+        create("client") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0034")
+            systemProperty("skyforge.dev.specimen", "true")
+        }
+    }
+
     unitTest {
         enable()
         testedMod.set(mods.named("skyforge"))
