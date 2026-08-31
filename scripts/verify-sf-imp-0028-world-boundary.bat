@@ -4,13 +4,18 @@ setlocal
 echo === Skyforge SF-IMP-0028 world-boundary verification ===
 echo.
 
-echo [1/2] Java runtime
+echo [1/3] Java runtime
 java -version
 if errorlevel 1 goto :failed
 
 echo.
-echo [2/2] Backend-neutral world catalog and region-query proof
+echo [2/3] Backend-neutral world catalog and region-query proof
 call gradlew.bat :skyforge-world:test --tests "io.github.nidaba.skyforge.world.SkyIslandWorldCatalogTest"
+if errorlevel 1 goto :failed
+
+echo.
+echo [3/3] Tiled backend equivalence and seam proof
+call gradlew.bat :skyforge-world:test --tests "io.github.nidaba.skyforge.world.ReferenceTiledSkyIslandBackendTest"
 if errorlevel 1 goto :failed
 
 echo.
