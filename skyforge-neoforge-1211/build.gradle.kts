@@ -2,14 +2,25 @@ import org.gradle.api.tasks.compile.JavaCompile
 
 plugins {
     `java-library`
-    id("net.neoforged.moddev") version "2.0.144"
+    // The settings-level net.neoforged.moddev.repositories plugin already places the
+    // ModDevGradle implementation on Gradle's classpath. Repeating a version here makes Gradle
+    // try to compare that version with an already-loaded plugin whose classpath version is
+    // unknown. Apply the existing plugin implementation by id only.
+    id("net.neoforged.moddev")
 }
 
-// The workspace itself is validated on JDK 25. Minecraft 1.21.1 targets Java 21, so compile the
-// adapter against the Java 21 API/bytecode level without requiring a second local toolchain for
-// this first compile-only integration proof. A later game-launch proof must run on Java 21.
+java {
+    // The workspace runs on JDK 25, but Minecraft 1.21.1 executes on Java 21. Compile this
+    // adapter to the backend runtime API/classfile level without requiring a second local JDK.
+    toolchain.languageVersion.set(
+        org.gradle.jvm.toolchain.JavaLanguageVersion.of(
+            providers.gradleProperty("skyforgeJavaVersion").get().toInt(),
+        ),
+    )
+}
+
 tasks.withType<JavaCompile>().configureEach {
-    options.release.set(21)
+    options.release.set(providers.gradleProperty("skyforgeRuntimeJavaVersion").get().toInt())
 }
 
 neoForge {
