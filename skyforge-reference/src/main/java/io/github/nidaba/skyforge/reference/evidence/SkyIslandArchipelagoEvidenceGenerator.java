@@ -20,7 +20,7 @@ import java.util.Objects;
 /** Samples an independently compiled hierarchy on one regional review grid. */
 public final class SkyIslandArchipelagoEvidenceGenerator {
     /** Regional review spacing; group and island acceptance remain finer. */
-    public static final double HORIZONTAL_SPACING = 48.0;
+    public static final double HORIZONTAL_SPACING = 32.0;
     public static final double VERTICAL_SPACING = 8.0;
     public static final double HORIZONTAL_MARGIN = 192.0;
     public static final double VERTICAL_MARGIN = 128.0;
@@ -48,10 +48,9 @@ public final class SkyIslandArchipelagoEvidenceGenerator {
         VolumeGridSpec grid = reviewGrid(plan);
         int horizontalSamples = grid.xSamples() * grid.zSamples();
         byte[] occupancy = new byte[grid.sampleCount()];
-        int[] islandOwner = new int[grid.sampleCount()];
-        int[] groupOwner = new int[grid.sampleCount()];
-        Arrays.fill(islandOwner, -1);
-        Arrays.fill(groupOwner, -1);
+        // Temporary compact ownership used only while detecting cross-group overlap. Zero means air,
+        // positive values are group ordinal + 1, and -1 denotes an already-overlapped voxel.
+        byte[] voxelGroupOwner = new byte[grid.sampleCount()];
         double[] upperEnvelope = new double[horizontalSamples];
         double[] undersideEnvelope = new double[horizontalSamples];
         int[] horizontalGroupOwner = new int[horizontalSamples];
@@ -89,6 +88,7 @@ public final class SkyIslandArchipelagoEvidenceGenerator {
                         horizontalGroupOwner[horizontal] = memberGroup;
                     }
                     undersideEnvelope[horizontal] = Math.min(undersideEnvelope[horizontal], underside);
+                    byte encodedGroup = (byte) (memberGroup + 1);
                     for (int yIndex = 0; yIndex < grid.ySamples(); yIndex++) {
                         double y = grid.yAt(yIndex);
                         if (!(y > underside && y < upper)) {
@@ -99,15 +99,14 @@ public final class SkyIslandArchipelagoEvidenceGenerator {
                         groupSolidCounts[memberGroup]++;
                         if (occupancy[index] != 0) {
                             overlaps++;
-                            if (groupOwner[index] >= 0 && groupOwner[index] != memberGroup) {
+                            byte existingGroup = voxelGroupOwner[index];
+                            if (existingGroup > 0 && existingGroup != encodedGroup) {
                                 crossGroupOverlaps++;
                             }
-                            islandOwner[index] = -2;
-                            groupOwner[index] = -2;
+                            voxelGroupOwner[index] = -1;
                         } else {
                             occupancy[index] = 1;
-                            islandOwner[index] = member;
-                            groupOwner[index] = memberGroup;
+                            voxelGroupOwner[index] = encodedGroup;
                         }
                     }
                 }
@@ -127,8 +126,6 @@ public final class SkyIslandArchipelagoEvidenceGenerator {
                 compiledMembers,
                 groupByMember,
                 union,
-                islandOwner,
-                groupOwner,
                 upperEnvelope,
                 undersideEnvelope,
                 horizontalGroupOwner,
