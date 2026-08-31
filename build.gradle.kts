@@ -34,10 +34,11 @@ subprojects {
     }
 }
 
-val engineModules = listOf(
+val backendNeutralModules = listOf(
     project(":skyforge-kernel"),
     project(":skyforge-model"),
     project(":skyforge-recipes"),
+    project(":skyforge-world"),
 )
 
 val verifyBackendIndependence = tasks.register<VerifyBackendIndependenceTask>("verifyBackendIndependence") {
@@ -45,7 +46,7 @@ val verifyBackendIndependence = tasks.register<VerifyBackendIndependenceTask>("v
     description = "Rejects Minecraft or NeoForge imports from backend-neutral modules."
     projectRoot.set(layout.projectDirectory)
 
-    sourceFiles.from(engineModules.map { module ->
+    sourceFiles.from(backendNeutralModules.map { module ->
         module.fileTree("src") {
             include("**/*.java")
         }
