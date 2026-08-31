@@ -1,6 +1,6 @@
 # SF-IMP-0037 — Native Surface Adaptation In-Game Runbook
 
-**Status:** Implementation ready for automated and manual validation.
+**Status:** Automated verification and repository-wide build passed; manual in-game acceptance pending.
 
 ## Purpose
 
@@ -36,7 +36,7 @@ scripts\verify-sf-imp-0037-native-surface-adaptation.bat
 gradlew.bat check
 ```
 
-Do not proceed to manual acceptance if either command fails.
+Both automated gates passed on 2026-08-31. Manual client acceptance remains required before SF-IMP-0037 can be accepted.
 
 ## Launch
 
