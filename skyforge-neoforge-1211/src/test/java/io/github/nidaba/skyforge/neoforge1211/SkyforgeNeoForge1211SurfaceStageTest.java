@@ -23,6 +23,7 @@ final class SkyforgeNeoForge1211SurfaceStageTest {
         chunk.setBlockState(sentinel, Blocks.GOLD_BLOCK.defaultBlockState(), false);
 
         assertFalse(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
+        assertFalse(SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation());
         assertTrue(SkyforgeNeoForge1211SurfaceStage.realize(chunk).isEmpty());
         assertEquals(Blocks.GOLD_BLOCK.defaultBlockState(), chunk.getBlockState(sentinel));
     }
@@ -50,6 +51,7 @@ final class SkyforgeNeoForge1211SurfaceStageTest {
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
             assertNotNull(activeBinding);
             assertTrue(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
+            assertFalse(SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation());
             result = SkyforgeNeoForge1211SurfaceStage.realize(chunk);
         }
 
@@ -78,6 +80,39 @@ final class SkyforgeNeoForge1211SurfaceStageTest {
         assertTrue(
                 finalSurfaceHeight >= highestSolid.worldY(),
                 "final world-surface heightmap must include the elevated Skyforge solid");
+    }
+
+    @Test
+    void nativeSurfaceAdaptedBindingCopiesMinecraftSurfaceOntoElevatedSkyforgeTop() throws Exception {
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+        SkyforgeNeoForge1211ChunkAdapter adapter = SkyforgeNeoForge1211DevRuntime.adapter();
+        MinecraftChunkMaterialization materialization = adapter.materialize(
+                chunkPos,
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+        MaterializedPosition highestSolid = highestSolid(materialization);
+
+        int worldX = chunkPos.getMinBlockX() + highestSolid.localX();
+        int worldZ = chunkPos.getMinBlockZ() + highestSolid.localZ();
+        chunk.setBlockState(new BlockPos(worldX, 64, worldZ), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(worldX, 65, worldZ), Blocks.WATER.defaultBlockState(), false);
+
+        try (AutoCloseable activeBinding = SkyforgeNeoForge1211SurfaceStage.installNativeSurfaceAdapted(
+                adapter,
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(activeBinding);
+            assertTrue(SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation());
+            assertTrue(SkyforgeNeoForge1211SurfaceStage.realize(chunk).isPresent());
+        }
+
+        BlockPos highestSolidPosition = new BlockPos(worldX, highestSolid.worldY(), worldZ);
+        assertEquals(
+                Blocks.GRASS_BLOCK.defaultBlockState(),
+                chunk.getBlockState(highestSolidPosition),
+                "the exposed Skyforge top should inherit Minecraft's already-built native surface material");
+        assertFalse(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
+        assertFalse(SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation());
     }
 
     private static MaterializedPosition highestSolid(MinecraftChunkMaterialization materialization) {
