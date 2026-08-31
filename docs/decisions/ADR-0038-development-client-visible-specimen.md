@@ -1,6 +1,6 @@
 # ADR-0038 — Development Client Visible Specimen
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -69,11 +69,13 @@ Negative / deferred:
 
 ## Acceptance
 
-ADR-0038 becomes Accepted only after:
+Accepted on 2026-08-31 after:
 
-1. automated SF-IMP-0034 preflight is green;
-2. a real ModDevGradle client launches;
-3. a new disposable Overworld visibly contains the specimen at the documented location;
-4. no obvious chunk ownership seam is visible;
-5. native terrain is not globally erased at Skyforge AIR;
-6. save/reload preserves the generated specimen.
+1. automated SF-IMP-0034 preflight completed successfully;
+2. a real ModDevGradle Minecraft 1.21.1 client launched with Skyforge loaded;
+3. a new disposable Overworld visibly contained the deterministic Massif at the documented location;
+4. the specimen appeared to slot coherently into the world without an obvious chunk-ownership seam;
+5. native Minecraft terrain remained present around/below the specimen rather than being globally erased by Skyforge AIR;
+6. save/reload preserved the generated specimen.
+
+Manual review also identified expected morphology/design issues: the development Massif is visibly preliminary, its underside is oversized relative to the desired playable form, and the current shape is not yet judged production-playable. These observations do not invalidate this ADR because SF-IMP-0034 accepts the interactive realization path, not final morphology quality.
