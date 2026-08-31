@@ -18,5 +18,6 @@ include(
     "skyforge-kernel",
     "skyforge-model",
     "skyforge-recipes",
+    "skyforge-world",
     "skyforge-reference",
 )
