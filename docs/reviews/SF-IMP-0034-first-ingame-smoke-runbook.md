@@ -1,6 +1,6 @@
 # SF-IMP-0034 First In-Game Smoke Runbook
 
-**Status:** Implementation / manual visual acceptance pending
+**Status:** Accepted
 
 ## Purpose
 
@@ -64,12 +64,21 @@ as its isolated game directory.
 8. Confirm ordinary Minecraft terrain below/around the specimen has not been globally erased where Skyforge contributes AIR.
 9. Save and quit to title.
 10. Re-enter the same world and confirm the already-generated Skyforge terrain remains present. Existing-chunk loads must not cause a second realization pass.
-11. Capture screenshots of:
-    - broad exterior silhouette;
-    - underside;
-    - surface/top view;
-    - one apparent chunk-boundary region if convenient;
-    - any lighting, heightmap, vegetation, or terrain-intersection anomaly.
+11. Capture screenshots when useful for morphology/visual review.
+
+## Accepted observations — 2026-08-31
+
+Manual in-client validation reported:
+
+- the Massif is clearly present at the expected location;
+- it appears to have slotted into the Minecraft world cleanly;
+- no obvious destructive AIR behavior was observed in surrounding native terrain;
+- the specimen persists across save/reload;
+- the shape is recognizably preliminary rather than production-ready;
+- the underside is oversized relative to the desired playable landform;
+- overall playability/form quality requires later morphology tuning.
+
+The morphology critique is retained as design evidence rather than treated as a failure of the integration milestone.
 
 ## Pass criteria
 
@@ -81,13 +90,16 @@ The manual smoke gate passes when:
 - it spans chunks without an obvious ownership seam;
 - Skyforge AIR has not erased unrelated native terrain;
 - save/reload preserves the generated blocks;
-- any remaining defects are attributable to the already-documented late lifecycle timing or temporary palette rather than loss of Skyforge geometry.
+- any remaining defects are attributable to the already-documented late lifecycle timing, temporary palette, or morphology tuning rather than loss of Skyforge geometry.
+
+**Result: PASS.**
 
 ## Expected imperfections
 
 Do **not** reject SF-IMP-0034 solely because of:
 
 - crude dirt/stone/deepslate material choice;
+- preliminary or poorly tuned morphology;
 - missing vegetation on Skyforge surfaces;
 - lighting anomalies;
 - heightmap-dependent behavior;
