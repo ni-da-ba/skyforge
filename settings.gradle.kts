@@ -7,6 +7,9 @@ pluginManagement {
 }
 
 plugins {
+    // Gradle can provision the Java 21 toolchain required by Minecraft/NeoForge while the
+    // developer workstation continues to run the build itself on the configured workspace JDK.
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
     id("net.neoforged.moddev.repositories") version "2.0.144"
 }
 
