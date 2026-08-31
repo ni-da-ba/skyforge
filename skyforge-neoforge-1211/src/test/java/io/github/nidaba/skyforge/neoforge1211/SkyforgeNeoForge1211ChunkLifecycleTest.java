@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
@@ -55,10 +56,11 @@ final class SkyforgeNeoForge1211ChunkLifecycleTest {
 
         SkyforgeNeoForge1211ChunkWriter writer =
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver());
-        try (AutoCloseable ignored = SkyforgeNeoForge1211ChunkLifecycle.install(
+        try (AutoCloseable activeBinding = SkyforgeNeoForge1211ChunkLifecycle.install(
                 level -> true,
                 adapter,
                 writer)) {
+            assertNotNull(activeBinding);
             assertTrue(SkyforgeNeoForge1211ChunkLifecycle.hasActiveBinding());
 
             NeoForge.EVENT_BUS.post(new ChunkEvent.Load(chunk, false));
@@ -92,10 +94,11 @@ final class SkyforgeNeoForge1211ChunkLifecycleTest {
         MaterializedPosition firstSolid = firstSolid(materialization);
         BlockPos position = new BlockPos(firstSolid.localX(), firstSolid.worldY(), firstSolid.localZ());
 
-        try (AutoCloseable ignored = SkyforgeNeoForge1211ChunkLifecycle.install(
+        try (AutoCloseable activeBinding = SkyforgeNeoForge1211ChunkLifecycle.install(
                 level -> false,
                 adapter,
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(activeBinding);
             NeoForge.EVENT_BUS.post(new ChunkEvent.Load(chunk, true));
         }
 
