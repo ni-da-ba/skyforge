@@ -1,7 +1,8 @@
 # ADR-0033: Backend-Neutral Terrain Semantics
 
-- **Status:** Proposed; implementation and visual corpus prepared, local validation pending
+- **Status:** Accepted; focused local verification and human visual review passed
 - **Date:** 2026-08-30
+- **Accepted:** 2026-08-31
 - **Work item:** SF-IMP-0029
 
 ## Context
@@ -73,7 +74,7 @@ Each sampled lattice point receives exactly one encoded `SkyIslandTerrainSemanti
 
 ## Numerical acceptance requirements
 
-The focused SF-IMP-0029 proof must demonstrate:
+The focused SF-IMP-0029 proof demonstrates:
 
 1. invalid terrain profiles fail early;
 2. a real compiled island produces AIR, EDGE_SHELL, SURFACE_MANTLE, UNDERSIDE_SHELL, SHALLOW_INTERIOR, and DEEP_MASS at appropriate continuous points;
@@ -86,34 +87,39 @@ The focused SF-IMP-0029 proof must demonstrate:
 
 `EDGE_SHELL` existence is tested against the continuous interpreter. A coarse evidence lattice is not required to happen to hit a thin edge shell.
 
-## Visual evidence
+The local `scripts\verify-sf-imp-0029-terrain-semantics.bat` run completed successfully on 2026-08-31.
 
-The prepared `terrain-semantics-v1` corpus contains two scales.
+## Accepted evidence
+
+The generated `terrain-semantics-v1` corpus contains two scales.
 
 ### Close specimen
 
-One independently compiled island from the accepted stable-seed Hub receives a fine 4-unit lattice. Evidence includes:
+One independently compiled island from the accepted stable-seed Hub receives a fine 4-unit lattice. The accepted specimen contains 160,295 solid samples with this exact semantic partition:
 
-- legend;
-- topmost-solid semantic plan view;
-- east-west semantic section;
-- north-south semantic section;
-- fit-to-scene top-surface isometric;
-- semantic counts and SHA-256.
+- EDGE_SHELL: 2,946
+- SURFACE_MANTLE: 19,413
+- UNDERSIDE_SHELL: 25,884
+- SHALLOW_INTERIOR: 72,746
+- DEEP_MASS: 39,306
 
-The close specimen is responsible for making the vertical material roles legible. Human review should verify that:
+The solid-role counts sum exactly to the sampled solid total. Its accepted semantic SHA-256 is:
 
-- upper mantle forms a thin coherent cap rather than occupying the entire mass;
-- underside shell follows the lower exposed surface;
-- shallow interior separates the explicit shells from the core;
-- deep mass remains substantial in thick interior columns;
-- edge-shell behavior, where sampled, remains concentrated near pinched coastal termination rather than appearing arbitrarily through the interior.
+`b1dd1978c41afab4c7afd09b3c288c5bc9576793145b5ef39721405f23669598`
+
+Human review passed. The east-west and north-south sections show a coherent upper mantle, lower underside shell, shallow transition zone, substantial deep mass in thick columns, and edge-shell concentration at pinched lateral termination. The top-surface view exposes only crown-appropriate semantics rather than leaking deep or underside roles through the upper surface.
 
 ### Regional Hub
 
-The complete accepted stable-seed SF-IMP-0027 Hub catalog receives a coarser 48-unit horizontal / 8-unit vertical semantic lattice. It proves provider-neutral composition across built-in, hybrid, and external-provider members while preserving the existing world-catalog query boundary.
+The complete accepted stable-seed SF-IMP-0027 Hub catalog receives a coarser 48-unit horizontal / 8-unit vertical semantic lattice. Its generated semantic SHA-256 is:
 
-Human review should verify that terrain-role interpretation does not erase morphology identity or introduce visible tile seams. At regional scale the top-surface and isometric images are organizational evidence; fine vertical layer judgment remains the responsibility of the close specimen.
+`ee4b1344c69e54735c6c718e8363f594c7d1ed321802bb4f3a5ae2d868469389`
+
+Human review passed. The topmost-solid plan and isometric views preserve the accepted group/island organization across built-in, hybrid, and external-provider members. Surface mantle remains associated with island crowns, edge-shell samples remain localized to thin margins, and no visible tile seam cuts through an island or group.
+
+At regional scale these images are organizational evidence rather than fine material-layer evidence. The fit-to-scene isometric is sparse because the accepted Hub intentionally contains large empty-sky corridors; fine vertical-band judgment remains the responsibility of the close specimen.
+
+The detailed human review is recorded in `docs/reviews/SF-IMP-0029-terrain-semantics-visual-review.md`.
 
 ## Evidence generation
 
@@ -140,30 +146,30 @@ skyforge-reference/build/evidence/terrain-semantics-v1/
 
 The local verifier runs both focused test classes and then generates this corpus in one invocation.
 
-## Palette/biome boundary
+## Backend/material boundary
 
-Terrain semantics are deliberately upstream of biome and concrete material selection.
+Terrain semantics are deliberately upstream of backend-native environmental and material selection.
 
-The intended future mapping is conceptually:
+Following ADR-0034, SF-IMP-0029 does **not** imply that Skyforge must own a generic climate/ecology system or a broad backend-neutral material taxonomy. The downstream boundary is intentionally minimal:
 
 ```text
-SkyIslandTerrainSemantic
-        + biome/ecoregion context
-        + deterministic local material variation
-        -> backend-neutral material key
-        -> backend-specific representation
+compiled Skyforge geometry
+        -> backend-neutral terrain semantic
+        -> minimal adapter-visible Skyforge context where demonstrated necessary
+        -> backend-native biome/environment/material policy
+        -> concrete backend representation
 ```
 
-Examples such as grass, dirt, stone, deepslate, snow, moss, or modded blocks belong in a Minecraft palette adapter, not in the semantic enum. Likewise another backend may map `SURFACE_MANTLE` to a texture class or mesh material instead of a block.
+A Minecraft adapter may therefore combine `SURFACE_MANTLE`, `EDGE_SHELL`, or another accepted semantic directly with Minecraft-native biome/environment information when choosing block states. Another backend may map the same semantics to voxel IDs, textures, or mesh materials.
 
-SF-IMP-0029 should not freeze the shape of that future palette API until the first semantic evidence has passed human review.
+Shared climate, ecology, geology, or material-intent abstractions should be introduced only when backend-independent Skyforge behavior demonstrates a concrete need for them.
 
 ## Deferred work
 
 SF-IMP-0029 does not yet define:
 
 - concrete Minecraft blocks or block states;
-- biome/ecoregion assignment;
+- a parallel Skyforge climate/ecoregion system;
 - vegetation, ores, caves, fluids, or structures;
 - general cliff/slope orientation semantics;
 - weathering or stratigraphic procedural signals;
@@ -173,13 +179,4 @@ SF-IMP-0029 does not yet define:
 
 ## Consequence
 
-The intended downstream layering becomes:
-
-```text
-compiled Skyforge geometry
-        -> backend-neutral terrain semantic
-        -> biome/material policy
-        -> concrete backend material
-```
-
-A Minecraft adapter can therefore map semantic roles to block palettes without changing island morphology, world planning, catalog queries, or tile-seam behavior.
+Skyforge now has a deterministic, backend-neutral structural interpretation layer over accepted suspended geometry. A backend can distinguish crown, lateral termination, underside, shallow interior, deep interior, and air without changing morphology, spatial planning, catalog-query behavior, occupancy, or tile-seam identity.
