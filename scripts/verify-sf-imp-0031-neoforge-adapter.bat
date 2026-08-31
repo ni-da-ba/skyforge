@@ -14,12 +14,13 @@ if errorlevel 1 exit /b %errorlevel%
 
 echo.
 echo [3/4] Minecraft/NeoForge compile-link proof
-call gradlew.bat :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:compileTestJava
+echo      Gradle may provision a Java 21 toolchain on the first run.
+call gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:compileTestJava
 if errorlevel 1 exit /b %errorlevel%
 
 echo.
 echo [4/4] Chunk translation, block-key projection, determinism, and seam proof
-call gradlew.bat :skyforge-neoforge-1211:test --tests "io.github.nidaba.skyforge.neoforge1211.*"
+call gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:test --tests "io.github.nidaba.skyforge.neoforge1211.*"
 if errorlevel 1 exit /b %errorlevel%
 
 echo.
