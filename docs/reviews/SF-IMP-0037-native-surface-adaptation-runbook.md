@@ -1,6 +1,6 @@
 # SF-IMP-0037 — Native Surface Adaptation In-Game Runbook
 
-**Status:** Automated verification and repository-wide build passed; manual in-game acceptance pending.
+**Status:** Automated verification and repository-wide build passed; native surface adaptation observed in-game; persistence/final manual checks pending.
 
 ## Purpose
 
@@ -100,6 +100,38 @@ A systematic loss of later feature interaction would be a regression.
 
 Save and quit, re-enter the same world, and verify that the adapted Massif persists without duplicate realization or obvious corruption.
 
+## Observed manual evidence — 2026-08-31
+
+The first SF-IMP-0037 client inspection reported that the exposed Massif top looked **remarkably like the surrounding native Minecraft terrain**. This is the intended visual consequence of the native-surface adapter and is direct evidence that the fixed engineering dirt top is no longer the sole exposed-surface representation.
+
+No trees or comparable vegetation were noticed on the ordinary ground directly beneath the Massif. This is being treated as an integration observation, not as evidence that the material adapter failed.
+
+### Heightmap / multi-surface interpretation
+
+SF-IMP-0036 already proved that Minecraft's final world-surface heightmap observes the elevated Skyforge solid. Surface-placed vegetation commonly selects Y from a top-surface heightmap. Once an island occupies a column, the same `(x,z)` column therefore has one vanilla world-surface heightmap answer: the **upper island surface**, even though the ordinary lower terrain remains physically present.
+
+Conceptually:
+
+```text
+same (x,z) column
+
+    upper Skyforge surface  <- vanilla top-surface heightmap target
+    █████████████████████
+
+          air gap
+
+    preserved native ground <- real blocks, but not simultaneously the top heightmap value
+    █████████████████████
+```
+
+This likely explains reduced or absent heightmap-driven vegetation directly below a floating island: attempts that would otherwise target the native ground can be redirected to the upper Skyforge surface.
+
+A focused regression test now captures this behavior explicitly by preserving lower native ground, realizing an elevated Skyforge surface, priming Minecraft's final heightmaps, and asserting that the reported world-surface height is the upper surface rather than the lower ground.
+
+This exposes a broader Minecraft integration boundary relevant to future vertically stacked islands: vanilla heightmaps are single-valued per `(x,z)` and cannot represent several independently decoratable surfaces in one vertical column. If Skyforge requires vegetation/features on ground plus one or more stacked islands, that requires an explicit multi-surface feature/suitability strategy rather than assuming vanilla heightmaps can express every surface simultaneously.
+
+This limitation does **not** invalidate SF-IMP-0037's material-adaptation goal.
+
 ## Useful second-world check
 
 If the first world generates only ordinary grassy terrain at the origin, a second disposable world with a different Minecraft seed is useful. The Skyforge geometry remains deterministic, while the native Minecraft terrain underneath can change. A visibly different inherited top material would be particularly strong evidence that Minecraft—not Skyforge's fixed engineering palette—is controlling the exposed representation.
@@ -119,11 +151,14 @@ SF-IMP-0037 manual acceptance passes when:
 - later worldgen/lighting interaction remains functional;
 - save/reload preserves the result.
 
+The lower-ground vegetation observation above is not by itself a failure of this milestone because it follows from the single-valued vanilla heightmap boundary and is outside the narrow material-adaptation decision.
+
 ## Known limitations that do not by themselves fail this milestone
 
 - only exposed top blocks are adapted;
 - native filler/subsurface depth is not copied;
 - a ground-level native surface can imperfectly represent a vertically different high-altitude biome;
 - ocean-floor or shore materials may not yet be ideal for floating-island aesthetics;
+- vanilla top-surface heightmaps cannot simultaneously target lower ground and one or more floating surfaces in the same `(x,z)` column;
 - structures are still not Skyforge-aware;
 - the current Massif geometry and engineering substrate remain preliminary.
