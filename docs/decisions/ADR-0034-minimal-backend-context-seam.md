@@ -1,12 +1,12 @@
 # ADR-0034: Minimal Backend Context Seam
 
-- **Status:** Proposed; implementation deferred until SF-IMP-0029 acceptance
-- **Date:** 2026-08-30
-- **Next work item:** SF-IMP-0030
+- **Status:** Implementation prepared; focused local validation pending
+- **Date:** 2026-08-31
+- **Work item:** SF-IMP-0030
 
 ## Context
 
-SF-IMP-0029 introduces backend-neutral structural terrain semantics such as `SURFACE_MANTLE`, `EDGE_SHELL`, `UNDERSIDE_SHELL`, `SHALLOW_INTERIOR`, and `DEEP_MASS`. A concrete backend must eventually convert those meanings into concrete terrain materials.
+SF-IMP-0029 accepts backend-neutral structural terrain semantics such as `SURFACE_MANTLE`, `EDGE_SHELL`, `UNDERSIDE_SHELL`, `SHALLOW_INTERIOR`, and `DEEP_MASS`. A concrete backend must eventually convert those meanings into concrete terrain materials.
 
 It would be easy to respond by adding a broad Skyforge climate, biome, geology, or material-intent model. That would be premature. Minecraft and other world backends may already provide environmental systems that should remain authoritative for backend-native concepts such as biome, temperature, precipitation, vegetation, or block palettes.
 
@@ -16,7 +16,7 @@ The recovered Aetherial Islands / Aetherial Companion lineage reinforces the nee
 
 ## Decision
 
-SF-IMP-0030 will introduce only the smallest context seam demonstrated necessary by a concrete adapter.
+SF-IMP-0030 introduces only the smallest context seam demonstrated necessary by the first backend-policy proof.
 
 The architectural boundary is:
 
@@ -81,7 +81,7 @@ The predecessor's need to manipulate climate/biome outputs is evidence that the 
 
 ## No speculative climate descriptor set
 
-SF-IMP-0030 must not introduce temperature, humidity, rainfall, continentalness, erosion, ecology, or similar generic environmental descriptors unless a backend-neutral Skyforge behavior demonstrates a concrete need for them.
+SF-IMP-0030 does not introduce temperature, humidity, rainfall, continentalness, erosion, ecology, or similar generic environmental descriptors.
 
 A Minecraft adapter may consult native biome/environment information directly and combine it with the Skyforge structural semantic.
 
@@ -105,29 +105,35 @@ The exact Minecraft mapping belongs in the Minecraft-facing module, not `skyforg
 
 ## No speculative MaterialIntent taxonomy
 
-SF-IMP-0030 also must not introduce a large backend-neutral `MaterialIntent` vocabulary merely because multiple future backends are imaginable.
+SF-IMP-0030 does not introduce a backend-neutral `MaterialIntent` vocabulary.
 
-The first adapter should attempt to work directly from:
+The first proof works directly from:
 
 ```text
 SkyIslandTerrainSemantic
-+ stable Skyforge identity/context only where needed
-+ backend-native environmental context
--> concrete backend material
++ world position
++ backend-owned environmental context
+-> backend-owned material token
 ```
 
-An intermediate material-intent abstraction should be added only if at least one concrete integration demonstrates a transformation that is genuinely shared across backends.
+The reference material tokens used by the proof live only in `skyforge-reference`. They are not Skyforge world semantics or a public material ontology.
 
-## Minimal context shape
+An intermediate material-intent abstraction should be added only if a concrete integration demonstrates a transformation that is genuinely shared across backends.
 
-The first implementation may expose a very small immutable context object or equivalent adapter call boundary. Candidate information is:
+## First proof context shape
 
-- world position;
-- `SkyIslandTerrainSemantic`;
-- `SkyIslandWorldVolumeId`;
-- group role or other hierarchy metadata only if a demonstrated backend behavior requires it.
+The first implementation adds `SkyIslandTerrainSampleContext` with exactly:
 
-Not every candidate field must be included. The implementation should start with the minimum needed by the first adapter proof.
+- world-space `x`, `y`, `z`;
+- accepted `SkyIslandTerrainSemantic`.
+
+`WorldRegionTerrain.sampleContextAt(...)` exposes this context from an accepted sampled semantic region.
+
+The first proof deliberately does **not** add `SkyIslandWorldVolumeId`, group role, archipelago role, climate values, biome values, suitability, or backend registry information to every sample.
+
+Stable island/group identity remains available at the world-catalog level. It should be promoted into the per-sample seam only when a concrete backend behavior demonstrates that the hot path needs it.
+
+This is a deliberate minimality decision, not a claim that identity will never be useful.
 
 ## Suitability is separate from climate
 
@@ -136,6 +142,8 @@ The predecessor strongly supports introducing geometry-derived suitability befor
 That does not imply a climate model. Suitability can be derived from authoritative Skyforge geometry and structural semantics, for example terrain thickness, distance to surface/underside, available surface or later continuous slope/exposure.
 
 A Minecraft adapter can combine this backend-neutral geometric validity with native biome, tag and structure/feature rules.
+
+Suitability is deferred beyond this context-seam proof.
 
 ## Dependency direction
 
@@ -155,40 +163,48 @@ concrete backend adapter
 
 `skyforge-world` may define backend-neutral contracts. It may not import Minecraft, NeoForge, Fabric, or other backend APIs.
 
-## First concrete adapter implication
+The reference policy used for SF-IMP-0030 lives in `skyforge-reference`, downstream of `skyforge-world`.
 
-The first Minecraft-like adapter should be allowed to combine:
+## Reference backend proof
 
-1. Skyforge terrain semantic;
-2. the sampled world position and stable Skyforge identity if needed;
-3. native Minecraft biome/environment information;
-4. backend-specific block palette rules.
+The first non-Minecraft proof supplies a tiny backend-owned environment with two states and maps the same `SURFACE_MANTLE` sample to two different reference-only material tokens.
 
-The adapter may therefore participate in Minecraft's existing biome system instead of replacing it.
+The proof requires:
+
+- backend-owned environmental input may change representation;
+- the Skyforge sample context remains unchanged;
+- every terrain semantic maps to a representation with the same AIR/solid occupancy;
+- repeated identical inputs are deterministic.
+
+This is sufficient to demonstrate the seam without choosing Minecraft, NeoForge, block states, biome APIs, or a material taxonomy.
 
 ## Acceptance criteria for SF-IMP-0030
 
-The first proof should remain deliberately small and demonstrate:
+The focused proof must demonstrate:
 
 1. no Minecraft/NeoForge classes enter `skyforge-world`;
 2. no generic Skyforge climate descriptor set is introduced;
-3. no broad abstract material taxonomy is introduced without demonstrated need;
-4. a backend adapter can receive the structural semantic and enough stable Skyforge context to make a material decision;
-5. changing backend-native environmental input may change material selection without changing Skyforge geometry or terrain semantic identity;
-6. the same Skyforge semantic/context can be consumed by a non-Minecraft reference adapter;
-7. backend material policy cannot create or erase Skyforge occupancy unless a later explicit world-edit contract permits it.
+3. no broad abstract material taxonomy is introduced;
+4. backend-visible context contains only world position and accepted terrain semantic for the first proof;
+5. invalid/non-finite sample contexts fail early;
+6. a sampled `WorldRegionTerrain` exposes exact world coordinates and semantic identity;
+7. changing backend-native environmental input changes reference representation without changing Skyforge context;
+8. the same Skyforge context is consumed by a non-Minecraft reference adapter;
+9. reference material policy preserves AIR/solid occupancy for every semantic and backend environment;
+10. identical Skyforge/backend inputs produce deterministic representation.
 
 ## Deferred work
 
-This ADR does not yet define:
+This ADR does not define:
 
-- a final public `TerrainMaterialContext` API;
 - Minecraft version or loader selection;
 - concrete block mappings;
 - a persistent biome/material cache;
 - custom Skyforge climate simulation;
 - cross-backend material-intent taxonomy;
+- per-sample world-volume/group identity;
 - province/geology/ecology descriptor promotion;
+- suitability fields;
 - vegetation, structures, caves, ores, or fluids.
 
 Those should be driven by concrete integration evidence.
