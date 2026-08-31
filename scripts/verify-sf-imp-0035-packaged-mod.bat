@@ -8,8 +8,8 @@ call gradlew.bat verifyBackendIndependence
 if errorlevel 1 exit /b %errorlevel%
 
 echo.
-echo [2/4] NeoForge tests and Jar-in-Jar package build
-call gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:test :skyforge-neoforge-1211:jarJar
+echo [2/4] NeoForge tests and final Jar-in-Jar mod archive build
+call gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:test :skyforge-neoforge-1211:jar
 if errorlevel 1 exit /b %errorlevel%
 
 echo.
