@@ -13,13 +13,24 @@ call gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:test :skyforge
 if errorlevel 1 exit /b %errorlevel%
 
 echo.
-echo [3/4] Locate distributable Jar-in-Jar artifact
+echo [3/4] Locate distributable Jar-in-Jar artifact by archive contents
 set "PACKAGE="
-for %%F in (skyforge-neoforge-1211\build\libs\*-all.jar) do (
-    if exist "%%~fF" set "PACKAGE=%%~fF"
+set "CANDIDATE_LISTING=%TEMP%\skyforge-sf-imp-0035-candidate-listing.txt"
+for %%F in (skyforge-neoforge-1211\build\libs\*.jar) do (
+    jar tf "%%~fF" > "!CANDIDATE_LISTING!" 2>nul
+    if !errorlevel! equ 0 (
+        findstr /x /c:"META-INF/neoforge.mods.toml" "!CANDIDATE_LISTING!" >nul
+        if !errorlevel! equ 0 (
+            findstr /x /c:"META-INF/jarjar/metadata.json" "!CANDIDATE_LISTING!" >nul
+            if !errorlevel! equ 0 set "PACKAGE=%%~fF"
+        )
+    )
 )
+del /q "!CANDIDATE_LISTING!" >nul 2>&1
 if not defined PACKAGE (
-    echo ERROR: no *-all.jar Jar-in-Jar artifact found under skyforge-neoforge-1211\build\libs
+    echo ERROR: no distributable Jar-in-Jar artifact with NeoForge and JIJ metadata found under skyforge-neoforge-1211\build\libs
+    echo Available jars:
+    dir /b skyforge-neoforge-1211\build\libs\*.jar 2>nul
     exit /b 1
 )
 echo Package: !PACKAGE!
