@@ -20,6 +20,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ProtoChunk;
 import org.junit.jupiter.api.Test;
 
@@ -59,6 +60,32 @@ final class SkyforgeNeoForge1211ChunkWriterTest {
 
         assertTrue(westChunk.getBlockState(new BlockPos(-1, MINIMUM_Y - 1, 0)).isAir());
         assertTrue(eastChunk.getBlockState(new BlockPos(0, MINIMUM_Y - 1, 0)).isAir());
+    }
+
+    @Test
+    void solidOverlayWritesOnlySkyforgeSolidsAndPreservesExistingBackendTerrain() {
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+        int minimumY = 0;
+        ResourceLocation[] keys = new ResourceLocation[16 * 16];
+        Arrays.fill(keys, SkyforgeMinecraftBlockPalette.AIR);
+        keys[0] = SkyforgeMinecraftBlockPalette.STONE;
+        MinecraftChunkMaterialization materialization =
+                new MinecraftChunkMaterialization(chunkPos, minimumY, 1, keys, 1);
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+        BlockPos skyforgeSolid = new BlockPos(0, minimumY, 0);
+        BlockPos backendOwnedAirSample = new BlockPos(1, minimumY, 0);
+        chunk.setBlockState(backendOwnedAirSample, Blocks.GOLD_BLOCK.defaultBlockState(), false);
+
+        MinecraftChunkWriteResult result = new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver())
+                .writeSolidOverlay(chunk, materialization);
+
+        assertEquals(1, result.assignedBlockCount());
+        assertEquals(1, result.solidBlockCount());
+        assertEquals(Blocks.STONE.defaultBlockState(), chunk.getBlockState(skyforgeSolid));
+        assertEquals(
+                Blocks.GOLD_BLOCK.defaultBlockState(),
+                chunk.getBlockState(backendOwnedAirSample),
+                "Skyforge AIR must preserve backend-native terrain in additive mode");
     }
 
     @Test
