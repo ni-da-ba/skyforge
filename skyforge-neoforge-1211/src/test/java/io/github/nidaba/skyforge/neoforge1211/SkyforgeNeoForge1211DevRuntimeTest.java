@@ -18,7 +18,7 @@ final class SkyforgeNeoForge1211DevRuntimeTest {
         MinecraftChunkMaterialization materialization = SkyforgeNeoForge1211DevRuntime.adapter()
                 .materialize(new ChunkPos(0, 0), -64, 384);
 
-        assertTrue(materialization.candidateVolumeCount() > 0);
+        assertTrue(materialization.candidateVolumeReferences() > 0);
         assertTrue(materialization.solidBlockCount() > 0);
 
         boolean solidNearInspectionHeight = false;
