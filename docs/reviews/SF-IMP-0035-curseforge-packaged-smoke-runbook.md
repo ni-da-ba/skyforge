@@ -1,6 +1,6 @@
 # SF-IMP-0035 CurseForge Packaged Smoke Runbook
 
-**Status:** Manual packaged-artifact acceptance passed; final repository validation pending
+**Status:** Accepted
 
 ## Purpose
 
@@ -73,29 +73,18 @@ Pass when:
 
 The normal packaged mod is expected to be inert because no production world binding exists yet. The SF-IMP-0034 development specimen is enabled only by its development JVM property and is not part of normal packaged behavior.
 
-## If the profile fails
+## Repository-wide validation
 
-Capture or paste the earliest Skyforge/NeoForge loader error. In particular, distinguish:
-
-- invalid mod descriptor;
-- missing embedded module;
-- duplicate module/artifact identity;
-- Jar-in-Jar selection error;
-- Java version mismatch;
-- unrelated CurseForge/launcher failure.
-
-Do not add compatibility or optimization mods until the clean packaged artifact passes.
-
-## Remaining gate
-
-Before SF-IMP-0035 is accepted and proposed for merge, run a fresh repository-wide:
+A fresh repository-wide:
 
 ```bat
 gradlew.bat check
 ```
 
-on `agent/sf-imp-0035` after the final packaging/documentation commits.
+also completed successfully on `agent/sf-imp-0035` after the packaging and documentation changes.
+
+**Overall result: PASS.**
 
 ## After acceptance
 
-After this packaged proof is accepted, Minecraft/NeoForge installation mechanics are no longer the primary unknown. The next substantive integration task is the earlier world-generation insertion point required for native heightmaps, lighting, features, vegetation and structures to reason about Skyforge terrain during generation.
+Minecraft/NeoForge installation mechanics are no longer the primary unknown. The next substantive integration task is the earlier world-generation insertion point required for native heightmaps, lighting, features, vegetation and structures to reason about Skyforge terrain during generation.
