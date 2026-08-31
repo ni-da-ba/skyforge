@@ -28,11 +28,20 @@ tasks.withType<JavaCompile>().configureEach {
 neoForge {
     version = "21.1.249"
 
-    // ModDevGradle wires Minecraft/NeoForge artifacts to main automatically, but ordinary Gradle
-    // test compilation does not inherit that special modding classpath. The focused adapter tests
-    // deliberately reference real Minecraft types, so attach the same development artifacts to
-    // the test source set without introducing a game-launch or mod-lifecycle requirement.
-    addModdingDependenciesTo(sourceSets.named("test").get())
+    // SF-IMP-0032 touches live vanilla registries, BlockState initialization and real ProtoChunk
+    // storage. Those APIs require Minecraft/NeoForge bootstrap, not merely Minecraft classes on an
+    // ordinary JUnit classpath. Declare the adapter sources as a development mod and let
+    // ModDevGradle launch the test task through its FML-aware unit-test environment.
+    mods {
+        create("skyforge_adapter") {
+            sourceSet(sourceSets.main.get())
+        }
+    }
+
+    unitTest {
+        testedMod.set(mods.named("skyforge_adapter"))
+        enable()
+    }
 }
 
 dependencies {
