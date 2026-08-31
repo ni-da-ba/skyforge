@@ -39,11 +39,13 @@ public record SkyIslandGroupRequest(
             throw new IllegalArgumentException(
                     "group exceeds first-proof maximum member count " + MAXIMUM_MEMBER_COUNT);
         }
-        double required = 2.0 * reservedHorizontalRadius + minimumGap;
-        if (layout.minimumCenterSpacing() < required) {
-            throw new IllegalArgumentException(
-                    "layout minimum center spacing " + layout.minimumCenterSpacing()
-                            + " is smaller than required reservation spacing " + required);
+        if (memberMorphologies.size() > 1) {
+            double required = 2.0 * reservedHorizontalRadius + minimumGap;
+            if (layout.minimumCenterSpacing() < required) {
+                throw new IllegalArgumentException(
+                        "layout minimum center spacing " + layout.minimumCenterSpacing()
+                                + " is smaller than required reservation spacing " + required);
+            }
         }
     }
 
