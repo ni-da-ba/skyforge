@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":skyforge-kernel"))
     implementation(project(":skyforge-model"))
     implementation(project(":skyforge-recipes"))
+    implementation(project(":skyforge-world"))
 
     testImplementation(platform("org.junit:junit-bom:6.1.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -141,4 +142,13 @@ tasks.register<JavaExec>("hierarchicalArchipelagoCorpus") {
     mainClass.set("io.github.nidaba.skyforge.reference.SkyIslandArchipelagoCorpusCli")
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/hierarchical-archipelago-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("terrainSemanticCorpus") {
+    group = "verification"
+    description = "Generates the SF-IMP-0029 backend-neutral terrain-semantic review atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.SkyIslandTerrainSemanticCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/terrain-semantics-v1").get().asFile.absolutePath)
 }
