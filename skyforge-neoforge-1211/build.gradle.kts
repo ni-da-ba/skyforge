@@ -20,7 +20,7 @@ java {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    options.release.set(providers.gradleProperty("skyforgeRuntimeJavaVersion").get().toInt())
+    options.release.set(providers.gradleProperty("skyforgeRuntimeJavaRelease").get().toInt())
 }
 
 neoForge {
