@@ -22,11 +22,12 @@ import net.minecraft.world.level.chunk.UpgradeData;
 final class MinecraftTestChunkFactory {
     private static final int MINIMUM_BUILD_Y = -64;
     private static final int BUILD_HEIGHT = 384;
-    private static final Registry<Biome> BIOMES = createBiomeRegistry();
+    private static final Registry<Biome> BIOMES;
 
     static {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+        BIOMES = createBiomeRegistry();
     }
 
     private MinecraftTestChunkFactory() {}
