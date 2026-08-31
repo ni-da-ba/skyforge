@@ -15,10 +15,11 @@ import java.util.List;
 /**
  * Explicitly development-only runtime used for interactive Minecraft world-generation proofs.
  *
- * <p>The production mod does not install a world binding by default. ModDevGradle's SF-IMP-0036
+ * <p>The production mod does not install a world binding by default. ModDevGradle's SF-IMP-0037
  * client run opts into this class with {@value #ENABLE_PROPERTY}. The development-only world
  * preset selects {@link SkyforgeNoiseBasedChunkGenerator}; this runtime supplies that generator's
- * already-compiled post-surface Skyforge catalog. No late ChunkEvent.Load binding is installed.
+ * already-compiled post-surface Skyforge catalog and native Minecraft surface-top adaptation. No
+ * late ChunkEvent.Load binding is installed.
  */
 final class SkyforgeNeoForge1211DevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.specimen";
@@ -46,8 +47,8 @@ final class SkyforgeNeoForge1211DevRuntime {
         persistentBinding = installSpecimen();
         LOGGER.log(
                 System.Logger.Level.INFO,
-                "Skyforge post-surface development specimen enabled. Create a NEW disposable world "
-                        + "using the Skyforge Development world type and inspect near "
+                "Skyforge post-surface development specimen with native surface-top adaptation enabled. "
+                        + "Create a NEW disposable world using the Skyforge Development world type and inspect near "
                         + "x=" + INSPECTION_X
                         + ", y=" + INSPECTION_Y
                         + ", z=" + INSPECTION_Z
@@ -56,7 +57,7 @@ final class SkyforgeNeoForge1211DevRuntime {
 
     /** Installs one disposable post-surface specimen binding and returns its cleanup handle. */
     static AutoCloseable installSpecimen() {
-        return SkyforgeNeoForge1211SurfaceStage.install(
+        return SkyforgeNeoForge1211SurfaceStage.installNativeSurfaceAdapted(
                 adapter(),
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
     }
@@ -70,7 +71,7 @@ final class SkyforgeNeoForge1211DevRuntime {
 
     static SkyIslandWorldCatalog catalog() {
         var compiled = compiledMassif();
-        var id = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0036-dev-massif", 0, 0, ROOT_SEED);
+        var id = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0037-dev-massif", 0, 0, ROOT_SEED);
         var worldVolume = new SkyIslandWorldVolume(
                 id,
                 new WorldBounds(-160.0, 160.0, 96.0, 304.0, -160.0, 160.0),

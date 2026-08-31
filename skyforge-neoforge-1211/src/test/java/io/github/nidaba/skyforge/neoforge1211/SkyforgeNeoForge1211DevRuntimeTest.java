@@ -13,22 +13,27 @@ final class SkyforgeNeoForge1211DevRuntimeTest {
         assertFalse(Boolean.getBoolean(SkyforgeNeoForge1211DevRuntime.ENABLE_PROPERTY));
         assertFalse(SkyforgeNeoForge1211ChunkLifecycle.hasActiveBinding());
         assertFalse(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
+        assertFalse(SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation());
     }
 
     @Test
-    void developmentSpecimenUsesPostSurfaceBindingRatherThanLateLifecycle() throws Exception {
+    void developmentSpecimenUsesNativeSurfacePostSurfaceBindingRatherThanLateLifecycle() throws Exception {
         assertFalse(SkyforgeNeoForge1211ChunkLifecycle.hasActiveBinding());
         assertFalse(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
 
         try (AutoCloseable activeBinding = SkyforgeNeoForge1211DevRuntime.installSpecimen()) {
             assertNotNull(activeBinding);
             assertTrue(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
+            assertTrue(
+                    SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation(),
+                    "the 0037 development proof must exercise Minecraft-native surface adaptation");
             assertFalse(
                     SkyforgeNeoForge1211ChunkLifecycle.hasActiveBinding(),
-                    "the 0036 development proof must not silently fall back to ChunkEvent.Load");
+                    "the 0037 development proof must not silently fall back to ChunkEvent.Load");
         }
 
         assertFalse(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
+        assertFalse(SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation());
         assertFalse(SkyforgeNeoForge1211ChunkLifecycle.hasActiveBinding());
     }
 
