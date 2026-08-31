@@ -1,6 +1,6 @@
 # ADR-0039 — Packaged NeoForge Artifact
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -43,17 +43,17 @@ The normal packaged mod remains inert unless a runtime binding is explicitly ins
 
 ## Acceptance
 
-ADR-0039 becomes Accepted after:
+Accepted on 2026-08-31 after all planned gates passed:
 
-1. `scripts\\verify-sf-imp-0035-packaged-mod.bat` passes;
-2. the built Jar-in-Jar artifact contains the production NeoForge mod descriptor;
-3. the artifact contains Jar-in-Jar metadata and all four backend-neutral modules;
-4. repository-wide `gradlew.bat check` passes;
-5. the artifact is copied as the only Skyforge jar into a clean CurseForge Minecraft 1.21.1 / NeoForge 21.1.249 profile;
-6. Minecraft reaches the main menu without missing-class, invalid-mod-file, or Jar-in-Jar dependency errors;
-7. Skyforge is visible to NeoForge as a loaded mod.
+1. `scripts\\verify-sf-imp-0035-packaged-mod.bat` passed;
+2. the built artifact contained the production NeoForge mod descriptor;
+3. the artifact contained Jar-in-Jar metadata and all four backend-neutral runtime modules;
+4. repository-wide `gradlew.bat check` passed;
+5. `skyforge-neoforge-1211-0.1.0.jar` was installed as the only Skyforge jar in a clean CurseForge Minecraft 1.21.1 / NeoForge 21.1.249 profile;
+6. Minecraft reached the main menu without missing-class, invalid-mod-file, or Jar-in-Jar dependency errors;
+7. the packaged Skyforge mod loaded successfully outside the Gradle development runtime.
 
-A second visual-island proof is not required for this ADR because SF-IMP-0034 already accepted the interactive realization path. This milestone isolates distributable artifact correctness.
+A second visual-island proof was not required because SF-IMP-0034 already accepted the interactive realization path. This milestone isolates distributable artifact correctness.
 
 ## Deferred
 
