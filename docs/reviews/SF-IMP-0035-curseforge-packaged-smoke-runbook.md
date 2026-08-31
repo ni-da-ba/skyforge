@@ -27,17 +27,13 @@ From the repository root on `agent/sf-imp-0035`:
 scripts\verify-sf-imp-0035-packaged-mod.bat
 ```
 
-The verifier prints the exact distributable path. The expected default ModDevGradle Jar-in-Jar artifact is under:
+The verifier prints the exact distributable path. The ModDevGradle artifact is under:
 
 ```text
 skyforge-neoforge-1211\build\libs\
 ```
 
-and normally ends in:
-
-```text
--all.jar
-```
+Do not infer that the Jar-in-Jar artifact must use an `-all.jar` classifier. ModDevGradle normally emits the distributable mod under its ordinary `<name>-<version>.jar` name. The verifier identifies the correct artifact by archive contents instead of filename.
 
 The verifier checks that the artifact contains:
 
@@ -54,7 +50,7 @@ The verifier checks that the artifact contains:
 2. Use **Open Folder**.
 3. Open the profile's `mods` directory.
 4. Remove any older Skyforge test jars.
-5. Copy the exact `*-all.jar` printed by the verifier into `mods`.
+5. Copy the exact artifact path printed by the verifier into `mods`.
 6. Launch the profile normally through CurseForge.
 
 ## Manual acceptance
