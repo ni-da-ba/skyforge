@@ -124,3 +124,12 @@ tasks.register<JavaExec>("enrichedProviderMorphologySuspendedVolumeCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/enriched-provider-morphology-suspended-volume-v1").get().asFile.absolutePath)
 }
+
+tasks.register<JavaExec>("multiIslandGroupCorpus") {
+    group = "verification"
+    description = "Generates the SF-IMP-0026 mixed-provider chain and cluster group-scale atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.SkyIslandGroupCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/multi-island-group-v1").get().asFile.absolutePath)
+}
