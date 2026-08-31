@@ -1,6 +1,6 @@
 # SF-IMP-0035 CurseForge Packaged Smoke Runbook
 
-**Status:** Automated packaging gate PASS / manual packaged-artifact acceptance pending
+**Status:** Manual packaged-artifact acceptance passed; final repository validation pending
 
 ## Purpose
 
@@ -44,17 +44,11 @@ The verifier checks that the artifact contains:
 - embedded `skyforge-recipes`;
 - embedded `skyforge-world`.
 
-## Automated packaging result — 2026-08-31
-
-**Result: PASS.**
-
-The local SF-IMP-0035 verifier completed successfully and identified the distributable artifact as:
+Automated package verification passed on 2026-08-31 for:
 
 ```text
-C:\Users\nicho\Documents\skyforge\skyforge-neoforge-1211\build\libs\skyforge-neoforge-1211-0.1.0.jar
+skyforge-neoforge-1211\build\libs\skyforge-neoforge-1211-0.1.0.jar
 ```
-
-The archive inspection passed for the NeoForge mod descriptor, Jar-in-Jar metadata, and all four backend-neutral Skyforge runtime libraries. The remaining acceptance step is a normal launch from the clean CurseForge profile without Gradle development classpath assistance.
 
 ## Install in CurseForge
 
@@ -75,6 +69,8 @@ Pass when:
 4. Skyforge appears in the loaded mod set or startup log as mod id `skyforge`.
 5. Minecraft reaches the main menu.
 
+**Manual packaged-mod result: PASS — 2026-08-31.**
+
 The normal packaged mod is expected to be inert because no production world binding exists yet. The SF-IMP-0034 development specimen is enabled only by its development JVM property and is not part of normal packaged behavior.
 
 ## If the profile fails
@@ -89,6 +85,16 @@ Capture or paste the earliest Skyforge/NeoForge loader error. In particular, dis
 - unrelated CurseForge/launcher failure.
 
 Do not add compatibility or optimization mods until the clean packaged artifact passes.
+
+## Remaining gate
+
+Before SF-IMP-0035 is accepted and proposed for merge, run a fresh repository-wide:
+
+```bat
+gradlew.bat check
+```
+
+on `agent/sf-imp-0035` after the final packaging/documentation commits.
 
 ## After acceptance
 
