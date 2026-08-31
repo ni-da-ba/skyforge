@@ -1,6 +1,6 @@
 # ADR-0034: Minimal Backend Context Seam
 
-- **Status:** Implementation prepared; focused local validation pending
+- **Status:** Focused local proof accepted; repository-wide merge checkpoint pending
 - **Date:** 2026-08-31
 - **Work item:** SF-IMP-0030
 
@@ -178,9 +178,11 @@ The proof requires:
 
 This is sufficient to demonstrate the seam without choosing Minecraft, NeoForge, block states, biome APIs, or a material taxonomy.
 
+The focused local verifier completed successfully on 2026-08-31. No visual gate is required because SF-IMP-0030 intentionally changes only the adapter context contract and reference representation policy; it does not alter accepted geometry or terrain semantics.
+
 ## Acceptance criteria for SF-IMP-0030
 
-The focused proof must demonstrate:
+The focused proof demonstrates:
 
 1. no Minecraft/NeoForge classes enter `skyforge-world`;
 2. no generic Skyforge climate descriptor set is introduced;
