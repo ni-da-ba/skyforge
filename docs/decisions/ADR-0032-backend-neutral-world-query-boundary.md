@@ -1,6 +1,6 @@
 # ADR-0032: Backend-Neutral World Query Boundary
 
-- **Status:** Proposed; focused world-catalog proof pending local validation
+- **Status:** Accepted; world-catalog and tiled-backend proofs locally validated
 - **Date:** 2026-08-30
 - **Work item:** SF-IMP-0028
 
@@ -14,7 +14,7 @@ Minecraft is an important eventual backend, but the first runtime contract shoul
 
 SF-IMP-0028 introduces a new `skyforge-world` module between recipe/planning code and concrete game backends.
 
-The first boundary is:
+The accepted boundary is:
 
 ```text
 accepted archipelago plan
@@ -23,6 +23,7 @@ accepted archipelago plan
         -> immutable SkyIslandWorldCatalog
         -> query(WorldBounds)
         -> backend-relevant compiled volumes
+        -> backend realization
 ```
 
 Concrete backends depend on the world catalog instead of rerunning group/archipelago planning during region generation.
@@ -63,9 +64,9 @@ The world module does not prescribe how a backend evaluates, translates, caches,
 
 The world catalog itself contains no `MorphologyFamily` switch and performs no provider-specific dispatch. Provider resolution occurs once during catalog compilation through the accepted morphology-spec compiler.
 
-## Initial acceptance requirements
+## World-catalog acceptance
 
-The focused SF-IMP-0028 world-boundary proof must demonstrate:
+The focused SF-IMP-0028 world-boundary proof demonstrates:
 
 1. invalid world bounds and vertical reservations fail early;
 2. closed bounds treat exact boundary contact as relevant;
@@ -78,22 +79,98 @@ The focused SF-IMP-0028 world-boundary proof must demonstrate:
 9. vertical queries above the explicit reservation cull the island;
 10. a query touching the exact vertical reservation boundary still returns the island.
 
+The first local run exposed one unrelated over-strict group-request invariant: pairwise member spacing was required even for a one-member group. SF-IMP-0028 corrected `SkyIslandGroupRequest` so pairwise spacing is enforced only when two or more members exist, and added a focused regression. Multi-member spacing behavior is unchanged.
+
+The user-reported local Java 25 verifier completed successfully after that correction.
+
+## Reference tiled backend
+
+SF-IMP-0028 also accepts `ReferenceTiledSkyIslandBackend`, a material-neutral backend proof that consumes only the world catalog and compiled density graphs.
+
+A backend region is represented by `WorldSampleGrid`, which defines one deterministic global lattice. Tiling partitions the lattice by integer sample indexes rather than by independently rounded world coordinates. Each sample index therefore belongs to exactly one tile even though conservative catalog query bounds remain closed and may return the same island to adjacent tiles.
+
+For each tile the backend:
+
+1. constructs the tile's closed world-space query bounds;
+2. calls `SkyIslandWorldCatalog.query(...)` independently;
+3. evaluates only the returned compiled density graphs;
+4. writes only the tile's disjoint lattice indexes into the regional occupancy array.
+
+Compiled density evaluators are cached by stable `SkyIslandWorldVolumeId`; planner or morphology-provider logic is not invoked during tile realization.
+
+## Tiled equivalence and seam acceptance
+
+The tiled backend proof demonstrates:
+
+1. monolithic realization and tiled realization produce byte-identical regional occupancy;
+2. the occupancy SHA-256 is identical for monolithic and tiled execution;
+3. changing tile dimensions, including irregular partial edge tiles, does not change occupancy;
+4. repeated tiled realization is deterministic;
+5. an island deliberately crossing a tile boundary remains occupied on both sides of the seam;
+6. independent per-tile catalog queries do not omit seam-crossing geometry;
+7. conservative query overlap cannot cause duplicate voxel ownership because tiles own disjoint lattice indexes;
+8. tiled candidate references are lower than naive `tileCount * catalogVolumeCount`, proving that regional culling is active;
+9. invalid grid and tile parameters fail deterministically.
+
+The user-reported local Java 25 verifier completed successfully for the catalog and tiled-backend tests.
+
+## Live generation versus preloading
+
+The accepted boundary deliberately does **not** choose between live generation and preloaded realization.
+
+The same contract supports all three policies:
+
+### Live region/chunk realization
+
+A backend queries the world catalog for the current region and evaluates only returned volumes. The tiled equivalence proof establishes that generation order and tile boundaries need not change geometry.
+
+### Preloaded regional realization
+
+A backend queries a larger planned region once, evaluates it ahead of time, and stores a backend-specific cache or materialized world representation. Skyforge's world catalog remains the source of deterministic geometry identity.
+
+### Hybrid realization
+
+A backend may preload archipelago-scale regions or other coarse cells and serve smaller chunk requests from the cached result, falling back to direct world-catalog evaluation where needed.
+
+No one policy is declared superior yet. The correct Minecraft integration policy should be chosen from measured generation latency, memory footprint, cache hit behavior, world-edit requirements, server concurrency, and acceptable first-load cost rather than from architecture speculation.
+
 ## Deliberate non-goals
 
-This first boundary does not yet define:
+SF-IMP-0028 does not yet define:
 
 - Minecraft chunk classes or block palettes;
 - biome/material interpretation;
 - production graph evaluation strategy;
 - provider-certified spatial bounds;
-- spatial acceleration structure;
+- production spatial acceleration structure;
 - persistent world-plan serialization;
 - cross-session cache format;
 - asynchronous chunk scheduling;
-- preloading/streaming policy.
+- the final live/preload/hybrid policy.
 
-Those concerns should be added above or behind this boundary once the basic region-query contract is locally proven.
+Those concerns can now be added above or behind the accepted world-query boundary without changing island/group/archipelago planning semantics.
+
+## Consequences
+
+Skyforge now has an accepted backend-neutral path from regional semantic planning to independently queryable runtime geometry:
+
+```text
+morphology provider
+    -> island
+    -> group
+    -> archipelago
+    -> world catalog
+    -> region/tile query
+    -> deterministic density realization
+```
+
+This is sufficient to begin a concrete Minecraft-like adapter or a backend performance harness without coupling core planning APIs to Minecraft.
 
 ## Next step
 
-After the focused catalog proof passes, SF-IMP-0028 should add a reference backend adapter that consumes a `WorldBounds` region and the returned compiled volumes to produce deterministic region occupancy/material-neutral density evidence. That proof will measure query selectivity and verify that querying independently by region reproduces the same geometry as evaluating the corresponding complete regional catalog.
+Do not add another spatial hierarchy level. The next work should measure or realize one of the downstream concerns now enabled by this boundary. The preferred sequence is:
+
+1. establish a material/biome interpretation contract that can convert geometric occupancy into backend-neutral terrain semantics;
+2. add a Minecraft-like voxel/chunk reference adapter over the same `SkyIslandWorldCatalog`;
+3. benchmark live, preloaded, and hybrid region realization using identical deterministic worlds;
+4. choose production caching/streaming policy from measured evidence.
