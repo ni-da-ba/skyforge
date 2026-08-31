@@ -33,19 +33,18 @@ tasks.withType<Test>().configureEach {
 neoForge {
     version = "21.1.249"
 
-    // SF-IMP-0032 touches live vanilla registries, BlockState initialization and real ProtoChunk
-    // storage. Those APIs require Minecraft/NeoForge bootstrap, not merely Minecraft classes on an
-    // ordinary JUnit classpath. Declare the adapter sources as a development mod and let
-    // ModDevGradle launch the test task through its FML-aware unit-test environment.
+    // SF-IMP-0033 promotes the adapter from a test-only exploded mod identity to the real
+    // development mod boundary. The production resource set now carries META-INF/neoforge.mods.toml
+    // and the actual @Mod entrypoint/lifecycle subscriber.
     mods {
-        create("skyforge_adapter") {
+        create("skyforge") {
             sourceSet(sourceSets.main.get())
         }
     }
 
     unitTest {
         enable()
-        testedMod.set(mods.named("skyforge_adapter"))
+        testedMod.set(mods.named("skyforge"))
     }
 }
 
