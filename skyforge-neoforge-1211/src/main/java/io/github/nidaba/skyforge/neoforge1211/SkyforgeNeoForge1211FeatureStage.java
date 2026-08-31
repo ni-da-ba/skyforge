@@ -1,10 +1,13 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
 /** Short-lived Minecraft feature-placement scope for one chunk decoration call. */
@@ -31,7 +34,7 @@ final class SkyforgeNeoForge1211FeatureStage {
         Optional<MinecraftAdditionalSurfaceIndex> index =
                 SkyforgeNeoForge1211SurfaceStage.materializeOccupancy(chunk)
                         .map(materialization -> MinecraftAdditionalSurfaceIndex.from(chunk, materialization));
-        Scope scope = new Scope(chunk.getPos(), index);
+        Scope scope = new Scope(chunk, index);
         ACTIVE.set(scope);
         return scope;
     }
@@ -44,7 +47,7 @@ final class SkyforgeNeoForge1211FeatureStage {
         List<BlockPos> positions = scope.index
                 .map(value -> value.positions(worldX, worldZ))
                 .orElseGet(List::of);
-        scope.recordQuery(positions.size());
+        scope.recordQuery(positions);
         return positions;
     }
 
@@ -54,15 +57,18 @@ final class SkyforgeNeoForge1211FeatureStage {
     }
 
     static final class Scope implements AutoCloseable {
+        private final ChunkAccess chunk;
         private final ChunkPos chunkPos;
         private final Optional<MinecraftAdditionalSurfaceIndex> index;
         private final int availablePositions;
+        private final Set<BlockPos> emittedTargets = new HashSet<>();
         private int queries;
         private int emittedPositions;
         private boolean closed;
 
-        private Scope(ChunkPos chunkPos, Optional<MinecraftAdditionalSurfaceIndex> index) {
-            this.chunkPos = Objects.requireNonNull(chunkPos, "chunkPos");
+        private Scope(ChunkAccess chunk, Optional<MinecraftAdditionalSurfaceIndex> index) {
+            this.chunk = Objects.requireNonNull(chunk, "chunk");
+            this.chunkPos = chunk.getPos();
             this.index = Objects.requireNonNull(index, "index");
             this.availablePositions = index.map(MinecraftAdditionalSurfaceIndex::totalPositions).orElse(0);
         }
@@ -73,9 +79,10 @@ final class SkyforgeNeoForge1211FeatureStage {
             }
         }
 
-        private void recordQuery(int emitted) {
+        private void recordQuery(List<BlockPos> positions) {
             queries++;
-            emittedPositions += emitted;
+            emittedPositions += positions.size();
+            emittedTargets.addAll(positions);
         }
 
         @Override
@@ -86,12 +93,16 @@ final class SkyforgeNeoForge1211FeatureStage {
             if (Boolean.getBoolean(SkyforgeNeoForge1211DevRuntime.ENABLE_PROPERTY)
                     && Math.abs(chunkPos.x) <= 2
                     && Math.abs(chunkPos.z) <= 2) {
+                long markerBlocks = emittedTargets.stream()
+                        .filter(position -> chunk.getBlockState(position).is(Blocks.GOLD_BLOCK))
+                        .count();
                 LOGGER.log(
                         System.Logger.Level.INFO,
                         "SF-IMP-0038 feature diagnostic chunk=" + chunkPos
                                 + " availableAdditionalPositions=" + availablePositions
                                 + " modifierQueries=" + queries
-                                + " emittedPositions=" + emittedPositions);
+                                + " emittedPositions=" + emittedPositions
+                                + " markerBlocksAtEmittedPositions=" + markerBlocks);
             }
             closed = true;
             ACTIVE.remove();
