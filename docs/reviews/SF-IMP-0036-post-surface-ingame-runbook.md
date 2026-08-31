@@ -1,6 +1,6 @@
 # SF-IMP-0036 — Post-Surface In-Game Worldgen Runbook
 
-**Status:** Automated implementation gates passed; manual worldgen-interaction checks passed; save/reload persistence confirmation pending.
+**Status:** Accepted — automated and manual development-client gates passed.
 
 ## Purpose
 
@@ -116,13 +116,14 @@ The development world launched successfully with the Skyforge Massif present. In
 - ore placements in the elevated terrain;
 - grass/vegetation behavior on the island;
 - trees generated on the Massif;
-- no immediate worldgen breakage or obvious catastrophic interaction.
+- no immediate worldgen breakage or obvious catastrophic interaction;
+- save/quit/reload persistence with the Massif remaining intact and without observed duplicate realization or corruption.
 
 This is direct visual evidence that Minecraft is treating the inserted Skyforge volume as world terrain early enough for multiple downstream generation systems to interact with it. In particular, cave formations are consistent with post-surface carver participation, while ore and tree placement are consistent with later feature/biome-decoration stages observing the elevated terrain.
 
-Grass itself is not treated as proof that vanilla `SurfaceSystem` processed the Massif, because SF-IMP-0036 deliberately inserts after vanilla surface construction. It may result from later feature behavior or block updates. Likewise, this evidence does not imply that structure starts are Skyforge-aware.
+The development log corroborates the intended path: it reports `Skyforge post-surface development specimen enabled`, completes first-world generation, saves all dimensions, shuts down the integrated server cleanly, restarts the same world, and loads the player again without a Skyforge worldgen/codec/registry exception. The first login occurred at approximately `y=245`, which is retained only as supporting evidence consistent with elevated heightmap/spawn behavior, not as a dedicated proof of the spawn subsystem.
 
-The remaining manual acceptance check is save/reload persistence through the new generator path.
+Grass itself is not treated as proof that vanilla `SurfaceSystem` processed the Massif, because SF-IMP-0036 deliberately inserts after vanilla surface construction. It may result from later feature behavior or block updates. Likewise, this evidence does not imply that structure starts are Skyforge-aware.
 
 ## Screenshots / useful evidence
 
@@ -139,16 +140,16 @@ Screenshots are useful for diagnosis but are not mandatory if the observations a
 
 ## Pass criteria
 
-SF-IMP-0036's interactive gate passes when all of the following are true:
+SF-IMP-0036's interactive gate passed with all required conditions satisfied:
 
-- the development world type is available in the ModDev client;
-- a new world using it starts without a worldgen/codec/registry crash;
-- the documented floating Massif is visible around the origin;
-- native terrain is not globally erased by Skyforge AIR;
-- there is no obvious 16-block ownership seam or missing strip;
-- lighting recognizes the generated island;
-- save/reload preserves the result;
-- no evidence suggests the old late load-event path is required for the specimen.
+- the development world type was available in the ModDev client;
+- a new world using it started without a worldgen/codec/registry crash;
+- the documented floating Massif was visible around the origin;
+- native terrain was not globally erased by Skyforge AIR;
+- no obvious 16-block ownership seam or missing strip was reported;
+- lighting recognized the generated island;
+- save/reload preserved the result;
+- no evidence suggests the old late load-event path was required for the specimen.
 
 ## Known limitations that do not by themselves fail SF-IMP-0036
 
