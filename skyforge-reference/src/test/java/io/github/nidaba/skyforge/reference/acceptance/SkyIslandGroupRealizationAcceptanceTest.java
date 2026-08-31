@@ -10,6 +10,7 @@ import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandMorphologySpec
 import io.github.nidaba.skyforge.reference.evidence.SkyIslandGroupEvidence;
 import io.github.nidaba.skyforge.reference.evidence.SkyIslandGroupEvidenceGenerator;
 import io.github.nidaba.skyforge.reference.volume.SkyIslandGroupReferenceCorpus;
+import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -75,7 +76,8 @@ final class SkyIslandGroupRealizationAcceptanceTest {
     }
 
     private static Stream<Member> groups() {
-        return Stream.of(SkyIslandGroupReferenceCorpus.ACCEPTANCE_SEEDS)
+        return LongStream.of(SkyIslandGroupReferenceCorpus.ACCEPTANCE_SEEDS)
+                .boxed()
                 .flatMap(seed -> Stream.of(
                         new Member("chain-seed-" + seed, SkyIslandGroupReferenceCorpus.chain(seed)),
                         new Member("cluster-seed-" + seed, SkyIslandGroupReferenceCorpus.cluster(seed))));
