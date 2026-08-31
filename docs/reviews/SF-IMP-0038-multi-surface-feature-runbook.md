@@ -1,6 +1,6 @@
 # SF-IMP-0038 — Supplemental Multi-Surface Feature In-Game Runbook
 
-**Status:** Implementation ready for automated validation.
+**Status:** Automated verification and repository-wide build passed; manual in-game acceptance pending.
 
 ## Purpose
 
@@ -32,7 +32,7 @@ scripts\verify-sf-imp-0038-multi-surface-features.bat
 gradlew.bat check
 ```
 
-Do not proceed to the client test if either command fails.
+Both automated gates passed on 2026-08-31. Manual client acceptance remains required before SF-IMP-0038 can be accepted.
 
 ## Launch
 
