@@ -5,12 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ProtoChunk;
-import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +26,7 @@ final class MinecraftAdditionalSurfaceIndexTest {
         setColumnRange(chunk, 0, 0, 64, 64, Blocks.GRASS_BLOCK.defaultBlockState());
         setColumnRange(chunk, 0, 0, 100, 104, Blocks.STONE.defaultBlockState());
         setColumnRange(chunk, 0, 0, 200, 204, Blocks.STONE.defaultBlockState());
-        Heightmap.primeHeightmaps(chunk, ChunkStatus.FINAL_HEIGHTMAPS);
+        primeWorldSurfaceWorldgen(chunk);
 
         MinecraftAdditionalSurfaceIndex index = MinecraftAdditionalSurfaceIndex.from(chunk, materialization);
         List<BlockPos> positions = index.positions(0, 0);
@@ -44,7 +44,7 @@ final class MinecraftAdditionalSurfaceIndexTest {
         // The lower Skyforge interval exists in accepted occupancy but is absent from the live
         // post-carver chunk, simulating a carver that removed its exposed top.
         setColumnRange(chunk, 0, 0, 200, 204, Blocks.STONE.defaultBlockState());
-        Heightmap.primeHeightmaps(chunk, ChunkStatus.FINAL_HEIGHTMAPS);
+        primeWorldSurfaceWorldgen(chunk);
 
         List<BlockPos> positions = MinecraftAdditionalSurfaceIndex.from(chunk, materialization)
                 .positions(0, 0);
@@ -61,7 +61,7 @@ final class MinecraftAdditionalSurfaceIndexTest {
         chunk.setBlockState(new BlockPos(0, 64, 0), Blocks.WATER.defaultBlockState(), false);
         setColumnRange(chunk, 0, 0, 100, 104, Blocks.STONE.defaultBlockState());
         setColumnRange(chunk, 0, 0, 200, 204, Blocks.STONE.defaultBlockState());
-        Heightmap.primeHeightmaps(chunk, ChunkStatus.FINAL_HEIGHTMAPS);
+        primeWorldSurfaceWorldgen(chunk);
 
         List<BlockPos> positions = MinecraftAdditionalSurfaceIndex.from(chunk, materialization)
                 .positions(0, 0);
@@ -77,11 +77,15 @@ final class MinecraftAdditionalSurfaceIndexTest {
         MinecraftChunkMaterialization materialization =
                 new MinecraftChunkMaterialization(chunk.getPos(), MINIMUM_Y, HEIGHT, keys, 0);
         setColumnRange(chunk, 1, 1, 64, 64, Blocks.GRASS_BLOCK.defaultBlockState());
-        Heightmap.primeHeightmaps(chunk, ChunkStatus.FINAL_HEIGHTMAPS);
+        primeWorldSurfaceWorldgen(chunk);
 
         assertTrue(MinecraftAdditionalSurfaceIndex.from(chunk, materialization)
                 .positions(1, 1)
                 .isEmpty());
+    }
+
+    private static void primeWorldSurfaceWorldgen(ProtoChunk chunk) {
+        Heightmap.primeHeightmaps(chunk, Set.of(Heightmap.Types.WORLD_SURFACE_WG));
     }
 
     private static MinecraftChunkMaterialization stackedMaterialization(ChunkPos chunkPos) {
