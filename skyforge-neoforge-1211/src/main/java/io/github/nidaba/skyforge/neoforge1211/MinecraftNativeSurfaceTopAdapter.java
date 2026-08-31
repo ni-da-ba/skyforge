@@ -35,6 +35,11 @@ public final class MinecraftNativeSurfaceTopAdapter {
         if (!chunk.getPos().equals(materialization.chunkPos())) {
             throw new IllegalArgumentException("chunk position differs from materialization ownership");
         }
+        if (materialization.minimumY() != chunk.getMinBuildHeight()
+                || materialization.height() != chunk.getHeight()) {
+            throw new IllegalArgumentException(
+                    "native surface adaptation requires materialization of the chunk's full vertical interval");
+        }
 
         ResourceLocation[] blockKeys = materialization.blockKeys();
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
