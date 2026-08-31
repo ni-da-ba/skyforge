@@ -5,13 +5,12 @@ import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.RegistrationInfo;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeGenerationSettings;
 import net.minecraft.world.level.biome.BiomeSpecialEffects;
+import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.biome.MobSpawnSettings;
 import net.minecraft.world.level.chunk.ProtoChunk;
 import net.minecraft.world.level.chunk.UpgradeData;
@@ -35,10 +34,10 @@ final class MinecraftTestChunkFactory {
 
     private static Registry<Biome> createBiomeRegistry() {
         MappedRegistry<Biome> registry = new MappedRegistry<>(Registries.BIOME, Lifecycle.stable());
-        ResourceKey<Biome> biomeKey = ResourceKey.create(
-                Registries.BIOME,
-                ResourceLocation.fromNamespaceAndPath("skyforge", "adapter_test"));
-        registry.register(biomeKey, createBiome(), RegistrationInfo.BUILT_IN);
+        // LevelChunkSection initializes its biome palette from Biomes.PLAINS. The chunk fixture is
+        // testing real section/block storage rather than biome generation, so bind the synthetic
+        // test biome to that required vanilla key instead of inventing a key the section cannot use.
+        registry.register(Biomes.PLAINS, createBiome(), RegistrationInfo.BUILT_IN);
         return registry.freeze();
     }
 
