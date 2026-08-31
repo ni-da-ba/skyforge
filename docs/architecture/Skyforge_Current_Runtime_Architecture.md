@@ -18,8 +18,9 @@ semantic island intent
     -> spatial region/tile query
     -> deterministic density realization
     -> backend-neutral terrain semantics (SF-IMP-0029, pending acceptance)
-    -> biome/material policy (next)
-    -> concrete backend adapter (later, including Minecraft/NeoForge)
+    -> minimal adapter-visible Skyforge context (next)
+    -> backend-native biome/environment/material policy
+    -> concrete backend realization
 ```
 
 ## Accepted runtime invariants
@@ -100,6 +101,27 @@ The prepared local acceptance requires:
 - semantic bands to survive tile seams;
 - visual close-specimen and regional-Hub evidence.
 
+## Backend-context principle
+
+The next boundary must remain deliberately smaller than a general climate or biome system.
+
+Skyforge owns concepts required to express backend-independent Skyforge behavior. Backends remain authoritative for concepts native to them.
+
+Therefore the next adapter seam should expose only the Skyforge information a concrete integration demonstrates that it needs, potentially including:
+
+- terrain semantic;
+- world position;
+- stable world-volume identity;
+- hierarchy metadata only where a real behavior requires it.
+
+Skyforge should **not** add generic temperature, humidity, rainfall, ecology, continentalness, or similar descriptors merely to duplicate a backend's environmental model.
+
+Likewise, no broad backend-neutral `MaterialIntent` taxonomy should be introduced until a concrete integration demonstrates a transformation that is genuinely shared across backends.
+
+A Minecraft-facing adapter may combine `SkyIslandTerrainSemantic` directly with Minecraft-native biome/environment information to select concrete block states.
+
+This contract is recorded in `ADR-0034-minimal-backend-context-seam.md`.
+
 ## Module ownership
 
 - `skyforge-kernel` — graph representation, coordinates, signals, validation, reference evaluation.
@@ -117,7 +139,9 @@ The following should not be promoted into core contracts before evidence require
 - generalized N-way morphology mixtures;
 - another spatial hierarchy level above archipelagos;
 - Minecraft block IDs or block states in `skyforge-world`;
-- a final biome/ecoregion model;
+- a parallel Skyforge climate simulator;
+- speculative backend-neutral material taxonomies;
+- final biome/ecoregion ownership beyond demonstrated Skyforge-specific needs;
 - structures, vegetation, caves, ores, or fluids;
 - provider-certified exact spatial bounds;
 - production spatial index implementation;
@@ -127,7 +151,8 @@ The following should not be promoted into core contracts before evidence require
 ## Near-term sequence
 
 1. Locally validate and visually review SF-IMP-0029 terrain semantics.
-2. Define backend-neutral biome/material policy over accepted terrain roles.
-3. Add a Minecraft-like voxel/chunk reference adapter without importing Minecraft into core modules.
-4. Benchmark identical worlds under live, preloaded, and hybrid realization.
-5. Only then bind an actual Minecraft/NeoForge adapter to measured and accepted runtime contracts.
+2. SF-IMP-0030: prove the smallest adapter-visible Skyforge context seam; do not build a climate system or broad material taxonomy.
+3. SF-IMP-0031: add the first concrete Minecraft-facing chunk/voxel adapter and let actual integration requirements discover any missing abstractions.
+4. Benchmark identical deterministic worlds under live, preloaded, and hybrid realization.
+5. Choose production caching/spatial-index policy from measured evidence.
+6. Enrich environmental/material semantics only where concrete backend-neutral Skyforge behavior demonstrates the need.
