@@ -1,6 +1,6 @@
 # ADR-0037: First NeoForge New-Chunk Lifecycle Hook
 
-- **Status:** Implementation prepared; focused local validation pending
+- **Status:** Accepted
 - **Date:** 2026-08-31
 - **Work item:** SF-IMP-0033
 
@@ -109,6 +109,20 @@ SF-IMP-0033 requires:
 10. backend-neutral modules remain free of Minecraft/NeoForge imports;
 11. repository-wide validation remains green.
 
+## Acceptance result
+
+Accepted runtime/code head: `060348c17b87064a5f54207884d3d4e597446ed6`.
+
+Local authoritative validation on 2026-08-31:
+
+- `scripts\verify-sf-imp-0033-neoforge-lifecycle.bat` — PASS;
+- repository-wide `gradlew.bat check` — PASS;
+- backend-neutral independence gate — PASS;
+- real FML mod discovery and lifecycle event delivery — PASS;
+- existing-chunk rejection, level-scope rejection and additive AIR preservation — PASS.
+
+No morphology/geometry visual gate was required because SF-IMP-0033 changes only backend lifecycle and composition behavior; accepted island geometry and terrain-semantic classification are unchanged.
+
 ## Explicit non-goals
 
 SF-IMP-0033 does not yet add:
@@ -126,7 +140,7 @@ SF-IMP-0033 does not yet add:
 
 ## Consequence
 
-After acceptance the Minecraft-facing stack becomes event-driven:
+The Minecraft-facing stack is now event-driven:
 
 ```text
 NeoForge newly generated chunk
