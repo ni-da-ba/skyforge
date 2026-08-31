@@ -1,14 +1,15 @@
-import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.api.tasks.compile.JavaCompile
 
 plugins {
     `java-library`
     id("net.neoforged.moddev") version "2.0.144"
 }
 
-java {
-    // Minecraft 1.21.1 ships on Java 21; the adapter must target the backend runtime rather than
-    // inheriting the Java 25 toolchain used by backend-neutral Skyforge development.
-    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
+// The workspace itself is validated on JDK 25. Minecraft 1.21.1 targets Java 21, so compile the
+// adapter against the Java 21 API/bytecode level without requiring a second local toolchain for
+// this first compile-only integration proof. A later game-launch proof must run on Java 21.
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(21)
 }
 
 neoForge {
