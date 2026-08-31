@@ -1,8 +1,8 @@
 # Skyforge Current Runtime Architecture
 
 **Snapshot:** 2026-08-31  
-**Accepted through:** SF-IMP-0033  
-**Next integration boundary:** earlier Minecraft world-generation insertion point and first controlled in-game/runClient proof
+**Accepted through:** SF-IMP-0034  
+**Next integration boundary:** packaged-mod/CurseForge smoke proof, then earlier Minecraft world-generation insertion
 
 This document is the concise current-state handoff. Individual ADRs remain authoritative for their accepted contracts.
 
@@ -23,9 +23,10 @@ semantic island intent
     -> live Minecraft BlockState
     -> additive real Minecraft ChunkAccess storage
     -> NeoForge newly-generated-chunk lifecycle delivery
+    -> visible persistent terrain in a real Minecraft client
 ```
 
-The concrete backend proof now reaches a real FML-loaded NeoForge mod, a real NeoForge lifecycle event, and real Minecraft chunk mutation.
+The concrete backend proof now reaches a real FML-loaded NeoForge mod, a real NeoForge lifecycle event, real Minecraft chunk mutation, and an interactive Minecraft 1.21.1 client/world where the generated Skyforge specimen is visible and survives save/reload.
 
 ## Accepted module ownership
 
@@ -34,7 +35,7 @@ The concrete backend proof now reaches a real FML-loaded NeoForge mod, a real Ne
 - `skyforge-recipes` — deterministic descriptor/provider/group/archipelago compilation and planning.
 - `skyforge-world` — bounded runtime catalog, spatial queries, terrain semantics, backend-neutral sample context.
 - `skyforge-reference` — evidence generation, reference providers, sampling, metrics and visual review artifacts.
-- `skyforge-neoforge-1211` — concrete Minecraft 1.21.1 / NeoForge 21.1 adapter, registry/state translation, live chunk storage and lifecycle proof.
+- `skyforge-neoforge-1211` — concrete Minecraft 1.21.1 / NeoForge 21.1 adapter, registry/state translation, live chunk storage, lifecycle proof, and isolated development-client smoke path.
 
 Dependency direction remains strictly downstream:
 
@@ -65,6 +66,8 @@ Accepted geometry remains backend-neutral and independently compiled.
 - Individual islands are never collapsed into one giant group or regional density graph.
 
 Generalized N-way morphology mixing remains deferred until a concrete need justifies it.
+
+The first in-game Massif review confirms that morphology quality is now independently observable inside Minecraft. The development specimen's underside was judged oversized/heavy and the shape not yet production-playable. Those findings are retained as later morphology/playability work; they do not change the accepted integration contracts.
 
 ## Spatial hierarchy
 
@@ -223,6 +226,33 @@ FML-loaded Skyforge mod
     -> additive solid overlay into the event ChunkAccess
 ```
 
+### SF-IMP-0034 — first interactive Minecraft proof
+
+SF-IMP-0034 adds an explicit development-only ModDevGradle client run. The run sets `skyforge.dev.specimen=true`, uses an isolated game directory, and installs exactly one finite deterministic Overworld Massif near the origin through the ordinary accepted Skyforge world/catalog/morphology path.
+
+Accepted interactive path:
+
+```text
+ModDevGradle runClient
+    -> real Minecraft 1.21.1 client
+    -> FML-loaded Skyforge mod
+    -> development-only Overworld runtime binding
+    -> newly generated chunk lifecycle delivery
+    -> additive Skyforge realization
+    -> visible floating Massif in-game
+    -> save/quit/reload persistence
+```
+
+Manual acceptance established:
+
+- the specimen is clearly visible at the documented location;
+- the multi-chunk shape appears to slot into the world without an obvious ownership seam;
+- native terrain remains present around and below Skyforge AIR;
+- generated blocks persist across save/reload;
+- current Massif morphology is preliminary, with an oversized underside and insufficient production playability.
+
+The morphology findings do not change the integration acceptance. The development specimen is evidence for the realization path, not the final terrain design.
+
 ## Additive Minecraft composition
 
 The first live lifecycle integration demonstrated a concrete backend rule that isolated exact-storage tests did not need.
@@ -240,7 +270,7 @@ The SF-IMP-0032 exact writer remains available for exact-ownership/equivalence t
 
 ## Minecraft-specific invariants now demonstrated
 
-Across SF-IMP-0031 through SF-IMP-0033, the concrete backend demonstrates:
+Across SF-IMP-0031 through SF-IMP-0034, the concrete backend demonstrates:
 
 - exact negative `ChunkPos` coordinate translation;
 - real Minecraft/NeoForge compile linkage;
@@ -256,13 +286,16 @@ Across SF-IMP-0031 through SF-IMP-0033, the concrete backend demonstrates:
 - real `NeoForge.EVENT_BUS` lifecycle delivery;
 - existing chunks ignored by the Skyforge new-chunk path;
 - backend level selection can reject chunks without mutation;
-- Skyforge AIR preserves pre-existing native Minecraft terrain in overlay mode.
+- Skyforge AIR preserves pre-existing native Minecraft terrain in overlay mode;
+- a real Minecraft client can generate and display Skyforge terrain;
+- visible multi-chunk geometry survives normal Minecraft save/reload persistence.
 
 Acceptance records:
 
 - `docs/reviews/SF-IMP-0031-neoforge-adapter-acceptance.md`;
 - `docs/reviews/SF-IMP-0032-live-chunk-writer-acceptance.md`;
-- `docs/reviews/SF-IMP-0033-neoforge-lifecycle-acceptance.md`.
+- `docs/reviews/SF-IMP-0033-neoforge-lifecycle-acceptance.md`;
+- `docs/reviews/SF-IMP-0034-ingame-client-acceptance.md`.
 
 ## Current lifecycle limitation
 
@@ -275,7 +308,7 @@ NeoForge posts this event while a generated chunk is being promoted/loaded. Earl
 - heightmaps are finalized correctly for all consumers;
 - lighting behaves as if Skyforge terrain existed during earlier generation phases.
 
-The next Minecraft integration task is to identify the earliest practical generation seam required for native systems that must reason about Skyforge terrain.
+The next Minecraft integration task after packaged-mod validation is to identify the earliest practical generation seam required for native systems that must reason about Skyforge terrain.
 
 ## Predecessor inheritance
 
@@ -336,11 +369,12 @@ Do not promote an optimization into architecture before measurements justify it.
 The following are not accepted core/runtime requirements yet:
 
 - the final earlier worldgen insertion strategy;
-- normal interactive in-game/server acceptance proof;
+- packaged JAR / clean CurseForge installation acceptance;
 - production world-plan/config bootstrap;
 - biome-aware material selection;
 - heightmap and lighting finalization policy;
 - broad structures/features/vegetation/ores/caves/fluids;
+- final morphology/playability tuning;
 - generalized N-way morphology mixtures;
 - another hierarchy level above archipelagos;
 - a parallel Skyforge climate simulator;
@@ -355,11 +389,12 @@ The following are not accepted core/runtime requirements yet:
 
 ## Near-term sequence
 
-1. Run the first controlled interactive `runClient` / packaged-mod smoke test to prove the production mod loads in a normal Minecraft client environment without introducing an automatic engineering island.
+1. Produce and validate a self-contained Skyforge JAR in a clean CurseForge NeoForge 1.21.1 profile, proving the mod behaves outside the development source run.
 2. Identify and prove the earlier chunk-generation stage required for Skyforge terrain to participate correctly in native heightmaps, lighting, features and structures.
 3. Add the minimum geometry-derived suitability required by the first concrete vanilla/modded feature or structure integration.
-4. Add registry probing/provenance infrastructure before optional-mod compatibility work.
-5. Reproduce specific predecessor compatibility problems before adapting historical patches.
-6. Benchmark live, preloaded and hybrid realization on identical deterministic worlds.
-7. Choose production caching/spatial-index policy from measurements.
-8. Enrich environment/material semantics only when concrete backend-independent Skyforge behavior requires it.
+4. Revisit morphology/playability with the benefit of real in-game inspection, including underside proportion and traversable surface form, without coupling those changes to backend integration.
+5. Add registry probing/provenance infrastructure before optional-mod compatibility work.
+6. Reproduce specific predecessor compatibility problems before adapting historical patches.
+7. Benchmark live, preloaded and hybrid realization on identical deterministic worlds.
+8. Choose production caching/spatial-index policy from measurements.
+9. Enrich environment/material semantics only when concrete backend-independent Skyforge behavior requires it.
