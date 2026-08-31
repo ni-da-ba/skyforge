@@ -12,6 +12,8 @@ It would be easy to respond by adding a broad Skyforge climate, biome, geology, 
 
 Skyforge should remain backend-neutral without duplicating backend responsibilities.
 
+The recovered Aetherial Islands / Aetherial Companion lineage reinforces the need for backend compatibility seams, but it does **not** require Skyforge to predeclare every environment concept Companion once had to manipulate. The predecessor adapted another terrain generator and therefore mixed semantic intent with biome remapping, density gating and compatibility correction in ways modern Skyforge should avoid.
+
 ## Decision
 
 SF-IMP-0030 will introduce only the smallest context seam demonstrated necessary by a concrete adapter.
@@ -47,6 +49,35 @@ Examples that should normally remain backend-owned include:
 - Minecraft feature and vegetation rules;
 - concrete block palettes and block states;
 - backend-specific decoration and replacement rules.
+
+## Reconciliation with predecessor terminology
+
+Historical Aetherial Companion analysis proposes possible concepts such as `ProvinceDescriptor`, `Geology`, `Climate`, `Ecology`, biome bridging and suitability fields.
+
+These should be interpreted differently according to ownership:
+
+### Strongly supported now
+
+- explicit island/group identity;
+- semantic spatial queries;
+- backend-native biome bridging/adaptation;
+- geometry-derived feature/structure suitability;
+- registry-aware optional compatibility;
+- provenance/debug tracing.
+
+### Plausible future Skyforge concepts, but not yet required
+
+- province-scale semantic regions;
+- explicit geology state beyond current structural terrain semantics;
+- authored Skyforge-specific environment/ecology state.
+
+### Not justified as core merely by predecessor existence
+
+- a parallel temperature/humidity/rainfall model;
+- duplicating Minecraft biome identity upstream;
+- a combinatorial Skyforge biome taxonomy whose only purpose is backend block selection.
+
+The predecessor's need to manipulate climate/biome outputs is evidence that the **adapter must participate intelligently in backend environment systems**, not proof that Skyforge core must replace them.
 
 ## No speculative climate descriptor set
 
@@ -97,6 +128,14 @@ The first implementation may expose a very small immutable context object or equ
 - group role or other hierarchy metadata only if a demonstrated backend behavior requires it.
 
 Not every candidate field must be included. The implementation should start with the minimum needed by the first adapter proof.
+
+## Suitability is separate from climate
+
+The predecessor strongly supports introducing geometry-derived suitability before broad feature/structure integration.
+
+That does not imply a climate model. Suitability can be derived from authoritative Skyforge geometry and structural semantics, for example terrain thickness, distance to surface/underside, available surface or later continuous slope/exposure.
+
+A Minecraft adapter can combine this backend-neutral geometric validity with native biome, tag and structure/feature rules.
 
 ## Dependency direction
 
@@ -149,6 +188,7 @@ This ADR does not yet define:
 - a persistent biome/material cache;
 - custom Skyforge climate simulation;
 - cross-backend material-intent taxonomy;
+- province/geology/ecology descriptor promotion;
 - vegetation, structures, caves, ores, or fluids.
 
 Those should be driven by concrete integration evidence.
