@@ -27,6 +27,12 @@ tasks.withType<JavaCompile>().configureEach {
 
 neoForge {
     version = "21.1.249"
+
+    // ModDevGradle wires Minecraft/NeoForge artifacts to main automatically, but ordinary Gradle
+    // test compilation does not inherit that special modding classpath. The focused adapter tests
+    // deliberately reference real Minecraft types, so attach the same development artifacts to
+    // the test source set without introducing a game-launch or mod-lifecycle requirement.
+    addModdingDependenciesTo(sourceSets.named("test").get())
 }
 
 dependencies {
