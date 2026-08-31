@@ -1,6 +1,6 @@
 # SF-IMP-0037 — Native Surface Adaptation In-Game Runbook
 
-**Status:** Automated verification and repository-wide build passed; native surface adaptation observed in-game; persistence/final manual checks pending.
+**Status:** Manual in-game acceptance passed; updated post-observation automated diagnostic pending.
 
 ## Purpose
 
@@ -36,7 +36,7 @@ scripts\verify-sf-imp-0037-native-surface-adaptation.bat
 gradlew.bat check
 ```
 
-Both automated gates passed on 2026-08-31. Manual client acceptance remains required before SF-IMP-0037 can be accepted.
+The original automated gates passed on 2026-08-31. A focused heightmap/multi-surface regression test was added after the manual observation below, so that updated verifier must pass once before final milestone acceptance.
 
 ## Launch
 
@@ -102,7 +102,16 @@ Save and quit, re-enter the same world, and verify that the adapted Massif persi
 
 ## Observed manual evidence — 2026-08-31
 
-The first SF-IMP-0037 client inspection reported that the exposed Massif top looked **remarkably like the surrounding native Minecraft terrain**. This is the intended visual consequence of the native-surface adapter and is direct evidence that the fixed engineering dirt top is no longer the sole exposed-surface representation.
+The SF-IMP-0037 client inspection reported that the exposed Massif top looked **remarkably like the surrounding native Minecraft terrain**. This is the intended visual consequence of the native-surface adapter and is direct evidence that the fixed engineering dirt top is no longer the sole exposed-surface representation.
+
+Follow-up inspection found the requested manual checks clean:
+
+- the copied native surface representation remained shallow rather than replacing the Massif interior globally;
+- later Minecraft worldgen/lighting behavior remained functional rather than obviously regressing;
+- save/reload preserved the adapted Massif without observed duplication or corruption;
+- no new geometry seam or destructive AIR behavior was reported.
+
+The manual SF-IMP-0037 acceptance gate therefore passes.
 
 No trees or comparable vegetation were noticed on the ordinary ground directly beneath the Massif. This is being treated as an integration observation, not as evidence that the material adapter failed.
 
