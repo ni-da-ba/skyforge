@@ -34,18 +34,28 @@ subprojects {
     }
 }
 
-val engineModules = listOf(
+val backendNeutralModules = listOf(
     project(":skyforge-kernel"),
     project(":skyforge-model"),
     project(":skyforge-recipes"),
+    project(":skyforge-world"),
 )
+
+val runtimeJavaRelease = providers.gradleProperty("skyforgeRuntimeJavaRelease").get().toInt()
+backendNeutralModules.forEach { module ->
+    module.tasks.withType<JavaCompile>().configureEach {
+        // Build with the workspace JDK while emitting runtime artifacts loadable by the first
+        // demonstrated backend (Minecraft/NeoForge 1.21.1 on Java 21).
+        options.release.set(runtimeJavaRelease)
+    }
+}
 
 val verifyBackendIndependence = tasks.register<VerifyBackendIndependenceTask>("verifyBackendIndependence") {
     group = "verification"
     description = "Rejects Minecraft or NeoForge imports from backend-neutral modules."
     projectRoot.set(layout.projectDirectory)
 
-    sourceFiles.from(engineModules.map { module ->
+    sourceFiles.from(backendNeutralModules.map { module ->
         module.fileTree("src") {
             include("**/*.java")
         }
