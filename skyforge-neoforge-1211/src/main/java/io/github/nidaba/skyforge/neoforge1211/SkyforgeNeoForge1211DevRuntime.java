@@ -11,17 +11,14 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.List;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
 
 /**
- * Explicitly development-only runtime used for the first visual Minecraft smoke test.
+ * Explicitly development-only runtime used for interactive Minecraft world-generation proofs.
  *
- * <p>The production mod does not install a world binding by default. ModDevGradle's SF-IMP-0034
- * client run opts into this class with {@value #ENABLE_PROPERTY}. The specimen is intentionally
- * finite, deterministic, Overworld-only, and centered at a documented coordinate so a developer
- * can inspect it without introducing a premature user-facing configuration system.
+ * <p>The production mod does not install a world binding by default. ModDevGradle's SF-IMP-0036
+ * client run opts into this class with {@value #ENABLE_PROPERTY}. The development-only world
+ * preset selects {@link SkyforgeNoiseBasedChunkGenerator}; this runtime supplies that generator's
+ * already-compiled post-surface Skyforge catalog. No late ChunkEvent.Load binding is installed.
  */
 final class SkyforgeNeoForge1211DevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.specimen";
@@ -41,25 +38,25 @@ final class SkyforgeNeoForge1211DevRuntime {
         if (!Boolean.getBoolean(ENABLE_PROPERTY) || persistentBinding != null) {
             return;
         }
-        if (SkyforgeNeoForge1211ChunkLifecycle.hasActiveBinding()) {
+        if (SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
             throw new IllegalStateException(
-                    "cannot install the Skyforge development specimen over an existing runtime binding");
+                    "cannot install the Skyforge development specimen over an existing post-surface binding");
         }
 
         persistentBinding = installSpecimen();
         LOGGER.log(
                 System.Logger.Level.INFO,
-                "Skyforge development specimen enabled. Create a NEW disposable Overworld and inspect near "
+                "Skyforge post-surface development specimen enabled. Create a NEW disposable world "
+                        + "using the Skyforge Development world type and inspect near "
                         + "x=" + INSPECTION_X
                         + ", y=" + INSPECTION_Y
                         + ", z=" + INSPECTION_Z
                         + ".");
     }
 
-    /** Installs one disposable specimen binding and returns the lifecycle cleanup handle. */
+    /** Installs one disposable post-surface specimen binding and returns its cleanup handle. */
     static AutoCloseable installSpecimen() {
-        return SkyforgeNeoForge1211ChunkLifecycle.install(
-                SkyforgeNeoForge1211DevRuntime::isTargetLevel,
+        return SkyforgeNeoForge1211SurfaceStage.install(
                 adapter(),
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
     }
@@ -73,17 +70,12 @@ final class SkyforgeNeoForge1211DevRuntime {
 
     static SkyIslandWorldCatalog catalog() {
         var compiled = compiledMassif();
-        var id = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0034-dev-massif", 0, 0, ROOT_SEED);
+        var id = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0036-dev-massif", 0, 0, ROOT_SEED);
         var worldVolume = new SkyIslandWorldVolume(
                 id,
                 new WorldBounds(-160.0, 160.0, 96.0, 304.0, -160.0, 160.0),
                 compiled);
         return new SkyIslandWorldCatalog(ROOT_SEED, List.of(worldVolume));
-    }
-
-    private static boolean isTargetLevel(LevelAccessor level) {
-        return level instanceof ServerLevel serverLevel
-                && Level.OVERWORLD.equals(serverLevel.dimension());
     }
 
     private static io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume compiledMassif() {

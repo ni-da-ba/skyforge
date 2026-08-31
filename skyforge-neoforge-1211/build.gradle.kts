@@ -30,26 +30,33 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
 
+// Development-only data/resource pack material for interactive world-generation proofs. This
+// source set is attached to the local ModDev mod below but is not part of Java's production jar,
+// keeping temporary world presets and UI tags out of distributable Skyforge artifacts.
+val development = sourceSets.create("development")
+
 neoForge {
     version = "21.1.249"
 
     // SF-IMP-0033 promotes the adapter from a test-only exploded mod identity to the real
-    // development mod boundary. The production resource set now carries META-INF/neoforge.mods.toml
-    // and the actual @Mod entrypoint/lifecycle subscriber.
+    // development mod boundary. Production code/resources remain in main. The additional
+    // development source set contributes only local-run resources and is deliberately not packed
+    // into the production jar.
     mods {
         create("skyforge") {
             sourceSet(sourceSets.main.get())
+            sourceSet(development)
         }
     }
 
-    // SF-IMP-0034 adds an isolated development client. The system property enables exactly one
-    // deterministic specimen; normal packaged Skyforge remains inert unless runtime binding is
-    // configured explicitly.
+    // SF-IMP-0036 advances the isolated development client from the late load-event specimen to a
+    // selectable development-only world preset backed by the registered post-surface generator.
     runs {
         create("client") {
             client()
-            gameDirectory = project.file("run-sf-imp-0034")
+            gameDirectory = project.file("run-sf-imp-0036")
             systemProperty("skyforge.dev.specimen", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
         }
     }
 

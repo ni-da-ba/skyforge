@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import net.minecraft.world.level.ChunkPos;
@@ -10,6 +11,24 @@ final class SkyforgeNeoForge1211DevRuntimeTest {
     @Test
     void ordinaryUnitTestLaunchDoesNotEnableDevelopmentSpecimen() {
         assertFalse(Boolean.getBoolean(SkyforgeNeoForge1211DevRuntime.ENABLE_PROPERTY));
+        assertFalse(SkyforgeNeoForge1211ChunkLifecycle.hasActiveBinding());
+        assertFalse(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
+    }
+
+    @Test
+    void developmentSpecimenUsesPostSurfaceBindingRatherThanLateLifecycle() throws Exception {
+        assertFalse(SkyforgeNeoForge1211ChunkLifecycle.hasActiveBinding());
+        assertFalse(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
+
+        try (AutoCloseable activeBinding = SkyforgeNeoForge1211DevRuntime.installSpecimen()) {
+            assertNotNull(activeBinding);
+            assertTrue(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
+            assertFalse(
+                    SkyforgeNeoForge1211ChunkLifecycle.hasActiveBinding(),
+                    "the 0036 development proof must not silently fall back to ChunkEvent.Load");
+        }
+
+        assertFalse(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
         assertFalse(SkyforgeNeoForge1211ChunkLifecycle.hasActiveBinding());
     }
 
