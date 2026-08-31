@@ -29,14 +29,27 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             return Optional.empty();
         }
 
-        MinecraftChunkMaterialization materialization = binding.adapter().materialize(
-                chunk.getPos(),
-                chunk.getMinBuildHeight(),
-                chunk.getHeight());
+        MinecraftChunkMaterialization materialization = materialize(binding, chunk);
         if (binding.nativeSurfaceTopAdapter().isPresent()) {
             materialization = binding.nativeSurfaceTopAdapter().orElseThrow().adapt(chunk, materialization);
         }
         return Optional.of(binding.writer().writeSolidOverlay(chunk, materialization));
+    }
+
+    /**
+     * Re-evaluates the active binding's authoritative Skyforge occupancy for a live chunk.
+     *
+     * <p>This is used by later Minecraft-owned stages that need to distinguish Skyforge-authored
+     * solids from preserved native terrain. Representation adaptation is intentionally not applied
+     * here because occupancy, rather than concrete top material, is the required fact.
+     */
+    static Optional<MinecraftChunkMaterialization> materializeOccupancy(ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return Optional.empty();
+        }
+        return Optional.of(materialize(binding, chunk));
     }
 
     /**
@@ -82,6 +95,13 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     static boolean hasNativeSurfaceAdaptation() {
         RuntimeBinding binding = ACTIVE.get();
         return binding != null && binding.nativeSurfaceTopAdapter().isPresent();
+    }
+
+    private static MinecraftChunkMaterialization materialize(RuntimeBinding binding, ChunkAccess chunk) {
+        return binding.adapter().materialize(
+                chunk.getPos(),
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
     }
 
     private record RuntimeBinding(
