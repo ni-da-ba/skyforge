@@ -45,6 +45,15 @@ public record WorldRegionTerrain(
                 Byte.toUnsignedInt(semantics[grid.linearIndex(xIndex, yIndex, zIndex)])];
     }
 
+    /** Minimal backend-visible sample context at one lattice index. */
+    public SkyIslandTerrainSampleContext sampleContextAt(int xIndex, int yIndex, int zIndex) {
+        return new SkyIslandTerrainSampleContext(
+                grid.xAt(xIndex),
+                grid.yAt(yIndex),
+                grid.zAt(zIndex),
+                semanticAt(xIndex, yIndex, zIndex));
+    }
+
     /** Number of samples carrying one semantic value. */
     public int count(SkyIslandTerrainSemantic semantic) {
         Objects.requireNonNull(semantic, "semantic");
