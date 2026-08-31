@@ -62,6 +62,8 @@ vanilla BIOMES
 
 The generator remains inert when no Skyforge worldgen runtime binding is installed. Selecting the generator and supplying a Skyforge world plan remain backend/configuration concerns.
 
+For the interactive SF-IMP-0036 proof, a selectable `skyforge:development` world preset is provided through a separate Gradle `development` source set. ModDev loads that resource set locally, but the production jar continues to package only `main`, so this temporary validation preset and its world-selector tag are not shipped as user-facing configuration.
+
 ## Why post-surface rather than post-noise
 
 Injecting immediately after `fillFromNoise` would be earlier, but it creates two avoidable problems for this first proof:
@@ -89,6 +91,7 @@ A mixin into `ChunkStatusTasks` could place code at almost any stage, but it wou
 6. The registered generator is inert without an explicit runtime binding.
 7. Normal worlds that do not select the Skyforge generator remain unchanged.
 8. Existing SF-IMP-0033 load-event realization remains available only as the accepted legacy/provisional lifecycle proof until superseded deliberately.
+9. Development-only preset/tag resources used for this proof are excluded from distributable artifacts.
 
 ## What this seam should improve
 
@@ -100,7 +103,7 @@ Because Skyforge blocks exist before the later stages, this seam is intended to 
 - biome decoration/features;
 - lighting initialization and propagation.
 
-SF-IMP-0036 must prove at least the final-heightmap consequence automatically before this ADR can be Accepted.
+SF-IMP-0036 must prove at least the final-heightmap consequence automatically and the real generator path interactively before this ADR can be Accepted.
 
 ## Explicit limitations
 
@@ -125,4 +128,7 @@ ADR-0040 becomes Accepted only after:
 5. Skyforge AIR preserves backend-native blocks;
 6. Minecraft final heightmap priming performed after realization observes the elevated Skyforge solid;
 7. backend-neutral independence remains green;
-8. focused NeoForge tests and repository-wide validation pass.
+8. focused NeoForge tests and repository-wide validation pass;
+9. a development-only world preset selects the registered generator without entering the production jar;
+10. a real ModDev client can create a new world using that preset, observe the expected floating specimen, retain native terrain, show no obvious chunk-ownership seam, light the specimen through later vanilla stages, and preserve it across save/reload;
+11. the interactive proof uses only the post-surface runtime binding and does not depend on the legacy `ChunkEvent.Load` binding.
