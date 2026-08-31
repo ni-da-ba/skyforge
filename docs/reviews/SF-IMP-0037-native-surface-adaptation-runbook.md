@@ -1,6 +1,6 @@
 # SF-IMP-0037 — Native Surface Adaptation In-Game Runbook
 
-**Status:** Manual in-game acceptance passed; updated post-observation automated diagnostic pending.
+**Status:** Accepted.
 
 ## Purpose
 
@@ -36,7 +36,7 @@ scripts\verify-sf-imp-0037-native-surface-adaptation.bat
 gradlew.bat check
 ```
 
-The original automated gates passed on 2026-08-31. A focused heightmap/multi-surface regression test was added after the manual observation below, so that updated verifier must pass once before final milestone acceptance.
+Both commands passed on the final SF-IMP-0037 code head on 2026-08-31, including the post-observation heightmap/multi-surface regression diagnostic.
 
 ## Launch
 
@@ -135,7 +135,7 @@ same (x,z) column
 
 This likely explains reduced or absent heightmap-driven vegetation directly below a floating island: attempts that would otherwise target the native ground can be redirected to the upper Skyforge surface.
 
-A focused regression test now captures this behavior explicitly by preserving lower native ground, realizing an elevated Skyforge surface, priming Minecraft's final heightmaps, and asserting that the reported world-surface height is the upper surface rather than the lower ground.
+A focused regression test now captures this behavior explicitly by preserving lower native ground, realizing an elevated Skyforge surface, priming Minecraft's final heightmaps, and asserting that the reported world-surface height is the upper surface rather than the lower ground. That diagnostic passes on the accepted SF-IMP-0037 code head.
 
 This exposes a broader Minecraft integration boundary relevant to future vertically stacked islands: vanilla heightmaps are single-valued per `(x,z)` and cannot represent several independently decoratable surfaces in one vertical column. If Skyforge requires vegetation/features on ground plus one or more stacked islands, that requires an explicit multi-surface feature/suitability strategy rather than assuming vanilla heightmaps can express every surface simultaneously.
 
@@ -159,6 +159,8 @@ SF-IMP-0037 manual acceptance passes when:
 - the copied top material does not replace the entire island interior;
 - later worldgen/lighting interaction remains functional;
 - save/reload preserves the result.
+
+All pass criteria were satisfied on 2026-08-31.
 
 The lower-ground vegetation observation above is not by itself a failure of this milestone because it follows from the single-valued vanilla heightmap boundary and is outside the narrow material-adaptation decision.
 
