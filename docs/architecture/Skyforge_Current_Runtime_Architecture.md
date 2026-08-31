@@ -23,6 +23,18 @@ semantic island intent
     -> concrete backend realization
 ```
 
+## Predecessor inheritance
+
+Recovered Aetherial Islands / Aetherial Companion artifacts from the old Stab City test modpacks confirm that many current Skyforge concerns are not speculative. The predecessor lineage already encountered explicit island/cluster identity, stacking control, ocean-frequency tuning, structure fitting, biome adaptation, ore compatibility, registry drift, starter search and extensive diagnostic needs.
+
+The modern inheritance rule is:
+
+> Keep Companion's questions. Keep its compatibility lessons. Keep its diagnostic instincts. Do not keep its need to fight the terrain generator.
+
+Aetherial Companion had to construct semantic descriptors, caches, authority decisions, masks, reducers and gates around an upstream implicit density generator. Modern Skyforge instead owns the semantic objects and the density geometry directly.
+
+The detailed recovery record is `docs/history/Aetherial_Islands_Companion_Lessons_Learned.md`.
+
 ## Accepted runtime invariants
 
 ### Island geometry
@@ -40,6 +52,7 @@ semantic island intent
 - Archipelago planning arranges complete child groups as Hub or Arc regional structures.
 - Explicit member and group reservations provide deterministic separation contracts.
 - Stable hierarchical seed derivation preserves identity at every level.
+- Composition owns occurrence and relationships; morphology owns form.
 
 ### World/runtime boundary
 
@@ -54,6 +67,8 @@ An accepted archipelago compiles into `SkyIslandWorldCatalog`, containing one `S
 Backends call `query(WorldBounds)` to obtain only volumes that may affect a region.
 
 The first catalog deliberately uses a deterministic linear scan. Spatial acceleration is an internal optimization and is not part of the public semantic contract.
+
+This random-access semantic query model is the mature successor to Companion's `IslandField` idea: ask which semantic island/world object is relevant here rather than reconstructing identity from density after the fact.
 
 ### Provider-safe bounds
 
@@ -122,6 +137,32 @@ A Minecraft-facing adapter may combine `SkyIslandTerrainSemantic` directly with 
 
 This contract is recorded in `ADR-0034-minimal-backend-context-seam.md`.
 
+## Suitability and compatibility are staged backend requirements
+
+The predecessor proved two important requirements that should arrive **after** the first chunk/material bridge rather than being forgotten.
+
+### Semantic suitability
+
+Biome validity does not guarantee that floating terrain can physically support a vanilla or modded feature/structure. Before broad structure/feature integration, Skyforge should expose geometry-derived suitability such as terrain thickness, surface/underside distance, available surface and other continuously defined geometric facts.
+
+The concrete backend can combine those facts with native Minecraft feature/structure rules.
+
+### Registry-aware optional integration
+
+Optional compatibility must probe the active registry/tags/capabilities before referencing third-party keys. Mod presence alone is not sufficient evidence that a historical registry ID still exists.
+
+Compatibility adapters belong on the backend side and must fail gracefully.
+
+## Public-control quality
+
+The predecessor also demonstrated that a friendly parameter name is not automatically meaningful control. Public composition parameters should be monotonic where appropriate, locally influential where possible, and statistically testable on deterministic corpora.
+
+Implementation details such as retry counts must not become de facto world-design controls.
+
+## Explainability
+
+Skyforge's existing evidence culture should continue through the concrete backend. During development, a block/biome/feature decision should be traceable through backend policy to Skyforge terrain semantic, suitability, world-volume identity, compiled recipe/field provenance and descriptor/composition ancestry.
+
 ## Module ownership
 
 - `skyforge-kernel` — graph representation, coordinates, signals, validation, reference evaluation.
@@ -142,7 +183,8 @@ The following should not be promoted into core contracts before evidence require
 - a parallel Skyforge climate simulator;
 - speculative backend-neutral material taxonomies;
 - final biome/ecoregion ownership beyond demonstrated Skyforge-specific needs;
-- structures, vegetation, caves, ores, or fluids;
+- broad structures/vegetation/caves/ores/fluids integration before suitability exists;
+- historical Companion compatibility hacks without reproducing the underlying problem in Skyforge;
 - provider-certified exact spatial bounds;
 - production spatial index implementation;
 - persistent world-plan/cache serialization;
@@ -153,6 +195,8 @@ The following should not be promoted into core contracts before evidence require
 1. Locally validate and visually review SF-IMP-0029 terrain semantics.
 2. SF-IMP-0030: prove the smallest adapter-visible Skyforge context seam; do not build a climate system or broad material taxonomy.
 3. SF-IMP-0031: add the first concrete Minecraft-facing chunk/voxel adapter and let actual integration requirements discover any missing abstractions.
-4. Benchmark identical deterministic worlds under live, preloaded, and hybrid realization.
-5. Choose production caching/spatial-index policy from measured evidence.
-6. Enrich environmental/material semantics only where concrete backend-neutral Skyforge behavior demonstrates the need.
+4. Add minimal geometry-derived suitability before broad vanilla/modded feature and structure integration.
+5. Add registry probing and isolated optional-mod adapters before shipping compatibility assumptions.
+6. Benchmark identical deterministic worlds under live, preloaded, and hybrid realization.
+7. Choose production caching/spatial-index policy from measured evidence.
+8. Enrich environmental/material semantics only where concrete backend-neutral Skyforge behavior demonstrates the need.
