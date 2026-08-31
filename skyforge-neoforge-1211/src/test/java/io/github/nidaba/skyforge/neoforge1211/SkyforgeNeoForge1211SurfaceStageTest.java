@@ -83,6 +83,47 @@ final class SkyforgeNeoForge1211SurfaceStageTest {
     }
 
     @Test
+    void finalHeightmapSelectsUpperSkyforgeSurfaceOverPreservedNativeGround() throws Exception {
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+        SkyforgeNeoForge1211ChunkAdapter adapter = SkyforgeNeoForge1211DevRuntime.adapter();
+        MinecraftChunkMaterialization materialization = adapter.materialize(
+                chunkPos,
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+        MaterializedPosition highestSolid = highestSolid(materialization);
+
+        int worldX = chunkPos.getMinBlockX() + highestSolid.localX();
+        int worldZ = chunkPos.getMinBlockZ() + highestSolid.localZ();
+        BlockPos nativeGround = new BlockPos(worldX, 64, worldZ);
+        chunk.setBlockState(nativeGround, Blocks.GRASS_BLOCK.defaultBlockState(), false);
+
+        try (AutoCloseable activeBinding = SkyforgeNeoForge1211SurfaceStage.installNativeSurfaceAdapted(
+                adapter,
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertTrue(SkyforgeNeoForge1211SurfaceStage.realize(chunk).isPresent());
+        }
+
+        assertEquals(
+                Blocks.GRASS_BLOCK.defaultBlockState(),
+                chunk.getBlockState(nativeGround),
+                "native lower terrain must remain physically present under the floating island");
+
+        Heightmap.primeHeightmaps(chunk, ChunkStatus.FINAL_HEIGHTMAPS);
+        int finalSurfaceHeight = chunk.getHeight(
+                Heightmap.Types.WORLD_SURFACE,
+                highestSolid.localX(),
+                highestSolid.localZ());
+
+        assertTrue(
+                finalSurfaceHeight >= highestSolid.worldY(),
+                "a vanilla single-valued surface heightmap should target the upper Skyforge surface");
+        assertTrue(
+                finalSurfaceHeight > nativeGround.getY(),
+                "the preserved lower ground cannot simultaneously be the column's world-surface heightmap target");
+    }
+
+    @Test
     void nativeSurfaceAdaptedBindingCopiesMinecraftSurfaceOntoElevatedSkyforgeTop() throws Exception {
         ChunkPos chunkPos = new ChunkPos(0, 0);
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
