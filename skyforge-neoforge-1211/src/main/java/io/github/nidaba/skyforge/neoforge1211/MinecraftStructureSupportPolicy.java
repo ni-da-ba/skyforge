@@ -1,10 +1,14 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SurfaceFootprint;
+import io.github.nidaba.skyforge.world.SurfaceFootprintRectangle;
 import io.github.nidaba.skyforge.world.SurfaceFoundationRequirements;
 import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
+import java.util.List;
+import java.util.Objects;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 
-/** Backend-owned translation from a native structure footprint to neutral support requirements. */
+/** Backend-owned translation from native structure piece geometry to neutral support requirements. */
 final class MinecraftStructureSupportPolicy {
     private static final double SAMPLE_SPACING = 4.0;
     private static final double CLEARANCE = 2.0;
@@ -20,37 +24,50 @@ final class MinecraftStructureSupportPolicy {
     private MinecraftStructureSupportPolicy() {}
 
     static SurfaceSupportRequirements requirements(BoundingBox box) {
+        return requirements(List.of(box));
+    }
+
+    static SurfaceSupportRequirements requirements(List<BoundingBox> boxes) {
         return supportRequirements(
-                box,
+                boxes,
                 SAMPLE_SPACING,
                 MINIMUM_COVERAGE,
                 MAXIMUM_HEIGHT_SPAN);
     }
 
-    /**
-     * Returns the stricter fill-only accommodation policy beneath the native structure floor.
-     *
-     * <p>Accommodation samples every integral Minecraft X/Z column in the bounding-box footprint,
-     * requires complete interior support and never bridges an island edge. The neutral foundation
-     * fill plane remains {@code box.minY()}: the serialized foundation may place blocks only below
-     * the native structure floor. The resolved first-free Skyforge height independently defines the
-     * highest existing surface compatible with the native occupied/free-block convention. A claim
-     * one block above the bounding-box minimum therefore authorizes existing terrain in the native
-     * floor layer without adding one unit to the measured fill depth.
-     */
     static SurfaceFoundationRequirements foundationRequirements(
             BoundingBox box,
             int resolvedFirstFreeY) {
-        long delta = (long) resolvedFirstFreeY - box.minY();
+        return foundationRequirements(List.of(box), box.minY(), resolvedFirstFreeY);
+    }
+
+    /**
+     * Returns the stricter fill-only accommodation policy beneath one resolved native support plane.
+     *
+     * <p>The supplied boxes describe only the actual piece-derived X/Z footprint at that plane.
+     * Empty gaps between boxes are not terrain requirements. Accommodation still samples every
+     * integral Minecraft footprint column, requires complete support and never bridges an island
+     * edge. The resolved first-free Skyforge height independently defines the highest existing
+     * surface compatible with Minecraft's occupied/free-block convention.
+     */
+    static SurfaceFoundationRequirements foundationRequirements(
+            List<BoundingBox> boxes,
+            int structureFloorY,
+            int resolvedFirstFreeY) {
+        Objects.requireNonNull(boxes, "boxes");
+        if (boxes.isEmpty()) {
+            throw new IllegalArgumentException("foundation footprint requires at least one box");
+        }
+        long delta = (long) resolvedFirstFreeY - structureFloorY;
         if (delta < -1L || delta > 1L) {
             throw new IllegalArgumentException(
-                    "resolvedFirstFreeY must be within one block of the structure minimum Y");
+                    "resolvedFirstFreeY must be within one block of the structure floor Y");
         }
-        double foundationTopY = box.minY();
+        double foundationTopY = structureFloorY;
         double maximumSurfaceY = Math.max(foundationTopY, resolvedFirstFreeY);
         return new SurfaceFoundationRequirements(
                 supportRequirements(
-                        box,
+                        boxes,
                         FOUNDATION_SAMPLE_SPACING,
                         FOUNDATION_MINIMUM_COVERAGE,
                         FOUNDATION_MAXIMUM_HEIGHT_SPAN),
@@ -60,19 +77,33 @@ final class MinecraftStructureSupportPolicy {
     }
 
     private static SurfaceSupportRequirements supportRequirements(
-            BoundingBox box,
+            List<BoundingBox> boxes,
             double sampleSpacing,
             double minimumCoverage,
             double maximumHeightSpan) {
         return new SurfaceSupportRequirements(
-                box.minX(),
-                box.maxX(),
-                box.minZ(),
-                box.maxZ(),
+                footprint(boxes),
                 sampleSpacing,
                 CLEARANCE,
                 minimumCoverage,
                 MINIMUM_CLEARANCE_COVERAGE,
                 maximumHeightSpan);
+    }
+
+    private static SurfaceFootprint footprint(List<BoundingBox> boxes) {
+        Objects.requireNonNull(boxes, "boxes");
+        if (boxes.isEmpty()) {
+            throw new IllegalArgumentException("surface footprint requires at least one box");
+        }
+        return new SurfaceFootprint(boxes.stream()
+                .map(box -> {
+                    Objects.requireNonNull(box, "boxes contains null");
+                    return new SurfaceFootprintRectangle(
+                            box.minX(),
+                            box.maxX(),
+                            box.minZ(),
+                            box.maxZ());
+                })
+                .toList());
     }
 }
