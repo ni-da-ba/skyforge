@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.world.TerrainBoxObservationRequirements;
@@ -12,9 +13,10 @@ final class SkyforgeTerrainBoxObservationRuntimeTest {
     @Test
     void activeRuntimeObservesExactClaimedVolumeWithoutMergingProvenance() throws Exception {
         SkyforgeNeoForge1211ChunkAdapter adapter = SkyforgeNeoForge1211DevRuntime.adapter();
-        try (AutoCloseable ignored = SkyforgeNeoForge1211SurfaceStage.install(
+        try (AutoCloseable installation = SkyforgeNeoForge1211SurfaceStage.install(
                 adapter,
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(installation);
             MinecraftSkyforgeHeightClaim claim = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
                             0,
                             0,
