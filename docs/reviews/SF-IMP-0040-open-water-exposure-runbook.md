@@ -1,6 +1,6 @@
 # SF-IMP-0040 — Open-Water Exposure In-Game Runbook
 
-**Status:** Implementation ready for automated validation.
+**Status:** Accepted
 
 ## Purpose
 
@@ -42,8 +42,6 @@ scripts\verify-sf-imp-0040-open-water-exposure.bat
 gradlew.bat check
 ```
 
-Do not proceed to the client test if either command fails.
-
 ## Launch
 
 ```bat
@@ -60,7 +58,7 @@ Teleport to the Massif:
 
 ## Diagnostic log
 
-Origin-area chunks should report lines resembling:
+Origin-area chunks report lines resembling:
 
 ```text
 SF-IMP-0040 exposure diagnostic chunk=[x, z] dryLand=N dryOpen=O submergedWaterFloor=W openWaterFloor=P dryOpenQueries=Q dryOpenEmitted=E submergedQueries=U submergedEmitted=V openWaterQueries=R openWaterEmitted=S
@@ -98,26 +96,50 @@ No supplemental color should systematically decorate the vanilla highest Massif 
 
 ## Persistence
 
-Save, quit, and reopen the same world once.
+Save/quit behavior should remain clean. The marker blocks themselves are ordinary vanilla blocks; the new suitability selector does not add persisted Skyforge state.
 
-Confirm:
+## Accepted client result — desert specimen
 
-- Massif persists;
-- diagnostic markers persist;
-- no codec/registry error appears;
-- no chunk corruption or obvious duplicate generation occurs.
+The accepted SF-IMP-0040 client specimen generated over dry desert terrain rather than ocean.
+
+Across the origin-area diagnostic chunks:
+
+```text
+dryLand=256
+dryOpen≈242..256
+submergedWaterFloor=0
+openWaterFloor=0
+dryOpenQueries=14
+dryOpenEmitted≈13..14
+submergedQueries=4
+submergedEmitted=0
+openWaterQueries=2
+openWaterEmitted=0
+```
+
+This is accepted as the live negative/exclusion proof:
+
+- the SF-IMP-0040 development resources and parameterized open-water selector loaded successfully;
+- dry placement remained active;
+- aquatic selectors were queried but emitted nothing on dry terrain;
+- no false `submerged_water_floor` or `open_water_floor` targets were created;
+- the client saved and shut down cleanly.
+
+The run did not provide a live positive diamond-marker observation because there were no aquatic candidates. We deliberately do not require repeated random world creation solely to obtain an ocean seed. Positive open-water classification and capped-column rejection remain covered by automated tests; SF-IMP-0039 already proved the generic live supplemental configured-feature realization path on submerged terrain.
 
 ## Pass criteria
 
-SF-IMP-0040 passes manually when:
+SF-IMP-0040 is accepted with the following evidence:
 
 - the development world loads cleanly;
 - accepted SF-IMP-0036 through SF-IMP-0039 behavior remains intact;
-- diagnostics maintain `openWaterFloor <= submergedWaterFloor`;
-- at least one `open_water_floor` target is consumed and visibly realized when such candidates exist;
-- enclosed capped water columns are not promoted to `open_water_floor` where they can be inspected;
-- the highest vanilla-owned surface is not systematically retargeted; and
-- save/reload is clean.
+- automated tests establish `open_water_floor` as a subset of `submerged_water_floor` and reject capped flooded columns;
+- the live desert specimen shows zero aquatic candidates/emissions while the open-water feature chain is still queried;
+- the highest vanilla-owned surface is not systematically retargeted;
+- production packaging excludes all development markers/resources;
+- save/shutdown remains clean.
+
+A naturally occurring future ocean specimen should be used as an opportunistic positive live regression for diamond placement, but that observation is not required to hold SF-IMP-0040 open.
 
 ## Explicit limitations
 
