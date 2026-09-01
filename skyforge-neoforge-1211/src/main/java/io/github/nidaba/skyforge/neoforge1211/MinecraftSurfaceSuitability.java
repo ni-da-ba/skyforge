@@ -7,7 +7,8 @@ import java.util.Arrays;
 enum MinecraftSurfaceSuitability {
     DRY_LAND("dry_land"),
     DRY_OPEN("dry_open"),
-    SUBMERGED_WATER_FLOOR("submerged_water_floor");
+    SUBMERGED_WATER_FLOOR("submerged_water_floor"),
+    OPEN_WATER_FLOOR("open_water_floor");
 
     static final Codec<MinecraftSurfaceSuitability> CODEC =
             Codec.STRING.xmap(MinecraftSurfaceSuitability::fromSerializedName, MinecraftSurfaceSuitability::serializedName);
