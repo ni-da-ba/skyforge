@@ -1,6 +1,0 @@
-{
-  "type": "neoforge:add_features",
-  "biomes": "#c:is_overworld",
-  "features": "skyforge:dry_open_marker",
-  "step": "vegetal_decoration"
-}
