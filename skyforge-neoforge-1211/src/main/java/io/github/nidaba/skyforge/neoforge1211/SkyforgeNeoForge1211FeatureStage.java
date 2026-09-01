@@ -1,13 +1,10 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
 /** Short-lived Minecraft feature-placement scope for one chunk decoration call. */
@@ -34,21 +31,34 @@ final class SkyforgeNeoForge1211FeatureStage {
         Optional<MinecraftAdditionalSurfaceIndex> index =
                 SkyforgeNeoForge1211SurfaceStage.materializeOccupancy(chunk)
                         .map(materialization -> MinecraftAdditionalSurfaceIndex.from(chunk, materialization));
-        Scope scope = new Scope(chunk, index);
+        Scope scope = new Scope(chunk.getPos(), index);
         ACTIVE.set(scope);
         return scope;
     }
 
+    /** Accepted SF-IMP-0038 dry-land reachability view. */
     static List<BlockPos> additionalPositions(int worldX, int worldZ) {
         Scope scope = ACTIVE.get();
         if (scope == null || scope.closed) {
             return List.of();
         }
-        List<BlockPos> positions = scope.index
+        return scope.index
                 .map(value -> value.positions(worldX, worldZ))
                 .orElseGet(List::of);
-        scope.recordQuery(positions);
-        return positions;
+    }
+
+    static List<BlockPos> suitablePositions(
+            int worldX,
+            int worldZ,
+            MinecraftSurfaceSuitability suitability) {
+        Objects.requireNonNull(suitability, "suitability");
+        Scope scope = ACTIVE.get();
+        if (scope == null || scope.closed) {
+            return List.of();
+        }
+        return scope.index
+                .map(value -> value.positions(worldX, worldZ, suitability))
+                .orElseGet(List::of);
     }
 
     static boolean hasActiveScope() {
@@ -57,32 +67,19 @@ final class SkyforgeNeoForge1211FeatureStage {
     }
 
     static final class Scope implements AutoCloseable {
-        private final ChunkAccess chunk;
         private final ChunkPos chunkPos;
         private final Optional<MinecraftAdditionalSurfaceIndex> index;
-        private final int availablePositions;
-        private final Set<BlockPos> emittedTargets = new HashSet<>();
-        private int queries;
-        private int emittedPositions;
         private boolean closed;
 
-        private Scope(ChunkAccess chunk, Optional<MinecraftAdditionalSurfaceIndex> index) {
-            this.chunk = Objects.requireNonNull(chunk, "chunk");
-            this.chunkPos = chunk.getPos();
+        private Scope(ChunkPos chunkPos, Optional<MinecraftAdditionalSurfaceIndex> index) {
+            this.chunkPos = Objects.requireNonNull(chunkPos, "chunkPos");
             this.index = Objects.requireNonNull(index, "index");
-            this.availablePositions = index.map(MinecraftAdditionalSurfaceIndex::totalPositions).orElse(0);
         }
 
         void requireActive() {
             if (closed || ACTIVE.get() != this) {
                 throw new IllegalStateException("Skyforge feature-placement scope is not active");
             }
-        }
-
-        private void recordQuery(List<BlockPos> positions) {
-            queries++;
-            emittedPositions += positions.size();
-            emittedTargets.addAll(positions);
         }
 
         @Override
@@ -93,16 +90,17 @@ final class SkyforgeNeoForge1211FeatureStage {
             if (Boolean.getBoolean(SkyforgeNeoForge1211DevRuntime.ENABLE_PROPERTY)
                     && Math.abs(chunkPos.x) <= 2
                     && Math.abs(chunkPos.z) <= 2) {
-                long markerBlocks = emittedTargets.stream()
-                        .filter(position -> chunk.getBlockState(position).is(Blocks.GOLD_BLOCK))
-                        .count();
+                int dryLand = index.map(value -> value.totalPositions(MinecraftSurfaceSuitability.DRY_LAND)).orElse(0);
+                int dryOpen = index.map(value -> value.totalPositions(MinecraftSurfaceSuitability.DRY_OPEN)).orElse(0);
+                int submerged = index
+                        .map(value -> value.totalPositions(MinecraftSurfaceSuitability.SUBMERGED_WATER_FLOOR))
+                        .orElse(0);
                 LOGGER.log(
                         System.Logger.Level.INFO,
-                        "SF-IMP-0038 feature diagnostic chunk=" + chunkPos
-                                + " availableAdditionalPositions=" + availablePositions
-                                + " modifierQueries=" + queries
-                                + " emittedPositions=" + emittedPositions
-                                + " markerBlocksAtEmittedPositions=" + markerBlocks);
+                        "SF-IMP-0039 suitability diagnostic chunk=" + chunkPos
+                                + " dryLand=" + dryLand
+                                + " dryOpen=" + dryOpen
+                                + " submergedWaterFloor=" + submerged);
             }
             closed = true;
             ACTIVE.remove();
