@@ -1,6 +1,6 @@
 # ADR-0047 — Native Structure-Start Height Visibility Proof
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -62,9 +62,9 @@ Future Skyforge structure suitability may contribute semantic/geometry-derived c
 
 ## Client finding: visibility is not suitability
 
-The first client proof generated several development-forced vanilla desert pyramids. A candidate completely outside the Massif generated on ordinary native ground, while several candidates intersecting the Massif were vertically associated with the elevated island and clipped into it at varying depths.
+The accepted client proof generated several development-forced vanilla desert pyramids. A candidate completely outside the Massif generated on ordinary native ground, while several candidates intersecting the Massif were vertically associated with the elevated island and clipped into it at varying depths.
 
-This is the expected distinction between two contracts:
+This establishes:
 
 ```text
 structure can see Skyforge height
@@ -72,9 +72,11 @@ structure can see Skyforge height
 structure footprint is appropriate for that surface
 ```
 
-Minecraft structure helpers can sample multiple terrain positions across a footprint; NeoForge 1.21.1 exposes helpers such as `Structure.getCornerHeights(...)` and `Structure.getLowestY(...)` for exactly this sort of terrain-relative placement. A sloped footprint or a footprint crossing an island edge can therefore yield an anchor that embeds the structure even though every individual height answer is locally truthful.
+A sloped footprint or a footprint crossing an island edge can yield an anchor that embeds the structure even when individual height answers are locally truthful.
 
 The correct future response is **not** to extend or flatten `getBaseHeight(...)` beyond real Skyforge geometry. Doing so would expose phantom terrain to every early generator consumer. Structure placement needs a separate suitability/support policy capable of reasoning about footprint coverage, coherent target surfaces, slope, edge clearance, and eventually stacked-island choice.
+
+The same run did not show kelp beneath the Massif. This is not an SF-IMP-0043 regression; supplemental aquatic vegetation has not yet been generalized into production ecology replay.
 
 ## Invariants
 
@@ -88,17 +90,17 @@ The correct future response is **not** to extend or flatten `getBaseHeight(...)`
 8. This milestone proves height visibility and native placement, not final structure suitability.
 9. Early height queries remain geometrically truthful; structure-specific footprint accommodation must be solved separately.
 
-## Acceptance criteria
+## Acceptance evidence
 
-ADR-0047 becomes Accepted after:
+SF-IMP-0043 was accepted after:
 
-1. focused verification and repository-wide `check` pass;
-2. the SF-IMP-0043 development resources load without registry/datapack errors;
-3. development-forced vanilla desert pyramids generate in the expected placement regions;
-4. at least one pyramid overlapping the Massif is visibly vertically associated with the elevated Skyforge terrain rather than lower native ground alone;
-5. the Massif still realizes through the accepted post-surface path without obvious seams/corruption;
-6. save/reload preserves both terrain and structure cleanly; and
-7. all forcing resources remain absent from the production JAR.
+1. focused verification and repository-wide `check` passed;
+2. development resources loaded without registry/datapack errors;
+3. development-forced vanilla desert pyramids generated in the expected regions;
+4. multiple Massif-overlapping pyramids were visibly vertically associated with elevated Skyforge terrain;
+5. the Massif remained stable through the accepted post-surface realization path;
+6. save/reload was confirmed clean; and
+7. verifier coverage confirmed development forcing resources remain absent from the production JAR.
 
 ## Explicit non-goals
 
