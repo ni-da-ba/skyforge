@@ -32,7 +32,7 @@ The backend-neutral world layer SHALL define foundation feasibility in terms of:
 
 Minecraft SHALL realize an accepted accommodation as a registered, serialized `SkyforgeFoundationPiece` attached to the native `StructureStart` while preserving the original structure identity, start chunk, reference count and vanilla pieces.
 
-The foundation piece SHALL fill only air between existing bounded support and the foundation top. It SHALL NOT remove or replace solid terrain.
+The foundation piece SHALL fill only air between existing bounded support and the foundation top. It SHALL NOT remove or replace solid terrain. At realization time it SHALL require the solid support used for each filled column to belong to the exact `SkyIslandWorldVolumeId` recorded during admission.
 
 ## Outcome ordering
 
@@ -50,13 +50,15 @@ Natural admission remains unchanged from ADR-0049.
 
 The initial foundation policy requires:
 
-- 4-block sampling;
+- 1-block sampling across the native bounding-box footprint;
 - 2-block clearance;
 - 100% interior support;
 - 50% clearance support;
 - at most 12 blocks of evaluated surface relief;
 - at most 8 world units of required fill;
 - foundation top one block below the native start minimum Y.
+
+One-block sampling is intentional: for Minecraft's integral bounding-box coordinates, accommodation checks every footprint column before accepting the start. Natural admission remains on its less expensive 4-block representative grid.
 
 These are Minecraft adapter policy values and may be specialized later without changing the neutral contract.
 
@@ -68,12 +70,16 @@ This preserves normal structure serialization, partial-generation behavior and c
 
 The serialized piece records the supporting `SkyIslandWorldVolumeId`, foundation top and fill bound. The island geometry itself is not serialized into or rewritten by the piece.
 
+Because partial structure placement can continue after a save/reload, foundation realization SHALL require the active compiled Skyforge runtime binding to verify the recorded support-volume identity. Missing runtime state is an invariant failure; the backend does not fall back to attaching a foundation to arbitrary existing blocks.
+
 ## Consequences
 
 ### Positive
 
 - Coherent uneven sites can host native structures without flattening Skyforge terrain.
-- Edge gaps cannot be bridged because complete footprint support is mandatory.
+- Edge gaps cannot be bridged because every footprint column must be supported before admission.
+- Foundation realization cannot silently attach to vanilla ground or a different stacked island.
+- The maximum fill-depth bound is exact at block placement time as well as in neutral feasibility assessment.
 - Accommodation is reproducible from the native structure and accepted Skyforge geometry.
 - Structure persistence uses Minecraft's existing structure-piece mechanism.
 - Vanilla structure selection and fallback remain authoritative.
@@ -83,6 +89,7 @@ The serialized piece records the supporting `SkyIslandWorldVolumeId`, foundation
 
 - The first accommodation mode handles only fill; it deliberately cannot excavate, terrace, cut slopes or construct approach roads.
 - Overall start bounding boxes remain conservative for sparse multi-piece structures.
+- One-block accommodation sampling is more expensive than natural admission, but is evaluated only after natural rejection.
 - Material selection for the foundation is initially simple and Minecraft-owned.
 - Visual/runtime integration still requires an interactive development proof in addition to automated CI.
 
@@ -96,6 +103,10 @@ Rejected because it would mutate authoritative procedural geometry to satisfy a 
 
 Rejected because a structure footprint crossing an island edge is not equivalent to a foundation gap over supported terrain.
 
+### Trust arbitrary solid blocks during foundation realization
+
+Rejected because a serialized foundation carrying an island identity must not be allowed to attach to vanilla terrain, another structure, or a different vertically stacked island merely because those blocks happen to occupy the bounded search interval.
+
 ### Store accommodation plans in a global runtime map
 
 Rejected because save/reload, chunk order and partial world generation would make correctness depend on transient process state.
@@ -106,4 +117,4 @@ Rejected because the native structure should remain a native Minecraft structure
 
 ## Evidence
 
-CI #116 passed the substantive full repository build/test/evidence gate on the first SF-IMP-0046 implementation head, including NeoForge production compilation, world-layer foundation tests and both deterministic evidence artifact publications. Final milestone acceptance additionally requires the dedicated interactive accommodation specimen described in the SF-IMP-0046 architecture note.
+CI #116 passed the substantive full repository build/test/evidence gate on the first SF-IMP-0046 implementation head, including NeoForge production compilation, world-layer foundation tests and both deterministic evidence artifact publications. CI #122 then passed the full repository gate with the dedicated accommodation client fixture. A final CI gate after the support-identity and exact-depth hardening is required before local interactive testing. Final milestone acceptance additionally requires the dedicated interactive accommodation specimen described in the SF-IMP-0046 architecture note.
