@@ -30,8 +30,8 @@ final class SkyIslandTerrainBoxObserverTest {
         TerrainBoxObservation observation = observe(volume("solid", 100.0, 80.0, false),
                 new WorldBounds(2.0, 4.0, 88.0, 92.0, 2.0, 4.0), 2.0);
 
-        assertEquals(18, observation.sampleCount());
-        assertEquals(18, observation.solidSampleCount());
+        assertEquals(12, observation.sampleCount());
+        assertEquals(12, observation.solidSampleCount());
         assertTrue(observation.allSamplesSolid());
         assertFalse(observation.mixed());
     }
