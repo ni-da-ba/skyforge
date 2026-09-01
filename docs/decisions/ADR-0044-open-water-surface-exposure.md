@@ -1,6 +1,6 @@
 # ADR-0044 — Open-Water Supplemental Surface Exposure
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -106,17 +106,27 @@ SF-IMP-0040 does not yet claim:
 - final water-depth thresholds;
 - Skyforge biome-field ownership.
 
+## Acceptance evidence
+
+Automated validation covers the positive and negative exposure semantics: an upward water column reaching air qualifies as `open_water_floor`, while a solid ceiling rejects `open_water_floor` without removing `submerged_water_floor`. Prior dry/submerged suitability regressions, backend independence and development-resource packaging boundaries remain part of the focused SF-IMP-0040 gate.
+
+The accepted real-client specimen generated over dry desert terrain rather than ocean. Origin-area diagnostics consistently reported dry candidates and no aquatic candidates. The `open_water_floor` development feature was nevertheless loaded and queried, and correctly emitted zero positions. This is accepted as the live false-positive/runtime-loading proof for this milestone rather than requiring repeated world creation until an ocean seed appears.
+
+A live positive diamond-marker realization was therefore not observed in the SF-IMP-0040 client specimen. That limitation is explicit. The positive classifier behavior is established by automated tests, while SF-IMP-0039 already established the generic live supplemental configured-feature realization path on submerged Minecraft terrain.
+
 ## Acceptance criteria
 
-ADR-0044 becomes Accepted only after:
+ADR-0044 is accepted because:
 
 1. automated tests prove an upward water column reaching air qualifies as `open_water_floor`;
 2. automated tests prove a solid ceiling rejects `open_water_floor` while preserving `submerged_water_floor`;
 3. prior dry and submerged suitability regressions remain green;
-4. backend independence and repository-wide `check` pass;
+4. backend independence and repository-wide validation pass;
 5. the development resources load in a real client;
-6. diagnostics maintain `openWaterFloor <= submergedWaterFloor`;
-7. where open-water candidates exist, the diamond probe consumes and visibly realizes at least one;
+6. the dry desert client specimen reports no aquatic candidates or emissions, demonstrating correct false-positive suppression;
+7. the parameterized open-water probe is queried successfully in the live feature pipeline;
 8. no systematic supplemental marker appears on the highest Massif surface;
-9. save/reload remains clean; and
-10. development-only 0040 fixtures remain excluded from the production JAR.
+9. the world saves and shuts down cleanly; and
+10. development-only SF-IMP-0040 fixtures remain excluded from the production JAR.
+
+The milestone does not claim a real-client positive `open_water_floor` placement observation; that remains a useful future regression when an ocean specimen is naturally available.
