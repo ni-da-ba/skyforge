@@ -136,9 +136,9 @@ final class SkyforgeStructureCandidateAdmissionTest {
     }
 
     @Test
-    void foundationPolicyUsesContinuousBoundaryAboveTopFoundationBlock() {
+    void foundationPolicySeparatesFillPlaneFromResolvedSurfaceCeiling() {
         BoundingBox box = new BoundingBox(-10, 180, -6, 14, 205, 18);
-        var requirements = MinecraftStructureSupportPolicy.foundationRequirements(box);
+        var requirements = MinecraftStructureSupportPolicy.foundationRequirements(box, 181);
 
         assertEquals(-10.0, requirements.supportRequirements().minimumX());
         assertEquals(14.0, requirements.supportRequirements().maximumX());
@@ -149,7 +149,17 @@ final class SkyforgeStructureCandidateAdmissionTest {
         assertEquals(0.50, requirements.supportRequirements().minimumClearanceCoverageFraction());
         assertEquals(12.0, requirements.supportRequirements().maximumHeightSpan());
         assertEquals(180.0, requirements.foundationTopY());
+        assertEquals(181.0, requirements.maximumSurfaceY());
         assertEquals(8.0, requirements.maximumFillDepth());
+    }
+
+    @Test
+    void foundationPolicyDoesNotLowerSurfaceCeilingBelowFillPlane() {
+        BoundingBox box = new BoundingBox(-10, 180, -6, 14, 205, 18);
+        var requirements = MinecraftStructureSupportPolicy.foundationRequirements(box, 179);
+
+        assertEquals(180.0, requirements.foundationTopY());
+        assertEquals(180.0, requirements.maximumSurfaceY());
     }
 
     @Test
