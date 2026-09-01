@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -47,6 +48,7 @@ final class SkyforgeStructureCandidateAdmissionTest {
     void earlyHeightClaimCarriesIndependentWorldVolumeIdentity() throws Exception {
         SkyforgeNeoForge1211ChunkAdapter adapter = SkyforgeNeoForge1211DevRuntime.adapter();
         SkyIslandWorldVolumeId expectedId = SkyforgeNeoForge1211DevRuntime.catalog().volumes().getFirst().id();
+        SkyIslandWorldVolumeId unrelatedId = new SkyIslandWorldVolumeId(1L, "unrelated", 0, 0, 2L);
 
         try (AutoCloseable activeBinding = SkyforgeNeoForge1211SurfaceStage.install(
                 adapter,
@@ -62,6 +64,18 @@ final class SkyforgeStructureCandidateAdmissionTest {
 
             assertTrue(claim.height() > 160);
             assertEquals(List.of(expectedId), claim.volumeIds());
+            assertTrue(SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(
+                            expectedId,
+                            0,
+                            claim.height() - 1,
+                            0)
+                    .orElseThrow());
+            assertFalse(SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(
+                            unrelatedId,
+                            0,
+                            claim.height() - 1,
+                            0)
+                    .orElseThrow());
         }
     }
 
@@ -97,7 +111,7 @@ final class SkyforgeStructureCandidateAdmissionTest {
     }
 
     @Test
-    void foundationPolicyRequiresCompleteSupportAndBoundedFillBelowStructure() {
+    void foundationPolicyRequiresEveryMinecraftColumnAndBoundedFillBelowStructure() {
         BoundingBox box = new BoundingBox(-10, 180, -6, 14, 205, 18);
         var requirements = MinecraftStructureSupportPolicy.foundationRequirements(box);
 
@@ -105,6 +119,7 @@ final class SkyforgeStructureCandidateAdmissionTest {
         assertEquals(14.0, requirements.supportRequirements().maximumX());
         assertEquals(-6.0, requirements.supportRequirements().minimumZ());
         assertEquals(18.0, requirements.supportRequirements().maximumZ());
+        assertEquals(1.0, requirements.supportRequirements().sampleSpacing());
         assertEquals(1.0, requirements.supportRequirements().minimumCoverageFraction());
         assertEquals(0.50, requirements.supportRequirements().minimumClearanceCoverageFraction());
         assertEquals(12.0, requirements.supportRequirements().maximumHeightSpan());
@@ -126,7 +141,7 @@ final class SkyforgeStructureCandidateAdmissionTest {
         assertEquals(-6, piece.getBoundingBox().minZ());
         assertEquals(18, piece.getBoundingBox().maxZ());
         assertEquals(179, piece.getBoundingBox().maxY());
-        assertEquals(170, piece.getBoundingBox().minY());
+        assertEquals(172, piece.getBoundingBox().minY());
 
         CompoundTag tag = new CompoundTag();
         piece.addAdditionalSaveData(null, tag);
