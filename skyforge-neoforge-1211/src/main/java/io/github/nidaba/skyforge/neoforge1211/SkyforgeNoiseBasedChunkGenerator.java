@@ -2,8 +2,14 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import java.util.HashMap;
+import java.util.Set;
 import net.minecraft.core.Holder;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.WorldGenRegion;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.WorldGenLevel;
@@ -14,13 +20,18 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.RandomState;
+import net.minecraft.world.level.levelgen.structure.Structure;
+import net.minecraft.world.level.levelgen.structure.StructureSet;
+import net.minecraft.world.level.levelgen.structure.StructureStart;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 /**
- * Vanilla noise generator with supported Skyforge early-query, post-surface and supplemental
- * feature seams.
+ * Vanilla noise generator with supported Skyforge early-query, structure-admission, post-surface
+ * and supplemental feature seams.
  *
- * <p>All vanilla noise, surface and biome-decoration behavior is retained. Skyforge's runtime
- * binding remains inert unless an already-compiled runtime is installed explicitly.
+ * <p>All vanilla structure selection, noise, surface and biome-decoration behavior is retained.
+ * Skyforge intervenes only when its early height answer actually elevates a native structure
+ * candidate above vanilla terrain.
  */
 public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGenerator {
     public static final MapCodec<SkyforgeNoiseBasedChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance ->
@@ -51,15 +62,102 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             LevelHeightAccessor level,
             RandomState random) {
         int vanillaHeight = super.getBaseHeight(x, z, type, level, random);
-        var skyforgeHeight = SkyforgeNeoForge1211SurfaceStage.queryBaseHeight(
+        var skyforgeClaim = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
                 x,
                 z,
                 type,
                 level.getMinBuildHeight(),
                 level.getHeight());
-        return skyforgeHeight.isPresent()
-                ? Math.max(vanillaHeight, skyforgeHeight.getAsInt())
-                : vanillaHeight;
+        if (skyforgeClaim.isEmpty()) {
+            return vanillaHeight;
+        }
+
+        MinecraftSkyforgeHeightClaim claim = skyforgeClaim.orElseThrow();
+        if (claim.height() > vanillaHeight) {
+            SkyforgeStructureCandidateStage.record(claim);
+            return claim.height();
+        }
+        return vanillaHeight;
+    }
+
+    /**
+     * Wraps one vanilla structure candidate after NeoForge widens the otherwise-private method.
+     *
+     * <p>Vanilla still chooses structure sets, weights and alternatives. Skyforge only rejects a
+     * generated start when the candidate depended on an elevated Skyforge height and the real
+     * native bounding-box footprint fails the accepted backend-neutral support evaluator.
+     */
+    @Override
+    protected boolean tryGenerateStructure(
+            StructureSet.StructureSelectionEntry structureSelectionEntry,
+            StructureManager structureManager,
+            RegistryAccess registryAccess,
+            RandomState random,
+            StructureTemplateManager structureTemplateManager,
+            long seed,
+            ChunkAccess chunk,
+            ChunkPos chunkPos,
+            SectionPos sectionPos) {
+        if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
+            return super.tryGenerateStructure(
+                    structureSelectionEntry,
+                    structureManager,
+                    registryAccess,
+                    random,
+                    structureTemplateManager,
+                    seed,
+                    chunk,
+                    chunkPos,
+                    sectionPos);
+        }
+
+        Structure structure = structureSelectionEntry.structure().value();
+        var previousStarts = new HashMap<>(chunk.getAllStarts());
+        boolean generated;
+        Set<SkyIslandWorldVolumeId> claimedVolumeIds;
+        try (SkyforgeStructureCandidateStage.Scope scope = SkyforgeStructureCandidateStage.open()) {
+            generated = super.tryGenerateStructure(
+                    structureSelectionEntry,
+                    structureManager,
+                    registryAccess,
+                    random,
+                    structureTemplateManager,
+                    seed,
+                    chunk,
+                    chunkPos,
+                    sectionPos);
+            claimedVolumeIds = scope.claimedVolumeIds();
+        }
+
+        if (!generated || claimedVolumeIds.isEmpty()) {
+            return generated;
+        }
+        if (claimedVolumeIds.size() != 1) {
+            chunk.setAllStarts(previousStarts);
+            return false;
+        }
+
+        StructureStart start = chunk.getStartForStructure(structure);
+        if (start == null || !start.isValid()) {
+            chunk.setAllStarts(previousStarts);
+            return false;
+        }
+
+        SkyIslandWorldVolumeId claimedVolumeId = claimedVolumeIds.iterator().next();
+        var requirements = MinecraftStructureSupportPolicy.requirements(start.getBoundingBox());
+        boolean accepted = SkyforgeNeoForge1211SurfaceStage.assessSurfaceSupport(requirements)
+                .orElseThrow(() -> new IllegalStateException("active Skyforge binding disappeared during structure generation"))
+                .stream()
+                .filter(assessment -> assessment.supportingVolumeId().equals(claimedVolumeId))
+                .findFirst()
+                .map(assessment -> assessment.accepted())
+                .orElse(false);
+        if (accepted) {
+            return true;
+        }
+
+        chunk.setAllStarts(previousStarts);
+        return false;
     }
 
     @Override
