@@ -1,6 +1,8 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
@@ -56,9 +58,11 @@ final class SkyforgeNeoForge1211FeatureStage {
         if (scope == null || scope.closed) {
             return List.of();
         }
-        return scope.index
+        List<BlockPos> positions = scope.index
                 .map(value -> value.positions(worldX, worldZ, suitability))
                 .orElseGet(List::of);
+        scope.recordSuitabilityQuery(suitability, positions.size());
+        return positions;
     }
 
     static boolean hasActiveScope() {
@@ -69,6 +73,10 @@ final class SkyforgeNeoForge1211FeatureStage {
     static final class Scope implements AutoCloseable {
         private final ChunkPos chunkPos;
         private final Optional<MinecraftAdditionalSurfaceIndex> index;
+        private final Map<MinecraftSurfaceSuitability, Integer> queryCounts =
+                new EnumMap<>(MinecraftSurfaceSuitability.class);
+        private final Map<MinecraftSurfaceSuitability, Integer> emittedCounts =
+                new EnumMap<>(MinecraftSurfaceSuitability.class);
         private boolean closed;
 
         private Scope(ChunkPos chunkPos, Optional<MinecraftAdditionalSurfaceIndex> index) {
@@ -80,6 +88,13 @@ final class SkyforgeNeoForge1211FeatureStage {
             if (closed || ACTIVE.get() != this) {
                 throw new IllegalStateException("Skyforge feature-placement scope is not active");
             }
+        }
+
+        private void recordSuitabilityQuery(
+                MinecraftSurfaceSuitability suitability,
+                int emittedPositions) {
+            queryCounts.merge(suitability, 1, Integer::sum);
+            emittedCounts.merge(suitability, emittedPositions, Integer::sum);
         }
 
         @Override
@@ -100,7 +115,13 @@ final class SkyforgeNeoForge1211FeatureStage {
                         "SF-IMP-0039 suitability diagnostic chunk=" + chunkPos
                                 + " dryLand=" + dryLand
                                 + " dryOpen=" + dryOpen
-                                + " submergedWaterFloor=" + submerged);
+                                + " submergedWaterFloor=" + submerged
+                                + " dryOpenQueries=" + queryCounts.getOrDefault(MinecraftSurfaceSuitability.DRY_OPEN, 0)
+                                + " dryOpenEmitted=" + emittedCounts.getOrDefault(MinecraftSurfaceSuitability.DRY_OPEN, 0)
+                                + " submergedQueries="
+                                + queryCounts.getOrDefault(MinecraftSurfaceSuitability.SUBMERGED_WATER_FLOOR, 0)
+                                + " submergedEmitted="
+                                + emittedCounts.getOrDefault(MinecraftSurfaceSuitability.SUBMERGED_WATER_FLOOR, 0));
             }
             closed = true;
             ACTIVE.remove();
