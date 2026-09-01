@@ -26,7 +26,9 @@ separation = 3
 salt = 430043
 ```
 
-Because `spacing - separation == 1`, each four-chunk region has exactly one possible offset and chunk `(0,0)` is deterministically a candidate. The development datapack also appends `#c:is_overworld` to `#minecraft:has_structure/desert_pyramid`, allowing the proof to run regardless of the random native biome at the origin.
+Because `spacing - separation == 1`, each four-chunk placement region has exactly one possible offset and chunk `(0,0)` is deterministically a candidate. Neighboring generated placement regions may therefore contain additional pyramids; the fixture intentionally increases observation density rather than promising one structure total.
+
+The development datapack also appends `#c:is_overworld` to `#minecraft:has_structure/desert_pyramid`, allowing the proof to run regardless of the random native biome at the origin.
 
 The structure itself remains entirely vanilla. Skyforge does not alter desert-pyramid pieces, templates, terrain adaptation, bounding boxes or block placement.
 
@@ -38,7 +40,7 @@ STRUCTURE_STARTS
     -> vanilla structure terrain-height query
     -> SkyforgeNoiseBasedChunkGenerator.getBaseHeight(...)
     -> max(vanilla height, active Skyforge height)
-    -> native StructureStart anchored against elevated geometry
+    -> native StructureStart can react to elevated geometry
 
 later:
 
@@ -58,6 +60,22 @@ The accepted production mechanism under test is the early generator query bridge
 
 Future Skyforge structure suitability may contribute semantic/geometry-derived constraints, but this milestone does not create a parallel structure engine or make every vanilla structure appropriate for floating islands.
 
+## Client finding: visibility is not suitability
+
+The first client proof generated several development-forced vanilla desert pyramids. A candidate completely outside the Massif generated on ordinary native ground, while several candidates intersecting the Massif were vertically associated with the elevated island and clipped into it at varying depths.
+
+This is the expected distinction between two contracts:
+
+```text
+structure can see Skyforge height
+                !=
+structure footprint is appropriate for that surface
+```
+
+Minecraft structure helpers can sample multiple terrain positions across a footprint; NeoForge 1.21.1 exposes helpers such as `Structure.getCornerHeights(...)` and `Structure.getLowestY(...)` for exactly this sort of terrain-relative placement. A sloped footprint or a footprint crossing an island edge can therefore yield an anchor that embeds the structure even though every individual height answer is locally truthful.
+
+The correct future response is **not** to extend or flatten `getBaseHeight(...)` beyond real Skyforge geometry. Doing so would expose phantom terrain to every early generator consumer. Structure placement needs a separate suitability/support policy capable of reasoning about footprint coverage, coherent target surfaces, slope, edge clearance, and eventually stacked-island choice.
+
 ## Invariants
 
 1. The structure proof uses vanilla `minecraft:desert_pyramid`.
@@ -68,6 +86,7 @@ Future Skyforge structure suitability may contribute semantic/geometry-derived c
 6. Ordinary production structure density and biome eligibility are unchanged.
 7. Retired grass/tree benchmark fixtures are not required for this proof.
 8. This milestone proves height visibility and native placement, not final structure suitability.
+9. Early height queries remain geometrically truthful; structure-specific footprint accommodation must be solved separately.
 
 ## Acceptance criteria
 
@@ -75,8 +94,8 @@ ADR-0047 becomes Accepted after:
 
 1. focused verification and repository-wide `check` pass;
 2. the SF-IMP-0043 development resources load without registry/datapack errors;
-3. a new development world generates the vanilla desert-pyramid candidate near chunk `(0,0)`;
-4. the pyramid is visibly anchored to the elevated Massif rather than the preserved native ground below it;
+3. development-forced vanilla desert pyramids generate in the expected placement regions;
+4. at least one pyramid overlapping the Massif is visibly vertically associated with the elevated Skyforge terrain rather than lower native ground alone;
 5. the Massif still realizes through the accepted post-surface path without obvious seams/corruption;
 6. save/reload preserves both terrain and structure cleanly; and
 7. all forcing resources remain absent from the production JAR.
@@ -91,4 +110,5 @@ SF-IMP-0043 does not establish:
 - production structure density/frequency policy;
 - Skyforge-owned structure biome policy;
 - stacked-island structure selection;
+- aquatic vegetation replay such as kelp beneath an elevated island;
 - final morphology/playability tuning.
