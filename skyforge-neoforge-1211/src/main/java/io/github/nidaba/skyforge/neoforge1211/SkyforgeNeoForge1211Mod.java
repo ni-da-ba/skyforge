@@ -20,5 +20,6 @@ public final class SkyforgeNeoForge1211Mod {
         // ModDevGradle runs opt into exactly one finite development specimen through JVM properties.
         SkyforgeNeoForge1211DevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211AccommodationDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211UndersideContradictionDevRuntime.installFromSystemProperty();
     }
 }
