@@ -1,6 +1,6 @@
 # ADR-0043 — Minecraft-Owned Supplemental Surface Suitability
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -8,7 +8,7 @@ SF-IMP-0038 proved that Minecraft configured features can consume Skyforge suppl
 
 The real-client proof also exposed why reachability cannot be treated as suitability. A permissive lower-surface index can include dry native ground, lower island tops, narrow carved shelves and cavity floors. Conversely, a submerged seabed is a meaningful surface for aquatic features but is intentionally not a dry-land target.
 
-Skyforge must not respond by inventing its own parallel biome/climate model. Minecraft already owns blocks, fluids, biomes, configured features and their survival rules. The missing adapter responsibility is a small, local classification of the physical placement environment.
+Skyforge must not respond by inventing its own parallel biome/climate model prematurely. Minecraft already owns blocks, fluids, biomes, configured features and their survival rules. The missing adapter responsibility for this milestone is a small, local classification of the physical placement environment.
 
 ## Decision
 
@@ -131,18 +131,32 @@ SF-IMP-0039 does not yet define final suitability for:
 
 Those can be added only when a concrete feature family or world-composition requirement demonstrates the need.
 
-## Acceptance criteria
+## Acceptance evidence
 
-ADR-0043 becomes Accepted only after:
+SF-IMP-0039 was accepted on 2026-08-31 after all automated and manual gates passed.
 
-1. `skyforge:suitable_surfaces` is registered and codec-backed under NeoForge 1.21.1;
-2. the existing `skyforge:additional_surfaces` registry/behavior remains green;
-3. automated tests prove `dry_open` accepts sufficiently thick surfaces with adequate headroom;
-4. automated tests prove `dry_open` rejects a low ceiling while `dry_land` remains reachable;
-5. automated tests prove `dry_open` rejects a thin carved shelf while `dry_land` remains reachable;
-6. automated tests prove a submerged water floor is addressable through `submerged_water_floor` but not through `dry_land`;
-7. accepted post-surface, native-material and multi-surface regressions remain green;
-8. backend-neutral independence and repository-wide `check` pass;
-9. a real ModDev client loads the SF-IMP-0039 development world and visibly realizes at least one suitability-specific diagnostic when the corresponding candidate class is present;
-10. no systematic marker placement occurs on the vanilla highest surface; and
-11. save/reload remains clean.
+Automated evidence:
+
+- `scripts\verify-sf-imp-0039-surface-suitability.bat` passed;
+- repository-wide `gradlew.bat check` passed;
+- tests proved `dry_open` acceptance, low-ceiling rejection, thin-support rejection and submerged-water-floor classification;
+- accepted SF-IMP-0036 through SF-IMP-0038 integration regressions remained green;
+- development-only suitability fixtures remained excluded from the production JAR.
+
+Real-client evidence used an ocean seed. Across the origin-area chunks the diagnostic consistently reported:
+
+```text
+dryLand=0
+dryOpen=0
+submergedWaterFloor=256
+dryOpenQueries=14
+dryOpenEmitted=0
+submergedQueries=4
+submergedEmitted=4
+```
+
+This proved that dry probes could execute yet correctly emit nothing when no dry class existed, while the submerged selector exposed and emitted water-floor targets. Sparse lapis markers were visibly realized on the seabed below the Massif. No corresponding dry markers appeared underwater.
+
+The same world then saved, closed and reloaded cleanly. The Massif and markers persisted, with no placement-modifier codec/registry error, chunk corruption or obvious duplicate generation.
+
+The observed occasional submerged-cave marker remains within the accepted `submerged_water_floor` definition. SF-IMP-0039 does not claim an open-ocean-versus-flooded-cavity distinction.
