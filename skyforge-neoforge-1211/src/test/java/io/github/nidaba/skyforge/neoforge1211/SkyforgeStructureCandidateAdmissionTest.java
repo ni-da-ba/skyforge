@@ -10,6 +10,7 @@ import java.lang.reflect.Modifier;
 import java.util.List;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -93,5 +94,48 @@ final class SkyforgeStructureCandidateAdmissionTest {
         assertEquals(0.90, requirements.minimumCoverageFraction());
         assertEquals(0.50, requirements.minimumClearanceCoverageFraction());
         assertEquals(4.0, requirements.maximumHeightSpan());
+    }
+
+    @Test
+    void foundationPolicyRequiresCompleteSupportAndBoundedFillBelowStructure() {
+        BoundingBox box = new BoundingBox(-10, 180, -6, 14, 205, 18);
+        var requirements = MinecraftStructureSupportPolicy.foundationRequirements(box);
+
+        assertEquals(-10.0, requirements.supportRequirements().minimumX());
+        assertEquals(14.0, requirements.supportRequirements().maximumX());
+        assertEquals(-6.0, requirements.supportRequirements().minimumZ());
+        assertEquals(18.0, requirements.supportRequirements().maximumZ());
+        assertEquals(1.0, requirements.supportRequirements().minimumCoverageFraction());
+        assertEquals(0.50, requirements.supportRequirements().minimumClearanceCoverageFraction());
+        assertEquals(12.0, requirements.supportRequirements().maximumHeightSpan());
+        assertEquals(179.0, requirements.foundationTopY());
+        assertEquals(8.0, requirements.maximumFillDepth());
+    }
+
+    @Test
+    void foundationPieceStaysBelowStructureAndPersistsVolumeProvenance() {
+        BoundingBox structureBounds = new BoundingBox(-10, 180, -6, 14, 205, 18);
+        SkyIslandWorldVolumeId volumeId = new SkyIslandWorldVolumeId(91L, "accommodation", 2, 3, 92L);
+        SkyforgeFoundationPiece piece = new SkyforgeFoundationPiece(structureBounds, volumeId, 8);
+
+        assertEquals(volumeId, piece.supportingVolumeId());
+        assertEquals(179, piece.foundationTopY());
+        assertEquals(8, piece.maximumFillDepth());
+        assertEquals(-10, piece.getBoundingBox().minX());
+        assertEquals(14, piece.getBoundingBox().maxX());
+        assertEquals(-6, piece.getBoundingBox().minZ());
+        assertEquals(18, piece.getBoundingBox().maxZ());
+        assertEquals(179, piece.getBoundingBox().maxY());
+        assertEquals(170, piece.getBoundingBox().minY());
+
+        CompoundTag tag = new CompoundTag();
+        piece.addAdditionalSaveData(null, tag);
+        assertEquals(91L, tag.getLong("SkyforgeRootSeed"));
+        assertEquals("accommodation", tag.getString("SkyforgeGroup"));
+        assertEquals(2, tag.getInt("SkyforgeGroupOrdinal"));
+        assertEquals(3, tag.getInt("SkyforgeMemberOrdinal"));
+        assertEquals(92L, tag.getLong("SkyforgeGeometrySeed"));
+        assertEquals(179, tag.getInt("SkyforgeFoundationTopY"));
+        assertEquals(8, tag.getInt("SkyforgeMaximumFillDepth"));
     }
 }
