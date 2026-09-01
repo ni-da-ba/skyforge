@@ -124,7 +124,7 @@ final class SkyIslandTerrainBoxObserverTest {
                 constantGraph(GraphValueType.SCALAR_FIELD_2, undersideY, name + "-underside"),
                 densityGraph(-10.0, 10.0, -10.0, 10.0, upperY, undersideY, centerHole, name),
                 Map.of());
-        SkyIslandWorldVolumeId id = new SkyIslandWorldVolumeId(ROOT_SEED, name, 0, 0, name.hashCode());
+        SkyIslandWorldVolumeId id = new SkyIslandWorldVolumeId(ROOT_SEED, name, 0, 0, ROOT_SEED);
         return new SkyIslandWorldVolume(
                 id,
                 new WorldBounds(-10.0, 10.0, undersideY - 1.0, upperY + 1.0, -10.0, 10.0),
