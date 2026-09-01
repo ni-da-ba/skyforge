@@ -11,9 +11,10 @@ import java.util.Objects;
  * Deterministic backend-neutral feasibility evaluator for bounded fill-only foundations.
  *
  * <p>A foundation may only be accepted when every sampled footprint point is already supported by
- * one independently compiled island, no sampled surface rises above the requested foundation top,
- * at least one column actually requires fill, and the deepest required fill remains within the
- * caller-owned bound. The evaluator never changes the island surface or density fields.
+ * one independently compiled island, no sampled surface rises above the caller-authorized natural
+ * surface ceiling, at least one column actually requires fill below the requested foundation plane,
+ * and the deepest required fill remains within the caller-owned bound. The evaluator never changes
+ * the island surface or density fields.
  */
 public final class SkyIslandSurfaceFoundationEvaluator {
     private static final double VERTICAL_EPSILON = 1.0e-9;
@@ -77,10 +78,13 @@ public final class SkyIslandSurfaceFoundationEvaluator {
                 if (!Double.isFinite(surfaceY)) {
                     throw new IllegalStateException("fully supported footprint produced a non-finite upper surface");
                 }
-                double fillDepth = requirements.foundationTopY() - surfaceY;
-                if (fillDepth < -VERTICAL_EPSILON) {
+                if (surfaceY > requirements.maximumSurfaceY() + VERTICAL_EPSILON) {
                     surfaceAboveFoundationSampleCount++;
-                } else if (fillDepth > VERTICAL_EPSILON) {
+                    continue;
+                }
+
+                double fillDepth = requirements.foundationTopY() - surfaceY;
+                if (fillDepth > VERTICAL_EPSILON) {
                     fillSampleCount++;
                     maximumRequiredFillDepth = Math.max(maximumRequiredFillDepth, fillDepth);
                 }
