@@ -1,6 +1,6 @@
 # ADR-0053: Proof-grade native-piece underside separation
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-01
 - **Milestone:** SF-IMP-0049
 
@@ -101,4 +101,4 @@ SF-IMP-0049 requires automated evidence that:
 - no generator admission path is changed;
 - complete repository CI and both standard evidence-publication stages pass on the exact PR head.
 
-ADR-0053 remains **Proposed** until these tests and exact-head CI pass.
+CI #179 passed the complete repository build/test suite and both standard evidence-publication stages on implementation head `ebcb201781d11ab55fcef24873e81c1dbbdaa18d`. ADR-0053 is therefore **Accepted**. The documentation-inclusive PR head remains subject to the ordinary final exact-head CI gate before merge.
