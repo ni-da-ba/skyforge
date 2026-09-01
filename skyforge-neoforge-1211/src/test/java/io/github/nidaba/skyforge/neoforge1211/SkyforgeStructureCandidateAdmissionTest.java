@@ -1,18 +1,46 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import java.lang.reflect.Modifier;
 import java.util.List;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.SectionPos;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.StructureManager;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
+import net.minecraft.world.level.levelgen.structure.StructureSet;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 import org.junit.jupiter.api.Test;
 
 final class SkyforgeStructureCandidateAdmissionTest {
     private static final int MINIMUM_Y = -64;
     private static final int HEIGHT = 384;
+
+    @Test
+    void accessTransformerExposesOnlyTheCandidateMethodForSubtypeOverride() throws Exception {
+        var method = ChunkGenerator.class.getDeclaredMethod(
+                "tryGenerateStructure",
+                StructureSet.StructureSelectionEntry.class,
+                StructureManager.class,
+                RegistryAccess.class,
+                RandomState.class,
+                StructureTemplateManager.class,
+                long.class,
+                ChunkAccess.class,
+                ChunkPos.class,
+                SectionPos.class);
+
+        assertTrue(Modifier.isProtected(method.getModifiers()));
+    }
 
     @Test
     void earlyHeightClaimCarriesIndependentWorldVolumeIdentity() throws Exception {
@@ -22,6 +50,7 @@ final class SkyforgeStructureCandidateAdmissionTest {
         try (AutoCloseable activeBinding = SkyforgeNeoForge1211SurfaceStage.install(
                 adapter,
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(activeBinding);
             MinecraftSkyforgeHeightClaim claim = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
                             0,
                             0,
