@@ -1,5 +1,8 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SurfaceSupportAssessment;
+import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -20,11 +23,6 @@ public final class SkyforgeNeoForge1211SurfaceStage {
 
     private SkyforgeNeoForge1211SurfaceStage() {}
 
-    /**
-     * Realizes Skyforge into the supplied chunk after vanilla surface construction.
-     *
-     * <p>An empty result means no runtime binding is active and therefore no block was touched.
-     */
     static Optional<MinecraftChunkWriteResult> realize(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
         RuntimeBinding binding = ACTIVE.get();
@@ -39,13 +37,6 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return Optional.of(binding.writer().writeSolidOverlay(chunk, materialization));
     }
 
-    /**
-     * Re-evaluates the active binding's authoritative Skyforge occupancy for a live chunk.
-     *
-     * <p>This is used by later Minecraft-owned stages that need to distinguish Skyforge-authored
-     * solids from preserved native terrain. Representation adaptation is intentionally not applied
-     * here because occupancy, rather than concrete top material, is the required fact.
-     */
     static Optional<MinecraftChunkMaterialization> materializeOccupancy(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
         RuntimeBinding binding = ACTIVE.get();
@@ -55,17 +46,23 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return Optional.of(materialize(binding, chunk));
     }
 
-    /**
-     * Evaluates the active Skyforge binding as an early generator height query without mutating a
-     * chunk. The returned value follows Minecraft heightmap convention: one block above the highest
-     * matching block in the requested column.
-     *
-     * <p>The query uses the same backend-owned block-state projection as live realization and then
-     * applies Minecraft's own predicate for the requested heightmap type. Vanilla terrain is not
-     * represented here; callers combine this optional Skyforge answer with the vanilla generator's
-     * answer.
-     */
+    /** Backward-compatible scalar view of the richer early-height provenance query. */
     static OptionalInt queryBaseHeight(
+            int worldX,
+            int worldZ,
+            Heightmap.Types type,
+            int minimumY,
+            int height) {
+        Optional<MinecraftSkyforgeHeightClaim> claim = queryBaseHeightClaim(
+                worldX, worldZ, type, minimumY, height);
+        return claim.isPresent() ? OptionalInt.of(claim.orElseThrow().height()) : OptionalInt.empty();
+    }
+
+    /**
+     * Evaluates the active Skyforge binding as an early generator height query and retains the
+     * independent island-volume provenance responsible for the accepted top block.
+     */
+    static Optional<MinecraftSkyforgeHeightClaim> queryBaseHeightClaim(
             int worldX,
             int worldZ,
             Heightmap.Types type,
@@ -78,7 +75,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
 
         RuntimeBinding binding = ACTIVE.get();
         if (binding == null) {
-            return OptionalInt.empty();
+            return Optional.empty();
         }
 
         ChunkPos chunkPos = new ChunkPos(Math.floorDiv(worldX, 16), Math.floorDiv(worldZ, 16));
@@ -94,27 +91,31 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             var key = materialization.blockKeyAt(localX, worldY, localZ);
             var state = binding.writer().resolveForQuery(key);
             if (type.isOpaque().test(state)) {
-                return OptionalInt.of(worldY + 1);
+                var volumeIds = binding.adapter().claimingVolumeIds(worldX, worldY, worldZ);
+                if (volumeIds.isEmpty()) {
+                    throw new IllegalStateException("materialized Skyforge height has no owning world volume");
+                }
+                return Optional.of(new MinecraftSkyforgeHeightClaim(worldY + 1, volumeIds));
             }
         }
-        return OptionalInt.empty();
+        return Optional.empty();
     }
 
-    /**
-     * Installs the accepted post-surface binding without native surface-top adaptation.
-     *
-     * <p>This path remains useful for exact engineering-palette proofs and compatibility tests.
-     */
+    /** Evaluates neutral support requirements against the active compiled Skyforge catalog. */
+    static Optional<List<SurfaceSupportAssessment>> assessSurfaceSupport(SurfaceSupportRequirements requirements) {
+        Objects.requireNonNull(requirements, "requirements");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? Optional.empty()
+                : Optional.of(binding.adapter().assessSurfaceSupport(requirements));
+    }
+
     static AutoCloseable install(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyforgeNeoForge1211ChunkWriter writer) {
         return install(adapter, writer, Optional.empty());
     }
 
-    /**
-     * Installs a post-surface binding that lets Minecraft's already-built native surface determine
-     * the concrete block used for exposed Skyforge tops.
-     */
     static AutoCloseable installNativeSurfaceAdapted(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyforgeNeoForge1211ChunkWriter writer) {
