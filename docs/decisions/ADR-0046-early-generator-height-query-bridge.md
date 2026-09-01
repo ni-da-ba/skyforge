@@ -1,6 +1,6 @@
 # ADR-0046 — Early Generator Height Query Bridge
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -40,9 +40,11 @@ A query bridge lets early native systems reason about Skyforge geometry before b
 
 The first proof may materialize more data than an optimized height-only query ultimately requires. Query caching, column-specialized evaluation and other acceleration remain implementation optimizations after correctness is established.
 
-## Acceptance criteria
+## Acceptance evidence
 
-ADR-0046 becomes Accepted after:
+The focused SF-IMP-0042 verifier and repository-wide `gradlew.bat check` both passed on 2026-08-31.
+
+The accepted automated evidence establishes:
 
 - inactive queries return no Skyforge answer;
 - an active development binding reports the exact first-free Y above the Massif's highest matching solid;
@@ -50,6 +52,6 @@ ADR-0046 becomes Accepted after:
 - a query far outside the development specimen returns no Skyforge answer;
 - the actual chunk generator compiles with the `getBaseHeight` bridge;
 - accepted post-surface and feature-stage regressions remain green;
-- backend independence and repository-wide `check` pass.
+- backend independence and repository-wide checks remain green.
 
 No separate client visual gate is required because this milestone changes a non-mutating pre-write query. The first visible consumer proof is deferred to the following structure-integration milestone.
