@@ -27,6 +27,24 @@ for %%P in ("!TREE!" "!MODIFIER!" "!LANG!") do (
         exit /b 1
     )
 )
+
+for %%P in (
+    "skyforge-neoforge-1211\build\resources\development\data\skyforge\worldgen\configured_feature\dry_open_marker.json"
+    "skyforge-neoforge-1211\build\resources\development\data\skyforge\worldgen\configured_feature\submerged_water_marker.json"
+    "skyforge-neoforge-1211\build\resources\development\data\skyforge\worldgen\configured_feature\open_water_marker.json"
+    "skyforge-neoforge-1211\build\resources\development\data\skyforge\worldgen\placed_feature\dry_open_marker.json"
+    "skyforge-neoforge-1211\build\resources\development\data\skyforge\worldgen\placed_feature\submerged_water_marker.json"
+    "skyforge-neoforge-1211\build\resources\development\data\skyforge\worldgen\placed_feature\open_water_marker.json"
+    "skyforge-neoforge-1211\build\resources\development\data\skyforge\neoforge\biome_modifier\add_dry_open_marker.json"
+    "skyforge-neoforge-1211\build\resources\development\data\skyforge\neoforge\biome_modifier\add_submerged_water_marker.json"
+    "skyforge-neoforge-1211\build\resources\development\data\skyforge\neoforge\biome_modifier\add_open_water_marker.json"
+) do (
+    if exist %%P (
+        echo ERROR: obsolete colored-marker development fixture remains: %%~P
+        exit /b 1
+    )
+)
+
 findstr /c:"SF-IMP-0041" "!LANG!" >nul
 if errorlevel 1 (
     echo ERROR: development world label does not identify SF-IMP-0041
@@ -100,6 +118,6 @@ del /q "!LISTING!" >nul 2>&1
 echo.
 echo === SF-IMP-0041 supplemental tree verification completed successfully ===
 echo Next automated gate: gradlew.bat check
-echo Next manual gate: gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:runClient
-echo Positive client proof: a real Minecraft tree rooted on compatible lower dry ground beneath the Massif
+echo Manual proof already observed: real Minecraft trees generated on compatible lower dry ground
+echo Final manual persistence gate: reopen the accepted SF-IMP-0041 world once
 endlocal
