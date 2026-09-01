@@ -1,6 +1,8 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -18,9 +20,10 @@ import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSeriali
 /**
  * Serializable fill-only foundation attached to a vanilla structure start by Skyforge.
  *
- * <p>The piece occupies only the bounded vertical interval below the original structure floor. It
- * never removes or replaces solid terrain. Each chunk-local column may fill only above a solid
- * sample owned by the exact Skyforge volume recorded when the accommodation was admitted.
+ * <p>The piece owns one bounding envelope for Minecraft's normal structure-piece lifecycle, but its
+ * actual fill footprint is the union of serialized X/Z rectangles derived from native pieces at the
+ * resolved support plane. Empty gaps inside the envelope are therefore never converted into
+ * foundation merely because the parent {@code StructureStart} spans them.
  */
 final class SkyforgeFoundationPiece extends StructurePiece {
     private static final String ROOT_SEED_TAG = "SkyforgeRootSeed";
@@ -30,25 +33,37 @@ final class SkyforgeFoundationPiece extends StructurePiece {
     private static final String GEOMETRY_SEED_TAG = "SkyforgeGeometrySeed";
     private static final String FOUNDATION_TOP_Y_TAG = "SkyforgeFoundationTopY";
     private static final String MAXIMUM_FILL_DEPTH_TAG = "SkyforgeMaximumFillDepth";
+    private static final String FOOTPRINT_TAG = "SkyforgeFootprint";
+    private static final int FOOTPRINT_STRIDE = 4;
 
     private final SkyIslandWorldVolumeId supportingVolumeId;
     private final int foundationTopY;
     private final int maximumFillDepth;
+    private final List<HorizontalFootprintBox> footprintBoxes;
 
     SkyforgeFoundationPiece(
             BoundingBox structureBounds,
             SkyIslandWorldVolumeId supportingVolumeId,
             int maximumFillDepth) {
+        this(List.of(structureBounds), structureBounds.minY(), supportingVolumeId, maximumFillDepth);
+    }
+
+    SkyforgeFoundationPiece(
+            List<BoundingBox> supportBoxes,
+            int structureFloorY,
+            SkyIslandWorldVolumeId supportingVolumeId,
+            int maximumFillDepth) {
         super(
                 SkyforgeNeoForge1211StructurePieces.FOUNDATION.get(),
                 0,
-                foundationBounds(structureBounds, maximumFillDepth));
+                foundationBounds(supportBoxes, structureFloorY, maximumFillDepth));
         this.supportingVolumeId = Objects.requireNonNull(supportingVolumeId, "supportingVolumeId");
         if (maximumFillDepth <= 0) {
             throw new IllegalArgumentException("maximumFillDepth must be positive");
         }
-        this.foundationTopY = Math.subtractExact(structureBounds.minY(), 1);
+        this.foundationTopY = Math.subtractExact(structureFloorY, 1);
         this.maximumFillDepth = maximumFillDepth;
+        this.footprintBoxes = footprintBoxes(supportBoxes);
     }
 
     SkyforgeFoundationPiece(CompoundTag tag) {
@@ -64,6 +79,14 @@ final class SkyforgeFoundationPiece extends StructurePiece {
         if (maximumFillDepth <= 0) {
             throw new IllegalArgumentException("serialized maximumFillDepth must be positive");
         }
+        int[] encodedFootprint = tag.getIntArray(FOOTPRINT_TAG);
+        this.footprintBoxes = encodedFootprint.length == 0
+                ? List.of(new HorizontalFootprintBox(
+                        getBoundingBox().minX(),
+                        getBoundingBox().maxX(),
+                        getBoundingBox().minZ(),
+                        getBoundingBox().maxZ()))
+                : decodeFootprint(encodedFootprint);
     }
 
     SkyIslandWorldVolumeId supportingVolumeId() {
@@ -78,6 +101,14 @@ final class SkyforgeFoundationPiece extends StructurePiece {
         return maximumFillDepth;
     }
 
+    int footprintBoxCount() {
+        return footprintBoxes.size();
+    }
+
+    boolean supportsColumn(int worldX, int worldZ) {
+        return footprintBoxes.stream().anyMatch(box -> box.contains(worldX, worldZ));
+    }
+
     @Override
     protected void addAdditionalSaveData(
             StructurePieceSerializationContext context,
@@ -89,6 +120,7 @@ final class SkyforgeFoundationPiece extends StructurePiece {
         tag.putLong(GEOMETRY_SEED_TAG, supportingVolumeId.geometrySeed());
         tag.putInt(FOUNDATION_TOP_Y_TAG, foundationTopY);
         tag.putInt(MAXIMUM_FILL_DEPTH_TAG, maximumFillDepth);
+        tag.putIntArray(FOOTPRINT_TAG, encodeFootprint(footprintBoxes));
     }
 
     @Override
@@ -114,6 +146,9 @@ final class SkyforgeFoundationPiece extends StructurePiece {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int worldZ = minimumZ; worldZ <= maximumZ; worldZ++) {
             for (int worldX = minimumX; worldX <= maximumX; worldX++) {
+                if (!supportsColumn(worldX, worldZ)) {
+                    continue;
+                }
                 int supportY = findOwnedSupportY(level, cursor, worldX, worldZ, minimumSupportY);
                 if (supportY == Integer.MIN_VALUE || supportY >= foundationTopY) {
                     continue;
@@ -175,19 +210,80 @@ final class SkyforgeFoundationPiece extends StructurePiece {
         return Blocks.STONE.defaultBlockState();
     }
 
-    private static BoundingBox foundationBounds(BoundingBox structureBounds, int maximumFillDepth) {
-        Objects.requireNonNull(structureBounds, "structureBounds");
+    private static BoundingBox foundationBounds(
+            List<BoundingBox> supportBoxes,
+            int structureFloorY,
+            int maximumFillDepth) {
+        List<HorizontalFootprintBox> footprint = footprintBoxes(supportBoxes);
         if (maximumFillDepth <= 0) {
             throw new IllegalArgumentException("maximumFillDepth must be positive");
         }
-        int topY = Math.subtractExact(structureBounds.minY(), 1);
+        int minimumX = footprint.stream().mapToInt(HorizontalFootprintBox::minimumX).min().orElseThrow();
+        int maximumX = footprint.stream().mapToInt(HorizontalFootprintBox::maximumX).max().orElseThrow();
+        int minimumZ = footprint.stream().mapToInt(HorizontalFootprintBox::minimumZ).min().orElseThrow();
+        int maximumZ = footprint.stream().mapToInt(HorizontalFootprintBox::maximumZ).max().orElseThrow();
+        int topY = Math.subtractExact(structureFloorY, 1);
         int bottomY = Math.addExact(Math.subtractExact(topY, maximumFillDepth), 1);
-        return new BoundingBox(
-                structureBounds.minX(),
-                bottomY,
-                structureBounds.minZ(),
-                structureBounds.maxX(),
-                topY,
-                structureBounds.maxZ());
+        return new BoundingBox(minimumX, bottomY, minimumZ, maximumX, topY, maximumZ);
+    }
+
+    private static List<HorizontalFootprintBox> footprintBoxes(List<BoundingBox> supportBoxes) {
+        Objects.requireNonNull(supportBoxes, "supportBoxes");
+        if (supportBoxes.isEmpty()) {
+            throw new IllegalArgumentException("foundation footprint requires at least one support box");
+        }
+        ArrayList<HorizontalFootprintBox> result = new ArrayList<>(supportBoxes.size());
+        for (BoundingBox box : supportBoxes) {
+            Objects.requireNonNull(box, "supportBoxes contains null");
+            HorizontalFootprintBox footprint = new HorizontalFootprintBox(
+                    box.minX(), box.maxX(), box.minZ(), box.maxZ());
+            if (!result.contains(footprint)) {
+                result.add(footprint);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private static int[] encodeFootprint(List<HorizontalFootprintBox> footprint) {
+        int[] encoded = new int[Math.multiplyExact(footprint.size(), FOOTPRINT_STRIDE)];
+        int offset = 0;
+        for (HorizontalFootprintBox box : footprint) {
+            encoded[offset++] = box.minimumX();
+            encoded[offset++] = box.maximumX();
+            encoded[offset++] = box.minimumZ();
+            encoded[offset++] = box.maximumZ();
+        }
+        return encoded;
+    }
+
+    private static List<HorizontalFootprintBox> decodeFootprint(int[] encoded) {
+        if (encoded.length == 0 || encoded.length % FOOTPRINT_STRIDE != 0) {
+            throw new IllegalArgumentException("serialized Skyforge footprint must contain complete rectangles");
+        }
+        ArrayList<HorizontalFootprintBox> result = new ArrayList<>(encoded.length / FOOTPRINT_STRIDE);
+        for (int offset = 0; offset < encoded.length; offset += FOOTPRINT_STRIDE) {
+            result.add(new HorizontalFootprintBox(
+                    encoded[offset],
+                    encoded[offset + 1],
+                    encoded[offset + 2],
+                    encoded[offset + 3]));
+        }
+        return List.copyOf(result);
+    }
+
+    private record HorizontalFootprintBox(
+            int minimumX,
+            int maximumX,
+            int minimumZ,
+            int maximumZ) {
+        private HorizontalFootprintBox {
+            if (maximumX < minimumX || maximumZ < minimumZ) {
+                throw new IllegalArgumentException("foundation footprint rectangle must not be inverted");
+            }
+        }
+
+        private boolean contains(int x, int z) {
+            return x >= minimumX && x <= maximumX && z >= minimumZ && z <= maximumZ;
+        }
     }
 }

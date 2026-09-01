@@ -13,19 +13,15 @@ import java.util.Objects;
 /**
  * Deterministic backend-neutral evaluator for structure-sized support footprints.
  *
- * <p>Every candidate island is assessed independently. Overlapping X/Z projections from vertically
- * stacked islands therefore produce separate assessments and can never be fused into one phantom
- * foundation.
+ * <p>Every candidate island is assessed independently. A footprint may contain separated rectangles
+ * without treating the empty space between them as required terrain. Support coherence is checked
+ * relative to the footprint's own sampled connected components, so a multi-building footprint does
+ * not become invalid merely because its buildings are intentionally separated.
  */
 public final class SkyIslandSurfaceSupportEvaluator {
     private static final double SURFACE_PROBE_DEPTH = 1.0e-6;
 
-    /**
-     * Assesses every conservatively relevant catalog volume in stable catalog order.
-     *
-     * <p>Horizontal bounds are used only for culling. Support itself is decided from the compiled
-     * upper-surface and density fields.
-     */
+    /** Assesses every conservatively relevant catalog volume in stable catalog order. */
     public List<SurfaceSupportAssessment> assess(
             SkyIslandWorldCatalog catalog,
             SurfaceSupportRequirements requirements) {
@@ -50,19 +46,28 @@ public final class SkyIslandSurfaceSupportEvaluator {
         ReferenceEvaluator evaluator = new ReferenceEvaluator();
         ScalarField2 upperSurface = evaluator.field2(volume.compiledVolume().upperSurfaceGraph());
         ScalarField3 density = evaluator.field3(volume.compiledVolume().densityGraph());
+        SurfaceFootprint footprint = requirements.footprint();
 
         double[] xSamples = sampleAxis(
                 requirements.minimumX(), requirements.maximumX(), requirements.sampleSpacing());
         double[] zSamples = sampleAxis(
                 requirements.minimumZ(), requirements.maximumZ(), requirements.sampleSpacing());
+        boolean[][] required = new boolean[zSamples.length][xSamples.length];
         boolean[][] supported = new boolean[zSamples.length][xSamples.length];
+        int sampleCount = 0;
         int supportedSampleCount = 0;
         double minimumSurfaceY = Double.POSITIVE_INFINITY;
         double maximumSurfaceY = Double.NEGATIVE_INFINITY;
         for (int zIndex = 0; zIndex < zSamples.length; zIndex++) {
             for (int xIndex = 0; xIndex < xSamples.length; xIndex++) {
-                SupportSample sample = sampleSupport(
-                        upperSurface, density, xSamples[xIndex], zSamples[zIndex]);
+                double x = xSamples[xIndex];
+                double z = zSamples[zIndex];
+                if (!footprint.contains(x, z)) {
+                    continue;
+                }
+                required[zIndex][xIndex] = true;
+                sampleCount++;
+                SupportSample sample = sampleSupport(upperSurface, density, x, z);
                 if (sample.supported()) {
                     supported[zIndex][xIndex] = true;
                     supportedSampleCount++;
@@ -72,11 +77,11 @@ public final class SkyIslandSurfaceSupportEvaluator {
             }
         }
 
-        int sampleCount = xSamples.length * zSamples.length;
         double coverageFraction = fraction(supportedSampleCount, sampleCount);
         boolean crossesSurfaceBoundary = supportedSampleCount > 0 && supportedSampleCount < sampleCount;
         int surfaceComponentCount = componentCount(supported);
-        boolean coherentSurface = supportedSampleCount > 0 && surfaceComponentCount == 1;
+        boolean coherentSurface = supportedSampleCount > 0
+                && supportPreservesRequiredComponents(required, supported);
 
         int clearanceSampleCount = 0;
         int supportedClearanceSampleCount = 0;
@@ -91,7 +96,8 @@ public final class SkyIslandSurfaceSupportEvaluator {
                     requirements.sampleSpacing());
             for (double z : clearanceZ) {
                 for (double x : clearanceX) {
-                    if (insideFootprint(x, z, requirements)) {
+                    if (footprint.contains(x, z)
+                            || !footprint.expandedContains(x, z, requirements.clearance())) {
                         continue;
                     }
                     clearanceSampleCount++;
@@ -160,14 +166,115 @@ public final class SkyIslandSurfaceSupportEvaluator {
         return new SupportSample(Double.isFinite(supportDensity) && supportDensity > 0.0, surfaceY);
     }
 
-    private static boolean insideFootprint(
-            double x,
-            double z,
-            SurfaceSupportRequirements requirements) {
-        return x >= requirements.minimumX()
-                && x <= requirements.maximumX()
-                && z >= requirements.minimumZ()
-                && z <= requirements.maximumZ();
+    /**
+     * Requires each sampled footprint component to retain exactly one supported component.
+     *
+     * <p>This preserves the historical anti-fragmentation invariant inside each required region
+     * while allowing a footprint that intentionally contains multiple disconnected rectangles.
+     */
+    private static boolean supportPreservesRequiredComponents(
+            boolean[][] required,
+            boolean[][] supported) {
+        int zCount = required.length;
+        int xCount = required[0].length;
+        int[][] labels = new int[zCount][xCount];
+        ArrayDeque<Integer> queue = new ArrayDeque<>();
+        int requiredComponentCount = 0;
+        for (int z = 0; z < zCount; z++) {
+            for (int x = 0; x < xCount; x++) {
+                if (!required[z][x] || labels[z][x] != 0) {
+                    continue;
+                }
+                requiredComponentCount++;
+                labels[z][x] = requiredComponentCount;
+                queue.addLast(z * xCount + x);
+                while (!queue.isEmpty()) {
+                    int encoded = queue.removeFirst();
+                    int currentZ = encoded / xCount;
+                    int currentX = encoded % xCount;
+                    labelRequired(currentX - 1, currentZ, required, labels, queue, xCount, requiredComponentCount);
+                    labelRequired(currentX + 1, currentZ, required, labels, queue, xCount, requiredComponentCount);
+                    labelRequired(currentX, currentZ - 1, required, labels, queue, xCount, requiredComponentCount);
+                    labelRequired(currentX, currentZ + 1, required, labels, queue, xCount, requiredComponentCount);
+                }
+            }
+        }
+        if (requiredComponentCount == 0) {
+            return false;
+        }
+
+        int[] supportedComponentsPerRequired = new int[requiredComponentCount + 1];
+        boolean[][] visited = new boolean[zCount][xCount];
+        for (int z = 0; z < zCount; z++) {
+            for (int x = 0; x < xCount; x++) {
+                if (!supported[z][x] || visited[z][x]) {
+                    continue;
+                }
+                int requiredLabel = labels[z][x];
+                if (requiredLabel == 0) {
+                    return false;
+                }
+                supportedComponentsPerRequired[requiredLabel]++;
+                visited[z][x] = true;
+                queue.addLast(z * xCount + x);
+                while (!queue.isEmpty()) {
+                    int encoded = queue.removeFirst();
+                    int currentZ = encoded / xCount;
+                    int currentX = encoded % xCount;
+                    enqueueSupported(
+                            currentX - 1, currentZ, supported, labels, visited, queue, xCount, requiredLabel);
+                    enqueueSupported(
+                            currentX + 1, currentZ, supported, labels, visited, queue, xCount, requiredLabel);
+                    enqueueSupported(
+                            currentX, currentZ - 1, supported, labels, visited, queue, xCount, requiredLabel);
+                    enqueueSupported(
+                            currentX, currentZ + 1, supported, labels, visited, queue, xCount, requiredLabel);
+                }
+            }
+        }
+        for (int label = 1; label <= requiredComponentCount; label++) {
+            if (supportedComponentsPerRequired[label] != 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void labelRequired(
+            int x,
+            int z,
+            boolean[][] required,
+            int[][] labels,
+            ArrayDeque<Integer> queue,
+            int xCount,
+            int label) {
+        if (z < 0 || z >= required.length || x < 0 || x >= xCount) {
+            return;
+        }
+        if (!required[z][x] || labels[z][x] != 0) {
+            return;
+        }
+        labels[z][x] = label;
+        queue.addLast(z * xCount + x);
+    }
+
+    private static void enqueueSupported(
+            int x,
+            int z,
+            boolean[][] supported,
+            int[][] labels,
+            boolean[][] visited,
+            ArrayDeque<Integer> queue,
+            int xCount,
+            int requiredLabel) {
+        if (z < 0 || z >= supported.length || x < 0 || x >= xCount) {
+            return;
+        }
+        if (!supported[z][x] || visited[z][x] || labels[z][x] != requiredLabel) {
+            return;
+        }
+        visited[z][x] = true;
+        queue.addLast(z * xCount + x);
     }
 
     private static double[] sampleAxis(double minimum, double maximum, double spacing) {

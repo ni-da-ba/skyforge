@@ -38,8 +38,8 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
  *
  * <p>All vanilla structure selection, noise, surface and biome-decoration behavior is retained.
  * Skyforge intervenes only when its early height answer actually elevates and vertically resolves a
- * native structure start. Structures that merely consult the Skyforge height while retaining a
- * deferred or otherwise unrelated start Y remain entirely vanilla-owned at this seam.
+ * native structure start. Resolved starts are assessed from generic floor-contact piece geometry,
+ * not from structure identity or the empty gaps inside the enclosing start bounding box.
  */
 public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGenerator {
     public static final MapCodec<SkyforgeNoiseBasedChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance ->
@@ -95,8 +95,8 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
      * treated only as provenance evidence, not as proof that the native start has already resolved
      * its vertical placement. Admission/accommodation therefore runs only when an actual start floor
      * is coincident with a claimed Skyforge first-free height (allowing one block for discrete
-     * surface conventions). Deferred structures are preserved untouched and may complete their own
-     * vanilla terrain alignment later in the structure lifecycle.
+     * surface conventions). At that resolved plane, only native pieces touching the floor contribute
+     * support area; higher pieces and empty gaps inside the overall start envelope do not.
      */
     @Override
     protected boolean tryGenerateStructure(
@@ -189,7 +189,10 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 .mapToInt(MinecraftSkyforgeHeightClaim::height)
                 .max()
                 .orElseThrow();
-        var naturalRequirements = MinecraftStructureSupportPolicy.requirements(start.getBoundingBox());
+        int structureFloorY = start.getBoundingBox().minY();
+        List<BoundingBox> supportBoxes = MinecraftStructureSupportGeometry.floorContactBoxes(start);
+
+        var naturalRequirements = MinecraftStructureSupportPolicy.requirements(supportBoxes);
         boolean naturallyAccepted = SkyforgeNeoForge1211SurfaceStage.assessSurfaceSupport(naturalRequirements)
                 .orElseThrow(() -> new IllegalStateException("active Skyforge binding disappeared during structure generation"))
                 .stream()
@@ -205,7 +208,8 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         }
 
         var foundationRequirements = MinecraftStructureSupportPolicy.foundationRequirements(
-                start.getBoundingBox(),
+                supportBoxes,
+                structureFloorY,
                 resolvedFirstFreeY);
         var foundationAssessment = SkyforgeNeoForge1211SurfaceStage.assessSurfaceFoundation(foundationRequirements)
                 .orElseThrow(() -> new IllegalStateException("active Skyforge binding disappeared during structure generation"))
@@ -225,7 +229,8 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 1,
                 (int) Math.ceil(acceptedFoundation.maximumRequiredFillDepth()));
         SkyforgeFoundationPiece foundation = new SkyforgeFoundationPiece(
-                start.getBoundingBox(),
+                supportBoxes,
+                structureFloorY,
                 claimedVolumeId,
                 maximumFillDepth);
         List<StructurePiece> pieces = new ArrayList<>(start.getPieces().size() + 1);
