@@ -59,6 +59,21 @@ Backend-neutral Skyforge modules continue to own geometry and structural meaning
 
 The adapter may combine live Minecraft state with accepted Skyforge occupancy to decide whether a lower position is suitable for a particular physical placement class.
 
+### Future biome-field ownership
+
+The adapter-owned environmental boundary in this ADR is a **current integration strategy**, not a permanent claim that Skyforge can never own biome-scale procedural fields.
+
+A later Skyforge milestone may legitimately introduce backend-neutral environmental or biome fields when they are required to express world-composition intent that exists independently of Minecraft. If that happens, the boundary should remain layered rather than duplicated:
+
+```text
+Skyforge biome/environment field intent
+        -> backend adaptation / mapping
+        -> Minecraft biome registry + block/fluid state
+        -> Minecraft feature/survival behavior
+```
+
+SF-IMP-0039 intentionally does not design that future field system. Its purpose is to solve the concrete physical suitability problem using information Minecraft already supplies, while preserving room for Skyforge to become authoritative over higher-level biome distribution later.
+
 ## Separation from reachability
 
 The distinction is explicit:
@@ -90,7 +105,7 @@ This makes either a land or ocean Minecraft seed useful:
 ## Invariants
 
 1. SF-IMP-0038 `skyforge:additional_surfaces` dry-land behavior remains available and regression-tested.
-2. Suitability remains entirely inside the Minecraft adapter.
+2. Suitability remains entirely inside the Minecraft adapter for this milestone.
 3. The highest vanilla-owned surface remains excluded from the supplemental index.
 4. Carved-away Skyforge surfaces are not resurrected as placement targets.
 5. `dry_open` is a strict subset of `dry_land`.
@@ -111,9 +126,10 @@ SF-IMP-0039 does not yet define final suitability for:
 - kelp/seagrass survival policy;
 - steep-slope or horizontal-footprint metrics;
 - soil/fertility categories;
-- arbitrary modded feature compatibility.
+- arbitrary modded feature compatibility;
+- a backend-neutral Skyforge biome/environment field system.
 
-Those can be added only when a concrete feature family demonstrates the need.
+Those can be added only when a concrete feature family or world-composition requirement demonstrates the need.
 
 ## Acceptance criteria
 
