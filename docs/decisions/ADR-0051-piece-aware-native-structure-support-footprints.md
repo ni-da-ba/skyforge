@@ -1,6 +1,6 @@
 # ADR-0051: Piece-aware native structure support footprints
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-01
 - **Milestone:** SF-IMP-0047
 
@@ -84,7 +84,7 @@ Rejected because an unfamiliar structure that exposes unusual piece geometry sho
 
 ## Validation
 
-SF-IMP-0047 acceptance requires automated evidence that:
+SF-IMP-0047 acceptance required automated evidence that:
 
 1. a two-rectangle neutral footprint samples the rectangles but not the envelope gap;
 2. intentionally separated footprint components remain coherent when each is independently supported;
@@ -93,3 +93,7 @@ SF-IMP-0047 acceptance requires automated evidence that:
 5. extraction falls back to the enclosing start box when no piece touches the resolved floor;
 6. serialized foundations retain multiple footprint rectangles and refuse inter-piece gap columns;
 7. the complete repository CI/evidence gate passes on the exact PR head.
+
+CI #166 reached the new implementation and failed only two new neutral regression assertions because their synthetic density volume ended exactly on the sampled footprint boundary. Skyforge correctly treats zero density at that mathematical boundary as unsupported. The fixture was expanded one world unit beyond the tested footprint without weakening production support, coherence, accommodation, or edge-rejection rules.
+
+CI #167 then passed on corrected implementation head `05336345728a9610eb86e3a18eaac680913cc651`, including the complete build/test gate, fixed-seed evidence publication and suspended-volume evidence publication. This satisfies the substantive automated acceptance criteria. A final documentation-inclusive exact-head CI remains the merge gate for PR #48.
