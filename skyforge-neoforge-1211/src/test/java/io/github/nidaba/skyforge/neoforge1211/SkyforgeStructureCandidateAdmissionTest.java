@@ -89,18 +89,34 @@ final class SkyforgeStructureCandidateAdmissionTest {
     }
 
     @Test
-    void candidateTracePreservesDistinctClaimedVolumes() {
+    void candidateTraceRetainsFullClaimsAndDistinctVolumes() {
         SkyIslandWorldVolumeId first = new SkyIslandWorldVolumeId(1L, "first", 0, 0, 11L);
         SkyIslandWorldVolumeId second = new SkyIslandWorldVolumeId(1L, "second", 0, 1, 12L);
+        MinecraftSkyforgeHeightClaim firstClaim = new MinecraftSkyforgeHeightClaim(120, List.of(first));
+        MinecraftSkyforgeHeightClaim secondClaim = new MinecraftSkyforgeHeightClaim(220, List.of(second));
 
         try (SkyforgeStructureCandidateStage.Scope scope = SkyforgeStructureCandidateStage.open()) {
-            SkyforgeStructureCandidateStage.record(new MinecraftSkyforgeHeightClaim(120, List.of(first)));
-            SkyforgeStructureCandidateStage.record(new MinecraftSkyforgeHeightClaim(220, List.of(second)));
+            SkyforgeStructureCandidateStage.record(firstClaim);
+            SkyforgeStructureCandidateStage.record(secondClaim);
+            assertEquals(List.of(firstClaim, secondClaim), scope.claims());
             assertEquals(2, scope.claimedVolumeIds().size());
             assertTrue(scope.claimedVolumeIds().contains(first));
             assertTrue(scope.claimedVolumeIds().contains(second));
             assertThrows(IllegalStateException.class, SkyforgeStructureCandidateStage::open);
         }
+    }
+
+    @Test
+    void onlyStartsResolvedAtClaimedSurfacePlaneEnterSkyforgeAdmission() {
+        SkyIslandWorldVolumeId volumeId = new SkyIslandWorldVolumeId(1L, "surface", 0, 0, 2L);
+        MinecraftSkyforgeHeightClaim claim = new MinecraftSkyforgeHeightClaim(224, List.of(volumeId));
+
+        assertTrue(SkyforgeNoiseBasedChunkGenerator.claimResolvesSurfacePlane(
+                new BoundingBox(0, 224, 0, 20, 240, 20), claim));
+        assertTrue(SkyforgeNoiseBasedChunkGenerator.claimResolvesSurfacePlane(
+                new BoundingBox(0, 223, 0, 20, 240, 20), claim));
+        assertFalse(SkyforgeNoiseBasedChunkGenerator.claimResolvesSurfacePlane(
+                new BoundingBox(0, 64, 0, 20, 78, 20), claim));
     }
 
     @Test
@@ -120,7 +136,7 @@ final class SkyforgeStructureCandidateAdmissionTest {
     }
 
     @Test
-    void foundationPolicyRequiresEveryMinecraftColumnAndBoundedFillBelowStructure() {
+    void foundationPolicyUsesContinuousBoundaryAboveTopFoundationBlock() {
         BoundingBox box = new BoundingBox(-10, 180, -6, 14, 205, 18);
         var requirements = MinecraftStructureSupportPolicy.foundationRequirements(box);
 
@@ -132,7 +148,7 @@ final class SkyforgeStructureCandidateAdmissionTest {
         assertEquals(1.0, requirements.supportRequirements().minimumCoverageFraction());
         assertEquals(0.50, requirements.supportRequirements().minimumClearanceCoverageFraction());
         assertEquals(12.0, requirements.supportRequirements().maximumHeightSpan());
-        assertEquals(179.0, requirements.foundationTopY());
+        assertEquals(180.0, requirements.foundationTopY());
         assertEquals(8.0, requirements.maximumFillDepth());
     }
 
