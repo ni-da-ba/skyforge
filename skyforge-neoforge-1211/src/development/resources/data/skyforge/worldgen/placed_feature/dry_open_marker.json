@@ -1,0 +1,19 @@
+{
+  "feature": "skyforge:dry_open_marker",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 4
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "skyforge:suitable_surfaces",
+      "suitability": "dry_open"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}
