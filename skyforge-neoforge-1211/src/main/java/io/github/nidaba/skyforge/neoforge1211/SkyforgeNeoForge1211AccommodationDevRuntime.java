@@ -30,11 +30,11 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
  * Development-only SF-IMP-0046 specimen designed to exercise fill-only structure accommodation.
  *
  * <p>The forced origin desert pyramid samples a high point near the start-chunk center while the
- * surrounding footprint falls smoothly to a seven-block-lower shelf. The neutral fixture check
- * proves the representative 21x21 footprint fails natural relief yet passes bounded foundation
- * feasibility before Minecraft is launched. Runtime admission then requires the real native start
- * to take the accommodation path; otherwise the development run fails loudly instead of producing
- * a false-positive visual proof.
+ * surrounding footprint falls smoothly toward a seven-block-lower asymptote. The neutral fixture
+ * check proves the representative 21x21 footprint fails natural relief yet passes bounded
+ * foundation feasibility before Minecraft is launched. Runtime admission then requires the real
+ * native start to take the accommodation path; otherwise the development run fails loudly instead
+ * of producing a false-positive visual proof.
  */
 final class SkyforgeNeoForge1211AccommodationDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.accommodation";
@@ -45,6 +45,7 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
 
     private static final double SURFACE_PEAK_Y = 224.0;
     private static final double SURFACE_RELIEF = 7.0;
+    private static final double RELIEF_FALLOFF_RADIUS_SQUARED = 64.0;
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeNeoForge1211AccommodationDevRuntime.class.getName());
     private static AutoCloseable persistentBinding;
@@ -142,7 +143,7 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
 
         SurfaceFoundationRequirements foundation = new SurfaceFoundationRequirements(
                 new SurfaceSupportRequirements(
-                        0.0, 20.0, 0.0, 20.0, 4.0, 2.0, 1.0, 0.50, 12.0),
+                        0.0, 20.0, 0.0, 20.0, 1.0, 2.0, 1.0, 0.50, 12.0),
                 SURFACE_PEAK_Y,
                 8.0);
         var foundationAssessment = new SkyIslandSurfaceFoundationEvaluator().assess(volume, foundation);
@@ -181,7 +182,7 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
                 Map.of());
     }
 
-    /** Peak at (8,8), smoothly dropping until capped at seven blocks of relief. */
+    /** Peak at (8,8), smoothly approaching but never exceeding seven blocks of relief. */
     private static ProceduralGraph bowlSurfaceGraph(GraphValueType type, String prefix) {
         List<GraphNode> nodes = new ArrayList<>();
         NodeId x = coordinate(nodes, prefix + "-x", type, CoordinateAxis.X);
@@ -192,10 +193,29 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
         NodeId dx2 = arithmetic(nodes, prefix + "-dx2", type, ArithmeticOperator.MULTIPLY, dx, dx);
         NodeId dz2 = arithmetic(nodes, prefix + "-dz2", type, ArithmeticOperator.MULTIPLY, dz, dz);
         NodeId radius2 = arithmetic(nodes, prefix + "-radius2", type, ArithmeticOperator.ADD, dx2, dz2);
-        NodeId scale = constant(nodes, prefix + "-scale", type, 0.08);
-        NodeId scaled = arithmetic(nodes, prefix + "-scaled", type, ArithmeticOperator.MULTIPLY, radius2, scale);
         NodeId reliefCap = constant(nodes, prefix + "-relief", type, SURFACE_RELIEF);
-        NodeId relief = intersect(nodes, prefix + "-bounded-relief", scaled, reliefCap);
+        NodeId reliefNumerator = arithmetic(
+                nodes,
+                prefix + "-relief-numerator",
+                type,
+                ArithmeticOperator.MULTIPLY,
+                radius2,
+                reliefCap);
+        NodeId falloff = constant(nodes, prefix + "-falloff", type, RELIEF_FALLOFF_RADIUS_SQUARED);
+        NodeId reliefDenominator = arithmetic(
+                nodes,
+                prefix + "-relief-denominator",
+                type,
+                ArithmeticOperator.ADD,
+                radius2,
+                falloff);
+        NodeId relief = arithmetic(
+                nodes,
+                prefix + "-bounded-relief",
+                type,
+                ArithmeticOperator.DIVIDE,
+                reliefNumerator,
+                reliefDenominator);
         NodeId peak = constant(nodes, prefix + "-peak", type, SURFACE_PEAK_Y);
         NodeId output = arithmetic(nodes, prefix + "-surface", type, ArithmeticOperator.SUBTRACT, peak, relief);
         return new ProceduralGraph(nodes, output);
@@ -214,10 +234,29 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
         NodeId dx2 = arithmetic(nodes, "density-dx2", type, ArithmeticOperator.MULTIPLY, dx, dx);
         NodeId dz2 = arithmetic(nodes, "density-dz2", type, ArithmeticOperator.MULTIPLY, dz, dz);
         NodeId radius2 = arithmetic(nodes, "density-radius2", type, ArithmeticOperator.ADD, dx2, dz2);
-        NodeId scale = constant(nodes, "density-scale", type, 0.08);
-        NodeId scaled = arithmetic(nodes, "density-scaled", type, ArithmeticOperator.MULTIPLY, radius2, scale);
-        NodeId reliefCap = constant(nodes, "density-relief-cap", type, SURFACE_RELIEF);
-        NodeId relief = intersect(nodes, "density-bounded-relief", scaled, reliefCap);
+        NodeId reliefCap = constant(nodes, "density-relief", type, SURFACE_RELIEF);
+        NodeId reliefNumerator = arithmetic(
+                nodes,
+                "density-relief-numerator",
+                type,
+                ArithmeticOperator.MULTIPLY,
+                radius2,
+                reliefCap);
+        NodeId falloff = constant(nodes, "density-falloff", type, RELIEF_FALLOFF_RADIUS_SQUARED);
+        NodeId reliefDenominator = arithmetic(
+                nodes,
+                "density-relief-denominator",
+                type,
+                ArithmeticOperator.ADD,
+                radius2,
+                falloff);
+        NodeId relief = arithmetic(
+                nodes,
+                "density-bounded-relief",
+                type,
+                ArithmeticOperator.DIVIDE,
+                reliefNumerator,
+                reliefDenominator);
         NodeId peak = constant(nodes, "density-peak", type, SURFACE_PEAK_Y);
         NodeId upper = arithmetic(nodes, "density-upper", type, ArithmeticOperator.SUBTRACT, peak, relief);
         NodeId upperGap = arithmetic(nodes, "density-upper-gap", type, ArithmeticOperator.SUBTRACT, upper, y);
