@@ -5,6 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import net.minecraft.core.Holder;
@@ -22,12 +23,13 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.RandomState;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructurePiece;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 import net.minecraft.world.level.levelgen.structure.pieces.PiecesContainer;
-import net.minecraft.world.level.levelgen.structure.structures.DesertPyramidStructure;
+import net.minecraft.world.level.levelgen.structure.structures.WoodlandMansionStructure;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 /**
@@ -35,8 +37,9 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
  * and supplemental feature seams.
  *
  * <p>All vanilla structure selection, noise, surface and biome-decoration behavior is retained.
- * Skyforge intervenes only when its early height answer actually elevates a native structure
- * candidate above vanilla terrain.
+ * Skyforge intervenes only when its early height answer actually elevates and vertically resolves a
+ * native structure start. Structures that merely consult the Skyforge height while retaining a
+ * deferred or otherwise unrelated start Y remain entirely vanilla-owned at this seam.
  */
 public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGenerator {
     public static final MapCodec<SkyforgeNoiseBasedChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance ->
@@ -88,11 +91,12 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
     /**
      * Wraps one vanilla structure candidate after NeoForge widens the otherwise-private method.
      *
-     * <p>Vanilla still chooses structure sets, weights and alternatives. Skyforge first accepts a
-     * naturally supported start. If the start is fully contained on one claimed Skyforge surface
-     * but only fails the stricter natural-relief requirement, Skyforge may attach one serialized,
-     * fill-only foundation piece. Anything requiring excavation, edge bridging or excessive fill is
-     * rejected and vanilla fallback remains authoritative.
+     * <p>Vanilla still chooses structure sets, weights and alternatives. A Skyforge height query is
+     * treated only as provenance evidence, not as proof that the native start has already resolved
+     * its vertical placement. Admission/accommodation therefore runs only when an actual start floor
+     * is coincident with a claimed Skyforge first-free height (allowing one block for discrete
+     * surface conventions). Deferred structures are preserved untouched and may complete their own
+     * vanilla terrain alignment later in the structure lifecycle.
      */
     @Override
     protected boolean tryGenerateStructure(
@@ -122,7 +126,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         boolean accommodationProofCandidate = isAccommodationProofCandidate(structure, chunkPos);
         var previousStarts = new HashMap<>(chunk.getAllStarts());
         boolean generated;
-        Set<SkyIslandWorldVolumeId> claimedVolumeIds;
+        List<MinecraftSkyforgeHeightClaim> heightClaims;
         try (SkyforgeStructureCandidateStage.Scope scope = SkyforgeStructureCandidateStage.open()) {
             generated = super.tryGenerateStructure(
                     structureSelectionEntry,
@@ -134,32 +138,46 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                     chunk,
                     chunkPos,
                     sectionPos);
-            claimedVolumeIds = scope.claimedVolumeIds();
+            heightClaims = scope.claims();
         }
 
-        if (!generated || claimedVolumeIds.isEmpty()) {
+        if (!generated || heightClaims.isEmpty()) {
             if (accommodationProofCandidate) {
                 throw new IllegalStateException(
-                        "SF-IMP-0046 fixture invalid: forced origin desert pyramid did not produce an elevated "
-                                + "Skyforge-owned native start");
+                        "SF-IMP-0046 fixture invalid: forced origin mansion did not produce a Skyforge-height native start");
             }
             return generated;
-        }
-        if (claimedVolumeIds.size() != 1) {
-            if (accommodationProofCandidate) {
-                throw new IllegalStateException(
-                        "SF-IMP-0046 fixture invalid: forced origin desert pyramid claimed multiple Skyforge volumes: "
-                                + claimedVolumeIds);
-            }
-            chunk.setAllStarts(previousStarts);
-            return false;
         }
 
         StructureStart start = chunk.getStartForStructure(structure);
         if (start == null || !start.isValid()) {
             if (accommodationProofCandidate) {
                 throw new IllegalStateException(
-                        "SF-IMP-0046 fixture invalid: forced origin desert pyramid produced no valid StructureStart");
+                        "SF-IMP-0046 fixture invalid: forced origin mansion produced no valid StructureStart");
+            }
+            chunk.setAllStarts(previousStarts);
+            return false;
+        }
+
+        List<MinecraftSkyforgeHeightClaim> resolvedClaims = heightClaims.stream()
+                .filter(claim -> claimResolvesSurfacePlane(start.getBoundingBox(), claim))
+                .toList();
+        if (resolvedClaims.isEmpty()) {
+            if (accommodationProofCandidate) {
+                throw new IllegalStateException(
+                        "SF-IMP-0046 fixture invalid: forced origin mansion did not resolve its start at the claimed "
+                                + "Skyforge surface; bounds=" + start.getBoundingBox() + ", claims=" + heightClaims);
+            }
+            return generated;
+        }
+
+        Set<SkyIslandWorldVolumeId> claimedVolumeIds = new LinkedHashSet<>();
+        resolvedClaims.forEach(claim -> claimedVolumeIds.addAll(claim.volumeIds()));
+        if (claimedVolumeIds.size() != 1) {
+            if (accommodationProofCandidate) {
+                throw new IllegalStateException(
+                        "SF-IMP-0046 fixture invalid: forced origin mansion claimed multiple resolved Skyforge volumes: "
+                                + claimedVolumeIds);
             }
             chunk.setAllStarts(previousStarts);
             return false;
@@ -222,9 +240,21 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         return true;
     }
 
+    /**
+     * Returns whether a native start floor is actually resolved at this Skyforge height claim.
+     *
+     * <p>The claim height is Minecraft's first-free block. A one-block tolerance covers native
+     * piece conventions that represent the surface by the adjacent occupied/free block coordinate.
+     * Anything farther away remains vanilla-owned rather than being interpreted speculatively.
+     */
+    static boolean claimResolvesSurfacePlane(BoundingBox bounds, MinecraftSkyforgeHeightClaim claim) {
+        long delta = (long) claim.height() - bounds.minY();
+        return delta >= -1L && delta <= 1L;
+    }
+
     private static boolean isAccommodationProofCandidate(Structure structure, ChunkPos chunkPos) {
         return SkyforgeNeoForge1211AccommodationDevRuntime.enabled()
-                && structure instanceof DesertPyramidStructure
+                && structure instanceof WoodlandMansionStructure
                 && chunkPos.x == 0
                 && chunkPos.z == 0;
     }
