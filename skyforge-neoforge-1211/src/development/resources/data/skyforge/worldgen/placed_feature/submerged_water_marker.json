@@ -1,15 +1,16 @@
 {
-  "feature": "skyforge:additional_surface_marker",
+  "feature": "skyforge:submerged_water_marker",
   "placement": [
     {
       "type": "minecraft:count",
-      "count": 16
+      "count": 4
     },
     {
       "type": "minecraft:in_square"
     },
     {
-      "type": "skyforge:additional_surfaces"
+      "type": "skyforge:suitable_surfaces",
+      "suitability": "submerged_water_floor"
     },
     {
       "type": "minecraft:biome"

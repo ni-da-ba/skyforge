@@ -36,6 +36,74 @@ final class MinecraftAdditionalSurfaceIndexTest {
     }
 
     @Test
+    void dryOpenIsStrictSubsetWithHeadroomAndSupportThickness() {
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        MinecraftChunkMaterialization materialization = stackedMaterialization(chunk.getPos());
+
+        setColumnRange(chunk, 0, 0, 60, 64, Blocks.STONE.defaultBlockState());
+        setColumnRange(chunk, 0, 0, 100, 104, Blocks.STONE.defaultBlockState());
+        setColumnRange(chunk, 0, 0, 200, 204, Blocks.STONE.defaultBlockState());
+        primeWorldSurfaceWorldgen(chunk);
+
+        MinecraftAdditionalSurfaceIndex index = MinecraftAdditionalSurfaceIndex.from(chunk, materialization);
+
+        assertEquals(
+                List.of(new BlockPos(0, 65, 0), new BlockPos(0, 105, 0)),
+                index.positions(0, 0, MinecraftSurfaceSuitability.DRY_OPEN));
+    }
+
+    @Test
+    void dryOpenRejectsLowCeilingWhileDryLandRemainsReachable() {
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        MinecraftChunkMaterialization materialization = stackedMaterialization(chunk.getPos());
+
+        setColumnRange(chunk, 0, 0, 100, 104, Blocks.STONE.defaultBlockState());
+        chunk.setBlockState(new BlockPos(0, 110, 0), Blocks.STONE.defaultBlockState(), false);
+        setColumnRange(chunk, 0, 0, 200, 204, Blocks.STONE.defaultBlockState());
+        primeWorldSurfaceWorldgen(chunk);
+
+        MinecraftAdditionalSurfaceIndex index = MinecraftAdditionalSurfaceIndex.from(chunk, materialization);
+
+        assertTrue(index.positions(0, 0).contains(new BlockPos(0, 105, 0)));
+        assertFalse(index.positions(0, 0, MinecraftSurfaceSuitability.DRY_OPEN)
+                .contains(new BlockPos(0, 105, 0)));
+    }
+
+    @Test
+    void dryOpenRejectsThinCarvedShelfWhileDryLandRemainsReachable() {
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        MinecraftChunkMaterialization materialization = stackedMaterialization(chunk.getPos());
+
+        chunk.setBlockState(new BlockPos(0, 104, 0), Blocks.STONE.defaultBlockState(), false);
+        setColumnRange(chunk, 0, 0, 200, 204, Blocks.STONE.defaultBlockState());
+        primeWorldSurfaceWorldgen(chunk);
+
+        MinecraftAdditionalSurfaceIndex index = MinecraftAdditionalSurfaceIndex.from(chunk, materialization);
+
+        assertTrue(index.positions(0, 0).contains(new BlockPos(0, 105, 0)));
+        assertFalse(index.positions(0, 0, MinecraftSurfaceSuitability.DRY_OPEN)
+                .contains(new BlockPos(0, 105, 0)));
+    }
+
+    @Test
+    void submergedWaterFloorIsAddressableWithoutBecomingDryLand() {
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        MinecraftChunkMaterialization materialization = stackedMaterialization(chunk.getPos());
+
+        setColumnRange(chunk, 0, 0, 60, 63, Blocks.STONE.defaultBlockState());
+        setColumnRange(chunk, 0, 0, 64, 70, Blocks.WATER.defaultBlockState());
+        setColumnRange(chunk, 0, 0, 100, 104, Blocks.STONE.defaultBlockState());
+        setColumnRange(chunk, 0, 0, 200, 204, Blocks.STONE.defaultBlockState());
+        primeWorldSurfaceWorldgen(chunk);
+
+        MinecraftAdditionalSurfaceIndex index = MinecraftAdditionalSurfaceIndex.from(chunk, materialization);
+
+        assertTrue(index.positions(0, 0, MinecraftSurfaceSuitability.SUBMERGED_WATER_FLOOR)
+                .contains(new BlockPos(0, 64, 0)));
+        assertFalse(index.positions(0, 0).contains(new BlockPos(0, 64, 0)));
+    }
+
+    @Test
     void carvedAwaySkyforgeTopIsNotReturned() {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
         MinecraftChunkMaterialization materialization = stackedMaterialization(chunk.getPos());

@@ -29,6 +29,17 @@ final class SkyforgeNeoForge1211FeatureStageTest {
     }
 
     @Test
+    void suitableSurfacePlacementTypeIsRegistered() {
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(
+                SkyforgeNeoForge1211Mod.MOD_ID,
+                SkyforgeNeoForge1211PlacementModifiers.SUITABLE_SURFACES_NAME);
+        PlacementModifierType<?> type = BuiltInRegistries.PLACEMENT_MODIFIER_TYPE.get(id);
+
+        assertNotNull(type);
+        assertSame(SkyforgeSuitableSurfacePlacement.CODEC, type.codec());
+    }
+
+    @Test
     void scopeWithoutSkyforgeBindingIsEmptyAndAlwaysCleared() {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
         assertFalse(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
@@ -38,6 +49,9 @@ final class SkyforgeNeoForge1211FeatureStageTest {
             scope.requireActive();
             assertTrue(SkyforgeNeoForge1211FeatureStage.hasActiveScope());
             assertTrue(SkyforgeNeoForge1211FeatureStage.additionalPositions(0, 0).isEmpty());
+            assertTrue(SkyforgeNeoForge1211FeatureStage
+                    .suitablePositions(0, 0, MinecraftSurfaceSuitability.DRY_OPEN)
+                    .isEmpty());
         }
 
         assertFalse(SkyforgeNeoForge1211FeatureStage.hasActiveScope());
@@ -46,7 +60,9 @@ final class SkyforgeNeoForge1211FeatureStageTest {
     @Test
     void activeScopeExposesPreservedGroundBelowDevelopmentMassif() throws Exception {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
-        chunk.setBlockState(new BlockPos(0, 64, 0), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+        for (int y = 62; y <= 64; y++) {
+            chunk.setBlockState(new BlockPos(0, y, 0), Blocks.STONE.defaultBlockState(), false);
+        }
 
         try (AutoCloseable binding = SkyforgeNeoForge1211DevRuntime.installSpecimen()) {
             assertNotNull(binding);
@@ -57,6 +73,9 @@ final class SkyforgeNeoForge1211FeatureStageTest {
                     SkyforgeNeoForge1211FeatureStage.open(chunk)) {
                 scope.requireActive();
                 assertTrue(SkyforgeNeoForge1211FeatureStage.additionalPositions(0, 0)
+                        .contains(new BlockPos(0, 65, 0)));
+                assertTrue(SkyforgeNeoForge1211FeatureStage
+                        .suitablePositions(0, 0, MinecraftSurfaceSuitability.DRY_OPEN)
                         .contains(new BlockPos(0, 65, 0)));
             }
         }
