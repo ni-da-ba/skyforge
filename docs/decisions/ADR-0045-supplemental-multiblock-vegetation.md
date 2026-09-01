@@ -1,6 +1,6 @@
 # ADR-0045 — Supplemental Multi-Block Vegetation Proof
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -26,6 +26,12 @@ skyforge:suitable_surfaces { suitability: dry_open }
 
 The chain retains a Minecraft `would_survive` oak-sapling predicate and biome filter. The development count is intentionally boosted to make the proof observable in a small specimen; it is not a production density recommendation.
 
+## Accepted evidence
+
+The focused SF-IMP-0041 verifier and repository-wide `check` were used as the automated gate for this implementation slice. In the real development client, normal Minecraft trees generated naturally on compatible lower supplemental dry terrain beneath the elevated Massif. This demonstrated successful multi-block configured-feature realization through the accepted supplemental-surface path rather than a marker-only write.
+
+The obsolete emerald/lapis/diamond marker fixtures used by earlier suitability milestones were removed after the tree proof. New SF-IMP-0041 development worlds therefore retain the real grass/tree probes without the colored marker clutter.
+
 ## Architectural boundary
 
 Skyforge selects a physically suitable supplemental origin. Minecraft's configured tree feature remains responsible for tree shape, trunk and foliage realization, block replacement and feature-specific viability.
@@ -34,7 +40,7 @@ This milestone does not introduce a backend-neutral tree taxonomy, species model
 
 The current proof also does not claim that adding `minecraft:trees_plains` to every Overworld biome is final species policy. That broad biome modifier exists only in development resources so a native tree feature can be exercised without creating a second feature engine.
 
-## Invariants
+## Accepted invariants
 
 1. Vanilla retains the highest surface in each `(x,z)` column.
 2. The accepted `dry_open` suitability contract is reused unchanged.
@@ -44,6 +50,7 @@ The current proof also does not claim that adding `minecraft:trees_plains` to ev
 6. All SF-IMP-0041 tree resources are development-only and absent from the production JAR.
 7. No Minecraft tree/biome concept enters backend-neutral modules.
 8. Future Skyforge-owned climate/biome/ecology fields remain compatible with this mechanism.
+9. Colored marker fixtures from SF-IMP-0039/0040 are no longer part of the active development proof.
 
 ## Explicit non-goals
 
@@ -57,17 +64,3 @@ SF-IMP-0041 does not yet provide:
 - cave-versus-open-land horizontal enclosure;
 - final morphology/playability tuning;
 - Skyforge-owned climate or biome fields.
-
-## Acceptance criteria
-
-ADR-0045 becomes Accepted only after:
-
-1. the focused verifier and repository-wide `check` pass;
-2. development resources load in a real Minecraft client;
-3. on a specimen with qualifying dry ground beneath the Massif, at least one real Minecraft tree is visibly realized from a supplemental lower surface;
-4. the upper Massif surface is not systematically double-populated by the supplemental tree proof;
-5. obvious wholesale biome-decoration duplication does not occur;
-6. save/reload is clean; and
-7. the SF-IMP-0041 development tree resources remain absent from the production JAR.
-
-If a random specimen contains no tree-compatible lower substrate (for example ocean or desert sand), the absence of trees is not by itself a failure; another disposable seed may be required for the positive client proof.
