@@ -12,9 +12,9 @@ import java.util.Objects;
  *
  * <p>A foundation may only be accepted when every sampled footprint point is already supported by
  * one independently compiled island, no sampled surface rises above the caller-authorized natural
- * surface ceiling, at least one column actually requires fill below the requested foundation plane,
- * and the deepest required fill remains within the caller-owned bound. The evaluator never changes
- * the island surface or density fields.
+ * surface ceiling, at least one footprint column actually requires fill below the requested
+ * foundation plane, and the deepest required fill remains within the caller-owned bound. Empty
+ * space between rectangles in a composite footprint is never interpreted as terrain to fill.
  */
 public final class SkyIslandSurfaceFoundationEvaluator {
     private static final double VERTICAL_EPSILON = 1.0e-9;
@@ -60,6 +60,7 @@ public final class SkyIslandSurfaceFoundationEvaluator {
         ReferenceEvaluator evaluator = new ReferenceEvaluator();
         ScalarField2 upperSurface = evaluator.field2(volume.compiledVolume().upperSurfaceGraph());
         SurfaceSupportRequirements supportRequirements = requirements.supportRequirements();
+        SurfaceFootprint footprint = supportRequirements.footprint();
         double[] xSamples = sampleAxis(
                 supportRequirements.minimumX(),
                 supportRequirements.maximumX(),
@@ -74,6 +75,9 @@ public final class SkyIslandSurfaceFoundationEvaluator {
         double maximumRequiredFillDepth = 0.0;
         for (double z : zSamples) {
             for (double x : xSamples) {
+                if (!footprint.contains(x, z)) {
+                    continue;
+                }
                 double surfaceY = upperSurface.sample(new Coordinate2(x, z));
                 if (!Double.isFinite(surfaceY)) {
                     throw new IllegalStateException("fully supported footprint produced a non-finite upper surface");
