@@ -28,12 +28,12 @@ for %%P in ("!STRUCTURE_SET!" "!BIOME_TAG!" "!LANG!") do (
     )
 )
 
-powershell -NoProfile -Command "$j = Get-Content -Raw $env:STRUCTURE_SET ^| ConvertFrom-Json; if ($j.placement.type -ne 'minecraft:random_spread' -or $j.placement.spacing -ne 4 -or $j.placement.separation -ne 3 -or $j.structures.Count -ne 1 -or $j.structures[0].structure -ne 'minecraft:desert_pyramid') { exit 1 }"
+powershell -NoProfile -Command "$j = ConvertFrom-Json -InputObject (Get-Content -Raw -LiteralPath $env:STRUCTURE_SET); if ($j.placement.type -ne 'minecraft:random_spread' -or $j.placement.spacing -ne 4 -or $j.placement.separation -ne 3 -or $j.structures.Count -ne 1 -or $j.structures[0].structure -ne 'minecraft:desert_pyramid') { exit 1 }"
 if errorlevel 1 (
     echo ERROR: SF-IMP-0043 structure set does not match the deterministic vanilla-pyramid proof contract
     exit /b 1
 )
-powershell -NoProfile -Command "$j = Get-Content -Raw $env:BIOME_TAG ^| ConvertFrom-Json; if ($j.replace -ne $false -or $j.values -notcontains '#c:is_overworld') { exit 1 }"
+powershell -NoProfile -Command "$j = ConvertFrom-Json -InputObject (Get-Content -Raw -LiteralPath $env:BIOME_TAG); if ($j.replace -ne $false -or $j.values -notcontains '#c:is_overworld') { exit 1 }"
 if errorlevel 1 (
     echo ERROR: SF-IMP-0043 biome tag must append c:is_overworld to vanilla desert-pyramid eligibility
     exit /b 1
