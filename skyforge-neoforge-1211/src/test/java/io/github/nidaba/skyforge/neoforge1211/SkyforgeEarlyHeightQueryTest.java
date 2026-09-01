@@ -74,6 +74,36 @@ final class SkyforgeEarlyHeightQueryTest {
                 .isEmpty());
     }
 
+    @Test
+    void developmentStructureFootprintSamplesElevatedSkyforgeTerrain() throws Exception {
+        SkyforgeNeoForge1211ChunkAdapter adapter = SkyforgeNeoForge1211DevRuntime.adapter();
+        int[][] footprintSamples = {
+            {0, 0},
+            {20, 0},
+            {0, 20},
+            {20, 20},
+            {10, 10}
+        };
+
+        try (AutoCloseable activeBinding = SkyforgeNeoForge1211SurfaceStage.install(
+                adapter,
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(activeBinding);
+            for (int[] sample : footprintSamples) {
+                int height = SkyforgeNeoForge1211SurfaceStage.queryBaseHeight(
+                                sample[0],
+                                sample[1],
+                                Heightmap.Types.OCEAN_FLOOR_WG,
+                                MINIMUM_Y,
+                                HEIGHT)
+                        .orElseThrow();
+                assertTrue(
+                        height > 160,
+                        "the SF-IMP-0043 native structure proof footprint must sample elevated Skyforge terrain");
+            }
+        }
+    }
+
     private static MaterializedPosition highestSolid(MinecraftChunkMaterialization materialization) {
         for (int worldY = materialization.minimumY() + materialization.height() - 1;
                 worldY >= materialization.minimumY();
