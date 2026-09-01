@@ -61,28 +61,38 @@ This is deliberately conservative. An unknown or modded structure that consults 
 
 The evaluator operates on one independently compiled island at a time and consumes the same upper-surface and density truth used by SF-IMP-0044.
 
+A foundation request carries two independent vertical planes:
+
+- **foundation fill plane** — the continuous boundary up to which added support may be required;
+- **maximum natural surface plane** — the highest existing surface the caller can accept without excavation.
+
 A foundation is feasible only when:
 
 1. every sampled footprint point is supported by the claimed island;
 2. the underlying support assessment remains coherent under the caller-owned accommodation thresholds;
-3. no sampled natural surface rises above the requested foundation boundary plane;
-4. at least one sample lies below that plane and therefore actually requires fill;
-5. the deepest required fill does not exceed the caller-owned bound.
+3. no sampled natural surface rises above the caller-authorized maximum natural surface plane;
+4. at least one sample lies below the foundation fill plane and therefore actually requires fill;
+5. the deepest required fill, measured only to the foundation fill plane, does not exceed the caller-owned bound.
+
+Separating the two planes is important: a backend may legitimately tolerate an existing natural surface slightly above the fill plane because of its native occupied/free-coordinate convention without pretending that extra height is required foundation fill.
 
 The neutral evaluator remains sampling-policy agnostic. Minecraft deliberately chooses one-block sampling for accommodation, so every integral block column in the native bounding-box footprint is checked rather than only a sparse representative grid.
 
-Consequently, accommodation cannot bridge unsupported island edges, combine vertically stacked surfaces, excavate high terrain, or silently flatten the procedural field.
+Consequently, accommodation cannot bridge unsupported island edges, combine vertically stacked surfaces, excavate terrain above the authorized native surface ceiling, or silently flatten the procedural field.
 
 ## Continuous/discrete coordinate contract
 
 Skyforge upper surfaces are continuous boundaries and terrain occupancy is strict (`y < upperSurface`). Minecraft height queries return a first-free block coordinate.
 
-For a native structure whose first occupied floor block is at `StructureStart.minY()`:
+For a native structure whose lowest occupied structure block is at `StructureStart.minY()`:
 
-- neutral foundation boundary plane = `StructureStart.minY()`;
-- highest foundation block = `StructureStart.minY() - 1`.
+- neutral foundation fill plane = `StructureStart.minY()`;
+- highest serialized foundation block = `StructureStart.minY() - 1`;
+- maximum natural surface plane = the highest retained first-free Skyforge claim that resolves this start, never lower than `StructureStart.minY()` and never more than one block above it.
 
-Keeping these coordinates distinct prevents a top solid Minecraft block from being misclassified as one block of required excavation merely because the continuous surface boundary lies immediately above it.
+This distinction is required by real vanilla behavior. A woodland mansion can resolve with `StructureStart.minY()` one block below the first-free height it queried. In that case the top natural terrain block occupies the mansion's lowest structure layer, which vanilla structure placement can replace as part of its normal lifecycle; it does **not** imply that Skyforge must excavate terrain above the native resolved surface.
+
+Fill depth remains measured from `StructureStart.minY()` downward. The adjacent first-free plane is only an excavation ceiling, so it cannot inflate the admitted fill depth or the serialized foundation's placement bound.
 
 ## Minecraft policy
 
@@ -102,8 +112,9 @@ The first fill-only accommodation policy uses:
 - minimum clearance support: 0.50;
 - maximum evaluated relief: 12 blocks;
 - maximum fill depth: 8 world units;
-- neutral foundation boundary: the native resolved `StructureStart` minimum Y;
-- highest serialized foundation block: one block below that minimum Y.
+- neutral foundation fill plane: the native resolved `StructureStart` minimum Y;
+- maximum natural surface plane: derived from the retained resolved first-free height claim, clamped no lower than the fill plane;
+- highest serialized foundation block: one block below the structure minimum Y.
 
 These values are adapter policy, not kernel or world constants.
 
@@ -138,7 +149,8 @@ The original structure identity, start chunk, reference count and every vanilla 
 - A Skyforge height query alone never authorizes structure admission or accommodation.
 - Vertically unresolved/deferred native starts remain vanilla-owned at this seam.
 - Unknown/modded structures are preserved under uncertainty rather than rejected speculatively.
-- Fill-only accommodation may add support but may not cut terrain.
+- Fill-only accommodation may add support but may not cut terrain above the resolved native surface ceiling.
+- Existing terrain tolerated by the native occupied/free convention does not count as required foundation fill.
 - Unsupported space at an island edge is not converted into a bridge.
 - Every integral Minecraft footprint column is assessed before accommodation is accepted.
 - Realized foundation columns may attach only to the exact admitted Skyforge volume.
@@ -152,8 +164,10 @@ The original structure identity, start chunk, reference count and every vanilla 
 
 ## Validation boundary
 
-Automated tests and CI validate the neutral feasibility semantics, one-block Minecraft accommodation sampling, continuous/discrete foundation-plane translation, resolved-vs-deferred height-claim filtering, exact support-volume provenance, fill-depth bounds, custom piece registration/compilation, serialized accommodation metadata and the complete repository evidence gate.
+Automated tests and CI validate the neutral feasibility semantics, distinct fill/surface planes, one-block Minecraft accommodation sampling, resolved-vs-deferred height-claim filtering, exact support-volume provenance, fill-depth bounds, custom piece registration/compilation, serialized accommodation metadata and the complete repository evidence gate.
 
-The dedicated interactive specimen now uses a forced woodland mansion because its generated pieces resolve from a terrain-derived start position during `STRUCTURE_STARTS`. The specimen plateau contains bounded shallow depressions away from the origin terrain-query neighborhood so the real resolved start can fail natural relief while remaining eligible for fill-only accommodation.
+The dedicated interactive specimen uses a forced woodland mansion because its generated pieces resolve from a terrain-derived start position during `STRUCTURE_STARTS`. The specimen plateau contains bounded shallow depressions away from the origin terrain-query neighborhood so the real resolved start can fail natural relief while remaining eligible for fill-only accommodation.
+
+The first mansion interactive run exposed the occupied/free-plane distinction directly: the real start resolved at `minY=223` while the retained Skyforge first-free surface was one block higher. That failure was retained as contract evidence and led to the explicit two-plane neutral requirement rather than a fixture-specific exception.
 
 Interactive acceptance still requires a visible fill-only foundation, intact surrounding Skyforge terrain, the `SF-IMP-0046 FOUNDATION ATTACHED` marker, and save/reload persistence in a disposable development world.
