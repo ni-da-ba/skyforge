@@ -42,6 +42,19 @@ final class SkyIslandSurfaceFoundationEvaluatorTest {
     }
 
     @Test
+    void acceptsAuthorizedNativeSurfaceOverlapWithoutInflatingFillDepth() {
+        SkyIslandWorldVolume volume = rectangularVolume("native-overlap", 36L, 0.0, 10.0, 0.0, 10.0, 100.0, 1.0);
+        SurfaceFoundationAssessment assessment = evaluator.assess(
+                volume,
+                foundationRequirements(2.0, 8.0, 2.0, 8.0, 107.0, 108.0, 8.0));
+
+        assertEquals(0, assessment.surfaceAboveFoundationSampleCount());
+        assertEquals(12, assessment.fillSampleCount());
+        assertEquals(5.0, assessment.maximumRequiredFillDepth());
+        assertTrue(assessment.accepted());
+    }
+
+    @Test
     void rejectsAccommodationThatWouldRequireExcavation() {
         SkyIslandWorldVolume volume = rectangularVolume("slope", 32L, 0.0, 10.0, 0.0, 10.0, 100.0, 1.0);
         SurfaceFoundationAssessment assessment = evaluator.assess(
@@ -94,6 +107,24 @@ final class SkyIslandSurfaceFoundationEvaluatorTest {
             double maximumZ,
             double foundationTopY,
             double maximumFillDepth) {
+        return foundationRequirements(
+                minimumX,
+                maximumX,
+                minimumZ,
+                maximumZ,
+                foundationTopY,
+                foundationTopY,
+                maximumFillDepth);
+    }
+
+    private static SurfaceFoundationRequirements foundationRequirements(
+            double minimumX,
+            double maximumX,
+            double minimumZ,
+            double maximumZ,
+            double foundationTopY,
+            double maximumSurfaceY,
+            double maximumFillDepth) {
         return new SurfaceFoundationRequirements(
                 new SurfaceSupportRequirements(
                         minimumX,
@@ -106,6 +137,7 @@ final class SkyIslandSurfaceFoundationEvaluatorTest {
                         0.0,
                         12.0),
                 foundationTopY,
+                maximumSurfaceY,
                 maximumFillDepth);
     }
 
