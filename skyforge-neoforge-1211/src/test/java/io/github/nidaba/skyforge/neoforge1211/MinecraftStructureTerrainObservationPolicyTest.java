@@ -20,4 +20,19 @@ final class MinecraftStructureTerrainObservationPolicyTest {
         assertEquals(18.0, requirements.bounds().maximumZ());
         assertEquals(4.0, requirements.sampleSpacing());
     }
+
+    @Test
+    void proofRequirementsUseEveryMinecraftIntegerCoordinate() {
+        BoundingBox box = new BoundingBox(-2, 10, 5, 2, 13, 9);
+
+        var requirements = MinecraftStructureTerrainObservationPolicy.proofRequirements(box);
+
+        assertEquals(-2.0, requirements.bounds().minimumX());
+        assertEquals(2.0, requirements.bounds().maximumX());
+        assertEquals(10.0, requirements.bounds().minimumY());
+        assertEquals(13.0, requirements.bounds().maximumY());
+        assertEquals(5.0, requirements.bounds().minimumZ());
+        assertEquals(9.0, requirements.bounds().maximumZ());
+        assertEquals(1.0, requirements.sampleSpacing());
+    }
 }
