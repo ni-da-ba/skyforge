@@ -1,5 +1,8 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import io.github.nidaba.skyforge.world.SurfaceFoundationAssessment;
+import io.github.nidaba.skyforge.world.SurfaceFoundationRequirements;
 import io.github.nidaba.skyforge.world.SurfaceSupportAssessment;
 import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
 import java.util.List;
@@ -108,6 +111,35 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return binding == null
                 ? Optional.empty()
                 : Optional.of(binding.adapter().assessSurfaceSupport(requirements));
+    }
+
+    /** Evaluates bounded fill-only foundation requirements against the active Skyforge catalog. */
+    static Optional<List<SurfaceFoundationAssessment>> assessSurfaceFoundation(
+            SurfaceFoundationRequirements requirements) {
+        Objects.requireNonNull(requirements, "requirements");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? Optional.empty()
+                : Optional.of(binding.adapter().assessSurfaceFoundation(requirements));
+    }
+
+    /**
+     * Returns whether the exact recorded island volume owns a solid sample at the supplied block.
+     *
+     * <p>Foundation realization uses this as a defensive provenance check so a serialized
+     * accommodation cannot silently attach itself to vanilla terrain, another structure, or a
+     * different vertically stacked Skyforge island.
+     */
+    static Optional<Boolean> isSolidOwnedBy(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? Optional.empty()
+                : Optional.of(binding.adapter().isSolidOwnedBy(volumeId, worldX, worldY, worldZ));
     }
 
     static AutoCloseable install(

@@ -1,7 +1,9 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -24,6 +26,7 @@ final class SkyforgeStructureCandidateStage {
         Objects.requireNonNull(claim, "claim");
         Trace trace = ACTIVE.get();
         if (trace != null) {
+            trace.claims.add(claim);
             trace.claimedVolumeIds.addAll(claim.volumeIds());
         }
     }
@@ -34,6 +37,11 @@ final class SkyforgeStructureCandidateStage {
 
         private Scope(Trace trace) {
             this.trace = trace;
+        }
+
+        List<MinecraftSkyforgeHeightClaim> claims() {
+            requireOpen();
+            return List.copyOf(trace.claims);
         }
 
         Set<SkyIslandWorldVolumeId> claimedVolumeIds() {
@@ -56,6 +64,7 @@ final class SkyforgeStructureCandidateStage {
     }
 
     private static final class Trace {
+        private final List<MinecraftSkyforgeHeightClaim> claims = new ArrayList<>();
         private final LinkedHashSet<SkyIslandWorldVolumeId> claimedVolumeIds = new LinkedHashSet<>();
     }
 }

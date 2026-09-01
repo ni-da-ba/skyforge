@@ -14,10 +14,11 @@ public final class SkyforgeNeoForge1211Mod {
         // without the appropriate compiled runtime scope.
         SkyforgeNeoForge1211ChunkGenerators.register(modEventBus);
         SkyforgeNeoForge1211PlacementModifiers.register(modEventBus);
+        SkyforgeNeoForge1211StructurePieces.register(modEventBus);
 
-        // Normal packaged Skyforge remains inert until a runtime binding is configured. The
-        // isolated ModDevGradle client opts into one finite development specimen through a JVM
-        // property.
+        // Normal packaged Skyforge remains inert until a runtime binding is configured. Isolated
+        // ModDevGradle runs opt into exactly one finite development specimen through JVM properties.
         SkyforgeNeoForge1211DevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211AccommodationDevRuntime.installFromSystemProperty();
     }
 }

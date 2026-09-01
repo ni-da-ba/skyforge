@@ -1,13 +1,13 @@
 {
   "placement": {
     "type": "minecraft:random_spread",
-    "salt": 430043,
-    "separation": 3,
-    "spacing": 4
+    "salt": 460046,
+    "separation": 511,
+    "spacing": 512
   },
   "structures": [
     {
-      "structure": "minecraft:desert_pyramid",
+      "structure": "minecraft:mansion",
       "weight": 1
     }
   ]

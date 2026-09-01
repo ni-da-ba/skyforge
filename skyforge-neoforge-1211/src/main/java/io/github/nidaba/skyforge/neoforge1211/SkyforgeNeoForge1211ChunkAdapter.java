@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandSurfaceFoundationEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceSupportEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainInterpreter;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
@@ -7,6 +8,8 @@ import io.github.nidaba.skyforge.world.SkyIslandTerrainSampleContext;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainSemantic;
 import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import io.github.nidaba.skyforge.world.SurfaceFoundationAssessment;
+import io.github.nidaba.skyforge.world.SurfaceFoundationRequirements;
 import io.github.nidaba.skyforge.world.SurfaceSupportAssessment;
 import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
 import io.github.nidaba.skyforge.world.WorldBounds;
@@ -85,13 +88,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
      * stacked islands and therefore preserves the world catalog's independent-volume semantics.
      */
     List<SkyIslandWorldVolumeId> claimingVolumeIds(int worldX, int worldY, int worldZ) {
-        WorldBounds pointBounds = new WorldBounds(
-                worldX,
-                worldX,
-                worldY,
-                worldY,
-                worldZ,
-                worldZ);
+        WorldBounds pointBounds = pointBounds(worldX, worldY, worldZ);
         return catalog.query(pointBounds).stream()
                 .filter(candidate -> new SkyIslandTerrainInterpreter(candidate.compiledVolume(), terrainProfile)
                         .classify(worldX, worldY, worldZ)
@@ -100,9 +97,40 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 .toList();
     }
 
+    /** Returns whether one exact compiled island owns a solid sample at the supplied coordinate. */
+    boolean isSolidOwnedBy(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return catalog.query(pointBounds(worldX, worldY, worldZ)).stream()
+                .filter(candidate -> candidate.id().equals(volumeId))
+                .findFirst()
+                .map(candidate -> new SkyIslandTerrainInterpreter(candidate.compiledVolume(), terrainProfile)
+                        .classify(worldX, worldY, worldZ)
+                        .isSolid())
+                .orElse(false);
+    }
+
     /** Delegates structure-sized support assessment to the accepted backend-neutral evaluator. */
     List<SurfaceSupportAssessment> assessSurfaceSupport(SurfaceSupportRequirements requirements) {
         return new SkyIslandSurfaceSupportEvaluator().assess(catalog, requirements);
+    }
+
+    /** Delegates bounded fill-only accommodation assessment to the backend-neutral evaluator. */
+    List<SurfaceFoundationAssessment> assessSurfaceFoundation(SurfaceFoundationRequirements requirements) {
+        return new SkyIslandSurfaceFoundationEvaluator().assess(catalog, requirements);
+    }
+
+    private static WorldBounds pointBounds(int worldX, int worldY, int worldZ) {
+        return new WorldBounds(
+                worldX,
+                worldX,
+                worldY,
+                worldY,
+                worldZ,
+                worldZ);
     }
 
     private static SkyIslandTerrainSemantic classify(
