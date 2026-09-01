@@ -1,6 +1,6 @@
 # SF-IMP-0038 — Supplemental Multi-Surface Feature In-Game Runbook
 
-**Status:** Automated verification and repository-wide build passed; live modifier emission proven; final configured-feature realization proof pending.
+**Status:** Accepted.
 
 ## Purpose
 
@@ -33,7 +33,7 @@ scripts\verify-sf-imp-0038-multi-surface-features.bat
 gradlew.bat check
 ```
 
-Do not proceed to the client test if either command fails.
+Both automated gates passed on 2026-08-31.
 
 ## Launch
 
@@ -41,7 +41,7 @@ Do not proceed to the client test if either command fails.
 gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:runClient
 ```
 
-Create a **new disposable world** using `Skyforge Development (SF-IMP-0038)`. Do not reuse an already-generated 0037/0038 world after changing the development probes.
+Create a **new disposable world** using `Skyforge Development (SF-IMP-0038)`.
 
 Teleport to the engineering specimen:
 
@@ -79,79 +79,53 @@ Chunks around the origin reported all three of the following:
 - non-zero `modifierQueries` from the development placed feature;
 - non-zero `emittedPositions` returned by `skyforge:additional_surfaces`.
 
-For example, the origin-area logs included chunks with more than 200 available supplemental positions and multiple emitted positions from ten feature queries.
+The inspected world happened to place the Massif above an ocean. No kelp was visible under the island, but this did not exercise the grass probe: `minecraft:patch_grass` was the injected realistic feature, not kelp, and the current dry-land index requires air above a solid support. A submerged seabed is therefore intentionally not a dry-land target.
 
-The inspected world happened to place the Massif above an ocean. No kelp was visible under the island, but this does not exercise the grass probe: `minecraft:patch_grass` is the injected realistic feature, not kelp, and the current land-surface index requires air above a solid support. A submerged seabed therefore is intentionally not a land target.
+This established that the copied feature reached the custom placement modifier and that the modifier emitted supplemental positions in a live client.
 
-This run establishes that the copied feature reaches the custom placement modifier and that the modifier emits supplemental positions in a live client. It does not by itself prove that the configured feature subsequently places a block.
+## Deterministic marker proof — accepted
 
-## Deterministic marker diagnostic
+The follow-up development resources added `skyforge:additional_surface_marker`:
 
-The follow-up development resources add `skyforge:additional_surface_marker`:
+1. vanilla `minecraft:count` created repeated attempts;
+2. vanilla `minecraft:in_square` scattered columns;
+3. `skyforge:additional_surfaces` emitted lower valid positions;
+4. vanilla `minecraft:biome` retained biome-membership filtering;
+5. vanilla `minecraft:simple_block` placed `minecraft:gold_block` at accepted positions.
 
-1. vanilla `minecraft:count` creates repeated attempts;
-2. vanilla `minecraft:in_square` scatters columns;
-3. `skyforge:additional_surfaces` emits lower valid positions;
-4. vanilla `minecraft:biome` retains biome-membership filtering;
-5. vanilla `minecraft:simple_block` attempts to place `minecraft:gold_block` at the resulting position.
-
-At the end of each origin-area decoration scope, the development log now reports:
+The accepted run reported:
 
 ```text
 SF-IMP-0038 feature diagnostic chunk=[x, z] availableAdditionalPositions=N modifierQueries=Q emittedPositions=E markerBlocksAtEmittedPositions=M
 ```
 
-`M > 0` is the environment-independent end-to-end proof that a vanilla configured feature actually consumed a supplemental position and wrote into the live chunk.
+with `M > 0` across many origin-area chunks. Representative examples included origin chunk `[0,0]` with 205 available supplemental positions, 26 modifier queries, 21 emitted positions and 11 realized marker blocks, while several neighboring chunks realized 15–16 marker blocks.
 
-## Manual checks
+The user visually observed the gold blocks on the lower supplemental surfaces and confirmed that the world remained otherwise stable. Save/reload also remained clean.
 
-### 1. Existing integration remains intact
+This is the decisive end-to-end proof that a normal Minecraft configured feature can consume Skyforge's multi-surface spatial answer and modify the live chunk.
 
-The Massif should still exist, use Minecraft-native exposed surface material, retain caves/ores/lighting interaction, and leave native terrain intact where Skyforge is AIR.
+## Accepted interpretation
 
-No new 16-block seam or missing-column pattern should appear.
+The intentionally excessive gold-marker result also exposed the next architectural problem: **geometric availability is not the same as feature suitability**.
 
-### 2. Verify deterministic configured-feature realization
+The primitive can identify many air-exposed lower surfaces, including lower Skyforge ledges and cavity floors. A real vegetation system must therefore decide which candidate surfaces are appropriate for a given feature family. That policy belongs in later Minecraft/backend-specific suitability work rather than in the generic multi-surface primitive itself.
 
-Near the origin, at least one diagnostic line should report:
+Similarly, submerged seabeds are not dry-land candidates. Kelp/seagrass and other submerged features need a distinct suitability class that permits water occupancy above the support rather than reusing the dry-land rule.
 
-```text
-markerBlocksAtEmittedPositions > 0
-```
+## Pass criteria — satisfied
 
-Gold blocks may also be visible on lower Skyforge ledges or lower dry ground. Visual discovery is useful but not required if the log proves realized markers.
+SF-IMP-0038 manual acceptance passed because:
 
-### 3. Dry-ground grass remains useful evidence when available
-
-If the Minecraft seed places dry native terrain beneath the Massif, short-grass patches should be capable of appearing there despite the upper island owning the vanilla top heightmap.
-
-If the Massif is over an ocean, absence of kelp is not a failure of this land-surface milestone. Underwater/submerged-surface suitability is a separate policy problem.
-
-### 4. Highest surface should not receive the supplemental copy systematically
-
-The Massif top may still contain ordinary vanilla vegetation. That is expected.
-
-The supplemental index intentionally excludes the vanilla highest surface, so the diagnostic probes should not systematically duplicate placement there.
-
-### 5. Persistence
-
-Save, quit and reopen the same world. The world should reload without placement-modifier codec/registry failures or chunk corruption.
-
-Generated marker blocks, vegetation and the Massif should persist normally.
-
-## Pass criteria
-
-SF-IMP-0038 manual acceptance passes when:
-
-- the 0038 world type loads without codec/registry/worldgen failure;
-- the accepted Massif and native-surface behavior remain intact;
-- origin-area diagnostics prove non-zero additional surfaces, modifier queries and emitted positions;
-- the deterministic vanilla `simple_block` probe produces `markerBlocksAtEmittedPositions > 0` on at least one supplemental lower surface;
-- the highest vanilla-owned surface is not systematically re-targeted by the supplemental index;
-- save/reload remains clean.
-
-Dry-ground `patch_grass` recovery remains desirable empirical evidence but is no longer dependent on randomly receiving a land seed for the deterministic placement proof.
+- the 0038 world type loaded without codec/registry/worldgen failure;
+- the accepted Massif and native-surface behavior remained intact;
+- origin-area diagnostics proved non-zero additional surfaces, modifier queries and emitted positions;
+- the deterministic vanilla `simple_block` probe produced `markerBlocksAtEmittedPositions > 0` on supplemental lower surfaces;
+- the highest vanilla-owned surface was not systematically re-targeted by the supplemental index;
+- save/reload remained clean.
 
 ## Explicit limitations
 
 This milestone does not yet claim production-quality biome-native feature replay. The development grass and gold-marker probes are intentionally narrow. Trees, flowers, snow/ice, submerged vegetation such as kelp/seagrass, modded vegetation families, arbitrary placement chains and feature-selection policy remain later empirical work.
+
+The gold-marker fixture is acceptance instrumentation only and is not intended for normal gameplay or release configuration.
