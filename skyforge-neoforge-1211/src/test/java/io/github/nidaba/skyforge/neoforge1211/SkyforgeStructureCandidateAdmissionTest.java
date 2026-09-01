@@ -54,6 +54,20 @@ final class SkyforgeStructureCandidateAdmissionTest {
     }
 
     @Test
+    void accommodationDevelopmentFixtureIsOneBoundedIslandRatherThanSquareSlab() throws Exception {
+        SkyforgeNeoForge1211ChunkAdapter adapter = SkyforgeNeoForge1211AccommodationDevRuntime.adapter();
+        SkyIslandWorldVolumeId volumeId = SkyforgeNeoForge1211AccommodationDevRuntime.catalog().volumes().getFirst().id();
+
+        try (AutoCloseable activeBinding = SkyforgeNeoForge1211SurfaceStage.install(
+                adapter,
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(activeBinding);
+            assertTrue(SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(volumeId, 0, 200, 0).orElseThrow());
+            assertFalse(SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(volumeId, 110, 200, 110).orElseThrow());
+        }
+    }
+
+    @Test
     void earlyHeightClaimCarriesIndependentWorldVolumeIdentity() throws Exception {
         SkyforgeNeoForge1211ChunkAdapter adapter = SkyforgeNeoForge1211DevRuntime.adapter();
         SkyIslandWorldVolumeId expectedId = SkyforgeNeoForge1211DevRuntime.catalog().volumes().getFirst().id();
