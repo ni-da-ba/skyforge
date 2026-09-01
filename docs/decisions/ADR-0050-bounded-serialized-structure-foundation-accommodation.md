@@ -31,16 +31,19 @@ If no claim resolves the actual start floor, Skyforge SHALL preserve the generat
 The backend-neutral world layer SHALL define foundation feasibility in terms of:
 
 1. a neutral support footprint and policy;
-2. a requested continuous foundation boundary plane;
-3. an explicit maximum fill depth.
+2. a requested continuous foundation fill plane;
+3. a caller-authorized maximum natural surface plane;
+4. an explicit maximum fill depth.
 
 `SkyIslandSurfaceFoundationEvaluator` SHALL assess each independent island volume separately and accept only when:
 
 - the entire sampled footprint is supported by that one volume;
 - the support is coherent under the accommodation thresholds;
-- no sampled surface lies above the requested foundation boundary;
-- at least one sampled column requires positive fill;
-- the deepest required fill is within the explicit limit.
+- no sampled surface lies above the authorized maximum natural surface plane;
+- at least one sampled column lies below the foundation fill plane and requires positive fill;
+- the deepest required fill, measured only to the foundation fill plane, is within the explicit limit.
+
+The maximum natural surface plane SHALL NOT alter fill-depth measurement. This separation allows a backend to represent a native occupied/free-coordinate convention without turning tolerated existing terrain into fictitious required fill.
 
 Minecraft SHALL realize an accepted accommodation as a registered, serialized `SkyforgeFoundationPiece` attached to the native `StructureStart` while preserving the original structure identity, start chunk, reference count and vanilla pieces.
 
@@ -53,7 +56,7 @@ The authoritative order is:
 0. **PRESERVE_VANILLA** — no retained Skyforge height claim resolves the actual native start floor. Do not interpret the provisional/offset start geometrically at this seam.
 1. **NATURAL** — a resolved Skyforge-owned start passes the natural support policy. Preserve it unchanged.
 2. **FILL_ONLY_ACCOMMODATION** — natural support rejects, but the stricter complete-footprint foundation feasibility contract accepts. Attach one serialized foundation piece.
-3. **REJECT** — a resolved start would require edge bridging, excavation, excessive fill, incoherent support, ambiguous multi-volume provenance, or otherwise fails the neutral contract. Restore the previous start and return `false` so vanilla fallback may continue.
+3. **REJECT** — a resolved start would require edge bridging, excavation above the authorized native surface ceiling, excessive fill, incoherent support, ambiguous multi-volume provenance, or otherwise fails the neutral contract. Restore the previous start and return `false` so vanilla fallback may continue.
 
 Accommodation is never evaluated as a way to override a successful natural site, and Skyforge does not manufacture a support plane for an unresolved native start.
 
@@ -61,12 +64,17 @@ Accommodation is never evaluated as a way to override a successful natural site,
 
 Skyforge upper surfaces are continuous boundaries with strict occupancy (`y < upperSurface`). Minecraft height queries return first-free block coordinates.
 
-For a resolved structure whose first occupied floor block is at `StructureStart.minY()`:
+For a resolved structure whose lowest occupied structure block is at `StructureStart.minY()`:
 
-- neutral foundation boundary plane = `StructureStart.minY()`;
-- highest serialized foundation block = `StructureStart.minY() - 1`.
+- neutral foundation fill plane = `StructureStart.minY()`;
+- highest serialized foundation block = `StructureStart.minY() - 1`;
+- maximum natural surface plane = the highest retained first-free Skyforge claim that resolves this start, clamped no lower than `StructureStart.minY()`.
 
-The adapter SHALL NOT subtract one from the neutral continuous boundary merely because the highest Minecraft foundation block is one lower. Keeping these coordinate domains distinct avoids false one-block excavation failures at an otherwise flush site.
+Because resolved claims are admitted only within one block of the start minimum, the Minecraft surface ceiling can be at most one block above the fill plane. This is not excavation permission. It represents the native case where the top natural terrain block occupies the same discrete layer as the structure's lowest block and is replaced by normal native structure placement.
+
+Fill depth remains measured from `StructureStart.minY()` downward. The adapter SHALL NOT use the higher first-free surface ceiling as the fill plane, because doing so would overstate required fill and weaken the exact fill-depth contract.
+
+This two-plane model replaces the earlier single-plane assumption exposed by the first woodland-mansion proof run, where the real start resolved at `minY=223` against a first-free Skyforge surface one block higher.
 
 ## Initial Minecraft policy
 
@@ -80,8 +88,9 @@ The initial foundation policy requires:
 - 50% clearance support;
 - at most 12 blocks of evaluated surface relief;
 - at most 8 world units of required fill;
-- neutral foundation boundary at the resolved native start minimum Y;
-- highest realized foundation block one block below that Y.
+- foundation fill plane at the resolved native start minimum Y;
+- maximum natural surface plane derived from the retained resolved first-free claim and no more than one block above the fill plane;
+- highest realized foundation block one block below the start minimum Y.
 
 One-block sampling is intentional: for Minecraft's integral bounding-box coordinates, accommodation checks every footprint column before accepting the start. Natural admission remains on its less expensive 4-block representative grid.
 
@@ -104,10 +113,11 @@ Because partial structure placement can continue after a save/reload, foundation
 - Coherent uneven sites can host resolved native structures without flattening Skyforge terrain.
 - Structures with deferred or unusual vertical lifecycles remain compatible without per-structure special cases.
 - Unknown/modded structures are preserved under uncertainty rather than blocked merely because Skyforge cannot prove their final support plane at `STRUCTURE_STARTS`.
+- Native one-block occupied/free conventions no longer cause false excavation rejection.
 - Edge gaps cannot be bridged because every footprint column must be supported before admission.
 - Foundation realization cannot silently attach to vanilla ground or a different stacked island.
-- The maximum fill-depth bound is exact at block placement time as well as in neutral feasibility assessment.
-- Continuous Skyforge boundaries and discrete Minecraft block coordinates remain semantically consistent.
+- The maximum fill-depth bound remains exact because the surface ceiling is not used to measure fill.
+- Continuous Skyforge boundaries and discrete Minecraft block coordinates remain semantically explicit.
 - Structure persistence uses Minecraft's existing structure-piece mechanism.
 - Vanilla structure selection and fallback remain authoritative.
 - Backend-neutral feasibility remains free of Minecraft types.
@@ -126,6 +136,14 @@ Because partial structure placement can continue after a save/reload, foundation
 ### Treat any Skyforge height query as proof of final structure Y
 
 Rejected after interactive development demonstrated a native scattered-feature start whose provisional bounding box remained near sea level despite consulting an elevated Skyforge height. This would make Skyforge misinterpret Minecraft's own deferred placement lifecycle.
+
+### Use the first-free claim as the foundation fill plane
+
+Rejected because a native structure can resolve its lowest occupied block one layer below that claim. Using the first-free coordinate as the fill plane would overstate required fill by one unit and make the serialized placement bound less exact.
+
+### Treat any natural surface above `StructureStart.minY()` as excavation
+
+Rejected after the real woodland-mansion specimen resolved at `minY=223` while its first-free Skyforge claim was one block higher. That configuration is a native occupied/free-layer convention, not evidence that Skyforge must cut terrain above the structure's resolved surface.
 
 ### Translate deferred structures upward ourselves
 
@@ -155,6 +173,12 @@ Rejected because the native structure should remain a native Minecraft structure
 
 CI #116 passed the substantive full repository build/test/evidence gate on the first SF-IMP-0046 implementation head. CI #122 passed with the first dedicated client fixture, and CI #130 passed after one-block footprint sampling, exact support-volume provenance and exact fill-depth hardening.
 
-Interactive runs then exposed two fixture/seam defects that automated coverage did not previously exercise: an invalid 2-D fixture graph and the false assumption that every Skyforge height query implies a vertically resolved `StructureStart`. The branch now includes regression coverage for kernel-valid fixture construction, full height-claim retention, resolved-vs-deferred start filtering and continuous/discrete foundation-plane translation.
+Interactive runs then exposed three fixture/seam defects that automated coverage did not previously exercise:
+
+1. an invalid 2-D fixture graph;
+2. the false assumption that every Skyforge height query implies a vertically resolved `StructureStart`;
+3. the single-plane foundation assumption, exposed when the real woodland mansion resolved at `minY=223` while its retained first-free Skyforge surface was one block higher.
+
+The branch now includes regression coverage for kernel-valid fixture construction, full height-claim retention, resolved-vs-deferred start filtering, and distinct neutral fill/surface planes. The mansion failure was not waived or hidden by enlarging the fixture; it changed the coordinate contract so native occupied/free semantics are represented explicitly without loosening fill depth or excavation bounds.
 
 Final milestone acceptance requires a fresh exact-head CI pass plus the revised resolved-start interactive specimen described in the SF-IMP-0046 architecture note.
