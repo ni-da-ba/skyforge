@@ -156,6 +156,7 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
         SurfaceFoundationRequirements foundation = new SurfaceFoundationRequirements(
                 new SurfaceSupportRequirements(
                         -24.0, 40.0, -24.0, 40.0, 1.0, 2.0, 1.0, 0.50, 12.0),
+                SURFACE_PLATEAU_Y - 1.0,
                 SURFACE_PLATEAU_Y,
                 8.0);
         var foundationAssessment = new SkyIslandSurfaceFoundationEvaluator().assess(volume, foundation);
