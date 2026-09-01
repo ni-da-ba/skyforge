@@ -31,8 +31,11 @@ final class MinecraftStructureSupportPolicy {
      * Returns the stricter fill-only accommodation policy beneath the native structure floor.
      *
      * <p>Accommodation samples every integral Minecraft X/Z column in the bounding-box footprint,
-     * requires complete interior support and never bridges an island edge. The relaxed height span
-     * only permits bounded downward foundation fill and does not authorize excavation.
+     * requires complete interior support and never bridges an island edge. The neutral foundation
+     * top is a continuous boundary plane, so a structure whose first occupied floor block is at
+     * {@code box.minY()} uses {@code box.minY()} as the target boundary. The serialized Minecraft
+     * foundation piece still fills only through block {@code box.minY() - 1}. This keeps continuous
+     * Skyforge surface coordinates and discrete Minecraft block coordinates consistent.
      */
     static SurfaceFoundationRequirements foundationRequirements(BoundingBox box) {
         return new SurfaceFoundationRequirements(
@@ -41,7 +44,7 @@ final class MinecraftStructureSupportPolicy {
                         FOUNDATION_SAMPLE_SPACING,
                         FOUNDATION_MINIMUM_COVERAGE,
                         FOUNDATION_MAXIMUM_HEIGHT_SPAN),
-                Math.subtractExact(box.minY(), 1),
+                box.minY(),
                 FOUNDATION_MAXIMUM_FILL_DEPTH);
     }
 
