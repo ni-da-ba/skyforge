@@ -32,6 +32,35 @@ public final class SkyIslandTerrainInterpreter {
         this.density = evaluator.field3(volume.densityGraph());
     }
 
+    /** Returns the authoritative compiled upper-surface height at one finite horizontal coordinate. */
+    public double upperSurfaceHeight(double x, double z) {
+        Coordinate2 point = new Coordinate2(x, z);
+        double value = upperSurface.sample(point);
+        if (!Double.isFinite(value)) {
+            throw new IllegalStateException("compiled upper surface produced a non-finite value");
+        }
+        return value;
+    }
+
+    /** Returns the authoritative compiled underside height at one finite horizontal coordinate. */
+    public double undersideSurfaceHeight(double x, double z) {
+        Coordinate2 point = new Coordinate2(x, z);
+        double value = undersideSurface.sample(point);
+        if (!Double.isFinite(value)) {
+            throw new IllegalStateException("compiled underside surface produced a non-finite value");
+        }
+        return value;
+    }
+
+    /** Returns the authoritative signed density at one finite world-space coordinate. */
+    public double density(double x, double y, double z) {
+        double value = density.sample(new Coordinate3(x, y, z));
+        if (!Double.isFinite(value)) {
+            throw new IllegalStateException("compiled density produced a non-finite value");
+        }
+        return value;
+    }
+
     /** Classifies one finite world-space coordinate. */
     public SkyIslandTerrainSemantic classify(Coordinate3 point) {
         Objects.requireNonNull(point, "point");
@@ -39,9 +68,8 @@ public final class SkyIslandTerrainInterpreter {
             return SkyIslandTerrainSemantic.AIR;
         }
 
-        Coordinate2 horizontal = new Coordinate2(point.x(), point.z());
-        double upper = upperSurface.sample(horizontal);
-        double underside = undersideSurface.sample(horizontal);
+        double upper = upperSurfaceHeight(point.x(), point.z());
+        double underside = undersideSurfaceHeight(point.x(), point.z());
         double depthFromUpper = upper - point.y();
         double depthFromUnderside = point.y() - underside;
         if (!(depthFromUpper > 0.0) || !(depthFromUnderside > 0.0)) {

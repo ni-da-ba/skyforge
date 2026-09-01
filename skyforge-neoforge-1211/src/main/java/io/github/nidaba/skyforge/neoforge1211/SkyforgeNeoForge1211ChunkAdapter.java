@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceFoundationEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceSupportEvaluator;
+import io.github.nidaba.skyforge.world.SkyIslandTerrainBoxObserver;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainInterpreter;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainSampleContext;
@@ -12,6 +13,8 @@ import io.github.nidaba.skyforge.world.SurfaceFoundationAssessment;
 import io.github.nidaba.skyforge.world.SurfaceFoundationRequirements;
 import io.github.nidaba.skyforge.world.SurfaceSupportAssessment;
 import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
+import io.github.nidaba.skyforge.world.TerrainBoxObservation;
+import io.github.nidaba.skyforge.world.TerrainBoxObservationRequirements;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.List;
 import java.util.Objects;
@@ -121,6 +124,25 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     /** Delegates bounded fill-only accommodation assessment to the backend-neutral evaluator. */
     List<SurfaceFoundationAssessment> assessSurfaceFoundation(SurfaceFoundationRequirements requirements) {
         return new SkyIslandSurfaceFoundationEvaluator().assess(catalog, requirements);
+    }
+
+    /**
+     * Observes one finite 3-D box against one exact compiled Skyforge volume without deriving policy.
+     *
+     * <p>The exact identity lookup intentionally does not spatially prefilter the requested box: a
+     * future caller may need evidence that native geometry lies wholly above or below the admitted
+     * volume's own surface envelope.
+     */
+    TerrainBoxObservation observeTerrainBox(
+            SkyIslandWorldVolumeId volumeId,
+            TerrainBoxObservationRequirements requirements) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(requirements, "requirements");
+        var volume = catalog.volumes().stream()
+                .filter(candidate -> candidate.id().equals(volumeId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("unknown Skyforge world volume: " + volumeId.path()));
+        return new SkyIslandTerrainBoxObserver().observe(volume, terrainProfile, requirements);
     }
 
     private static WorldBounds pointBounds(int worldX, int worldY, int worldZ) {
