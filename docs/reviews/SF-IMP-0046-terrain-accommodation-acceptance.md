@@ -39,7 +39,7 @@ Two interactive failures were then correctly treated as evidence rather than wai
 1. the first fixture used a 3-D-only graph node in a 2-D surface graph;
 2. the desert-pyramid specimen demonstrated that a native structure can consult elevated Skyforge height while retaining a provisional Y until a later placement phase.
 
-The branch now contains regression coverage for the first defect and explicit resolved-vs-deferred filtering for the second. Exact-head CI #142 is the required automated gate for the revised seam and mansion specimen; its final result must be recorded before milestone acceptance.
+The branch now contains regression coverage for the first defect and explicit resolved-vs-deferred filtering for the second. A fresh successful CI run on the final pre-interactive head is required before milestone acceptance.
 
 ## Revised interactive acceptance gate
 
