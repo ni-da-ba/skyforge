@@ -2,8 +2,11 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicReference;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
  * Runtime binding consumed by the Skyforge post-surface chunk-generator seam.
@@ -50,6 +53,51 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             return Optional.empty();
         }
         return Optional.of(materialize(binding, chunk));
+    }
+
+    /**
+     * Evaluates the active Skyforge binding as an early generator height query without mutating a
+     * chunk. The returned value follows Minecraft heightmap convention: one block above the highest
+     * matching block in the requested column.
+     *
+     * <p>The query uses the same backend-owned block-state projection as live realization and then
+     * applies Minecraft's own predicate for the requested heightmap type. Vanilla terrain is not
+     * represented here; callers combine this optional Skyforge answer with the vanilla generator's
+     * answer.
+     */
+    static OptionalInt queryBaseHeight(
+            int worldX,
+            int worldZ,
+            Heightmap.Types type,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(type, "type");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return OptionalInt.empty();
+        }
+
+        ChunkPos chunkPos = new ChunkPos(Math.floorDiv(worldX, 16), Math.floorDiv(worldZ, 16));
+        MinecraftChunkMaterialization materialization = binding.adapter().materialize(
+                chunkPos,
+                minimumY,
+                height);
+        int localX = worldX - chunkPos.getMinBlockX();
+        int localZ = worldZ - chunkPos.getMinBlockZ();
+        int maximumYExclusive = Math.addExact(minimumY, height);
+
+        for (int worldY = maximumYExclusive - 1; worldY >= minimumY; worldY--) {
+            var key = materialization.blockKeyAt(localX, worldY, localZ);
+            var state = binding.writer().resolveForQuery(key);
+            if (type.isOpaque().test(state)) {
+                return OptionalInt.of(worldY + 1);
+            }
+        }
+        return OptionalInt.empty();
     }
 
     /**
