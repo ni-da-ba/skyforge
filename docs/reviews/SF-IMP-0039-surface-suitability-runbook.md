@@ -1,6 +1,6 @@
 # SF-IMP-0039 — Minecraft Surface Suitability In-Game Runbook
 
-**Status:** Automated verification and repository-wide build passed; manual in-game acceptance pending.
+**Status:** Automated verification passed; live suitability selection and marker realization passed; final save/reload confirmation pending.
 
 ## Purpose
 
@@ -40,7 +40,7 @@ scripts\verify-sf-imp-0039-surface-suitability.bat
 gradlew.bat check
 ```
 
-Both automated gates passed on 2026-08-31. Manual client acceptance remains required before SF-IMP-0039 can be accepted.
+Both automated gates passed on 2026-08-31.
 
 ## Launch
 
@@ -106,6 +106,32 @@ Expected evidence:
 
 A seed does not need to demonstrate both dry and submerged classes. The environment determines which class exists.
 
+## Live client evidence — 2026-08-31
+
+A disposable SF-IMP-0039 world placed the engineering specimen over ocean terrain.
+
+Across the origin-area diagnostic chunks, the observed result was consistently:
+
+```text
+dryLand=0
+dryOpen=0
+submergedWaterFloor=256
+dryOpenQueries=14
+dryOpenEmitted=0
+submergedQueries=4
+submergedEmitted=4
+```
+
+This is a strong separation proof:
+
+- the dry probes executed but emitted nothing because no dry candidate class existed;
+- the submerged selector exposed a water-floor candidate in every inspected column;
+- the submerged development feature consumed those candidates and emitted placements;
+- sparse lapis markers were visibly realized on the ocean floor beneath the Massif;
+- no corresponding dry-open markers appeared underwater.
+
+The user also observed fewer lapis markers in cave systems than across the open seabed. This is useful empirical evidence that the sparse probe does not indiscriminately carpet every submerged cavity, but SF-IMP-0039 does **not** claim an explicit open-ocean-versus-flooded-cave suitability distinction. A later aquatic suitability refinement may introduce such a distinction if real kelp/seagrass placement demonstrates the need.
+
 ### Highest surface exclusion
 
 The colored supplemental markers should not systematically decorate the vanilla highest Massif surface. That surface remains vanilla-owned.
@@ -121,6 +147,8 @@ Confirm:
 - no placement-modifier codec/registry errors appear;
 - no chunk corruption or duplicate generation is apparent.
 
+The initial client run saved and shut down cleanly. One reopen of that same world remains the final manual acceptance gate.
+
 ## Pass criteria
 
 Manual acceptance passes when:
@@ -133,6 +161,8 @@ Manual acceptance passes when:
 - no systematic marker duplication occurs on the highest surface; and
 - save/reload is clean.
 
+All criteria except the final reload confirmation have now been observed.
+
 ## Explicit limitations
 
-This is not a final vegetation policy. The 8-block headroom and 3-block support-thickness thresholds are first engineering criteria intended to make suitability explicit and testable. Horizontal footprint, slopes, trees, snow/ice, true kelp/seagrass behavior, modded feature families, and higher-level Skyforge biome/environment field ownership remain later work.
+This is not a final vegetation policy. The 8-block headroom and 3-block support-thickness thresholds are first engineering criteria intended to make suitability explicit and testable. Horizontal footprint, slopes, trees, snow/ice, true kelp/seagrass behavior, open-water-versus-flooded-cavity aquatic distinctions, modded feature families, and higher-level Skyforge biome/environment field ownership remain later work.
