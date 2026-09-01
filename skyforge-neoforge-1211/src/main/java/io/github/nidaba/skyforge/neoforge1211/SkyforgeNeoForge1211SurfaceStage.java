@@ -5,6 +5,8 @@ import io.github.nidaba.skyforge.world.SurfaceFoundationAssessment;
 import io.github.nidaba.skyforge.world.SurfaceFoundationRequirements;
 import io.github.nidaba.skyforge.world.SurfaceSupportAssessment;
 import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
+import io.github.nidaba.skyforge.world.TerrainBoxObservation;
+import io.github.nidaba.skyforge.world.TerrainBoxObservationRequirements;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -121,6 +123,18 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return binding == null
                 ? Optional.empty()
                 : Optional.of(binding.adapter().assessSurfaceFoundation(requirements));
+    }
+
+    /** Observes one finite 3-D box against one exact Skyforge volume without deriving eligibility. */
+    static Optional<TerrainBoxObservation> observeTerrainBox(
+            SkyIslandWorldVolumeId volumeId,
+            TerrainBoxObservationRequirements requirements) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(requirements, "requirements");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? Optional.empty()
+                : Optional.of(binding.adapter().observeTerrainBox(volumeId, requirements));
     }
 
     /**
