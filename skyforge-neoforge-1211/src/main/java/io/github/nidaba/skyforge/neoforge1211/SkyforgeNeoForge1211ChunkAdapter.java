@@ -1,10 +1,15 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandSurfaceSupportEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainInterpreter;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainSampleContext;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainSemantic;
 import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import io.github.nidaba.skyforge.world.SurfaceSupportAssessment;
+import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
+import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.List;
 import java.util.Objects;
 import net.minecraft.resources.ResourceLocation;
@@ -71,6 +76,33 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 height,
                 blockKeys,
                 candidates.size());
+    }
+
+    /**
+     * Returns the independently compiled island volumes that actually own a solid Skyforge sample.
+     *
+     * <p>This is a provenance query for the Minecraft adapter only. It does not merge vertically
+     * stacked islands and therefore preserves the world catalog's independent-volume semantics.
+     */
+    List<SkyIslandWorldVolumeId> claimingVolumeIds(int worldX, int worldY, int worldZ) {
+        WorldBounds pointBounds = new WorldBounds(
+                worldX,
+                worldX,
+                worldY,
+                worldY,
+                worldZ,
+                worldZ);
+        return catalog.query(pointBounds).stream()
+                .filter(candidate -> new SkyIslandTerrainInterpreter(candidate.compiledVolume(), terrainProfile)
+                        .classify(worldX, worldY, worldZ)
+                        .isSolid())
+                .map(candidate -> candidate.id())
+                .toList();
+    }
+
+    /** Delegates structure-sized support assessment to the accepted backend-neutral evaluator. */
+    List<SurfaceSupportAssessment> assessSurfaceSupport(SurfaceSupportRequirements requirements) {
+        return new SkyIslandSurfaceSupportEvaluator().assess(catalog, requirements);
     }
 
     private static SkyIslandTerrainSemantic classify(
