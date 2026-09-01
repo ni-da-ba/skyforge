@@ -1,16 +1,16 @@
 package io.github.nidaba.skyforge.world;
 
+import java.util.Objects;
+
 /**
  * Backend-neutral footprint and policy thresholds for evaluating one candidate surface.
  *
- * <p>The footprint and clearance are expressed in world-space X/Z coordinates. Sampling is
- * deterministic and independent of backend block/chunk concepts.
+ * <p>The footprint is a union of world-space X/Z rectangles. Sampling is deterministic and
+ * independent of backend block/chunk concepts. The historical rectangular constructor remains as a
+ * convenience for callers that do not need piece-aware geometry.
  */
 public record SurfaceSupportRequirements(
-        double minimumX,
-        double maximumX,
-        double minimumZ,
-        double maximumZ,
+        SurfaceFootprint footprint,
         double sampleSpacing,
         double clearance,
         double minimumCoverageFraction,
@@ -19,19 +19,10 @@ public record SurfaceSupportRequirements(
 
     /** Validates finite geometry and normalized policy thresholds. */
     public SurfaceSupportRequirements {
-        requireFinite("minimumX", minimumX);
-        requireFinite("maximumX", maximumX);
-        requireFinite("minimumZ", minimumZ);
-        requireFinite("maximumZ", maximumZ);
+        Objects.requireNonNull(footprint, "footprint");
         requireFinite("sampleSpacing", sampleSpacing);
         requireFinite("clearance", clearance);
         requireFinite("maximumHeightSpan", maximumHeightSpan);
-        if (maximumX < minimumX) {
-            throw new IllegalArgumentException("maximumX must be greater than or equal to minimumX");
-        }
-        if (maximumZ < minimumZ) {
-            throw new IllegalArgumentException("maximumZ must be greater than or equal to minimumZ");
-        }
         if (sampleSpacing <= 0.0) {
             throw new IllegalArgumentException("sampleSpacing must be greater than zero");
         }
@@ -43,26 +34,62 @@ public record SurfaceSupportRequirements(
         if (maximumHeightSpan < 0.0) {
             throw new IllegalArgumentException("maximumHeightSpan must be non-negative");
         }
-        requireFinite("expandedMinimumX", minimumX - clearance);
-        requireFinite("expandedMaximumX", maximumX + clearance);
-        requireFinite("expandedMinimumZ", minimumZ - clearance);
-        requireFinite("expandedMaximumZ", maximumZ + clearance);
+        requireFinite("expandedMinimumX", footprint.minimumX() - clearance);
+        requireFinite("expandedMaximumX", footprint.maximumX() + clearance);
+        requireFinite("expandedMinimumZ", footprint.minimumZ() - clearance);
+        requireFinite("expandedMaximumZ", footprint.maximumZ() + clearance);
+    }
+
+    /** Backward-compatible convenience constructor for one rectangular footprint. */
+    public SurfaceSupportRequirements(
+            double minimumX,
+            double maximumX,
+            double minimumZ,
+            double maximumZ,
+            double sampleSpacing,
+            double clearance,
+            double minimumCoverageFraction,
+            double minimumClearanceCoverageFraction,
+            double maximumHeightSpan) {
+        this(
+                SurfaceFootprint.rectangle(minimumX, maximumX, minimumZ, maximumZ),
+                sampleSpacing,
+                clearance,
+                minimumCoverageFraction,
+                minimumClearanceCoverageFraction,
+                maximumHeightSpan);
+    }
+
+    public double minimumX() {
+        return footprint.minimumX();
+    }
+
+    public double maximumX() {
+        return footprint.maximumX();
+    }
+
+    public double minimumZ() {
+        return footprint.minimumZ();
+    }
+
+    public double maximumZ() {
+        return footprint.maximumZ();
     }
 
     double expandedMinimumX() {
-        return minimumX - clearance;
+        return footprint.minimumX() - clearance;
     }
 
     double expandedMaximumX() {
-        return maximumX + clearance;
+        return footprint.maximumX() + clearance;
     }
 
     double expandedMinimumZ() {
-        return minimumZ - clearance;
+        return footprint.minimumZ() - clearance;
     }
 
     double expandedMaximumZ() {
-        return maximumZ + clearance;
+        return footprint.maximumZ() + clearance;
     }
 
     private static void requireFraction(String property, double value) {
