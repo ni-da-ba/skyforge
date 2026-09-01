@@ -19,9 +19,8 @@ import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSeriali
  * Serializable fill-only foundation attached to a vanilla structure start by Skyforge.
  *
  * <p>The piece occupies only the bounded vertical interval below the original structure floor. It
- * never removes or replaces solid terrain: each chunk-local column searches downward for existing
- * support and fills only intervening air. The piece therefore realizes an accepted accommodation
- * plan without flattening the authoritative Skyforge island geometry.
+ * never removes or replaces solid terrain. Each chunk-local column may fill only above a solid
+ * sample owned by the exact Skyforge volume recorded when the accommodation was admitted.
  */
 final class SkyforgeFoundationPiece extends StructurePiece {
     private static final String ROOT_SEED_TAG = "SkyforgeRootSeed";
@@ -109,13 +108,13 @@ final class SkyforgeFoundationPiece extends StructurePiece {
             return;
         }
 
-        int minimumSearchY = Math.max(
+        int minimumSupportY = Math.max(
                 level.getMinBuildHeight(),
-                Math.subtractExact(foundationTopY, Math.addExact(maximumFillDepth, 1)));
+                Math.subtractExact(foundationTopY, maximumFillDepth));
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int worldZ = minimumZ; worldZ <= maximumZ; worldZ++) {
             for (int worldX = minimumX; worldX <= maximumX; worldX++) {
-                int supportY = findSupportY(level, cursor, worldX, worldZ, minimumSearchY);
+                int supportY = findOwnedSupportY(level, cursor, worldX, worldZ, minimumSupportY);
                 if (supportY == Integer.MIN_VALUE || supportY >= foundationTopY) {
                     continue;
                 }
@@ -130,18 +129,27 @@ final class SkyforgeFoundationPiece extends StructurePiece {
         }
     }
 
-    private int findSupportY(
+    private int findOwnedSupportY(
             WorldGenLevel level,
             BlockPos.MutableBlockPos cursor,
             int worldX,
             int worldZ,
-            int minimumSearchY) {
-        for (int worldY = foundationTopY; worldY >= minimumSearchY; worldY--) {
+            int minimumSupportY) {
+        for (int worldY = foundationTopY; worldY >= minimumSupportY; worldY--) {
             cursor.set(worldX, worldY, worldZ);
             BlockState state = level.getBlockState(cursor);
-            if (!state.isAir() && state.getFluidState().isEmpty()) {
-                return worldY;
+            if (state.isAir() || !state.getFluidState().isEmpty()) {
+                continue;
             }
+
+            boolean ownedByAdmittedVolume = SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(
+                            supportingVolumeId,
+                            worldX,
+                            worldY,
+                            worldZ)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Skyforge foundation realization requires its compiled runtime binding"));
+            return ownedByAdmittedVolume ? worldY : Integer.MIN_VALUE;
         }
         return Integer.MIN_VALUE;
     }
@@ -173,7 +181,7 @@ final class SkyforgeFoundationPiece extends StructurePiece {
             throw new IllegalArgumentException("maximumFillDepth must be positive");
         }
         int topY = Math.subtractExact(structureBounds.minY(), 1);
-        int bottomY = Math.subtractExact(topY, Math.addExact(maximumFillDepth, 1));
+        int bottomY = Math.addExact(Math.subtractExact(topY, maximumFillDepth), 1);
         return new BoundingBox(
                 structureBounds.minX(),
                 bottomY,
