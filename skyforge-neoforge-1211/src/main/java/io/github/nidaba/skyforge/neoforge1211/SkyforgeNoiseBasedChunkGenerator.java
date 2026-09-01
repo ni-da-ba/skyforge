@@ -3,7 +3,9 @@ package io.github.nidaba.skyforge.neoforge1211;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
@@ -21,8 +23,10 @@ import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.structure.Structure;
+import net.minecraft.world.level.levelgen.structure.StructurePiece;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
+import net.minecraft.world.level.levelgen.structure.pieces.PiecesContainer;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 /**
@@ -83,9 +87,11 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
     /**
      * Wraps one vanilla structure candidate after NeoForge widens the otherwise-private method.
      *
-     * <p>Vanilla still chooses structure sets, weights and alternatives. Skyforge only rejects a
-     * generated start when the candidate depended on an elevated Skyforge height and the real
-     * native bounding-box footprint fails the accepted backend-neutral support evaluator.
+     * <p>Vanilla still chooses structure sets, weights and alternatives. Skyforge first accepts a
+     * naturally supported start. If the start is fully contained on one claimed Skyforge surface
+     * but only fails the stricter natural-relief requirement, Skyforge may attach one serialized,
+     * fill-only foundation piece. Anything requiring excavation, edge bridging or excessive fill is
+     * rejected and vanilla fallback remains authoritative.
      */
     @Override
     protected boolean tryGenerateStructure(
@@ -144,20 +150,47 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         }
 
         SkyIslandWorldVolumeId claimedVolumeId = claimedVolumeIds.iterator().next();
-        var requirements = MinecraftStructureSupportPolicy.requirements(start.getBoundingBox());
-        boolean accepted = SkyforgeNeoForge1211SurfaceStage.assessSurfaceSupport(requirements)
+        var naturalRequirements = MinecraftStructureSupportPolicy.requirements(start.getBoundingBox());
+        boolean naturallyAccepted = SkyforgeNeoForge1211SurfaceStage.assessSurfaceSupport(naturalRequirements)
                 .orElseThrow(() -> new IllegalStateException("active Skyforge binding disappeared during structure generation"))
                 .stream()
                 .filter(assessment -> assessment.supportingVolumeId().equals(claimedVolumeId))
                 .findFirst()
                 .map(assessment -> assessment.accepted())
                 .orElse(false);
-        if (accepted) {
+        if (naturallyAccepted) {
             return true;
         }
 
-        chunk.setAllStarts(previousStarts);
-        return false;
+        var foundationRequirements =
+                MinecraftStructureSupportPolicy.foundationRequirements(start.getBoundingBox());
+        var foundationAssessment = SkyforgeNeoForge1211SurfaceStage.assessSurfaceFoundation(foundationRequirements)
+                .orElseThrow(() -> new IllegalStateException("active Skyforge binding disappeared during structure generation"))
+                .stream()
+                .filter(assessment -> assessment.supportingVolumeId().equals(claimedVolumeId))
+                .findFirst();
+        if (foundationAssessment.isEmpty() || !foundationAssessment.orElseThrow().accepted()) {
+            chunk.setAllStarts(previousStarts);
+            return false;
+        }
+
+        int maximumFillDepth = Math.max(
+                1,
+                (int) Math.ceil(foundationAssessment.orElseThrow().maximumRequiredFillDepth()));
+        SkyforgeFoundationPiece foundation = new SkyforgeFoundationPiece(
+                start.getBoundingBox(),
+                claimedVolumeId,
+                maximumFillDepth);
+        List<StructurePiece> pieces = new ArrayList<>(start.getPieces().size() + 1);
+        pieces.add(foundation);
+        pieces.addAll(start.getPieces());
+        StructureStart accommodatedStart = new StructureStart(
+                structure,
+                start.getChunkPos(),
+                start.getReferences(),
+                new PiecesContainer(List.copyOf(pieces)));
+        structureManager.setStartForStructure(sectionPos, structure, accommodatedStart, chunk);
+        return true;
     }
 
     @Override
