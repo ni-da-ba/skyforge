@@ -99,12 +99,12 @@ final class SkyIslandCompositeSurfaceFootprintTest {
                 1,
                 constantGraph(GraphValueType.SCALAR_FIELD_2, upperY, "upper"),
                 constantGraph(GraphValueType.SCALAR_FIELD_2, upperY - 20.0, "underside"),
-                densityGraph(0.0, 10.0, 0.0, 2.0, upperY),
+                densityGraph(-1.0, 11.0, -1.0, 3.0, upperY),
                 Map.of());
         SkyIslandWorldVolumeId id = new SkyIslandWorldVolumeId(ROOT_SEED, "composite", 0, 0, ROOT_SEED);
         return new SkyIslandWorldVolume(
                 id,
-                new WorldBounds(0.0, 10.0, upperY - 21.0, upperY + 1.0, 0.0, 2.0),
+                new WorldBounds(-1.0, 11.0, upperY - 21.0, upperY + 1.0, -1.0, 3.0),
                 compiled);
     }
 
