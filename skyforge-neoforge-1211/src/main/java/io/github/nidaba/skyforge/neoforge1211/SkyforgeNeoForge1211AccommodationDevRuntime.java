@@ -29,13 +29,14 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 /**
  * Development-only SF-IMP-0046 specimen designed to exercise fill-only structure accommodation.
  *
- * <p>The specimen is a broad high plateau containing four bounded shallow pockets away from the
+ * <p>The specimen is one bounded floating mesa containing four shallow pockets away from the
  * origin chunk's terrain-query neighborhood. Development data forces a woodland mansion at chunk
  * (0,0). Unlike scattered-feature pieces that defer their final Y until placement, the mansion
  * resolves its generated pieces from its terrain-derived start position during STRUCTURE_STARTS.
- * The plateau therefore gives us a truthful start-time floor while at least one orientation-safe
- * pocket should force the actual mansion footprint to fail the natural relief threshold and pass
- * bounded fill-only accommodation.
+ * The broad top therefore gives us a truthful start-time floor while the pockets force the actual
+ * mansion footprint to fail natural relief and pass bounded fill-only accommodation. The lower
+ * surface rises toward a circular edge so this proof remains visibly island-like rather than a
+ * giant rectangular slab.
  */
 final class SkyforgeNeoForge1211AccommodationDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.accommodation";
@@ -48,9 +49,11 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
     private static final double SURFACE_RELIEF = 6.5;
     private static final double POCKET_FALLOFF_RADIUS_SQUARED = 16.0;
     private static final double[] POCKET_COORDINATES = {-16.0, 32.0};
-    private static final double UNDERSIDE_Y = 190.0;
-    private static final double WORLD_MINIMUM_XZ = -192.0;
-    private static final double WORLD_MAXIMUM_XZ = 192.0;
+    private static final double CENTER_UNDERSIDE_Y = 184.0;
+    private static final double ISLAND_RADIUS = 120.0;
+    private static final double ISLAND_RADIUS_SQUARED = ISLAND_RADIUS * ISLAND_RADIUS;
+    private static final double WORLD_MINIMUM_XZ = -ISLAND_RADIUS;
+    private static final double WORLD_MAXIMUM_XZ = ISLAND_RADIUS;
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeNeoForge1211AccommodationDevRuntime.class.getName());
     private static AutoCloseable persistentBinding;
@@ -73,8 +76,9 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "Skyforge SF-IMP-0046 accommodation specimen enabled. Create a NEW disposable world using the "
-                        + "Skyforge Development world type. Development data forces a minecraft:mansion start at "
-                        + "chunk (0,0). Inspect near x=" + INSPECTION_X
+                        + "Skyforge Development world type. Development data forces one nearby minecraft:mansion "
+                        + "candidate at chunk (0,0); the next forced candidate is over 8,000 blocks away. Inspect "
+                        + "near x=" + INSPECTION_X
                         + ", y=" + INSPECTION_Y
                         + ", z=" + INSPECTION_Z
                         + ". The run is self-checking: it will throw unless the real mansion start is resolved at "
@@ -126,7 +130,7 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
     static SkyIslandWorldCatalog catalog() {
         SkyIslandWorldVolumeId id = new SkyIslandWorldVolumeId(
                 ROOT_SEED,
-                "sf-imp-0046-foundation-plateau",
+                "sf-imp-0046-foundation-island",
                 0,
                 0,
                 ROOT_SEED);
@@ -135,11 +139,11 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
                 new WorldBounds(
                         WORLD_MINIMUM_XZ,
                         WORLD_MAXIMUM_XZ,
-                        UNDERSIDE_Y - 2.0,
+                        CENTER_UNDERSIDE_Y - 2.0,
                         SURFACE_PLATEAU_Y + 1.0,
                         WORLD_MINIMUM_XZ,
                         WORLD_MAXIMUM_XZ),
-                compiledPlateau());
+                compiledIsland());
         return new SkyIslandWorldCatalog(ROOT_SEED, List.of(volume));
     }
 
@@ -168,7 +172,7 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
         }
     }
 
-    private static CompiledSkyIslandVolume compiledPlateau() {
+    private static CompiledSkyIslandVolume compiledIsland() {
         SkyIslandVolumeDescriptor descriptor = new SkyIslandVolumeDescriptor(
                 SkyIslandVolumeDescriptor.SCHEMA_VERSION_1,
                 ROOT_SEED,
@@ -190,18 +194,27 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
                 1,
                 1,
                 plateauSurfaceGraph(GraphValueType.SCALAR_FIELD_2, "upper"),
-                constantGraph(GraphValueType.SCALAR_FIELD_2, UNDERSIDE_Y, "underside"),
+                taperedUndersideGraph(GraphValueType.SCALAR_FIELD_2, "underside"),
                 densityGraph(),
                 Map.of());
     }
 
-    /** High plateau with four shallow localized pockets centered away from the origin chunk. */
+    /** Broad top with four shallow localized pockets centered away from the origin chunk. */
     private static ProceduralGraph plateauSurfaceGraph(GraphValueType type, String prefix) {
         List<GraphNode> nodes = new ArrayList<>();
         NodeId x = coordinate(nodes, prefix + "-x", type, CoordinateAxis.X);
         NodeId z = coordinate(nodes, prefix + "-z", type, CoordinateAxis.Z);
         NodeId upper = plateauUpperBoundary(nodes, prefix, type, x, z);
         return new ProceduralGraph(nodes, upper);
+    }
+
+    /** Lower surface rises quadratically toward the circular edge, producing a tapered island body. */
+    private static ProceduralGraph taperedUndersideGraph(GraphValueType type, String prefix) {
+        List<GraphNode> nodes = new ArrayList<>();
+        NodeId x = coordinate(nodes, prefix + "-x", type, CoordinateAxis.X);
+        NodeId z = coordinate(nodes, prefix + "-z", type, CoordinateAxis.Z);
+        NodeId underside = taperedUndersideBoundary(nodes, prefix, type, x, z);
+        return new ProceduralGraph(nodes, underside);
     }
 
     private static ProceduralGraph densityGraph() {
@@ -212,23 +225,21 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
         NodeId z = coordinate(nodes, "density-z", type, CoordinateAxis.Z);
 
         NodeId upper = plateauUpperBoundary(nodes, "density", type, x, z);
+        NodeId underside = taperedUndersideBoundary(nodes, "density-underside", type, x, z);
         NodeId upperGap = arithmetic(nodes, "density-upper-gap", type, ArithmeticOperator.SUBTRACT, upper, y);
-        NodeId underside = constant(nodes, "density-underside", type, UNDERSIDE_Y);
         NodeId lowerGap = arithmetic(nodes, "density-lower-gap", type, ArithmeticOperator.SUBTRACT, y, underside);
         NodeId support = intersect(nodes, "density-vertical", upperGap, lowerGap);
 
-        NodeId minimumX = constant(nodes, "density-min-x", type, WORLD_MINIMUM_XZ);
-        NodeId maximumX = constant(nodes, "density-max-x", type, WORLD_MAXIMUM_XZ);
-        NodeId minimumZ = constant(nodes, "density-min-z", type, WORLD_MINIMUM_XZ);
-        NodeId maximumZ = constant(nodes, "density-max-z", type, WORLD_MAXIMUM_XZ);
-        support = intersect(nodes, "density-left", support,
-                arithmetic(nodes, "density-left-gap", type, ArithmeticOperator.SUBTRACT, x, minimumX));
-        support = intersect(nodes, "density-right", support,
-                arithmetic(nodes, "density-right-gap", type, ArithmeticOperator.SUBTRACT, maximumX, x));
-        support = intersect(nodes, "density-front", support,
-                arithmetic(nodes, "density-front-gap", type, ArithmeticOperator.SUBTRACT, z, minimumZ));
-        support = intersect(nodes, "density-back", support,
-                arithmetic(nodes, "density-back-gap", type, ArithmeticOperator.SUBTRACT, maximumZ, z));
+        NodeId radiusSquared = squaredHorizontalRadius(nodes, "density-edge", type, x, z);
+        NodeId radiusLimit = constant(nodes, "density-edge-radius", type, ISLAND_RADIUS_SQUARED);
+        NodeId radialGap = arithmetic(
+                nodes,
+                "density-edge-gap",
+                type,
+                ArithmeticOperator.SUBTRACT,
+                radiusLimit,
+                radiusSquared);
+        support = intersect(nodes, "density-bounded-island", support, radialGap);
         return new ProceduralGraph(nodes, support);
     }
 
@@ -257,6 +268,48 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
         }
         NodeId plateau = constant(nodes, prefix + "-plateau", type, SURFACE_PLATEAU_Y);
         return arithmetic(nodes, prefix + "-surface", type, ArithmeticOperator.SUBTRACT, plateau, totalRelief);
+    }
+
+    private static NodeId taperedUndersideBoundary(
+            List<GraphNode> nodes,
+            String prefix,
+            GraphValueType type,
+            NodeId x,
+            NodeId z) {
+        NodeId radiusSquared = squaredHorizontalRadius(nodes, prefix + "-radius", type, x, z);
+        NodeId radiusLimit = constant(nodes, prefix + "-radius-limit", type, ISLAND_RADIUS_SQUARED);
+        NodeId normalizedRadius = arithmetic(
+                nodes,
+                prefix + "-normalized-radius",
+                type,
+                ArithmeticOperator.DIVIDE,
+                radiusSquared,
+                radiusLimit);
+        NodeId verticalRange = constant(
+                nodes,
+                prefix + "-vertical-range",
+                type,
+                SURFACE_PLATEAU_Y - CENTER_UNDERSIDE_Y);
+        NodeId rise = arithmetic(
+                nodes,
+                prefix + "-rise",
+                type,
+                ArithmeticOperator.MULTIPLY,
+                normalizedRadius,
+                verticalRange);
+        NodeId center = constant(nodes, prefix + "-center", type, CENTER_UNDERSIDE_Y);
+        return arithmetic(nodes, prefix + "-surface", type, ArithmeticOperator.ADD, center, rise);
+    }
+
+    private static NodeId squaredHorizontalRadius(
+            List<GraphNode> nodes,
+            String prefix,
+            GraphValueType type,
+            NodeId x,
+            NodeId z) {
+        NodeId x2 = arithmetic(nodes, prefix + "-x2", type, ArithmeticOperator.MULTIPLY, x, x);
+        NodeId z2 = arithmetic(nodes, prefix + "-z2", type, ArithmeticOperator.MULTIPLY, z, z);
+        return arithmetic(nodes, prefix + "-r2", type, ArithmeticOperator.ADD, x2, z2);
     }
 
     /** Rational compact-looking pocket: depth approaches zero rapidly without a type-specific clamp node. */
@@ -292,11 +345,6 @@ final class SkyforgeNeoForge1211AccommodationDevRuntime {
                 relief,
                 falloff);
         return arithmetic(nodes, prefix + "-depth", type, ArithmeticOperator.DIVIDE, numerator, denominator);
-    }
-
-    private static ProceduralGraph constantGraph(GraphValueType type, double value, String name) {
-        NodeId output = new NodeId(name);
-        return new ProceduralGraph(List.of(new ConstantNode(output, type, value)), output);
     }
 
     private static NodeId coordinate(
