@@ -45,6 +45,15 @@ final class SkyforgeStructureCandidateAdmissionTest {
     }
 
     @Test
+    void accommodationDevelopmentFixtureBuildsKernelValidGraphs() {
+        var catalog = SkyforgeNeoForge1211AccommodationDevRuntime.catalog();
+
+        assertEquals(1, catalog.volumes().size());
+        assertNotNull(catalog.volumes().getFirst().compiledVolume().upperSurfaceGraph());
+        assertNotNull(catalog.volumes().getFirst().compiledVolume().densityGraph());
+    }
+
+    @Test
     void earlyHeightClaimCarriesIndependentWorldVolumeIdentity() throws Exception {
         SkyforgeNeoForge1211ChunkAdapter adapter = SkyforgeNeoForge1211DevRuntime.adapter();
         SkyIslandWorldVolumeId expectedId = SkyforgeNeoForge1211DevRuntime.catalog().volumes().getFirst().id();
