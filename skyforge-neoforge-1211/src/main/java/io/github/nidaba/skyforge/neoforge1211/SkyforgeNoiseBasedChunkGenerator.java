@@ -27,6 +27,7 @@ import net.minecraft.world.level.levelgen.structure.StructurePiece;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 import net.minecraft.world.level.levelgen.structure.pieces.PiecesContainer;
+import net.minecraft.world.level.levelgen.structure.structures.DesertPyramidStructure;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 /**
@@ -118,6 +119,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         }
 
         Structure structure = structureSelectionEntry.structure().value();
+        boolean accommodationProofCandidate = isAccommodationProofCandidate(structure, chunkPos);
         var previousStarts = new HashMap<>(chunk.getAllStarts());
         boolean generated;
         Set<SkyIslandWorldVolumeId> claimedVolumeIds;
@@ -136,15 +138,29 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         }
 
         if (!generated || claimedVolumeIds.isEmpty()) {
+            if (accommodationProofCandidate) {
+                throw new IllegalStateException(
+                        "SF-IMP-0046 fixture invalid: forced origin desert pyramid did not produce an elevated "
+                                + "Skyforge-owned native start");
+            }
             return generated;
         }
         if (claimedVolumeIds.size() != 1) {
+            if (accommodationProofCandidate) {
+                throw new IllegalStateException(
+                        "SF-IMP-0046 fixture invalid: forced origin desert pyramid claimed multiple Skyforge volumes: "
+                                + claimedVolumeIds);
+            }
             chunk.setAllStarts(previousStarts);
             return false;
         }
 
         StructureStart start = chunk.getStartForStructure(structure);
         if (start == null || !start.isValid()) {
+            if (accommodationProofCandidate) {
+                throw new IllegalStateException(
+                        "SF-IMP-0046 fixture invalid: forced origin desert pyramid produced no valid StructureStart");
+            }
             chunk.setAllStarts(previousStarts);
             return false;
         }
@@ -159,6 +175,9 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 .map(assessment -> assessment.accepted())
                 .orElse(false);
         if (naturallyAccepted) {
+            if (accommodationProofCandidate) {
+                SkyforgeNeoForge1211AccommodationDevRuntime.requireNaturalRejection(start.getBoundingBox());
+            }
             return true;
         }
 
@@ -170,13 +189,17 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 .filter(assessment -> assessment.supportingVolumeId().equals(claimedVolumeId))
                 .findFirst();
         if (foundationAssessment.isEmpty() || !foundationAssessment.orElseThrow().accepted()) {
+            if (accommodationProofCandidate) {
+                SkyforgeNeoForge1211AccommodationDevRuntime.requireFoundationAcceptance(start.getBoundingBox());
+            }
             chunk.setAllStarts(previousStarts);
             return false;
         }
 
+        var acceptedFoundation = foundationAssessment.orElseThrow();
         int maximumFillDepth = Math.max(
                 1,
-                (int) Math.ceil(foundationAssessment.orElseThrow().maximumRequiredFillDepth()));
+                (int) Math.ceil(acceptedFoundation.maximumRequiredFillDepth()));
         SkyforgeFoundationPiece foundation = new SkyforgeFoundationPiece(
                 start.getBoundingBox(),
                 claimedVolumeId,
@@ -190,7 +213,20 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 start.getReferences(),
                 new PiecesContainer(List.copyOf(pieces)));
         structureManager.setStartForStructure(sectionPos, structure, accommodatedStart, chunk);
+        if (accommodationProofCandidate) {
+            SkyforgeNeoForge1211AccommodationDevRuntime.recordFoundationAttached(
+                    start.getBoundingBox(),
+                    claimedVolumeId,
+                    acceptedFoundation.maximumRequiredFillDepth());
+        }
         return true;
+    }
+
+    private static boolean isAccommodationProofCandidate(Structure structure, ChunkPos chunkPos) {
+        return SkyforgeNeoForge1211AccommodationDevRuntime.enabled()
+                && structure instanceof DesertPyramidStructure
+                && chunkPos.x == 0
+                && chunkPos.z == 0;
     }
 
     @Override
