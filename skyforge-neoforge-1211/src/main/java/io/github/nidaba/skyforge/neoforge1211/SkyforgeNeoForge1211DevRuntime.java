@@ -15,12 +15,12 @@ import java.util.List;
 /**
  * Explicitly development-only runtime used for interactive Minecraft world-generation proofs.
  *
- * <p>The production mod does not install a world binding by default. ModDevGradle's SF-IMP-0040
+ * <p>The production mod does not install a world binding by default. ModDevGradle's SF-IMP-0041
  * client run opts into this class with {@value #ENABLE_PROPERTY}. The development-only world
  * preset selects {@link SkyforgeNoiseBasedChunkGenerator}; this runtime supplies that generator's
  * already-compiled post-surface Skyforge catalog and native Minecraft surface-top adaptation. The
- * development resources additionally exercise exposure-sensitive supplemental feature placement.
- * No late ChunkEvent.Load binding is installed.
+ * development resources additionally exercise real multi-block vegetation on supplemental dry
+ * surfaces. No late ChunkEvent.Load binding is installed.
  */
 final class SkyforgeNeoForge1211DevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.specimen";
@@ -48,13 +48,13 @@ final class SkyforgeNeoForge1211DevRuntime {
         persistentBinding = installSpecimen();
         LOGGER.log(
                 System.Logger.Level.INFO,
-                "Skyforge SF-IMP-0040 development specimen enabled with aquatic exposure suitability. "
+                "Skyforge SF-IMP-0041 development specimen enabled with supplemental multi-block vegetation. "
                         + "Create a NEW disposable world using the Skyforge Development world type and inspect near "
                         + "x=" + INSPECTION_X
                         + ", y=" + INSPECTION_Y
                         + ", z=" + INSPECTION_Z
-                        + ". Emerald markers indicate dry_open targets; lapis marks general submerged_water_floor "
-                        + "targets; diamond marks open_water_floor targets whose vertical water column reaches air.");
+                        + ". The development pack adds a boosted minecraft:trees_plains proof through dry_open "
+                        + "supplemental surfaces. Existing emerald/lapis/diamond markers remain diagnostics only.");
     }
 
     /** Installs one disposable post-surface specimen binding and returns its cleanup handle. */
@@ -73,7 +73,7 @@ final class SkyforgeNeoForge1211DevRuntime {
 
     static SkyIslandWorldCatalog catalog() {
         var compiled = compiledMassif();
-        var id = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0040-dev-massif", 0, 0, ROOT_SEED);
+        var id = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0041-dev-massif", 0, 0, ROOT_SEED);
         var worldVolume = new SkyIslandWorldVolume(
                 id,
                 new WorldBounds(-160.0, 160.0, 96.0, 304.0, -160.0, 160.0),
