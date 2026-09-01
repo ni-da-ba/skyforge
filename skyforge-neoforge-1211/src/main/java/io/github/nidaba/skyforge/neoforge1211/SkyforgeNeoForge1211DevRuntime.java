@@ -15,12 +15,13 @@ import java.util.List;
 /**
  * Explicitly development-only runtime used for interactive Minecraft world-generation proofs.
  *
- * <p>The production mod does not install a world binding by default. ModDevGradle's SF-IMP-0041
+ * <p>The production mod does not install a world binding by default. ModDevGradle's SF-IMP-0043
  * client run opts into this class with {@value #ENABLE_PROPERTY}. The development-only world
  * preset selects {@link SkyforgeNoiseBasedChunkGenerator}; this runtime supplies that generator's
- * already-compiled post-surface Skyforge catalog and native Minecraft surface-top adaptation. The
- * development resources additionally exercise real multi-block vegetation on supplemental dry
- * surfaces. No late ChunkEvent.Load binding is installed.
+ * already-compiled post-surface Skyforge catalog, native Minecraft surface-top adaptation and the
+ * accepted early generator height-query bridge. Development data forces a vanilla desert-pyramid
+ * structure candidate at the origin so Minecraft's normal structure-start path can be inspected
+ * against the floating Massif. No late ChunkEvent.Load binding is installed.
  */
 final class SkyforgeNeoForge1211DevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.specimen";
@@ -48,13 +49,14 @@ final class SkyforgeNeoForge1211DevRuntime {
         persistentBinding = installSpecimen();
         LOGGER.log(
                 System.Logger.Level.INFO,
-                "Skyforge SF-IMP-0041 development specimen enabled with supplemental multi-block vegetation. "
+                "Skyforge SF-IMP-0043 development specimen enabled for native structure-start visibility. "
                         + "Create a NEW disposable world using the Skyforge Development world type and inspect near "
                         + "x=" + INSPECTION_X
                         + ", y=" + INSPECTION_Y
                         + ", z=" + INSPECTION_Z
-                        + ". The development pack adds a boosted minecraft:trees_plains proof through dry_open "
-                        + "supplemental surfaces. Obsolete colored marker fixtures have been removed.");
+                        + ". Development data forces minecraft:desert_pyramid candidates with a guaranteed origin "
+                        + "candidate and temporarily permits desert pyramids in Overworld biomes. The expected proof "
+                        + "is a vanilla pyramid whose start follows the elevated Massif rather than the lower native ground.");
     }
 
     /** Installs one disposable post-surface specimen binding and returns its cleanup handle. */
@@ -73,7 +75,7 @@ final class SkyforgeNeoForge1211DevRuntime {
 
     static SkyIslandWorldCatalog catalog() {
         var compiled = compiledMassif();
-        var id = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0041-dev-massif", 0, 0, ROOT_SEED);
+        var id = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0043-dev-massif", 0, 0, ROOT_SEED);
         var worldVolume = new SkyIslandWorldVolume(
                 id,
                 new WorldBounds(-160.0, 160.0, 96.0, 304.0, -160.0, 160.0),
