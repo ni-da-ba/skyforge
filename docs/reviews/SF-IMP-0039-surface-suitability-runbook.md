@@ -1,6 +1,6 @@
 # SF-IMP-0039 — Minecraft Surface Suitability In-Game Runbook
 
-**Status:** Automated verification passed; live suitability selection and marker realization passed; final save/reload confirmation pending.
+**Status:** Accepted
 
 ## Purpose
 
@@ -56,59 +56,19 @@ Teleport to the specimen:
 /tp @s 0 300 0
 ```
 
-## What to inspect
+## Suitability diagnostics
 
-### Existing integration
-
-The accepted behavior should remain intact:
-
-- Massif geometry appears normally;
-- native surface adaptation remains plausible;
-- caves, ores, lighting and downstream worldgen do not obviously regress;
-- no obvious 16-block ownership seams appear;
-- native terrain remains intact where Skyforge is AIR.
-
-### Suitability diagnostics
-
-Origin-area logs should contain lines resembling:
+Origin-area logs use:
 
 ```text
 SF-IMP-0039 suitability diagnostic chunk=[x, z] dryLand=N dryOpen=O submergedWaterFloor=W dryOpenQueries=Q dryOpenEmitted=E submergedQueries=U submergedEmitted=V
 ```
 
-Expected invariants:
+The invariant `dryOpen <= dryLand` must hold for every chunk.
 
-- `dryOpen <= dryLand` for every chunk;
-- if `dryOpen > 0`, the dry-open development probes should query that class;
-- if `submergedWaterFloor > 0`, the submerged development probe should query that class.
+## Accepted live evidence — 2026-08-31
 
-### Land seed
-
-If dry terrain exists below/inside the Massif footprint, inspect the lower surfaces.
-
-Expected evidence:
-
-- a few emerald marker blocks may appear on broad, high-clearance lower dry surfaces;
-- the ground should **not** be carpeted with markers as in the 0038 gold diagnostic;
-- `minecraft:patch_grass` may also occur on suitable dry-open ground;
-- obvious tight cavity floors and very thin carved shelves should be much less likely to receive the dry-open marker.
-
-### Ocean seed
-
-If the Massif sits above ocean, inspect the seabed below it.
-
-Expected evidence:
-
-- origin-area logs should report nonzero `submergedWaterFloor` where a suitable seabed lies below Skyforge;
-- sparse lapis marker blocks may appear at those submerged floor positions;
-- absence of grass/emerald underwater is correct;
-- lapis should replace a water placement cell immediately above solid seabed support, demonstrating that the aquatic class is separate from dry land.
-
-A seed does not need to demonstrate both dry and submerged classes. The environment determines which class exists.
-
-## Live client evidence — 2026-08-31
-
-A disposable SF-IMP-0039 world placed the engineering specimen over ocean terrain.
+The accepted client world placed the engineering Massif over ocean terrain.
 
 Across the origin-area diagnostic chunks, the observed result was consistently:
 
@@ -122,7 +82,7 @@ submergedQueries=4
 submergedEmitted=4
 ```
 
-This is a strong separation proof:
+This is a strong class-separation proof:
 
 - the dry probes executed but emitted nothing because no dry candidate class existed;
 - the submerged selector exposed a water-floor candidate in every inspected column;
@@ -130,38 +90,41 @@ This is a strong separation proof:
 - sparse lapis markers were visibly realized on the ocean floor beneath the Massif;
 - no corresponding dry-open markers appeared underwater.
 
-The user also observed fewer lapis markers in cave systems than across the open seabed. This is useful empirical evidence that the sparse probe does not indiscriminately carpet every submerged cavity, but SF-IMP-0039 does **not** claim an explicit open-ocean-versus-flooded-cave suitability distinction. A later aquatic suitability refinement may introduce such a distinction if real kelp/seagrass placement demonstrates the need.
+The user observed generally fewer lapis markers in flooded cave systems than across the open seabed. That observation is compatible with the sparse diagnostic distribution, but SF-IMP-0039 does **not** claim an explicit open-ocean-versus-flooded-cave distinction. A later aquatic suitability refinement may add one if a real feature family requires it.
 
-### Highest surface exclusion
+## Existing integration evidence
 
-The colored supplemental markers should not systematically decorate the vanilla highest Massif surface. That surface remains vanilla-owned.
+The accepted behavior from SF-IMP-0036 through SF-IMP-0038 remained visually intact:
 
-### Persistence
+- Massif geometry appeared normally;
+- native surface adaptation remained plausible;
+- no obvious new ownership seam appeared;
+- downstream worldgen remained functional;
+- native terrain remained present where Skyforge was AIR;
+- no systematic colored-marker duplication was observed on the highest vanilla-owned Massif surface.
 
-Save, quit, and reload the same world.
+## Persistence evidence
 
-Confirm:
+The accepted world was saved, closed and reopened once after the suitability marker generation.
 
-- the Massif persists;
-- suitability marker blocks persist;
-- no placement-modifier codec/registry errors appear;
-- no chunk corruption or duplicate generation is apparent.
+The reload was clean:
 
-The initial client run saved and shut down cleanly. One reopen of that same world remains the final manual acceptance gate.
+- the Massif persisted;
+- the lapis markers persisted;
+- no placement-modifier codec/registry errors appeared;
+- no chunk corruption or obvious duplicate generation was observed.
 
-## Pass criteria
+## Acceptance conclusion
 
-Manual acceptance passes when:
+SF-IMP-0039 passes because:
 
-- the SF-IMP-0039 world loads successfully;
-- accepted 0036–0038 integration remains visually intact;
-- logs show coherent suitability counts with `dryOpen <= dryLand`;
-- at least one suitability class that exists in the generated environment is actually consumed by its development probe;
-- a corresponding sparse colored marker is visibly realized on a lower supplemental surface;
-- no systematic marker duplication occurs on the highest surface; and
-- save/reload is clean.
-
-All criteria except the final reload confirmation have now been observed.
+- the registered parameterized modifier loads and composes with Minecraft feature placement;
+- automated tests distinguish reachability from the first three suitability classes;
+- wrong-class emission is suppressed in a real ocean environment;
+- the correct submerged class produces visible configured-feature realization;
+- highest-surface ownership remains with vanilla;
+- save/reload remains stable;
+- development-only diagnostics remain outside production artifacts.
 
 ## Explicit limitations
 
