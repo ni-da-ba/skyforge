@@ -110,18 +110,26 @@ final class SkyforgeNeoForge1211FeatureStage {
                 int submerged = index
                         .map(value -> value.totalPositions(MinecraftSurfaceSuitability.SUBMERGED_WATER_FLOOR))
                         .orElse(0);
+                int openWater = index
+                        .map(value -> value.totalPositions(MinecraftSurfaceSuitability.OPEN_WATER_FLOOR))
+                        .orElse(0);
                 LOGGER.log(
                         System.Logger.Level.INFO,
-                        "SF-IMP-0039 suitability diagnostic chunk=" + chunkPos
+                        "SF-IMP-0040 exposure diagnostic chunk=" + chunkPos
                                 + " dryLand=" + dryLand
                                 + " dryOpen=" + dryOpen
                                 + " submergedWaterFloor=" + submerged
+                                + " openWaterFloor=" + openWater
                                 + " dryOpenQueries=" + queryCounts.getOrDefault(MinecraftSurfaceSuitability.DRY_OPEN, 0)
                                 + " dryOpenEmitted=" + emittedCounts.getOrDefault(MinecraftSurfaceSuitability.DRY_OPEN, 0)
                                 + " submergedQueries="
                                 + queryCounts.getOrDefault(MinecraftSurfaceSuitability.SUBMERGED_WATER_FLOOR, 0)
                                 + " submergedEmitted="
-                                + emittedCounts.getOrDefault(MinecraftSurfaceSuitability.SUBMERGED_WATER_FLOOR, 0));
+                                + emittedCounts.getOrDefault(MinecraftSurfaceSuitability.SUBMERGED_WATER_FLOOR, 0)
+                                + " openWaterQueries="
+                                + queryCounts.getOrDefault(MinecraftSurfaceSuitability.OPEN_WATER_FLOOR, 0)
+                                + " openWaterEmitted="
+                                + emittedCounts.getOrDefault(MinecraftSurfaceSuitability.OPEN_WATER_FLOOR, 0));
             }
             closed = true;
             ACTIVE.remove();
