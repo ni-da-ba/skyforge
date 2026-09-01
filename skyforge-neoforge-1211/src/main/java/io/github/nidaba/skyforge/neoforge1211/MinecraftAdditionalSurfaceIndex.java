@@ -15,9 +15,9 @@ import net.minecraft.world.level.levelgen.Heightmap;
 /**
  * Minecraft-owned index of feature placement positions below the vanilla top-surface answer.
  *
- * <p>SF-IMP-0038 established reachability. SF-IMP-0039 retains that dry-land view while attaching
- * Minecraft-owned suitability classifications to each lower live surface. No biome or climate
- * semantics leave the adapter.
+ * <p>SF-IMP-0038 established reachability. SF-IMP-0039 retained that dry-land view while attaching
+ * Minecraft-owned suitability classifications to each lower live surface. SF-IMP-0040 adds the
+ * first exposure-sensitive aquatic class without introducing biome or climate semantics upstream.
  */
 final class MinecraftAdditionalSurfaceIndex {
     private static final int CHUNK_WIDTH = 16;
@@ -185,6 +185,10 @@ final class MinecraftAdditionalSurfaceIndex {
             }
         } else if (placement.is(Blocks.WATER)) {
             suitability.add(MinecraftSurfaceSuitability.SUBMERGED_WATER_FLOOR);
+            if (hasSupportThickness(chunk, cursor, worldX, supportY, worldZ)
+                    && waterColumnOpensToAir(chunk, cursor, worldX, placementY, worldZ)) {
+                suitability.add(MinecraftSurfaceSuitability.OPEN_WATER_FLOOR);
+            }
         }
 
         return Set.copyOf(suitability);
@@ -224,6 +228,28 @@ final class MinecraftAdditionalSurfaceIndex {
             }
         }
         return true;
+    }
+
+    /**
+     * Returns true when a contiguous vertical water column reaches an air surface before any solid
+     * or other non-water block. This deliberately does not require sky visibility: a floating
+     * Skyforge island may exist above the air gap without making the ocean column an enclosed cave.
+     */
+    private static boolean waterColumnOpensToAir(
+            ChunkAccess chunk,
+            BlockPos.MutableBlockPos cursor,
+            int worldX,
+            int placementY,
+            int worldZ) {
+        int maximumExclusiveY = chunk.getMinBuildHeight() + chunk.getHeight();
+        for (int worldY = placementY; worldY < maximumExclusiveY; worldY++) {
+            var state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
+            if (state.is(Blocks.WATER)) {
+                continue;
+            }
+            return state.isAir();
+        }
+        return false;
     }
 
     private static boolean isSkyforgeSolid(
