@@ -67,6 +67,6 @@ Manual evidence must confirm:
 4. unsupported island-edge space is not bridged;
 5. save/quit and reload preserve the structure and foundation correctly.
 
-The older forced desert-pyramid data may still be present in the development datapack for historical specimens. It is no longer the SF-IMP-0046 positive accommodation proof because its scattered-feature lifecycle defers final vertical alignment beyond `STRUCTURE_STARTS`.
+The older forced desert-pyramid data remains in the development datapack for historical specimens. It is intentionally no longer the SF-IMP-0046 positive accommodation proof: its scattered-feature lifecycle demonstrated that final vertical alignment can be deferred beyond `STRUCTURE_STARTS`, and the production seam now preserves such unresolved starts rather than imposing a Skyforge-specific translation.
 
 Only after the five revised properties are observed should this review status change to **Accepted** and PR #47 be considered ready for the explicit merge gate.
