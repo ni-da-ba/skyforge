@@ -23,11 +23,22 @@ final class MinecraftStructureSupportGeometry {
 
     static List<BoundingBox> floorContactBoxes(StructureStart start) {
         Objects.requireNonNull(start, "start");
-        int floorY = start.getBoundingBox().minY();
+        return floorContactBoxes(
+                start.getPieces().stream().map(StructurePiece::getBoundingBox).toList(),
+                start.getBoundingBox().minY(),
+                start.getBoundingBox());
+    }
+
+    static List<BoundingBox> floorContactBoxes(
+            List<BoundingBox> pieceBoxes,
+            int floorY,
+            BoundingBox fallbackBounds) {
+        Objects.requireNonNull(pieceBoxes, "pieceBoxes");
+        Objects.requireNonNull(fallbackBounds, "fallbackBounds");
         Set<HorizontalBoxKey> seen = new LinkedHashSet<>();
         ArrayList<BoundingBox> result = new ArrayList<>();
-        for (StructurePiece piece : start.getPieces()) {
-            BoundingBox box = piece.getBoundingBox();
+        for (BoundingBox box : pieceBoxes) {
+            Objects.requireNonNull(box, "pieceBoxes contains null");
             if (box.minY() != floorY) {
                 continue;
             }
@@ -37,8 +48,7 @@ final class MinecraftStructureSupportGeometry {
             }
         }
         if (result.isEmpty()) {
-            BoundingBox box = start.getBoundingBox();
-            result.add(copyAtFloor(box, floorY));
+            result.add(copyAtFloor(fallbackBounds, floorY));
         }
         return List.copyOf(result);
     }
