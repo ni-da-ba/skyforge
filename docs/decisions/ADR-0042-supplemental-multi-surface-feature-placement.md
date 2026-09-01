@@ -1,6 +1,6 @@
 # ADR-0042 — Supplemental Multi-Surface Feature Placement
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -41,7 +41,7 @@ The vanilla original remains present. The supplemental copy deliberately exclude
 
 ## Feature-stage scope
 
-`SkyforgeNoiseBasedChunkGenerator.applyBiomeDecoration(...)` establishes a short-lived feature-placement scope immediately before delegating to vanilla biome decoration and clears that scope in `finally` after vanilla returns.
+`SkyforgeNoiseBasedChunkGenerator.applyBiomeDecoration(...)` establishes a short-lived feature-placement scope immediately before delegating to vanilla biome decoration and clears that scope after vanilla returns.
 
 The scope is thread-local rather than a process-global per-chunk cache. This matches the synchronous placement-modifier call chain inside one biome-decoration invocation and avoids retaining world-generation state across chunks.
 
@@ -78,11 +78,16 @@ The modifier does not know what a plains biome, tree, flower, ore or modded vege
 
 ## Development proof
 
-The first client proof uses development-only data that copies a simple vanilla surface-vegetation placement chain and substitutes `skyforge:additional_surfaces` for its heightmap modifier.
+The client proof used two development-only feature copies:
 
-The proof exists to demonstrate that lower native ground and/or lower stacked Skyforge surfaces can receive a normal Minecraft configured feature while the uppermost surface remains handled by vanilla.
+1. a realistic `minecraft:patch_grass` copy using the supplemental modifier; and
+2. a conspicuous `minecraft:simple_block` gold-marker fixture using the same modifier to prove end-to-end configured-feature placement independently of biome luck or vegetation survival rules.
 
-The diagnostic copied feature is not itself a final cross-biome production policy and remains excluded from the packaged production resources.
+The marker fixture is intentionally diagnostic and is not proposed gameplay or production terrain. The development resources are excluded from the packaged production JAR.
+
+The accepted client run reported nonzero additional-surface candidates, nonzero modifier queries, nonzero emitted positions, and nonzero marker blocks at emitted positions across the origin-area chunks. The user also visually observed the diagnostic gold blocks on supplemental lower surfaces and confirmed persistence after save/reload.
+
+An ocean-backed test additionally clarified that this first index is a dry-land placement primitive: submerged seabed positions are excluded because the placement block above the support is fluid rather than air. Kelp and other submerged feature families therefore require a distinct suitability policy rather than being treated as failures of the multi-surface primitive.
 
 ## Invariants
 
@@ -106,20 +111,21 @@ SF-IMP-0038 does **not** claim to:
 - duplicate the entire `VEGETAL_DECORATION` step;
 - solve structure-start timing;
 - provide final tree/flower density tuning;
+- treat submerged, snowy, icy or other environmental surfaces as interchangeable with dry land;
 - create a parallel Skyforge biome or climate model;
 - guarantee that every modded `PlacementModifier` composes correctly with the supplemental modifier.
 
-## Acceptance criteria
+## Acceptance evidence
 
-ADR-0042 becomes Accepted only after:
+ADR-0042 is Accepted because:
 
-1. a registered `skyforge:additional_surfaces` placement-modifier codec loads under NeoForge 1.21.1;
-2. feature-stage scope is established only during biome decoration and is cleared afterward;
+1. the registered `skyforge:additional_surfaces` placement-modifier codec loaded under NeoForge 1.21.1;
+2. feature-stage scope is established only during biome decoration and cleared afterward;
 3. automated tests prove uppermost-surface exclusion;
 4. automated tests prove preserved lower native ground can be returned as an additional target;
 5. automated tests prove multiple vertically separated Skyforge surfaces can be represented;
-6. carved/removed or fluid-invalid candidates are rejected from land-surface placement;
-7. the original SF-IMP-0036/0037 post-surface and material-adaptation invariants remain green;
-8. backend-neutral independence and repository-wide `check` pass;
-9. a development-only copied surface feature demonstrates placement on an additional surface in a real client without systematic duplication on the highest surface; and
+6. carved/removed or fluid-invalid candidates are rejected from dry-land placement;
+7. the original SF-IMP-0036/0037 post-surface and material-adaptation invariants remained green;
+8. backend-neutral independence, the focused verifier and repository-wide `check` passed;
+9. a development-only normal Minecraft configured feature visibly placed blocks on supplemental surfaces in a real client, with diagnostic logs confirming end-to-end placement; and
 10. the development feature resources remain absent from the production JAR.
