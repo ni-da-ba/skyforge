@@ -16,6 +16,11 @@ public final class SkyforgeNeoForge1211ChunkWriter {
         this.blockStateResolver = Objects.requireNonNull(blockStateResolver, "blockStateResolver");
     }
 
+    /** Resolves one backend-owned material key for non-mutating generator queries. */
+    BlockState resolveForQuery(ResourceLocation key) {
+        return blockStateResolver.resolve(Objects.requireNonNull(key, "key"));
+    }
+
     /**
      * Resolves every accepted block key and writes the exact owned positions into the target chunk.
      *
