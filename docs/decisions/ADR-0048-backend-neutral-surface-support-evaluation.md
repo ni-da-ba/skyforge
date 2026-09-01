@@ -1,6 +1,6 @@
 # ADR-0048 — Backend-Neutral Surface Support Evaluation
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -83,7 +83,9 @@ Focused deterministic synthetic-volume tests cover:
 - disconnected support; and
 - two vertically stacked volumes sharing the same X/Z footprint.
 
-Repository-wide CI remains the acceptance gate.
+Repository-wide CI is the acceptance gate.
+
+SF-IMP-0044 was accepted after pull-request CI run #107 completed successfully on commit `bd7f8a5197e98607c158702a6412a910b92c025c`, exercising the repository-wide build, test, backend-independence and evidence workflow with the new evaluator and deterministic tests present.
 
 ## Extension path
 
