@@ -32,19 +32,30 @@ final class MinecraftStructureSupportPolicy {
      *
      * <p>Accommodation samples every integral Minecraft X/Z column in the bounding-box footprint,
      * requires complete interior support and never bridges an island edge. The neutral foundation
-     * top is a continuous boundary plane, so a structure whose first occupied floor block is at
-     * {@code box.minY()} uses {@code box.minY()} as the target boundary. The serialized Minecraft
-     * foundation piece still fills only through block {@code box.minY() - 1}. This keeps continuous
-     * Skyforge surface coordinates and discrete Minecraft block coordinates consistent.
+     * fill plane remains {@code box.minY()}: the serialized foundation may place blocks only below
+     * the native structure floor. The resolved first-free Skyforge height independently defines the
+     * highest existing surface compatible with the native occupied/free-block convention. A claim
+     * one block above the bounding-box minimum therefore authorizes existing terrain in the native
+     * floor layer without adding one unit to the measured fill depth.
      */
-    static SurfaceFoundationRequirements foundationRequirements(BoundingBox box) {
+    static SurfaceFoundationRequirements foundationRequirements(
+            BoundingBox box,
+            int resolvedFirstFreeY) {
+        long delta = (long) resolvedFirstFreeY - box.minY();
+        if (delta < -1L || delta > 1L) {
+            throw new IllegalArgumentException(
+                    "resolvedFirstFreeY must be within one block of the structure minimum Y");
+        }
+        double foundationTopY = box.minY();
+        double maximumSurfaceY = Math.max(foundationTopY, resolvedFirstFreeY);
         return new SurfaceFoundationRequirements(
                 supportRequirements(
                         box,
                         FOUNDATION_SAMPLE_SPACING,
                         FOUNDATION_MINIMUM_COVERAGE,
                         FOUNDATION_MAXIMUM_HEIGHT_SPAN),
-                box.minY(),
+                foundationTopY,
+                maximumSurfaceY,
                 FOUNDATION_MAXIMUM_FILL_DEPTH);
     }
 
