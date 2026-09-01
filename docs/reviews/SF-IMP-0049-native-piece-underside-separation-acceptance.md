@@ -1,6 +1,6 @@
 # SF-IMP-0049 Native-Piece Underside Separation Acceptance
 
-- **Status:** Pending automated proof
+- **Status:** Accepted
 - **Date:** 2026-09-01
 - **Decision:** ADR-0053
 
@@ -8,7 +8,7 @@
 
 SF-IMP-0049 introduces proof-grade evidence that one complete native `StructurePiece` integer bounding box lies at or below one exact Skyforge island underside. It does not yet interpret that evidence as permission to reject a structure.
 
-The milestone is complete only when the exact PR head passes the full repository CI/evidence gate and proves the conservative no-proof behavior for every ambiguous or unbounded case.
+The milestone is accepted because the implementation head passed the full repository CI/evidence gate and demonstrated conservative no-proof behavior for ambiguous or unbounded cases.
 
 ## Required evidence
 
@@ -23,8 +23,10 @@ The milestone is complete only when the exact PR head passes the full repository
 9. No SF-IMP-0049 code path changes `StructureStart` admission, fallback, placement, accommodation, or terrain.
 10. Full repository tests and both standard evidence-publication stages pass on the exact head.
 
+CI #179 satisfied all ten automated requirements on implementation head `ebcb201781d11ab55fcef24873e81c1dbbdaa18d`. The documentation-inclusive head must pass the ordinary final CI gate before merge.
+
 ## Manual-proof boundary
 
 No interactive Minecraft proof is required for SF-IMP-0049 because it introduces no generation behavior. The first future milestone that consumes this evidence to alter native structure admission will require a dedicated live specimen and interactive acceptance proof before merge.
 
-The user asked to be notified when manual interaction is required again; this milestone should therefore remain fully automated unless CI reveals a condition that cannot be established without a live client.
+The user asked to be notified when manual interaction is required again; this milestone remains fully automated.
