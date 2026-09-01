@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandSurfaceFoundationEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceSupportEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainInterpreter;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
@@ -7,6 +8,8 @@ import io.github.nidaba.skyforge.world.SkyIslandTerrainSampleContext;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainSemantic;
 import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import io.github.nidaba.skyforge.world.SurfaceFoundationAssessment;
+import io.github.nidaba.skyforge.world.SurfaceFoundationRequirements;
 import io.github.nidaba.skyforge.world.SurfaceSupportAssessment;
 import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
 import io.github.nidaba.skyforge.world.WorldBounds;
@@ -103,6 +106,11 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     /** Delegates structure-sized support assessment to the accepted backend-neutral evaluator. */
     List<SurfaceSupportAssessment> assessSurfaceSupport(SurfaceSupportRequirements requirements) {
         return new SkyIslandSurfaceSupportEvaluator().assess(catalog, requirements);
+    }
+
+    /** Delegates bounded fill-only accommodation assessment to the backend-neutral evaluator. */
+    List<SurfaceFoundationAssessment> assessSurfaceFoundation(SurfaceFoundationRequirements requirements) {
+        return new SkyIslandSurfaceFoundationEvaluator().assess(catalog, requirements);
     }
 
     private static SkyIslandTerrainSemantic classify(
