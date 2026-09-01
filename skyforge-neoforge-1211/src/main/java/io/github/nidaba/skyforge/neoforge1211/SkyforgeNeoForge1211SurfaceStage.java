@@ -1,5 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SurfaceFoundationAssessment;
+import io.github.nidaba.skyforge.world.SurfaceFoundationRequirements;
 import io.github.nidaba.skyforge.world.SurfaceSupportAssessment;
 import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
 import java.util.List;
@@ -108,6 +110,16 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return binding == null
                 ? Optional.empty()
                 : Optional.of(binding.adapter().assessSurfaceSupport(requirements));
+    }
+
+    /** Evaluates bounded fill-only foundation requirements against the active Skyforge catalog. */
+    static Optional<List<SurfaceFoundationAssessment>> assessSurfaceFoundation(
+            SurfaceFoundationRequirements requirements) {
+        Objects.requireNonNull(requirements, "requirements");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? Optional.empty()
+                : Optional.of(binding.adapter().assessSurfaceFoundation(requirements));
     }
 
     static AutoCloseable install(
