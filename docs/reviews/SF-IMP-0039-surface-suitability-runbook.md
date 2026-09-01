@@ -1,12 +1,14 @@
 # SF-IMP-0039 — Minecraft Surface Suitability In-Game Runbook
 
-**Status:** Implementation ready for automated validation.
+**Status:** Automated verification and repository-wide build passed; manual in-game acceptance pending.
 
 ## Purpose
 
-SF-IMP-0039 separates **surface reachability** from **feature suitability** while keeping all environment interpretation inside the Minecraft adapter.
+SF-IMP-0039 separates **surface reachability** from **feature suitability** while keeping all environment interpretation inside the Minecraft adapter for this milestone.
 
 The accepted SF-IMP-0038 `skyforge:additional_surfaces` primitive remains intact. A new `skyforge:suitable_surfaces` modifier selects a requested physical placement class.
+
+This milestone does not foreclose future Skyforge-owned biome/environment fields. It deliberately uses Minecraft-native state for the first physical suitability layer while leaving higher-level biome-field ownership for a later, explicit design milestone.
 
 ## Development world
 
@@ -38,7 +40,7 @@ scripts\verify-sf-imp-0039-surface-suitability.bat
 gradlew.bat check
 ```
 
-Do not proceed to the client if either command fails.
+Both automated gates passed on 2026-08-31. Manual client acceptance remains required before SF-IMP-0039 can be accepted.
 
 ## Launch
 
@@ -133,4 +135,4 @@ Manual acceptance passes when:
 
 ## Explicit limitations
 
-This is not a final vegetation policy. The 8-block headroom and 3-block support-thickness thresholds are first engineering criteria intended to make suitability explicit and testable. Horizontal footprint, slopes, trees, snow/ice, true kelp/seagrass behavior and modded feature families remain later work.
+This is not a final vegetation policy. The 8-block headroom and 3-block support-thickness thresholds are first engineering criteria intended to make suitability explicit and testable. Horizontal footprint, slopes, trees, snow/ice, true kelp/seagrass behavior, modded feature families, and higher-level Skyforge biome/environment field ownership remain later work.
