@@ -184,6 +184,11 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         }
 
         SkyIslandWorldVolumeId claimedVolumeId = claimedVolumeIds.iterator().next();
+        int resolvedFirstFreeY = resolvedClaims.stream()
+                .filter(claim -> claim.volumeIds().contains(claimedVolumeId))
+                .mapToInt(MinecraftSkyforgeHeightClaim::height)
+                .max()
+                .orElseThrow();
         var naturalRequirements = MinecraftStructureSupportPolicy.requirements(start.getBoundingBox());
         boolean naturallyAccepted = SkyforgeNeoForge1211SurfaceStage.assessSurfaceSupport(naturalRequirements)
                 .orElseThrow(() -> new IllegalStateException("active Skyforge binding disappeared during structure generation"))
@@ -199,8 +204,9 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             return true;
         }
 
-        var foundationRequirements =
-                MinecraftStructureSupportPolicy.foundationRequirements(start.getBoundingBox());
+        var foundationRequirements = MinecraftStructureSupportPolicy.foundationRequirements(
+                start.getBoundingBox(),
+                resolvedFirstFreeY);
         var foundationAssessment = SkyforgeNeoForge1211SurfaceStage.assessSurfaceFoundation(foundationRequirements)
                 .orElseThrow(() -> new IllegalStateException("active Skyforge binding disappeared during structure generation"))
                 .stream()
