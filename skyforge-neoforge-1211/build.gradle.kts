@@ -66,6 +66,15 @@ neoForge {
             systemProperty("skyforge.dev.accommodation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+
+        // SF-IMP-0050 reuses the isolated mansion/island fixture but adds development-only detached
+        // underside geometry to the admission evidence stream. No synthetic piece is serialized.
+        create("undersideContradictionClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0050")
+            systemProperty("skyforge.dev.undersideContradiction", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
     }
 
     unitTest {
