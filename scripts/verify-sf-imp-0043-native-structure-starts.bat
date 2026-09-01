@@ -28,29 +28,14 @@ for %%P in ("!STRUCTURE_SET!" "!BIOME_TAG!" "!LANG!") do (
     )
 )
 
-findstr /c:"minecraft:desert_pyramid" "!STRUCTURE_SET!" >nul
+powershell -NoProfile -Command "$j = Get-Content -Raw $env:STRUCTURE_SET ^| ConvertFrom-Json; if ($j.placement.type -ne 'minecraft:random_spread' -or $j.placement.spacing -ne 4 -or $j.placement.separation -ne 3 -or $j.structures.Count -ne 1 -or $j.structures[0].structure -ne 'minecraft:desert_pyramid') { exit 1 }"
 if errorlevel 1 (
-    echo ERROR: SF-IMP-0043 structure set does not use vanilla minecraft:desert_pyramid
+    echo ERROR: SF-IMP-0043 structure set does not match the deterministic vanilla-pyramid proof contract
     exit /b 1
 )
-findstr /c:"\"spacing\": 4" "!STRUCTURE_SET!" >nul
+powershell -NoProfile -Command "$j = Get-Content -Raw $env:BIOME_TAG ^| ConvertFrom-Json; if ($j.replace -ne $false -or $j.values -notcontains '#c:is_overworld') { exit 1 }"
 if errorlevel 1 (
-    echo ERROR: SF-IMP-0043 structure set spacing is not deterministic proof value 4
-    exit /b 1
-)
-findstr /c:"\"separation\": 3" "!STRUCTURE_SET!" >nul
-if errorlevel 1 (
-    echo ERROR: SF-IMP-0043 structure set separation is not deterministic proof value 3
-    exit /b 1
-)
-findstr /c:"#c:is_overworld" "!BIOME_TAG!" >nul
-if errorlevel 1 (
-    echo ERROR: SF-IMP-0043 biome proof tag does not extend desert pyramids to Overworld biomes
-    exit /b 1
-)
-findstr /c:"\"replace\": false" "!BIOME_TAG!" >nul
-if errorlevel 1 (
-    echo ERROR: SF-IMP-0043 biome tag must append rather than replace vanilla eligibility
+    echo ERROR: SF-IMP-0043 biome tag must append c:is_overworld to vanilla desert-pyramid eligibility
     exit /b 1
 )
 findstr /c:"SF-IMP-0043" "!LANG!" >nul
@@ -60,7 +45,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo [4/5] Retired benchmark-fixture guard
+echo [4/5] Retired benchmark-fixture and early-query wiring guard
 for %%P in (
     "skyforge-neoforge-1211\src\development\resources\data\skyforge\neoforge\biome_modifier\add_additional_surface_grass.json"
     "skyforge-neoforge-1211\src\development\resources\data\skyforge\neoforge\biome_modifier\add_additional_surface_trees_plains.json"
