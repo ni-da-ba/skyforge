@@ -49,13 +49,21 @@ neoForge {
         }
     }
 
-    // SF-IMP-0036 advances the isolated development client from the late load-event specimen to a
-    // selectable development-only world preset backed by the registered post-surface generator.
     runs {
+        // Historical elevated-Massif structure-start visibility specimen.
         create("client") {
             client()
             gameDirectory = project.file("run-sf-imp-0036")
             systemProperty("skyforge.dev.specimen", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // SF-IMP-0046 uses its own game directory and a self-checking bowl specimen so manual
+        // foundation evidence cannot be confused with the earlier naturally supported Massif.
+        create("accommodationClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0046")
+            systemProperty("skyforge.dev.accommodation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
     }
