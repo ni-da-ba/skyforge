@@ -1,6 +1,6 @@
 # ADR-0052: Sampled native-piece terrain observation
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-01
 - **Milestone:** SF-IMP-0048
 
@@ -95,4 +95,4 @@ SF-IMP-0048 requires automated evidence for:
 - faithful Minecraft `BoundingBox` to neutral 3-D bounds translation;
 - complete repository CI and evidence publication.
 
-ADR-0052 remains **Proposed** until those tests and the exact-head CI gate pass.
+CI #175 passed the complete repository build/test suite and both standard evidence-publication stages on implementation head `be4e845c93a2a037ec0075d0dd5dca61763a3d18`. The acceptance record is therefore **Accepted**; the documentation-inclusive PR head remains subject to the ordinary final exact-head CI gate before merge.
