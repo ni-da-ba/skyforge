@@ -104,6 +104,43 @@ final class MinecraftAdditionalSurfaceIndexTest {
     }
 
     @Test
+    void openWaterFloorRequiresWaterColumnToReachAir() {
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        MinecraftChunkMaterialization materialization = stackedMaterialization(chunk.getPos());
+
+        setColumnRange(chunk, 0, 0, 100, 104, Blocks.STONE.defaultBlockState());
+        setColumnRange(chunk, 0, 0, 105, 111, Blocks.WATER.defaultBlockState());
+        setColumnRange(chunk, 0, 0, 200, 204, Blocks.STONE.defaultBlockState());
+        primeWorldSurfaceWorldgen(chunk);
+
+        MinecraftAdditionalSurfaceIndex index = MinecraftAdditionalSurfaceIndex.from(chunk, materialization);
+
+        assertTrue(index.positions(0, 0, MinecraftSurfaceSuitability.SUBMERGED_WATER_FLOOR)
+                .contains(new BlockPos(0, 105, 0)));
+        assertTrue(index.positions(0, 0, MinecraftSurfaceSuitability.OPEN_WATER_FLOOR)
+                .contains(new BlockPos(0, 105, 0)));
+    }
+
+    @Test
+    void openWaterFloorRejectsSolidCeilingButSubmergedFloorRemainsReachable() {
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        MinecraftChunkMaterialization materialization = stackedMaterialization(chunk.getPos());
+
+        setColumnRange(chunk, 0, 0, 100, 104, Blocks.STONE.defaultBlockState());
+        setColumnRange(chunk, 0, 0, 105, 111, Blocks.WATER.defaultBlockState());
+        chunk.setBlockState(new BlockPos(0, 112, 0), Blocks.STONE.defaultBlockState(), false);
+        setColumnRange(chunk, 0, 0, 200, 204, Blocks.STONE.defaultBlockState());
+        primeWorldSurfaceWorldgen(chunk);
+
+        MinecraftAdditionalSurfaceIndex index = MinecraftAdditionalSurfaceIndex.from(chunk, materialization);
+
+        assertTrue(index.positions(0, 0, MinecraftSurfaceSuitability.SUBMERGED_WATER_FLOOR)
+                .contains(new BlockPos(0, 105, 0)));
+        assertFalse(index.positions(0, 0, MinecraftSurfaceSuitability.OPEN_WATER_FLOOR)
+                .contains(new BlockPos(0, 105, 0)));
+    }
+
+    @Test
     void carvedAwaySkyforgeTopIsNotReturned() {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
         MinecraftChunkMaterialization materialization = stackedMaterialization(chunk.getPos());
