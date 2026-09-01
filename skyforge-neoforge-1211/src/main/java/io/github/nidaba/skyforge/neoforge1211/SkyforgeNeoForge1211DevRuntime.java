@@ -54,7 +54,7 @@ final class SkyforgeNeoForge1211DevRuntime {
                         + ", y=" + INSPECTION_Y
                         + ", z=" + INSPECTION_Z
                         + ". The development pack adds a boosted minecraft:trees_plains proof through dry_open "
-                        + "supplemental surfaces. Existing emerald/lapis/diamond markers remain diagnostics only.");
+                        + "supplemental surfaces. Obsolete colored marker fixtures have been removed.");
     }
 
     /** Installs one disposable post-surface specimen binding and returns its cleanup handle. */
