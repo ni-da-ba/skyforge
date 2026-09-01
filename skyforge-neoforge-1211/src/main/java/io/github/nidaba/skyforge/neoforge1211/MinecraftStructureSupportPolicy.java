@@ -12,6 +12,7 @@ final class MinecraftStructureSupportPolicy {
     private static final double MINIMUM_CLEARANCE_COVERAGE = 0.50;
     private static final double MAXIMUM_HEIGHT_SPAN = 4.0;
 
+    private static final double FOUNDATION_SAMPLE_SPACING = 1.0;
     private static final double FOUNDATION_MINIMUM_COVERAGE = 1.0;
     private static final double FOUNDATION_MAXIMUM_HEIGHT_SPAN = 12.0;
     private static final double FOUNDATION_MAXIMUM_FILL_DEPTH = 8.0;
@@ -21,6 +22,7 @@ final class MinecraftStructureSupportPolicy {
     static SurfaceSupportRequirements requirements(BoundingBox box) {
         return supportRequirements(
                 box,
+                SAMPLE_SPACING,
                 MINIMUM_COVERAGE,
                 MAXIMUM_HEIGHT_SPAN);
     }
@@ -28,14 +30,15 @@ final class MinecraftStructureSupportPolicy {
     /**
      * Returns the stricter fill-only accommodation policy beneath the native structure floor.
      *
-     * <p>Accommodation requires complete interior support; unlike ordinary admission, it never
-     * bridges an island edge. The relaxed height span only permits bounded downward foundation
-     * fill and does not authorize excavation.
+     * <p>Accommodation samples every integral Minecraft X/Z column in the bounding-box footprint,
+     * requires complete interior support and never bridges an island edge. The relaxed height span
+     * only permits bounded downward foundation fill and does not authorize excavation.
      */
     static SurfaceFoundationRequirements foundationRequirements(BoundingBox box) {
         return new SurfaceFoundationRequirements(
                 supportRequirements(
                         box,
+                        FOUNDATION_SAMPLE_SPACING,
                         FOUNDATION_MINIMUM_COVERAGE,
                         FOUNDATION_MAXIMUM_HEIGHT_SPAN),
                 Math.subtractExact(box.minY(), 1),
@@ -44,6 +47,7 @@ final class MinecraftStructureSupportPolicy {
 
     private static SurfaceSupportRequirements supportRequirements(
             BoundingBox box,
+            double sampleSpacing,
             double minimumCoverage,
             double maximumHeightSpan) {
         return new SurfaceSupportRequirements(
@@ -51,7 +55,7 @@ final class MinecraftStructureSupportPolicy {
                 box.maxX(),
                 box.minZ(),
                 box.maxZ(),
-                SAMPLE_SPACING,
+                sampleSpacing,
                 CLEARANCE,
                 minimumCoverage,
                 MINIMUM_CLEARANCE_COVERAGE,
