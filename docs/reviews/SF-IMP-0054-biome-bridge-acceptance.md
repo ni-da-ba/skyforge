@@ -27,16 +27,16 @@ Run:
 
 in a **new disposable Skyforge Development world**.
 
-The fixture stacks two tableland volumes in the same X/Z region:
+The fixture stacks two development-only tableland volumes in the same X/Z region:
 
 - lower volume: `minecraft:forest`;
 - upper volume: `minecraft:taiga`.
 
-A deterministic 5×5 candidate chunk patch centered on the origin is scanned. A chunk is eligible only when Skyforge can find at least one shared X/Z position inside that chunk where **both** compiled exact volumes have an owned surface. This deliberately uses actual compiled terrain topology rather than nominal `WorldBounds` or chunk-center assumptions.
+The development tablelands are deliberately broad enough to provide a statistically meaningful native population sample. A deterministic 9×9 candidate chunk patch centered on the origin is scanned. A chunk is eligible only when at least 192 of its 256 X/Z columns contain an owned surface in **both** compiled exact volumes. This deliberately uses actual compiled terrain topology and substantial shared coverage rather than nominal `WorldBounds`, a single chunk center, or one surviving terrain column.
 
 Each eligible chunk consumes the corresponding final biome's native `VEGETAL_DECORATION` list. Native placement modifiers choose count, rarity, X/Z positions, heightmap positions, biome eligibility, and configured-feature placement.
 
-A single eligible chunk may legitimately yield zero successful placements. The fixture passes after at least nine eligible shared-terrain chunks have been observed and both biome domains have produced successful native vegetation. It fails only after exhausting all 25 candidate chunks if there is insufficient shared terrain or either biome still has zero successful placements.
+A single eligible chunk may legitimately yield zero successful placements. The fixture requires at least 25 eligible chunks and continues scanning the deterministic candidate region until both biome domains have produced persistent tree evidence or the region is exhausted.
 
 ## Runtime marker
 
@@ -49,13 +49,15 @@ SF-IMP-0054 BIOME POPULATION STACKED PASS
 with:
 
 - `scannedChunks=...`;
-- `eligibleChunks=...` with at least 9 eligible chunks;
+- `eligibleChunks=...` with at least 25 eligible chunks;
 - lower biome `minecraft:forest`;
 - upper biome `minecraft:taiga`;
 - nonzero aggregate successful-feature counts for both domains;
-- aggregate attachment-write counts.
+- aggregate attachment-write counts;
+- `logs=>0` and `leaves=>0` for **both** exact volumes;
+- aggregate shared-column counts.
 
-The marker may appear before all 25 candidate chunks have generated if the minimum eligible sample and both successful-biome conditions are already satisfied. This is intentional; all candidate chunks are still deterministic, but success does not depend on generation order once the proof conditions are met.
+The marker may appear before all 81 candidate chunks have generated if the minimum eligible sample and persistent vegetation conditions are already satisfied. A `PlacedFeature` boolean success count by itself is explicitly **not** sufficient for acceptance.
 
 ## Visual acceptance
 
@@ -64,9 +66,10 @@ Confirm:
 1. both vertically aligned tableland islands exist;
 2. lower and upper islands show visibly different native forest/taiga vegetation semantics;
 3. vegetation is spatially distributed rather than one hard-coded proof tree;
-4. base-world terrain and decoration remain normal beneath the islands;
-5. no obvious vegetation or writes jump between the two Skyforge volumes;
-6. save/reload remains stable if exercised.
+4. visible trees/vegetation correspond to the nonzero persistent log/leaf evidence in the runtime marker;
+5. base-world terrain and decoration remain normal beneath the islands;
+6. no obvious vegetation or writes jump between the two Skyforge volumes;
+7. save/reload remains stable if exercised.
 
 ## Failed interactive attempts retained as evidence
 
@@ -96,23 +99,42 @@ Correction: acceptance moved to a deterministic multi-chunk regional aggregate.
 
 ### Attempt 3 — invalid bounding-box / chunk-center occupancy oracle
 
-The first regional fixture assumed every chunk center inside the 5×5 candidate patch had a surface in both tablelands. The run reached chunk `[2,2]` and aborted with:
+The first regional fixture assumed every chunk center inside the candidate patch had a surface in both tablelands. The run reached chunk `[2,2]` and aborted with:
 
 ```text
 stacked biome volume has no proof-chunk surface
 ```
 
-The corresponding interactive log also showed the client itself and integrated server otherwise reached normal world startup before that chunk-generation assertion fired.
-
 This was another invalid proof oracle. `WorldBounds` encloses a procedural volume but does not guarantee terrain at every enclosed X/Z, especially near morphology edges.
 
-Correction: each candidate chunk now searches its actual compiled field for a shared X/Z position where both exact volumes have surfaces. Only those shared-terrain chunks are eligible. The proof requires a minimum deterministic eligible sample count and successful native vegetation for both owners.
+Correction: candidate chunks are evaluated against actual compiled exact-volume terrain rather than bounding-box or chunk-center assumptions.
+
+### Attempt 4 — API success without visible biome realization
+
+The topology-aware run emitted:
+
+```text
+SF-IMP-0054 BIOME POPULATION STACKED PASS: scannedChunks=9, eligibleChunks=9,
+lower={biome=minecraft:forest, attempted=81, successful=4, attachments=9},
+upper={biome=minecraft:taiga, attempted=90, successful=5, attachments=17}
+```
+
+but visual inspection found both islands completely flat and undecorated: stone/dirt with no visible vegetation.
+
+This exposed a fourth invalid proof assumption. `PlacedFeature` returning `true` only means the configured feature reported success; it does not guarantee meaningful or persistent biome realization. A handful of ground/plant mutations can satisfy that API result while failing the visual milestone.
+
+Correction:
+
+- the development tablelands are enlarged so native placement receives a representative terrain sample;
+- eligible chunks now require at least 75% shared terrain coverage (192/256 columns), so random X/Z placement is not dominated by void near island edges;
+- the proof scans persisted post-placement world state for `BlockTags.LOGS` and `BlockTags.LEAVES`;
+- PASS requires nonzero log and leaf counts on both the forest and taiga islands.
 
 ## Merge gate
 
 Do not merge PR #59 until:
 
 - exact-head CI is green;
-- the corrected shared-terrain regional runtime marker passes;
+- the strengthened persistent-vegetation runtime marker passes;
 - the visual criteria above pass;
 - acceptance evidence is recorded here and on the PR.
