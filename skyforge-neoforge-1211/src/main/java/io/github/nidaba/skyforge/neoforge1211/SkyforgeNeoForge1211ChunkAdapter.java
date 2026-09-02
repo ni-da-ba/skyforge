@@ -18,6 +18,7 @@ import io.github.nidaba.skyforge.world.TerrainBoxObservationRequirements;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.List;
 import java.util.Objects;
+import java.util.OptionalInt;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 
@@ -114,6 +115,37 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                         .classify(worldX, worldY, worldZ)
                         .isSolid())
                 .orElse(false);
+    }
+
+    /**
+     * Returns the first-free Minecraft Y for one exact island volume in the requested build span.
+     *
+     * <p>This intentionally ignores vanilla terrain and every other Skyforge volume. A missing solid
+     * column yields an empty result rather than falling through to another terrain owner.
+     */
+    OptionalInt firstFreeHeight(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+        var volume = catalog.volumes().stream()
+                .filter(candidate -> candidate.id().equals(volumeId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("unknown Skyforge world volume: " + volumeId.path()));
+        SkyIslandTerrainInterpreter interpreter =
+                new SkyIslandTerrainInterpreter(volume.compiledVolume(), terrainProfile);
+        int maximumYExclusive = Math.addExact(minimumY, height);
+        for (int worldY = maximumYExclusive - 1; worldY >= minimumY; worldY--) {
+            if (interpreter.classify(worldX, worldY, worldZ).isSolid()) {
+                return OptionalInt.of(worldY + 1);
+            }
+        }
+        return OptionalInt.empty();
     }
 
     /** Delegates structure-sized support assessment to the accepted backend-neutral evaluator. */
