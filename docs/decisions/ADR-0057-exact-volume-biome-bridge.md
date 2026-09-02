@@ -68,6 +68,8 @@ Skyforge does not promise byte-identical decoration to a vanilla ground biome, b
 
 ## Acceptance boundary
 
+The strengthened implementation that measures persistent vegetation passed full repository CI as run **#286** on head `11bd27ef05aafaba63ff21028856de6d0f7f0378`. The exact final documentation/acceptance head must also remain green before merge.
+
 This ADR may become **Accepted** when SF-IMP-0054 demonstrates, on one exact PR head:
 
 1. full repository CI including NeoForge/Mixin bootstrap passes;
