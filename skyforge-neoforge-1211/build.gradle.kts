@@ -95,6 +95,16 @@ neoForge {
             systemProperty("skyforge.dev.domainIsolation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+
+        // SF-IMP-0053 places the same native minecraft:oak_checked PlacedFeature on two independent
+        // vertically aligned Skyforge volumes in the origin chunk. The runtime self-checks exact
+        // surface ownership, independent operation seeds and successful bounded native writes.
+        create("populationClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0053")
+            systemProperty("skyforge.dev.population", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
     }
 
     unitTest {
