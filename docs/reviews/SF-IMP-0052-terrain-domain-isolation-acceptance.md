@@ -24,7 +24,7 @@ The implementation now establishes:
 7. later vegetation cannot replace that captured terrain material as the island's surface representation;
 8. explicit island-domain height queries inspect one exact `SkyIslandWorldVolumeId` and never fall through to vanilla terrain or another island;
 9. the accepted structure admission/accommodation machinery remains available only behind an explicit island-generation scope;
-10. the dedicated development fixture fingerprints the completed native world below y=160 immediately before island realization and requires that fingerprint to remain identical afterward.
+10. the dedicated development fixture fingerprints every completed native position in the proof chunk that is **not** claimed as solid by the deterministic Skyforge materialization and requires that protected fingerprint to remain identical after island realization.
 
 CI #219 passed the full repository build/test/evidence gate on implementation head `0f6039dd9d13d0931106f33a2fbbec3de6c73ceb`.
 
@@ -61,7 +61,7 @@ Acceptance requires:
 7. no generation crash occurs;
 8. save/reload retains both the completed base world and the later additive island.
 
-The self-checking fingerprint makes criterion 1 a hard lower-world mutation proof for the origin chunk: if later island realization changes any block at or below y=160, the fixture throws instead of emitting the marker.
+The self-checking fingerprint makes criterion 1 a hard ownership-aware mutation proof for the origin chunk. Explicit physical composition is allowed only at positions where the deterministic Skyforge materialization itself contributes solid terrain. Every other position in the chunk's materialized vertical interval is fingerprinted immediately before island realization and must remain byte-for-byte stable afterward. This avoids the invalid earlier assumption that an arbitrary Y cutoff could distinguish base terrain from the legitimate lower extent of a thick floating island.
 
 ## Follow-on boundary
 
