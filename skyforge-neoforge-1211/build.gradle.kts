@@ -75,6 +75,16 @@ neoForge {
             systemProperty("skyforge.dev.undersideContradiction", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+
+        // SF-IMP-0052 proves that the base-world generation stream completes before Skyforge is
+        // physically realized. The origin chunk is self-checking and the forced development mansion
+        // should remain native-ground-owned beneath the floating Massif.
+        create("domainIsolationClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0052")
+            systemProperty("skyforge.dev.domainIsolation", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
     }
 
     unitTest {
