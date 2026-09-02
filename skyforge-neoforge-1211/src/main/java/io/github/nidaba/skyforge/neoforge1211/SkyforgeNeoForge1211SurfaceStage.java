@@ -64,8 +64,11 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     }
 
     /**
-     * Evaluates the active Skyforge binding as an early generator height query and retains the
-     * independent island-volume provenance responsible for the accepted top block.
+     * Evaluates the active Skyforge binding as a composite early generator height query.
+     *
+     * <p>This legacy aggregate query is retained for compatibility tests and diagnostics. Ordinary
+     * base-world generation must not call it under SF-IMP-0052; island-owned generation uses the
+     * exact-volume overload below.
      */
     static Optional<MinecraftSkyforgeHeightClaim> queryBaseHeightClaim(
             int worldX,
@@ -106,6 +109,31 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return Optional.empty();
     }
 
+    /**
+     * Evaluates one exact independently compiled island as an early height query.
+     *
+     * <p>Vanilla terrain and other stacked islands are intentionally invisible. An empty island
+     * column remains empty rather than falling through to a different terrain owner.
+     */
+    static Optional<MinecraftSkyforgeHeightClaim> queryBaseHeightClaim(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ,
+            Heightmap.Types type,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(type, "type");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return Optional.empty();
+        }
+        OptionalInt firstFree = binding.adapter().firstFreeHeight(volumeId, worldX, worldZ, minimumY, height);
+        return firstFree.isPresent()
+                ? Optional.of(new MinecraftSkyforgeHeightClaim(firstFree.getAsInt(), List.of(volumeId)))
+                : Optional.empty();
+    }
+
     /** Evaluates neutral support requirements against the active compiled Skyforge catalog. */
     static Optional<List<SurfaceSupportAssessment>> assessSurfaceSupport(SurfaceSupportRequirements requirements) {
         Objects.requireNonNull(requirements, "requirements");
@@ -115,7 +143,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 : Optional.of(binding.adapter().assessSurfaceSupport(requirements));
     }
 
-    /** Evaluates bounded fill-only foundation requirements against the active Skyforge catalog. */
+    /** Evaluates bounded fill-only accommodation requirements against the backend-neutral evaluator. */
     static Optional<List<SurfaceFoundationAssessment>> assessSurfaceFoundation(
             SurfaceFoundationRequirements requirements) {
         Objects.requireNonNull(requirements, "requirements");
@@ -137,13 +165,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 : Optional.of(binding.adapter().observeTerrainBox(volumeId, requirements));
     }
 
-    /**
-     * Returns whether the exact recorded island volume owns a solid sample at the supplied block.
-     *
-     * <p>Foundation realization uses this as a defensive provenance check so a serialized
-     * accommodation cannot silently attach itself to vanilla terrain, another structure, or a
-     * different vertically stacked Skyforge island.
-     */
+    /** Returns whether the exact recorded island volume owns a solid sample at the supplied block. */
     static Optional<Boolean> isSolidOwnedBy(
             SkyIslandWorldVolumeId volumeId,
             int worldX,
