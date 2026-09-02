@@ -83,11 +83,14 @@ final class SkyforgeNativePlacedFeatureRunner {
                 var execution = openExecution(operation, domainBiome, maximumAttachmentDepth)) {
             domain.requireActive();
             execution.requireActive();
-            boolean placed = placedFeature.value().place(
-                    level,
-                    generator,
-                    RandomSource.create(operation.seed()),
-                    origin);
+            RandomSource random = RandomSource.create(operation.seed());
+            boolean placed = domainBiome.isPresent()
+                    // Biome-owned generation must preserve Minecraft's top-feature provenance so
+                    // BiomeFilter can verify that this registered feature belongs to the active
+                    // exact-volume biome. Plain place(...) intentionally omits that provenance and
+                    // remains correct for explicit non-biome feature proofs such as SF-IMP-0053.
+                    ? placedFeature.value().placeWithBiomeCheck(level, generator, random, origin)
+                    : placedFeature.value().place(level, generator, random, origin);
             return new Result(placed, execution.execution().attachmentCount());
         }
     }
