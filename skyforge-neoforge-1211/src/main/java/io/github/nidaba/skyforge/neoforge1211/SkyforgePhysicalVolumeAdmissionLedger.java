@@ -24,17 +24,20 @@ final class SkyforgePhysicalVolumeAdmissionLedger {
 
     SkyforgePhysicalVolumeAdmissionLedger(Collection<SkyIslandWorldVolume> volumes) {
         Objects.requireNonNull(volumes, "volumes");
-        Map<SkyIslandWorldVolumeId, Entry> created = new HashMap<>();
+        Map<SkyIslandWorldVolumeId, Set<Long>> required = new HashMap<>();
         for (SkyIslandWorldVolume volume : volumes) {
             Objects.requireNonNull(volume, "volume");
-            Entry previous = created.put(
-                    volume.id(),
-                    new Entry(requiredChunkKeys(volume.bounds())));
+            Set<Long> previous = required.put(volume.id(), requiredChunkKeys(volume.bounds()));
             if (previous != null) {
                 throw new IllegalArgumentException("duplicate physical-admission volume id: " + volume.id().path());
             }
         }
-        entries = created;
+        entries = createEntries(required);
+    }
+
+    /** Explicit footprint constructor used by lifecycle tests and future precomputed planners. */
+    SkyforgePhysicalVolumeAdmissionLedger(Map<SkyIslandWorldVolumeId, Set<Long>> requiredChunkKeysByVolume) {
+        entries = createEntries(Objects.requireNonNull(requiredChunkKeysByVolume, "requiredChunkKeysByVolume"));
     }
 
     synchronized Observation observe(SkyforgeNativeChunkOccupancySurvey.Result survey) {
@@ -91,6 +94,20 @@ final class SkyforgePhysicalVolumeAdmissionLedger {
             throw new IllegalArgumentException("unknown physical-admission volume: " + volumeId.path());
         }
         return entry;
+    }
+
+    private static Map<SkyIslandWorldVolumeId, Entry> createEntries(
+            Map<SkyIslandWorldVolumeId, Set<Long>> requiredChunkKeysByVolume) {
+        Map<SkyIslandWorldVolumeId, Entry> created = new HashMap<>();
+        requiredChunkKeysByVolume.forEach((volumeId, chunkKeys) -> {
+            Objects.requireNonNull(volumeId, "volume id");
+            Objects.requireNonNull(chunkKeys, "required chunk keys");
+            Entry previous = created.put(volumeId, new Entry(chunkKeys));
+            if (previous != null) {
+                throw new IllegalArgumentException("duplicate physical-admission volume id: " + volumeId.path());
+            }
+        });
+        return created;
     }
 
     private static Observation snapshot(
