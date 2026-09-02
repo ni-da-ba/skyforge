@@ -1,5 +1,6 @@
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
@@ -28,6 +29,15 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    // FML initializes the tested mod before JUnit can report individual tests. Keep bootstrap
+    // diagnostics visible so a required worldgen mixin failure is actionable in CI rather than
+    // collapsing into Gradle's outer InvocationTargetException.
+    systemProperty("mixin.debug.verbose", "true")
+    systemProperty("mixin.dumpTargetOnFailure", "true")
+    testLogging {
+        showStandardStreams = true
+        exceptionFormat = TestExceptionFormat.FULL
+    }
 }
 
 // Development-only data/resource pack material for interactive world-generation proofs. This
