@@ -30,6 +30,12 @@ final class SkyforgeTerrainProjectionStage {
 
         private Scope() {}
 
+        void requireActive() {
+            if (closed || !ACTIVE.get()) {
+                throw new IllegalStateException("Skyforge terrain-projection scope is not active");
+            }
+        }
+
         @Override
         public void close() {
             if (closed) {
