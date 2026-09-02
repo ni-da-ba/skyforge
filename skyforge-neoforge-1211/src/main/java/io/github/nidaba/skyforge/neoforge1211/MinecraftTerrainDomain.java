@@ -20,7 +20,7 @@ sealed interface MinecraftTerrainDomain
 
     /** One exact deterministic Skyforge world volume. */
     record SkyforgeVolume(SkyIslandWorldVolumeId volumeId) implements MinecraftTerrainDomain {
-        SkyforgeVolume {
+        public SkyforgeVolume {
             Objects.requireNonNull(volumeId, "volumeId");
         }
     }
