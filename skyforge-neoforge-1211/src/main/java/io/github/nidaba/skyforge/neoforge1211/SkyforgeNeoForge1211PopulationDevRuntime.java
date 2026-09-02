@@ -69,6 +69,10 @@ final class SkyforgeNeoForge1211PopulationDevRuntime {
             WorldGenLevel level,
             ChunkAccess chunk,
             ChunkGenerator generator) {
+        // One accepted development-only callback services subsequent population fixtures without
+        // adding milestone-specific hooks to the production chunk-generator lifecycle.
+        SkyforgeNeoForge1211BiomePopulationDevRuntime.populate(level, chunk, generator);
+
         if (!enabled() || proofComplete || !chunk.getPos().equals(PROOF_CHUNK)) {
             return;
         }
