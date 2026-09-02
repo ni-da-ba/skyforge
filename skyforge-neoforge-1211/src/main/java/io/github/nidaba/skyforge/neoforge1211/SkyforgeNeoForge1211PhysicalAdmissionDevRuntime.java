@@ -14,7 +14,6 @@ import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biomes;
@@ -138,12 +137,8 @@ final class SkyforgeNeoForge1211PhysicalAdmissionDevRuntime {
             }
         }
 
-        // Completion is checked on the stable loaded-chunk side. A generation-region callback may
-        // still observe admission evidence, but it must never be responsible for deferred writes.
-        if (level instanceof WorldGenRegion region
-                && region.getLevel() instanceof ServerLevel serverLevel) {
-            observeLoaded(serverLevel);
-        }
+        // Completion is checked exclusively on the stable loaded-chunk side by the server-tick
+        // catch-up service. Generation callbacks only collect and preserve admission evidence.
     }
 
     static synchronized void observeLoaded(ServerLevel level) {
