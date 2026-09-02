@@ -1,6 +1,6 @@
 # ADR-0058: Native exact-volume surface population planner
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -105,14 +105,31 @@ This is necessary for future within-island climate/ecology fields: a chunk may i
 - Hydrology, caves, ores, structures, and top-layer thermal effects remain explicitly outside this scheduler until separately admitted.
 - The plan resolver becomes the later connection point from backend-neutral environment/climate intent to Minecraft biome semantics.
 
-## Acceptance boundary
+## Acceptance evidence
 
-ADR-0058 may become **Accepted** when SF-IMP-0055 demonstrates on one exact PR head that:
+SF-IMP-0055 was accepted on exact runtime head `6e6ba3e39e0b8f576535892a6971fbed22bf8e4a`.
 
-1. full repository CI passes;
-2. the reusable coordinator, not a fixture-specific feature loop, populates two vertically stacked exact volumes with different registered biomes;
-3. visible forest/taiga native ecology remains present with persistent log/leaf evidence;
-4. an immediate second request for every populated `(volume, chunk, phase)` executes zero native phases and returns cached results;
-5. the completed-phase ledger matches the number of actual terrain-owning volume/chunk phase keys;
-6. only `VEGETAL_DECORATION` is admitted;
-7. BASE_WORLD remains visually normal beneath the islands and no cross-volume contamination is observed.
+Automated evidence:
+
+- CI run **#302** passed on implementation head `d10a586f771786b89ebdf771e71b453543986c03`;
+- CI run **#304** passed on pre-interactive documentation head `6e6ba3e39e0b8f576535892a6971fbed22bf8e4a`.
+
+Interactive evidence:
+
+```text
+SF-IMP-0055 SURFACE POPULATION COORDINATED PASS:
+observedChunks=25,
+completedPhases=50,
+replayExecutedPhases=0,
+admittedPhases=[VEGETAL_DECORATION],
+lower={biome=minecraft:forest, chunks=25, attempted=225, successful=55, attachments=9736, logs=933, leaves=7435},
+upper={biome=minecraft:taiga, chunks=25, attempted=250, successful=60, attachments=10504, logs=1145, leaves=8443}
+```
+
+Visual inspection confirmed good forest-vs-taiga differentiation, distributed native-looking vegetation, normal-looking ordinary terrain beneath the islands, and no obvious cross-volume ecology contamination.
+
+The same development run also exposed a separate physical 3-D collision between the low fixture island and an already-generated native structure, visible through chest/banner block-entity warnings after Skyforge stone replaced their blocks. That is **not** a surface-population replay failure. It is a distinct world-composition/occupancy policy problem: generation domains can be observationally isolated yet still physically intersect when realized. That defect is tracked separately and does not expand the set of phases admitted by this ADR.
+
+The accepted invariant is therefore:
+
+> Surface ecology is scheduled semantically and idempotently per exact volume/chunk/phase. Minecraft supplies the live native content for admitted phases, while Skyforge preserves domain identity, lifecycle ownership, and explicit exclusion of unrelated worldgen systems.
