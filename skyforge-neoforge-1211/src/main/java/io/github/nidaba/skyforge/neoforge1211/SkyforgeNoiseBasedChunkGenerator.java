@@ -33,13 +33,12 @@ import net.minecraft.world.level.levelgen.structure.structures.WoodlandMansionSt
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 /**
- * Vanilla noise generator with supported Skyforge early-query, structure-admission, post-surface
- * and supplemental feature seams.
+ * Vanilla noise generator with explicit Skyforge terrain-domain isolation.
  *
- * <p>All vanilla structure selection, noise, surface and biome-decoration behavior is retained.
- * Skyforge intervenes only when its early height answer actually elevates and vertically resolves a
- * native structure start. Resolved starts are assessed from generic native-piece geometry and exact
- * Skyforge terrain provenance, never from structure identity or a per-structure policy table.
+ * <p>No active island-generation scope means BASE_WORLD. In that state all native height queries,
+ * structures and biome decoration run through vanilla unchanged and Skyforge is observationally
+ * absent. Only an explicit {@link SkyforgeGenerationDomainStage} island scope may expose one exact
+ * compiled Skyforge volume to native generation machinery.
  */
 public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGenerator {
     public static final MapCodec<SkyforgeNoiseBasedChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance ->
@@ -69,36 +68,34 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             Heightmap.Types type,
             LevelHeightAccessor level,
             RandomState random) {
-        int vanillaHeight = super.getBaseHeight(x, z, type, level, random);
+        var islandVolumeId = SkyforgeGenerationDomainStage.activeIslandVolumeId();
+        if (islandVolumeId.isEmpty()) {
+            return super.getBaseHeight(x, z, type, level, random);
+        }
+
         var skyforgeClaim = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
+                islandVolumeId.orElseThrow(),
                 x,
                 z,
                 type,
                 level.getMinBuildHeight(),
                 level.getHeight());
         if (skyforgeClaim.isEmpty()) {
-            return vanillaHeight;
+            return level.getMinBuildHeight();
         }
 
         MinecraftSkyforgeHeightClaim claim = skyforgeClaim.orElseThrow();
-        if (claim.height() > vanillaHeight) {
-            SkyforgeStructureCandidateStage.record(claim);
-            return claim.height();
-        }
-        return vanillaHeight;
+        SkyforgeStructureCandidateStage.record(claim);
+        return claim.height();
     }
 
     /**
-     * Wraps one vanilla structure candidate after NeoForge widens the otherwise-private method.
+     * Wraps a native structure candidate only inside an explicit exact-island generation scope.
      *
-     * <p>Vanilla still chooses structure sets, weights and alternatives. A Skyforge height query is
-     * treated only as provenance evidence, not as proof that the native start has already resolved
-     * its vertical placement. Admission/accommodation therefore runs only when an actual start floor
-     * is coincident with a claimed Skyforge first-free height (allowing one block for discrete
-     * surface conventions). Once that plane and exactly one supporting island are proven, Skyforge
-     * may reject only positive physical contradictions before evaluating ordinary support and bounded
-     * fill accommodation. Rejection always restores the pre-candidate start map and returns false so
-     * Minecraft's normal weighted fallback remains authoritative.
+     * <p>Ordinary base-world candidates delegate directly to vanilla and never see Skyforge height,
+     * support or contradiction policy. The accepted admission/accommodation machinery remains
+     * available for the later island-owned structure population pass without coupling the base
+     * world back to suspended terrain.
      */
     @Override
     protected boolean tryGenerateStructure(
@@ -111,7 +108,8 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             ChunkAccess chunk,
             ChunkPos chunkPos,
             SectionPos sectionPos) {
-        if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
+        var activeIslandVolumeId = SkyforgeGenerationDomainStage.activeIslandVolumeId();
+        if (activeIslandVolumeId.isEmpty()) {
             return super.tryGenerateStructure(
                     structureSelectionEntry,
                     structureManager,
@@ -123,7 +121,11 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                     chunkPos,
                     sectionPos);
         }
+        if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
+            throw new IllegalStateException("island generation domain opened without an active Skyforge runtime binding");
+        }
 
+        SkyIslandWorldVolumeId domainVolumeId = activeIslandVolumeId.orElseThrow();
         Structure structure = structureSelectionEntry.structure().value();
         boolean accommodationProofCandidate = isAccommodationProofCandidate(structure, chunkPos);
         boolean undersideContradictionProofCandidate =
@@ -190,24 +192,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
 
         Set<SkyIslandWorldVolumeId> claimedVolumeIds = new LinkedHashSet<>();
         resolvedClaims.forEach(claim -> claimedVolumeIds.addAll(claim.volumeIds()));
-        if (claimedVolumeIds.size() != 1) {
-            if (accommodationProofCandidate) {
-                throw new IllegalStateException(
-                        "SF-IMP-0046 fixture invalid: forced origin mansion claimed multiple resolved Skyforge volumes: "
-                                + claimedVolumeIds);
-            }
-            if (undersideContradictionProofCandidate) {
-                throw new IllegalStateException(
-                        "SF-IMP-0050 fixture invalid: forced origin mansion claimed multiple resolved Skyforge volumes: "
-                                + claimedVolumeIds);
-            }
+        if (claimedVolumeIds.size() != 1 || !claimedVolumeIds.contains(domainVolumeId)) {
             chunk.setAllStarts(previousStarts);
             return false;
         }
 
-        SkyIslandWorldVolumeId claimedVolumeId = claimedVolumeIds.iterator().next();
         int resolvedFirstFreeY = resolvedClaims.stream()
-                .filter(claim -> claim.volumeIds().contains(claimedVolumeId))
+                .filter(claim -> claim.volumeIds().contains(domainVolumeId))
                 .mapToInt(MinecraftSkyforgeHeightClaim::height)
                 .max()
                 .orElseThrow();
@@ -218,7 +209,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         var undersideContradiction = MinecraftStructureUndersideContradictionPolicy.evaluate(
                 contradictionPieceBoxes,
                 structureFloorY,
-                claimedVolumeId);
+                domainVolumeId);
         if (undersideContradiction.isPresent()) {
             if (undersideContradictionProofCandidate) {
                 SkyforgeNeoForge1211UndersideContradictionDevRuntime.recordRejected(
@@ -231,7 +222,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         if (undersideContradictionProofCandidate) {
             SkyforgeNeoForge1211UndersideContradictionDevRuntime.requireContradiction(
                     start.getBoundingBox(),
-                    claimedVolumeId);
+                    domainVolumeId);
         }
 
         List<BoundingBox> supportBoxes = MinecraftStructureSupportGeometry.floorContactBoxes(start);
@@ -239,7 +230,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         boolean naturallyAccepted = SkyforgeNeoForge1211SurfaceStage.assessSurfaceSupport(naturalRequirements)
                 .orElseThrow(() -> new IllegalStateException("active Skyforge binding disappeared during structure generation"))
                 .stream()
-                .filter(assessment -> assessment.supportingVolumeId().equals(claimedVolumeId))
+                .filter(assessment -> assessment.supportingVolumeId().equals(domainVolumeId))
                 .findFirst()
                 .map(assessment -> assessment.accepted())
                 .orElse(false);
@@ -257,7 +248,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         var foundationAssessment = SkyforgeNeoForge1211SurfaceStage.assessSurfaceFoundation(foundationRequirements)
                 .orElseThrow(() -> new IllegalStateException("active Skyforge binding disappeared during structure generation"))
                 .stream()
-                .filter(assessment -> assessment.supportingVolumeId().equals(claimedVolumeId))
+                .filter(assessment -> assessment.supportingVolumeId().equals(domainVolumeId))
                 .findFirst();
         if (foundationAssessment.isEmpty() || !foundationAssessment.orElseThrow().accepted()) {
             if (accommodationProofCandidate) {
@@ -274,7 +265,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         SkyforgeFoundationPiece foundation = new SkyforgeFoundationPiece(
                 supportBoxes,
                 structureFloorY,
-                claimedVolumeId,
+                domainVolumeId,
                 maximumFillDepth);
         List<StructurePiece> pieces = new ArrayList<>(start.getPieces().size() + 1);
         pieces.add(foundation);
@@ -288,19 +279,12 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         if (accommodationProofCandidate) {
             SkyforgeNeoForge1211AccommodationDevRuntime.recordFoundationAttached(
                     start.getBoundingBox(),
-                    claimedVolumeId,
+                    domainVolumeId,
                     acceptedFoundation.maximumRequiredFillDepth());
         }
         return true;
     }
 
-    /**
-     * Returns whether a native start floor is actually resolved at this Skyforge height claim.
-     *
-     * <p>The claim height is Minecraft's first-free block. A one-block tolerance covers native
-     * piece conventions that represent the surface by the adjacent occupied/free block coordinate.
-     * Anything farther away remains vanilla-owned rather than being interpreted speculatively.
-     */
     static boolean claimResolvesSurfacePlane(BoundingBox bounds, MinecraftSkyforgeHeightClaim claim) {
         long delta = (long) claim.height() - bounds.minY();
         return delta >= -1L && delta <= 1L;
@@ -320,7 +304,9 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             RandomState random,
             ChunkAccess chunk) {
         super.buildSurface(level, structureManager, random, chunk);
-        SkyforgeNeoForge1211SurfaceStage.realize(chunk);
+        if (SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()) {
+            SkyforgeNativeSurfaceSnapshotStage.capture(chunk);
+        }
     }
 
     @Override
@@ -328,9 +314,18 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             WorldGenLevel level,
             ChunkAccess chunk,
             StructureManager structureManager) {
-        try (SkyforgeNeoForge1211FeatureStage.Scope scope = SkyforgeNeoForge1211FeatureStage.open(chunk)) {
-            scope.requireActive();
-            super.applyBiomeDecoration(level, chunk, structureManager);
+        // BASE_WORLD completes its ordinary structure/feature/decoration stream before any Skyforge
+        // block exists in the live chunk. This is the core SF-IMP-0052 isolation invariant.
+        super.applyBiomeDecoration(level, chunk, structureManager);
+
+        if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
+            return;
+        }
+        if (SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()) {
+            MinecraftNativeSurfaceSnapshot snapshot = SkyforgeNativeSurfaceSnapshotStage.consume(chunk);
+            SkyforgeNeoForge1211SurfaceStage.realize(chunk, snapshot);
+        } else {
+            SkyforgeNeoForge1211SurfaceStage.realize(chunk);
         }
     }
 }

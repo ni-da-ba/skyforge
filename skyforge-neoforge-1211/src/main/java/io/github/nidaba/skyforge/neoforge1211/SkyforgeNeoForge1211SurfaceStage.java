@@ -16,30 +16,48 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
 
-/**
- * Runtime binding consumed by the Skyforge post-surface chunk-generator seam.
- *
- * <p>The registered chunk generator remains inert until a binding is installed explicitly. The
- * binding owns only already-compiled backend runtime state: no world/group/archipelago planning is
- * performed from the per-chunk generation path.
- */
+/** Runtime binding between compiled Skyforge terrain and the Minecraft 1.21.1 adapter. */
 public final class SkyforgeNeoForge1211SurfaceStage {
     private static final AtomicReference<RuntimeBinding> ACTIVE = new AtomicReference<>();
 
     private SkyforgeNeoForge1211SurfaceStage() {}
 
+    /** Direct realization retained for isolated tests and callers without staged surface adaptation. */
     static Optional<MinecraftChunkWriteResult> realize(ChunkAccess chunk) {
+        return realize(chunk, Optional.empty());
+    }
+
+    /**
+     * Realizes Skyforge after native decoration while adapting exposed island tops from the native
+     * terrain snapshot captured before that decoration began.
+     */
+    static Optional<MinecraftChunkWriteResult> realize(
+            ChunkAccess chunk,
+            MinecraftNativeSurfaceSnapshot nativeSurfaceSnapshot) {
+        return realize(chunk, Optional.of(Objects.requireNonNull(nativeSurfaceSnapshot, "nativeSurfaceSnapshot")));
+    }
+
+    private static Optional<MinecraftChunkWriteResult> realize(
+            ChunkAccess chunk,
+            Optional<MinecraftNativeSurfaceSnapshot> nativeSurfaceSnapshot) {
         Objects.requireNonNull(chunk, "chunk");
         RuntimeBinding binding = ACTIVE.get();
         if (binding == null) {
             return Optional.empty();
         }
 
+        SkyforgeNeoForge1211IsolationDevRuntime.Proof isolationProof =
+                SkyforgeNeoForge1211IsolationDevRuntime.captureBeforeSkyforge(chunk);
         MinecraftChunkMaterialization materialization = materialize(binding, chunk);
         if (binding.nativeSurfaceTopAdapter().isPresent()) {
-            materialization = binding.nativeSurfaceTopAdapter().orElseThrow().adapt(chunk, materialization);
+            var adapter = binding.nativeSurfaceTopAdapter().orElseThrow();
+            materialization = nativeSurfaceSnapshot.isPresent()
+                    ? adapter.adapt(nativeSurfaceSnapshot.orElseThrow(), materialization)
+                    : adapter.adapt(chunk, materialization);
         }
-        return Optional.of(binding.writer().writeSolidOverlay(chunk, materialization));
+        MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
+        SkyforgeNeoForge1211IsolationDevRuntime.verifyAfterSkyforge(chunk, isolationProof);
+        return Optional.of(result);
     }
 
     static Optional<MinecraftChunkMaterialization> materializeOccupancy(ChunkAccess chunk) {
@@ -51,7 +69,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return Optional.of(materialize(binding, chunk));
     }
 
-    /** Backward-compatible scalar view of the richer early-height provenance query. */
+    /** Backward-compatible scalar view of the richer composite early-height query. */
     static OptionalInt queryBaseHeight(
             int worldX,
             int worldZ,
@@ -64,8 +82,10 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     }
 
     /**
-     * Evaluates the active Skyforge binding as an early generator height query and retains the
-     * independent island-volume provenance responsible for the accepted top block.
+     * Legacy composite early-height query retained for diagnostics and compatibility tests.
+     *
+     * <p>Ordinary base-world generation must not call this under SF-IMP-0052. Island-owned
+     * generation uses the exact-volume overload below.
      */
     static Optional<MinecraftSkyforgeHeightClaim> queryBaseHeightClaim(
             int worldX,
@@ -106,7 +126,31 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return Optional.empty();
     }
 
-    /** Evaluates neutral support requirements against the active compiled Skyforge catalog. */
+    /**
+     * Evaluates one exact independently compiled island as an early height query.
+     *
+     * <p>Vanilla terrain and other stacked islands are intentionally invisible. An empty island
+     * column remains empty rather than falling through to a different terrain owner.
+     */
+    static Optional<MinecraftSkyforgeHeightClaim> queryBaseHeightClaim(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ,
+            Heightmap.Types type,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(type, "type");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return Optional.empty();
+        }
+        OptionalInt firstFree = binding.adapter().firstFreeHeight(volumeId, worldX, worldZ, minimumY, height);
+        return firstFree.isPresent()
+                ? Optional.of(new MinecraftSkyforgeHeightClaim(firstFree.getAsInt(), List.of(volumeId)))
+                : Optional.empty();
+    }
+
     static Optional<List<SurfaceSupportAssessment>> assessSurfaceSupport(SurfaceSupportRequirements requirements) {
         Objects.requireNonNull(requirements, "requirements");
         RuntimeBinding binding = ACTIVE.get();
@@ -115,7 +159,6 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 : Optional.of(binding.adapter().assessSurfaceSupport(requirements));
     }
 
-    /** Evaluates bounded fill-only foundation requirements against the active Skyforge catalog. */
     static Optional<List<SurfaceFoundationAssessment>> assessSurfaceFoundation(
             SurfaceFoundationRequirements requirements) {
         Objects.requireNonNull(requirements, "requirements");
@@ -125,7 +168,6 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 : Optional.of(binding.adapter().assessSurfaceFoundation(requirements));
     }
 
-    /** Observes one finite 3-D box against one exact Skyforge volume without deriving eligibility. */
     static Optional<TerrainBoxObservation> observeTerrainBox(
             SkyIslandWorldVolumeId volumeId,
             TerrainBoxObservationRequirements requirements) {
@@ -137,13 +179,6 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 : Optional.of(binding.adapter().observeTerrainBox(volumeId, requirements));
     }
 
-    /**
-     * Returns whether the exact recorded island volume owns a solid sample at the supplied block.
-     *
-     * <p>Foundation realization uses this as a defensive provenance check so a serialized
-     * accommodation cannot silently attach itself to vanilla terrain, another structure, or a
-     * different vertically stacked Skyforge island.
-     */
     static Optional<Boolean> isSolidOwnedBy(
             SkyIslandWorldVolumeId volumeId,
             int worldX,

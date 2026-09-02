@@ -21,5 +21,6 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211DevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211AccommodationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211UndersideContradictionDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211IsolationDevRuntime.installFromSystemProperty();
     }
 }
