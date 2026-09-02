@@ -104,9 +104,9 @@ final class SkyforgePhysicalVolumeAdmissionStage {
     /**
      * Fail-closed position gate used by the solid-overlay writer.
      *
-     * <p>If the active catalog says one or more exact volumes own this coordinate, every owner must
-     * be ADMITTED. This also prevents an as-yet-unresolved Skyforge/Skyforge overlap from becoming a
-     * loophole in the native-content collision gate.
+     * <p>A PLANNED exact owner blocks the coordinate because its eventual physical presence is not
+     * yet known. An ADMITTED owner authorizes it. A REJECTED owner is physically absent and therefore
+     * cannot veto another admitted owner. If all exact owners are rejected, no Skyforge write occurs.
      */
     static boolean allowsWriteAt(int worldX, int worldY, int worldZ) {
         Binding binding = ACTIVE.get();
@@ -114,7 +114,7 @@ final class SkyforgePhysicalVolumeAdmissionStage {
             return true;
         }
         var candidates = binding.catalog().query(pointBounds(worldX, worldY, worldZ));
-        boolean foundOwner = false;
+        boolean admittedOwner = false;
         for (var candidate : candidates) {
             boolean owned = SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(
                             candidate.id(), worldX, worldY, worldZ)
@@ -123,12 +123,15 @@ final class SkyforgePhysicalVolumeAdmissionStage {
             if (!owned) {
                 continue;
             }
-            foundOwner = true;
-            if (!binding.ledger().admitted(candidate.id())) {
+            SkyforgePhysicalVolumeAdmissionState state = binding.ledger().state(candidate.id());
+            if (state == SkyforgePhysicalVolumeAdmissionState.PLANNED) {
                 return false;
             }
+            if (state == SkyforgePhysicalVolumeAdmissionState.ADMITTED) {
+                admittedOwner = true;
+            }
         }
-        return foundOwner;
+        return admittedOwner;
     }
 
     /** Exact-volume population is valid only after physical admission has become terminal ADMITTED. */
