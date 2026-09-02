@@ -320,6 +320,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             RandomState random,
             ChunkAccess chunk) {
         super.buildSurface(level, structureManager, random, chunk);
+        SkyforgeTerrainProjectionStage.captureBaseWorld(chunk);
         SkyforgeNeoForge1211SurfaceStage.realize(chunk);
     }
 
@@ -329,7 +330,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             ChunkAccess chunk,
             StructureManager structureManager) {
         try (SkyforgeNeoForge1211FeatureStage.Scope featureScope = SkyforgeNeoForge1211FeatureStage.open(chunk);
-                SkyforgeTerrainProjectionStage.Scope projectionScope = SkyforgeTerrainProjectionStage.open()) {
+                SkyforgeTerrainProjectionStage.Scope projectionScope = SkyforgeTerrainProjectionStage.open(chunk)) {
             featureScope.requireActive();
             projectionScope.requireActive();
             super.applyBiomeDecoration(level, chunk, structureManager);
