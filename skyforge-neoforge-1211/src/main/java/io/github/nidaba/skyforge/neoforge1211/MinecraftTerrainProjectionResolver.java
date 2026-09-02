@@ -1,110 +1,37 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
-import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.OptionalDouble;
 import java.util.OptionalInt;
-import java.util.function.IntPredicate;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
- * Resolves a terrain-matching projection top while preserving vertical world-volume ownership.
+ * Resolves a terrain-matching top only inside one already-selected terrain domain.
  *
- * <p>The resolver knows nothing about villages, jigsaw templates, or structure registry identity.
- * It receives only the placement anchor Y, Minecraft's ordinary top surface, block opacity, and
- * exact Skyforge solid-volume provenance. A Skyforge surface is skipped only when exactly one
- * volume owns that solid sample and the placement anchor is proven at or below that volume's
- * underside. Ambiguous ownership or unavailable evidence fails open to the caller's vanilla path.
+ * <p>The resolver deliberately has no concept of a global highest surface. Base Minecraft terrain
+ * is supplied from a pre-Skyforge snapshot, while a Skyforge domain is supplied from the exact
+ * compiled island identity. The two sources never compete and no downward scan crosses domains.
  */
 final class MinecraftTerrainProjectionResolver {
-    private static final int MAXIMUM_SKIPPED_VOLUME_COUNT = 64;
-
     private MinecraftTerrainProjectionResolver() {}
 
     static OptionalInt resolveTop(
-            int placementAnchorY,
-            int vanillaTopY,
-            int minimumBuildY,
-            IntPredicate opaqueAtY,
-            OwnerLookup ownerLookup,
-            UndersideLookup undersideLookup) {
-        Objects.requireNonNull(opaqueAtY, "opaqueAtY");
-        Objects.requireNonNull(ownerLookup, "ownerLookup");
-        Objects.requireNonNull(undersideLookup, "undersideLookup");
-        if (vanillaTopY <= minimumBuildY) {
-            return OptionalInt.of(vanillaTopY);
+            MinecraftTerrainDomain domain,
+            Supplier<OptionalInt> baseWorldTop,
+            Function<SkyIslandWorldVolumeId, OptionalInt> skyforgeTop) {
+        Objects.requireNonNull(domain, "domain");
+        Objects.requireNonNull(baseWorldTop, "baseWorldTop");
+        Objects.requireNonNull(skyforgeTop, "skyforgeTop");
+
+        if (domain == MinecraftTerrainDomain.BaseWorld.INSTANCE) {
+            return Objects.requireNonNull(baseWorldTop.get(), "baseWorldTop result");
         }
-
-        int candidateTopY = vanillaTopY;
-        for (int skippedVolumes = 0; skippedVolumes <= MAXIMUM_SKIPPED_VOLUME_COUNT; skippedVolumes++) {
-            int candidateSurfaceY = candidateTopY - 1;
-            Optional<List<SkyIslandWorldVolumeId>> ownersResult = ownerLookup.ownersAt(candidateSurfaceY);
-            if (ownersResult.isEmpty()) {
-                return OptionalInt.empty();
-            }
-
-            List<SkyIslandWorldVolumeId> owners = ownersResult.orElseThrow();
-            if (owners.isEmpty()) {
-                return OptionalInt.of(candidateTopY);
-            }
-            if (owners.size() != 1) {
-                // Overlapping solid ownership is intentionally not interpreted here.
-                return OptionalInt.empty();
-            }
-
-            SkyIslandWorldVolumeId owner = owners.getFirst();
-            OptionalDouble undersideResult = undersideLookup.underside(owner);
-            if (undersideResult.isEmpty()) {
-                return OptionalInt.empty();
-            }
-            double undersideY = undersideResult.orElseThrow();
-            if (!Double.isFinite(undersideY)) {
-                return OptionalInt.empty();
-            }
-
-            // The anchor lies within/above this volume's vertical envelope, so this surface is not
-            // positively proven to belong to an unrelated upper terrain body.
-            if (placementAnchorY > undersideY) {
-                return OptionalInt.of(candidateTopY);
-            }
-
-            if (skippedVolumes == MAXIMUM_SKIPPED_VOLUME_COUNT) {
-                return OptionalInt.empty();
-            }
-
-            long floor = (long) Math.floor(undersideY);
-            int searchY = (int) Math.max(
-                    minimumBuildY,
-                    Math.min((long) candidateSurfaceY - 1L, floor));
-            int lowerSolidY = highestOpaqueAtOrBelow(searchY, minimumBuildY, opaqueAtY);
-            if (lowerSolidY == Integer.MIN_VALUE) {
-                return OptionalInt.empty();
-            }
-            candidateTopY = Math.addExact(lowerSolidY, 1);
+        if (domain instanceof MinecraftTerrainDomain.SkyforgeVolume skyforgeVolume) {
+            return Objects.requireNonNull(
+                    skyforgeTop.apply(skyforgeVolume.volumeId()),
+                    "skyforgeTop result");
         }
-        return OptionalInt.empty();
-    }
-
-    private static int highestOpaqueAtOrBelow(
-            int startingY,
-            int minimumBuildY,
-            IntPredicate opaqueAtY) {
-        for (int worldY = startingY; worldY >= minimumBuildY; worldY--) {
-            if (opaqueAtY.test(worldY)) {
-                return worldY;
-            }
-        }
-        return Integer.MIN_VALUE;
-    }
-
-    @FunctionalInterface
-    interface OwnerLookup {
-        Optional<List<SkyIslandWorldVolumeId>> ownersAt(int worldY);
-    }
-
-    @FunctionalInterface
-    interface UndersideLookup {
-        OptionalDouble underside(SkyIslandWorldVolumeId volumeId);
+        throw new IllegalStateException("unsupported Minecraft terrain domain: " + domain);
     }
 }
