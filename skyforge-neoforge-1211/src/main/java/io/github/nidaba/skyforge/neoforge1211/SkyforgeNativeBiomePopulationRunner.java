@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -18,6 +19,9 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 
 /** Executes one native biome generation step inside one exact Skyforge world volume. */
 final class SkyforgeNativeBiomePopulationRunner {
+    private static final String BIOME_PROOF_PROPERTY = "skyforge.dev.biomePopulation";
+    private static final System.Logger LOGGER = System.getLogger(SkyforgeNativeBiomePopulationRunner.class.getName());
+
     private SkyforgeNativeBiomePopulationRunner() {}
 
     static Result populateStep(
@@ -92,6 +96,18 @@ final class SkyforgeNativeBiomePopulationRunner {
             }
             attachmentWrites = Math.addExact(attachmentWrites, result.attachmentWrites());
             featureResults.add(new FeatureResult(featureKey, result.placed(), result.attachmentWrites()));
+
+            if (Boolean.getBoolean(BIOME_PROOF_PROPERTY)
+                    && featureKey.getPath().toLowerCase(Locale.ROOT).contains("tree")) {
+                LOGGER.log(
+                        System.Logger.Level.INFO,
+                        "SF-IMP-0054 TREE FEATURE: volume=" + volumeId.path()
+                                + ", chunk=" + originChunk
+                                + ", biome=" + biomeKey.location()
+                                + ", feature=" + featureKey
+                                + ", placed=" + result.placed()
+                                + ", attachments=" + result.attachmentWrites());
+            }
         }
 
         return new Result(
