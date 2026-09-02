@@ -102,6 +102,8 @@ The first regional fixture assumed every chunk center inside the 5×5 candidate 
 stacked biome volume has no proof-chunk surface
 ```
 
+The corresponding interactive log also showed the client itself and integrated server otherwise reached normal world startup before that chunk-generation assertion fired.
+
 This was another invalid proof oracle. `WorldBounds` encloses a procedural volume but does not guarantee terrain at every enclosed X/Z, especially near morphology edges.
 
 Correction: each candidate chunk now searches its actual compiled field for a shared X/Z position where both exact volumes have surfaces. Only those shared-terrain chunks are eligible. The proof requires a minimum deterministic eligible sample count and successful native vegetation for both owners.
