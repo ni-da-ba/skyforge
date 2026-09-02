@@ -58,7 +58,7 @@ final class SkyforgeNativeBiomePopulationRunner {
                 originChunk.getMinBlockX(),
                 level.getMinBuildHeight(),
                 originChunk.getMinBlockZ());
-        List<ResourceLocation> featureKeys = new ArrayList<>();
+        List<FeatureResult> featureResults = new ArrayList<>();
         int attempted = 0;
         int successful = 0;
         int attachmentWrites = 0;
@@ -86,12 +86,12 @@ final class SkyforgeNativeBiomePopulationRunner {
                     operation,
                     nativeChunkOrigin,
                     maximumAttachmentDepth);
-            featureKeys.add(featureKey);
             attempted++;
             if (result.placed()) {
                 successful++;
             }
             attachmentWrites = Math.addExact(attachmentWrites, result.attachmentWrites());
+            featureResults.add(new FeatureResult(featureKey, result.placed(), result.attachmentWrites()));
         }
 
         return new Result(
@@ -100,7 +100,19 @@ final class SkyforgeNativeBiomePopulationRunner {
                 attempted,
                 successful,
                 attachmentWrites,
-                List.copyOf(featureKeys));
+                List.copyOf(featureResults));
+    }
+
+    record FeatureResult(
+            ResourceLocation featureKey,
+            boolean placed,
+            int attachmentWrites) {
+        FeatureResult {
+            Objects.requireNonNull(featureKey, "featureKey");
+            if (attachmentWrites < 0) {
+                throw new IllegalArgumentException("feature attachmentWrites must be non-negative");
+            }
+        }
     }
 
     record Result(
@@ -109,18 +121,33 @@ final class SkyforgeNativeBiomePopulationRunner {
             int attemptedFeatures,
             int successfulFeatures,
             int attachmentWrites,
-            List<ResourceLocation> featureKeys) {
+            List<FeatureResult> featureResults) {
         Result {
             Objects.requireNonNull(biomeKey, "biomeKey");
             Objects.requireNonNull(generationStep, "generationStep");
-            Objects.requireNonNull(featureKeys, "featureKeys");
+            Objects.requireNonNull(featureResults, "featureResults");
             if (attemptedFeatures < 0 || successfulFeatures < 0 || attachmentWrites < 0) {
                 throw new IllegalArgumentException("population result counts must be non-negative");
             }
-            if (successfulFeatures > attemptedFeatures || featureKeys.size() != attemptedFeatures) {
+            if (successfulFeatures > attemptedFeatures || featureResults.size() != attemptedFeatures) {
                 throw new IllegalArgumentException("population result counts are inconsistent");
             }
-            featureKeys = List.copyOf(featureKeys);
+            int derivedSuccessful = 0;
+            int derivedAttachments = 0;
+            for (FeatureResult featureResult : featureResults) {
+                if (featureResult.placed()) {
+                    derivedSuccessful++;
+                }
+                derivedAttachments = Math.addExact(derivedAttachments, featureResult.attachmentWrites());
+            }
+            if (derivedSuccessful != successfulFeatures || derivedAttachments != attachmentWrites) {
+                throw new IllegalArgumentException("per-feature outcomes do not match aggregate population counts");
+            }
+            featureResults = List.copyOf(featureResults);
+        }
+
+        List<ResourceLocation> featureKeys() {
+            return featureResults.stream().map(FeatureResult::featureKey).toList();
         }
     }
 }
