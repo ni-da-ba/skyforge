@@ -11,18 +11,29 @@ import net.minecraft.core.BlockPos;
  *
  * <p>Writes inside exact owner terrain are always admitted. Writes outside owner terrain are
  * admitted only when they remain connected to owner terrain through previously admitted attachment
- * writes, up to a configured maximum attachment depth. This lets trees, leaves and similar native
- * content extend beyond strict island density without granting an unrestricted geometric box.
+ * writes, up to a configured maximum attachment depth. Foreign Skyforge terrain is a hard veto even
+ * when it lies inside that attachment radius. This lets trees, leaves and similar native content
+ * extend beyond strict island density without granting an unrestricted geometric box or allowing one
+ * island's population stream to enter another island.
  */
 final class SkyforgePopulationAttachmentEnvelope {
     private final Predicate<BlockPos> ownerSolid;
+    private final Predicate<BlockPos> foreignSolid;
     private final int maximumAttachmentDepth;
     private final Map<BlockPos, Integer> attachmentDepths = new HashMap<>();
 
     SkyforgePopulationAttachmentEnvelope(
             Predicate<BlockPos> ownerSolid,
             int maximumAttachmentDepth) {
+        this(ownerSolid, ignored -> false, maximumAttachmentDepth);
+    }
+
+    SkyforgePopulationAttachmentEnvelope(
+            Predicate<BlockPos> ownerSolid,
+            Predicate<BlockPos> foreignSolid,
+            int maximumAttachmentDepth) {
         this.ownerSolid = Objects.requireNonNull(ownerSolid, "ownerSolid");
+        this.foreignSolid = Objects.requireNonNull(foreignSolid, "foreignSolid");
         if (maximumAttachmentDepth < 0) {
             throw new IllegalArgumentException("maximumAttachmentDepth must be non-negative");
         }
@@ -33,6 +44,9 @@ final class SkyforgePopulationAttachmentEnvelope {
     boolean acceptWrite(BlockPos position) {
         Objects.requireNonNull(position, "position");
         BlockPos immutable = position.immutable();
+        if (foreignSolid.test(immutable)) {
+            return false;
+        }
         if (ownerSolid.test(immutable)) {
             return true;
         }
@@ -70,6 +84,9 @@ final class SkyforgePopulationAttachmentEnvelope {
                         continue;
                     }
                     BlockPos neighbor = position.offset(dx, dy, dz);
+                    if (foreignSolid.test(neighbor)) {
+                        continue;
+                    }
                     if (ownerSolid.test(neighbor)) {
                         minimum = 0;
                         continue;
