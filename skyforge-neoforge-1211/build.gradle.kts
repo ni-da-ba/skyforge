@@ -105,6 +105,16 @@ neoForge {
             systemProperty("skyforge.dev.population", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+
+        // SF-IMP-0054 resolves two different final-registry Minecraft biomes for vertically aligned
+        // island domains and executes each biome's own VEGETAL_DECORATION feature list. Native
+        // placement modifiers choose occurrence positions; no individual tree origin is hard-coded.
+        create("biomePopulationClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0054")
+            systemProperty("skyforge.dev.biomePopulation", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
     }
 
     unitTest {

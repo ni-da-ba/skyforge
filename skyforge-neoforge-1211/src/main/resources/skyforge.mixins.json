@@ -4,7 +4,8 @@
   "package": "io.github.nidaba.skyforge.neoforge1211.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "SkyforgeWorldGenRegionDomainMixin"
+    "SkyforgeWorldGenRegionDomainMixin",
+    "SkyforgeBiomeManagerDomainMixin"
   ],
   "injectors": {
     "defaultRequire": 1
