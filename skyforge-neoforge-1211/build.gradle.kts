@@ -125,6 +125,16 @@ neoForge {
             systemProperty("skyforge.dev.surfacePopulation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+
+        // SF-IMP-0056 proves whole-volume physical admission against the same forced native mansion
+        // environment that exposed the original block-entity overwrite. A lower island must reject
+        // without mutation while a clear multi-chunk upper island admits and catches up exactly.
+        create("physicalAdmissionClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0056")
+            systemProperty("skyforge.dev.physicalAdmission", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
     }
 
     unitTest {
