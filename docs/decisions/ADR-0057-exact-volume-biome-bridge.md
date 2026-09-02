@@ -1,6 +1,6 @@
 # ADR-0057: Exact-volume biome bridge
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -24,6 +24,8 @@ Skyforge exact-volume environmental intent
 ```
 
 During one explicit island population operation, ordinary world-generation biome reads resolve to that operation's exact-volume biome. Outside that operation, the hook is inert. BASE_WORLD generation and its stored biome data are not rewritten.
+
+Biome visibility requires both world-generation biome seams used by Minecraft 1.21.1: quart/noise-biome access through `WorldGenRegion#getUncachedNoiseBiome(...)` and ordinary block-position biome access through `BiomeManager#getBiome(BlockPos)`. The latter is the path used by native biome-aware placement and was proven necessary by the SF-IMP-0054 tree diagnostics. Both hooks are scoped to the active exact-volume population operation and are inert for BASE_WORLD generation.
 
 Biome-owned native features must execute through Minecraft's biome-aware placed-feature path so vanilla `BiomeFilter` retains both pieces of provenance it expects: the top-level placed feature and the biome visible at the attempted position. Skyforge must not remove, bypass, or special-case that filter.
 
@@ -57,7 +59,7 @@ Skyforge does not promise byte-identical decoration to a vanilla ground biome, b
 ## Consequences
 
 - Two islands stacked at the same X/Z can expose different Minecraft biomes during their independent population streams.
-- `BiomeFilter`, heightmap placement, block predicates, and modded placement modifiers execute against the owning island domain rather than the base-world column.
+- `BiomeFilter`, heightmap placement, block predicates, ordinary biome-manager reads, and modded placement modifiers execute against the owning island domain rather than the base-world column.
 - BASE_WORLD remains observationally isolated during its own generation.
 - Modded biome generation settings can be reused generically if they are represented through normal final registries.
 - A single-chunk zero-occurrence result is not an architectural failure; finite deterministic regional evidence is required for stochastic population proofs.
@@ -66,15 +68,24 @@ Skyforge does not promise byte-identical decoration to a vanilla ground biome, b
 - Native feature API success alone cannot certify meaningful biome realization; acceptance must validate persistent resulting world state.
 - Runtime biome projection/storage remains a separate implementation problem and may face Minecraft's finite quart-biome storage constraints.
 
-## Acceptance boundary
+## Acceptance evidence
 
-The strengthened implementation that measures persistent vegetation passed full repository CI as run **#286** on head `11bd27ef05aafaba63ff21028856de6d0f7f0378`. The exact final documentation/acceptance head must also remain green before merge.
+SF-IMP-0054 was accepted on PR head `83d65aa01f60084c29cb294534ab6d3649089000`.
 
-This ADR may become **Accepted** when SF-IMP-0054 demonstrates, on one exact PR head:
+Automated CI run **#298** passed on that exact implementation head, including NeoForge/FML mixin bootstrap and the established fixed-seed and suspended-volume evidence suites.
 
-1. full repository CI including NeoForge/Mixin bootstrap passes;
-2. two vertically aligned exact volumes resolve different registered biomes at shared X/Z terrain positions;
-3. a deterministic multi-chunk candidate region discovers a sufficient set of chunks with substantial actual shared stacked terrain and consumes each biome's native `VEGETAL_DECORATION` settings there with Minecraft's biome checks intact;
-4. both domains produce persistent visible native vegetation, including log and leaf evidence for the forest/taiga validation pair, without hard-coded feature origins;
-5. no cross-volume write contamination occurs;
-6. BASE_WORLD decoration remains visually normal beneath the stacked islands.
+Interactive validation on a new disposable Skyforge Development world produced:
+
+```text
+SF-IMP-0054 BIOME POPULATION STACKED PASS:
+scannedChunks=25,
+eligibleChunks=25,
+lower={biome=minecraft:forest, attempted=225, successful=55, attachments=9726, logs=933, leaves=7436, sharedColumns=6400},
+upper={biome=minecraft:taiga, attempted=250, successful=59, attachments=10482, logs=1148, leaves=8352, sharedColumns=6400}
+```
+
+Every diagnostic sample reported `expectedBiome=true` once the `BiomeManager` read seam was scoped correctly. The forest and taiga tree features then produced persistent trees with substantial attachment-write counts. Visual inspection confirmed obvious forest-vs-taiga differentiation on the two vertically aligned islands, normal base-world terrain beneath them, and no visible cross-volume contamination. A bee was also observed on the forest island, providing additional evidence that native biome-configured feature behavior—not merely Skyforge-authored tree placement—was executing inside the exact-volume domain.
+
+The accepted invariant is therefore:
+
+> Skyforge chooses the exact-volume biome identity; the Minecraft adapter resolves that identity through the live final registry, and native biome generation executes against the owning island's scoped terrain and biome view without rewriting or borrowing BASE_WORLD semantics.
