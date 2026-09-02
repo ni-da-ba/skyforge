@@ -4,6 +4,8 @@ import java.util.Objects;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
@@ -64,9 +66,16 @@ final class SkyforgeNativePlacedFeatureRunner {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(origin, "origin");
 
-        var registryKey = placedFeature.unwrapKey().orElseThrow(() ->
-                new IllegalArgumentException("island population requires a registered PlacedFeature holder"));
-        if (!registryKey.location().equals(operation.nativeDefinitionKey())) {
+        ResourceLocation registryLocation = placedFeature.unwrapKey()
+                .map(key -> key.location())
+                .orElseGet(() -> level.registryAccess()
+                        .registryOrThrow(Registries.PLACED_FEATURE)
+                        .getKey(placedFeature.value()));
+        if (registryLocation == null) {
+            throw new IllegalArgumentException(
+                    "island population requires a PlacedFeature present in the final registry");
+        }
+        if (!registryLocation.equals(operation.nativeDefinitionKey())) {
             throw new IllegalArgumentException("population operation key does not match PlacedFeature registry identity");
         }
 
