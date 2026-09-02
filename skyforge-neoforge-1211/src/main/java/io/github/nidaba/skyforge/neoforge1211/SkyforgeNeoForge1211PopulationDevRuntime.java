@@ -81,6 +81,7 @@ final class SkyforgeNeoForge1211PopulationDevRuntime {
         SkyforgeNativeSurfacePopulationStage.populate(level, chunk, generator);
         SkyforgeNeoForge1211SurfacePopulationDevRuntime.observe(level, chunk, generator);
         SkyforgeNeoForge1211BiomePopulationDevRuntime.populate(level, chunk, generator);
+        SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.observe(level, chunk, generator);
 
         if (!enabled() || proofComplete || !chunk.getPos().equals(PROOF_CHUNK)) {
             return;
