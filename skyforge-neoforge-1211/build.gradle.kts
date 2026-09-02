@@ -75,6 +75,15 @@ neoForge {
             systemProperty("skyforge.dev.undersideContradiction", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+
+        // SF-IMP-0051 isolates one lower village and one clean upper island so cross-volume
+        // terrain-matching projection can be inspected without the older accommodation pockets.
+        create("terrainProjectionClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0051")
+            systemProperty("skyforge.dev.terrainProjection", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
     }
 
     unitTest {
