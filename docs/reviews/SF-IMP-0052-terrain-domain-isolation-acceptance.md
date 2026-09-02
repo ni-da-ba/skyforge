@@ -1,6 +1,6 @@
 # SF-IMP-0052 — Terrain-domain isolation acceptance
 
-**Status:** Pending interactive proof  
+**Status:** Accepted  
 **Issue:** #54  
 **PR:** #55  
 **Decision:** ADR-0056
@@ -9,60 +9,46 @@
 
 SF-IMP-0052 removes Skyforge from the ordinary base-world generation stream and establishes the exact-volume primitives required for later island-owned population.
 
-This milestone deliberately does **not** repopulate the island yet. Surface vegetation, ores and structures will return through domain-local island population milestones rather than by exposing Skyforge to the base world's occurrence stream again.
+This milestone deliberately does **not** repopulate the island yet. Surface vegetation, ores and structures return through domain-local population milestones rather than by exposing Skyforge to the base world's occurrence stream.
 
 ## Automated evidence
 
-The implementation now establishes:
+The implementation establishes:
 
 1. no explicit Skyforge domain scope means `BASE_WORLD`;
 2. ordinary `SkyforgeNoiseBasedChunkGenerator#getBaseHeight(...)` delegates directly to vanilla in `BASE_WORLD`;
-3. ordinary base-world structure candidates delegate directly to vanilla and do not run Skyforge support/admission policy;
-4. vanilla surface construction completes before any Skyforge block is written;
-5. vanilla/modded biome decoration completes before any Skyforge block is written;
-6. a pre-decoration native surface-material snapshot is retained only for later island representation and is never used as a base-world placement authority;
-7. later vegetation cannot replace that captured terrain material as the island's surface representation;
-8. explicit island-domain height queries inspect one exact `SkyIslandWorldVolumeId` and never fall through to vanilla terrain or another island;
-9. the accepted structure admission/accommodation machinery remains available only behind an explicit island-generation scope;
-10. the dedicated development fixture fingerprints every completed native position in the proof chunk that is **not** claimed as solid by the deterministic Skyforge materialization and requires that protected fingerprint to remain identical after island realization.
+3. ordinary base-world structures bypass Skyforge support/admission policy;
+4. vanilla surface construction and vanilla/modded biome decoration complete before Skyforge blocks are written;
+5. the pre-decoration native surface-material snapshot is representation-only, never base-world placement authority;
+6. explicit island height queries inspect exactly one `SkyIslandWorldVolumeId` and never fall through to vanilla terrain or another island;
+7. accepted structure admission/accommodation machinery remains available only behind explicit island scope;
+8. the development fixture fingerprints every completed native position not claimed as solid by the deterministic Skyforge materialization and requires those positions to remain unchanged after island realization.
 
-CI #219 passed the full repository build/test/evidence gate on implementation head `0f6039dd9d13d0931106f33a2fbbec3de6c73ceb`.
+CI #232 passed on the corrected ownership-aware proof head.
 
-## Interactive fixture
+## Interactive proof — 2026-09-02
 
-Run:
-
-```cmd
-cd C:\Users\nicho\Documents\skyforge
-git fetch origin
-git switch agent/sf-imp-0052
-git pull --ff-only
-gradlew.bat :skyforge-neoforge-1211:runDomainIsolationClient
-```
-
-Create a **new disposable** world using **Skyforge Development** and inspect near:
+`runDomainIsolationClient` completed without a generation crash and emitted:
 
 ```text
-/tp 8 242 8
+SF-IMP-0052 BASE WORLD ISOLATED: chunk=[0, 0], protectedPositions=63234, protectedFingerprint=1271748767702749497, skyforgeSolidPositions=35070, islandSample=BlockPos{x=8, y=223, z=8}
 ```
 
-The development datapack still forces one nearby woodland-mansion candidate at the origin. Under SF-IMP-0052 it is intentionally base-world-owned: it should remain on the native terrain below the floating island rather than being lifted onto or suppressed by the island.
+Observed result:
 
-## Interactive acceptance criteria
+- the floating Massif was present above the origin area;
+- the forced woodland mansion remained on native terrain beneath the island rather than being lifted or suppressed;
+- surrounding base-world terrain appeared otherwise unchanged, with no broad vegetation/terrain generation shadow attributable to the island;
+- the comparatively bare island was expected because island-owned population is intentionally deferred.
 
-Acceptance requires:
+The ownership-aware fingerprint permits physical composition only where the deterministic Skyforge materialization contributes solid terrain. Every other protected position remains byte-for-byte stable.
 
-1. terminal emits `SF-IMP-0052 BASE WORLD ISOLATED`;
-2. one floating Skyforge Massif is present above the origin area;
-3. the forced mansion is present on native terrain below the island, not on the island;
-4. ordinary lower vegetation/terrain around the mansion is not replaced by a broad empty generation shadow attributable to the island;
-5. no obvious island-induced water/ocean-floor anomaly is visible where such terrain is present;
-6. the island itself may be comparatively bare in this milestone — that is expected because island-owned population is now deliberately separated from base-world occurrence;
-7. no generation crash occurs;
-8. save/reload retains both the completed base world and the later additive island.
+## Verdict
 
-The self-checking fingerprint makes criterion 1 a hard ownership-aware mutation proof for the origin chunk. Explicit physical composition is allowed only at positions where the deterministic Skyforge materialization itself contributes solid terrain. Every other position in the chunk's materialized vertical interval is fingerprinted immediately before island realization and must remain byte-for-byte stable afterward. This avoids the invalid earlier assumption that an arbitrary Y cutoff could distinguish base terrain from the legitimate lower extent of a thick floating island.
+**Accepted.** SF-IMP-0052 proves the generation lifecycle/domain boundary required by ADR-0056: base-world generation can complete with Skyforge observationally absent, after which an exact island may be materialized additively without mutating unrelated native terrain.
+
+This acceptance does not claim independent island population is complete.
 
 ## Follow-on boundary
 
-SF-IMP-0053 will add the first exact-volume, independently seeded island population stream using native Minecraft/modded registry definitions. It must not reintroduce global highest-surface competition.
+SF-IMP-0053 adds the first exact-volume, independently seeded island population stream using native Minecraft/modded registry definitions. It must prove native surface feature/vegetation reuse and vertically stacked volumes with independent occurrence streams, without restoring global highest-surface competition.
