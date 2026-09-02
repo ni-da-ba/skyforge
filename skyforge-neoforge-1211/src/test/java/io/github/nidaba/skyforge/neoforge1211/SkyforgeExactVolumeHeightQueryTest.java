@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -14,6 +15,7 @@ final class SkyforgeExactVolumeHeightQueryTest {
         try (AutoCloseable installation = SkyforgeNeoForge1211SurfaceStage.install(
                 SkyforgeNeoForge1211DevRuntime.adapter(),
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(installation);
             var claim = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
                             volumeId,
                             0,
