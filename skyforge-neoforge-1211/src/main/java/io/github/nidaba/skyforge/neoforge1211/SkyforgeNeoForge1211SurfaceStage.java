@@ -181,6 +181,29 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return OptionalDouble.of(binding.adapter().undersideSurfaceHeight(volumeId, worldX, worldZ));
     }
 
+    /** Resolves one native placement anchor to the base world or exactly one Skyforge island. */
+    static Optional<MinecraftTerrainDomain> resolveTerrainDomain(
+            int worldX,
+            int placementAnchorY,
+            int worldZ) {
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? Optional.empty()
+                : binding.adapter().resolveTerrainDomain(worldX, placementAnchorY, worldZ);
+    }
+
+    /** Returns one exact Skyforge island's deterministic first-free surface at X/Z. */
+    static OptionalInt skyforgeFirstFreeHeight(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? OptionalInt.empty()
+                : binding.adapter().firstFreeHeight(volumeId, worldX, worldZ);
+    }
+
     static AutoCloseable install(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyforgeNeoForge1211ChunkWriter writer) {
