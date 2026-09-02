@@ -101,11 +101,12 @@ final class SkyforgeNeoForge1211PhysicalAdmissionDevRuntime {
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "Skyforge SF-IMP-0056 physical-admission specimen enabled. Create a NEW disposable Skyforge "
-                        + "Development world and inspect the origin 5x5 chunk patch. The lower tableland occupies the "
-                        + "known forced-mansion altitude and must be rejected without damaging native content. The "
-                        + "upper tableland must remain absent until all 25 footprint chunks report clear BASE_WORLD "
-                        + "evidence, then catch up terrain and taiga population without forcing unavailable chunks. "
-                        + "Success emits 'SF-IMP-0056 PHYSICAL ADMISSION PASS'.");
+                        + "Development world and inspect the origin 5x5 chunk patch. The lower planned tableland "
+                        + "deliberately intersects the vanilla Overworld bedrock floor and must be rejected without "
+                        + "damaging that completed native terrain. The upper tableland must remain absent until all "
+                        + "25 footprint chunks report clear BASE_WORLD evidence, then catch up terrain and taiga "
+                        + "population without forcing unavailable chunks. Success emits "
+                        + "'SF-IMP-0056 PHYSICAL ADMISSION PASS'.");
     }
 
     static synchronized void observe(
@@ -234,8 +235,8 @@ final class SkyforgeNeoForge1211PhysicalAdmissionDevRuntime {
         var upperId = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0056-physical", 0, 1, upperSeed);
         var lower = new SkyIslandWorldVolume(
                 lowerId,
-                new WorldBounds(-32.0, 47.0, 96.0, 168.0, -32.0, 47.0),
-                compileTableland(lowerSeed, 8.0, 8.0, 136.0));
+                new WorldBounds(-32.0, 47.0, -64.0, -40.0, -32.0, 47.0),
+                compileTableland(lowerSeed, 8.0, 8.0, -72.0));
         var upper = new SkyIslandWorldVolume(
                 upperId,
                 new WorldBounds(-32.0, 47.0, 196.0, 268.0, -32.0, 47.0),
