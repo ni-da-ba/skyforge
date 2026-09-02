@@ -55,6 +55,8 @@ with:
 - nonzero aggregate successful-feature counts for both domains;
 - aggregate attachment-write counts.
 
+The marker may appear before all 25 candidate chunks have generated if the minimum eligible sample and both successful-biome conditions are already satisfied. This is intentional; all candidate chunks are still deterministic, but success does not depend on generation order once the proof conditions are met.
+
 ## Visual acceptance
 
 Confirm:
