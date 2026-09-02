@@ -16,8 +16,11 @@ import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
 import io.github.nidaba.skyforge.world.TerrainBoxObservation;
 import io.github.nidaba.skyforge.world.TerrainBoxObservationRequirements;
 import io.github.nidaba.skyforge.world.WorldBounds;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalInt;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 
@@ -130,6 +133,48 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 .undersideSurfaceHeight(worldX, worldZ);
     }
 
+    /**
+     * Resolves the independent terrain domain containing one native placement anchor.
+     *
+     * <p>A placement anchor below every Skyforge volume belongs to the base world even when an
+     * island is the globally highest surface at the same X/Z. An anchor within exactly one
+     * deterministic island envelope belongs to that exact island. Overlapping candidate envelopes
+     * are intentionally ambiguous and therefore return empty rather than merging identities.
+     */
+    Optional<MinecraftTerrainDomain> resolveTerrainDomain(int worldX, int placementAnchorY, int worldZ) {
+        List<MinecraftTerrainDomain.SkyforgeVolume> candidates = new ArrayList<>();
+        for (var volume : catalog.volumes()) {
+            SkyIslandTerrainInterpreter interpreter =
+                    new SkyIslandTerrainInterpreter(volume.compiledVolume(), terrainProfile);
+            OptionalInt firstFree = firstFreeHeight(interpreter, worldX, worldZ);
+            if (firstFree.isEmpty()) {
+                continue;
+            }
+            double underside = interpreter.undersideSurfaceHeight(worldX, worldZ);
+            if (placementAnchorY > underside
+                    && placementAnchorY <= Math.addExact(firstFree.orElseThrow(), 1)) {
+                candidates.add(new MinecraftTerrainDomain.SkyforgeVolume(volume.id()));
+            }
+        }
+        if (candidates.isEmpty()) {
+            return Optional.of(MinecraftTerrainDomain.BaseWorld.INSTANCE);
+        }
+        return candidates.size() == 1 ? Optional.of(candidates.getFirst()) : Optional.empty();
+    }
+
+    /** Returns one exact island's deterministic Minecraft first-free surface at X/Z. */
+    OptionalInt firstFreeHeight(SkyIslandWorldVolumeId volumeId, int worldX, int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return catalog.volumes().stream()
+                .filter(candidate -> candidate.id().equals(volumeId))
+                .findFirst()
+                .map(candidate -> firstFreeHeight(
+                        new SkyIslandTerrainInterpreter(candidate.compiledVolume(), terrainProfile),
+                        worldX,
+                        worldZ))
+                .orElse(OptionalInt.empty());
+    }
+
     /** Delegates structure-sized support assessment to the accepted backend-neutral evaluator. */
     List<SurfaceSupportAssessment> assessSurfaceSupport(SurfaceSupportRequirements requirements) {
         return new SkyIslandSurfaceSupportEvaluator().assess(catalog, requirements);
@@ -157,6 +202,32 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("unknown Skyforge world volume: " + volumeId.path()));
         return new SkyIslandTerrainBoxObserver().observe(volume, terrainProfile, requirements);
+    }
+
+    private static OptionalInt firstFreeHeight(
+            SkyIslandTerrainInterpreter interpreter,
+            int worldX,
+            int worldZ) {
+        double upper = interpreter.upperSurfaceHeight(worldX, worldZ);
+        double underside = interpreter.undersideSurfaceHeight(worldX, worldZ);
+        if (!(upper > underside)) {
+            return OptionalInt.empty();
+        }
+
+        long highestCandidate = (long) Math.ceil(upper) - 1L;
+        long lowestCandidate = (long) Math.floor(underside) + 1L;
+        if (highestCandidate > Integer.MAX_VALUE
+                || highestCandidate < Integer.MIN_VALUE
+                || lowestCandidate > Integer.MAX_VALUE
+                || lowestCandidate < Integer.MIN_VALUE) {
+            return OptionalInt.empty();
+        }
+        for (int worldY = (int) highestCandidate; worldY >= (int) lowestCandidate; worldY--) {
+            if (interpreter.classify(worldX, worldY, worldZ).isSolid()) {
+                return OptionalInt.of(Math.addExact(worldY, 1));
+            }
+        }
+        return OptionalInt.empty();
     }
 
     private static WorldBounds pointBounds(int worldX, int worldY, int worldZ) {
