@@ -34,12 +34,17 @@ final class SkyforgeTerrainProjectionStage {
 
     static Scope open(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
-        if (ACTIVE.get() != null) {
-            throw new IllegalStateException("Skyforge terrain-projection scope is already active on this thread");
-        }
         MinecraftBaseTerrainSurfaceSnapshot snapshot = BASE_WORLD.remove(chunk.getPos().toLong());
         if (snapshot == null) {
             throw new IllegalStateException("missing pre-Skyforge base-world surface snapshot for chunk " + chunk.getPos());
+        }
+        return open(snapshot);
+    }
+
+    static Scope open(MinecraftBaseTerrainSurfaceSnapshot snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        if (ACTIVE.get() != null) {
+            throw new IllegalStateException("Skyforge terrain-projection scope is already active on this thread");
         }
         ACTIVE.set(new Context(snapshot));
         return new Scope();
