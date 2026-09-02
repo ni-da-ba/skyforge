@@ -29,7 +29,11 @@ Biome-owned native features must execute through Minecraft's biome-aware placed-
 
 Native feature occurrence is evaluated per chunk. A particular chunk is allowed to yield zero successful placements because count, rarity, noise, block predicates, and other placement modifiers are stochastic or conditional. Proof and later population planning therefore evaluate deterministic finite regions rather than treating one lucky chunk as the semantic unit of biome correctness.
 
-A deterministic regional proof must also be **terrain-topology aware**. A Skyforge volume's nominal `WorldBounds` is only a broad spatial envelope; it does not guarantee that every chunk center or every X/Z inside the bounds contains owned terrain. Regional population therefore operates on positions/chunks where the compiled exact-volume geometry actually yields a surface. For stacked-domain proofs, eligibility is based on the intersection of X/Z positions owned by both exact volumes, not on bounding-box overlap alone. A candidate chunk may be scanned yet remain ineligible when no shared terrain sample exists there.
+A deterministic regional proof must also be **terrain-topology aware**. A Skyforge volume's nominal `WorldBounds` is only a broad spatial envelope; it does not guarantee that every chunk center or every X/Z inside the bounds contains owned terrain. Regional population therefore operates on positions/chunks where the compiled exact-volume geometry actually yields a surface. For stacked-domain proofs, eligibility is based on the intersection of X/Z positions owned by both exact volumes, not on bounding-box overlap alone.
+
+For stochastic native occurrence, a single surviving shared terrain column is also not a representative chunk sample. Placement modifiers may choose any X/Z inside the chunk. Validation regions therefore require substantial shared terrain coverage before treating a chunk as eligible; otherwise feature failure may merely reflect random placement into void near a morphology edge.
+
+Finally, a `PlacedFeature` boolean return is **not sufficient evidence of biome realization**. A configured feature may report success after only a tiny ground or plant mutation that is not representative of the biome semantics being validated. Acceptance must inspect persistent post-placement world state. The SF-IMP-0054 forest/taiga proof therefore requires persistent log and leaf blocks on both exact volumes in addition to native feature success. This is a validation criterion, not a production feature-ID compatibility table.
 
 ## Runtime biome identity versus generation settings
 
@@ -58,6 +62,8 @@ Skyforge does not promise byte-identical decoration to a vanilla ground biome, b
 - Modded biome generation settings can be reused generically if they are represented through normal final registries.
 - A single-chunk zero-occurrence result is not an architectural failure; finite deterministic regional evidence is required for stochastic population proofs.
 - Nominal volume bounds must not be treated as proof of actual terrain occupancy; population eligibility follows compiled exact-volume geometry.
+- Regional validation must account for terrain coverage inside each chunk, because native placement modifiers choose positions independently of Skyforge's proof sample.
+- Native feature API success alone cannot certify meaningful biome realization; acceptance must validate persistent resulting world state.
 - Runtime biome projection/storage remains a separate implementation problem and may face Minecraft's finite quart-biome storage constraints.
 
 ## Acceptance boundary
@@ -66,7 +72,7 @@ This ADR may become **Accepted** when SF-IMP-0054 demonstrates, on one exact PR 
 
 1. full repository CI including NeoForge/Mixin bootstrap passes;
 2. two vertically aligned exact volumes resolve different registered biomes at shared X/Z terrain positions;
-3. a deterministic multi-chunk candidate region discovers a sufficient set of chunks containing actual shared stacked terrain and consumes each biome's native `VEGETAL_DECORATION` settings there with Minecraft's biome checks intact;
-4. both domains produce successful native vegetation somewhere in the eligible region without hard-coded feature origins;
+3. a deterministic multi-chunk candidate region discovers a sufficient set of chunks with substantial actual shared stacked terrain and consumes each biome's native `VEGETAL_DECORATION` settings there with Minecraft's biome checks intact;
+4. both domains produce persistent visible native vegetation, including log and leaf evidence for the forest/taiga validation pair, without hard-coded feature origins;
 5. no cross-volume write contamination occurs;
 6. BASE_WORLD decoration remains visually normal beneath the stacked islands.
