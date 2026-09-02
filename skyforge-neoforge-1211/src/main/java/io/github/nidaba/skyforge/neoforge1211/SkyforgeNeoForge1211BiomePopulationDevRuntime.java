@@ -11,8 +11,12 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
@@ -26,13 +30,17 @@ import net.minecraft.world.level.levelgen.Heightmap;
 final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.biomePopulation";
     private static final long ROOT_SEED = 0x5346494d50303054L;
-    private static final ChunkPos PROOF_CHUNK = new ChunkPos(0, 0);
+    private static final int PROOF_RADIUS_CHUNKS = 2;
+    private static final int REQUIRED_PROOF_CHUNKS = (PROOF_RADIUS_CHUNKS * 2 + 1) * (PROOF_RADIUS_CHUNKS * 2 + 1);
     private static final int PROOF_X = 8;
     private static final int PROOF_Z = 8;
     private static final int MAXIMUM_ATTACHMENT_DEPTH = 24;
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeNeoForge1211BiomePopulationDevRuntime.class.getName());
 
+    private static final Set<Long> processedProofChunks = new HashSet<>();
+    private static final Aggregate lowerAggregate = new Aggregate();
+    private static final Aggregate upperAggregate = new Aggregate();
     private static AutoCloseable persistentBinding;
     private static boolean proofComplete;
 
@@ -57,15 +65,21 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 "Skyforge SF-IMP-0054 exact-volume biome specimen enabled. Create a NEW disposable "
                         + "Skyforge Development world and inspect the two vertically aligned tableland islands near "
                         + "x=" + PROOF_X + ", z=" + PROOF_Z
-                        + ". Lower resolves minecraft:forest; upper resolves minecraft:taiga. Native vegetation "
-                        + "placement modifiers choose occurrence positions inside each exact volume.");
+                        + ". Lower resolves minecraft:forest; upper resolves minecraft:taiga. A deterministic "
+                        + (PROOF_RADIUS_CHUNKS * 2 + 1) + "x" + (PROOF_RADIUS_CHUNKS * 2 + 1)
+                        + " chunk population patch exercises each biome so ordinary chunk-level occurrence can be "
+                        + "sparse without becoming a false-negative proof failure.");
     }
 
     static synchronized void populate(
             WorldGenLevel level,
             ChunkAccess chunk,
             ChunkGenerator generator) {
-        if (!enabled() || proofComplete || !chunk.getPos().equals(PROOF_CHUNK)) {
+        if (!enabled() || proofComplete) {
+            return;
+        }
+        ChunkPos chunkPos = chunk.getPos();
+        if (!isProofChunk(chunkPos) || !processedProofChunks.add(chunkPos.toLong())) {
             return;
         }
         if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
@@ -78,10 +92,11 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         }
         SkyIslandWorldVolumeId lowerId = volumes.get(0).id();
         SkyIslandWorldVolumeId upperId = volumes.get(1).id();
-        int lowerSurfaceY = surfaceY(level, lowerId);
-        int upperSurfaceY = surfaceY(level, upperId);
+        int lowerSurfaceY = surfaceY(level, lowerId, chunkPos);
+        int upperSurfaceY = surfaceY(level, upperId, chunkPos);
         if (lowerSurfaceY == upperSurfaceY) {
-            throw new IllegalStateException("SF-IMP-0054 stacked biome proof resolved one shared surface");
+            throw new IllegalStateException("SF-IMP-0054 stacked biome proof resolved one shared surface in chunk "
+                    + chunkPos);
         }
 
         SkyforgeExactVolumeBiomeResolver resolver = (volumeId, x, y, z) -> {
@@ -99,7 +114,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 generator,
                 resolver,
                 lowerId,
-                PROOF_CHUNK,
+                chunkPos,
                 lowerSurfaceY,
                 GenerationStep.Decoration.VEGETAL_DECORATION,
                 MAXIMUM_ATTACHMENT_DEPTH);
@@ -108,13 +123,13 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 generator,
                 resolver,
                 upperId,
-                PROOF_CHUNK,
+                chunkPos,
                 upperSurfaceY,
                 GenerationStep.Decoration.VEGETAL_DECORATION,
                 MAXIMUM_ATTACHMENT_DEPTH);
 
-        requireResult("lower", lower, Biomes.FOREST);
-        requireResult("upper", upper, Biomes.TAIGA);
+        requireChunkResult("lower", lower, Biomes.FOREST);
+        requireChunkResult("upper", upper, Biomes.TAIGA);
         if (lower.biomeKey().equals(upper.biomeKey())) {
             throw new IllegalStateException("stacked exact volumes resolved the same biome identity");
         }
@@ -122,25 +137,37 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             throw new IllegalStateException("forest and taiga proof domains exposed identical vegetation feature lists");
         }
 
+        lowerAggregate.add(lower);
+        upperAggregate.add(upper);
+        if (processedProofChunks.size() < REQUIRED_PROOF_CHUNKS) {
+            return;
+        }
+
+        requireAggregate("lower", lowerAggregate, Biomes.FOREST);
+        requireAggregate("upper", upperAggregate, Biomes.TAIGA);
         proofComplete = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
-                "SF-IMP-0054 BIOME POPULATION STACKED PASS: lower={volume=" + lowerId.path()
-                        + ", biome=" + lower.biomeKey().location()
-                        + ", y=" + lowerSurfaceY
-                        + ", attempted=" + lower.attemptedFeatures()
-                        + ", successful=" + lower.successfulFeatures()
-                        + ", attachments=" + lower.attachmentWrites()
+                "SF-IMP-0054 BIOME POPULATION STACKED PASS: chunks=" + processedProofChunks.size()
+                        + ", lower={volume=" + lowerId.path()
+                        + ", biome=" + lowerAggregate.biomeKey().location()
+                        + ", attempted=" + lowerAggregate.attemptedFeatures
+                        + ", successful=" + lowerAggregate.successfulFeatures
+                        + ", attachments=" + lowerAggregate.attachmentWrites
                         + "}, upper={volume=" + upperId.path()
-                        + ", biome=" + upper.biomeKey().location()
-                        + ", y=" + upperSurfaceY
-                        + ", attempted=" + upper.attemptedFeatures()
-                        + ", successful=" + upper.successfulFeatures()
-                        + ", attachments=" + upper.attachmentWrites()
-                        + "}. Both domains consumed their final registered biome vegetation settings in the same X/Z chunk.");
+                        + ", biome=" + upperAggregate.biomeKey().location()
+                        + ", attempted=" + upperAggregate.attemptedFeatures
+                        + ", successful=" + upperAggregate.successfulFeatures
+                        + ", attachments=" + upperAggregate.attachmentWrites
+                        + "}. Both domains consumed their final registered biome vegetation settings across the same "
+                        + "deterministic multi-chunk X/Z patch.");
     }
 
-    private static void requireResult(
+    private static boolean isProofChunk(ChunkPos chunkPos) {
+        return Math.abs(chunkPos.x) <= PROOF_RADIUS_CHUNKS && Math.abs(chunkPos.z) <= PROOF_RADIUS_CHUNKS;
+    }
+
+    private static void requireChunkResult(
             String label,
             SkyforgeNativeBiomePopulationRunner.Result result,
             ResourceKey<Biome> expectedBiome) {
@@ -151,23 +178,38 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         if (result.attemptedFeatures() == 0) {
             throw new IllegalStateException(label + " proof biome exposed no vegetal decoration features");
         }
-        if (result.successfulFeatures() == 0) {
-            throw new IllegalStateException(label + " proof biome produced no successful native vegetation placements");
+    }
+
+    private static void requireAggregate(
+            String label,
+            Aggregate aggregate,
+            ResourceKey<Biome> expectedBiome) {
+        if (!aggregate.biomeKey().equals(expectedBiome)) {
+            throw new IllegalStateException(label + " proof aggregate resolved unexpected biome: "
+                    + aggregate.biomeKey().location());
+        }
+        if (aggregate.successfulFeatures == 0) {
+            throw new IllegalStateException(label + " proof biome produced no successful native vegetation placements "
+                    + "across " + aggregate.chunks + " deterministic chunks; attempted=" + aggregate.attemptedFeatures
+                    + ", features=" + aggregate.featureKeys);
         }
     }
 
     private static int surfaceY(
             WorldGenLevel level,
-            SkyIslandWorldVolumeId volumeId) {
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos chunkPos) {
+        int sampleX = chunkPos.getMiddleBlockX();
+        int sampleZ = chunkPos.getMiddleBlockZ();
         return SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
                         volumeId,
-                        PROOF_X,
-                        PROOF_Z,
+                        sampleX,
+                        sampleZ,
                         Heightmap.Types.WORLD_SURFACE_WG,
                         level.getMinBuildHeight(),
                         level.getHeight())
-                .orElseThrow(() -> new IllegalStateException("stacked biome volume has no proof-column surface: "
-                        + volumeId.path()))
+                .orElseThrow(() -> new IllegalStateException("stacked biome volume has no proof-chunk surface: volume="
+                        + volumeId.path() + ", chunk=" + chunkPos))
                 .height();
     }
 
@@ -216,5 +258,34 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 descriptor,
                 new ProviderMorphologyEnrichment(provider, 0.0, 0.0),
                 SkyIslandMorphologyProviders.builtInRegistry());
+    }
+
+    private static final class Aggregate {
+        private ResourceKey<Biome> biomeKey;
+        private int chunks;
+        private int attemptedFeatures;
+        private int successfulFeatures;
+        private int attachmentWrites;
+        private final Set<ResourceLocation> featureKeys = new LinkedHashSet<>();
+
+        void add(SkyforgeNativeBiomePopulationRunner.Result result) {
+            if (biomeKey == null) {
+                biomeKey = result.biomeKey();
+            } else if (!biomeKey.equals(result.biomeKey())) {
+                throw new IllegalStateException("biome identity changed inside one SF-IMP-0054 proof aggregate");
+            }
+            chunks = Math.addExact(chunks, 1);
+            attemptedFeatures = Math.addExact(attemptedFeatures, result.attemptedFeatures());
+            successfulFeatures = Math.addExact(successfulFeatures, result.successfulFeatures());
+            attachmentWrites = Math.addExact(attachmentWrites, result.attachmentWrites());
+            featureKeys.addAll(result.featureKeys());
+        }
+
+        ResourceKey<Biome> biomeKey() {
+            if (biomeKey == null) {
+                throw new IllegalStateException("empty SF-IMP-0054 proof aggregate");
+            }
+            return biomeKey;
+        }
     }
 }
