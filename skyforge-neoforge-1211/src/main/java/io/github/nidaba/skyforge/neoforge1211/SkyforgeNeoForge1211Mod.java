@@ -15,11 +15,13 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211ChunkGenerators.register(modEventBus);
         SkyforgeNeoForge1211PlacementModifiers.register(modEventBus);
         SkyforgeNeoForge1211StructurePieces.register(modEventBus);
+        SkyforgeTerrainProjectionBootstrap.install();
 
         // Normal packaged Skyforge remains inert until a runtime binding is configured. Isolated
         // ModDevGradle runs opt into exactly one finite development specimen through JVM properties.
         SkyforgeNeoForge1211DevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211AccommodationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211UndersideContradictionDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211TerrainProjectionDevRuntime.installFromSystemProperty();
     }
 }
