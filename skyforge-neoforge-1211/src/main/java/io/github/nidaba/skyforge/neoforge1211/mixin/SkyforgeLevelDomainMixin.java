@@ -3,13 +3,13 @@ package io.github.nidaba.skyforge.neoforge1211.mixin;
 import io.github.nidaba.skyforge.neoforge1211.SkyforgeWorldGenRegionDomainBridge;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -24,12 +24,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(Level.class)
 abstract class SkyforgeLevelDomainMixin {
-    @Shadow
-    public abstract int getMinBuildHeight();
-
-    @Shadow
-    public abstract int getHeight();
-
     @Inject(
             method = "getBlockState(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;",
             at = @At("HEAD"),
@@ -65,12 +59,13 @@ abstract class SkyforgeLevelDomainMixin {
             int worldX,
             int worldZ,
             CallbackInfoReturnable<Integer> callback) {
+        LevelHeightAccessor heightAccessor = (LevelHeightAccessor) (Object) this;
         var height = SkyforgeWorldGenRegionDomainBridge.exactHeight(
                 heightmapType,
                 worldX,
                 worldZ,
-                getMinBuildHeight(),
-                getHeight());
+                heightAccessor.getMinBuildHeight(),
+                heightAccessor.getHeight());
         if (height.isPresent()) {
             callback.setReturnValue(height.getAsInt());
         }
