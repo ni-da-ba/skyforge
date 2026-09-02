@@ -29,6 +29,8 @@ Biome-owned native features must execute through Minecraft's biome-aware placed-
 
 Native feature occurrence is evaluated per chunk. A particular chunk is allowed to yield zero successful placements because count, rarity, noise, block predicates, and other placement modifiers are stochastic or conditional. Proof and later population planning therefore evaluate deterministic finite regions rather than treating one lucky chunk as the semantic unit of biome correctness.
 
+A deterministic regional proof must also be **terrain-topology aware**. A Skyforge volume's nominal `WorldBounds` is only a broad spatial envelope; it does not guarantee that every chunk center or every X/Z inside the bounds contains owned terrain. Regional population therefore operates on positions/chunks where the compiled exact-volume geometry actually yields a surface. For stacked-domain proofs, eligibility is based on the intersection of X/Z positions owned by both exact volumes, not on bounding-box overlap alone.
+
 ## Runtime biome identity versus generation settings
 
 The same exact-volume resolver has two distinct consumers:
@@ -55,6 +57,7 @@ Skyforge does not promise byte-identical decoration to a vanilla ground biome, b
 - BASE_WORLD remains observationally isolated during its own generation.
 - Modded biome generation settings can be reused generically if they are represented through normal final registries.
 - A single-chunk zero-occurrence result is not an architectural failure; finite deterministic regional evidence is required for stochastic population proofs.
+- Nominal volume bounds must not be treated as proof of actual terrain occupancy; population eligibility follows compiled exact-volume geometry.
 - Runtime biome projection/storage remains a separate implementation problem and may face Minecraft's finite quart-biome storage constraints.
 
 ## Acceptance boundary
@@ -62,8 +65,8 @@ Skyforge does not promise byte-identical decoration to a vanilla ground biome, b
 This ADR may become **Accepted** when SF-IMP-0054 demonstrates, on one exact PR head:
 
 1. full repository CI including NeoForge/Mixin bootstrap passes;
-2. two vertically aligned exact volumes resolve different registered biomes at the same X/Z;
-3. a deterministic multi-chunk proof region consumes each biome's native `VEGETAL_DECORATION` settings with Minecraft's biome checks intact;
-4. both domains produce successful native vegetation somewhere in that region without hard-coded feature origins;
+2. two vertically aligned exact volumes resolve different registered biomes at shared X/Z terrain positions;
+3. a deterministic multi-chunk candidate region discovers a sufficient set of chunks containing actual shared stacked terrain and consumes each biome's native `VEGETAL_DECORATION` settings there with Minecraft's biome checks intact;
+4. both domains produce successful native vegetation somewhere in the eligible region without hard-coded feature origins;
 5. no cross-volume write contamination occurs;
 6. BASE_WORLD decoration remains visually normal beneath the stacked islands.
