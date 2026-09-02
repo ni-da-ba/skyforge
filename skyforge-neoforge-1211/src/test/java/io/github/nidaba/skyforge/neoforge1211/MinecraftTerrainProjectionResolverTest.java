@@ -4,108 +4,49 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
-import java.util.List;
-import java.util.Optional;
-import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import org.junit.jupiter.api.Test;
 
 final class MinecraftTerrainProjectionResolverTest {
-    private static final SkyIslandWorldVolumeId LOWER =
-            new SkyIslandWorldVolumeId(1L, "lower", 0, 0, 11L);
-    private static final SkyIslandWorldVolumeId UPPER =
-            new SkyIslandWorldVolumeId(1L, "upper", 0, 1, 12L);
+    private static final SkyIslandWorldVolumeId ISLAND =
+            new SkyIslandWorldVolumeId(1L, "island", 0, 0, 11L);
 
     @Test
-    void vanillaTopWithoutSkyforgeOwnershipIsPreserved() {
+    void baseWorldReadsOnlyBaseWorldAuthority() {
         var result = MinecraftTerrainProjectionResolver.resolveTop(
-                70,
-                71,
-                -64,
-                y -> y == 70,
-                y -> Optional.of(List.of()),
-                id -> OptionalDouble.empty());
+                MinecraftTerrainDomain.BaseWorld.INSTANCE,
+                () -> OptionalInt.of(71),
+                id -> OptionalInt.of(224));
 
         assertEquals(71, result.orElseThrow());
     }
 
     @Test
-    void provenUpperIslandIsSkippedToLowerVanillaTerrain() {
+    void skyforgeDomainReadsOnlyExactIslandAuthority() {
         var result = MinecraftTerrainProjectionResolver.resolveTop(
-                70,
-                224,
-                -64,
-                y -> y == 223 || y == 70,
-                y -> Optional.of(y == 223 ? List.of(LOWER) : List.of()),
-                id -> OptionalDouble.of(184.0));
-
-        assertEquals(71, result.orElseThrow());
-    }
-
-    @Test
-    void multipleProvenUpperVolumesCanBeSkippedWithoutMergingTheirIdentity() {
-        var result = MinecraftTerrainProjectionResolver.resolveTop(
-                70,
-                264,
-                -64,
-                y -> y == 263 || y == 223 || y == 70,
-                y -> Optional.of(switch (y) {
-                    case 263 -> List.of(UPPER);
-                    case 223 -> List.of(LOWER);
-                    default -> List.of();
-                }),
-                id -> OptionalDouble.of(id.equals(UPPER) ? 240.0 : 184.0));
-
-        assertEquals(71, result.orElseThrow());
-    }
-
-    @Test
-    void anchorInsideVolumePreservesItsSurface() {
-        var result = MinecraftTerrainProjectionResolver.resolveTop(
-                200,
-                224,
-                -64,
-                y -> y == 223,
-                y -> Optional.of(y == 223 ? List.of(LOWER) : List.of()),
-                id -> OptionalDouble.of(184.0));
+                new MinecraftTerrainDomain.SkyforgeVolume(ISLAND),
+                () -> OptionalInt.of(71),
+                id -> id.equals(ISLAND) ? OptionalInt.of(224) : OptionalInt.empty());
 
         assertEquals(224, result.orElseThrow());
     }
 
     @Test
-    void overlappingOwnershipFailsOpenInsteadOfChoosingAnIsland() {
+    void missingBaseWorldEvidenceFailsOpen() {
         var result = MinecraftTerrainProjectionResolver.resolveTop(
-                70,
-                224,
-                -64,
-                y -> y == 223 || y == 70,
-                y -> Optional.of(y == 223 ? List.of(LOWER, UPPER) : List.of()),
-                id -> OptionalDouble.of(184.0));
+                MinecraftTerrainDomain.BaseWorld.INSTANCE,
+                OptionalInt::empty,
+                id -> OptionalInt.of(224));
 
         assertTrue(result.isEmpty());
     }
 
     @Test
-    void missingUndersideEvidenceFailsOpen() {
+    void missingExactIslandEvidenceFailsOpen() {
         var result = MinecraftTerrainProjectionResolver.resolveTop(
-                70,
-                224,
-                -64,
-                y -> y == 223 || y == 70,
-                y -> Optional.of(y == 223 ? List.of(LOWER) : List.of()),
-                id -> OptionalDouble.empty());
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void absentLowerOpaqueTerrainFailsOpen() {
-        var result = MinecraftTerrainProjectionResolver.resolveTop(
-                70,
-                224,
-                -64,
-                y -> y == 223,
-                y -> Optional.of(y == 223 ? List.of(LOWER) : List.of()),
-                id -> OptionalDouble.of(184.0));
+                new MinecraftTerrainDomain.SkyforgeVolume(ISLAND),
+                () -> OptionalInt.of(71),
+                id -> OptionalInt.empty());
 
         assertTrue(result.isEmpty());
     }
