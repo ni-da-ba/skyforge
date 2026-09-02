@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211.mixin;
 
 import io.github.nidaba.skyforge.neoforge1211.SkyforgeWorldGenRegionDomainBridge;
+import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.WorldGenRegion;
@@ -42,6 +43,25 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
         }
     }
 
+    /**
+     * TreeFeature and several configured-feature predicates use TestableWorld directly instead of
+     * calling getBlockState. Keep that alternate read seam under the same exact-volume visibility
+     * rules so base-world or foreign-volume blocks cannot participate in an island-owned feature.
+     */
+    @Inject(
+            method = "isStateAtPosition(Lnet/minecraft/core/BlockPos;Ljava/util/function/Predicate;)Z",
+            at = @At("HEAD"),
+            cancellable = true)
+    private void skyforge$testOwnedBlock(
+            BlockPos position,
+            Predicate<BlockState> predicate,
+            CallbackInfoReturnable<Boolean> callback) {
+        if (SkyforgeWorldGenRegionDomainBridge.active()
+                && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
+            callback.setReturnValue(predicate.test(Blocks.AIR.defaultBlockState()));
+        }
+    }
+
     @Inject(
             method = "getFluidState(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/material/FluidState;",
             at = @At("HEAD"),
@@ -52,6 +72,20 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
         if (SkyforgeWorldGenRegionDomainBridge.active()
                 && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
             callback.setReturnValue(Fluids.EMPTY.defaultFluidState());
+        }
+    }
+
+    @Inject(
+            method = "isFluidAtPosition(Lnet/minecraft/core/BlockPos;Ljava/util/function/Predicate;)Z",
+            at = @At("HEAD"),
+            cancellable = true)
+    private void skyforge$testOwnedFluid(
+            BlockPos position,
+            Predicate<FluidState> predicate,
+            CallbackInfoReturnable<Boolean> callback) {
+        if (SkyforgeWorldGenRegionDomainBridge.active()
+                && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
+            callback.setReturnValue(predicate.test(Fluids.EMPTY.defaultFluidState()));
         }
     }
 
