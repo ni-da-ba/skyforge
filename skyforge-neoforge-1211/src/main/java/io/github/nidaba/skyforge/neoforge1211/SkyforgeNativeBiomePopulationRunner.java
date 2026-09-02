@@ -82,6 +82,29 @@ final class SkyforgeNativeBiomePopulationRunner {
                     featureKey,
                     stepIndex,
                     attempted);
+            boolean treeFeature = featureKey.getPath().toLowerCase(Locale.ROOT).contains("tree");
+            if (Boolean.getBoolean(BIOME_PROOF_PROPERTY) && treeFeature) {
+                var probe = SkyforgeNativePlacedFeatureRunner.probeTreePrerequisites(
+                        level,
+                        biome,
+                        operation,
+                        maximumAttachmentDepth);
+                LOGGER.log(
+                        System.Logger.Level.INFO,
+                        "SF-IMP-0054 TREE PREREQUISITES: volume=" + volumeId.path()
+                                + ", chunk=" + originChunk
+                                + ", biome=" + biomeKey.location()
+                                + ", feature=" + featureKey
+                                + ", sample=(" + probe.x() + "," + probe.firstFreeY() + "," + probe.z() + ")"
+                                + ", oceanFloorY=" + probe.oceanFloorY()
+                                + ", blockBelow=" + probe.blockBelow()
+                                + ", blockAt=" + probe.blockAt()
+                                + ", expectedBiome=" + probe.observedExpectedBiome()
+                                + ", oakSurvives=" + probe.oakSurvives()
+                                + ", birchSurvives=" + probe.birchSurvives()
+                                + ", spruceSurvives=" + probe.spruceSurvives());
+            }
+
             var result = SkyforgeNativePlacedFeatureRunner.place(
                     level,
                     generator,
@@ -97,8 +120,7 @@ final class SkyforgeNativeBiomePopulationRunner {
             attachmentWrites = Math.addExact(attachmentWrites, result.attachmentWrites());
             featureResults.add(new FeatureResult(featureKey, result.placed(), result.attachmentWrites()));
 
-            if (Boolean.getBoolean(BIOME_PROOF_PROPERTY)
-                    && featureKey.getPath().toLowerCase(Locale.ROOT).contains("tree")) {
+            if (Boolean.getBoolean(BIOME_PROOF_PROPERTY) && treeFeature) {
                 LOGGER.log(
                         System.Logger.Level.INFO,
                         "SF-IMP-0054 TREE FEATURE: volume=" + volumeId.path()
