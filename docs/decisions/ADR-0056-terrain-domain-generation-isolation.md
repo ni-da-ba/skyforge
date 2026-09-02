@@ -7,9 +7,9 @@
 
 ## Context
 
-Skyforge currently composes a floating island into the same live Minecraft chunk before ordinary biome decoration, and its generator-level early height query returns the higher of native terrain and Skyforge terrain. These seams were useful proofs for making suspended surfaces visible to native systems, but they also make unrelated terrain bodies compete inside one X/Z column.
+Skyforge previously composed a floating island into the same live Minecraft chunk before ordinary biome decoration, and its generator-level early height query returned the higher of native terrain and Skyforge terrain. Those seams were useful integration proofs, but they also made unrelated terrain bodies compete inside one X/Z column.
 
-The SF-IMP-0051 interactive proof exposed the resulting cross-domain effects. Ordinary terrain directly beneath a floating island showed reduced/absent vegetation and structures plus suspicious water-floor decoration. The log also showed a terrain-projection bridge changing many ordinary low-terrain results rather than intervening only at a proven cross-domain conflict.
+The SF-IMP-0051 interactive proof exposed the resulting cross-domain effects. Ordinary terrain directly beneath a floating island showed reduced/absent vegetation and structures plus suspicious water-floor decoration. Its log also showed a terrain-projection bridge changing many ordinary low-terrain results rather than intervening only at a proven cross-domain conflict.
 
 The desired production model is stronger: vanilla base terrain and each independently compiled Skyforge island are separate terrain owners that may overlap in X/Z without becoming one logical terrain column.
 
@@ -30,34 +30,23 @@ A generation operation SHALL resolve its owning domain before terrain-dependent 
 
 For `BASE_WORLD` generation, Skyforge terrain SHALL be observationally absent.
 
-This means ordinary vanilla/modded:
-
-- terrain and surface generation;
-- structure occurrence and placement;
-- placed/configured features;
-- vegetation;
-- fluid and water-floor decoration;
-- height-dependent placement;
-
-must behave as they would have behaved without a Skyforge island above the same X/Z.
+Ordinary vanilla/modded terrain, surface generation, structure occurrence, placed/configured features, vegetation, fluid/water-floor decoration and height-dependent placement must behave as they would have behaved without a Skyforge island above the same X/Z.
 
 Skyforge SHALL NOT compute a replacement native result merely because it can see additional terrain.
 
 ### Skyforge-volume rule
 
-For `SKYFORGE_VOLUME(id)` generation, terrain queries SHALL resolve only against that exact independently compiled volume. Base-world terrain and other stacked Skyforge volumes SHALL NOT compete by highest, nearest, or first-visible surface.
+For `SKYFORGE_VOLUME(id)` generation, terrain queries SHALL resolve only against that exact independently compiled volume. Base-world terrain and other stacked Skyforge volumes SHALL NOT compete by highest, nearest or first-visible surface.
 
-Ambiguous ownership SHALL fail open rather than inventing intent.
+An empty column in an island domain remains empty. Ambiguous ownership SHALL fail open rather than inventing intent.
 
 ## Occurrence is domain-local
 
-True vertical independence requires more than choosing the correct Y after a 2-D placement decision.
+True vertical independence requires more than choosing the correct Y after one shared 2-D placement decision.
 
-A single Minecraft column-oriented occurrence stream cannot simultaneously represent independent base terrain and multiple stacked island volumes without making them compete for the same feature/structure decisions.
+A single column-oriented occurrence stream cannot simultaneously represent independent base terrain and multiple stacked island volumes without making them compete for feature and structure decisions.
 
-Therefore occurrence/placement that is intended to populate a Skyforge island SHALL be domain-local and deterministically seeded to that exact volume while reusing native Minecraft/modded registries and definitions wherever possible.
-
-Conceptually:
+Therefore occurrence intended to populate a Skyforge island SHALL be domain-local and deterministically seeded to that exact volume while reusing native Minecraft/modded registries and definitions wherever possible.
 
 ```text
 BASE_WORLD placement stream
@@ -72,13 +61,9 @@ SKYFORGE_VOLUME(B) placement stream
     -> occurrence belongs to B
 ```
 
-This does not require a parallel Skyforge biome, feature, or structure taxonomy. Minecraft remains authoritative for registry definitions and semantic validity; Skyforge owns only terrain-domain occurrence and geometry.
+This does not require a parallel Skyforge biome, feature or structure taxonomy. Minecraft remains authoritative for registry definitions and semantic validity; Skyforge owns only terrain-domain occurrence and geometry.
 
 ## Preferred lifecycle
-
-The implementation SHOULD prefer phase/lifecycle isolation over a growing collection of consumer-specific patches.
-
-The leading design is:
 
 ```text
 1. BASE_WORLD native generation completes with Skyforge observationally absent
@@ -95,13 +80,11 @@ Unknown modded worldgen is base-world-owned by default and should work unchanged
 
 A modded feature or structure becomes Skyforge-volume-owned only when the generic island adaptation path deliberately invokes its native definition inside an exact island domain.
 
-This preserves the project invariant:
-
 > A completely unknown structure or feature from another mod should have a reasonable chance of working correctly without Skyforge ever having heard of it.
 
 ## Superseded stepping-stone assumptions
 
-The following accepted experimental assumptions are not suitable as final production architecture and must be revised where they conflict with this ADR:
+The following accepted experimental assumptions are superseded as production architecture where they conflict with this ADR:
 
 - a global `max(vanilla, Skyforge)` early height answer;
 - treating the globally highest Minecraft surface as the ordinary placement target while merely supplementing lower surfaces;
@@ -109,19 +92,33 @@ The following accepted experimental assumptions are not suitable as final produc
 
 Earlier acceptance records remain valid as experiments demonstrating individual seams; they do not override this stronger production boundary.
 
-## Validation
+## Staged validation
 
-SF-IMP-0052 requires a side-by-side interactive control fixture with identical base-world generation coordinates/seeds, once without an overlapping island and once with one.
+The decision is intentionally validated in two milestones so base-world isolation is proved independently from island repopulation.
 
-Acceptance requires:
+### SF-IMP-0052 — base-world isolation and exact-volume primitives
 
-1. base terrain blocks below the island remain unchanged except for explicit physical overlap;
-2. base-world vegetation and placed features show no island-induced suppression or relocation;
-3. base-world structures retain their native occurrence/placement behavior;
-4. water/ocean-floor decoration shows no island-induced anomaly;
-5. island-owned population can still target an exact Skyforge volume;
-6. vertically stacked islands use independent domain-local occurrence streams;
-7. unknown/modded native definitions remain registry-driven rather than hard-coded;
-8. full CI and fixed-seed/suspended-volume evidence remain green.
+SF-IMP-0052 must prove:
 
-ADR-0056 becomes **Accepted** only after the automated and interactive proofs establish observational isolation.
+1. ordinary base-world early height queries bypass Skyforge;
+2. ordinary native/modded structure occurrence bypasses Skyforge admission policy;
+3. vanilla/modded biome decoration completes before any Skyforge block is realized;
+4. later additive island realization does not mutate the already-completed lower base world except at explicit physical intersection;
+5. native surface material may be captured read-only for later island representation but cannot become a placement authority;
+6. an explicit island-domain height query sees exactly one `SkyIslandWorldVolumeId` and never falls through to base terrain or another island;
+7. full repository CI and fixed-seed/suspended-volume evidence remain green;
+8. an interactive Minecraft specimen demonstrates the removal of the generation shadow and preservation of native lower structures/features.
+
+ADR-0056 may become **Accepted** when SF-IMP-0052 proves this lifecycle/domain boundary. Acceptance of the architectural decision does not claim that all island population families are already implemented.
+
+### SF-IMP-0053 — first domain-local island population
+
+The immediate follow-on must prove the first independently seeded population stream for one exact island volume using native Minecraft/modded registry definitions. It must include at least surface vegetation/placed-feature behavior and a vertically stacked-volume regression showing that A and B do not share one occurrence lottery.
+
+Additional feature families such as ores, underground features and structures may follow as separate slices where their native vertical semantics require distinct adaptation, but none may reintroduce a shared highest-surface model.
+
+## Consequences
+
+This architecture applies even to a future all-island world. Vertically dense regions still require independent occurrence and terrain ownership for stacked islands sharing the same X/Z footprint.
+
+It also prevents compatibility work from degenerating into a sequence of feature-specific symptom patches: isolation is the default, and cross-domain interaction must be explicit.
