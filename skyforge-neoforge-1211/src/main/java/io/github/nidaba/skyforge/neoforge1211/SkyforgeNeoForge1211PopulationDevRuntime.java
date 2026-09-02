@@ -69,11 +69,9 @@ final class SkyforgeNeoForge1211PopulationDevRuntime {
             WorldGenLevel level,
             ChunkAccess chunk,
             ChunkGenerator generator) {
-        // This is the single accepted post-realization population callback. Deferred physical
-        // catch-up is serviced first so an earlier PLANNED chunk receives exact terrain and exact
-        // population in the same lifecycle order once its whole volume becomes ADMITTED. The
-        // catch-up service never forces unavailable chunks into existence.
-        SkyforgeNeoForge1211SurfaceStage.serviceAvailableCatchup(level, generator);
+        // Deferred physical-admission catch-up is deliberately not serviced from WorldGenRegion.
+        // A region can expose neighboring ProtoChunks that are present but not safe for arbitrary
+        // post-step mutation. SF-IMP-0056 services deferred work later through loaded LevelChunks.
 
         // A reusable native surface-population binding is serviced next and is inert unless
         // explicitly installed. Development fixtures then observe or exercise that same lifecycle
