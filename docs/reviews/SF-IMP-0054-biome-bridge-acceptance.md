@@ -1,6 +1,6 @@
 # SF-IMP-0054 — Exact-volume biome bridge acceptance
 
-**Status:** Pending interactive acceptance
+**Status:** Accepted
 
 ## Scope
 
@@ -10,9 +10,11 @@ The implementation resolves an exact `SkyIslandWorldVolumeId` to a final-registr
 
 ## Automated evidence
 
-The strengthened persistent-vegetation implementation compiled and passed full repository CI as run **#286** on implementation head `11bd27ef05aafaba63ff21028856de6d0f7f0378`, including NeoForge/FML bootstrap and the established fixed-seed/suspended-volume evidence suites.
+Final implementation head before acceptance documentation: `83d65aa01f60084c29cb294534ab6d3649089000`.
 
-The exact final PR head must remain green before merge after documentation-only acceptance updates.
+CI run **#298** passed on that exact implementation head, including NeoForge/FML mixin bootstrap and the established fixed-seed and suspended-volume evidence suites.
+
+The final acceptance-documentation head is required to remain green before merge.
 
 ## Interactive fixture
 
@@ -35,38 +37,31 @@ Each eligible chunk consumes the corresponding final biome's native `VEGETAL_DEC
 
 A single eligible chunk may legitimately yield zero successful placements. The fixture requires at least 25 eligible chunks and continues scanning the deterministic candidate region until both biome domains have produced persistent tree evidence or the region is exhausted.
 
-## Runtime marker
+## Runtime acceptance result
 
-Successful regional proof must emit:
+The accepted run emitted:
 
 ```text
-SF-IMP-0054 BIOME POPULATION STACKED PASS
+SF-IMP-0054 BIOME POPULATION STACKED PASS: scannedChunks=25, eligibleChunks=25,
+lower={volume=6000564149924409428/sf-imp-0054-biomes/0/0/6000500054823363328, biome=minecraft:forest, attempted=225, successful=55, attachments=9726, logs=933, leaves=7436, sharedColumns=6400},
+upper={volume=6000564149924409428/sf-imp-0054-biomes/0/1/6000563925533947669, biome=minecraft:taiga, attempted=250, successful=59, attachments=10482, logs=1148, leaves=8352, sharedColumns=6400}
 ```
 
-with:
+The prerequisite diagnostics reported `expectedBiome=true` for both `minecraft:trees_birch_and_oak` and `minecraft:trees_taiga` once the active exact-volume biome was exposed through `BiomeManager#getBiome(BlockPos)` as well as the existing quart/noise-biome seam.
 
-- `scannedChunks=...`;
-- `eligibleChunks=...` with at least 25 eligible chunks;
-- lower biome `minecraft:forest`;
-- upper biome `minecraft:taiga`;
-- nonzero aggregate successful-feature counts for both domains;
-- aggregate attachment-write counts;
-- `logs=>0` and `leaves=>0` for **both** exact volumes;
-- aggregate shared-column counts.
-
-The marker may appear before all 81 candidate chunks have generated if the minimum eligible sample and persistent vegetation conditions are already satisfied. A `PlacedFeature` boolean success count by itself is explicitly **not** sufficient for acceptance.
+Representative successful tree calls included attachment-write counts in the hundreds per chunk, confirming that the native tree configured features were materially realizing world state rather than only returning API-level success.
 
 ## Visual acceptance
 
-Confirm:
+Interactive inspection confirmed:
 
 1. both vertically aligned tableland islands exist;
-2. lower and upper islands show visibly different native forest/taiga vegetation semantics;
-3. vegetation is spatially distributed rather than one hard-coded proof tree;
-4. visible trees/vegetation correspond to the nonzero persistent log/leaf evidence in the runtime marker;
+2. the lower island has obvious forest-style vegetation;
+3. the upper island has obvious taiga-style vegetation;
+4. trees are spatially distributed rather than one hard-coded proof tree;
 5. base-world terrain and decoration remain normal beneath the islands;
 6. no obvious vegetation or writes jump between the two Skyforge volumes;
-7. save/reload remains stable if exercised.
+7. a bee was observed on the forest island, consistent with native forest tree/bee configured-feature behavior and further evidence that the live biome generation semantics are being reused rather than replaced with a Skyforge-specific decoration implementation.
 
 ## Failed interactive attempts retained as evidence
 
@@ -108,30 +103,40 @@ Correction: candidate chunks are evaluated against actual compiled exact-volume 
 
 ### Attempt 4 — API success without visible biome realization
 
-The topology-aware run emitted:
+The topology-aware run emitted a nominal PASS with a few successful feature calls and tiny attachment counts, but visual inspection found both islands completely flat and undecorated.
 
-```text
-SF-IMP-0054 BIOME POPULATION STACKED PASS: scannedChunks=9, eligibleChunks=9,
-lower={biome=minecraft:forest, attempted=81, successful=4, attachments=9},
-upper={biome=minecraft:taiga, attempted=90, successful=5, attachments=17}
-```
-
-but visual inspection found both islands completely flat and undecorated: stone/dirt with no visible vegetation.
-
-This exposed a fourth invalid proof assumption. `PlacedFeature` returning `true` only means the configured feature reported success; it does not guarantee meaningful or persistent biome realization. A handful of ground/plant mutations can satisfy that API result while failing the visual milestone.
+This exposed a fourth invalid proof assumption. `PlacedFeature` returning `true` only means the configured feature reported success; it does not guarantee meaningful or persistent biome realization.
 
 Correction:
 
-- the development tablelands are enlarged so native placement receives a representative terrain sample;
-- eligible chunks now require at least 75% shared terrain coverage (192/256 columns), so random X/Z placement is not dominated by void near island edges;
-- the proof scans persisted post-placement world state for `BlockTags.LOGS` and `BlockTags.LEAVES`;
+- the development tablelands were enlarged;
+- eligible chunks require at least 75% shared terrain coverage (192/256 columns);
+- persisted `BlockTags.LOGS` and `BlockTags.LEAVES` are counted;
 - PASS requires nonzero log and leaf counts on both the forest and taiga islands.
+
+### Attempt 5 — biome holder carried but ordinary biome lookup not scoped
+
+The strengthened tree diagnostic found clean dirt-backed exact-volume surfaces with viable oak, birch, and spruce saplings, but every tree prerequisite reported:
+
+```text
+expectedBiome=false
+```
+
+and the corresponding tree placed features returned `placed=false, attachments=0`.
+
+Cause: the exact-volume biome was exposed through `WorldGenRegion#getUncachedNoiseBiome(...)`, but Minecraft's ordinary `level.getBiome(BlockPos)` path used by placement predicates routes through `BiomeManager#getBiome(BlockPos)`. The operation carried the correct biome, but native placement did not observe it.
+
+Correction: add a narrowly scoped `BiomeManager#getBiome(BlockPos)` mixin that returns the active exact-volume biome only while an island population operation is active. BASE_WORLD and ordinary runtime biome behavior remain unchanged outside that scope.
+
+The next interactive run flipped all representative tree prerequisite checks to `expectedBiome=true`, native forest and taiga tree placed features began succeeding with substantial attachment counts, and the final persistent log/leaf marker passed.
 
 ## Merge gate
 
-Do not merge PR #59 until:
+All SF-IMP-0054 acceptance gates are satisfied subject to the final documentation-head CI recheck:
 
-- exact-head CI is green;
-- the strengthened persistent-vegetation runtime marker passes;
-- the visual criteria above pass;
-- acceptance evidence is recorded here and on the PR.
+- implementation-head CI green (#298);
+- strengthened persistent-vegetation runtime marker passed;
+- visual forest-vs-taiga differentiation passed;
+- base-world isolation remained visually intact;
+- no visible cross-volume contamination;
+- acceptance evidence recorded in this document and ADR-0057.
