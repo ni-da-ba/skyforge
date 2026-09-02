@@ -13,6 +13,7 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.List;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
@@ -117,9 +118,7 @@ final class SkyforgeNeoForge1211PhysicalAdmissionDevRuntime {
         }
         var volumes = catalog().volumes();
         SkyIslandWorldVolumeId lowerId = volumes.get(0).id();
-        SkyIslandWorldVolumeId upperId = volumes.get(1).id();
         var lower = SkyforgePhysicalVolumeAdmissionStage.snapshot(lowerId);
-        var upper = SkyforgePhysicalVolumeAdmissionStage.snapshot(upperId);
 
         if (lower.state() == SkyforgePhysicalVolumeAdmissionState.REJECTED
                 && !rejectedConflictPreserved
@@ -139,6 +138,41 @@ final class SkyforgeNeoForge1211PhysicalAdmissionDevRuntime {
             }
         }
 
+        // Completion is checked on the stable loaded-chunk side. A generation-region callback may
+        // still observe admission evidence, but it must never be responsible for deferred writes.
+        if (level instanceof WorldGenRegion region
+                && region.getLevel() instanceof ServerLevel serverLevel) {
+            observeLoaded(serverLevel);
+        }
+    }
+
+    static synchronized void observeLoaded(ServerLevel level) {
+        if (!enabled() || proofComplete) {
+            return;
+        }
+        var volumes = catalog().volumes();
+        SkyIslandWorldVolumeId lowerId = volumes.get(0).id();
+        SkyIslandWorldVolumeId upperId = volumes.get(1).id();
+        var lower = SkyforgePhysicalVolumeAdmissionStage.snapshot(lowerId);
+        var upper = SkyforgePhysicalVolumeAdmissionStage.snapshot(upperId);
+
+        if (lower.state() == SkyforgePhysicalVolumeAdmissionState.REJECTED
+                && !rejectedConflictPreserved
+                && lower.firstConflict().isPresent()) {
+            var conflict = lower.firstConflict().orElseThrow();
+            int conflictChunkX = Math.floorDiv(conflict.position().getX(), 16);
+            int conflictChunkZ = Math.floorDiv(conflict.position().getZ(), 16);
+            var conflictChunk = level.getChunkSource().getChunkNow(conflictChunkX, conflictChunkZ);
+            if (conflictChunk != null) {
+                var retained = conflictChunk.getBlockState(conflict.position());
+                if (!retained.equals(conflict.nativeState())) {
+                    throw new IllegalStateException("SF-IMP-0056 rejected volume damaged its native conflict: position="
+                            + conflict.position() + ", expected=" + conflict.nativeState() + ", actual=" + retained);
+                }
+                rejectedConflictPreserved = true;
+            }
+        }
+
         if (lower.state() != SkyforgePhysicalVolumeAdmissionState.REJECTED
                 || upper.state() != SkyforgePhysicalVolumeAdmissionState.ADMITTED
                 || !rejectedConflictPreserved
@@ -150,10 +184,11 @@ final class SkyforgeNeoForge1211PhysicalAdmissionDevRuntime {
             throw new IllegalStateException("SF-IMP-0056 upper volume admitted with unexpected evidence counts: observed="
                     + upper.observedChunks() + ", required=" + upper.requiredChunks());
         }
-        if (!(level instanceof WorldGenRegion region) || !region.hasChunk(0, 0)) {
+
+        var originChunk = level.getChunkSource().getChunkNow(0, 0);
+        if (originChunk == null) {
             return;
         }
-
         int upperSurfaceY = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
                         upperId,
                         PROOF_X,
@@ -164,7 +199,7 @@ final class SkyforgeNeoForge1211PhysicalAdmissionDevRuntime {
                 .orElseThrow(() -> new IllegalStateException("SF-IMP-0056 upper proof volume has no origin surface"))
                 .height();
         BlockPos upperSurface = new BlockPos(PROOF_X, upperSurfaceY - 1, PROOF_Z);
-        if (region.getChunk(0, 0).getBlockState(upperSurface).isAir()) {
+        if (originChunk.getBlockState(upperSurface).isAir()) {
             throw new IllegalStateException("SF-IMP-0056 admitted upper volume did not catch up its origin terrain");
         }
 
@@ -193,7 +228,8 @@ final class SkyforgeNeoForge1211PhysicalAdmissionDevRuntime {
                         + ", originSurfaceY=" + upperSurfaceY
                         + ", completedPopulationPhases=" + completedPhases
                         + "}. Rejected native collision remained untouched; clear multi-chunk volume admitted atomically "
-                        + "and completed deferred exact terrain/population without forced future chunk generation.");
+                        + "and completed deferred exact terrain/population through stable loaded chunks without forced "
+                        + "future chunk generation.");
     }
 
     static SkyIslandWorldCatalog catalog() {
