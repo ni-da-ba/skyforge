@@ -115,6 +115,16 @@ neoForge {
             systemProperty("skyforge.dev.biomePopulation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+
+        // SF-IMP-0055 reuses the accepted stacked forest/taiga specimen through the reusable native
+        // surface-population stage. The fixture immediately replays each volume/chunk/phase request
+        // and fails unless the coordinator performs zero duplicate native feature executions.
+        create("surfacePopulationClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0055")
+            systemProperty("skyforge.dev.surfacePopulation", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
     }
 
     unitTest {
