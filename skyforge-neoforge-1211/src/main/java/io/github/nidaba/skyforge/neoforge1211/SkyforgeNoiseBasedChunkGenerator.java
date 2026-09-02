@@ -38,8 +38,8 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
  *
  * <p>All vanilla structure selection, noise, surface and biome-decoration behavior is retained.
  * Skyforge intervenes only when its early height answer actually elevates and vertically resolves a
- * native structure start. Resolved starts are assessed from generic floor-contact piece geometry,
- * not from structure identity or the empty gaps inside the enclosing start bounding box.
+ * native structure start. Resolved starts are assessed from generic native-piece geometry and exact
+ * Skyforge terrain provenance, never from structure identity or a per-structure policy table.
  */
 public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGenerator {
     public static final MapCodec<SkyforgeNoiseBasedChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance ->
@@ -95,8 +95,10 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
      * treated only as provenance evidence, not as proof that the native start has already resolved
      * its vertical placement. Admission/accommodation therefore runs only when an actual start floor
      * is coincident with a claimed Skyforge first-free height (allowing one block for discrete
-     * surface conventions). At that resolved plane, only native pieces touching the floor contribute
-     * support area; higher pieces and empty gaps inside the overall start envelope do not.
+     * surface conventions). Once that plane and exactly one supporting island are proven, Skyforge
+     * may reject only positive physical contradictions before evaluating ordinary support and bounded
+     * fill accommodation. Rejection always restores the pre-candidate start map and returns false so
+     * Minecraft's normal weighted fallback remains authoritative.
      */
     @Override
     protected boolean tryGenerateStructure(
@@ -124,6 +126,8 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
 
         Structure structure = structureSelectionEntry.structure().value();
         boolean accommodationProofCandidate = isAccommodationProofCandidate(structure, chunkPos);
+        boolean undersideContradictionProofCandidate =
+                SkyforgeNeoForge1211UndersideContradictionDevRuntime.isProofCandidate(structure, chunkPos);
         var previousStarts = new HashMap<>(chunk.getAllStarts());
         boolean generated;
         List<MinecraftSkyforgeHeightClaim> heightClaims;
@@ -146,6 +150,10 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 throw new IllegalStateException(
                         "SF-IMP-0046 fixture invalid: forced origin mansion did not produce a Skyforge-height native start");
             }
+            if (undersideContradictionProofCandidate) {
+                throw new IllegalStateException(
+                        "SF-IMP-0050 fixture invalid: forced origin mansion did not produce a Skyforge-height native start");
+            }
             return generated;
         }
 
@@ -154,6 +162,10 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             if (accommodationProofCandidate) {
                 throw new IllegalStateException(
                         "SF-IMP-0046 fixture invalid: forced origin mansion produced no valid StructureStart");
+            }
+            if (undersideContradictionProofCandidate) {
+                throw new IllegalStateException(
+                        "SF-IMP-0050 fixture invalid: forced origin mansion produced no valid StructureStart");
             }
             chunk.setAllStarts(previousStarts);
             return false;
@@ -168,6 +180,11 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                         "SF-IMP-0046 fixture invalid: forced origin mansion did not resolve its start at the claimed "
                                 + "Skyforge surface; bounds=" + start.getBoundingBox() + ", claims=" + heightClaims);
             }
+            if (undersideContradictionProofCandidate) {
+                throw new IllegalStateException(
+                        "SF-IMP-0050 fixture invalid: forced origin mansion did not resolve its start at the claimed "
+                                + "Skyforge surface; bounds=" + start.getBoundingBox() + ", claims=" + heightClaims);
+            }
             return generated;
         }
 
@@ -177,6 +194,11 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             if (accommodationProofCandidate) {
                 throw new IllegalStateException(
                         "SF-IMP-0046 fixture invalid: forced origin mansion claimed multiple resolved Skyforge volumes: "
+                                + claimedVolumeIds);
+            }
+            if (undersideContradictionProofCandidate) {
+                throw new IllegalStateException(
+                        "SF-IMP-0050 fixture invalid: forced origin mansion claimed multiple resolved Skyforge volumes: "
                                 + claimedVolumeIds);
             }
             chunk.setAllStarts(previousStarts);
@@ -190,8 +212,29 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 .max()
                 .orElseThrow();
         int structureFloorY = start.getBoundingBox().minY();
-        List<BoundingBox> supportBoxes = MinecraftStructureSupportGeometry.floorContactBoxes(start);
 
+        List<BoundingBox> contradictionPieceBoxes =
+                SkyforgeNeoForge1211UndersideContradictionDevRuntime.candidatePieceBoxes(start, structure, chunkPos);
+        var undersideContradiction = MinecraftStructureUndersideContradictionPolicy.evaluate(
+                contradictionPieceBoxes,
+                structureFloorY,
+                claimedVolumeId);
+        if (undersideContradiction.isPresent()) {
+            if (undersideContradictionProofCandidate) {
+                SkyforgeNeoForge1211UndersideContradictionDevRuntime.recordRejected(
+                        start.getBoundingBox(),
+                        undersideContradiction.orElseThrow());
+            }
+            chunk.setAllStarts(previousStarts);
+            return false;
+        }
+        if (undersideContradictionProofCandidate) {
+            SkyforgeNeoForge1211UndersideContradictionDevRuntime.requireContradiction(
+                    start.getBoundingBox(),
+                    claimedVolumeId);
+        }
+
+        List<BoundingBox> supportBoxes = MinecraftStructureSupportGeometry.floorContactBoxes(start);
         var naturalRequirements = MinecraftStructureSupportPolicy.requirements(supportBoxes);
         boolean naturallyAccepted = SkyforgeNeoForge1211SurfaceStage.assessSurfaceSupport(naturalRequirements)
                 .orElseThrow(() -> new IllegalStateException("active Skyforge binding disappeared during structure generation"))
