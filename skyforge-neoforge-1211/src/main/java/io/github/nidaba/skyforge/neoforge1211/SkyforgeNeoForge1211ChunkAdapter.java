@@ -46,13 +46,49 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         this.palette = Objects.requireNonNull(palette, "palette");
     }
 
-    /** Materializes one Minecraft chunk's owned block coordinates for the supplied vertical span. */
+    /** Materializes one Minecraft chunk's composite Skyforge contribution for the supplied span. */
     public MinecraftChunkMaterialization materialize(ChunkPos chunkPos, int minimumY, int height) {
         MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(chunkPos, minimumY, height);
         var candidates = catalog.query(chunkBounds.worldBounds());
         List<SkyIslandTerrainInterpreter> interpreters = candidates.stream()
                 .map(candidate -> new SkyIslandTerrainInterpreter(candidate.compiledVolume(), terrainProfile))
                 .toList();
+        return materialize(chunkPos, minimumY, height, interpreters, candidates.size());
+    }
+
+    /**
+     * Deterministically rematerializes one exact independently compiled volume in one chunk.
+     *
+     * <p>This is the deferred-realization seam used after whole-volume physical admission. It never
+     * consults another Skyforge volume and therefore allows a pending catch-up key to contain only
+     * {@code (volumeId, chunkPos)} rather than retaining mutable generation-region state.
+     */
+    public MinecraftChunkMaterialization materialize(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos chunkPos,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        var volume = catalog.volumes().stream()
+                .filter(candidate -> candidate.id().equals(volumeId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("unknown Skyforge world volume: " + volumeId.path()));
+        SkyIslandTerrainInterpreter interpreter =
+                new SkyIslandTerrainInterpreter(volume.compiledVolume(), terrainProfile);
+        return materialize(chunkPos, minimumY, height, List.of(interpreter), 1);
+    }
+
+    private MinecraftChunkMaterialization materialize(
+            ChunkPos chunkPos,
+            int minimumY,
+            int height,
+            List<SkyIslandTerrainInterpreter> interpreters,
+            int candidateVolumeReferences) {
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        Objects.requireNonNull(interpreters, "interpreters");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
 
         ResourceLocation[] blockKeys = new ResourceLocation[Math.multiplyExact(
                 Math.multiplyExact(CHUNK_WIDTH, CHUNK_WIDTH), height)];
@@ -82,7 +118,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 minimumY,
                 height,
                 blockKeys,
-                candidates.size());
+                candidateVolumeReferences);
     }
 
     /**
