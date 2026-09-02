@@ -56,6 +56,11 @@ public final class SkyforgeNeoForge1211ChunkWriter {
             ChunkAccess chunk,
             MinecraftChunkMaterialization materialization,
             boolean solidOverlayOnly) {
+        // When the optional physical-admission stage is installed, this survey happens before the
+        // first destructive block mutation. Historical fixtures remain unchanged when the stage is
+        // absent.
+        SkyforgePhysicalVolumeAdmissionStage.observeBeforeWrite(chunk);
+
         long maximumYExclusive = (long) materialization.minimumY() + materialization.height();
         int minimumX = materialization.chunkPos().getMinBlockX();
         int minimumZ = materialization.chunkPos().getMinBlockZ();
@@ -75,13 +80,17 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                         continue;
                     }
 
+                    int worldX = Math.addExact(minimumX, localX);
+                    if (!expectedAir && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(worldX, worldY, worldZ)) {
+                        continue;
+                    }
+
                     BlockState state = blockStateResolver.resolve(key);
                     if (state.isAir() != expectedAir) {
                         throw new IllegalStateException(
                                 "resolved BlockState changed authoritative Skyforge occupancy for " + key);
                     }
 
-                    int worldX = Math.addExact(minimumX, localX);
                     blockPos.set(worldX, worldY, worldZ);
                     chunk.setBlockState(blockPos, state, false);
                     BlockState stored = chunk.getBlockState(blockPos);
