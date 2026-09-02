@@ -48,4 +48,19 @@ final class SkyforgePopulationAttachmentEnvelopeTest {
         assertTrue(envelope.acceptWrite(OWNER));
         assertFalse(envelope.acceptWrite(new BlockPos(0, 101, 0)));
     }
+
+    @Test
+    void foreignSkyforgeTerrainIsHardVetoInsideAttachmentRadius() {
+        BlockPos attachment = new BlockPos(0, 101, 0);
+        BlockPos foreign = new BlockPos(0, 102, 0);
+        var envelope = new SkyforgePopulationAttachmentEnvelope(
+                OWNER::equals,
+                foreign::equals,
+                8);
+
+        assertTrue(envelope.acceptWrite(attachment));
+        assertFalse(envelope.acceptWrite(foreign));
+        assertFalse(envelope.ownsAttachment(foreign));
+        assertEquals(1, envelope.attachmentCount());
+    }
 }
