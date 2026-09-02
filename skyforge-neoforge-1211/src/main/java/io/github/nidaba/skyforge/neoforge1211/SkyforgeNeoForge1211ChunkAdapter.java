@@ -116,6 +116,20 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 .orElse(false);
     }
 
+    /** Returns the authoritative compiled underside height for one exact island at one X/Z. */
+    double undersideSurfaceHeight(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        var volume = catalog.volumes().stream()
+                .filter(candidate -> candidate.id().equals(volumeId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("unknown Skyforge world volume: " + volumeId.path()));
+        return new SkyIslandTerrainInterpreter(volume.compiledVolume(), terrainProfile)
+                .undersideSurfaceHeight(worldX, worldZ);
+    }
+
     /** Delegates structure-sized support assessment to the accepted backend-neutral evaluator. */
     List<SurfaceSupportAssessment> assessSurfaceSupport(SurfaceSupportRequirements requirements) {
         return new SkyIslandSurfaceSupportEvaluator().assess(catalog, requirements);
