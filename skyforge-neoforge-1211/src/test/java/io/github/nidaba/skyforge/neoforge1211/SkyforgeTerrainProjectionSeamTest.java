@@ -2,11 +2,14 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
 import java.util.List;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.levelgen.structure.pools.StructureTemplatePool;
 import net.minecraft.world.level.levelgen.structure.templatesystem.GravityProcessor;
 import org.junit.jupiter.api.Test;
@@ -28,18 +31,24 @@ final class SkyforgeTerrainProjectionSeamTest {
     }
 
     @Test
-    void projectionScopeIsThreadLocalBoundedAndNonNested() {
+    void projectionScopeCarriesOnlyItsIndependentBaseWorldSnapshot() {
+        int[] heights = new int[256];
+        Arrays.fill(heights, 71);
+        var snapshot = new MinecraftBaseTerrainSurfaceSnapshot(new ChunkPos(0, 0), heights);
+
         assertFalse(SkyforgeTerrainProjectionStage.active());
-        try (SkyforgeTerrainProjectionStage.Scope scope = SkyforgeTerrainProjectionStage.open()) {
+        try (SkyforgeTerrainProjectionStage.Scope scope = SkyforgeTerrainProjectionStage.open(snapshot)) {
             scope.requireActive();
             assertTrue(SkyforgeTerrainProjectionStage.active());
-            assertThrows(IllegalStateException.class, SkyforgeTerrainProjectionStage::open);
+            assertEquals(71, SkyforgeTerrainProjectionStage.baseWorldFirstFreeHeight(8, 8).orElseThrow());
+            assertTrue(SkyforgeTerrainProjectionStage.baseWorldFirstFreeHeight(24, 8).isEmpty());
+            assertThrows(IllegalStateException.class, () -> SkyforgeTerrainProjectionStage.open(snapshot));
         }
         assertFalse(SkyforgeTerrainProjectionStage.active());
     }
 
     @Test
-    void developmentFixtureKeepsVillageRootOutsideButProvidesUpperOverlapProvenance() throws Exception {
+    void developmentFixtureResolvesBaseWorldAndIslandAsSeparateDomains() throws Exception {
         var catalog = SkyforgeNeoForge1211TerrainProjectionDevRuntime.catalog();
         var adapter = SkyforgeNeoForge1211TerrainProjectionDevRuntime.adapter();
         var volumeId = catalog.volumes().getFirst().id();
@@ -50,11 +59,15 @@ final class SkyforgeTerrainProjectionSeamTest {
             assertNotNull(binding);
             assertEquals(List.of(volumeId),
                     SkyforgeNeoForge1211SurfaceStage.claimingVolumeIds(560, 223, 8).orElseThrow());
-            assertTrue(SkyforgeNeoForge1211SurfaceStage.claimingVolumeIds(520, 223, 8).orElseThrow().isEmpty());
-            double underside = SkyforgeNeoForge1211SurfaceStage.undersideSurfaceHeight(volumeId, 560, 8)
-                    .orElseThrow();
-            assertTrue(underside > 200.0);
-            assertTrue(underside < 224.0);
+            assertTrue(SkyforgeNeoForge1211SurfaceStage.claimingVolumeIds(520, 70, 8).orElseThrow().isEmpty());
+
+            var baseDomain = SkyforgeNeoForge1211SurfaceStage.resolveTerrainDomain(520, 70, 8).orElseThrow();
+            assertInstanceOf(MinecraftTerrainDomain.BaseWorld.class, baseDomain);
+
+            var islandDomain = SkyforgeNeoForge1211SurfaceStage.resolveTerrainDomain(560, 223, 8).orElseThrow();
+            var island = assertInstanceOf(MinecraftTerrainDomain.SkyforgeVolume.class, islandDomain);
+            assertEquals(volumeId, island.volumeId());
+            assertEquals(224, SkyforgeNeoForge1211SurfaceStage.skyforgeFirstFreeHeight(volumeId, 560, 8).orElseThrow());
         }
     }
 }
