@@ -16,6 +16,7 @@ import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 /** Runtime binding between compiled Skyforge terrain and the Minecraft 1.21.1 adapter. */
@@ -73,11 +74,14 @@ public final class SkyforgeNeoForge1211SurfaceStage {
      * region. {@link WorldGenRegion#hasChunk(int, int)} is checked before every lookup, so this path
      * does not create generation tickets or force future chunks to exist.
      *
-     * <p>The returned count is the number of exact volume/chunk catch-up records completed. A record
-     * remains pending when another non-admitted Skyforge owner still blocks one of its coordinates.
+     * <p>Each successful exact terrain catch-up is immediately followed by that volume's normal
+     * native population coordinator. The coordinator remains the replay/idempotence authority.
      */
-    static int serviceAvailableCatchup(WorldGenLevel level) {
+    static int serviceAvailableCatchup(
+            WorldGenLevel level,
+            ChunkGenerator generator) {
         Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(generator, "generator");
         RuntimeBinding binding = ACTIVE.get();
         if (binding == null || !SkyforgePhysicalVolumeAdmissionStage.active()) {
             return 0;
@@ -94,44 +98,62 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 continue;
             }
             ChunkAccess target = region.getChunk(chunkX, chunkZ);
-            completed += serviceCatchup(binding, target);
+            for (var pending : SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(target.getPos())) {
+                if (!realizeDeferred(binding, target, pending)) {
+                    continue;
+                }
+                SkyforgeNativeSurfacePopulationStage.populateVolume(
+                        level,
+                        target,
+                        generator,
+                        pending.volumeId());
+                completed++;
+            }
         }
         return completed;
     }
 
-    /** Services all eligible exact-volume records for one already-available chunk. */
+    /** Services eligible exact-volume terrain records for one already-available chunk. */
     static int serviceCatchup(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
         RuntimeBinding binding = ACTIVE.get();
-        return binding == null ? 0 : serviceCatchup(binding, chunk);
-    }
-
-    private static int serviceCatchup(RuntimeBinding binding, ChunkAccess chunk) {
+        if (binding == null) {
+            return 0;
+        }
         int completed = 0;
         for (var pending : SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos())) {
-            MinecraftChunkMaterialization materialization = binding.adapter().materialize(
-                    pending.volumeId(),
-                    chunk.getPos(),
-                    chunk.getMinBuildHeight(),
-                    chunk.getHeight());
-            if (binding.nativeSurfaceTopAdapter().isPresent()) {
-                MinecraftNativeSurfaceSnapshot snapshot = pending.nativeSurfaceSnapshot()
-                        .orElseThrow(() -> new IllegalStateException(
-                                "native-surface-adapted deferred realization lost its pre-decoration snapshot"));
-                materialization = binding.nativeSurfaceTopAdapter().orElseThrow().adapt(snapshot, materialization);
+            if (realizeDeferred(binding, chunk, pending)) {
+                completed++;
             }
-
-            int expectedSolidBlocks = materialization.solidBlockCount();
-            MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
-            if (result.solidBlockCount() != expectedSolidBlocks) {
-                // Another exact volume still owns at least one blocked coordinate. Keep the record
-                // pending until all owners have terminal admission decisions.
-                continue;
-            }
-            SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
-            completed++;
         }
         return completed;
+    }
+
+    private static boolean realizeDeferred(
+            RuntimeBinding binding,
+            ChunkAccess chunk,
+            SkyforgePhysicalVolumeAdmissionStage.PendingRealization pending) {
+        MinecraftChunkMaterialization materialization = binding.adapter().materialize(
+                pending.volumeId(),
+                chunk.getPos(),
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+        if (binding.nativeSurfaceTopAdapter().isPresent()) {
+            MinecraftNativeSurfaceSnapshot snapshot = pending.nativeSurfaceSnapshot()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "native-surface-adapted deferred realization lost its pre-decoration snapshot"));
+            materialization = binding.nativeSurfaceTopAdapter().orElseThrow().adapt(snapshot, materialization);
+        }
+
+        int expectedSolidBlocks = materialization.solidBlockCount();
+        MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
+        if (result.solidBlockCount() != expectedSolidBlocks) {
+            // Another exact volume still owns at least one blocked coordinate. Keep the record
+            // pending until all owners have terminal admission decisions.
+            return false;
+        }
+        SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+        return true;
     }
 
     static Optional<MinecraftChunkMaterialization> materializeOccupancy(ChunkAccess chunk) {
