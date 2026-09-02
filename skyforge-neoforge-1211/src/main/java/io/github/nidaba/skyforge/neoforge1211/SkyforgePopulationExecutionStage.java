@@ -4,6 +4,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.world.level.biome.Biome;
 
 /** Thread-confined execution state for one exact-volume native population attempt. */
 final class SkyforgePopulationExecutionStage {
@@ -12,7 +14,22 @@ final class SkyforgePopulationExecutionStage {
     private SkyforgePopulationExecutionStage() {}
 
     static Scope open(SkyforgePopulationOperation operation, int maximumAttachmentDepth) {
+        return open(operation, Optional.empty(), maximumAttachmentDepth);
+    }
+
+    static Scope open(
+            SkyforgePopulationOperation operation,
+            Holder<Biome> domainBiome,
+            int maximumAttachmentDepth) {
+        return open(operation, Optional.of(Objects.requireNonNull(domainBiome, "domainBiome")), maximumAttachmentDepth);
+    }
+
+    private static Scope open(
+            SkyforgePopulationOperation operation,
+            Optional<Holder<Biome>> domainBiome,
+            int maximumAttachmentDepth) {
         Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(domainBiome, "domainBiome");
         var activeDomain = SkyforgeGenerationDomainStage.activeIslandVolumeId();
         if (activeDomain.isEmpty() || !activeDomain.orElseThrow().equals(operation.volumeId())) {
             throw new IllegalStateException("population execution requires its exact island generation-domain scope");
@@ -30,7 +47,7 @@ final class SkyforgePopulationExecutionStage {
         Predicate<BlockPos> foreignSolid = position -> SkyforgeNeoForge1211SurfaceStage.isSolidOwnedByOtherVolume(
                         operation.volumeId(), position.getX(), position.getY(), position.getZ())
                 .orElseThrow(() -> new IllegalStateException("Skyforge runtime binding disappeared during population"));
-        return open(operation, ownerSolid, foreignSolid, maximumAttachmentDepth);
+        return open(operation, domainBiome, ownerSolid, foreignSolid, maximumAttachmentDepth);
     }
 
     static Scope openForTest(
@@ -50,7 +67,7 @@ final class SkyforgePopulationExecutionStage {
         if (activeDomain.isEmpty() || !activeDomain.orElseThrow().equals(operation.volumeId())) {
             throw new IllegalStateException("population execution requires its exact island generation-domain scope");
         }
-        return open(operation, ownerSolid, foreignSolid, maximumAttachmentDepth);
+        return open(operation, Optional.empty(), ownerSolid, foreignSolid, maximumAttachmentDepth);
     }
 
     static Optional<Execution> activeExecution() {
@@ -59,9 +76,11 @@ final class SkyforgePopulationExecutionStage {
 
     private static Scope open(
             SkyforgePopulationOperation operation,
+            Optional<Holder<Biome>> domainBiome,
             Predicate<BlockPos> ownerSolid,
             Predicate<BlockPos> foreignSolid,
             int maximumAttachmentDepth) {
+        Objects.requireNonNull(domainBiome, "domainBiome");
         Objects.requireNonNull(ownerSolid, "ownerSolid");
         Objects.requireNonNull(foreignSolid, "foreignSolid");
         if (ACTIVE.get() != null) {
@@ -69,6 +88,7 @@ final class SkyforgePopulationExecutionStage {
         }
         Execution execution = new Execution(
                 operation,
+                domainBiome,
                 ownerSolid,
                 new SkyforgePopulationAttachmentEnvelope(ownerSolid, foreignSolid, maximumAttachmentDepth));
         ACTIVE.set(execution);
@@ -77,20 +97,27 @@ final class SkyforgePopulationExecutionStage {
 
     static final class Execution {
         private final SkyforgePopulationOperation operation;
+        private final Optional<Holder<Biome>> domainBiome;
         private final Predicate<BlockPos> ownerSolid;
         private final SkyforgePopulationAttachmentEnvelope attachmentEnvelope;
 
         private Execution(
                 SkyforgePopulationOperation operation,
+                Optional<Holder<Biome>> domainBiome,
                 Predicate<BlockPos> ownerSolid,
                 SkyforgePopulationAttachmentEnvelope attachmentEnvelope) {
             this.operation = Objects.requireNonNull(operation, "operation");
+            this.domainBiome = Objects.requireNonNull(domainBiome, "domainBiome");
             this.ownerSolid = Objects.requireNonNull(ownerSolid, "ownerSolid");
             this.attachmentEnvelope = Objects.requireNonNull(attachmentEnvelope, "attachmentEnvelope");
         }
 
         SkyforgePopulationOperation operation() {
             return operation;
+        }
+
+        Optional<Holder<Biome>> domainBiome() {
+            return domainBiome;
         }
 
         boolean isVisible(BlockPos position) {
