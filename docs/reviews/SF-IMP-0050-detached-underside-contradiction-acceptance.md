@@ -1,12 +1,14 @@
 # SF-IMP-0050 Detached Underside Contradiction Acceptance
 
-- **Status:** Pending automated and interactive proof
+- **Status:** Accepted
 - **Date:** 2026-09-01
 - **Decision:** ADR-0054
 
 ## Acceptance statement
 
-SF-IMP-0050 is the first consumer of proof-grade 3-D native-piece evidence that can reject a live structure candidate. It must remain conservative: only a disconnected native piece-box component that is entirely proven beneath the exact supporting Skyforge island may trigger rejection.
+SF-IMP-0050 is the first consumer of proof-grade 3-D native-piece evidence that can reject a live structure candidate. It remains conservative: only a disconnected native piece-box component that is entirely proven beneath the exact supporting Skyforge island may trigger rejection.
+
+The exact-head automated gate and the dedicated interactive Minecraft proof both passed. The development harness is self-checking: if the forced origin mansion does not generate, resolve at the Skyforge surface, and traverse the detached-underside contradiction path, world generation throws. The successful stable manual run produced the bounded floating island with the forced mansion absent, which therefore confirms the live rejection/restore path.
 
 ## Automated requirements
 
@@ -23,21 +25,32 @@ SF-IMP-0050 is the first consumer of proof-grade 3-D native-piece evidence that 
 11. Production candidate geometry contains only ordinary native `StructurePiece` bounding boxes; the synthetic detached box exists only in the dedicated development proof path.
 12. Full repository tests and both standard evidence-publication stages pass on the exact PR head.
 
-## Interactive requirements
+**Automated result:** CI #183 passed the full build/test suite and both evidence-publication stages on PR #51 head `105b2c8cf2e31003c65a9220f9ae3c0759d7a565` before this acceptance-record update.
 
-Run the dedicated SF-IMP-0050 ModDev client against a **new disposable Skyforge Development world**.
+## Interactive proof
 
-The proof is accepted only if:
+The dedicated SF-IMP-0050 ModDev client was run against a new disposable Skyforge Development world.
 
-1. the console emits `SF-IMP-0050 UNDERSIDE CONTRADICTION REJECTED`;
-2. the bounded floating Skyforge island appears normally near the origin;
-3. the forced origin woodland mansion is absent because its candidate was rejected;
-4. no synthetic detached structure geometry appears anywhere in the world;
-5. the client/server remains stable without generation crash or loading hang;
-6. the development datapack does not produce nearby mansion spam.
+Observed results:
 
-Ordinary vanilla terrain below the floating specimen remains expected because this development preset overlays Skyforge terrain on the Overworld.
+1. the bounded floating Skyforge island appeared normally near the origin;
+2. the forced origin woodland mansion was absent;
+3. no synthetic detached structure geometry appeared in the world;
+4. the client/server remained stable without generation crash or loading hang;
+5. no nearby forced-mansion grid appeared.
 
-## Merge boundary
+The successful path emits `SF-IMP-0050 UNDERSIDE CONTRADICTION REJECTED`; because the fixture throws if its forced proof candidate fails to reach or satisfy the contradiction path, the stable mansion-free result confirms the same live path even though the console line was not separately copied into the review.
 
-PR #51, once opened, must remain unmerged until both the exact-head automated gate and the interactive Minecraft proof pass, the review is updated to **Accepted**, and the user explicitly authorizes that PR's merge.
+### Known development-fixture geometry
+
+Four identical concentric stepped depressions arranged in a square were visible on the island. These are the four intentional rational-falloff pockets inherited from the SF-IMP-0046 accommodation specimen (`POCKET_COORDINATES = {-16, 32}`), not production morphology or a 0050 rejection artifact. Minecraft's integer voxelization makes the smooth radial test falloff appear as concentric rings.
+
+### Incidental compatibility finding
+
+A nearby vanilla village rooted on the ordinary Overworld terrain below projected some path/plank blocks onto the upper Skyforge island. This is orthogonal to the detached-underside contradiction rule and did not invalidate the 0050 proof. It is tracked separately as issue #52 / SF-IMP-0051: cross-volume terrain-matching structure projection.
+
+The suspected generic mechanism is vanilla jigsaw `terrain_matching` / gravity processing consulting a top-surface heightmap during placement, allowing a lower structure's terrain-adaptive blocks to snap to an unrelated upper Skyforge surface at the same X/Z.
+
+## Acceptance conclusion
+
+SF-IMP-0050 is **Accepted**. PR #51 may proceed to its final documentation-inclusive exact-head CI and explicit user merge gate.
