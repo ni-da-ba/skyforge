@@ -12,7 +12,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicReference;
+import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
 
@@ -41,10 +43,16 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             ChunkAccess chunk,
             Optional<MinecraftNativeSurfaceSnapshot> nativeSurfaceSnapshot) {
         Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(nativeSurfaceSnapshot, "nativeSurfaceSnapshot");
         RuntimeBinding binding = ACTIVE.get();
         if (binding == null) {
             return Optional.empty();
         }
+
+        // Physical admission is deliberately observed here, above the concrete writer and after
+        // BASE_WORLD has completed. A deferred exact-volume write can therefore reuse the writer
+        // without accidentally resurveying already-mutated terrain.
+        SkyforgePhysicalVolumeAdmissionStage.observeBeforeRealization(chunk, nativeSurfaceSnapshot);
 
         SkyforgeNeoForge1211IsolationDevRuntime.Proof isolationProof =
                 SkyforgeNeoForge1211IsolationDevRuntime.captureBeforeSkyforge(chunk);
@@ -58,6 +66,72 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
         SkyforgeNeoForge1211IsolationDevRuntime.verifyAfterSkyforge(chunk, isolationProof);
         return Optional.of(result);
+    }
+
+    /**
+     * Services ADMITTED deferred terrain only in chunks already available to the current generation
+     * region. {@link WorldGenRegion#hasChunk(int, int)} is checked before every lookup, so this path
+     * does not create generation tickets or force future chunks to exist.
+     *
+     * <p>The returned count is the number of exact volume/chunk catch-up records completed. A record
+     * remains pending when another non-admitted Skyforge owner still blocks one of its coordinates.
+     */
+    static int serviceAvailableCatchup(WorldGenLevel level) {
+        Objects.requireNonNull(level, "level");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null || !SkyforgePhysicalVolumeAdmissionStage.active()) {
+            return 0;
+        }
+        if (!(level instanceof WorldGenRegion region)) {
+            return 0;
+        }
+
+        int completed = 0;
+        for (long chunkKey : SkyforgePhysicalVolumeAdmissionStage.eligibleCatchupChunkKeys()) {
+            int chunkX = ChunkPos.getX(chunkKey);
+            int chunkZ = ChunkPos.getZ(chunkKey);
+            if (!region.hasChunk(chunkX, chunkZ)) {
+                continue;
+            }
+            ChunkAccess target = region.getChunk(chunkX, chunkZ);
+            completed += serviceCatchup(binding, target);
+        }
+        return completed;
+    }
+
+    /** Services all eligible exact-volume records for one already-available chunk. */
+    static int serviceCatchup(ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null ? 0 : serviceCatchup(binding, chunk);
+    }
+
+    private static int serviceCatchup(RuntimeBinding binding, ChunkAccess chunk) {
+        int completed = 0;
+        for (var pending : SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos())) {
+            MinecraftChunkMaterialization materialization = binding.adapter().materialize(
+                    pending.volumeId(),
+                    chunk.getPos(),
+                    chunk.getMinBuildHeight(),
+                    chunk.getHeight());
+            if (binding.nativeSurfaceTopAdapter().isPresent()) {
+                MinecraftNativeSurfaceSnapshot snapshot = pending.nativeSurfaceSnapshot()
+                        .orElseThrow(() -> new IllegalStateException(
+                                "native-surface-adapted deferred realization lost its pre-decoration snapshot"));
+                materialization = binding.nativeSurfaceTopAdapter().orElseThrow().adapt(snapshot, materialization);
+            }
+
+            int expectedSolidBlocks = materialization.solidBlockCount();
+            MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
+            if (result.solidBlockCount() != expectedSolidBlocks) {
+                // Another exact volume still owns at least one blocked coordinate. Keep the record
+                // pending until all owners have terminal admission decisions.
+                continue;
+            }
+            SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+            completed++;
+        }
+        return completed;
     }
 
     static Optional<MinecraftChunkMaterialization> materializeOccupancy(ChunkAccess chunk) {
