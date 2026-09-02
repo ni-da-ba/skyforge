@@ -1,6 +1,6 @@
 # ADR-0054: Detached underside structure contradiction admission
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-01
 - **Milestone:** SF-IMP-0050
 
@@ -61,15 +61,15 @@ The dedicated SF-IMP-0050 ModDev run reuses the accepted isolated mansion/floati
 
 For **admission evidence only**, the development runtime appends one small synthetic bounding box at Y 150..152, far beneath the test island underside. The synthetic box is never inserted into the `StructureStart`, never serialized, never placed and never registered as a structure piece. Production runs use only real native piece boxes.
 
-The proof run must cause the real forced mansion candidate to traverse the normal native start path, resolve at the Skyforge surface, encounter the injected detached-below evidence, restore the pre-candidate start state and return `false`.
+The proof run causes the real forced mansion candidate to traverse the normal native start path, resolve at the Skyforge surface, encounter the injected detached-below evidence, restore the pre-candidate start state and return `false`.
 
-A successful proof emits:
+The successful path emits:
 
 ```text
 SF-IMP-0050 UNDERSIDE CONTRADICTION REJECTED
 ```
 
-The resulting world must retain the bounded floating island while containing no forced origin mansion.
+The interactive proof produced a stable bounded floating island with the forced mansion absent. Because the fixture throws if the forced proof candidate fails to generate, resolve, or classify as the contradiction, the stable mansion-free result confirms the live rejection path.
 
 ## Rejected alternatives
 
@@ -95,17 +95,21 @@ Rejected. Skyforge must not reconstruct or semantically edit an unknown native s
 
 ## Validation
 
-SF-IMP-0050 requires automated evidence that:
+SF-IMP-0050 automated evidence passed for:
 
-- detached wholly-below components classify as contradictions;
-- connected vertical chains are preserved;
-- disconnected components containing any unproved piece remain uncertain;
-- separated surface-rooted components are preserved;
-- one-block adjacency is treated as connected;
-- absence of a surface root fails open;
-- extreme integer coordinates do not overflow connectivity;
-- the active development island runtime proves the injected detached component below the exact island;
-- rejection remains before natural support and foundation accommodation and restores the prior structure-start state;
-- complete repository CI and both standard evidence-publication stages pass.
+- detached wholly-below components classifying as contradictions;
+- connected vertical chains being preserved;
+- disconnected components containing any unproved piece remaining uncertain;
+- separated surface-rooted components being preserved;
+- one-block adjacency being treated as connected;
+- absence of a surface root failing open;
+- extreme integer coordinates not overflowing connectivity;
+- the active development island runtime proving the injected detached component below the exact island;
+- rejection remaining before natural support and foundation accommodation and restoring the prior structure-start state;
+- complete repository CI and both standard evidence-publication stages.
 
-It additionally requires an interactive Minecraft proof of the dedicated development run before ADR-0054 can become **Accepted**.
+The dedicated interactive Minecraft proof also passed.
+
+## Follow-on finding
+
+The same development run exposed a separate stacked-surface compatibility issue: terrain-matching village path/plank blocks from a village rooted on lower vanilla terrain can project upward onto the unrelated upper Skyforge island. That behavior is not caused by this contradiction policy and does not invalidate it. It is tracked separately as issue #52 / SF-IMP-0051 and must be solved generically rather than through village-specific policy.
