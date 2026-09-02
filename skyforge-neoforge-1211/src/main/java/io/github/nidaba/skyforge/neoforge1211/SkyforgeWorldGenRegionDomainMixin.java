@@ -26,7 +26,10 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
     @Shadow
     public abstract int getHeight();
 
-    @Inject(method = "getBlockState", at = @At("HEAD"), cancellable = true)
+    @Inject(
+            method = "getBlockState(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;",
+            at = @At("HEAD"),
+            cancellable = true)
     private void skyforge$readOwnedBlock(
             BlockPos position,
             CallbackInfoReturnable<BlockState> callback) {
@@ -36,7 +39,10 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
         }
     }
 
-    @Inject(method = "getFluidState", at = @At("HEAD"), cancellable = true)
+    @Inject(
+            method = "getFluidState(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/material/FluidState;",
+            at = @At("HEAD"),
+            cancellable = true)
     private void skyforge$readOwnedFluid(
             BlockPos position,
             CallbackInfoReturnable<FluidState> callback) {
@@ -46,7 +52,10 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
         }
     }
 
-    @Inject(method = "getHeight", at = @At("HEAD"), cancellable = true)
+    @Inject(
+            method = "getHeight(Lnet/minecraft/world/level/levelgen/Heightmap$Types;II)I",
+            at = @At("HEAD"),
+            cancellable = true)
     private void skyforge$readOwnedHeight(
             Heightmap.Types heightmapType,
             int worldX,
@@ -66,7 +75,10 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
         callback.setReturnValue(claim.map(MinecraftSkyforgeHeightClaim::height).orElse(getMinBuildHeight()));
     }
 
-    @Inject(method = "setBlock", at = @At("HEAD"), cancellable = true)
+    @Inject(
+            method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;III)Z",
+            at = @At("HEAD"),
+            cancellable = true)
     private void skyforge$writeOwnedBlock(
             BlockPos position,
             BlockState state,
@@ -79,7 +91,10 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
         }
     }
 
-    @Inject(method = "removeBlock", at = @At("HEAD"), cancellable = true)
+    @Inject(
+            method = "removeBlock(Lnet/minecraft/core/BlockPos;Z)Z",
+            at = @At("HEAD"),
+            cancellable = true)
     private void skyforge$removeOwnedBlock(
             BlockPos position,
             boolean move,
