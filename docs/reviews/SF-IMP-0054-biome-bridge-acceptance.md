@@ -32,9 +32,11 @@ The fixture stacks two tableland volumes in the same X/Z region:
 - lower volume: `minecraft:forest`;
 - upper volume: `minecraft:taiga`.
 
-A deterministic 5×5 chunk patch centered on the origin is populated for both owners. Each chunk consumes the corresponding final biome's native `VEGETAL_DECORATION` list. Native placement modifiers choose count, rarity, X/Z positions, heightmap positions, biome eligibility, and configured-feature placement.
+A deterministic 5×5 candidate chunk patch centered on the origin is scanned. A chunk is eligible only when Skyforge can find at least one shared X/Z position inside that chunk where **both** compiled exact volumes have an owned surface. This deliberately uses actual compiled terrain topology rather than nominal `WorldBounds` or chunk-center assumptions.
 
-A single chunk may legitimately yield zero successful placements. The fixture therefore aggregates 25 deterministic chunks and fails only if an entire proof region produces no successful native vegetation for either biome.
+Each eligible chunk consumes the corresponding final biome's native `VEGETAL_DECORATION` list. Native placement modifiers choose count, rarity, X/Z positions, heightmap positions, biome eligibility, and configured-feature placement.
+
+A single eligible chunk may legitimately yield zero successful placements. The fixture passes after at least nine eligible shared-terrain chunks have been observed and both biome domains have produced successful native vegetation. It fails only after exhausting all 25 candidate chunks if there is insufficient shared terrain or either biome still has zero successful placements.
 
 ## Runtime marker
 
@@ -46,7 +48,8 @@ SF-IMP-0054 BIOME POPULATION STACKED PASS
 
 with:
 
-- `chunks=25`;
+- `scannedChunks=...`;
+- `eligibleChunks=...` with at least 9 eligible chunks;
 - lower biome `minecraft:forest`;
 - upper biome `minecraft:taiga`;
 - nonzero aggregate successful-feature counts for both domains;
@@ -87,13 +90,25 @@ upper proof biome produced no successful native vegetation placements
 
 This was an invalid proof oracle: native placed-feature occurrence is stochastic/conditional per chunk. Zero occurrence in one chunk is legal.
 
-Correction: acceptance now uses a deterministic 5×5 chunk region and aggregates per-volume outcomes. A complete 25-chunk region with zero successful placements remains a hard failure.
+Correction: acceptance moved to a deterministic multi-chunk regional aggregate.
+
+### Attempt 3 — invalid bounding-box / chunk-center occupancy oracle
+
+The first regional fixture assumed every chunk center inside the 5×5 candidate patch had a surface in both tablelands. The run reached chunk `[2,2]` and aborted with:
+
+```text
+stacked biome volume has no proof-chunk surface
+```
+
+This was another invalid proof oracle. `WorldBounds` encloses a procedural volume but does not guarantee terrain at every enclosed X/Z, especially near morphology edges.
+
+Correction: each candidate chunk now searches its actual compiled field for a shared X/Z position where both exact volumes have surfaces. Only those shared-terrain chunks are eligible. The proof requires a minimum deterministic eligible sample count and successful native vegetation for both owners.
 
 ## Merge gate
 
 Do not merge PR #59 until:
 
 - exact-head CI is green;
-- the corrected multi-chunk interactive runtime marker passes;
+- the corrected shared-terrain regional runtime marker passes;
 - the visual criteria above pass;
 - acceptance evidence is recorded here and on the PR.
