@@ -134,7 +134,7 @@ final class SkyforgeNeoForge1211TerrainProjectionDevRuntime {
         if (adapter.isSolidOwnedBy(id, villageRootX, 200, villageRootZ)) {
             throw new IllegalStateException("SF-IMP-0051 forced village root must remain outside the upper island");
         }
-        if (!adapter.isSolidOwnedBy(id, 560, 200, 8)) {
+        if (!adapter.isSolidOwnedBy(id, 560, 218, 8)) {
             throw new IllegalStateException("SF-IMP-0051 island must overlap the village-outskirts inspection corridor");
         }
     }
