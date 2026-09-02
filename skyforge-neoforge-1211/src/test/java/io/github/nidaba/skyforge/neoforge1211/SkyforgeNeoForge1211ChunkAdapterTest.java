@@ -80,6 +80,48 @@ final class SkyforgeNeoForge1211ChunkAdapterTest {
         assertEquals(0, distant.solidBlockCount());
     }
 
+    @Test
+    void exactVolumeRematerializationExcludesOtherStackedVolumeAtSameXZ() {
+        long lowerSeed = ROOT_SEED ^ 0x4c4f574552L;
+        long upperSeed = ROOT_SEED ^ 0x5550504552L;
+        SkyIslandWorldVolumeId lowerId = new SkyIslandWorldVolumeId(ROOT_SEED, "stacked", 0, 0, lowerSeed);
+        SkyIslandWorldVolumeId upperId = new SkyIslandWorldVolumeId(ROOT_SEED, "stacked", 0, 1, upperSeed);
+        SkyIslandWorldCatalog stacked = new SkyIslandWorldCatalog(
+                ROOT_SEED,
+                List.of(
+                        new SkyIslandWorldVolume(
+                                lowerId,
+                                new WorldBounds(-72.0, 72.0, 196.0, 288.0, -72.0, 72.0),
+                                compiledTableland(lowerSeed, 236.0)),
+                        new SkyIslandWorldVolume(
+                                upperId,
+                                new WorldBounds(-72.0, 72.0, 316.0, 408.0, -72.0, 72.0),
+                                compiledTableland(upperSeed, 356.0))));
+        SkyforgeNeoForge1211ChunkAdapter adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                stacked,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+
+        MinecraftChunkMaterialization composite = adapter.materialize(chunkPos, 176, 256);
+        MinecraftChunkMaterialization lower = adapter.materialize(lowerId, chunkPos, 176, 256);
+        MinecraftChunkMaterialization upper = adapter.materialize(upperId, chunkPos, 176, 256);
+
+        assertEquals(2, composite.candidateVolumeReferences());
+        assertEquals(1, lower.candidateVolumeReferences());
+        assertEquals(1, upper.candidateVolumeReferences());
+        assertTrue(lower.solidBlockCount() > 0);
+        assertTrue(upper.solidBlockCount() > 0);
+        assertEquals(
+                lower.solidBlockCount() + upper.solidBlockCount(),
+                composite.solidBlockCount(),
+                "non-overlapping stacked exact volumes should sum to the composite occupancy");
+        assertArrayEquals(
+                lower.blockKeys(),
+                adapter.materialize(lowerId, chunkPos, 176, 256).blockKeys(),
+                "deferred exact-volume rematerialization must be deterministic");
+    }
+
     private static boolean contains(
             MinecraftChunkMaterialization materialization,
             net.minecraft.resources.ResourceLocation target) {
@@ -119,6 +161,32 @@ final class SkyforgeNeoForge1211ChunkAdapterTest {
                 0.0,
                 28.0);
         var provider = SkyIslandMorphologyProviders.builtInId(MorphologyFamily.MASSIF);
+        return new EnrichedProviderMorphologySkyIslandVolumeRecipe().compile(
+                descriptor,
+                new ProviderMorphologyEnrichment(provider, 0.0, 0.0),
+                SkyIslandMorphologyProviders.builtInRegistry());
+    }
+
+    private static io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume compiledTableland(
+            long seed,
+            double elevation) {
+        SkyIslandVolumeDescriptor descriptor = new SkyIslandVolumeDescriptor(
+                SkyIslandVolumeDescriptor.SCHEMA_VERSION_1,
+                seed,
+                0.0,
+                0.0,
+                elevation,
+                56.0,
+                12.0,
+                28.0,
+                10.0,
+                0.0,
+                0.15,
+                0.70,
+                0.0,
+                0.0,
+                18.0);
+        var provider = SkyIslandMorphologyProviders.builtInId(MorphologyFamily.TABLELAND);
         return new EnrichedProviderMorphologySkyIslandVolumeRecipe().compile(
                 descriptor,
                 new ProviderMorphologyEnrichment(provider, 0.0, 0.0),
