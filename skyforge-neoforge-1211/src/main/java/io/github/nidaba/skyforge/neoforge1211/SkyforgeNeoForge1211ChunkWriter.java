@@ -44,6 +44,10 @@ public final class SkyforgeNeoForge1211ChunkWriter {
      * another backend system already placed there. This mode therefore skips AIR positions
      * entirely while retaining strict registry resolution and read-back verification for every
      * Skyforge solid that is written.
+     *
+     * <p>Physical admission observation deliberately lives above this writer. That keeps a concrete
+     * block writer free of generation-lifecycle side effects and allows deferred exact-volume writes
+     * to reuse the same primitive without accidentally resurveying already-mutated chunks.
      */
     public MinecraftChunkWriteResult writeSolidOverlay(
             ChunkAccess chunk,
@@ -56,11 +60,6 @@ public final class SkyforgeNeoForge1211ChunkWriter {
             ChunkAccess chunk,
             MinecraftChunkMaterialization materialization,
             boolean solidOverlayOnly) {
-        // When the optional physical-admission stage is installed, this survey happens before the
-        // first destructive block mutation. Historical fixtures remain unchanged when the stage is
-        // absent.
-        SkyforgePhysicalVolumeAdmissionStage.observeBeforeWrite(chunk);
-
         long maximumYExclusive = (long) materialization.minimumY() + materialization.height();
         int minimumX = materialization.chunkPos().getMinBlockX();
         int minimumZ = materialization.chunkPos().getMinBlockZ();
