@@ -29,7 +29,7 @@ Biome-owned native features must execute through Minecraft's biome-aware placed-
 
 Native feature occurrence is evaluated per chunk. A particular chunk is allowed to yield zero successful placements because count, rarity, noise, block predicates, and other placement modifiers are stochastic or conditional. Proof and later population planning therefore evaluate deterministic finite regions rather than treating one lucky chunk as the semantic unit of biome correctness.
 
-A deterministic regional proof must also be **terrain-topology aware**. A Skyforge volume's nominal `WorldBounds` is only a broad spatial envelope; it does not guarantee that every chunk center or every X/Z inside the bounds contains owned terrain. Regional population therefore operates on positions/chunks where the compiled exact-volume geometry actually yields a surface. For stacked-domain proofs, eligibility is based on the intersection of X/Z positions owned by both exact volumes, not on bounding-box overlap alone.
+A deterministic regional proof must also be **terrain-topology aware**. A Skyforge volume's nominal `WorldBounds` is only a broad spatial envelope; it does not guarantee that every chunk center or every X/Z inside the bounds contains owned terrain. Regional population therefore operates on positions/chunks where the compiled exact-volume geometry actually yields a surface. For stacked-domain proofs, eligibility is based on the intersection of X/Z positions owned by both exact volumes, not on bounding-box overlap alone. A candidate chunk may be scanned yet remain ineligible when no shared terrain sample exists there.
 
 ## Runtime biome identity versus generation settings
 
