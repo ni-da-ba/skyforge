@@ -16,8 +16,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
@@ -31,10 +33,12 @@ import net.minecraft.world.level.levelgen.Heightmap;
 final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.biomePopulation";
     private static final long ROOT_SEED = 0x5346494d50303054L;
-    private static final int PROOF_RADIUS_CHUNKS = 2;
+    private static final int PROOF_RADIUS_CHUNKS = 4;
     private static final int CANDIDATE_PROOF_CHUNKS =
             (PROOF_RADIUS_CHUNKS * 2 + 1) * (PROOF_RADIUS_CHUNKS * 2 + 1);
-    private static final int MINIMUM_ELIGIBLE_PROOF_CHUNKS = 9;
+    private static final int MINIMUM_ELIGIBLE_PROOF_CHUNKS = 25;
+    private static final int MINIMUM_SHARED_COLUMNS_PER_CHUNK = 192;
+    private static final int VEGETATION_SCAN_HEIGHT = 40;
     private static final int PROOF_X = 8;
     private static final int PROOF_Z = 8;
     private static final int MAXIMUM_ATTACHMENT_DEPTH = 24;
@@ -71,8 +75,11 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         + "x=" + PROOF_X + ", z=" + PROOF_Z
                         + ". Lower resolves minecraft:forest; upper resolves minecraft:taiga. A deterministic "
                         + (PROOF_RADIUS_CHUNKS * 2 + 1) + "x" + (PROOF_RADIUS_CHUNKS * 2 + 1)
-                        + " candidate patch is scanned, but only chunks containing a shared X/Z terrain sample in "
-                        + "both exact volumes are eligible for the stacked population proof.");
+                        + " candidate patch is scanned. A chunk is eligible only when at least "
+                        + MINIMUM_SHARED_COLUMNS_PER_CHUNK
+                        + " of its 256 X/Z columns contain terrain in both exact volumes. Acceptance additionally "
+                        + "requires persistent log and leaf blocks on both islands; PlacedFeature boolean success "
+                        + "alone is not sufficient evidence of visible population.");
     }
 
     static synchronized void populate(
@@ -143,8 +150,10 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             throw new IllegalStateException("forest and taiga proof domains exposed identical vegetation feature lists");
         }
 
-        lowerAggregate.add(lower);
-        upperAggregate.add(upper);
+        VegetationEvidence lowerVegetation = scanVegetation(level, chunkPos, shared.lowerSurfaceY());
+        VegetationEvidence upperVegetation = scanVegetation(level, chunkPos, shared.upperSurfaceY());
+        lowerAggregate.add(lower, lowerVegetation, shared.sharedColumns());
+        upperAggregate.add(upper, upperVegetation, shared.sharedColumns());
         evaluateCompletion(lowerId, upperId);
     }
 
@@ -152,8 +161,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             SkyIslandWorldVolumeId lowerId,
             SkyIslandWorldVolumeId upperId) {
         boolean enoughEligibleChunks = eligibleProofChunks.size() >= MINIMUM_ELIGIBLE_PROOF_CHUNKS;
-        boolean bothBiomesPlaced = lowerAggregate.successfulFeatures > 0 && upperAggregate.successfulFeatures > 0;
-        if (enoughEligibleChunks && bothBiomesPlaced) {
+        boolean visibleTrees = lowerAggregate.hasTreeEvidence() && upperAggregate.hasTreeEvidence();
+        if (enoughEligibleChunks && visibleTrees) {
             completeProof(lowerId, upperId);
             return;
         }
@@ -161,10 +170,11 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             return;
         }
         if (!enoughEligibleChunks) {
-            throw new IllegalStateException("SF-IMP-0054 candidate region exposed too little shared stacked terrain: "
+            throw new IllegalStateException("SF-IMP-0054 candidate region exposed too little substantial shared terrain: "
                     + "eligible=" + eligibleProofChunks.size()
                     + ", required=" + MINIMUM_ELIGIBLE_PROOF_CHUNKS
-                    + ", scanned=" + scannedProofChunks.size());
+                    + ", scanned=" + scannedProofChunks.size()
+                    + ", minimumSharedColumnsPerChunk=" + MINIMUM_SHARED_COLUMNS_PER_CHUNK);
         }
         requireAggregate("lower", lowerAggregate, Biomes.FOREST);
         requireAggregate("upper", upperAggregate, Biomes.TAIGA);
@@ -177,6 +187,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         if (proofComplete) {
             return;
         }
+        requireAggregate("lower", lowerAggregate, Biomes.FOREST);
+        requireAggregate("upper", upperAggregate, Biomes.TAIGA);
         proofComplete = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
@@ -187,13 +199,19 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         + ", attempted=" + lowerAggregate.attemptedFeatures
                         + ", successful=" + lowerAggregate.successfulFeatures
                         + ", attachments=" + lowerAggregate.attachmentWrites
+                        + ", logs=" + lowerAggregate.logBlocks
+                        + ", leaves=" + lowerAggregate.leafBlocks
+                        + ", sharedColumns=" + lowerAggregate.sharedColumns
                         + "}, upper={volume=" + upperId.path()
                         + ", biome=" + upperAggregate.biomeKey().location()
                         + ", attempted=" + upperAggregate.attemptedFeatures
                         + ", successful=" + upperAggregate.successfulFeatures
                         + ", attachments=" + upperAggregate.attachmentWrites
-                        + "}. Both domains consumed their final registered biome vegetation settings across a "
-                        + "deterministic region of shared stacked terrain.");
+                        + ", logs=" + upperAggregate.logBlocks
+                        + ", leaves=" + upperAggregate.leafBlocks
+                        + ", sharedColumns=" + upperAggregate.sharedColumns
+                        + "}. Both domains produced persistent native tree vegetation while consuming their final "
+                        + "registered biome settings across substantial shared stacked terrain.");
     }
 
     private static boolean isProofChunk(ChunkPos chunkPos) {
@@ -209,6 +227,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         int middleZ = chunkPos.getMiddleBlockZ();
         SharedSurfaceSample best = null;
         int bestDistance = Integer.MAX_VALUE;
+        int sharedColumns = 0;
 
         for (int x = chunkPos.getMinBlockX(); x <= chunkPos.getMaxBlockX(); x++) {
             for (int z = chunkPos.getMinBlockZ(); z <= chunkPos.getMaxBlockZ(); z++) {
@@ -233,6 +252,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     continue;
                 }
 
+                sharedColumns++;
                 int lowerSurfaceY = lowerClaim.orElseThrow().height();
                 int upperSurfaceY = upperClaim.orElseThrow().height();
                 if (lowerSurfaceY == upperSurfaceY) {
@@ -241,12 +261,42 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 }
                 int distance = Math.abs(x - middleX) + Math.abs(z - middleZ);
                 if (distance < bestDistance) {
-                    best = new SharedSurfaceSample(x, z, lowerSurfaceY, upperSurfaceY);
+                    best = new SharedSurfaceSample(x, z, lowerSurfaceY, upperSurfaceY, 0);
                     bestDistance = distance;
                 }
             }
         }
-        return Optional.ofNullable(best);
+        if (best == null || sharedColumns < MINIMUM_SHARED_COLUMNS_PER_CHUNK) {
+            return Optional.empty();
+        }
+        return Optional.of(new SharedSurfaceSample(
+                best.x(), best.z(), best.lowerSurfaceY(), best.upperSurfaceY(), sharedColumns));
+    }
+
+    private static VegetationEvidence scanVegetation(
+            WorldGenLevel level,
+            ChunkPos chunkPos,
+            int surfaceY) {
+        int logs = 0;
+        int leaves = 0;
+        int minimumY = Math.max(level.getMinBuildHeight(), surfaceY);
+        int maximumY = Math.min(
+                level.getMinBuildHeight() + level.getHeight() - 1,
+                surfaceY + VEGETATION_SCAN_HEIGHT);
+        for (int x = chunkPos.getMinBlockX(); x <= chunkPos.getMaxBlockX(); x++) {
+            for (int z = chunkPos.getMinBlockZ(); z <= chunkPos.getMaxBlockZ(); z++) {
+                for (int y = minimumY; y <= maximumY; y++) {
+                    var state = level.getBlockState(new BlockPos(x, y, z));
+                    if (state.is(BlockTags.LOGS)) {
+                        logs++;
+                    }
+                    if (state.is(BlockTags.LEAVES)) {
+                        leaves++;
+                    }
+                }
+            }
+        }
+        return new VegetationEvidence(logs, leaves);
     }
 
     private static void requireChunkResult(
@@ -275,6 +325,15 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     + "across " + aggregate.chunks + " eligible deterministic chunks; attempted="
                     + aggregate.attemptedFeatures + ", features=" + aggregate.featureKeys);
         }
+        if (!aggregate.hasTreeEvidence()) {
+            throw new IllegalStateException(label + " proof biome reported native feature success but produced no "
+                    + "persistent visible tree evidence across " + aggregate.chunks
+                    + " eligible chunks; logs=" + aggregate.logBlocks
+                    + ", leaves=" + aggregate.leafBlocks
+                    + ", attachments=" + aggregate.attachmentWrites
+                    + ", successfulFeatures=" + aggregate.successfulFeatures
+                    + ", features=" + aggregate.featureKeys);
+        }
     }
 
     static SkyIslandWorldCatalog catalog() {
@@ -284,11 +343,11 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         var upperId = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0054-biomes", 0, 1, upperSeed);
         var lower = new SkyIslandWorldVolume(
                 lowerId,
-                new WorldBounds(-72.0, 72.0, 96.0, 168.0, -72.0, 72.0),
+                new WorldBounds(-144.0, 144.0, 96.0, 168.0, -144.0, 144.0),
                 compileTableland(lowerSeed, 136.0));
         var upper = new SkyIslandWorldVolume(
                 upperId,
-                new WorldBounds(-72.0, 72.0, 196.0, 268.0, -72.0, 72.0),
+                new WorldBounds(-144.0, 144.0, 196.0, 268.0, -144.0, 144.0),
                 compileTableland(upperSeed, 236.0));
         return new SkyIslandWorldCatalog(ROOT_SEED, List.of(lower, upper));
     }
@@ -307,7 +366,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 0.0,
                 0.0,
                 elevation,
-                56.0,
+                112.0,
                 12.0,
                 28.0,
                 10.0,
@@ -328,7 +387,16 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             int x,
             int z,
             int lowerSurfaceY,
-            int upperSurfaceY) {}
+            int upperSurfaceY,
+            int sharedColumns) {}
+
+    private record VegetationEvidence(int logBlocks, int leafBlocks) {
+        VegetationEvidence {
+            if (logBlocks < 0 || leafBlocks < 0) {
+                throw new IllegalArgumentException("vegetation evidence counts must be non-negative");
+            }
+        }
+    }
 
     private static final class Aggregate {
         private ResourceKey<Biome> biomeKey;
@@ -336,9 +404,15 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         private int attemptedFeatures;
         private int successfulFeatures;
         private int attachmentWrites;
+        private int logBlocks;
+        private int leafBlocks;
+        private int sharedColumns;
         private final Set<ResourceLocation> featureKeys = new LinkedHashSet<>();
 
-        void add(SkyforgeNativeBiomePopulationRunner.Result result) {
+        void add(
+                SkyforgeNativeBiomePopulationRunner.Result result,
+                VegetationEvidence vegetation,
+                int chunkSharedColumns) {
             if (biomeKey == null) {
                 biomeKey = result.biomeKey();
             } else if (!biomeKey.equals(result.biomeKey())) {
@@ -348,7 +422,14 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             attemptedFeatures = Math.addExact(attemptedFeatures, result.attemptedFeatures());
             successfulFeatures = Math.addExact(successfulFeatures, result.successfulFeatures());
             attachmentWrites = Math.addExact(attachmentWrites, result.attachmentWrites());
+            logBlocks = Math.addExact(logBlocks, vegetation.logBlocks());
+            leafBlocks = Math.addExact(leafBlocks, vegetation.leafBlocks());
+            sharedColumns = Math.addExact(sharedColumns, chunkSharedColumns);
             featureKeys.addAll(result.featureKeys());
+        }
+
+        boolean hasTreeEvidence() {
+            return logBlocks > 0 && leafBlocks > 0;
         }
 
         ResourceKey<Biome> biomeKey() {
