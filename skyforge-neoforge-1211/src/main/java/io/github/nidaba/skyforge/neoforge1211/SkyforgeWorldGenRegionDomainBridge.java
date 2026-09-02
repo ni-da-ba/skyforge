@@ -67,4 +67,20 @@ public final class SkyforgeWorldGenRegionDomainBridge {
         return SkyforgePopulationExecutionStage.activeExecution()
                 .flatMap(SkyforgePopulationExecutionStage.Execution::domainBiome);
     }
+
+    /**
+     * Returns the biome visible at a block position while an exact-volume population operation is
+     * active.
+     *
+     * <p>Minecraft's ordinary {@code LevelReader#getBiome(BlockPos)} path delegates through
+     * {@code BiomeManager#getBiome(BlockPos)}. That manager-level lookup does not necessarily call
+     * back through {@code WorldGenRegion#getUncachedNoiseBiome} in a way a region mixin can safely
+     * rely on. Exposing the same thread-local domain biome here lets the adapter scope the actual
+     * biome-manager read seam without mutating base-world biome storage.
+     */
+    public static Optional<Holder<Biome>> exactBiome(BlockPos position) {
+        Objects.requireNonNull(position, "position");
+        return SkyforgePopulationExecutionStage.activeExecution()
+                .flatMap(SkyforgePopulationExecutionStage.Execution::domainBiome);
+    }
 }
