@@ -76,7 +76,7 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
     }
 
     @Inject(
-            method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;III)Z",
+            method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
             at = @At("HEAD"),
             cancellable = true)
     private void skyforge$writeOwnedBlock(
