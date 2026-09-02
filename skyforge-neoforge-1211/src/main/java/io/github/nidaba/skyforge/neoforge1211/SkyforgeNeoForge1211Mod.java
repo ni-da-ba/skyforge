@@ -24,5 +24,6 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211IsolationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211PopulationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211BiomePopulationDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211SurfacePopulationDevRuntime.installFromSystemProperty();
     }
 }

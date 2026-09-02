@@ -24,6 +24,11 @@ final class SkyforgeNativeBiomePopulationRunner {
 
     private SkyforgeNativeBiomePopulationRunner() {}
 
+    /**
+     * Compatibility overload retained for the accepted SF-IMP-0054 fixture. New coordinators should
+     * pass an actual exact-volume surface sample so later within-island biome fields are evaluated at
+     * owned terrain rather than an arbitrary chunk center.
+     */
     static Result populateStep(
             WorldGenLevel level,
             ChunkGenerator generator,
@@ -33,17 +38,40 @@ final class SkyforgeNativeBiomePopulationRunner {
             int sampleY,
             GenerationStep.Decoration generationStep,
             int maximumAttachmentDepth) {
+        return populateStep(
+                level,
+                generator,
+                biomeResolver,
+                volumeId,
+                originChunk,
+                new BlockPos(originChunk.getMiddleBlockX(), sampleY, originChunk.getMiddleBlockZ()),
+                generationStep,
+                maximumAttachmentDepth);
+    }
+
+    static Result populateStep(
+            WorldGenLevel level,
+            ChunkGenerator generator,
+            SkyforgeExactVolumeBiomeResolver biomeResolver,
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos originChunk,
+            BlockPos biomeSample,
+            GenerationStep.Decoration generationStep,
+            int maximumAttachmentDepth) {
         Objects.requireNonNull(level, "level");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(biomeResolver, "biomeResolver");
         Objects.requireNonNull(volumeId, "volumeId");
         Objects.requireNonNull(originChunk, "originChunk");
+        Objects.requireNonNull(biomeSample, "biomeSample");
         Objects.requireNonNull(generationStep, "generationStep");
 
-        int sampleX = originChunk.getMiddleBlockX();
-        int sampleZ = originChunk.getMiddleBlockZ();
         ResourceKey<Biome> biomeKey = Objects.requireNonNull(
-                biomeResolver.resolve(volumeId, sampleX, sampleY, sampleZ),
+                biomeResolver.resolve(
+                        volumeId,
+                        biomeSample.getX(),
+                        biomeSample.getY(),
+                        biomeSample.getZ()),
                 "biome resolver returned null");
         Holder<Biome> biome = level.registryAccess()
                 .registryOrThrow(Registries.BIOME)
