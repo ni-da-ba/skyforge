@@ -69,8 +69,12 @@ final class SkyforgeNeoForge1211PopulationDevRuntime {
             WorldGenLevel level,
             ChunkAccess chunk,
             ChunkGenerator generator) {
-        // One accepted development-only callback services subsequent population fixtures without
-        // adding milestone-specific hooks to the production chunk-generator lifecycle.
+        // This is the single accepted post-realization population callback. A reusable native
+        // surface-population binding is serviced first and is inert unless explicitly installed.
+        // Development fixtures then observe or exercise that same lifecycle seam without adding
+        // milestone-specific hooks to SkyforgeNoiseBasedChunkGenerator.
+        SkyforgeNativeSurfacePopulationStage.populate(level, chunk, generator);
+        SkyforgeNeoForge1211SurfacePopulationDevRuntime.observe(level, chunk, generator);
         SkyforgeNeoForge1211BiomePopulationDevRuntime.populate(level, chunk, generator);
 
         if (!enabled() || proofComplete || !chunk.getPos().equals(PROOF_CHUNK)) {
