@@ -328,8 +328,10 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             WorldGenLevel level,
             ChunkAccess chunk,
             StructureManager structureManager) {
-        try (SkyforgeNeoForge1211FeatureStage.Scope scope = SkyforgeNeoForge1211FeatureStage.open(chunk)) {
-            scope.requireActive();
+        try (SkyforgeNeoForge1211FeatureStage.Scope featureScope = SkyforgeNeoForge1211FeatureStage.open(chunk);
+                SkyforgeTerrainProjectionStage.Scope projectionScope = SkyforgeTerrainProjectionStage.open()) {
+            featureScope.requireActive();
+            projectionScope.requireActive();
             super.applyBiomeDecoration(level, chunk, structureManager);
         }
     }
