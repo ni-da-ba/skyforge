@@ -2,7 +2,6 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import java.util.OptionalInt;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.templatesystem.GravityProcessor;
@@ -10,12 +9,13 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlac
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 /**
- * Vanilla terrain-matching gravity with one conservative Skyforge ownership correction.
+ * Vanilla terrain-matching gravity redirected through one explicit terrain domain.
  *
- * <p>The superclass always runs first. Outside an active Skyforge decoration scope its result is
- * returned unchanged. During Skyforge structure placement, a projected top is replaced only when
- * the generic vertical resolver proves that the selected top belongs to an unrelated Skyforge
- * volume above the template's own placement anchor and finds a lower valid heightmap surface.
+ * <p>The superclass still supplies vanilla block/state transformation semantics. During an active
+ * Skyforge decoration scope, only the projected Y is replaced, and only after the native template
+ * anchor resolves to either the independent base world or one exact deterministic Skyforge volume.
+ * No global heightmap is used to choose between those domains and no search crosses from one terrain
+ * body into another. Missing or ambiguous ownership fails open to the untouched vanilla result.
  */
 final class SkyforgeTerrainScopedGravityProcessor extends GravityProcessor {
     static final SkyforgeTerrainScopedGravityProcessor INSTANCE = new SkyforgeTerrainScopedGravityProcessor();
@@ -45,25 +45,26 @@ final class SkyforgeTerrainScopedGravityProcessor extends GravityProcessor {
             return vanilla;
         }
 
-        Heightmap.Types heightmap = level instanceof ServerLevel
-                ? Heightmap.Types.WORLD_SURFACE
-                : Heightmap.Types.WORLD_SURFACE_WG;
+        var domain = SkyforgeNeoForge1211SurfaceStage.resolveTerrainDomain(
+                placementOffset.getX(),
+                placementOffset.getY(),
+                placementOffset.getZ());
+        if (domain.isEmpty()) {
+            return vanilla;
+        }
+
         int worldX = vanilla.pos().getX();
         int worldZ = vanilla.pos().getZ();
-        int vanillaTopY = level.getHeight(heightmap, worldX, worldZ);
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-
         OptionalInt scopedTop = MinecraftTerrainProjectionResolver.resolveTop(
-                placementOffset.getY(),
-                vanillaTopY,
-                level.getMinBuildHeight(),
-                worldY -> {
-                    cursor.set(worldX, worldY, worldZ);
-                    return heightmap.isOpaque().test(level.getBlockState(cursor));
-                },
-                worldY -> SkyforgeNeoForge1211SurfaceStage.claimingVolumeIds(worldX, worldY, worldZ),
-                volumeId -> SkyforgeNeoForge1211SurfaceStage.undersideSurfaceHeight(volumeId, worldX, worldZ));
-        if (scopedTop.isEmpty() || scopedTop.orElseThrow() == vanillaTopY) {
+                domain.orElseThrow(),
+                () -> SkyforgeTerrainProjectionStage.baseWorldFirstFreeHeight(worldX, worldZ),
+                volumeId -> SkyforgeNeoForge1211SurfaceStage.skyforgeFirstFreeHeight(volumeId, worldX, worldZ));
+        if (scopedTop.isEmpty()) {
+            return vanilla;
+        }
+
+        int vanillaTopY = level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, worldX, worldZ);
+        if (scopedTop.orElseThrow() == vanillaTopY) {
             return vanilla;
         }
 
