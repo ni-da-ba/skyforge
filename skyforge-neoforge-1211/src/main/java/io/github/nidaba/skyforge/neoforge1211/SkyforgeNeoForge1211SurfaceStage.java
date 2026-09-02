@@ -46,6 +46,8 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             return Optional.empty();
         }
 
+        SkyforgeNeoForge1211IsolationDevRuntime.Proof isolationProof =
+                SkyforgeNeoForge1211IsolationDevRuntime.captureBeforeSkyforge(chunk);
         MinecraftChunkMaterialization materialization = materialize(binding, chunk);
         if (binding.nativeSurfaceTopAdapter().isPresent()) {
             var adapter = binding.nativeSurfaceTopAdapter().orElseThrow();
@@ -53,7 +55,9 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                     ? adapter.adapt(nativeSurfaceSnapshot.orElseThrow(), materialization)
                     : adapter.adapt(chunk, materialization);
         }
-        return Optional.of(binding.writer().writeSolidOverlay(chunk, materialization));
+        MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
+        SkyforgeNeoForge1211IsolationDevRuntime.verifyAfterSkyforge(chunk, isolationProof);
+        return Optional.of(result);
     }
 
     static Optional<MinecraftChunkMaterialization> materializeOccupancy(ChunkAccess chunk) {
