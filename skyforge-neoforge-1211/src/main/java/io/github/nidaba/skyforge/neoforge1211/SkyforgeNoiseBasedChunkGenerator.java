@@ -327,5 +327,9 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         } else {
             SkyforgeNeoForge1211SurfaceStage.realize(chunk);
         }
+
+        // Development-only SF-IMP-0053 proof. The runtime is inert unless its explicit JVM
+        // property is enabled; production population orchestration will replace this fixture seam.
+        SkyforgeNeoForge1211PopulationDevRuntime.populate(level, chunk, this);
     }
 }

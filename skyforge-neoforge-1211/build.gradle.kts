@@ -1,5 +1,6 @@
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
@@ -28,6 +29,15 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    // FML initializes the tested mod before JUnit can report individual tests. Keep bootstrap
+    // diagnostics visible so a required worldgen mixin failure is actionable in CI rather than
+    // collapsing into Gradle's outer InvocationTargetException.
+    systemProperty("mixin.debug.verbose", "true")
+    systemProperty("mixin.dumpTargetOnFailure", "true")
+    testLogging {
+        showStandardStreams = true
+        exceptionFormat = TestExceptionFormat.FULL
+    }
 }
 
 // Development-only data/resource pack material for interactive world-generation proofs. This
@@ -83,6 +93,16 @@ neoForge {
             client()
             gameDirectory = project.file("run-sf-imp-0052")
             systemProperty("skyforge.dev.domainIsolation", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // SF-IMP-0053 places the same native minecraft:oak_checked PlacedFeature on two independent
+        // vertically aligned Skyforge volumes in the origin chunk. The runtime self-checks exact
+        // surface ownership, independent operation seeds and successful bounded native writes.
+        create("populationClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0053")
+            systemProperty("skyforge.dev.population", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
     }

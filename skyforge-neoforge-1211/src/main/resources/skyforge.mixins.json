@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8.6",
+  "package": "io.github.nidaba.skyforge.neoforge1211.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "SkyforgeWorldGenRegionDomainMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

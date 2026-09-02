@@ -191,6 +191,19 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 : Optional.of(binding.adapter().isSolidOwnedBy(volumeId, worldX, worldY, worldZ));
     }
 
+    static Optional<Boolean> isSolidOwnedByOtherVolume(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? Optional.empty()
+                : Optional.of(binding.adapter().claimingVolumeIds(worldX, worldY, worldZ).stream()
+                        .anyMatch(candidate -> !candidate.equals(volumeId)));
+    }
+
     static AutoCloseable install(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyforgeNeoForge1211ChunkWriter writer) {
