@@ -10,6 +10,7 @@ import io.github.nidaba.skyforge.world.TerrainBoxObservationRequirements;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicReference;
 import net.minecraft.world.level.ChunkPos;
@@ -154,6 +155,30 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return binding == null
                 ? Optional.empty()
                 : Optional.of(binding.adapter().isSolidOwnedBy(volumeId, worldX, worldY, worldZ));
+    }
+
+    /** Returns every independently compiled Skyforge volume owning one solid block coordinate. */
+    static Optional<List<SkyIslandWorldVolumeId>> claimingVolumeIds(
+            int worldX,
+            int worldY,
+            int worldZ) {
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? Optional.empty()
+                : Optional.of(binding.adapter().claimingVolumeIds(worldX, worldY, worldZ));
+    }
+
+    /** Returns one exact compiled island's underside height at the supplied horizontal coordinate. */
+    static OptionalDouble undersideSurfaceHeight(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return OptionalDouble.empty();
+        }
+        return OptionalDouble.of(binding.adapter().undersideSurfaceHeight(volumeId, worldX, worldZ));
     }
 
     static AutoCloseable install(
