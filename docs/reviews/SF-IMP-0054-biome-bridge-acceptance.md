@@ -10,12 +10,9 @@ The implementation resolves an exact `SkyIslandWorldVolumeId` to a final-registr
 
 ## Automated evidence
 
-Required before merge:
+The strengthened persistent-vegetation implementation compiled and passed full repository CI as run **#286** on implementation head `11bd27ef05aafaba63ff21028856de6d0f7f0378`, including NeoForge/FML bootstrap and the established fixed-seed/suspended-volume evidence suites.
 
-- full repository CI green on the exact final PR head;
-- NeoForge/FML unit-test bootstrap green with the `WorldGenRegion` mixin active;
-- existing fixed-seed and suspended-volume evidence suites remain green;
-- SF-IMP-0053 exact-volume population regression tests remain green.
+The exact final PR head must remain green before merge after documentation-only acceptance updates.
 
 ## Interactive fixture
 
