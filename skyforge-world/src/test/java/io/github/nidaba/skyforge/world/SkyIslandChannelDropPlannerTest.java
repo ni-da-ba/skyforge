@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -47,17 +49,31 @@ class SkyIslandChannelDropPlannerTest {
     }
 
     @Test
-    void representativeNetworksProduceSparseInteriorDropsAndEdgeFalls() {
+    void representativeNetworksProduceSparseSeparatedInteriorDropsAndEdgeFalls() {
         long interior = 0;
         long edges = 0;
         for (long key : new long[] {77L, 118L, 241L, 512L, 811L, 83L}) {
             SkyIslandDescriptor descriptor = descriptor(key);
             SkyIslandChannelProfilePlan profiles = SkyIslandChannelProfilePlanner.plan(descriptor);
             SkyIslandChannelDropPlan drops = SkyIslandChannelDropPlanner.plan(descriptor);
-            long interiorCount = drops.count(SkyIslandChannelDropKind.CASCADE_STEP)
-                    + drops.count(SkyIslandChannelDropKind.WATERFALL);
-            assertTrue(interiorCount <= Math.max(1, (int) Math.ceil(profiles.profiles().size() * 0.08)));
-            interior += interiorCount;
+            List<SkyIslandChannelDrop> interiorDrops = new ArrayList<>();
+            for (SkyIslandChannelDrop drop : drops.drops()) {
+                if (drop.kind() != SkyIslandChannelDropKind.EDGE_FALL) {
+                    interiorDrops.add(drop);
+                }
+            }
+            assertTrue(interiorDrops.size() <= Math.max(1, (int) Math.ceil(profiles.profiles().size() * 0.08)));
+            double minimumSeparation = descriptor.nominalRadius() * 0.08;
+            for (int i = 0; i < interiorDrops.size(); i++) {
+                for (int j = i + 1; j < interiorDrops.size(); j++) {
+                    SkyIslandLocalPosition a = interiorDrops.get(i).position();
+                    SkyIslandLocalPosition b = interiorDrops.get(j).position();
+                    double dx = a.x() - b.x();
+                    double dz = a.z() - b.z();
+                    assertTrue(dx * dx + dz * dz >= minimumSeparation * minimumSeparation - 1.0e-10);
+                }
+            }
+            interior += interiorDrops.size();
             edges += drops.count(SkyIslandChannelDropKind.EDGE_FALL);
         }
         assertTrue(interior > 0);

@@ -13,6 +13,7 @@ import java.util.Set;
 public final class SkyIslandChannelDropPlanner {
     private static final double INTERIOR_GRADIENT_THRESHOLD = 0.58;
     private static final double INTERIOR_DROP_THRESHOLD = 0.62;
+    private static final double MIN_INTERIOR_SEPARATION_RADIUS_FRACTION = 0.08;
     private static final double EPSILON = 1.0e-12;
 
     private SkyIslandChannelDropPlanner() {}
@@ -58,10 +59,19 @@ public final class SkyIslandChannelDropPlanner {
                 .reversed()
                 .thenComparingInt(candidate -> candidate.profile().segment().sourceCellIndex()));
         int interiorBudget = Math.max(1, (int) Math.ceil(profilePlan.profiles().size() * 0.08));
+        double minimumSeparation = descriptor.nominalRadius() * MIN_INTERIOR_SEPARATION_RADIUS_FRACTION;
+        List<InteriorCandidate> selectedInterior = new ArrayList<>();
+        for (InteriorCandidate candidate : interior) {
+            if (selectedInterior.size() >= interiorBudget) {
+                break;
+            }
+            if (spatiallySeparated(candidate, selectedInterior, minimumSeparation)) {
+                selectedInterior.add(candidate);
+            }
+        }
 
         List<SkyIslandChannelDrop> drops = new ArrayList<>();
-        for (int i = 0; i < Math.min(interiorBudget, interior.size()); i++) {
-            InteriorCandidate candidate = interior.get(i);
+        for (InteriorCandidate candidate : selectedInterior) {
             SkyIslandChannelProfile profile = candidate.profile();
             SkyIslandChannelDropKind kind = candidate.dropPotential() >= 0.82
                             && profile.streamPowerPotential() >= 0.75
@@ -109,6 +119,23 @@ public final class SkyIslandChannelDropPlanner {
         drops.sort(Comparator.comparingInt(SkyIslandChannelDrop::sourceCellIndex)
                 .thenComparing(drop -> drop.kind().ordinal()));
         return new SkyIslandChannelDropPlan(descriptor, drops);
+    }
+
+    private static boolean spatiallySeparated(
+            InteriorCandidate candidate,
+            List<InteriorCandidate> selected,
+            double minimumSeparation) {
+        SkyIslandLocalPosition position = candidate.profile().segment().end();
+        double minimumSquared = minimumSeparation * minimumSeparation;
+        for (InteriorCandidate existing : selected) {
+            SkyIslandLocalPosition other = existing.profile().segment().end();
+            double dx = position.x() - other.x();
+            double dz = position.z() - other.z();
+            if (dx * dx + dz * dz < minimumSquared - EPSILON) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean hasStrongerAdjacent(

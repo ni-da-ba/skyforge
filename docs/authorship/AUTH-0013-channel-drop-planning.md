@@ -42,7 +42,9 @@ The planner then keeps only local maxima against immediately connected upstream/
 
 The currently accepted channel network can contain multiple simple or fragmented components. Local maxima alone would therefore overproduce discrete events on some massif/tableland representatives. AUTH-0013 additionally applies a small event budget proportional to the number of accepted channel segments, retaining the strongest local maxima by drop potential and relative discharge.
 
-This is a semantic density bound, not a Minecraft feature limit.
+The first visual evidence pass showed that parallel fragmented components could still place several strong local maxima in one small geomorphic zone. After sorting by event strength, AUTH-0013 therefore also applies island-local spatial non-maximum suppression: accepted interior events must be separated by at least `0.08 * nominalRadius`. Stronger nearby candidates win. This is a coarse semantic de-duplication rule, not a literal minimum distance between future waterfalls.
+
+These are semantic density bounds, not Minecraft feature limits.
 
 ## Edge precedence
 
