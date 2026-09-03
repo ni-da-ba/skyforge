@@ -45,13 +45,15 @@ No extra random stream selects waterbody kind.
 
 ## Evidence
 
-The deterministic `authorship-waterbodies-v1` corpus selects six islands that actually contain retained sinks. The atlas renders the accepted AUTH-0007 channel network in gray and waterbody planning anchors by kind:
+Retained sinks are intentionally uncommon after the AUTH-0005 priority-flood correction, so the deterministic `authorship-waterbodies-v1` corpus does not search for six rare cases or alter watershed policy to manufacture them. It uses the accepted key-83 retained-basin case together with five accepted drainage controls from AUTH-0006/0007.
+
+The atlas renders the accepted AUTH-0007 channel network in gray and waterbody planning anchors by kind:
 
 - cyan: pond;
 - dark blue: lake;
 - teal: wetland.
 
-Outer symbol size follows semantic basin scale and the inner dot follows persistence. These symbols are diagnostic markers only. They are intentionally not drawn as shorelines because AUTH-0008 does not yet author water-surface geometry.
+Outer symbol size follows semantic basin scale and the inner dot follows persistence. These symbols are diagnostic markers only. They are intentionally not drawn as shorelines because AUTH-0008 does not yet author water-surface geometry. `manifest.csv` summarizes each island while `candidates.csv` records every retained candidate and its input/output metrics. The control panels verify that AUTH-0008 does not invent waterbodies where upstream watershed topology retained none.
 
 ## Deferred
 
