@@ -1,9 +1,11 @@
 package io.github.nidaba.skyforge.reference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class AuthorshipWaterbodyFootprintCorpusTest {
@@ -15,7 +17,22 @@ class AuthorshipWaterbodyFootprintCorpusTest {
         assertTrue(Files.isRegularFile(output.resolve("atlas.png")));
         assertTrue(Files.isRegularFile(output.resolve("manifest.csv")));
         assertTrue(Files.isRegularFile(output.resolve("footprints.csv")));
-        assertTrue(Files.readString(output.resolve("manifest.csv")).lines().count() >= 7);
-        assertTrue(Files.readString(output.resolve("footprints.csv")).lines().count() >= 3);
+
+        List<String> manifest = Files.readAllLines(output.resolve("manifest.csv"));
+        List<String> footprints = Files.readAllLines(output.resolve("footprints.csv"));
+        assertTrue(manifest.size() >= 7);
+        assertEquals(2, footprints.size());
+
+        String key83 = manifest.stream()
+                .filter(line -> line.startsWith("83,"))
+                .findFirst()
+                .orElseThrow();
+        String[] columns = key83.split(",");
+        assertEquals("1", columns[2]);
+        assertEquals("2", columns[3]);
+
+        String[] footprintColumns = footprints.get(1).split(",");
+        assertEquals("83", footprintColumns[0]);
+        assertEquals("2", footprintColumns[3]);
     }
 }
