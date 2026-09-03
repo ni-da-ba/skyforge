@@ -67,6 +67,7 @@ final class SkyforgePhysicalVolumeCatchupService {
             }
             SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.observeLoaded(level);
             SkyforgeNeoForge1211BiomePresentationDevRuntime.observeLoaded(level);
+            SkyforgeNeoForge1211UndergroundPlacementDevRuntime.observeLoaded(level);
         }
     }
 }
