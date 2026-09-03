@@ -20,10 +20,10 @@ import net.minecraft.world.level.chunk.ProtoChunk;
  *
  * <p>This bridge is active only around that deferred population path. While one exact-volume
  * population execution is active, a mixin redirects LevelChunk post-processing requests into the
- * chunk's native packed post-processing queue. The runner then calls {@link #flushIfActive()} before
- * closing the exact-volume execution scope, so {@link LevelChunk#postProcessGeneration()} resolves
- * those marks while Skyforge's existing read/write/height/biome isolation is still authoritative.
- * Direct world-generation population never opens this bridge and therefore remains unchanged.
+ * chunk's native packed post-processing queue. Pre-existing native marks are detached temporarily so
+ * Skyforge resolves only work produced by the deferred feature, then restored unchanged for
+ * Minecraft's own lifecycle. Direct world-generation population never opens this bridge and
+ * therefore remains unchanged.
  */
 public final class SkyforgeDeferredPopulationPostProcessingBridge {
     private static final ThreadLocal<State> ACTIVE = new ThreadLocal<>();
@@ -66,11 +66,9 @@ public final class SkyforgeDeferredPopulationPostProcessingBridge {
         }
 
         long chunkKey = levelChunk.getPos().toLong();
-        if (!state.touched.containsKey(chunkKey)) {
-            requireEmptyNativeQueue(levelChunk, "before deferred population");
-            state.touched.put(chunkKey, levelChunk);
-        }
-
+        state.touched.computeIfAbsent(
+                chunkKey,
+                ignored -> new DeferredChunk(levelChunk, NativeQueueSnapshot.detach(levelChunk)));
         levelChunk.addPackedPostProcess(
                 ProtoChunk.packOffsetCoordinates(position),
                 levelChunk.getSectionIndex(position.getY()));
@@ -89,18 +87,26 @@ public final class SkyforgeDeferredPopulationPostProcessingBridge {
         state.flush();
     }
 
-    private static void requireEmptyNativeQueue(LevelChunk chunk, String moment) {
+    private static boolean nativeQueueEmpty(LevelChunk chunk) {
         for (var section : chunk.getPostProcessing()) {
             if (section != null && !section.isEmpty()) {
-                throw new IllegalStateException(
-                        "stable LevelChunk retained unrelated native post-processing " + moment + ": " + chunk.getPos());
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void clearNativeQueue(LevelChunk chunk) {
+        for (var section : chunk.getPostProcessing()) {
+            if (section != null) {
+                section.clear();
             }
         }
     }
 
     private static final class State {
         private final ServerLevel level;
-        private final Map<Long, LevelChunk> touched = new LinkedHashMap<>();
+        private final Map<Long, DeferredChunk> touched = new LinkedHashMap<>();
         private boolean flushing;
 
         private State(ServerLevel level) {
@@ -115,15 +121,83 @@ public final class SkyforgeDeferredPopulationPostProcessingBridge {
             try {
                 var chunks = java.util.List.copyOf(touched.values());
                 touched.clear();
-                for (LevelChunk chunk : chunks) {
-                    chunk.postProcessGeneration();
-                    requireEmptyNativeQueue(chunk, "after deferred population flush");
+                for (DeferredChunk deferred : chunks) {
+                    flush(deferred);
                 }
                 if (!touched.isEmpty()) {
                     throw new IllegalStateException("deferred post-processing produced new pending chunk work while flushing");
                 }
             } finally {
                 flushing = false;
+            }
+        }
+
+        private static void flush(DeferredChunk deferred) {
+            LevelChunk chunk = deferred.chunk();
+            try {
+                chunk.postProcessGeneration();
+                if (!nativeQueueEmpty(chunk)) {
+                    throw new IllegalStateException(
+                            "deferred Skyforge post-processing did not drain its isolated queue: " + chunk.getPos());
+                }
+            } finally {
+                // On either success or failure, never let Skyforge consume or overwrite native work
+                // that was already pending when the deferred feature began.
+                clearNativeQueue(chunk);
+                deferred.nativeQueue().restore(chunk);
+            }
+        }
+
+        private void abandon() {
+            for (DeferredChunk deferred : touched.values()) {
+                clearNativeQueue(deferred.chunk());
+                deferred.nativeQueue().restore(deferred.chunk());
+            }
+            touched.clear();
+        }
+    }
+
+    private record DeferredChunk(LevelChunk chunk, NativeQueueSnapshot nativeQueue) {
+        private DeferredChunk {
+            Objects.requireNonNull(chunk, "chunk");
+            Objects.requireNonNull(nativeQueue, "nativeQueue");
+        }
+    }
+
+    /** Exact per-section snapshot of native marks that pre-date one deferred Skyforge feature. */
+    private record NativeQueueSnapshot(short[][] entries) {
+        private NativeQueueSnapshot {
+            Objects.requireNonNull(entries, "entries");
+        }
+
+        private static NativeQueueSnapshot detach(LevelChunk chunk) {
+            var sections = chunk.getPostProcessing();
+            short[][] entries = new short[sections.length][];
+            for (int sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+                var section = sections[sectionIndex];
+                if (section == null || section.isEmpty()) {
+                    entries[sectionIndex] = new short[0];
+                } else {
+                    entries[sectionIndex] = section.toShortArray();
+                    section.clear();
+                }
+            }
+            return new NativeQueueSnapshot(entries);
+        }
+
+        private void restore(LevelChunk chunk) {
+            if (!nativeQueueEmpty(chunk)) {
+                throw new IllegalStateException(
+                        "cannot restore native post-processing over pending deferred work: " + chunk.getPos());
+            }
+            if (entries.length != chunk.getPostProcessing().length) {
+                throw new IllegalStateException(
+                        "post-processing section count changed during deferred population: " + chunk.getPos());
+            }
+            for (int sectionIndex = 0; sectionIndex < entries.length; sectionIndex++) {
+                for (short packedPosition : entries[sectionIndex]) {
+                    chunk.addPackedPostProcess(packedPosition, sectionIndex);
+                }
             }
         }
     }
@@ -148,6 +222,7 @@ public final class SkyforgeDeferredPopulationPostProcessingBridge {
             closed = true;
             ACTIVE.remove();
             if (!state.touched.isEmpty()) {
+                state.abandon();
                 throw new IllegalStateException("deferred Skyforge population closed with unflushed post-processing work");
             }
         }
