@@ -137,6 +137,8 @@ final class SkyforgeNeoForge1211LocalModificationsDevRuntime {
         int heightRangeSamples = 0;
         int nativeOutsideVolume = 0;
         int mappedOutsideVolume = 0;
+        int minimumMappedSampleY = Integer.MAX_VALUE;
+        int maximumMappedSampleY = Integer.MIN_VALUE;
         int transformedHeightSamples = 0;
         int acceptedWritePreflights = 0;
         int rejectedWritePreflights = 0;
@@ -178,6 +180,10 @@ final class SkyforgeNeoForge1211LocalModificationsDevRuntime {
             mappedOutsideVolume = Math.addExact(
                     mappedOutsideVolume,
                     Math.addExact(snapshot.mappedSamplesBelowEnvelope(), snapshot.mappedSamplesAboveEnvelope()));
+            if (snapshot.heightRangeSamples() > 0) {
+                minimumMappedSampleY = Math.min(minimumMappedSampleY, snapshot.minimumMappedSampleY());
+                maximumMappedSampleY = Math.max(maximumMappedSampleY, snapshot.maximumMappedSampleY());
+            }
             transformedHeightSamples = Math.addExact(
                     transformedHeightSamples,
                     snapshot.transformedHeightSamples());
@@ -227,8 +233,11 @@ final class SkyforgeNeoForge1211LocalModificationsDevRuntime {
         }
         if (geodeSuccesses <= 0) {
             throw new IllegalStateException("SF-IMP-0060 deterministic seed passed native rarity sampling but produced "
-                    + "no persistent minecraft:amethyst_geode; inspect local terrain support rather than bypassing "
-                    + "registered feature semantics");
+                    + "no persistent minecraft:amethyst_geode: mappedSampleYRange=["
+                    + minimumMappedSampleY + "," + maximumMappedSampleY + "]"
+                    + ", acceptedWritePreflights=" + acceptedWritePreflights
+                    + ", acceptedWriteAttempts=" + acceptedWriteAttempts
+                    + ". Inspect exact local terrain support rather than bypassing registered feature semantics");
         }
         if (acceptedWriteAttempts <= 0 && acceptedWritePreflights <= 0) {
             throw new IllegalStateException("SF-IMP-0060 successful local modifications produced no exact-owner write "
@@ -258,6 +267,7 @@ final class SkyforgeNeoForge1211LocalModificationsDevRuntime {
                         + ", heightRangeSamples=" + heightRangeSamples
                         + ", nativeOutsideVolume=" + nativeOutsideVolume
                         + ", mappedOutsideVolume=" + mappedOutsideVolume
+                        + ", mappedSampleYRange=[" + minimumMappedSampleY + "," + maximumMappedSampleY + "]"
                         + ", transformedHeightSamples=" + transformedHeightSamples
                         + ", transformDigest=" + Long.toUnsignedString(transformDigest, 16)
                         + ", acceptedWritePreflights=" + acceptedWritePreflights
