@@ -39,6 +39,20 @@ final class SkyforgePhysicalVolumeAdmissionLedgerTest {
     }
 
     @Test
+    void requiredFootprintExposureIsImmutableAndIndependentOfAdmissionProgress() {
+        var ledger = ledger(CHUNK_A, CHUNK_B);
+
+        Set<Long> footprint = ledger.requiredChunkKeys(VOLUME);
+        assertEquals(Set.of(CHUNK_A, CHUNK_B), footprint);
+        assertThrows(UnsupportedOperationException.class, () -> footprint.remove(CHUNK_A));
+
+        ledger.observe(clear(CHUNK_A));
+        assertEquals(Set.of(CHUNK_A, CHUNK_B), ledger.requiredChunkKeys(VOLUME));
+        ledger.observe(clear(CHUNK_B));
+        assertEquals(Set.of(CHUNK_A, CHUNK_B), ledger.requiredChunkKeys(VOLUME));
+    }
+
+    @Test
     void onePhysicalConflictRejectsWholeVolumeImmediately() {
         var ledger = ledger(CHUNK_A, CHUNK_B);
 

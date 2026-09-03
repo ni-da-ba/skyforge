@@ -135,6 +135,17 @@ neoForge {
             systemProperty("skyforge.dev.physicalAdmission", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+
+        // SF-IMP-0058 layers durable client-visible biome presentation onto the accepted 0056
+        // admission specimen. The admitted upper island maps to taiga in Minecraft biome storage;
+        // vertically unrelated native cells in the same X/Z column must remain unchanged.
+        create("biomePresentationClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0058")
+            systemProperty("skyforge.dev.physicalAdmission", "true")
+            systemProperty("skyforge.dev.biomePresentation", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
     }
 
     unitTest {
