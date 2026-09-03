@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,7 +28,7 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
  * changing a high island does not rewrite the biome cells around unrelated native terrain below it.
  *
  * <p>Minecraft cannot encode two independent biome identities in one quart cell. If another
- * Skyforge volume has any semantic solid claim in the same cell, this first implementation leaves
+ * Skyforge volume has any solid semantic claim in the same cell, this first implementation leaves
  * the cell unchanged rather than choosing an order-dependent winner. A later backend quantization
  * policy may resolve such cells once Skyforge authors richer continuous biome fields.
  *
@@ -64,6 +65,7 @@ final class SkyforgePersistentBiomePresentationStage {
             return new Result(volumeId, chunk.getPos().toLong(), 0, 0, 0, false);
         }
         SkyforgeNativeSurfacePopulationPlan plan = optionalPlan.orElseThrow();
+        WorldBounds volumeBounds = SkyforgePhysicalVolumeAdmissionStage.volumeBounds(volumeId);
 
         var biomeRegistry = level.registryAccess().registryOrThrow(Registries.BIOME);
         var sampler = level.getChunkSource().randomState().sampler();
@@ -80,6 +82,9 @@ final class SkyforgePersistentBiomePresentationStage {
             LevelChunkSection section = sections[sectionIndex];
             int sectionY = chunk.getSectionYFromSectionIndex(sectionIndex);
             int baseQuartY = Math.multiplyExact(sectionY, QUART_WIDTH);
+            if (!quartSlabIntersects(volumeBounds, baseQuartY)) {
+                continue;
+            }
 
             List<Holder<Biome>> original = snapshot(section);
             Map<Integer, Holder<Biome>> replacements = new HashMap<>();
@@ -89,7 +94,15 @@ final class SkyforgePersistentBiomePresentationStage {
                     int quartZ = baseQuartZ + localQuartZ;
                     for (int localQuartX = 0; localQuartX < QUART_WIDTH; localQuartX++) {
                         int quartX = baseQuartX + localQuartX;
-                        Optional<BlockPos> sample = firstOwnedSample(volumeId, quartX, quartY, quartZ);
+                        if (!quartIntersects(volumeBounds, quartX, quartY, quartZ)) {
+                            continue;
+                        }
+                        Optional<BlockPos> sample = firstOwnedSample(
+                                volumeId,
+                                volumeBounds,
+                                quartX,
+                                quartY,
+                                quartZ);
                         if (sample.isEmpty()) {
                             continue;
                         }
@@ -205,6 +218,7 @@ final class SkyforgePersistentBiomePresentationStage {
 
     private static Optional<BlockPos> firstOwnedSample(
             SkyIslandWorldVolumeId volumeId,
+            WorldBounds volumeBounds,
             int quartX,
             int quartY,
             int quartZ) {
@@ -217,6 +231,9 @@ final class SkyforgePersistentBiomePresentationStage {
                     int worldX = minimumX + offsetX;
                     int worldY = minimumY + offsetY;
                     int worldZ = minimumZ + offsetZ;
+                    if (!contains(volumeBounds, worldX, worldY, worldZ)) {
+                        continue;
+                    }
                     boolean owned = SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(
                                     volumeId,
                                     worldX,
@@ -258,6 +275,44 @@ final class SkyforgePersistentBiomePresentationStage {
             }
         }
         return false;
+    }
+
+    private static boolean quartSlabIntersects(WorldBounds bounds, int baseQuartY) {
+        int minimumY = Math.multiplyExact(baseQuartY, BLOCKS_PER_QUART);
+        int maximumY = minimumY + (QUART_WIDTH * BLOCKS_PER_QUART) - 1;
+        return maximumY >= bounds.minimumY() && minimumY <= bounds.maximumY();
+    }
+
+    private static boolean quartIntersects(
+            WorldBounds bounds,
+            int quartX,
+            int quartY,
+            int quartZ) {
+        int minimumX = Math.multiplyExact(quartX, BLOCKS_PER_QUART);
+        int minimumY = Math.multiplyExact(quartY, BLOCKS_PER_QUART);
+        int minimumZ = Math.multiplyExact(quartZ, BLOCKS_PER_QUART);
+        int maximumX = minimumX + BLOCKS_PER_QUART - 1;
+        int maximumY = minimumY + BLOCKS_PER_QUART - 1;
+        int maximumZ = minimumZ + BLOCKS_PER_QUART - 1;
+        return maximumX >= bounds.minimumX()
+                && minimumX <= bounds.maximumX()
+                && maximumY >= bounds.minimumY()
+                && minimumY <= bounds.maximumY()
+                && maximumZ >= bounds.minimumZ()
+                && minimumZ <= bounds.maximumZ();
+    }
+
+    private static boolean contains(
+            WorldBounds bounds,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        return worldX >= bounds.minimumX()
+                && worldX <= bounds.maximumX()
+                && worldY >= bounds.minimumY()
+                && worldY <= bounds.maximumY()
+                && worldZ >= bounds.minimumZ()
+                && worldZ <= bounds.maximumZ();
     }
 
     private static int quartIndex(int localQuartX, int localQuartY, int localQuartZ) {
