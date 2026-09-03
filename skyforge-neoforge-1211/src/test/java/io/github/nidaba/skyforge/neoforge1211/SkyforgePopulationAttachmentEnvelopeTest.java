@@ -45,6 +45,8 @@ final class SkyforgePopulationAttachmentEnvelopeTest {
     void zeroDepthAllowsOnlyExactOwnerTerrain() {
         var envelope = new SkyforgePopulationAttachmentEnvelope(OWNER::equals, 0);
 
+        assertTrue(envelope.canAcceptWrite(OWNER));
+        assertFalse(envelope.canAcceptWrite(new BlockPos(0, 101, 0)));
         assertTrue(envelope.acceptWrite(OWNER));
         assertFalse(envelope.acceptWrite(new BlockPos(0, 101, 0)));
     }
@@ -58,9 +60,28 @@ final class SkyforgePopulationAttachmentEnvelopeTest {
                 foreign::equals,
                 8);
 
+        assertTrue(envelope.canAcceptWrite(attachment));
+        assertEquals(0, envelope.attachmentCount());
         assertTrue(envelope.acceptWrite(attachment));
+        assertFalse(envelope.canAcceptWrite(foreign));
         assertFalse(envelope.acceptWrite(foreign));
         assertFalse(envelope.ownsAttachment(foreign));
+        assertEquals(1, envelope.attachmentCount());
+    }
+
+    @Test
+    void preflightDoesNotCreateAttachmentProvenance() {
+        var envelope = new SkyforgePopulationAttachmentEnvelope(OWNER::equals, 2);
+        BlockPos first = new BlockPos(0, 101, 0);
+        BlockPos second = new BlockPos(0, 102, 0);
+
+        assertTrue(envelope.canAcceptWrite(first));
+        assertEquals(0, envelope.attachmentCount());
+        assertFalse(envelope.canAcceptWrite(second));
+        assertEquals(0, envelope.attachmentCount());
+
+        assertTrue(envelope.acceptWrite(first));
+        assertTrue(envelope.canAcceptWrite(second));
         assertEquals(1, envelope.attachmentCount());
     }
 }
