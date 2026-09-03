@@ -38,8 +38,14 @@ jobs:
       - name: Build, test, and generate evidence
         run: ./gradlew check :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence
 
+      - name: Verify evidence review entry points
+        run: |
+          test -f skyforge-reference/build/evidence/fixed-seed-island-v1/index.html
+          test -f skyforge-reference/build/evidence/signal-free-suspended-volume-v1/index.html
+
       - name: Publish compact evidence review bundle
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: skyforge-evidence-review-${{ github.sha }}
@@ -57,4 +63,3 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 9
-
