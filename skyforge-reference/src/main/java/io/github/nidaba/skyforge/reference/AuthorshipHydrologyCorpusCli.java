@@ -60,9 +60,9 @@ public final class AuthorshipHydrologyCorpusCli {
             g.setColor(Color.BLACK); g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 17));
             g.drawString(selection.role() + " / " + d.morphologyFamily().identifier(), x + 8, y + 21);
             g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
-            g.drawString("key=" + selection.candidate().islandKey() + " H=" + shortValue(d.hydrologicalPotential()) + " M=" + shortValue(d.moistureTendency()) + " P=" + shortValue(d.permeability()), x + 8, y + 43);
+            g.drawString("key=" + selection.candidate().key() + " H=" + shortValue(d.hydrologicalPotential()) + " M=" + shortValue(d.moistureTendency()) + " P=" + shortValue(d.permeability()), x + 8, y + 43);
             g.drawImage(map, x, y + LABEL_HEIGHT, null);
-            manifest.append(selection.role()).append(',').append(selection.candidate().islandKey()).append(',')
+            manifest.append(selection.role()).append(',').append(selection.candidate().key()).append(',')
                     .append(d.morphologyFamily().identifier()).append(',').append(d.nominalRadius()).append(',')
                     .append(d.moistureTendency()).append(',').append(d.permeability()).append(',')
                     .append(d.hydrologicalPotential()).append(',').append(d.exposureTendency()).append('\n');
