@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import javax.imageio.ImageIO;
@@ -30,7 +29,7 @@ import javax.imageio.ImageIO;
 public final class AuthorshipWaterbodyPlanningCorpusCli {
     private static final long SEED = 0x534B59464F524745L;
     private static final int MAP = 320;
-    private static final int KEY_SEARCH_LIMIT = 1024;
+    private static final List<Long> KEYS = List.of(83L, 77L, 118L, 241L, 512L, 811L);
 
     private AuthorshipWaterbodyPlanningCorpusCli() {}
 
@@ -40,16 +39,17 @@ public final class AuthorshipWaterbodyPlanningCorpusCli {
                 : Path.of("build", "evidence", "authorship-waterbodies-v1");
         Files.createDirectories(out);
 
-        List<Long> keys = selectKeys();
         BufferedImage atlas = new BufferedImage(3 * MAP, 2 * (MAP + 64), BufferedImage.TYPE_INT_RGB);
         Graphics2D atlasGraphics = atlas.createGraphics();
         atlasGraphics.setColor(Color.WHITE);
         atlasGraphics.fillRect(0, 0, atlas.getWidth(), atlas.getHeight());
         StringBuilder manifest = new StringBuilder(
                 "islandKey,morphology,candidates,ponds,lakes,wetlands,maxCatchmentFraction,maxPersistence,maxBasinScale\n");
+        StringBuilder candidateDetails = new StringBuilder(
+                "islandKey,morphology,ordinal,kind,sinkCell,catchmentCells,catchmentFraction,relativeInflow,retention,saturation,persistence,basinScale\n");
 
-        for (int n = 0; n < keys.size(); n++) {
-            long key = keys.get(n);
+        for (int n = 0; n < KEYS.size(); n++) {
+            long key = KEYS.get(n);
             SkyIslandDescriptor descriptor = descriptor(key);
             SkyIslandWaterbodyPlan waterbodies = SkyIslandWaterbodyPlanner.plan(descriptor);
             SkyIslandChannelNetworkPlan channels = SkyIslandChannelNetworkPlanner.plan(descriptor);
@@ -91,11 +91,28 @@ public final class AuthorshipWaterbodyPlanningCorpusCli {
                     .append(format(maxCatchment)).append(',')
                     .append(format(maxPersistence)).append(',')
                     .append(format(maxScale)).append('\n');
+
+            for (int ordinal = 0; ordinal < waterbodies.candidates().size(); ordinal++) {
+                SkyIslandWaterbodyCandidate candidate = waterbodies.candidates().get(ordinal);
+                candidateDetails.append(key).append(',')
+                        .append(descriptor.morphologyFamily().identifier()).append(',')
+                        .append(ordinal).append(',')
+                        .append(candidate.kind()).append(',')
+                        .append(candidate.sinkCellIndex()).append(',')
+                        .append(candidate.catchmentCellCount()).append(',')
+                        .append(format(candidate.catchmentFraction())).append(',')
+                        .append(format(candidate.relativeInflow())).append(',')
+                        .append(format(candidate.retentionPotential())).append(',')
+                        .append(format(candidate.saturationPotential())).append(',')
+                        .append(format(candidate.persistence())).append(',')
+                        .append(format(candidate.basinScale())).append('\n');
+            }
         }
 
         atlasGraphics.dispose();
         ImageIO.write(atlas, "png", out.resolve("atlas.png").toFile());
         Files.writeString(out.resolve("manifest.csv"), manifest.toString(), StandardCharsets.UTF_8);
+        Files.writeString(out.resolve("candidates.csv"), candidateDetails.toString(), StandardCharsets.UTF_8);
         Files.writeString(
                 out.resolve("index.html"),
                 "<!doctype html><meta charset=\"utf-8\"><title>AUTH-0008</title>"
@@ -103,23 +120,11 @@ public final class AuthorshipWaterbodyPlanningCorpusCli {
                         + "<p>Gray lines: accepted AUTH-0007 channels. Cyan: pond. Dark blue: lake. Teal: wetland. "
                         + "Outer symbol size follows semantic basin scale; inner dot follows persistence. "
                         + "Symbols are planning anchors, not literal shorelines or water levels.</p>"
+                        + "<p>Key 83 is the retained-basin case; the remaining panels are accepted drainage controls that verify "
+                        + "AUTH-0008 does not invent waterbodies where AUTH-0005 retained none.</p>"
                         + "<img src=\"atlas.png\" style=\"max-width:100%\">"
-                        + "<p><a href=\"manifest.csv\">manifest.csv</a></p>",
+                        + "<p><a href=\"manifest.csv\">manifest.csv</a> · <a href=\"candidates.csv\">candidates.csv</a></p>",
                 StandardCharsets.UTF_8);
-    }
-
-    private static List<Long> selectKeys() {
-        List<Long> keys = new ArrayList<>();
-        for (long key = 0; key < KEY_SEARCH_LIMIT && keys.size() < 6; key++) {
-            SkyIslandWaterbodyPlan plan = SkyIslandWaterbodyPlanner.plan(descriptor(key));
-            if (!plan.candidates().isEmpty()) {
-                keys.add(key);
-            }
-        }
-        if (keys.size() < 6) {
-            throw new IllegalStateException("AUTH-0008 evidence search found only " + keys.size() + " retained-water islands");
-        }
-        return List.copyOf(keys);
     }
 
     private static BufferedImage render(
