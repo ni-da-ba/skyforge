@@ -74,6 +74,16 @@ class SkyIslandHydrologicTerrainInfluencePlannerTest {
         assertTrue(sawDropShaping);
     }
 
+    @Test
+    void cascadeHeavyMassifDoesNotBecomeFloodplainDominant() {
+        SkyIslandHydrologicTerrainInfluencePlan plan =
+                SkyIslandHydrologicTerrainInfluencePlanner.plan(descriptor(811L));
+
+        assertTrue(
+                plan.count(SkyIslandHydrologicTerrainResponseKind.INCISION)
+                        > plan.count(SkyIslandHydrologicTerrainResponseKind.FLOODPLAIN));
+    }
+
     private static void assertNormalized(double value) {
         assertTrue(Double.isFinite(value));
         assertTrue(value >= 0.0 && value <= 1.0);
