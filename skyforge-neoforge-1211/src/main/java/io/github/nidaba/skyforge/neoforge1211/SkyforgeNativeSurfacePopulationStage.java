@@ -59,8 +59,11 @@ final class SkyforgeNativeSurfacePopulationStage {
         if (chunk.getLevel() != level) {
             throw new IllegalArgumentException("deferred population chunk belongs to another level");
         }
-        try (var ignored = SkyforgeDeferredPopulationPostProcessingBridge.open(level)) {
+        var postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(level);
+        try {
             return populate(level, chunk, generator);
+        } finally {
+            postProcessing.close();
         }
     }
 
