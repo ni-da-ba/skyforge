@@ -30,4 +30,15 @@ class SkyIslandHydrologicFeaturePlannerTest {
         }
         assertTrue(found);
     }
+
+    @Test
+    void weaklyDifferentiatedWatershedCannotBecomeChannelCarpet() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(0x534B59464F524745L, 6L, 61L, 811L));
+        SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
+        SkyIslandHydrologicFeaturePlan features = SkyIslandHydrologicFeaturePlanner.plan(descriptor);
+        long channelCount = features.count(SkyIslandHydrologicFeatureKind.CHANNEL);
+        assertTrue(channelCount > 0);
+        assertTrue(channelCount < watershed.cells().size() * 0.08);
+    }
 }
