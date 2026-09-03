@@ -199,9 +199,20 @@ final class SkyforgeNeoForge1211PhysicalAdmissionDevRuntime {
             throw new IllegalStateException("SF-IMP-0056 admitted upper volume did not catch up its origin terrain");
         }
 
+        int expectedPopulationPhases = expectedPopulatedProofChunks(
+                upperId,
+                level.getMinBuildHeight(),
+                level.getHeight());
+        if (expectedPopulationPhases <= 0) {
+            throw new IllegalStateException("SF-IMP-0056 upper proof volume has no populatable surface chunks");
+        }
         int completedPhases = SkyforgeNativeSurfacePopulationStage.completedPhaseCount();
-        if (completedPhases < EXPECTED_PROOF_CHUNKS) {
+        if (completedPhases < expectedPopulationPhases) {
             return;
+        }
+        if (completedPhases != expectedPopulationPhases) {
+            throw new IllegalStateException("SF-IMP-0056 completed unexpected population phase count: completed="
+                    + completedPhases + ", expected=" + expectedPopulationPhases);
         }
         if (!SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(lowerId).isEmpty()) {
             throw new IllegalStateException("SF-IMP-0056 rejected lower volume retained deferred realization work");
@@ -223,6 +234,7 @@ final class SkyforgeNeoForge1211PhysicalAdmissionDevRuntime {
                         + ", pendingCatchup=0"
                         + ", originSurfaceY=" + upperSurfaceY
                         + ", completedPopulationPhases=" + completedPhases
+                        + ", expectedPopulationPhases=" + expectedPopulationPhases
                         + "}. Rejected native collision remained untouched; clear multi-chunk volume admitted atomically "
                         + "and completed deferred exact terrain/population through stable loaded chunks without forced "
                         + "future chunk generation.");
@@ -270,6 +282,43 @@ final class SkyforgeNeoForge1211PhysicalAdmissionDevRuntime {
                 descriptor,
                 new ProviderMorphologyEnrichment(provider, 0.0, 0.0),
                 SkyIslandMorphologyProviders.builtInRegistry());
+    }
+
+    private static int expectedPopulatedProofChunks(
+            SkyIslandWorldVolumeId volumeId,
+            int minimumY,
+            int height) {
+        int count = 0;
+        for (int chunkX = -PROOF_RADIUS_CHUNKS; chunkX <= PROOF_RADIUS_CHUNKS; chunkX++) {
+            for (int chunkZ = -PROOF_RADIUS_CHUNKS; chunkZ <= PROOF_RADIUS_CHUNKS; chunkZ++) {
+                if (containsExactVolumeSurface(volumeId, new ChunkPos(chunkX, chunkZ), minimumY, height)) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static boolean containsExactVolumeSurface(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos chunkPos,
+            int minimumY,
+            int height) {
+        for (int x = chunkPos.getMinBlockX(); x <= chunkPos.getMaxBlockX(); x++) {
+            for (int z = chunkPos.getMinBlockZ(); z <= chunkPos.getMaxBlockZ(); z++) {
+                if (SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
+                                volumeId,
+                                x,
+                                z,
+                                Heightmap.Types.WORLD_SURFACE_WG,
+                                minimumY,
+                                height)
+                        .isPresent()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean isProofChunk(ChunkPos chunkPos) {
