@@ -154,7 +154,7 @@ dependencies {
     // ModDevGradle's FML-aware JUnit launcher is currently proven against JUnit Platform 5.
     // Isolate this Minecraft integration module on the plugin's own known-good JUnit line rather
     // than forcing the rest of Skyforge away from its independent test stack.
-    testImplementation(enforcedPlatform("org.junit:junit-bom:5.14.1"))
+    testImplementation(enforcedPlatform("org.junit:junit-bom:5.14.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
