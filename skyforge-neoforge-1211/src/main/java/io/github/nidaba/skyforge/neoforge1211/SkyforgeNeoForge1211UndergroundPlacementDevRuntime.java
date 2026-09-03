@@ -5,13 +5,12 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.Heightmap;
 
-/** Development-only baseline for SF-IMP-0059 native underground vertical placement. */
+/** Development-only acceptance proof for SF-IMP-0059 volume-local underground placement. */
 final class SkyforgeNeoForge1211UndergroundPlacementDevRuntime {
     private static final int PROOF_X = 8;
     private static final int PROOF_Z = 8;
@@ -21,19 +20,19 @@ final class SkyforgeNeoForge1211UndergroundPlacementDevRuntime {
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeNeoForge1211UndergroundPlacementDevRuntime.class.getName());
 
-    private static boolean baselineStarted;
+    private static boolean proofStarted;
     private static boolean proofComplete;
 
     private SkyforgeNeoForge1211UndergroundPlacementDevRuntime() {}
 
     static synchronized void observeLoaded(ServerLevel level) {
-        if (!SkyforgeUndergroundPlacementProbe.enabled() || baselineStarted || proofComplete) {
+        if (!SkyforgeUndergroundPlacementProbe.enabled() || proofStarted || proofComplete) {
             return;
         }
 
         var volumes = SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.catalog().volumes();
         if (volumes.size() != 2) {
-            throw new IllegalStateException("SF-IMP-0059 baseline requires the accepted two-volume 0056 catalog");
+            throw new IllegalStateException("SF-IMP-0059 proof requires the accepted two-volume 0056 catalog");
         }
         var lowerVolume = volumes.get(0);
         var upperVolume = volumes.get(1);
@@ -64,14 +63,16 @@ final class SkyforgeNeoForge1211UndergroundPlacementDevRuntime {
                 .orElseThrow(() -> new IllegalStateException("SF-IMP-0059 upper proof volume has no origin surface"))
                 .height();
 
-        int minimumEnvelopeY = (int) Math.floor(upperVolume.bounds().minimumY());
-        int maximumEnvelopeY = (int) Math.ceil(upperVolume.bounds().maximumY());
+        int minimumEnvelopeY = (int) Math.ceil(upperVolume.bounds().minimumY());
+        int maximumEnvelopeY = (int) Math.floor(upperVolume.bounds().maximumY());
+        int nativeMinimumY = level.getMinBuildHeight();
+        int nativeMaximumY = Math.addExact(nativeMinimumY, Math.subtractExact(level.getHeight(), 1));
         List<BlockState> baseColumnBefore = captureBaseColumn(level);
-        baselineStarted = true;
+        proofStarted = true;
 
         var biomeResolver = (SkyforgeExactVolumeBiomeResolver) (volumeId, x, y, z) -> {
             if (!volumeId.equals(upperId)) {
-                throw new IllegalArgumentException("SF-IMP-0059 baseline resolved an unexpected volume: "
+                throw new IllegalArgumentException("SF-IMP-0059 proof resolved an unexpected volume: "
                         + volumeId.path());
             }
             return Biomes.TAIGA;
@@ -102,22 +103,35 @@ final class SkyforgeNeoForge1211UndergroundPlacementDevRuntime {
 
         if (snapshot.heightRangeSamples() <= 0) {
             throw new IllegalStateException(
-                    "SF-IMP-0059 baseline executed UNDERGROUND_ORES without observing any HeightRangePlacement samples");
+                    "SF-IMP-0059 executed UNDERGROUND_ORES without observing any HeightRangePlacement samples");
         }
-
-        LOGGER.log(
-                System.Logger.Level.INFO,
-                "SF-IMP-0059 NATIVE UNDERGROUND MEASUREMENT: envelopeY=[" + minimumEnvelopeY + ","
-                        + maximumEnvelopeY + "], sampleYRange=[" + snapshot.minimumSampleY() + ","
-                        + snapshot.maximumSampleY() + "], heightRangeSamples=" + snapshot.heightRangeSamples()
-                        + ", below=" + snapshot.samplesBelowEnvelope()
-                        + ", inside=" + snapshot.samplesInsideEnvelope()
-                        + ", above=" + snapshot.samplesAboveEnvelope()
-                        + ", writePreflightChecks=" + snapshot.writePreflightChecks()
-                        + ", acceptedWritePreflights=" + snapshot.acceptedWritePreflights()
-                        + ", rejectedWritePreflights=" + snapshot.rejectedWritePreflights()
-                        + ", rejectedPreflightYRange=[" + snapshot.minimumRejectedPreflightY() + ","
-                        + snapshot.maximumRejectedPreflightY() + "].");
+        int nativeOutsideEnvelope = Math.addExact(
+                snapshot.nativeSamplesBelowEnvelope(),
+                snapshot.nativeSamplesAboveEnvelope());
+        int mappedOutsideEnvelope = Math.addExact(
+                snapshot.mappedSamplesBelowEnvelope(),
+                snapshot.mappedSamplesAboveEnvelope());
+        if (nativeOutsideEnvelope <= 0) {
+            throw new IllegalStateException(
+                    "SF-IMP-0059 fixture no longer discriminates native absolute-height placement from local placement");
+        }
+        if (snapshot.transformedHeightSamples() <= 0) {
+            throw new IllegalStateException("SF-IMP-0059 vertical frame transformed no native height samples");
+        }
+        if (mappedOutsideEnvelope != 0
+                || snapshot.mappedSamplesInsideEnvelope() != snapshot.heightRangeSamples()) {
+            throw new IllegalStateException(
+                    "SF-IMP-0059 vertical frame left a HeightRangePlacement sample outside the exact volume envelope");
+        }
+        if (snapshot.acceptedWritePreflights() <= 0
+                || snapshot.uniqueAcceptedPreflightPositions() <= 0) {
+            throw new IllegalStateException(
+                    "SF-IMP-0059 transformed underground phase produced no exact-owner write candidates");
+        }
+        if (result.successfulFeatures() <= 0) {
+            throw new IllegalStateException(
+                    "SF-IMP-0059 transformed underground phase produced no successful registry-native features");
+        }
 
         List<BlockState> baseColumnAfter = captureBaseColumn(level);
         if (!baseColumnAfter.equals(baseColumnBefore)) {
@@ -128,56 +142,50 @@ final class SkyforgeNeoForge1211UndergroundPlacementDevRuntime {
                 if (!before.equals(after)) {
                     int changedY = minimumCapturedY + index;
                     throw new IllegalStateException(
-                            "SF-IMP-0059 native underground baseline mutated vertically unrelated BASE_WORLD terrain at "
+                            "SF-IMP-0059 local underground placement mutated vertically unrelated BASE_WORLD terrain at "
                                     + "BlockPos{x=" + PROOF_X + ", y=" + changedY + ", z=" + PROOF_Z + "}: before="
                                     + before + ", after=" + after);
                 }
             }
             throw new IllegalStateException(
-                    "SF-IMP-0059 native underground baseline changed BASE_WORLD capture size unexpectedly");
+                    "SF-IMP-0059 local underground placement changed BASE_WORLD capture size unexpectedly");
         }
 
-        int outsideEnvelopeSamples = Math.addExact(
-                snapshot.samplesBelowEnvelope(),
-                snapshot.samplesAboveEnvelope());
-        String outcome = outsideEnvelopeSamples == 0
-                ? "NATIVE_HEIGHTS_ALREADY_LOCAL"
-                : "ABSOLUTE_HEIGHT_FRAME_MISMATCH_CONFIRMED";
         List<String> successfulFeatures = result.featureResults().stream()
                 .filter(SkyforgeNativeBiomePopulationRunner.FeatureResult::placed)
                 .map(feature -> feature.featureKey().toString())
                 .toList();
+        String transformDigest = Long.toUnsignedString(snapshot.heightTransformDigest(), 16);
 
         proofComplete = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
-                "SF-IMP-0059 NATIVE UNDERGROUND BASELINE: outcome=" + outcome
-                        + ", volume=" + upperId.path()
-                        + ", envelopeY=[" + minimumEnvelopeY + "," + maximumEnvelopeY + "]"
+                "SF-IMP-0059 UNDERGROUND PLACEMENT PASS: volume=" + upperId.path()
+                        + ", nativeFrameY=[" + nativeMinimumY + "," + nativeMaximumY + "]"
+                        + ", volumeFrameY=[" + minimumEnvelopeY + "," + maximumEnvelopeY + "]"
                         + ", surfaceY=" + upperSurfaceY
                         + ", phase=" + GenerationStep.Decoration.UNDERGROUND_ORES
                         + ", attemptedFeatures=" + result.attemptedFeatures()
                         + ", successfulFeatures=" + result.successfulFeatures()
                         + ", successfulFeatureKeys=" + successfulFeatures
                         + ", heightRangeSamples=" + snapshot.heightRangeSamples()
-                        + ", samplesBelowEnvelope=" + snapshot.samplesBelowEnvelope()
-                        + ", samplesInsideEnvelope=" + snapshot.samplesInsideEnvelope()
-                        + ", samplesAboveEnvelope=" + snapshot.samplesAboveEnvelope()
-                        + ", sampleYRange=[" + snapshot.minimumSampleY() + "," + snapshot.maximumSampleY() + "]"
+                        + ", nativeSampleYRange=[" + snapshot.minimumNativeSampleY() + ","
+                        + snapshot.maximumNativeSampleY() + "]"
+                        + ", nativeOutsideVolume=" + nativeOutsideEnvelope
+                        + ", mappedSampleYRange=[" + snapshot.minimumMappedSampleY() + ","
+                        + snapshot.maximumMappedSampleY() + "]"
+                        + ", mappedOutsideVolume=" + mappedOutsideEnvelope
+                        + ", transformedHeightSamples=" + snapshot.transformedHeightSamples()
+                        + ", transformDigest=" + transformDigest
                         + ", writePreflightChecks=" + snapshot.writePreflightChecks()
                         + ", acceptedWritePreflights=" + snapshot.acceptedWritePreflights()
+                        + ", uniqueAcceptedPreflightPositions=" + snapshot.uniqueAcceptedPreflightPositions()
+                        + ", acceptedPreflightYRange=[" + snapshot.minimumAcceptedPreflightY() + ","
+                        + snapshot.maximumAcceptedPreflightY() + "]"
                         + ", rejectedWritePreflights=" + snapshot.rejectedWritePreflights()
-                        + ", uniqueRejectedPreflightPositions=" + snapshot.uniqueRejectedPreflightPositions()
-                        + ", rejectedPreflightYRange=[" + snapshot.minimumRejectedPreflightY() + ","
-                        + snapshot.maximumRejectedPreflightY() + "]"
-                        + ", acceptedWriteAttempts=" + snapshot.acceptedWriteAttempts()
-                        + ", rejectedWriteAttempts=" + snapshot.rejectedWriteAttempts()
-                        + ", uniqueAcceptedWritePositions=" + snapshot.uniqueAcceptedWritePositions()
-                        + ", acceptedWriteYRange=[" + snapshot.minimumAcceptedWriteY() + ","
-                        + snapshot.maximumAcceptedWriteY() + "]"
-                        + ", baseColumnPreserved=true. Registry-native underground placement executed without any "
-                        + "vertical transform; optimized native write preflights and exact-volume isolation remained "
-                        + "authoritative.");
+                        + ", baseColumnPreserved=true. Native HeightRangePlacement randomness was sampled first, then "
+                        + "mapped monotonically into the admitted exact-volume frame; optimized ore writes remained "
+                        + "subject to exact owner preflight and vertically unrelated BASE_WORLD terrain stayed intact.");
     }
 
     private static List<BlockState> captureBaseColumn(ServerLevel level) {
