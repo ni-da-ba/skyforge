@@ -29,22 +29,62 @@ final class SkyforgeNativeSurfacePopulationStage {
             return List.of();
         }
 
+        List<SkyforgeNativeSurfacePopulationCoordinator.Result> results = new ArrayList<>();
+        for (SkyforgeNativeSurfacePopulationPlan plan : resolvePlans(binding, chunk)) {
+            if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(plan.volumeId())) {
+                continue;
+            }
+            results.add(binding.coordinator().populate(level, generator, plan, chunk.getPos()));
+        }
+        return List.copyOf(results);
+    }
+
+    /**
+     * Replays the normal coordinator for one exact volume after deferred terrain realization.
+     *
+     * <p>The coordinator remains the idempotence authority, so calling this after an already-run
+     * normal population pass cannot duplicate a completed phase.
+     */
+    static List<SkyforgeNativeSurfacePopulationCoordinator.Result> populateVolume(
+            WorldGenLevel level,
+            ChunkAccess chunk,
+            ChunkGenerator generator,
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(generator, "generator");
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null || !SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(volumeId)) {
+            return List.of();
+        }
+
+        List<SkyforgeNativeSurfacePopulationCoordinator.Result> results = new ArrayList<>(1);
+        for (SkyforgeNativeSurfacePopulationPlan plan : resolvePlans(binding, chunk)) {
+            if (plan.volumeId().equals(volumeId)) {
+                results.add(binding.coordinator().populate(level, generator, plan, chunk.getPos()));
+            }
+        }
+        return List.copyOf(results);
+    }
+
+    private static List<SkyforgeNativeSurfacePopulationPlan> resolvePlans(
+            RuntimeBinding binding,
+            ChunkAccess chunk) {
         ChunkPos chunkPos = chunk.getPos();
         List<SkyforgeNativeSurfacePopulationPlan> plans = List.copyOf(binding.planResolver().resolve(
                 chunkPos,
                 chunk.getMinBuildHeight(),
                 chunk.getHeight()));
         var volumeIds = new HashSet<SkyIslandWorldVolumeId>();
-        List<SkyforgeNativeSurfacePopulationCoordinator.Result> results = new ArrayList<>(plans.size());
         for (SkyforgeNativeSurfacePopulationPlan plan : plans) {
             Objects.requireNonNull(plan, "surface population plan resolver returned null plan");
             if (!volumeIds.add(plan.volumeId())) {
                 throw new IllegalStateException("surface population plan resolver returned duplicate volume plan for chunk "
                         + chunkPos + ": " + plan.volumeId().path());
             }
-            results.add(binding.coordinator().populate(level, generator, plan, chunkPos));
         }
-        return List.copyOf(results);
+        return plans;
     }
 
     static AutoCloseable install(PlanResolver planResolver) {

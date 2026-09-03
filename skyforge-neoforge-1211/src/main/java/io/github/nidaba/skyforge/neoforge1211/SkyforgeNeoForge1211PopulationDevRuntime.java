@@ -69,13 +69,17 @@ final class SkyforgeNeoForge1211PopulationDevRuntime {
             WorldGenLevel level,
             ChunkAccess chunk,
             ChunkGenerator generator) {
-        // This is the single accepted post-realization population callback. A reusable native
-        // surface-population binding is serviced first and is inert unless explicitly installed.
-        // Development fixtures then observe or exercise that same lifecycle seam without adding
-        // milestone-specific hooks to SkyforgeNoiseBasedChunkGenerator.
+        // Deferred physical-admission catch-up is deliberately not serviced from WorldGenRegion.
+        // A region can expose neighboring ProtoChunks that are present but not safe for arbitrary
+        // post-step mutation. SF-IMP-0056 services deferred work later through loaded LevelChunks.
+
+        // A reusable native surface-population binding is serviced next and is inert unless
+        // explicitly installed. Development fixtures then observe or exercise that same lifecycle
+        // seam without adding milestone-specific hooks to SkyforgeNoiseBasedChunkGenerator.
         SkyforgeNativeSurfacePopulationStage.populate(level, chunk, generator);
         SkyforgeNeoForge1211SurfacePopulationDevRuntime.observe(level, chunk, generator);
         SkyforgeNeoForge1211BiomePopulationDevRuntime.populate(level, chunk, generator);
+        SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.observe(level, chunk, generator);
 
         if (!enabled() || proofComplete || !chunk.getPos().equals(PROOF_CHUNK)) {
             return;

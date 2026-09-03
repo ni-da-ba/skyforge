@@ -44,6 +44,10 @@ public final class SkyforgeNeoForge1211ChunkWriter {
      * another backend system already placed there. This mode therefore skips AIR positions
      * entirely while retaining strict registry resolution and read-back verification for every
      * Skyforge solid that is written.
+     *
+     * <p>Physical admission observation deliberately lives above this writer. That keeps a concrete
+     * block writer free of generation-lifecycle side effects and allows deferred exact-volume writes
+     * to reuse the same primitive without accidentally resurveying already-mutated chunks.
      */
     public MinecraftChunkWriteResult writeSolidOverlay(
             ChunkAccess chunk,
@@ -75,13 +79,17 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                         continue;
                     }
 
+                    int worldX = Math.addExact(minimumX, localX);
+                    if (!expectedAir && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(worldX, worldY, worldZ)) {
+                        continue;
+                    }
+
                     BlockState state = blockStateResolver.resolve(key);
                     if (state.isAir() != expectedAir) {
                         throw new IllegalStateException(
                                 "resolved BlockState changed authoritative Skyforge occupancy for " + key);
                     }
 
-                    int worldX = Math.addExact(minimumX, localX);
                     blockPos.set(worldX, worldY, worldZ);
                     chunk.setBlockState(blockPos, state, false);
                     BlockState stored = chunk.getBlockState(blockPos);
