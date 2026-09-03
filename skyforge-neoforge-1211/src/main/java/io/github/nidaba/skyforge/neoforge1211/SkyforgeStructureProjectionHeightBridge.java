@@ -64,8 +64,12 @@ public final class SkyforgeStructureProjectionHeightBridge {
             return liveHeight;
         }
 
+        // allowsPopulation is also the accepted physical-presence predicate: with no admission
+        // stage installed historical fixtures realize directly; with the stage installed only an
+        // ADMITTED exact volume may have reached the live chunk. PLANNED/REJECTED catalog entries
+        // therefore cannot perturb BASE_WORLD projection.
         boolean physicallyPresent = skyforgeClaim.orElseThrow().volumeIds().stream()
-                .anyMatch(SkyforgePhysicalVolumeAdmissionStage::isPhysicallyPresent);
+                .anyMatch(SkyforgePhysicalVolumeAdmissionStage::allowsPopulation);
         if (!physicallyPresent) {
             return liveHeight;
         }
