@@ -135,6 +135,18 @@ neoForge {
             systemProperty("skyforge.dev.physicalAdmission", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+
+        // SF-IMP-0051 reuses the accepted physical-admission lifecycle but selects a dedicated
+        // fixed-biome preset whose only eligible local structure is a forced terrain-matching jigsaw
+        // street. GravityProcessor queries are counted to determine whether the pre-0052 stacked
+        // surface race still exists under the current BASE_WORLD-before-Skyforge ordering.
+        create("structureProjectionClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0051")
+            systemProperty("skyforge.dev.physicalAdmission", "true")
+            systemProperty("skyforge.dev.structureProjection", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
     }
 
     unitTest {
