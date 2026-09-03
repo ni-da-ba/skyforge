@@ -23,6 +23,7 @@ import javax.imageio.ImageIO;
 public final class AuthorshipSemanticFieldCorpusCli {
     private static final int MAP_SIZE = 384;
     private static final int PANEL_LABEL_HEIGHT = 34;
+    private static final Color OUTSIDE_COLOR = new Color(12, 14, 18);
     private static final SkyIslandIdentity IDENTITY = SkyIslandIdentity.of(
             0x534B59464F524745L,
             0x0000000000000002L,
@@ -55,7 +56,7 @@ public final class AuthorshipSemanticFieldCorpusCli {
         List<RenderedPanel> rendered = new ArrayList<>();
         StringBuilder stats = new StringBuilder("field,min,max,mean\n");
         for (FieldPanel panel : panels) {
-            RenderedPanel image = render(panel, descriptor);
+            RenderedPanel image = render(panel, fields.interiority(), descriptor);
             rendered.add(image);
             ImageIO.write(image.image(), "png", output.resolve(panel.name() + ".png").toFile());
             stats.append(panel.name()).append(',')
@@ -69,7 +70,10 @@ public final class AuthorshipSemanticFieldCorpusCli {
         System.out.println(output.toAbsolutePath());
     }
 
-    private static RenderedPanel render(FieldPanel panel, SkyIslandDescriptor descriptor) {
+    private static RenderedPanel render(
+            FieldPanel panel,
+            SkyIslandSemanticField mask,
+            SkyIslandDescriptor descriptor) {
         BufferedImage image = new BufferedImage(MAP_SIZE, MAP_SIZE, BufferedImage.TYPE_INT_RGB);
         double extent = descriptor.nominalRadius() * 1.08;
         double minimum = Double.POSITIVE_INFINITY;
@@ -80,13 +84,21 @@ public final class AuthorshipSemanticFieldCorpusCli {
             double z = extent - 2.0 * extent * py / (MAP_SIZE - 1.0);
             for (int px = 0; px < MAP_SIZE; px++) {
                 double x = -extent + 2.0 * extent * px / (MAP_SIZE - 1.0);
-                double value = panel.field().sample(new SkyIslandLocalPosition(x, z));
+                SkyIslandLocalPosition position = new SkyIslandLocalPosition(x, z);
+                if (mask.sample(position) <= 0.0) {
+                    image.setRGB(px, py, OUTSIDE_COLOR.getRGB());
+                    continue;
+                }
+                double value = panel.field().sample(position);
                 image.setRGB(px, py, panel.palette().color(value).getRGB());
                 minimum = Math.min(minimum, value);
                 maximum = Math.max(maximum, value);
                 sum += value;
                 count++;
             }
+        }
+        if (count == 0L) {
+            throw new IllegalStateException("semantic field corpus contained no owned island samples");
         }
         return new RenderedPanel(panel.name(), image, minimum, maximum, sum / count);
     }
@@ -124,6 +136,8 @@ public final class AuthorshipSemanticFieldCorpusCli {
                 .append("; nominal radius: ")
                 .append(descriptor.nominalRadius())
                 .append(".</p>");
+        body.append("<p>Rendered statistics and color maps include owned island samples only; ")
+                .append("the underlying field API remains mathematically evaluable outside the boundary.</p>");
         body.append("<p><img src=\"overview.png\" style=\"max-width:100%\"></p>");
         for (FieldPanel panel : panels) {
             body.append("<h2>").append(panel.name()).append("</h2><img src=\"")
