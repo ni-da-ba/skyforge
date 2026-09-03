@@ -7,6 +7,7 @@ import io.github.nidaba.skyforge.world.SurfaceSupportAssessment;
 import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
 import io.github.nidaba.skyforge.world.TerrainBoxObservation;
 import io.github.nidaba.skyforge.world.TerrainBoxObservationRequirements;
+import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -245,6 +246,13 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return firstFree.isPresent()
                 ? Optional.of(new MinecraftSkyforgeHeightClaim(firstFree.getAsInt(), List.of(volumeId)))
                 : Optional.empty();
+    }
+
+    /** Returns the backend-neutral bounds of one exact runtime-bound island volume. */
+    static Optional<WorldBounds> volumeBounds(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null ? Optional.empty() : binding.adapter().volumeBounds(volumeId);
     }
 
     static Optional<List<SurfaceSupportAssessment>> assessSurfaceSupport(SurfaceSupportRequirements requirements) {
