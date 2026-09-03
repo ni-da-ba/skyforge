@@ -14,6 +14,8 @@ class AuthorshipWaterbodyPlanningCorpusTest {
         assertTrue(Files.isRegularFile(output.resolve("index.html")));
         assertTrue(Files.isRegularFile(output.resolve("atlas.png")));
         assertTrue(Files.isRegularFile(output.resolve("manifest.csv")));
+        assertTrue(Files.isRegularFile(output.resolve("candidates.csv")));
         assertTrue(Files.readString(output.resolve("manifest.csv")).lines().count() >= 7);
+        assertTrue(Files.readString(output.resolve("candidates.csv")).lines().count() >= 3);
     }
 }
