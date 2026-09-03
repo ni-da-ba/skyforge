@@ -1,8 +1,10 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import net.minecraft.world.level.levelgen.GenerationStep;
 import org.junit.jupiter.api.Test;
 
 final class SkyforgeVerticalPlacementFrameTest {
@@ -42,5 +44,20 @@ final class SkyforgeVerticalPlacementFrameTest {
     void zeroThicknessTargetCollapsesDeterministically() {
         assertEquals(240, SkyforgeVerticalPlacementFrame.mapYForTest(12, -64, 319, 240, 240));
         assertEquals(240, SkyforgeVerticalPlacementFrame.mapYForTest(999, -64, 319, 240, 240));
+    }
+
+    @Test
+    void phaseAdmissionRemainsExplicit() {
+        assertTrue(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
+                GenerationStep.Decoration.UNDERGROUND_ORES.ordinal()));
+        assertTrue(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
+                GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal()));
+
+        assertFalse(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
+                GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal()));
+        assertFalse(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
+                GenerationStep.Decoration.FLUID_SPRINGS.ordinal()));
+        assertFalse(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
+                GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()));
     }
 }
