@@ -51,6 +51,12 @@ public final class SkyforgeStructureProjectionHeightBridge {
         // SkyforgeNoiseBasedChunkGenerator#getBaseHeight resolves that exact island while the scope
         // is active, so no live BASE_WORLD or foreign-island height may replace it.
         if (SkyforgeGenerationDomainStage.activeIslandVolumeId().isPresent()) {
+            SkyforgeNeoForge1211StructureProjectionDevRuntime.recordGravityQuery(
+                    liveHeight,
+                    domainHeight,
+                    OptionalInt.empty(),
+                    false,
+                    domainHeight);
             return domainHeight;
         }
 
@@ -61,9 +67,16 @@ public final class SkyforgeStructureProjectionHeightBridge {
                 region.getMinBuildHeight(),
                 region.getHeight());
         if (skyforgeClaim.isEmpty()) {
+            SkyforgeNeoForge1211StructureProjectionDevRuntime.recordGravityQuery(
+                    liveHeight,
+                    domainHeight,
+                    OptionalInt.empty(),
+                    false,
+                    liveHeight);
             return liveHeight;
         }
 
+        int skyforgeHeight = skyforgeClaim.orElseThrow().height();
         // allowsPopulation is also the accepted physical-presence predicate: with no admission
         // stage installed historical fixtures realize directly; with the stage installed only an
         // ADMITTED exact volume may have reached the live chunk. PLANNED/REJECTED catalog entries
@@ -71,13 +84,26 @@ public final class SkyforgeStructureProjectionHeightBridge {
         boolean physicallyPresent = skyforgeClaim.orElseThrow().volumeIds().stream()
                 .anyMatch(SkyforgePhysicalVolumeAdmissionStage::allowsPopulation);
         if (!physicallyPresent) {
+            SkyforgeNeoForge1211StructureProjectionDevRuntime.recordGravityQuery(
+                    liveHeight,
+                    domainHeight,
+                    OptionalInt.of(skyforgeHeight),
+                    false,
+                    liveHeight);
             return liveHeight;
         }
 
-        return selectBaseWorldHeight(
+        int selectedHeight = selectBaseWorldHeight(
                 liveHeight,
                 domainHeight,
-                OptionalInt.of(skyforgeClaim.orElseThrow().height()));
+                OptionalInt.of(skyforgeHeight));
+        SkyforgeNeoForge1211StructureProjectionDevRuntime.recordGravityQuery(
+                liveHeight,
+                domainHeight,
+                OptionalInt.of(skyforgeHeight),
+                true,
+                selectedHeight);
+        return selectedHeight;
     }
 
     /**
