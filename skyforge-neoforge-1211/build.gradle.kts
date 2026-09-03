@@ -159,6 +159,18 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0060 extends the accepted local vertical frame to LOCAL_MODIFICATIONS. The runtime
+        // replays the final-registry taiga phase across the already-loaded admitted 0056 footprint
+        // and requires a real minecraft:amethyst_geode to survive native rarity and realization.
+        create("localModificationsClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0060")
+            systemProperty("skyforge.dev.physicalAdmission", "true")
+            systemProperty("skyforge.dev.biomePresentation", "true")
+            systemProperty("skyforge.dev.localModifications", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Final SF-IMP-0059 stacked-domain gate. Reuse the accepted 0054 forest/taiga tablelands,
         // execute UNDERGROUND_ORES independently in both exact Y frames, preserve the other island
         // byte-for-byte during each replay and explicitly reject its solid coordinates at preflight.
