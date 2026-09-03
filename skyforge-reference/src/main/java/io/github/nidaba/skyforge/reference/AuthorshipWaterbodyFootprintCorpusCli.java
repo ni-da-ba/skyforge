@@ -48,9 +48,9 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
         atlasGraphics.fillRect(0, 0, atlas.getWidth(), atlas.getHeight());
 
         StringBuilder manifest = new StringBuilder(
-                "islandKey,morphology,footprints,inundatedCells,shorelineCells,maxInundatedCatchmentFraction,maxDepthPotential,maxFillFraction\n");
+                "islandKey,morphology,footprints,inundatedCells,shorelineCells,maxInundatedDepressionFraction,maxDepthPotential,maxFillFraction\n");
         StringBuilder details = new StringBuilder(
-                "islandKey,morphology,ordinal,kind,sinkCell,catchmentCells,inundatedCells,inundatedCatchmentFraction,shorelineCells,fillFraction,waterSurfacePotential,spillSurfacePotential,maxDepthPotential\n");
+                "islandKey,morphology,ordinal,kind,sinkCell,catchmentCells,depressionCells,inundatedCells,inundatedDepressionFraction,shorelineCells,fillFraction,waterSurfacePotential,spillSurfacePotential,maxDepthPotential\n");
 
         for (int n = 0; n < KEYS.size(); n++) {
             long key = KEYS.get(n);
@@ -68,7 +68,7 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
                     .mapToLong(SkyIslandWaterbodyFootprint::shorelineCellCount)
                     .sum();
             double maxInundatedFraction = footprints.footprints().stream()
-                    .mapToDouble(SkyIslandWaterbodyFootprint::inundatedCatchmentFraction)
+                    .mapToDouble(SkyIslandWaterbodyFootprint::inundatedDepressionFraction)
                     .max().orElse(0.0);
             double maxDepth = footprints.footprints().stream()
                     .mapToDouble(SkyIslandWaterbodyFootprint::maxDepthPotential)
@@ -86,7 +86,7 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
             atlasGraphics.drawString(
                     "footprints=" + footprints.footprints().size()
                             + " wetCells=" + inundatedCells
-                            + " wet/catch=" + format(maxInundatedFraction)
+                            + " wet/depression=" + format(maxInundatedFraction)
                             + " depth=" + format(maxDepth),
                     x + 8,
                     y + 38);
@@ -109,8 +109,9 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
                         .append(footprint.candidate().kind()).append(',')
                         .append(footprint.candidate().sinkCellIndex()).append(',')
                         .append(footprint.candidate().catchmentCellCount()).append(',')
+                        .append(footprint.depressionCellCount()).append(',')
                         .append(footprint.inundatedCellCount()).append(',')
-                        .append(format(footprint.inundatedCatchmentFraction())).append(',')
+                        .append(format(footprint.inundatedDepressionFraction())).append(',')
                         .append(footprint.shorelineCellCount()).append(',')
                         .append(format(footprint.fillFraction())).append(',')
                         .append(format(footprint.waterSurfacePotential())).append(',')
@@ -127,9 +128,9 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
                 out.resolve("index.html"),
                 "<!doctype html><meta charset=\"utf-8\"><title>AUTH-0009</title>"
                         + "<h1>Retained waterbody footprint planning</h1>"
-                        + "<p>Gray lines: accepted channel network. Colored cells: connected semantic inundation footprint. "
-                        + "Cyan: pond, dark blue: lake, teal: wetland. Dark cell borders mark the footprint shoreline. "
-                        + "Black dots mark retained-sink anchors. Footprints use normalized priority-flood spill surfaces; "
+                        + "<p>Gray lines: accepted channel network. Colored cells: connected semantic inundation footprint inside the common priority-flood depression. "
+                        + "Cyan: pond, dark blue: lake, teal: wetland. Dark cell borders mark the coarse shoreline. "
+                        + "Black dots mark retained-sink anchors. Footprints use normalized semantic spill surfaces; "
                         + "they are not Minecraft block shorelines or literal world Y water levels.</p>"
                         + "<img src=\"atlas.png\" style=\"max-width:100%\">"
                         + "<p><a href=\"manifest.csv\">manifest.csv</a> | <a href=\"footprints.csv\">footprints.csv</a></p>",

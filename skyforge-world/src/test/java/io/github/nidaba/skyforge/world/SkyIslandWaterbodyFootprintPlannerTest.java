@@ -27,10 +27,11 @@ class SkyIslandWaterbodyFootprintPlannerTest {
         assertEquals(candidates.candidates().size(), first.footprints().size());
 
         for (SkyIslandWaterbodyFootprint footprint : first.footprints()) {
+            assertTrue(footprint.depressionCellCount() >= 1);
             assertTrue(footprint.inundatedCellCount() >= 1);
-            assertTrue(footprint.inundatedCellCount() <= footprint.candidate().catchmentCellCount());
-            assertTrue(footprint.inundatedCatchmentFraction() > 0.0);
-            assertTrue(footprint.inundatedCatchmentFraction() <= 1.0);
+            assertTrue(footprint.inundatedCellCount() <= footprint.depressionCellCount());
+            assertTrue(footprint.inundatedDepressionFraction() > 0.0);
+            assertTrue(footprint.inundatedDepressionFraction() <= 1.0);
             assertTrue(footprint.waterSurfacePotential() <= footprint.spillSurfacePotential() + 1.0e-12);
             assertTrue(footprint.shorelineCellCount() >= 1);
             assertTrue(footprint.cells().stream()

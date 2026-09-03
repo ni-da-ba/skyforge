@@ -9,6 +9,7 @@ public record SkyIslandWaterbodyFootprint(
         double waterSurfacePotential,
         double spillSurfacePotential,
         double fillFraction,
+        int depressionCellCount,
         List<SkyIslandWaterbodyFootprintCell> cells) {
 
     public SkyIslandWaterbodyFootprint {
@@ -17,8 +18,8 @@ public record SkyIslandWaterbodyFootprint(
         requireNormalized("waterSurfacePotential", waterSurfacePotential);
         requireNormalized("spillSurfacePotential", spillSurfacePotential);
         requireNormalized("fillFraction", fillFraction);
-        if (cells.isEmpty()) {
-            throw new IllegalArgumentException("waterbody footprint must contain its retained sink");
+        if (depressionCellCount < 1 || cells.isEmpty() || cells.size() > depressionCellCount) {
+            throw new IllegalArgumentException("invalid connected depression footprint size");
         }
         if (waterSurfacePotential > spillSurfacePotential + 1.0e-10) {
             throw new IllegalArgumentException("planned water surface cannot exceed spill surface");
@@ -33,8 +34,8 @@ public record SkyIslandWaterbodyFootprint(
         return cells.stream().filter(SkyIslandWaterbodyFootprintCell::shoreline).count();
     }
 
-    public double inundatedCatchmentFraction() {
-        return Math.min(1.0, (double) cells.size() / candidate.catchmentCellCount());
+    public double inundatedDepressionFraction() {
+        return Math.min(1.0, (double) cells.size() / depressionCellCount);
     }
 
     public double maxDepthPotential() {

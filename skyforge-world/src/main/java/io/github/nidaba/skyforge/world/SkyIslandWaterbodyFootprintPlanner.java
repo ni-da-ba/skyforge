@@ -14,6 +14,7 @@ import java.util.Set;
 /** Converts retained-waterbody candidates into connected coarse semantic inundation footprints. */
 public final class SkyIslandWaterbodyFootprintPlanner {
     private static final double EPSILON = 1.0e-12;
+    private static final double SPILL_MATCH_EPSILON = 1.0e-10;
 
     private SkyIslandWaterbodyFootprintPlanner() {}
 
@@ -26,32 +27,35 @@ public final class SkyIslandWaterbodyFootprintPlanner {
             cells.put(cell.index(), cell);
         }
 
-        Map<Integer, Integer> terminalMemo = new HashMap<>();
-        Map<Integer, Set<Integer>> catchments = new HashMap<>();
-        for (SkyIslandWatershedCell cell : watershed.cells()) {
-            int terminal = terminal(cell.index(), cells, terminalMemo, new HashSet<>());
-            catchments.computeIfAbsent(terminal, ignored -> new HashSet<>()).add(cell.index());
-        }
-
         List<SkyIslandWaterbodyFootprint> footprints = new ArrayList<>();
         for (SkyIslandWaterbodyCandidate candidate : waterbodies.candidates()) {
             SkyIslandWatershedCell sink = requireCell(cells, candidate.sinkCellIndex());
-            Set<Integer> catchment = catchments.getOrDefault(candidate.sinkCellIndex(), Set.of(candidate.sinkCellIndex()));
             double fillFraction = fillFraction(candidate);
             double waterSurface = sink.surfacePotential() + sink.fillDepthPotential() * fillFraction;
             waterSurface = Math.min(waterSurface, sink.spillSurfacePotential());
 
+            Set<Integer> sameDepression = new HashSet<>();
+            for (SkyIslandWatershedCell cell : watershed.cells()) {
+                if (cell.fillDepthPotential() > EPSILON
+                        && Math.abs(cell.spillSurfacePotential() - sink.spillSurfacePotential()) <= SPILL_MATCH_EPSILON) {
+                    sameDepression.add(cell.index());
+                }
+            }
+            sameDepression.add(candidate.sinkCellIndex());
+            Set<Integer> depression = connectedFromSink(
+                    candidate.sinkCellIndex(), sameDepression, watershed.gridSize());
+
             Set<Integer> eligible = new HashSet<>();
-            for (int index : catchment) {
+            for (int index : depression) {
                 SkyIslandWatershedCell cell = requireCell(cells, index);
                 if (cell.surfacePotential() <= waterSurface + EPSILON) {
                     eligible.add(index);
                 }
             }
             eligible.add(candidate.sinkCellIndex());
-
             Set<Integer> connected = connectedFromSink(
                     candidate.sinkCellIndex(), eligible, watershed.gridSize());
+
             List<Integer> ordered = connected.stream().sorted().toList();
             List<SkyIslandWaterbodyFootprintCell> footprintCells = new ArrayList<>(ordered.size());
             for (int index : ordered) {
@@ -70,6 +74,7 @@ public final class SkyIslandWaterbodyFootprintPlanner {
                     clamp01(waterSurface),
                     clamp01(sink.spillSurfacePotential()),
                     fillFraction,
+                    depression.size(),
                     footprintCells));
         }
 
@@ -138,27 +143,6 @@ public final class SkyIslandWaterbodyFootprintPlanner {
                 }
             }
         }
-        return result;
-    }
-
-    private static int terminal(
-            int cellIndex,
-            Map<Integer, SkyIslandWatershedCell> cells,
-            Map<Integer, Integer> memo,
-            Set<Integer> visiting) {
-        Integer known = memo.get(cellIndex);
-        if (known != null) {
-            return known;
-        }
-        if (!visiting.add(cellIndex)) {
-            throw new IllegalStateException("watershed topology contains a cycle");
-        }
-        SkyIslandWatershedCell cell = requireCell(cells, cellIndex);
-        int result = cell.downstreamIndex() < 0
-                ? cell.index()
-                : terminal(cell.downstreamIndex(), cells, memo, visiting);
-        visiting.remove(cellIndex);
-        memo.put(cellIndex, result);
         return result;
     }
 
