@@ -48,6 +48,28 @@ The accepted implementation through **SF-IMP-0055** includes:
 
 The active development boundary is physical admission of planned Skyforge volumes before destructive Minecraft realization. Skyforge is pre-release: it is not yet packaged as a general-purpose player-facing mod, and no stable API compatibility is promised.
 
+## Engineering proof at a glance
+
+Skyforge treats milestone acceptance as an engineering artifact. The repository keeps the numerical, runtime, and visual evidence that justified each accepted boundary rather than reducing progress to screenshots or feature claims.
+
+| Claim | Representative evidence |
+| --- | --- |
+| **Base-world generation is isolated from Skyforge ownership.** | [SF-IMP-0052](docs/reviews/SF-IMP-0052-terrain-domain-isolation-acceptance.md) fingerprinted **63,234** protected native positions while realizing **35,070** Skyforge solid positions in the proof chunk; unowned native state remained unchanged. |
+| **Exact 3-D island domains can reuse native biome content independently.** | [SF-IMP-0054](docs/reviews/SF-IMP-0054-biome-bridge-acceptance.md) exercised **25 eligible chunks** shared by vertically stacked forest and taiga volumes. Native vegetation produced persistent logs/leaves in both exact domains without visible cross-volume contamination. |
+| **Native population is coordinated and idempotent per exact volume.** | [SF-IMP-0055](docs/reviews/SF-IMP-0055-surface-population-acceptance.md) completed **50 lifecycle keys** across 25 chunks and two volumes; an immediate equivalent replay executed **0** additional phases. |
+| **Procedural output is reproducible outside Minecraft.** | The fixed-seed and suspended-volume evidence tasks emit machine-readable descriptors/graphs, exact sampled data, numerical morphology metrics, SHA-256 identities, HTML review guides, and diagnostic images. CI regenerates the evidence on every accepted change. |
+
+The latest accepted runtime architecture and the active development boundary are summarized in [`Skyforge_Current_Runtime_Architecture.md`](docs/architecture/Skyforge_Current_Runtime_Architecture.md).
+
+### Suggested reviewer path
+
+For a compact technical review of the project:
+
+1. Start with the [current runtime architecture](docs/architecture/Skyforge_Current_Runtime_Architecture.md) for ownership and dependency boundaries.
+2. Read the [SF-IMP-0055 acceptance record](docs/reviews/SF-IMP-0055-surface-population-acceptance.md) for the latest accepted end-to-end runtime proof.
+3. Inspect [ADR-0056](docs/decisions/ADR-0056-terrain-domain-generation-isolation.md), [ADR-0057](docs/decisions/ADR-0057-exact-volume-biome-bridge.md), and [ADR-0058](docs/decisions/ADR-0058-native-surface-population-planner.md) for the recent design decisions behind that runtime.
+4. Inspect the [CI workflow](.github/workflows/ci.yml) for the repository’s build, backend-isolation, deterministic-evidence, and review-bundle gates.
+
 ## Modules
 
 | Module | Responsibility |
