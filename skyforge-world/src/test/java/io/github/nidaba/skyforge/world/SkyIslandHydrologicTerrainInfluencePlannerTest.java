@@ -54,6 +54,7 @@ class SkyIslandHydrologicTerrainInfluencePlannerTest {
         boolean sawDeposition = false;
         boolean sawFloodplain = false;
         boolean sawDropShaping = false;
+        boolean sawFloodplainDominant = false;
 
         for (long key : new long[] {77L, 118L, 241L, 512L, 811L, 83L}) {
             SkyIslandDescriptor descriptor = descriptor(key);
@@ -66,12 +67,14 @@ class SkyIslandHydrologicTerrainInfluencePlannerTest {
             sawDeposition |= plan.maxDepositionPotential() > 0.0;
             sawFloodplain |= plan.maxFloodplainPotential() > 0.0;
             sawDropShaping |= plan.maxDropShapingPotential() > 0.0;
+            sawFloodplainDominant |= plan.count(SkyIslandHydrologicTerrainResponseKind.FLOODPLAIN) > 0;
         }
 
         assertTrue(sawIncision);
         assertTrue(sawDeposition);
         assertTrue(sawFloodplain);
         assertTrue(sawDropShaping);
+        assertTrue(sawFloodplainDominant);
     }
 
     @Test
