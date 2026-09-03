@@ -14,7 +14,8 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * <p>The service uses {@code ServerChunkCache#getChunkNow}, which never creates a generation ticket.
  * Missing chunks simply remain pending until Minecraft loads them for an independent reason. After
  * exact terrain catch-up, the normal native surface-population coordinator is replayed for that
- * chunk; its existing idempotency ledger remains authoritative.
+ * chunk through the deferred-population lifecycle adapter; its existing idempotency ledger remains
+ * authoritative.
  */
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgePhysicalVolumeCatchupService {
@@ -35,9 +36,16 @@ final class SkyforgePhysicalVolumeCatchupService {
                 if (chunk == null) {
                     continue;
                 }
-                int completed = SkyforgeNeoForge1211SurfaceStage.serviceCatchup(chunk);
+
+                int completed;
+                var mutationLifecycle = SkyforgeDeferredChunkMutationLifecycle.open(level, chunk);
+                try {
+                    completed = SkyforgeNeoForge1211SurfaceStage.serviceCatchup(chunk);
+                } finally {
+                    mutationLifecycle.close();
+                }
                 if (completed > 0) {
-                    SkyforgeNativeSurfacePopulationStage.populate(level, chunk, generator);
+                    SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
                 }
             }
             SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.observeLoaded(level);

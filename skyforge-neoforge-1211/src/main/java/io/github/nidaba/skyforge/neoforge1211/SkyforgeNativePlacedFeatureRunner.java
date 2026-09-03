@@ -178,6 +178,10 @@ final class SkyforgeNativePlacedFeatureRunner {
                     // remains correct for explicit non-biome feature proofs such as SF-IMP-0053.
                     ? placedFeature.value().placeWithBiomeCheck(level, generator, random, origin)
                     : placedFeature.value().place(level, generator, random, origin);
+            // Deferred population on finished chunks records the same native post-processing marks
+            // as worldgen, then resolves them here before the exact-volume execution scope closes.
+            // Direct worldgen never opens the bridge, so this is a no-op on the accepted path.
+            SkyforgeDeferredPopulationPostProcessingBridge.flushIfActive();
             return new Result(placed, execution.execution().attachmentCount());
         }
     }
