@@ -22,10 +22,14 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
  * Commits one admitted Skyforge volume's Minecraft biome identity into durable chunk biome storage.
  *
  * <p>Skyforge retains exact block-volume ownership, while Minecraft stores biomes on a coarser
- * 4x4x4 quart lattice. A quart is therefore claimed only when the admitted volume owns at least one
- * solid block inside that cell. Unclaimed quart cells are copied from the chunk's existing biome
- * container byte-for-byte in semantic terms. This keeps vertically separated islands independent:
- * changing a high island does not rewrite the biome cells around unrelated native terrain below it.
+ * 4x4x4 quart lattice. A quart is eligible when it contains exact owned solid terrain or the
+ * immediate air block above an exact owned surface. The latter is required because Minecraft's HUD
+ * and ambient biome queries sample the player's air position rather than only the block supporting
+ * the player. No broader atmospheric column is claimed by this milestone.
+ *
+ * <p>Unclaimed quart cells are copied from the chunk's existing biome container byte-for-byte in
+ * semantic terms. This keeps vertically separated islands independent: changing a high island does
+ * not rewrite biome cells around unrelated native terrain below it.
  *
  * <p>Minecraft cannot encode two independent biome identities in one quart cell. If another
  * Skyforge volume has any solid semantic claim in the same cell, this first implementation leaves
@@ -74,7 +78,7 @@ final class SkyforgePersistentBiomePresentationStage {
         int baseQuartX = Math.floorDiv(chunkMinimumX, BLOCKS_PER_QUART);
         int baseQuartZ = Math.floorDiv(chunkMinimumZ, BLOCKS_PER_QUART);
 
-        int ownedQuartCells = 0;
+        int eligibleQuartCells = 0;
         int ambiguousQuartCells = 0;
         int changedQuartCells = 0;
         LevelChunkSection[] sections = chunk.getSections();
@@ -82,7 +86,7 @@ final class SkyforgePersistentBiomePresentationStage {
             LevelChunkSection section = sections[sectionIndex];
             int sectionY = chunk.getSectionYFromSectionIndex(sectionIndex);
             int baseQuartY = Math.multiplyExact(sectionY, QUART_WIDTH);
-            if (!quartSlabIntersects(volumeBounds, baseQuartY)) {
+            if (!quartSlabIntersectsPresentationEnvelope(volumeBounds, baseQuartY)) {
                 continue;
             }
 
@@ -94,10 +98,10 @@ final class SkyforgePersistentBiomePresentationStage {
                     int quartZ = baseQuartZ + localQuartZ;
                     for (int localQuartX = 0; localQuartX < QUART_WIDTH; localQuartX++) {
                         int quartX = baseQuartX + localQuartX;
-                        if (!quartIntersects(volumeBounds, quartX, quartY, quartZ)) {
+                        if (!quartIntersectsPresentationEnvelope(volumeBounds, quartX, quartY, quartZ)) {
                             continue;
                         }
-                        Optional<BlockPos> sample = firstOwnedSample(
+                        Optional<BlockPos> sample = firstPresentationSample(
                                 volumeId,
                                 volumeBounds,
                                 quartX,
@@ -106,7 +110,7 @@ final class SkyforgePersistentBiomePresentationStage {
                         if (sample.isEmpty()) {
                             continue;
                         }
-                        ownedQuartCells++;
+                        eligibleQuartCells++;
                         if (containsOtherSkyforgeClaim(volumeId, quartX, quartY, quartZ)) {
                             ambiguousQuartCells++;
                             continue;
@@ -171,7 +175,7 @@ final class SkyforgePersistentBiomePresentationStage {
                     System.Logger.Level.INFO,
                     "SF-IMP-0058 BIOME PRESENTATION: volume=" + volumeId.path()
                             + ", chunk=" + chunk.getPos()
-                            + ", ownedQuartCells=" + ownedQuartCells
+                            + ", eligibleQuartCells=" + eligibleQuartCells
                             + ", ambiguousQuartCells=" + ambiguousQuartCells
                             + ", changedQuartCells=" + changedQuartCells
                             + ", clientPacketSent=" + broadcast);
@@ -179,7 +183,7 @@ final class SkyforgePersistentBiomePresentationStage {
         return new Result(
                 volumeId,
                 chunk.getPos().toLong(),
-                ownedQuartCells,
+                eligibleQuartCells,
                 ambiguousQuartCells,
                 changedQuartCells,
                 broadcast);
@@ -216,7 +220,14 @@ final class SkyforgePersistentBiomePresentationStage {
         }
     }
 
-    private static Optional<BlockPos> firstOwnedSample(
+    /**
+     * Returns an owned terrain sample whose resolved biome should represent this Minecraft quart.
+     *
+     * <p>An exact solid sample claims its own quart. If the current block is air but the exact volume
+     * owns the block immediately below it, the supporting solid is returned as the semantic sample;
+     * this claims only the quart containing the first-free surface position used by player/HUD reads.
+     */
+    private static Optional<BlockPos> firstPresentationSample(
             SkyIslandWorldVolumeId volumeId,
             WorldBounds volumeBounds,
             int quartX,
@@ -231,18 +242,15 @@ final class SkyforgePersistentBiomePresentationStage {
                     int worldX = minimumX + offsetX;
                     int worldY = minimumY + offsetY;
                     int worldZ = minimumZ + offsetZ;
-                    if (!contains(volumeBounds, worldX, worldY, worldZ)) {
-                        continue;
-                    }
-                    boolean owned = SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(
-                                    volumeId,
-                                    worldX,
-                                    worldY,
-                                    worldZ)
-                            .orElseThrow(() -> new IllegalStateException(
-                                    "Skyforge terrain binding disappeared during biome presentation"));
-                    if (owned) {
+                    boolean currentOwned = contains(volumeBounds, worldX, worldY, worldZ)
+                            && solidOwnedBy(volumeId, worldX, worldY, worldZ);
+                    if (currentOwned) {
                         return Optional.of(new BlockPos(worldX, worldY, worldZ));
+                    }
+                    int supportingY = worldY - 1;
+                    if (contains(volumeBounds, worldX, supportingY, worldZ)
+                            && solidOwnedBy(volumeId, worldX, supportingY, worldZ)) {
+                        return Optional.of(new BlockPos(worldX, supportingY, worldZ));
                     }
                 }
             }
@@ -277,13 +285,25 @@ final class SkyforgePersistentBiomePresentationStage {
         return false;
     }
 
-    private static boolean quartSlabIntersects(WorldBounds bounds, int baseQuartY) {
-        int minimumY = Math.multiplyExact(baseQuartY, BLOCKS_PER_QUART);
-        int maximumY = minimumY + (QUART_WIDTH * BLOCKS_PER_QUART) - 1;
-        return maximumY >= bounds.minimumY() && minimumY <= bounds.maximumY();
+    private static boolean solidOwnedBy(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        return SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(volumeId, worldX, worldY, worldZ)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Skyforge terrain binding disappeared during biome presentation"));
     }
 
-    private static boolean quartIntersects(
+    private static boolean quartSlabIntersectsPresentationEnvelope(
+            WorldBounds bounds,
+            int baseQuartY) {
+        int minimumY = Math.multiplyExact(baseQuartY, BLOCKS_PER_QUART);
+        int maximumY = minimumY + (QUART_WIDTH * BLOCKS_PER_QUART) - 1;
+        return maximumY >= bounds.minimumY() && minimumY <= bounds.maximumY() + 1.0;
+    }
+
+    private static boolean quartIntersectsPresentationEnvelope(
             WorldBounds bounds,
             int quartX,
             int quartY,
@@ -297,7 +317,7 @@ final class SkyforgePersistentBiomePresentationStage {
         return maximumX >= bounds.minimumX()
                 && minimumX <= bounds.maximumX()
                 && maximumY >= bounds.minimumY()
-                && minimumY <= bounds.maximumY()
+                && minimumY <= bounds.maximumY() + 1.0
                 && maximumZ >= bounds.minimumZ()
                 && minimumZ <= bounds.maximumZ();
     }
@@ -322,17 +342,17 @@ final class SkyforgePersistentBiomePresentationStage {
     record Result(
             SkyIslandWorldVolumeId volumeId,
             long chunkKey,
-            int ownedQuartCells,
+            int eligibleQuartCells,
             int ambiguousQuartCells,
             int changedQuartCells,
             boolean clientPacketSent) {
         Result {
             Objects.requireNonNull(volumeId, "volumeId");
-            if (ownedQuartCells < 0
+            if (eligibleQuartCells < 0
                     || ambiguousQuartCells < 0
-                    || ambiguousQuartCells > ownedQuartCells
+                    || ambiguousQuartCells > eligibleQuartCells
                     || changedQuartCells < 0
-                    || changedQuartCells > ownedQuartCells - ambiguousQuartCells) {
+                    || changedQuartCells > eligibleQuartCells - ambiguousQuartCells) {
                 throw new IllegalArgumentException("invalid biome-presentation quart counts");
             }
         }
