@@ -13,9 +13,9 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.minecraft.world.level.biome.Biome;
 
 /**
  * Commits one admitted Skyforge volume's Minecraft biome identity into durable chunk biome storage.
@@ -25,6 +25,11 @@ import net.minecraft.world.level.biome.Biome;
  * solid block inside that cell. Unclaimed quart cells are copied from the chunk's existing biome
  * container byte-for-byte in semantic terms. This keeps vertically separated islands independent:
  * changing a high island does not rewrite the biome cells around unrelated native terrain below it.
+ *
+ * <p>Minecraft cannot encode two independent biome identities in one quart cell. If another
+ * Skyforge volume has any semantic solid claim in the same cell, this first implementation leaves
+ * the cell unchanged rather than choosing an order-dependent winner. A later backend quantization
+ * policy may resolve such cells once Skyforge authors richer continuous biome fields.
  *
  * <p>Stable LevelChunks are marked unsaved and their vanilla biome packet is sent only to players
  * already tracking that chunk. No chunk ticket, neighbor lookup, or custom networking protocol is
@@ -56,7 +61,7 @@ final class SkyforgePersistentBiomePresentationStage {
         Optional<SkyforgeNativeSurfacePopulationPlan> optionalPlan =
                 SkyforgeNativeSurfacePopulationStage.planForVolume(chunk, volumeId);
         if (optionalPlan.isEmpty()) {
-            return new Result(volumeId, chunk.getPos().toLong(), 0, 0, false);
+            return new Result(volumeId, chunk.getPos().toLong(), 0, 0, 0, false);
         }
         SkyforgeNativeSurfacePopulationPlan plan = optionalPlan.orElseThrow();
 
@@ -68,6 +73,7 @@ final class SkyforgePersistentBiomePresentationStage {
         int baseQuartZ = Math.floorDiv(chunkMinimumZ, BLOCKS_PER_QUART);
 
         int ownedQuartCells = 0;
+        int ambiguousQuartCells = 0;
         int changedQuartCells = 0;
         LevelChunkSection[] sections = chunk.getSections();
         for (int sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
@@ -88,6 +94,11 @@ final class SkyforgePersistentBiomePresentationStage {
                             continue;
                         }
                         ownedQuartCells++;
+                        if (containsOtherSkyforgeClaim(volumeId, quartX, quartY, quartZ)) {
+                            ambiguousQuartCells++;
+                            continue;
+                        }
+
                         BlockPos position = sample.orElseThrow();
                         ResourceKey<Biome> biomeKey = Objects.requireNonNull(
                                 plan.biomeResolver().resolve(
@@ -129,6 +140,7 @@ final class SkyforgePersistentBiomePresentationStage {
                     baseQuartX,
                     baseQuartY,
                     baseQuartZ);
+            verifyRefill(section, original, replacements);
         }
 
         boolean broadcast = false;
@@ -147,10 +159,17 @@ final class SkyforgePersistentBiomePresentationStage {
                     "SF-IMP-0058 BIOME PRESENTATION: volume=" + volumeId.path()
                             + ", chunk=" + chunk.getPos()
                             + ", ownedQuartCells=" + ownedQuartCells
+                            + ", ambiguousQuartCells=" + ambiguousQuartCells
                             + ", changedQuartCells=" + changedQuartCells
                             + ", clientPacketSent=" + broadcast);
         }
-        return new Result(volumeId, chunk.getPos().toLong(), ownedQuartCells, changedQuartCells, broadcast);
+        return new Result(
+                volumeId,
+                chunk.getPos().toLong(),
+                ownedQuartCells,
+                ambiguousQuartCells,
+                changedQuartCells,
+                broadcast);
     }
 
     private static List<Holder<Biome>> snapshot(LevelChunkSection section) {
@@ -163,6 +182,25 @@ final class SkyforgePersistentBiomePresentationStage {
             }
         }
         return List.copyOf(values);
+    }
+
+    private static void verifyRefill(
+            LevelChunkSection section,
+            List<Holder<Biome>> original,
+            Map<Integer, Holder<Biome>> replacements) {
+        for (int localQuartY = 0; localQuartY < QUART_WIDTH; localQuartY++) {
+            for (int localQuartZ = 0; localQuartZ < QUART_WIDTH; localQuartZ++) {
+                for (int localQuartX = 0; localQuartX < QUART_WIDTH; localQuartX++) {
+                    int index = quartIndex(localQuartX, localQuartY, localQuartZ);
+                    Holder<Biome> expected = replacements.getOrDefault(index, original.get(index));
+                    Holder<Biome> actual = section.getNoiseBiome(localQuartX, localQuartY, localQuartZ);
+                    if (!actual.equals(expected)) {
+                        throw new IllegalStateException(
+                                "biome section refill changed an unclaimed cell or lost an owned replacement");
+                    }
+                }
+            }
+        }
     }
 
     private static Optional<BlockPos> firstOwnedSample(
@@ -195,6 +233,33 @@ final class SkyforgePersistentBiomePresentationStage {
         return Optional.empty();
     }
 
+    private static boolean containsOtherSkyforgeClaim(
+            SkyIslandWorldVolumeId volumeId,
+            int quartX,
+            int quartY,
+            int quartZ) {
+        int minimumX = Math.multiplyExact(quartX, BLOCKS_PER_QUART);
+        int minimumY = Math.multiplyExact(quartY, BLOCKS_PER_QUART);
+        int minimumZ = Math.multiplyExact(quartZ, BLOCKS_PER_QUART);
+        for (int offsetY = 0; offsetY < BLOCKS_PER_QUART; offsetY++) {
+            for (int offsetZ = 0; offsetZ < BLOCKS_PER_QUART; offsetZ++) {
+                for (int offsetX = 0; offsetX < BLOCKS_PER_QUART; offsetX++) {
+                    boolean other = SkyforgeNeoForge1211SurfaceStage.isSolidOwnedByOtherVolume(
+                                    volumeId,
+                                    minimumX + offsetX,
+                                    minimumY + offsetY,
+                                    minimumZ + offsetZ)
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "Skyforge terrain binding disappeared during biome ambiguity check"));
+                    if (other) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     private static int quartIndex(int localQuartX, int localQuartY, int localQuartZ) {
         return localQuartX + QUART_WIDTH * (localQuartZ + QUART_WIDTH * localQuartY);
     }
@@ -203,11 +268,16 @@ final class SkyforgePersistentBiomePresentationStage {
             SkyIslandWorldVolumeId volumeId,
             long chunkKey,
             int ownedQuartCells,
+            int ambiguousQuartCells,
             int changedQuartCells,
             boolean clientPacketSent) {
         Result {
             Objects.requireNonNull(volumeId, "volumeId");
-            if (ownedQuartCells < 0 || changedQuartCells < 0 || changedQuartCells > ownedQuartCells) {
+            if (ownedQuartCells < 0
+                    || ambiguousQuartCells < 0
+                    || ambiguousQuartCells > ownedQuartCells
+                    || changedQuartCells < 0
+                    || changedQuartCells > ownedQuartCells - ambiguousQuartCells) {
                 throw new IllegalArgumentException("invalid biome-presentation quart counts");
             }
         }
