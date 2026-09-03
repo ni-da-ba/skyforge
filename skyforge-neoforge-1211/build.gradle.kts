@@ -159,14 +159,12 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-        // SF-IMP-0060 extends the accepted local vertical frame to LOCAL_MODIFICATIONS. The runtime
-        // replays the final-registry taiga phase across the already-loaded admitted 0056 footprint
-        // and requires a real minecraft:amethyst_geode to survive native rarity and realization.
+        // SF-IMP-0060 uses its own physically admitted high tableland. Its deterministic development
+        // seed causes the unchanged final-registry amethyst-geode rarity gate to exercise owner-rich
+        // terrain, proving LOCAL_MODIFICATIONS without coupling the fixture to SF-IMP-0056 state.
         create("localModificationsClient") {
             client()
             gameDirectory = project.file("run-sf-imp-0060")
-            systemProperty("skyforge.dev.physicalAdmission", "true")
-            systemProperty("skyforge.dev.biomePresentation", "true")
             systemProperty("skyforge.dev.localModifications", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
