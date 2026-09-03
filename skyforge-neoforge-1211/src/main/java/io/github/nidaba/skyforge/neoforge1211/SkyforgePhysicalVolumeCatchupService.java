@@ -15,7 +15,8 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * Missing chunks simply remain pending until Minecraft loads them for an independent reason. After
  * exact terrain catch-up, the normal native surface-population coordinator is replayed for that
  * chunk through the deferred-population lifecycle adapter; its existing idempotency ledger remains
- * authoritative.
+ * authoritative. Persistent biome presentation is a separate admitted-volume obligation and is
+ * likewise serviced only for already-loaded chunks.
  */
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgePhysicalVolumeCatchupService {
@@ -48,7 +49,24 @@ final class SkyforgePhysicalVolumeCatchupService {
                     SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
                 }
             }
+
+            // Biome identity is committed only after admission and only on stable chunks Minecraft
+            // already loaded independently. The obligation includes the admission-triggering chunk,
+            // which may never have needed terrain catch-up, as well as all earlier deferred chunks.
+            for (long chunkKey : SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentationChunkKeys()) {
+                int chunkX = ChunkPos.getX(chunkKey);
+                int chunkZ = ChunkPos.getZ(chunkKey);
+                LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
+                if (chunk == null) {
+                    continue;
+                }
+                for (var volumeId : SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentation(chunk.getPos())) {
+                    SkyforgePersistentBiomePresentationStage.present(level, chunk, volumeId);
+                    SkyforgePhysicalVolumeAdmissionStage.completeBiomePresentation(volumeId, chunk.getPos());
+                }
+            }
             SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.observeLoaded(level);
+            SkyforgeNeoForge1211BiomePresentationDevRuntime.observeLoaded(level);
         }
     }
 }
