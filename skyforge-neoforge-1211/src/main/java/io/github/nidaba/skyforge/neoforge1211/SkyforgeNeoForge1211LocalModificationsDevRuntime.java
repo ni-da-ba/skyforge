@@ -1,6 +1,16 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
+import io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume;
+import io.github.nidaba.skyforge.recipes.skyisland.EnrichedProviderMorphologySkyIslandVolumeRecipe;
+import io.github.nidaba.skyforge.recipes.skyisland.MorphologyFamily;
+import io.github.nidaba.skyforge.recipes.skyisland.ProviderMorphologyEnrichment;
+import io.github.nidaba.skyforge.recipes.skyisland.SkyIslandMorphologyProviders;
+import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
+import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -15,14 +25,23 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.Heightmap;
 
-/** Development-only acceptance probe for SF-IMP-0060 registry-native local modifications. */
+/** Development-only acceptance proof for SF-IMP-0060 registry-native local modifications. */
 final class SkyforgeNeoForge1211LocalModificationsDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.localModifications";
+
+    // Development evidence seed selected so the unchanged vanilla amethyst-geode rarity filter
+    // deterministically admits the central owner-rich chunk. Production rarity and RNG are never
+    // bypassed or replaced; only this disposable specimen identity is controlled.
+    private static final long ROOT_SEED = 0x5346494d50304e20L;
+    private static final long GEOMETRY_SEED = ROOT_SEED ^ 0x4c4f43414cL;
     private static final int PROOF_RADIUS_CHUNKS = 2;
-    private static final int EXPECTED_SURFACE_POPULATION_PHASES = 21;
+    private static final int EXPECTED_REQUIRED_CHUNKS = 25;
     private static final int BASE_COLUMN_MINIMUM_Y = -64;
     private static final int BASE_COLUMN_MAXIMUM_Y = 150;
     private static final int MAXIMUM_ATTACHMENT_DEPTH = 0;
+    private static final int INSPECTION_X = 8;
+    private static final int INSPECTION_Y = 280;
+    private static final int INSPECTION_Z = 8;
     private static final ResourceLocation AMETHYST_GEODE =
             ResourceLocation.withDefaultNamespace("amethyst_geode");
     private static final long FNV_OFFSET_BASIS = 0xcbf29ce484222325L;
@@ -30,6 +49,8 @@ final class SkyforgeNeoForge1211LocalModificationsDevRuntime {
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeNeoForge1211LocalModificationsDevRuntime.class.getName());
 
+    private static AutoCloseable persistentTerrainBinding;
+    private static AutoCloseable persistentAdmissionBinding;
     private static boolean proofStarted;
     private static boolean proofComplete;
 
@@ -39,44 +60,72 @@ final class SkyforgeNeoForge1211LocalModificationsDevRuntime {
         return Boolean.getBoolean(ENABLE_PROPERTY);
     }
 
+    static synchronized void installFromSystemProperty() {
+        if (!enabled() || persistentTerrainBinding != null || persistentAdmissionBinding != null) {
+            return;
+        }
+        if (SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
+            throw new IllegalStateException("cannot install SF-IMP-0060 proof over another terrain binding");
+        }
+        if (SkyforgePhysicalVolumeAdmissionStage.active()) {
+            throw new IllegalStateException("cannot install SF-IMP-0060 proof over another physical-admission binding");
+        }
+
+        SkyIslandWorldCatalog catalog = catalog();
+        persistentTerrainBinding = SkyforgeNeoForge1211SurfaceStage.installNativeSurfaceAdapted(
+                new SkyforgeNeoForge1211ChunkAdapter(
+                        catalog,
+                        SkyIslandTerrainProfile.reference(),
+                        new SkyforgeMinecraftBlockPalette()),
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
+        persistentAdmissionBinding = SkyforgePhysicalVolumeAdmissionStage.install(catalog);
+
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "Skyforge SF-IMP-0060 admitted local-modifications specimen enabled. Create a NEW disposable "
+                        + "Skyforge Development world and load the origin 5x5 chunk patch; if needed teleport to x="
+                        + INSPECTION_X + ", y=" + INSPECTION_Y + ", z=" + INSPECTION_Z
+                        + ". The high tableland remains absent until whole-volume physical admission completes. Its "
+                        + "development seed was selected so the unchanged final-registry minecraft:amethyst_geode "
+                        + "1-in-24 rarity gate deterministically exercises central owner terrain. No rarity bypass, "
+                        + "feature copy or feature-ID production rule is installed.");
+    }
+
     static synchronized void observeLoaded(ServerLevel level) {
         if (!enabled() || proofStarted || proofComplete) {
             return;
         }
 
-        var volumes = SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.catalog().volumes();
-        if (volumes.size() != 2) {
-            throw new IllegalStateException("SF-IMP-0060 proof requires the accepted two-volume 0056 catalog");
-        }
-        var lowerVolume = volumes.get(0);
-        var upperVolume = volumes.get(1);
-        SkyIslandWorldVolumeId lowerId = lowerVolume.id();
-        SkyIslandWorldVolumeId upperId = upperVolume.id();
-        var lower = SkyforgePhysicalVolumeAdmissionStage.snapshot(lowerId);
-        var upper = SkyforgePhysicalVolumeAdmissionStage.snapshot(upperId);
-
-        if (lower.state() != SkyforgePhysicalVolumeAdmissionState.REJECTED
-                || upper.state() != SkyforgePhysicalVolumeAdmissionState.ADMITTED
-                || !SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(upperId).isEmpty()
-                || !SkyforgePhysicalVolumeAdmissionStage.pendingBiomePresentationChunks(upperId).isEmpty()
-                || SkyforgeNativeSurfacePopulationStage.completedPhaseCount() != EXPECTED_SURFACE_POPULATION_PHASES) {
+        SkyIslandWorldVolume volume = catalog().volumes().getFirst();
+        SkyIslandWorldVolumeId volumeId = volume.id();
+        var admission = SkyforgePhysicalVolumeAdmissionStage.snapshot(volumeId);
+        if (admission.state() != SkyforgePhysicalVolumeAdmissionState.ADMITTED
+                || !SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId).isEmpty()) {
             return;
         }
-
-        List<ProofChunk> proofChunks = loadedSurfaceChunks(level, upperId);
-        if (proofChunks.size() != EXPECTED_SURFACE_POPULATION_PHASES) {
-            return;
+        if (admission.requiredChunks() != EXPECTED_REQUIRED_CHUNKS
+                || admission.observedChunks() != EXPECTED_REQUIRED_CHUNKS) {
+            throw new IllegalStateException("SF-IMP-0060 development volume admitted with unexpected footprint evidence: "
+                    + "observed=" + admission.observedChunks() + ", required=" + admission.requiredChunks());
         }
 
-        int minimumEnvelopeY = (int) Math.ceil(upperVolume.bounds().minimumY());
-        int maximumEnvelopeY = (int) Math.floor(upperVolume.bounds().maximumY());
+        List<ProofChunk> proofChunks = loadedSurfaceChunks(level, volumeId);
+        if (proofChunks.isEmpty()) {
+            return;
+        }
+        if (proofChunks.stream().noneMatch(proofChunk -> proofChunk.chunk().getPos().equals(new ChunkPos(0, 0)))) {
+            throw new IllegalStateException("SF-IMP-0060 deterministic rarity fixture lost its owner-rich origin chunk");
+        }
+
+        int minimumEnvelopeY = (int) Math.ceil(volume.bounds().minimumY());
+        int maximumEnvelopeY = (int) Math.floor(volume.bounds().maximumY());
         List<BaseColumnSnapshot> baseColumnsBefore = captureBaseColumns(level, proofChunks);
         proofStarted = true;
 
-        var biomeResolver = (SkyforgeExactVolumeBiomeResolver) (volumeId, x, y, z) -> {
-            if (!volumeId.equals(upperId)) {
+        var biomeResolver = (SkyforgeExactVolumeBiomeResolver) (candidateId, x, y, z) -> {
+            if (!candidateId.equals(volumeId)) {
                 throw new IllegalArgumentException("SF-IMP-0060 proof resolved an unexpected volume: "
-                        + volumeId.path());
+                        + candidateId.path());
             }
             return Biomes.TAIGA;
         };
@@ -102,14 +151,14 @@ final class SkyforgeNeoForge1211LocalModificationsDevRuntime {
             var postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(level);
             try {
                 try (var probe = SkyforgeUndergroundPlacementProbe.open(
-                        upperId,
+                        volumeId,
                         minimumEnvelopeY,
                         maximumEnvelopeY)) {
                     result = SkyforgeNativeBiomePopulationRunner.populateStep(
                             level,
                             level.getChunkSource().getGenerator(),
                             biomeResolver,
-                            upperId,
+                            volumeId,
                             proofChunk.chunk().getPos(),
                             proofChunk.surfaceBlock(),
                             GenerationStep.Decoration.LOCAL_MODIFICATIONS,
@@ -163,7 +212,7 @@ final class SkyforgeNeoForge1211LocalModificationsDevRuntime {
 
         if (geodeAttempts != proofChunks.size()) {
             throw new IllegalStateException("SF-IMP-0060 final-registry taiga LOCAL_MODIFICATIONS did not expose exactly "
-                    + "one minecraft:amethyst_geode per proof chunk: chunks=" + proofChunks.size()
+                    + "one minecraft:amethyst_geode per owner-bearing proof chunk: chunks=" + proofChunks.size()
                     + ", geodeAttempts=" + geodeAttempts + ", featureKeys=" + observedFeatureKeys);
         }
         if (heightRangeSamples <= 0 || nativeOutsideVolume <= 0 || transformedHeightSamples <= 0) {
@@ -177,9 +226,9 @@ final class SkyforgeNeoForge1211LocalModificationsDevRuntime {
                     + mappedOutsideVolume);
         }
         if (geodeSuccesses <= 0) {
-            throw new IllegalStateException("SF-IMP-0060 deterministic admitted footprint exercised " + geodeAttempts
-                    + " native minecraft:amethyst_geode attempts but none passed vanilla placement/realization; "
-                    + "adjust the development specimen rather than bypassing native rarity");
+            throw new IllegalStateException("SF-IMP-0060 deterministic seed passed native rarity sampling but produced "
+                    + "no persistent minecraft:amethyst_geode; inspect local terrain support rather than bypassing "
+                    + "registered feature semantics");
         }
         if (acceptedWriteAttempts <= 0 && acceptedWritePreflights <= 0) {
             throw new IllegalStateException("SF-IMP-0060 successful local modifications produced no exact-owner write "
@@ -196,7 +245,10 @@ final class SkyforgeNeoForge1211LocalModificationsDevRuntime {
         proofComplete = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
-                "SF-IMP-0060 LOCAL MODIFICATIONS PASS: volume=" + upperId.path()
+                "SF-IMP-0060 LOCAL MODIFICATIONS PASS: volume=" + volumeId.path()
+                        + ", admission={observedChunks=" + admission.observedChunks()
+                        + ", requiredChunks=" + admission.requiredChunks()
+                        + ", pendingCatchup=0}"
                         + ", phase=" + GenerationStep.Decoration.LOCAL_MODIFICATIONS
                         + ", proofChunks=" + proofChunks.size()
                         + ", attemptedFeatures=" + attemptedFeatures
@@ -216,9 +268,48 @@ final class SkyforgeNeoForge1211LocalModificationsDevRuntime {
                         + ", budding=" + geodeEvidence.buddingAmethystBlocks()
                         + ", calcite=" + geodeEvidence.calciteBlocks()
                         + ", smoothBasalt=" + geodeEvidence.smoothBasaltBlocks()
-                        + "}, baseColumnsPreserved=true. Final-registry LOCAL_MODIFICATIONS consumed native placement "
-                        + "randomness first, mapped absolute HeightRangePlacement output into the admitted exact-volume "
-                        + "frame, and left vertically unrelated BASE_WORLD proof columns unchanged.");
+                        + "}, baseColumnsPreserved=true. Whole-volume admission completed before final-registry "
+                        + "LOCAL_MODIFICATIONS consumed native placement randomness. Absolute HeightRangePlacement "
+                        + "output was then mapped into the exact-volume frame and vertically unrelated BASE_WORLD proof "
+                        + "columns remained unchanged.");
+    }
+
+    static SkyIslandWorldCatalog catalog() {
+        var volumeId = new SkyIslandWorldVolumeId(
+                ROOT_SEED,
+                "sf-imp-0060-local-modifications",
+                0,
+                0,
+                GEOMETRY_SEED);
+        var volume = new SkyIslandWorldVolume(
+                volumeId,
+                new WorldBounds(-32.0, 47.0, 196.0, 268.0, -32.0, 47.0),
+                compileTableland());
+        return new SkyIslandWorldCatalog(ROOT_SEED, List.of(volume));
+    }
+
+    private static CompiledSkyIslandVolume compileTableland() {
+        var descriptor = new SkyIslandVolumeDescriptor(
+                SkyIslandVolumeDescriptor.SCHEMA_VERSION_1,
+                GEOMETRY_SEED,
+                8.0,
+                8.0,
+                236.0,
+                32.0,
+                12.0,
+                28.0,
+                10.0,
+                0.0,
+                0.15,
+                0.70,
+                0.0,
+                0.0,
+                18.0);
+        var provider = SkyIslandMorphologyProviders.builtInId(MorphologyFamily.TABLELAND);
+        return new EnrichedProviderMorphologySkyIslandVolumeRecipe().compile(
+                descriptor,
+                new ProviderMorphologyEnrichment(provider, 0.0, 0.0),
+                SkyIslandMorphologyProviders.builtInRegistry());
     }
 
     private static List<ProofChunk> loadedSurfaceChunks(
