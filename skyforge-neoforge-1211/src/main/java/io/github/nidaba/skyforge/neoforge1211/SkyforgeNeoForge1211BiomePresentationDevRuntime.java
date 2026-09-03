@@ -53,11 +53,16 @@ final class SkyforgeNeoForge1211BiomePresentationDevRuntime {
                         level.getHeight())
                 .orElseThrow(() -> new IllegalStateException("SF-IMP-0058 upper proof volume has no origin surface"))
                 .height();
-        BlockPos upperSurface = new BlockPos(PROOF_X, upperSurfaceY - 1, PROOF_Z);
-        ResourceKey<Biome> storedUpperBiome = storedBiomeKey(originChunk, upperSurface);
-        if (!storedUpperBiome.equals(Biomes.TAIGA)) {
-            throw new IllegalStateException("SF-IMP-0058 upper island biome was not persisted as taiga: position="
-                    + upperSurface + ", actual=" + storedUpperBiome.location());
+        BlockPos upperSurfaceBlock = new BlockPos(PROOF_X, upperSurfaceY - 1, PROOF_Z);
+        BlockPos standingPosition = new BlockPos(PROOF_X, upperSurfaceY, PROOF_Z);
+        ResourceKey<Biome> storedSurfaceBiome = storedBiomeKey(originChunk, upperSurfaceBlock);
+        ResourceKey<Biome> storedStandingBiome = storedBiomeKey(originChunk, standingPosition);
+        if (!storedSurfaceBiome.equals(Biomes.TAIGA) || !storedStandingBiome.equals(Biomes.TAIGA)) {
+            throw new IllegalStateException("SF-IMP-0058 upper island biome was not persisted through its surface/HUD cell: "
+                    + "surfacePosition=" + upperSurfaceBlock
+                    + ", surfaceBiome=" + storedSurfaceBiome.location()
+                    + ", standingPosition=" + standingPosition
+                    + ", standingBiome=" + storedStandingBiome.location());
         }
 
         BlockPos gap = new BlockPos(PROOF_X, SAME_COLUMN_GAP_Y, PROOF_Z);
@@ -101,14 +106,15 @@ final class SkyforgeNeoForge1211BiomePresentationDevRuntime {
                 System.Logger.Level.INFO,
                 "SF-IMP-0058 BIOME PRESENTATION PASS: upper={volume=" + upperId.path()
                         + ", surfaceY=" + upperSurfaceY
-                        + ", storedBiome=" + storedUpperBiome.location()
+                        + ", surfaceBiome=" + storedSurfaceBiome.location()
+                        + ", standingBiome=" + storedStandingBiome.location()
                         + ", pendingPresentation=0}, sameColumnGap={y=" + SAME_COLUMN_GAP_Y
                         + ", storedBiome=" + storedGapBiome.location()
                         + ", nativeExpectedBiome=" + expectedGapBiome.location()
                         + ", preserved=true}, lower={volume=" + lowerId.path()
                         + ", state=" + lower.state()
-                        + ", pendingPresentation=0}. Exact-volume biome identity persisted in Minecraft quart storage "
-                        + "without converting vertically unrelated base-world cells.");
+                        + ", pendingPresentation=0}. Exact-volume biome identity persisted through the player's surface-air "
+                        + "cell without converting vertically unrelated base-world cells.");
     }
 
     private static ResourceKey<Biome> storedBiomeKey(
