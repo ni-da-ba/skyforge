@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -94,6 +95,26 @@ final class SkyforgeNativeSurfacePopulationStage {
             }
         }
         return List.copyOf(results);
+    }
+
+    /**
+     * Returns the exact-volume biome resolver already selected for native population in this chunk.
+     *
+     * <p>Persistent client presentation deliberately reuses this plan instead of maintaining a
+     * second Minecraft-biome mapping that could drift from the generation-time identity.
+     */
+    static Optional<SkyforgeNativeSurfacePopulationPlan> planForVolume(
+            ChunkAccess chunk,
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return Optional.empty();
+        }
+        return resolvePlans(binding, chunk).stream()
+                .filter(plan -> plan.volumeId().equals(volumeId))
+                .findFirst();
     }
 
     private static List<SkyforgeNativeSurfacePopulationPlan> resolvePlans(
