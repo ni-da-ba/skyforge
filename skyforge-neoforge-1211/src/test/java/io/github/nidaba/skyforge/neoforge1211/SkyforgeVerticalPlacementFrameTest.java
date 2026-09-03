@@ -47,10 +47,15 @@ final class SkyforgeVerticalPlacementFrameTest {
     }
 
     @Test
-    void phaseAdmissionRemainsExplicit() {
+    void phaseAdmissionAndSupportPolicyRemainExplicit() {
         assertTrue(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
                 GenerationStep.Decoration.UNDERGROUND_ORES.ordinal()));
         assertTrue(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
+                GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal()));
+
+        assertFalse(SkyforgeVerticalPlacementFrame.usesExactSolidColumnFrame(
+                GenerationStep.Decoration.UNDERGROUND_ORES.ordinal()));
+        assertTrue(SkyforgeVerticalPlacementFrame.usesExactSolidColumnFrame(
                 GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal()));
 
         assertFalse(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
@@ -59,5 +64,34 @@ final class SkyforgeVerticalPlacementFrameTest {
                 GenerationStep.Decoration.FLUID_SPRINGS.ordinal()));
         assertFalse(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
                 GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()));
+        assertFalse(SkyforgeVerticalPlacementFrame.usesExactSolidColumnFrame(
+                GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal()));
+    }
+
+    @Test
+    void exactSolidSpanExcludesConservativeEnvelopeAir() {
+        var span = SkyforgeVerticalPlacementFrame.findSolidSpanForTest(
+                        196,
+                        268,
+                        y -> y >= 216 && y <= 247)
+                .orElseThrow();
+
+        assertEquals(216, span.minimumY());
+        assertEquals(247, span.maximumY());
+        assertEquals(
+                216,
+                SkyforgeVerticalPlacementFrame.mapYForTest(-58, -64, 319, span.minimumY(), span.maximumY()));
+        assertEquals(
+                224,
+                SkyforgeVerticalPlacementFrame.mapYForTest(30, -64, 319, span.minimumY(), span.maximumY()));
+    }
+
+    @Test
+    void missingOwnerColumnRemainsExplicitlyEmpty() {
+        assertTrue(SkyforgeVerticalPlacementFrame.findSolidSpanForTest(
+                        196,
+                        268,
+                        ignored -> false)
+                .isEmpty());
     }
 }
