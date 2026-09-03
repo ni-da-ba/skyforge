@@ -146,6 +146,18 @@ neoForge {
             systemProperty("skyforge.dev.biomePresentation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+
+        // SF-IMP-0059 first records the unmodified native UNDERGROUND_ORES vertical placement
+        // distribution against the accepted high-volume 0056/0058 specimen. It deliberately applies
+        // no Y transform yet: this run establishes the baseline mismatch before implementation.
+        create("undergroundPlacementClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0059")
+            systemProperty("skyforge.dev.physicalAdmission", "true")
+            systemProperty("skyforge.dev.biomePresentation", "true")
+            systemProperty("skyforge.dev.undergroundPlacement", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
     }
 
     unitTest {
