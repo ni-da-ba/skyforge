@@ -151,6 +151,20 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         return binding == null || binding.ledger().admitted(volumeId);
     }
 
+    /** Finite semantic bounds used to avoid scanning unrelated Minecraft biome sections. */
+    static WorldBounds volumeBounds(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            throw new IllegalStateException("no physical Skyforge volume-admission stage is installed");
+        }
+        return binding.catalog().volumes().stream()
+                .filter(volume -> volume.id().equals(volumeId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("unknown physical-admission volume: " + volumeId.path()))
+                .bounds();
+    }
+
     static SkyforgePhysicalVolumeAdmissionLedger.Observation snapshot(SkyIslandWorldVolumeId volumeId) {
         Binding binding = ACTIVE.get();
         if (binding == null) {
