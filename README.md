@@ -100,7 +100,7 @@ Generate the canonical finite suspended-volume evidence package:
 
 Both tasks write under `skyforge-reference/build/evidence/`. Evidence packages include machine-readable descriptors and graphs, exact sampled data, numerical morphology metrics, SHA-256 identities, HTML guides, and diagnostic images. CI regenerates the full evidence and publishes a compact human-review bundle.
 
-Additional milestone-specific corpora and interactive NeoForge clients are documented beside their acceptance records under [`docs/reviews`](docs/reviews) and [`docs/runbooks`](docs/runbooks). Development clients use disposable worlds and are not production entry points.
+Additional milestone-specific corpora and interactive NeoForge clients are documented in their acceptance records under [`docs/reviews`](docs/reviews). Development clients use disposable worlds and are not production entry points.
 
 ## Project record
 
@@ -108,8 +108,7 @@ Skyforge intentionally keeps its engineering history visible. Architectural deci
 
 - [`docs/architecture`](docs/architecture) - architecture baselines and subsystem boundaries;
 - [`docs/decisions`](docs/decisions) - architectural decision records;
-- [`docs/reviews`](docs/reviews) - milestone acceptance and visual review;
-- [`docs/runbooks`](docs/runbooks) - reproducible interactive-validation procedures;
+- [`docs/reviews`](docs/reviews) - milestone acceptance, interactive runbooks, and visual review;
 - [`docs/releases`](docs/releases) - versioned proof claims and release criteria.
 
 The early [`v0.1 architecture-proof record`](docs/releases/Skyforge_v0.1.0_Release_Record.md) documents the original backend-neutral claim. Later ADRs and acceptance records extend that foundation into finite volumes and Minecraft realization; they do not imply that a public binary release already exists.
@@ -125,4 +124,3 @@ Please report security concerns privately as described in [`SECURITY.md`](SECURI
 Skyforge is licensed under the [Apache License 2.0](LICENSE).
 
 Minecraft is a trademark of Microsoft Corporation. NeoForge is maintained by its respective project contributors. Skyforge is an independent project and is not affiliated with or endorsed by Microsoft, Mojang Studios, or the NeoForge project.
-
