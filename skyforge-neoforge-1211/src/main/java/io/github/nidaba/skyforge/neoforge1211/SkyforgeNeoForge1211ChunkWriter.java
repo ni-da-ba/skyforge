@@ -47,7 +47,9 @@ public final class SkyforgeNeoForge1211ChunkWriter {
      *
      * <p>Physical admission observation deliberately lives above this writer. That keeps a concrete
      * block writer free of generation-lifecycle side effects and allows deferred exact-volume writes
-     * to reuse the same primitive without accidentally resurveying already-mutated chunks.
+     * to reuse the same primitive without accidentally resurveying already-mutated chunks. When the
+     * deferred stable-chunk lifecycle scope is active, that scope supplies only the runtime lighting
+     * and client-broadcast side effects required after each verified mutation.
      */
     public MinecraftChunkWriteResult writeSolidOverlay(
             ChunkAccess chunk,
@@ -91,11 +93,13 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                     }
 
                     blockPos.set(worldX, worldY, worldZ);
+                    BlockState previousState = chunk.getBlockState(blockPos);
                     chunk.setBlockState(blockPos, state, false);
                     BlockState stored = chunk.getBlockState(blockPos);
                     if (!stored.equals(state)) {
                         throw new IllegalStateException("ChunkAccess did not retain the resolved BlockState");
                     }
+                    SkyforgeDeferredChunkMutationLifecycle.afterWrite(chunk, blockPos, previousState, stored);
                     assigned++;
                     if (!state.isAir()) {
                         solid++;
