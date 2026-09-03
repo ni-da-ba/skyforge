@@ -26,6 +26,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211BiomePopulationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211SurfacePopulationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211LocalModificationsDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211UndergroundStackedDevRuntime.installFromSystemProperty();
     }
 }
