@@ -167,9 +167,11 @@ final class SkyforgeNativePlacedFeatureRunner {
         }
 
         try (var domain = SkyforgeGenerationDomainStage.openIsland(operation.volumeId());
-                var execution = openExecution(operation, domainBiome, maximumAttachmentDepth)) {
+                var execution = openExecution(operation, domainBiome, maximumAttachmentDepth);
+                var verticalFrame = SkyforgeVerticalPlacementFrame.open(level, operation)) {
             domain.requireActive();
             execution.requireActive();
+            verticalFrame.requireActive();
             RandomSource random = RandomSource.create(operation.seed());
             boolean placed = domainBiome.isPresent()
                     // Biome-owned generation must preserve Minecraft's top-feature provenance so
