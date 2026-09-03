@@ -114,6 +114,9 @@ public final class SkyforgeUndergroundPlacementProbe {
             int writePreflightChecks,
             int acceptedWritePreflights,
             int rejectedWritePreflights,
+            int uniqueAcceptedPreflightPositions,
+            int minimumAcceptedPreflightY,
+            int maximumAcceptedPreflightY,
             int uniqueRejectedPreflightPositions,
             int minimumRejectedPreflightY,
             int maximumRejectedPreflightY,
@@ -174,8 +177,11 @@ public final class SkyforgeUndergroundPlacementProbe {
         private int writePreflightChecks;
         private int acceptedWritePreflights;
         private int rejectedWritePreflights;
+        private int minimumAcceptedPreflightY = Integer.MAX_VALUE;
+        private int maximumAcceptedPreflightY = Integer.MIN_VALUE;
         private int minimumRejectedPreflightY = Integer.MAX_VALUE;
         private int maximumRejectedPreflightY = Integer.MIN_VALUE;
+        private final Set<Long> uniqueAcceptedPreflights = new HashSet<>();
         private final Set<Long> uniqueRejectedPreflights = new HashSet<>();
         private int acceptedWriteAttempts;
         private int rejectedWriteAttempts;
@@ -233,6 +239,13 @@ public final class SkyforgeUndergroundPlacementProbe {
             writePreflightChecks++;
             if (accepted) {
                 acceptedWritePreflights++;
+                uniqueAcceptedPreflights.add(position.asLong());
+                minimumAcceptedPreflightY = Math.min(minimumAcceptedPreflightY, position.getY());
+                maximumAcceptedPreflightY = Math.max(maximumAcceptedPreflightY, position.getY());
+                if (position.getY() < minimumEnvelopeY || position.getY() > maximumEnvelopeY) {
+                    throw new IllegalStateException("optimized native write preflight escaped exact volume Y envelope: "
+                            + position + " not in [" + minimumEnvelopeY + ", " + maximumEnvelopeY + "]");
+                }
                 return;
             }
             rejectedWritePreflights++;
@@ -277,6 +290,9 @@ public final class SkyforgeUndergroundPlacementProbe {
                     writePreflightChecks,
                     acceptedWritePreflights,
                     rejectedWritePreflights,
+                    uniqueAcceptedPreflights.size(),
+                    acceptedWritePreflights == 0 ? Integer.MIN_VALUE : minimumAcceptedPreflightY,
+                    acceptedWritePreflights == 0 ? Integer.MIN_VALUE : maximumAcceptedPreflightY,
                     uniqueRejectedPreflights.size(),
                     rejectedWritePreflights == 0 ? Integer.MIN_VALUE : minimumRejectedPreflightY,
                     rejectedWritePreflights == 0 ? Integer.MIN_VALUE : maximumRejectedPreflightY,
