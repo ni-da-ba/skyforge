@@ -22,7 +22,9 @@ These are semantic candidates, not Minecraft blocks, river splines, water levels
 
 ## Scaling
 
-Thresholds are normalized against the island-local maximum accumulation rather than block counts or fixed discharge units. This preserves the same authored interpretation across islands of different nominal radii.
+Channel extraction uses two island-local controls rather than backend units. Accumulation must first be significant relative to the island's strongest drainage path. The resulting candidates are then bounded by a corridor budget derived from the routable watershed domain and the descriptor's hydrological potential. This prevents weakly differentiated watersheds from turning into dense channel carpets while preserving stronger trunks and tributaries across islands of different nominal radii.
+
+The budget is a semantic planning control, not a guarantee of final river count, width, discharge, or Minecraft block coverage.
 
 ## Deferred
 
@@ -35,4 +37,4 @@ Thresholds are normalized against the island-local maximum accumulation rather t
 
 ## Evidence
 
-The deterministic `authorship-hydrologic-features-v1` corpus renders channel candidates in cyan, retained-water anchors in blue, and waterfall/outlet anchors in orange. Its purpose is to verify coherent network extraction and expose upstream radial artifacts rather than conceal them.
+The deterministic `authorship-hydrologic-features-v1` corpus renders routed channel corridors in cyan, retained-water anchors in blue, and waterfall/outlet anchors in orange. Its purpose is to verify coherent network extraction and expose upstream radial artifacts rather than conceal them. The corpus deliberately includes a retained-water example and a previously pathological massif case so density normalization remains visually reviewable.
