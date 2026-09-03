@@ -36,7 +36,11 @@ final class SkyforgePhysicalVolumeCatchupService {
                 if (chunk == null) {
                     continue;
                 }
-                int completed = SkyforgeNeoForge1211SurfaceStage.serviceCatchup(chunk);
+
+                int completed;
+                try (var mutationLifecycle = SkyforgeDeferredChunkMutationLifecycle.open(level, chunk)) {
+                    completed = SkyforgeNeoForge1211SurfaceStage.serviceCatchup(chunk);
+                }
                 if (completed > 0) {
                     SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
                 }
