@@ -2,87 +2,81 @@
 
 **Prepared:** 2026-09-02 (America/Chicago)  
 **Repository:** `ni-da-ba/skyforge`  
-**Repository visibility:** public  
-**Accepted milestone:** SF-IMP-0055  
+**Visibility:** public  
+**Accepted runtime boundary:** SF-IMP-0055  
 **Active milestone:** SF-IMP-0056 — physical volume admission  
 **Active PR:** #63 — `SF-IMP-0056: prevent physical occupancy collisions`  
 **Active branch:** `agent/sf-imp-0056`
 
-This is the operational handoff for the next implementation agent. It records the post-publication continuation point. It does **not** promote SF-IMP-0056 to accepted status; the accepted runtime boundary remains SF-IMP-0055 until the interactive physical-admission proof and final acceptance gates pass.
+This is the authoritative operational handoff for the next implementation agent. SF-IMP-0056 is implemented but **not accepted**. Do not advance the accepted boundary until the dedicated interactive proof and final exact-head acceptance gates pass.
 
-## 1. Repository / publication state
+## 1. Final repository / hardening state
 
-Skyforge is now public and publication hardening is merged to `main`.
-
-Current accepted/public base:
+Skyforge is public. The final repository-hardening pass is merged to `main` at:
 
 ```text
-main = b78685f25fa9adf4d9c837bc5d76b4011bdd12a4
+6e3e8522bda2466182d1b0f6688ce629bf186e10
 ```
 
-Public CI run **#348** passed on that `main` head.
+PR #75 consolidated the remaining GitHub Actions maintenance and passed full PR CI run #351 before merge.
 
-Publication hardening already present includes:
+Current CI hardening includes:
 
-- Apache-2.0 `LICENSE`;
-- `SECURITY.md`;
-- `CONTRIBUTING.md`;
-- pull-request template;
-- Dependabot configuration for Gradle and GitHub Actions;
-- least-privilege CI (`contents: read`);
-- immutable SHA pinning for GitHub Actions;
-- no `pull_request_target` execution;
-- fork-safe artifact publication guard;
-- `persist-credentials: false` in checkout;
-- compact seven-day evidence artifact retention;
-- `continue-on-error: true` for evidence artifact publication so storage trouble does not misclassify a correct build;
-- updated README portfolio evidence and reviewer path;
-- updated current-runtime architecture handoff.
+- `permissions: contents: read`;
+- `persist-credentials: false` on checkout;
+- no `pull_request_target` workflow;
+- standard GitHub-hosted `ubuntu-24.04` runner;
+- 30-minute job timeout;
+- concurrency cancellation for superseded runs;
+- immutable full-SHA action pinning;
+- `actions/checkout` 7.0.1;
+- `actions/setup-java` 6.0.0;
+- `gradle/actions` 6.3.0 for wrapper validation and Gradle setup;
+- `actions/upload-artifact` 7.0.1;
+- fork-safe artifact publication;
+- compact evidence bundle with seven-day retention;
+- artifact publication is non-blocking so storage exhaustion cannot misclassify a correct build.
 
-A public-code smoke scan found no matches for representative high-risk patterns including `BEGIN PRIVATE KEY`, `ghp_`, `AKIA`, `password`, or `C:\\Users`.
+Dependabot is configured to:
 
-### Administrative hardening still outside this connector
+- group Gradle minor/patch maintenance;
+- group GitHub Actions updates into one maintenance PR;
+- limit GitHub Actions maintenance PR churn;
+- defer the JUnit 6 semver-major migration for deliberate compatibility review rather than automatic hygiene.
 
-GitHub currently reports:
+The old individual action-upgrade PRs were closed as superseded by #75. The JUnit 6 PR was explicitly closed as deferred. No project history was rewritten or pruned.
 
-```text
-main protected = false
-repository rulesets = []
-```
+### Administrative repository settings still owned by the repository owner
 
-The connected GitHub integration can read those settings but cannot create branch protection or repository rulesets. This is not an SF-IMP-0056 blocker, but the repository owner should add a simple `main` ruleset when convenient:
+At the last API-visible check, `main` had no branch-protection/ruleset policy. The connected GitHub integration can inspect but cannot create these administrative settings.
+
+Recommended `main` ruleset:
 
 - block force pushes;
 - block branch deletion;
 - require pull requests before merge;
 - require the repository CI check before merge;
-- do not impose unnecessary multi-reviewer requirements on the current solo-maintainer workflow.
+- do not impose unnecessary multi-reviewer requirements on the present solo-maintainer workflow.
 
-Do not change implementation behavior to compensate for the absence of this administrative rule.
+Also verify in GitHub's code-security settings that secret scanning, push protection, and private vulnerability reporting are enabled where available. These settings are outside the integration's readable/writable sensitive endpoint surface and must not be assumed from this document.
 
-## 2. Feature branch integration state
+## 2. Feature branch synchronization state
 
-The publication-hardened `main` was merged into `agent/sf-imp-0056` with a normal two-parent merge commit. No history was rewritten and no feature work was force-rebased.
+Final hardened `main` was merged into `agent/sf-imp-0056` with a normal two-parent merge. No force push or history rewrite was used.
 
-Integrated implementation head before this handoff document:
-
-```text
-194e8ee5d36b9b56f63b7d76d1ecbe6c9cd6df16
-```
-
-Merge-base status after integration:
+Post-hardening synchronization commit:
 
 ```text
-agent/sf-imp-0056: ahead of main, behind by 0 commits
+7196ae12df0489cd17cadf6b87b825168ae46fc1
 ```
 
-The `main` publication changes and SF-IMP-0056 implementation changes were disjoint. The feature diff against current `main` contains only SF-IMP-0056 runtime/test/build changes plus this handoff document.
+The tree at that commit preserves all SF-IMP-0056 implementation files while taking the final `.github/workflows/ci.yml` and `.github/dependabot.yml` from hardened `main`.
 
-Public CI run **#349** passed on `194e8ee5d36b9b56f63b7d76d1ecbe6c9cd6df16` before this documentation commit. Require CI to remain green on the exact final head used for acceptance.
+This handoff document is a documentation-only commit after that synchronization. Require CI to be green on the exact final branch head before accepting SF-IMP-0056.
 
-## 3. Correct interpretation of historical red CI run #334
+## 3. Historical CI #334 — correct classification
 
-Do not diagnose run #334 as an SF-IMP-0056 regression.
+Do not diagnose historical run #334 as an SF-IMP-0056 regression.
 
 On pre-publication head:
 
@@ -90,28 +84,26 @@ On pre-publication head:
 76b2c8cd72a608ad1c15950dfc998d085008fa88
 ```
 
-run #334 completed the implementation gates successfully:
+these gates passed:
 
-- Gradle build: PASS;
-- backend-independence gate: PASS;
-- unit tests: PASS;
-- NeoForge/FML test bootstrap: PASS;
-- fixed-seed evidence generation: PASS;
-- suspended-volume evidence generation: PASS.
+- Gradle build;
+- backend-independence verification;
+- unit tests;
+- NeoForge/FML test bootstrap;
+- fixed-seed evidence generation;
+- suspended-volume evidence generation.
 
-The job failed afterward at `actions/upload-artifact@v4` with:
+The run failed afterward only because the old artifact upload returned:
 
 ```text
 Failed to CreateArtifact: Artifact storage quota has been hit.
 ```
 
-That was specifically an **artifact storage quota** failure. It was not a compile/test/evidence failure, and it should not be described as exhausted compute minutes.
+That was artifact-storage infrastructure failure, not code failure and not compute-minute exhaustion. Later public exact-head runs #349 and #350 passed before the final repository-hardening sync, and PR #75 CI #351 validated the upgraded workflow itself.
 
-Current `main`/feature CI uses the newer compact, guarded, non-blocking evidence upload and has already passed publicly.
+## 4. Architectural problem owned by SF-IMP-0056
 
-## 4. Architectural problem SF-IMP-0056 owns
-
-SF-IMP-0052 established **generation-domain isolation**:
+SF-IMP-0052 established generation-domain isolation:
 
 ```text
 BASE_WORLD generates without Skyforge ownership
@@ -119,7 +111,7 @@ BASE_WORLD generates without Skyforge ownership
         -> explicit Skyforge island domain may realize later
 ```
 
-SF-IMP-0055 then revealed a separate world-composition problem: completed native content can physically occupy coordinates a later Skyforge island intends to claim.
+SF-IMP-0055 then exposed a separate composition problem: completed native content can physically occupy coordinates that a later Skyforge island intends to claim.
 
 The required distinction is:
 
@@ -127,13 +119,13 @@ The required distinction is:
 generation-domain isolation != physical occupancy compatibility
 ```
 
-SF-IMP-0056 must therefore prevent destructive Skyforge realization until an entire planned exact volume has a terminal physical-admission decision based on completed native occupancy evidence.
+SF-IMP-0056 prevents destructive Skyforge realization until a planned exact volume reaches a terminal physical-admission decision based on completed native occupancy evidence.
 
-This milestone is Minecraft/NeoForge backend integration. Do not push Minecraft-specific lifecycle or block-state concepts upstream into backend-neutral modules unless a genuinely backend-neutral abstraction is first demonstrated.
+This is a Minecraft/NeoForge backend lifecycle concern. Do not push Minecraft block-state, chunk-lifecycle, or registry concepts into backend-neutral modules merely to simplify this adapter problem.
 
 ## 5. Implementation already present
 
-The active branch already implements the integrated physical-admission path.
+The active branch already contains the integrated physical-admission path.
 
 ### Physical lifecycle
 
@@ -144,38 +136,38 @@ PLANNED -> REJECTED
 
 Terminal decisions are not reopened.
 
-### Occupancy survey
+### Exact native occupancy survey
 
-`SkyforgeNativeChunkOccupancySurvey` inspects only coordinates that the compiled exact Skyforge volume actually owns as solid. The first conservative policy treats any pre-existing non-air native block at an owned solid coordinate as a conflict and records block/block-entity evidence.
+`SkyforgeNativeChunkOccupancySurvey` inspects only coordinates the compiled exact Skyforge volume actually owns as solid. The first conservative policy treats any pre-existing non-air native block at an owned solid coordinate as a conflict and records native block/block-entity evidence.
 
 ### Whole-volume admission ledger
 
-`SkyforgePhysicalVolumeAdmissionLedger` derives the finite Minecraft-chunk footprint of each planned exact volume.
+`SkyforgePhysicalVolumeAdmissionLedger` derives the finite Minecraft-chunk footprint of every planned exact volume.
 
-Required behavior:
+Required semantics:
 
-- one observed conflict rejects the entire volume immediately;
-- clear evidence cannot admit a volume until every required footprint chunk has reported;
+- one conflict rejects the entire volume immediately;
+- clear evidence cannot admit until every required footprint chunk reports;
 - duplicate equivalent evidence is idempotent;
-- changed or out-of-contract evidence fails rather than silently changing identity;
-- terminal states cannot be reopened.
+- changed or out-of-contract evidence does not silently rewrite identity;
+- terminal states cannot reopen.
 
 ### Runtime admission stage
 
-`SkyforgePhysicalVolumeAdmissionStage` sits between completed native generation and destructive Skyforge writes.
+`SkyforgePhysicalVolumeAdmissionStage` sits between completed native generation and destructive Skyforge realization.
 
 It provides:
 
-- fail-closed position write gating while an exact owner is still PLANNED;
-- write authorization only for ADMITTED owners;
-- no write authority from REJECTED owners;
-- population gating so an exact volume cannot run island-owned population before ADMITTED;
-- immutable deferred-realization evidence for chunks encountered before whole-volume admission;
-- no retained mutable `WorldGenRegion` or chunk references.
+- fail-closed solid-write gating while an exact owner is `PLANNED`;
+- write authority only for `ADMITTED` owners;
+- no write authority from `REJECTED` owners;
+- population gating until physical admission;
+- immutable deferred-realization evidence;
+- no long-lived retained mutable `WorldGenRegion` or chunk references.
 
-### Deferred catch-up
+### Non-forcing deferred catch-up
 
-`SkyforgePhysicalVolumeCatchupService` services deferred work only after target chunks exist as stable loaded `LevelChunk`s.
+`SkyforgePhysicalVolumeCatchupService` services deferred realization only when target chunks already exist as stable loaded `LevelChunk`s.
 
 It uses:
 
@@ -183,67 +175,25 @@ It uses:
 ServerChunkCache#getChunkNow
 ```
 
-This call is intentionally non-forcing: missing chunks remain pending until Minecraft loads them for an independent reason. SF-IMP-0056 must not create generation tickets merely to complete an island footprint.
+Missing chunks remain pending until Minecraft loads them independently. SF-IMP-0056 must not create generation tickets merely to complete a planned island footprint.
 
-After exact terrain catch-up succeeds, the accepted native surface-population stage is invoked. Its existing coordinator/ledger remains authoritative for population idempotency.
+After terrain catch-up, the accepted exact-volume native surface-population stage is replayed. The existing population coordinator remains authoritative for idempotency.
 
-### Write and population integration
+### Integrated ownership points
 
-The active branch also integrates physical admission into:
+Physical admission is wired into the NeoForge chunk adapter, concrete chunk writer, surface stage, native surface population stage, runtime/mod binding, domain mixin support, and dedicated tests.
 
-- the NeoForge chunk adapter;
-- the concrete chunk writer;
-- the current surface stage;
-- native surface population;
-- the mod/runtime binding;
-- domain mixin support;
-- unit tests.
+## 6. Immediate task for the next implementation agent
 
-## 6. Dedicated runtime proof already implemented
+Do **not** start a new architecture milestone. Continue SF-IMP-0056 by running its existing interactive proof.
 
-Gradle run:
+Run:
 
 ```text
 :skyforge-neoforge-1211:runPhysicalAdmissionClient
 ```
 
-System property:
-
-```text
-skyforge.dev.physicalAdmission=true
-```
-
 Use a **new disposable Skyforge Development world**.
-
-The proof constructs two broad tablelands over a deterministic 5x5 / 25-chunk footprint.
-
-### Lower proof volume — forced rejection
-
-The lower exact volume deliberately intersects the vanilla Overworld bedrock floor.
-
-Required outcome:
-
-- physical state becomes `REJECTED`;
-- the first native conflict is retained as evidence;
-- the native conflicting block remains exactly unchanged;
-- no rejected Skyforge terrain is left behind;
-- no deferred realization remains for the rejected volume;
-- no population executes for it.
-
-### Upper proof volume — delayed whole-volume admission
-
-The upper exact volume is placed in clear high air.
-
-Required outcome:
-
-- remains physically absent while state is `PLANNED`;
-- cannot admit before all 25 required footprint chunks have clear evidence;
-- transitions to `ADMITTED` only after the complete finite footprint reports;
-- deferred terrain catches up only through stable already-loaded chunks;
-- no arbitrary unavailable chunk is forced into generation;
-- upper terrain materially exists after catch-up;
-- native taiga surface population executes only after admission;
-- pending catch-up work reaches zero.
 
 Required terminal marker:
 
@@ -251,86 +201,100 @@ Required terminal marker:
 SF-IMP-0056 PHYSICAL ADMISSION PASS
 ```
 
-Do not accept the milestone merely because that string appears. Inspect the values embedded in the emitted evidence and the world state they claim.
+The marker alone is insufficient. Inspect the emitted evidence and the resulting world state.
 
-## 7. Exact continuation procedure
+## 7. Runtime proof contract
 
-The next implementation agent should continue PR #63 directly.
+The fixture plans two deterministic tablelands across a 5x5 / 25-chunk footprint.
 
-1. Pull/check out current `agent/sf-imp-0056` and confirm it contains current public `main` history.
-2. Confirm exact feature-branch CI is green before interactive work. If this handoff documentation commit has triggered a newer CI run, use that newer exact-head result rather than #349.
-3. Review the physical-admission implementation before changing it. Do not reimplement already-present ledger, write-gate, population-gate, catch-up, or proof-fixture work unless a concrete failing invariant requires correction.
-4. Launch `:skyforge-neoforge-1211:runPhysicalAdmissionClient` in a fresh disposable world.
-5. Capture the exact terminal runtime marker and its lower/upper volume evidence.
-6. Visually/operationally confirm the rejected lower volume did not damage native terrain and the admitted upper volume did not partially appear before whole-volume admission.
-7. If the proof fails, identify the narrowest owning layer and fix only that layer. Preserve the architecture rules below.
-8. Re-run repository CI/evidence on the exact corrected head.
-9. Re-run the interactive proof after any behavioral change.
-10. Only after both automated and runtime proof pass, add `docs/reviews/SF-IMP-0056-...-acceptance.md` containing:
-    - exact implementation SHA;
-    - exact CI run number/result;
-    - exact runtime command;
-    - terminal marker;
-    - lower rejection evidence;
-    - upper admission/catch-up/population evidence;
-    - any failed attempts that materially changed the proof oracle or architecture.
-11. Create or update an ADR only if the accepted implementation establishes a material architectural decision not already captured. Confirm the next unused ADR number first.
-12. Update `README.md` and `docs/architecture/Skyforge_Current_Runtime_Architecture.md` from accepted-through SF-IMP-0055 to SF-IMP-0056 only after acceptance is real.
-13. Update PR #63 with final evidence and merge only when exact-head CI and acceptance documentation are green.
+### Lower volume — forced rejection
+
+The lower exact volume deliberately intersects the vanilla Overworld bedrock floor.
+
+It must:
+
+- reach terminal `REJECTED`;
+- retain the native conflict as evidence;
+- preserve the conflicting native block exactly;
+- leave no destructive Skyforge terrain behind;
+- leave no pending deferred realization;
+- never receive island-owned population.
+
+### Upper volume — delayed whole-volume admission
+
+The upper exact volume occupies clear high air.
+
+It must:
+
+- remain physically absent while `PLANNED`;
+- remain unadmitted until all 25 required footprint chunks provide clear evidence;
+- transition to `ADMITTED` only after the complete finite footprint reports;
+- catch up terrain only through already-loaded stable chunks;
+- never force unavailable chunks into generation;
+- materially realize its terrain after admission;
+- execute native taiga surface population only after admission;
+- finish with zero pending catch-up work.
 
 ## 8. Non-regression rules
 
-Do not compromise these contracts while completing SF-IMP-0056:
+Preserve all of the following while finishing SF-IMP-0056:
 
-- BASE_WORLD generation remains observationally isolated from Skyforge.
-- Physical admission remains distinct from generation-domain isolation.
-- Do not restore global highest-surface competition between Minecraft terrain and all Skyforge volumes.
-- Exact island operations remain scoped to one `SkyIslandWorldVolumeId` unless an explicit composition operation owns multiple volumes.
-- PLANNED volumes fail closed and may not partially realize.
-- REJECTED volumes leave no destructive terrain or population work behind.
-- Deferred catch-up must not force arbitrary future chunks to generate.
-- Native population must not execute before physical admission when the stage is installed.
+- BASE_WORLD remains observationally isolated from Skyforge.
+- Generation-domain isolation and physical occupancy admission remain separate concerns.
+- Do not restore global highest-surface competition between native terrain and all Skyforge volumes.
+- Exact island operations stay scoped to exact `SkyIslandWorldVolumeId` ownership unless a higher-level operation explicitly owns multiple volumes.
+- `PLANNED` volumes fail closed and cannot partially realize.
+- `REJECTED` volumes leave no destructive terrain or population residue.
+- Deferred catch-up does not force arbitrary future chunks to generate.
+- Island-owned native population cannot run before `ADMITTED` while the admission stage is installed.
 - Population replay remains idempotent.
-- Do not retain mutable generation-region/chunk objects as long-lived deferred work.
-- Preserve deterministic identity and exact 3-D volume ownership.
-- Preserve existing fixed-seed and suspended-volume evidence unless a deliberately accepted semantic change requires new canonical identity.
-- Keep Minecraft/NeoForge APIs out of `skyforge-kernel`, `skyforge-model`, `skyforge-recipes`, and `skyforge-world` absent a demonstrated backend-neutral need.
-- Preserve publication hardening, least-privilege CI, and visible engineering history.
+- Mutable Minecraft generation objects are not retained as deferred work.
+- Minecraft/NeoForge APIs remain out of `skyforge-kernel`, `skyforge-model`, `skyforge-recipes`, and `skyforge-world` unless a genuinely backend-neutral abstraction is first demonstrated.
+- Preserve deterministic identity, exact three-dimensional ownership, canonical evidence, and accepted SF-IMP-0052/0054/0055 behavior.
+- Preserve repository CI least privilege and visible engineering history.
 
-## 9. Out of scope for SF-IMP-0056
+## 9. If the runtime proof fails
 
-Do not broaden this PR merely because these remain desirable:
+Fix the narrowest layer that actually owns the failure.
 
-- final island morphology / beautification;
-- production world-plan/config bootstrap;
-- ores, caves, hydrology, underground decoration, structures, or `TOP_LAYER_MODIFICATION` population;
-- generalized optional-mod compatibility;
-- persistent world-plan serialization;
-- production spatial indexing/caching policy;
-- runtime-wide generation strategy selection;
-- additional hierarchy levels;
-- final player-facing release polish;
-- broad README screenshots/video portfolio work.
+Do not broaden the architecture merely to make the fixture pass. After any behavioral correction:
 
-These should follow after physical occupancy is safe and accepted.
+1. run repository exact-head CI;
+2. rerun the interactive physical-admission proof in a fresh disposable world;
+3. inspect proof semantics, not merely the final marker.
 
-## 10. Definition of done
+## 10. Acceptance procedure / definition of done
 
-SF-IMP-0056 is complete only when all of the following are true on one exact final head:
+SF-IMP-0056 is complete only when all of these are true:
 
-- repository CI/evidence gate is green;
-- lower collision volume is terminal REJECTED;
-- rejected native conflict remains unchanged;
-- rejected volume has no deferred write/population residue;
-- upper clear volume remains absent while PLANNED;
-- upper volume admits only after its full finite footprint is observed;
-- catch-up does not force missing chunks;
-- upper terrain actually materializes after admission;
-- upper native population executes only after admission;
-- pending upper catch-up reaches zero;
-- `SF-IMP-0056 PHYSICAL ADMISSION PASS` is emitted with evidence consistent with the observed world;
-- final acceptance record is committed;
-- accepted-runtime documentation is updated;
-- PR #63 is merged only after those gates are satisfied.
+1. Exact final implementation head passes repository CI.
+2. `runPhysicalAdmissionClient` emits `SF-IMP-0056 PHYSICAL ADMISSION PASS` on that implementation.
+3. Lower rejection preserves native state and leaves no residue.
+4. Upper volume proves no partial realization while planned.
+5. Admission requires the complete finite footprint.
+6. Catch-up uses already-available chunks and does not force generation.
+7. Upper terrain materially realizes after admission.
+8. Native population begins only after admission and retains idempotency.
+9. Pending catch-up reaches zero.
+10. An SF-IMP-0056 acceptance record is added under `docs/reviews/` with exact implementation SHA, CI run, runtime command, marker, and observed invariants.
+11. Add/update an ADR only if the final implementation establishes a material architectural decision not already captured; verify the next unused ADR number first.
+12. README and current-runtime documentation change from “accepted through SF-IMP-0055” to SF-IMP-0056 only after acceptance is real.
+13. PR #63 is merged only after the acceptance evidence and exact-head CI are green.
 
 Until then, **SF-IMP-0055 remains the authoritative accepted runtime boundary.**
+
+## 11. Explicitly out of scope for SF-IMP-0056
+
+Do not broaden this milestone into:
+
+- terrain beautification or morphology tuning;
+- production world-plan/config bootstrap;
+- ores, caves, underground decoration, or hydrology;
+- structure population;
+- generalized optional-mod compatibility;
+- persistent world-plan serialization;
+- production caching/spatial-index policy;
+- new hierarchy levels;
+- player-facing release polish.
+
+Those remain follow-on engineering decisions after physical occupancy is demonstrably safe.
