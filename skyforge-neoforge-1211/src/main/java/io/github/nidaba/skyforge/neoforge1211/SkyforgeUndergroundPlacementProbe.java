@@ -4,20 +4,21 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Stream;
 import net.minecraft.core.BlockPos;
 
 /**
  * Development evidence collector for native underground placement inside one exact Skyforge volume.
  *
- * <p>The collector does not alter placement. A HeightRangePlacement mixin observes the positions
- * produced by Minecraft's own final-registry placement stack while an explicit probe scope is open.
- * Population write and write-preflight decisions are observed at the exact-volume envelope. The
- * resulting evidence distinguishes absolute-height placement mismatch from configured-feature
- * failure and verifies that optimized chunk-section writers are denied outside the owner domain.
+ * <p>The collector observes both Minecraft's native HeightRangePlacement result and the mapped
+ * exact-volume result, plus optimized write preflights and ordinary high-level write decisions. It
+ * never changes feature policy itself. The resulting evidence proves vertical-frame confinement,
+ * deterministic mapping and raw chunk-section write isolation without feature-ID compatibility
+ * rules.
  */
 public final class SkyforgeUndergroundPlacementProbe {
     static final String ENABLE_PROPERTY = "skyforge.dev.undergroundPlacement";
+    private static final long FNV_OFFSET_BASIS = 0xcbf29ce484222325L;
+    private static final long FNV_PRIME = 0x100000001b3L;
     private static final ThreadLocal<State> ACTIVE = new ThreadLocal<>();
 
     private SkyforgeUndergroundPlacementProbe() {}
@@ -47,25 +48,22 @@ public final class SkyforgeUndergroundPlacementProbe {
         return ACTIVE.get() != null;
     }
 
-    /**
-     * Wraps one native HeightRangePlacement result stream with a non-mutating observation step.
-     *
-     * <p>The stream remains lazy. Its coordinates, ordering and random consumption are unchanged.
-     */
-    public static Stream<BlockPos> observeHeightRangePositions(Stream<BlockPos> positions) {
-        Objects.requireNonNull(positions, "positions");
+    /** Observes one native HeightRangePlacement position and its volume-local mapped counterpart. */
+    public static void observeHeightRangeTransform(
+            BlockPos nativePosition,
+            BlockPos mappedPosition) {
+        Objects.requireNonNull(nativePosition, "nativePosition");
+        Objects.requireNonNull(mappedPosition, "mappedPosition");
         State state = ACTIVE.get();
         if (state == null) {
-            return positions;
+            return;
         }
-        return positions.peek(position -> {
-            var execution = SkyforgePopulationExecutionStage.activeExecution();
-            if (execution.isEmpty()
-                    || !execution.orElseThrow().operation().volumeId().equals(state.volumeId)) {
-                return;
-            }
-            state.recordHeightRange(position);
-        });
+        var execution = SkyforgePopulationExecutionStage.activeExecution();
+        if (execution.isEmpty()
+                || !execution.orElseThrow().operation().volumeId().equals(state.volumeId)) {
+            return;
+        }
+        state.recordHeightRange(nativePosition, mappedPosition);
     }
 
     /** Observes a non-mutating {@code ensureCanWrite} domain preflight. */
@@ -101,11 +99,18 @@ public final class SkyforgeUndergroundPlacementProbe {
             int minimumEnvelopeY,
             int maximumEnvelopeY,
             int heightRangeSamples,
-            int samplesBelowEnvelope,
-            int samplesInsideEnvelope,
-            int samplesAboveEnvelope,
-            int minimumSampleY,
-            int maximumSampleY,
+            int nativeSamplesBelowEnvelope,
+            int nativeSamplesInsideEnvelope,
+            int nativeSamplesAboveEnvelope,
+            int minimumNativeSampleY,
+            int maximumNativeSampleY,
+            int mappedSamplesBelowEnvelope,
+            int mappedSamplesInsideEnvelope,
+            int mappedSamplesAboveEnvelope,
+            int minimumMappedSampleY,
+            int maximumMappedSampleY,
+            int transformedHeightSamples,
+            long heightTransformDigest,
             int writePreflightChecks,
             int acceptedWritePreflights,
             int rejectedWritePreflights,
@@ -154,11 +159,18 @@ public final class SkyforgeUndergroundPlacementProbe {
         private final int minimumEnvelopeY;
         private final int maximumEnvelopeY;
         private int heightRangeSamples;
-        private int samplesBelowEnvelope;
-        private int samplesInsideEnvelope;
-        private int samplesAboveEnvelope;
-        private int minimumSampleY = Integer.MAX_VALUE;
-        private int maximumSampleY = Integer.MIN_VALUE;
+        private int nativeSamplesBelowEnvelope;
+        private int nativeSamplesInsideEnvelope;
+        private int nativeSamplesAboveEnvelope;
+        private int minimumNativeSampleY = Integer.MAX_VALUE;
+        private int maximumNativeSampleY = Integer.MIN_VALUE;
+        private int mappedSamplesBelowEnvelope;
+        private int mappedSamplesInsideEnvelope;
+        private int mappedSamplesAboveEnvelope;
+        private int minimumMappedSampleY = Integer.MAX_VALUE;
+        private int maximumMappedSampleY = Integer.MIN_VALUE;
+        private int transformedHeightSamples;
+        private long heightTransformDigest = FNV_OFFSET_BASIS;
         private int writePreflightChecks;
         private int acceptedWritePreflights;
         private int rejectedWritePreflights;
@@ -180,18 +192,41 @@ public final class SkyforgeUndergroundPlacementProbe {
             this.maximumEnvelopeY = maximumEnvelopeY;
         }
 
-        private void recordHeightRange(BlockPos position) {
-            int y = position.getY();
-            heightRangeSamples++;
-            minimumSampleY = Math.min(minimumSampleY, y);
-            maximumSampleY = Math.max(maximumSampleY, y);
-            if (y < minimumEnvelopeY) {
-                samplesBelowEnvelope++;
-            } else if (y > maximumEnvelopeY) {
-                samplesAboveEnvelope++;
-            } else {
-                samplesInsideEnvelope++;
+        private void recordHeightRange(
+                BlockPos nativePosition,
+                BlockPos mappedPosition) {
+            if (nativePosition.getX() != mappedPosition.getX()
+                    || nativePosition.getZ() != mappedPosition.getZ()) {
+                throw new IllegalStateException("vertical placement transform changed native X/Z coordinates");
             }
+            int nativeY = nativePosition.getY();
+            int mappedY = mappedPosition.getY();
+            heightRangeSamples++;
+            minimumNativeSampleY = Math.min(minimumNativeSampleY, nativeY);
+            maximumNativeSampleY = Math.max(maximumNativeSampleY, nativeY);
+            minimumMappedSampleY = Math.min(minimumMappedSampleY, mappedY);
+            maximumMappedSampleY = Math.max(maximumMappedSampleY, mappedY);
+            if (nativeY < minimumEnvelopeY) {
+                nativeSamplesBelowEnvelope++;
+            } else if (nativeY > maximumEnvelopeY) {
+                nativeSamplesAboveEnvelope++;
+            } else {
+                nativeSamplesInsideEnvelope++;
+            }
+            if (mappedY < minimumEnvelopeY) {
+                mappedSamplesBelowEnvelope++;
+            } else if (mappedY > maximumEnvelopeY) {
+                mappedSamplesAboveEnvelope++;
+            } else {
+                mappedSamplesInsideEnvelope++;
+            }
+            if (nativeY != mappedY) {
+                transformedHeightSamples++;
+            }
+            heightTransformDigest = mix(heightTransformDigest, nativePosition.getX());
+            heightTransformDigest = mix(heightTransformDigest, nativeY);
+            heightTransformDigest = mix(heightTransformDigest, nativePosition.getZ());
+            heightTransformDigest = mix(heightTransformDigest, mappedY);
         }
 
         private void recordPreflight(BlockPos position, boolean accepted) {
@@ -227,11 +262,18 @@ public final class SkyforgeUndergroundPlacementProbe {
                     minimumEnvelopeY,
                     maximumEnvelopeY,
                     heightRangeSamples,
-                    samplesBelowEnvelope,
-                    samplesInsideEnvelope,
-                    samplesAboveEnvelope,
-                    heightRangeSamples == 0 ? Integer.MIN_VALUE : minimumSampleY,
-                    heightRangeSamples == 0 ? Integer.MIN_VALUE : maximumSampleY,
+                    nativeSamplesBelowEnvelope,
+                    nativeSamplesInsideEnvelope,
+                    nativeSamplesAboveEnvelope,
+                    heightRangeSamples == 0 ? Integer.MIN_VALUE : minimumNativeSampleY,
+                    heightRangeSamples == 0 ? Integer.MIN_VALUE : maximumNativeSampleY,
+                    mappedSamplesBelowEnvelope,
+                    mappedSamplesInsideEnvelope,
+                    mappedSamplesAboveEnvelope,
+                    heightRangeSamples == 0 ? Integer.MIN_VALUE : minimumMappedSampleY,
+                    heightRangeSamples == 0 ? Integer.MIN_VALUE : maximumMappedSampleY,
+                    transformedHeightSamples,
+                    heightTransformDigest,
                     writePreflightChecks,
                     acceptedWritePreflights,
                     rejectedWritePreflights,
@@ -244,5 +286,10 @@ public final class SkyforgeUndergroundPlacementProbe {
                     acceptedWriteAttempts == 0 ? Integer.MIN_VALUE : minimumAcceptedWriteY,
                     acceptedWriteAttempts == 0 ? Integer.MIN_VALUE : maximumAcceptedWriteY);
         }
+    }
+
+    private static long mix(long digest, int value) {
+        long mixed = digest ^ Integer.toUnsignedLong(value);
+        return mixed * FNV_PRIME;
     }
 }
