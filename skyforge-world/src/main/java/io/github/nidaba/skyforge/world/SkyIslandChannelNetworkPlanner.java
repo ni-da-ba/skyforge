@@ -10,8 +10,6 @@ import java.util.Set;
 
 /** Derives stream order, semantic role, and relative corridor scale from selected channel topology. */
 public final class SkyIslandChannelNetworkPlanner {
-    private static final double TRUNK_DISCHARGE_THRESHOLD = 0.55;
-
     private SkyIslandChannelNetworkPlanner() {}
 
     public static SkyIslandChannelNetworkPlan plan(SkyIslandDescriptor descriptor) {
@@ -49,6 +47,7 @@ public final class SkyIslandChannelNetworkPlanner {
             streamOrder(source, upstream, orders, new HashSet<>());
         }
         int maxOrder = orders.values().stream().mapToInt(Integer::intValue).max().orElse(0);
+        Set<Integer> mainStemCells = mainStemCells(channels, upstream, cells);
         double maxAccumulation = Math.max(1.0e-12, watershed.maxFlowAccumulation());
 
         List<SkyIslandChannelSegment> segments = new ArrayList<>();
@@ -63,7 +62,7 @@ public final class SkyIslandChannelNetworkPlanner {
                     SkyIslandChannelRole role;
                     if (headwater) {
                         role = SkyIslandChannelRole.HEADWATER;
-                    } else if (order == maxOrder && relativeDischarge >= TRUNK_DISCHARGE_THRESHOLD) {
+                    } else if (mainStemCells.contains(feature.sourceCellIndex())) {
                         role = SkyIslandChannelRole.TRUNK;
                     } else {
                         role = SkyIslandChannelRole.TRIBUTARY;
@@ -82,6 +81,46 @@ public final class SkyIslandChannelNetworkPlanner {
                 });
 
         return new SkyIslandChannelNetworkPlan(descriptor, segments, maxOrder);
+    }
+
+    private static Set<Integer> mainStemCells(
+            Map<Integer, SkyIslandHydrologicFeature> channels,
+            Map<Integer, List<Integer>> upstream,
+            Map<Integer, SkyIslandWatershedCell> cells) {
+        List<Integer> terminals = channels.values().stream()
+                .filter(feature -> !channels.containsKey(feature.downstreamCellIndex()))
+                .map(SkyIslandHydrologicFeature::sourceCellIndex)
+                .sorted()
+                .toList();
+        Set<Integer> mainStems = new HashSet<>();
+
+        for (int terminal : terminals) {
+            int current = terminal;
+            while (true) {
+                List<Integer> inbound = upstream.getOrDefault(current, List.of());
+                if (inbound.isEmpty()) {
+                    break;
+                }
+                mainStems.add(current);
+                current = strongestUpstream(inbound, cells);
+            }
+        }
+        return Set.copyOf(mainStems);
+    }
+
+    private static int strongestUpstream(List<Integer> inbound, Map<Integer, SkyIslandWatershedCell> cells) {
+        int strongest = inbound.getFirst();
+        double strongestAccumulation = requireCell(cells, strongest).flowAccumulation();
+        for (int i = 1; i < inbound.size(); i++) {
+            int candidate = inbound.get(i);
+            double accumulation = requireCell(cells, candidate).flowAccumulation();
+            if (accumulation > strongestAccumulation
+                    || (accumulation == strongestAccumulation && candidate < strongest)) {
+                strongest = candidate;
+                strongestAccumulation = accumulation;
+            }
+        }
+        return strongest;
     }
 
     private static int streamOrder(
