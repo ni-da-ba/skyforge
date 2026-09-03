@@ -11,8 +11,8 @@ import java.util.PriorityQueue;
 public final class SkyIslandWatershedPlanner {
     private static final int GRID_SIZE = 49;
     private static final double ACTIVE_THRESHOLD = 0.025;
-    private static final double BASIN_RETENTION_THRESHOLD = 0.58;
-    private static final double BASIN_FILL_DEPTH_THRESHOLD = 0.012;
+    private static final double BASIN_RETENTION_THRESHOLD = 0.48;
+    private static final double BASIN_FILL_DEPTH_THRESHOLD = 0.008;
 
     private SkyIslandWatershedPlanner() {}
 
