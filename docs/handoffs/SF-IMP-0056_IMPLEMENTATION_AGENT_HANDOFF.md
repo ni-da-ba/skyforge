@@ -12,13 +12,13 @@ This is the authoritative operational handoff for the next implementation agent.
 
 ## 1. Final repository / hardening state
 
-Skyforge is public. The final repository-hardening pass is merged to `main` at:
+Skyforge is public. Repository hardening and the immediately available validated maintenance are merged to `main` at:
 
 ```text
-6e3e8522bda2466182d1b0f6688ce629bf186e10
+68ea314a66ca5f18c6be4113987a1c07bf081cff
 ```
 
-PR #75 consolidated the remaining GitHub Actions maintenance and passed full PR CI run #351 before merge.
+PR #75 consolidated the remaining GitHub Actions hardening and passed full PR CI #351 before merge. PR #76 then applied the grouped low-risk build maintenance — Gradle wrapper 9.7.1 and JUnit 5.14.4 — after full CI #353 passed.
 
 Current CI hardening includes:
 
@@ -44,11 +44,11 @@ Dependabot is configured to:
 - limit GitHub Actions maintenance PR churn;
 - defer the JUnit 6 semver-major migration for deliberate compatibility review rather than automatic hygiene.
 
-The old individual action-upgrade PRs were closed as superseded by #75. The JUnit 6 PR was explicitly closed as deferred. No project history was rewritten or pruned.
+The old individual action-upgrade PRs were closed as superseded by #75. The JUnit 6 PR was explicitly closed as deferred. The earlier standalone Gradle-wrapper PR was replaced by grouped PR #76. No project history was rewritten or pruned.
 
 ### Administrative repository settings still owned by the repository owner
 
-At the last API-visible check, `main` had no branch-protection/ruleset policy. The connected GitHub integration can inspect but cannot create these administrative settings.
+At the last API-visible check, `main` had no branch-protection/ruleset policy. The connected GitHub integration can inspect but cannot create these administrative settings, and no installable GitHub administration plugin was available.
 
 Recommended `main` ruleset:
 
@@ -62,17 +62,17 @@ Also verify in GitHub's code-security settings that secret scanning, push protec
 
 ## 2. Feature branch synchronization state
 
-Final hardened `main` was merged into `agent/sf-imp-0056` with a normal two-parent merge. No force push or history rewrite was used.
+Current `main` was merged into `agent/sf-imp-0056` with normal two-parent history. No force push or history rewrite was used.
 
-Post-hardening synchronization commit:
+Latest maintenance synchronization commit:
 
 ```text
-7196ae12df0489cd17cadf6b87b825168ae46fc1
+ba9d2fe7062fe54310f18c0b2af51c99bd61002f
 ```
 
-The tree at that commit preserves all SF-IMP-0056 implementation files while taking the final `.github/workflows/ci.yml` and `.github/dependabot.yml` from hardened `main`.
+The merge preserves the SF-IMP-0056-only `physicalAdmissionClient` Gradle run while updating the shared wrapper and JUnit 5 maintenance line. This handoff document is a documentation-only commit after that synchronization. Require CI to be green on the exact final branch head before accepting SF-IMP-0056.
 
-This handoff document is a documentation-only commit after that synchronization. Require CI to be green on the exact final branch head before accepting SF-IMP-0056.
+The stacked SF-IMP-0057 branch/PR #77 was also synchronized to this hardened SF-IMP-0056 base with normal merge history; its post-processing implementation was not altered by repository cleanup.
 
 ## 3. Historical CI #334 — correct classification
 
@@ -99,7 +99,7 @@ The run failed afterward only because the old artifact upload returned:
 Failed to CreateArtifact: Artifact storage quota has been hit.
 ```
 
-That was artifact-storage infrastructure failure, not code failure and not compute-minute exhaustion. Later public exact-head runs #349 and #350 passed before the final repository-hardening sync, and PR #75 CI #351 validated the upgraded workflow itself.
+That was artifact-storage infrastructure failure, not code failure and not compute-minute exhaustion. Later public feature runs #349 and #350 passed before the final hardening sync; PR #75 CI #351 validated the upgraded workflow; PR #76 CI #353 validated the grouped Gradle/JUnit 5 maintenance.
 
 ## 4. Architectural problem owned by SF-IMP-0056
 
