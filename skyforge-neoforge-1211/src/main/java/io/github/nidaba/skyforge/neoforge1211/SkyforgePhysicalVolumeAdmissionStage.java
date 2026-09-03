@@ -34,6 +34,7 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         Binding binding = new Binding(
                 catalog,
                 new SkyforgePhysicalVolumeAdmissionLedger(catalog.volumes()),
+                new HashMap<>(),
                 new HashMap<>());
         if (!ACTIVE.compareAndSet(null, binding)) {
             throw new IllegalStateException("a physical Skyforge volume-admission stage is already installed");
@@ -96,6 +97,15 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                     }
                 } else if (observation.state() == SkyforgePhysicalVolumeAdmissionState.REJECTED) {
                     binding.pendingByVolume().remove(volumeId);
+                    binding.pendingBiomePresentationByVolume().remove(volumeId);
+                } else if (observation.state() == SkyforgePhysicalVolumeAdmissionState.ADMITTED
+                        && observation.transitionedNow()) {
+                    Set<Long> previous = binding.pendingBiomePresentationByVolume().put(
+                            volumeId,
+                            new LinkedHashSet<>(binding.ledger().requiredChunkKeys(volumeId)));
+                    if (previous != null) {
+                        throw new IllegalStateException("biome-presentation obligations already existed before admission");
+                    }
                 }
             }
         }
@@ -189,6 +199,77 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         return Set.copyOf(keys);
     }
 
+    /** All loaded-on-demand chunk keys that still owe persistent exact-volume biome presentation. */
+    static Set<Long> eligibleBiomePresentationChunkKeys() {
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return Set.of();
+        }
+        Set<Long> keys = new LinkedHashSet<>();
+        synchronized (binding) {
+            for (var entry : binding.pendingBiomePresentationByVolume().entrySet()) {
+                if (binding.ledger().admitted(entry.getKey())) {
+                    keys.addAll(entry.getValue());
+                }
+            }
+        }
+        return Set.copyOf(keys);
+    }
+
+    /** Exact admitted volumes that still owe biome presentation in one already-available chunk. */
+    static List<SkyIslandWorldVolumeId> eligibleBiomePresentation(ChunkPos chunkPos) {
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return List.of();
+        }
+        long chunkKey = chunkPos.toLong();
+        List<SkyIslandWorldVolumeId> eligible = new ArrayList<>();
+        synchronized (binding) {
+            for (var entry : binding.pendingBiomePresentationByVolume().entrySet()) {
+                if (binding.ledger().admitted(entry.getKey()) && entry.getValue().contains(chunkKey)) {
+                    eligible.add(entry.getKey());
+                }
+            }
+        }
+        return List.copyOf(eligible);
+    }
+
+    /** Completes one durable biome-presentation obligation after the chunk storage mutation succeeds. */
+    static void completeBiomePresentation(SkyIslandWorldVolumeId volumeId, ChunkPos chunkPos) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            throw new IllegalStateException("physical admission stage disappeared during biome presentation");
+        }
+        synchronized (binding) {
+            if (!binding.ledger().admitted(volumeId)) {
+                throw new IllegalStateException("cannot complete biome presentation for a non-admitted volume");
+            }
+            Set<Long> pending = binding.pendingBiomePresentationByVolume().get(volumeId);
+            if (pending == null) {
+                return;
+            }
+            pending.remove(chunkPos.toLong());
+            if (pending.isEmpty()) {
+                binding.pendingBiomePresentationByVolume().remove(volumeId);
+            }
+        }
+    }
+
+    static Set<Long> pendingBiomePresentationChunks(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return Set.of();
+        }
+        synchronized (binding) {
+            Set<Long> pending = binding.pendingBiomePresentationByVolume().get(volumeId);
+            return pending == null ? Set.of() : Set.copyOf(pending);
+        }
+    }
+
     /** Marks one exact deferred write complete only after its concrete chunk write has succeeded. */
     static void completeCatchup(PendingRealization pending) {
         Objects.requireNonNull(pending, "pending");
@@ -261,11 +342,13 @@ final class SkyforgePhysicalVolumeAdmissionStage {
     private record Binding(
             SkyIslandWorldCatalog catalog,
             SkyforgePhysicalVolumeAdmissionLedger ledger,
-            Map<SkyIslandWorldVolumeId, Map<Long, PendingRealization>> pendingByVolume) {
+            Map<SkyIslandWorldVolumeId, Map<Long, PendingRealization>> pendingByVolume,
+            Map<SkyIslandWorldVolumeId, Set<Long>> pendingBiomePresentationByVolume) {
         private Binding {
             Objects.requireNonNull(catalog, "catalog");
             Objects.requireNonNull(ledger, "ledger");
             Objects.requireNonNull(pendingByVolume, "pendingByVolume");
+            Objects.requireNonNull(pendingBiomePresentationByVolume, "pendingBiomePresentationByVolume");
         }
     }
 }
