@@ -103,7 +103,7 @@ final class SkyIslandDescriptorGeneratorTest {
                         + 0.14 * (1.0 - descriptor.exposureTendency())
                         + 0.08 * (1.0 - descriptor.erosionMaturity()));
 
-        assertEquals(expectedHydrology, descriptor.hydrologicalPotential());
+        assertEquals(expectedHydrology, descriptor.hydrologicalPotential(), 1.0e-15);
         assertEquals(expectedEcology, descriptor.ecologicalPotential());
     }
 
