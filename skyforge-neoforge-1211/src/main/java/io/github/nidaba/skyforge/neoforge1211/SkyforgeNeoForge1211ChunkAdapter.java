@@ -18,6 +18,7 @@ import io.github.nidaba.skyforge.world.TerrainBoxObservationRequirements;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.OptionalInt;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
@@ -119,6 +120,15 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 height,
                 blockKeys,
                 candidateVolumeReferences);
+    }
+
+    /** Returns the backend-neutral bounds of one exact compiled world volume. */
+    Optional<WorldBounds> volumeBounds(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return catalog.volumes().stream()
+                .filter(candidate -> candidate.id().equals(volumeId))
+                .findFirst()
+                .map(candidate -> candidate.bounds());
     }
 
     /**
