@@ -146,6 +146,29 @@ neoForge {
             systemProperty("skyforge.dev.biomePresentation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+
+        // SF-IMP-0059 maps Minecraft's native UNDERGROUND_ORES height samples into the admitted
+        // high-volume 0056/0058 fixture and proves optimized raw-section writes remain exact-volume
+        // isolated from BASE_WORLD terrain.
+        create("undergroundPlacementClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0059")
+            systemProperty("skyforge.dev.physicalAdmission", "true")
+            systemProperty("skyforge.dev.biomePresentation", "true")
+            systemProperty("skyforge.dev.undergroundPlacement", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Final SF-IMP-0059 stacked-domain gate. Reuse the accepted 0054 forest/taiga tablelands,
+        // execute UNDERGROUND_ORES independently in both exact Y frames, preserve the other island
+        // byte-for-byte during each replay and explicitly reject its solid coordinates at preflight.
+        create("undergroundPlacementStackedClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0059-stacked")
+            systemProperty("skyforge.dev.undergroundPlacement", "true")
+            systemProperty("skyforge.dev.undergroundPlacementStacked", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
     }
 
     unitTest {

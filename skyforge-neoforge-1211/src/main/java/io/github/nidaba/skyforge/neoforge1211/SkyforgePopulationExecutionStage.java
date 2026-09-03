@@ -125,6 +125,10 @@ final class SkyforgePopulationExecutionStage {
             return ownerSolid.test(position) || attachmentEnvelope.ownsAttachment(position);
         }
 
+        boolean canWrite(BlockPos position) {
+            return attachmentEnvelope.canAcceptWrite(Objects.requireNonNull(position, "position"));
+        }
+
         boolean acceptWrite(BlockPos position) {
             return attachmentEnvelope.acceptWrite(Objects.requireNonNull(position, "position"));
         }

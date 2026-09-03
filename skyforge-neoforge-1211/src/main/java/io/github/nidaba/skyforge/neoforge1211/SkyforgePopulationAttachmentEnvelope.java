@@ -40,27 +40,44 @@ final class SkyforgePopulationAttachmentEnvelope {
         this.maximumAttachmentDepth = maximumAttachmentDepth;
     }
 
-    /** Returns whether the position may be written, recording attachment provenance on success. */
-    boolean acceptWrite(BlockPos position) {
+    /**
+     * Returns whether the position could be admitted without mutating attachment provenance.
+     *
+     * <p>Some optimized native features call {@code WorldGenLevel.ensureCanWrite} before acquiring a
+     * raw chunk section and then mutate that section directly. That preflight must be able to reject
+     * foreign/base-world coordinates without prematurely recording an attachment that the feature may
+     * never actually write.
+     */
+    boolean canAcceptWrite(BlockPos position) {
         Objects.requireNonNull(position, "position");
         BlockPos immutable = position.immutable();
         if (foreignSolid.test(immutable)) {
             return false;
         }
-        if (ownerSolid.test(immutable)) {
-            return true;
-        }
-        Integer existing = attachmentDepths.get(immutable);
-        if (existing != null) {
+        if (ownerSolid.test(immutable) || attachmentDepths.containsKey(immutable)) {
             return true;
         }
         if (maximumAttachmentDepth == 0) {
             return false;
         }
+        int parentDepth = minimumAdjacentDepth(immutable);
+        return parentDepth >= 0 && parentDepth < maximumAttachmentDepth;
+    }
+
+    /** Returns whether the position may be written, recording attachment provenance on success. */
+    boolean acceptWrite(BlockPos position) {
+        Objects.requireNonNull(position, "position");
+        BlockPos immutable = position.immutable();
+        if (!canAcceptWrite(immutable)) {
+            return false;
+        }
+        if (ownerSolid.test(immutable) || attachmentDepths.containsKey(immutable)) {
+            return true;
+        }
 
         int parentDepth = minimumAdjacentDepth(immutable);
         if (parentDepth < 0 || parentDepth >= maximumAttachmentDepth) {
-            return false;
+            throw new IllegalStateException("write preflight and attachment admission diverged");
         }
         attachmentDepths.put(immutable, parentDepth + 1);
         return true;

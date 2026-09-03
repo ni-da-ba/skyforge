@@ -6,8 +6,10 @@
   "mixins": [
     "SkyforgeWorldGenRegionDomainMixin",
     "SkyforgeLevelDomainMixin",
+    "SkyforgeServerLevelWorldGenDomainMixin",
     "SkyforgeBiomeManagerDomainMixin",
-    "SkyforgeChunkPostProcessingMixin"
+    "SkyforgeChunkPostProcessingMixin",
+    "SkyforgeHeightRangePlacementDomainMixin"
   ],
   "injectors": {
     "defaultRequire": 1

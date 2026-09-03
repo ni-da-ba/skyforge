@@ -23,11 +23,41 @@ public final class SkyforgeWorldGenRegionDomainBridge {
                 .orElse(true);
     }
 
+    /**
+     * Non-mutating preflight used by {@code WorldGenLevel.ensureCanWrite}.
+     *
+     * <p>Vanilla ore generation and other optimized features may acquire raw chunk sections and
+     * write them directly after this preflight, bypassing Level/WorldGenRegion#setBlock. Therefore
+     * exact-volume isolation must participate here as well as at the high-level write seam.
+     */
+    public static boolean canWrite(BlockPos position) {
+        Objects.requireNonNull(position, "position");
+        var execution = SkyforgePopulationExecutionStage.activeExecution();
+        if (execution.isEmpty()) {
+            return true;
+        }
+        var active = execution.orElseThrow();
+        boolean accepted = active.canWrite(position);
+        SkyforgeUndergroundPlacementProbe.observeWritePreflight(
+                active.operation(),
+                position,
+                accepted);
+        return accepted;
+    }
+
     public static boolean acceptWrite(BlockPos position) {
         Objects.requireNonNull(position, "position");
-        return SkyforgePopulationExecutionStage.activeExecution()
-                .map(execution -> execution.acceptWrite(position))
-                .orElse(true);
+        var execution = SkyforgePopulationExecutionStage.activeExecution();
+        if (execution.isEmpty()) {
+            return true;
+        }
+        var active = execution.orElseThrow();
+        boolean accepted = active.acceptWrite(position);
+        SkyforgeUndergroundPlacementProbe.observeWriteDecision(
+                active.operation(),
+                position,
+                accepted);
+        return accepted;
     }
 
     public static OptionalInt exactHeight(

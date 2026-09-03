@@ -122,6 +122,23 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
                 .ifPresent(callback::setReturnValue);
     }
 
+    /**
+     * Optimized native features can use ensureCanWrite as their final safety gate and then mutate a
+     * LevelChunkSection directly. Reject coordinates outside the exact population envelope before
+     * WorldGenRegion's normal generation-radius check runs.
+     */
+    @Inject(
+            method = "ensureCanWrite(Lnet/minecraft/core/BlockPos;)Z",
+            at = @At("HEAD"),
+            cancellable = true)
+    private void skyforge$preflightOwnedWrite(
+            BlockPos position,
+            CallbackInfoReturnable<Boolean> callback) {
+        if (!SkyforgeWorldGenRegionDomainBridge.canWrite(position)) {
+            callback.setReturnValue(false);
+        }
+    }
+
     @Inject(
             method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
             at = @At("HEAD"),
