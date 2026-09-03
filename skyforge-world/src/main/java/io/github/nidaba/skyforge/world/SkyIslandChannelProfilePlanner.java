@@ -53,7 +53,7 @@ public final class SkyIslandChannelProfilePlanner {
             SkyIslandChannelProfileKind kind;
             if (gradient >= 0.60 && streamPower >= 0.45) {
                 kind = SkyIslandChannelProfileKind.CASCADE;
-            } else if (incision >= 0.58 && width <= 0.78) {
+            } else if (incision >= 0.58) {
                 kind = SkyIslandChannelProfileKind.INCISED;
             } else {
                 kind = SkyIslandChannelProfileKind.ALLUVIAL;
