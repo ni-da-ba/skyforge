@@ -81,13 +81,38 @@ public final class SkyIslandHydrologicTerrainInfluencePlanner {
                 throw new IllegalStateException("riparian cell references missing channel profile");
             }
             double proximity = cell.channelDistance() == 1 ? 1.0 : 0.55;
-            double floodplain = clamp01(proximity * (
-                    0.34 * profile.bankfullWidthPotential()
+            double lowGradient = 1.0 - profile.gradientPotential();
+            double bankIncisionScale = switch (profile.kind()) {
+                case ALLUVIAL -> 0.45;
+                case INCISED -> 0.85;
+                case CASCADE -> 0.95;
+            };
+            double floodplainProfileScale = switch (profile.kind()) {
+                case ALLUVIAL -> 1.0;
+                case INCISED -> 0.55;
+                case CASCADE -> 0.18;
+            };
+            double depositionProfileScale = switch (profile.kind()) {
+                case ALLUVIAL -> 1.0;
+                case INCISED -> 0.55;
+                case CASCADE -> 0.30;
+            };
+
+            double bankIncision = clamp01(proximity * bankIncisionScale * (
+                    0.45 * profile.incisionPotential()
+                            + 0.30 * profile.streamPowerPotential()
+                            + 0.25 * profile.gradientPotential()));
+            double floodplain = clamp01(proximity
+                    * floodplainProfileScale
+                    * (0.15 + 0.85 * lowGradient)
+                    * (0.34 * profile.bankfullWidthPotential()
                             + 0.25 * profile.segment().relativeDischarge()
-                            + 0.23 * (1.0 - profile.gradientPotential())
+                            + 0.23 * lowGradient
                             + 0.18 * cell.retentionPotential()));
-            double deposition = clamp01(proximity * (
-                    0.32 * (1.0 - profile.gradientPotential())
+            double deposition = clamp01(proximity
+                    * depositionProfileScale
+                    * (0.30 + 0.70 * lowGradient)
+                    * (0.32 * lowGradient
                             + 0.25 * profile.bankfullWidthPotential()
                             + 0.20 * profile.segment().relativeDischarge()
                             + 0.13 * cell.retentionPotential()
@@ -97,7 +122,7 @@ public final class SkyIslandHydrologicTerrainInfluencePlanner {
                     reserved,
                     watershedCells,
                     cell.watershedCellIndex(),
-                    0.0,
+                    bankIncision,
                     deposition,
                     floodplain,
                     0.0);
