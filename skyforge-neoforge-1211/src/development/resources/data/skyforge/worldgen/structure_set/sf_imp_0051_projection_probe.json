@@ -1,0 +1,14 @@
+{
+  "placement": {
+    "type": "minecraft:random_spread",
+    "salt": 510051,
+    "separation": 511,
+    "spacing": 512
+  },
+  "structures": [
+    {
+      "structure": "skyforge:sf_imp_0051_projection_probe",
+      "weight": 1
+    }
+  ]
+}
