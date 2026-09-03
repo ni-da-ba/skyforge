@@ -83,6 +83,10 @@ final class SkyforgePhysicalVolumeAdmissionLedger {
         return state(volumeId) == SkyforgePhysicalVolumeAdmissionState.ADMITTED;
     }
 
+    synchronized Set<Long> requiredChunkKeys(SkyIslandWorldVolumeId volumeId) {
+        return Set.copyOf(requireEntry(volumeId).requiredChunkKeys);
+    }
+
     synchronized Observation snapshot(SkyIslandWorldVolumeId volumeId) {
         return snapshot(volumeId, requireEntry(volumeId), false);
     }
