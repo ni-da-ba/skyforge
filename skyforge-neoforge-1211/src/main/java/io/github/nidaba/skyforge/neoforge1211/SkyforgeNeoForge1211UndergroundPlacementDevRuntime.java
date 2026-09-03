@@ -104,9 +104,37 @@ final class SkyforgeNeoForge1211UndergroundPlacementDevRuntime {
             throw new IllegalStateException(
                     "SF-IMP-0059 baseline executed UNDERGROUND_ORES without observing any HeightRangePlacement samples");
         }
-        if (!captureBaseColumn(level).equals(baseColumnBefore)) {
+
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "SF-IMP-0059 NATIVE UNDERGROUND MEASUREMENT: envelopeY=[" + minimumEnvelopeY + ","
+                        + maximumEnvelopeY + "], sampleYRange=[" + snapshot.minimumSampleY() + ","
+                        + snapshot.maximumSampleY() + "], heightRangeSamples=" + snapshot.heightRangeSamples()
+                        + ", below=" + snapshot.samplesBelowEnvelope()
+                        + ", inside=" + snapshot.samplesInsideEnvelope()
+                        + ", above=" + snapshot.samplesAboveEnvelope()
+                        + ", writePreflightChecks=" + snapshot.writePreflightChecks()
+                        + ", acceptedWritePreflights=" + snapshot.acceptedWritePreflights()
+                        + ", rejectedWritePreflights=" + snapshot.rejectedWritePreflights()
+                        + ", rejectedPreflightYRange=[" + snapshot.minimumRejectedPreflightY() + ","
+                        + snapshot.maximumRejectedPreflightY() + "].");
+
+        List<BlockState> baseColumnAfter = captureBaseColumn(level);
+        if (!baseColumnAfter.equals(baseColumnBefore)) {
+            int minimumCapturedY = capturedMinimumY(level);
+            for (int index = 0; index < baseColumnBefore.size(); index++) {
+                BlockState before = baseColumnBefore.get(index);
+                BlockState after = baseColumnAfter.get(index);
+                if (!before.equals(after)) {
+                    int changedY = minimumCapturedY + index;
+                    throw new IllegalStateException(
+                            "SF-IMP-0059 native underground baseline mutated vertically unrelated BASE_WORLD terrain at "
+                                    + "BlockPos{x=" + PROOF_X + ", y=" + changedY + ", z=" + PROOF_Z + "}: before="
+                                    + before + ", after=" + after);
+                }
+            }
             throw new IllegalStateException(
-                    "SF-IMP-0059 native underground baseline mutated vertically unrelated BASE_WORLD terrain");
+                    "SF-IMP-0059 native underground baseline changed BASE_WORLD capture size unexpectedly");
         }
 
         int outsideEnvelopeSamples = Math.addExact(
@@ -136,17 +164,24 @@ final class SkyforgeNeoForge1211UndergroundPlacementDevRuntime {
                         + ", samplesInsideEnvelope=" + snapshot.samplesInsideEnvelope()
                         + ", samplesAboveEnvelope=" + snapshot.samplesAboveEnvelope()
                         + ", sampleYRange=[" + snapshot.minimumSampleY() + "," + snapshot.maximumSampleY() + "]"
+                        + ", writePreflightChecks=" + snapshot.writePreflightChecks()
+                        + ", acceptedWritePreflights=" + snapshot.acceptedWritePreflights()
+                        + ", rejectedWritePreflights=" + snapshot.rejectedWritePreflights()
+                        + ", uniqueRejectedPreflightPositions=" + snapshot.uniqueRejectedPreflightPositions()
+                        + ", rejectedPreflightYRange=[" + snapshot.minimumRejectedPreflightY() + ","
+                        + snapshot.maximumRejectedPreflightY() + "]"
                         + ", acceptedWriteAttempts=" + snapshot.acceptedWriteAttempts()
                         + ", rejectedWriteAttempts=" + snapshot.rejectedWriteAttempts()
                         + ", uniqueAcceptedWritePositions=" + snapshot.uniqueAcceptedWritePositions()
                         + ", acceptedWriteYRange=[" + snapshot.minimumAcceptedWriteY() + ","
                         + snapshot.maximumAcceptedWriteY() + "]"
                         + ", baseColumnPreserved=true. Registry-native underground placement executed without any "
-                        + "vertical transform; exact-volume visibility/write isolation remained authoritative.");
+                        + "vertical transform; optimized native write preflights and exact-volume isolation remained "
+                        + "authoritative.");
     }
 
     private static List<BlockState> captureBaseColumn(ServerLevel level) {
-        int minimumY = Math.max(level.getMinBuildHeight(), BASE_COLUMN_MINIMUM_Y);
+        int minimumY = capturedMinimumY(level);
         int maximumY = Math.min(
                 level.getMinBuildHeight() + level.getHeight() - 1,
                 BASE_COLUMN_MAXIMUM_Y);
@@ -155,5 +190,9 @@ final class SkyforgeNeoForge1211UndergroundPlacementDevRuntime {
             states.add(level.getBlockState(new BlockPos(PROOF_X, y, PROOF_Z)));
         }
         return List.copyOf(states);
+    }
+
+    private static int capturedMinimumY(ServerLevel level) {
+        return Math.max(level.getMinBuildHeight(), BASE_COLUMN_MINIMUM_Y);
     }
 }
