@@ -54,24 +54,8 @@ public final class SkyIslandHydrologicTerrainInfluencePlanner {
                             + 0.22 * segment.relativeDischarge()
                             + 0.19 * (1.0 - profile.incisionPotential()));
 
-            add(
-                    influence,
-                    reserved,
-                    watershedCells,
-                    segment.sourceCellIndex(),
-                    incision,
-                    deposition,
-                    0.0,
-                    0.0);
-            add(
-                    influence,
-                    reserved,
-                    watershedCells,
-                    segment.downstreamCellIndex(),
-                    incision,
-                    deposition,
-                    0.0,
-                    0.0);
+            add(influence, reserved, watershedCells, segment.sourceCellIndex(), incision, deposition, 0.0, 0.0);
+            add(influence, reserved, watershedCells, segment.downstreamCellIndex(), incision, deposition, 0.0, 0.0);
         }
 
         for (SkyIslandRiparianCell cell : riparian.cells()) {
@@ -93,9 +77,9 @@ public final class SkyIslandHydrologicTerrainInfluencePlanner {
                 case CASCADE -> 0.18;
             };
             double depositionProfileScale = switch (profile.kind()) {
-                case ALLUVIAL -> 1.0;
-                case INCISED -> 0.55;
-                case CASCADE -> 0.30;
+                case ALLUVIAL -> 0.78;
+                case INCISED -> 0.45;
+                case CASCADE -> 0.22;
             };
 
             double bankIncision = clamp01(proximity * bankIncisionScale * (
@@ -132,23 +116,13 @@ public final class SkyIslandHydrologicTerrainInfluencePlanner {
             int target = drop.kind() == SkyIslandChannelDropKind.EDGE_FALL
                     ? drop.sourceCellIndex()
                     : drop.downstreamCellIndex();
-            add(
-                    influence,
-                    reserved,
-                    watershedCells,
-                    target,
-                    0.0,
-                    0.0,
-                    0.0,
-                    drop.dropPotential());
+            add(influence, reserved, watershedCells, target, 0.0, 0.0, 0.0, drop.dropPotential());
 
             if (drop.kind() != SkyIslandChannelDropKind.EDGE_FALL) {
                 double fringe = clamp01(
                         0.65 * (0.55 * drop.dropPotential() + 0.45 * drop.plungePoolPotential()));
                 for (SkyIslandRiparianCell cell : riparian.cells()) {
-                    if (chebyshevDistance(
-                                    cell.watershedCellIndex(), target, watershed.gridSize())
-                            <= 1) {
+                    if (chebyshevDistance(cell.watershedCellIndex(), target, watershed.gridSize()) <= 1) {
                         add(
                                 influence,
                                 reserved,
