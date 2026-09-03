@@ -6,10 +6,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.LevelChunk;
 
 /** Runtime binding for production-facing exact-volume native surface population. */
 final class SkyforgeNativeSurfacePopulationStage {
@@ -37,6 +39,29 @@ final class SkyforgeNativeSurfacePopulationStage {
             results.add(binding.coordinator().populate(level, generator, plan, chunk.getPos()));
         }
         return List.copyOf(results);
+    }
+
+    /**
+     * Runs the ordinary exact-volume coordinator on an already-loaded chunk while preserving the
+     * generation-time post-processing contract expected by native placed features.
+     *
+     * <p>Direct WorldGenRegion population never enters this scope and remains byte-for-byte on the
+     * accepted SF-IMP-0055 lifecycle. The deferred bridge is therefore a catch-up adapter concern,
+     * not a second population implementation.
+     */
+    static List<SkyforgeNativeSurfacePopulationCoordinator.Result> populateDeferred(
+            ServerLevel level,
+            LevelChunk chunk,
+            ChunkGenerator generator) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(generator, "generator");
+        if (chunk.getLevel() != level) {
+            throw new IllegalArgumentException("deferred population chunk belongs to another level");
+        }
+        try (var ignored = SkyforgeDeferredPopulationPostProcessingBridge.open(level)) {
+            return populate(level, chunk, generator);
+        }
     }
 
     /**
