@@ -7,6 +7,7 @@ import io.github.nidaba.skyforge.world.SkyIslandChannelNetworkPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandChannelSegment;
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
 import io.github.nidaba.skyforge.world.SkyIslandLocalPosition;
+import io.github.nidaba.skyforge.world.SkyIslandWaterbodyCandidate;
 import io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprint;
 import io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprintCell;
 import io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprintPlan;
@@ -26,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 
 /** Generates deterministic AUTH-0009 retained-waterbody footprint evidence. */
@@ -48,9 +50,9 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
         atlasGraphics.fillRect(0, 0, atlas.getWidth(), atlas.getHeight());
 
         StringBuilder manifest = new StringBuilder(
-                "islandKey,morphology,footprints,inundatedCells,shorelineCells,maxInundatedDepressionFraction,maxDepthPotential,maxFillFraction\n");
+                "islandKey,morphology,footprints,sourceCandidates,inundatedCells,shorelineCells,maxInundatedDepressionFraction,maxDepthPotential,maxSourceFillFraction\n");
         StringBuilder details = new StringBuilder(
-                "islandKey,morphology,ordinal,kind,sinkCell,catchmentCells,depressionCells,inundatedCells,inundatedDepressionFraction,shorelineCells,fillFraction,waterSurfacePotential,spillSurfacePotential,maxDepthPotential\n");
+                "islandKey,morphology,ordinal,sourceCandidates,sourceSinks,sourceKinds,depressionCells,inundatedCells,inundatedDepressionFraction,shorelineCells,maxSourceFillFraction,waterSurfacePotential,spillSurfacePotential,maxDepthPotential\n");
 
         for (int n = 0; n < KEYS.size(); n++) {
             long key = KEYS.get(n);
@@ -61,6 +63,9 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
             BufferedImage image = render(descriptor, footprints, channels, watershed);
             ImageIO.write(image, "png", out.resolve("island-" + key + ".png").toFile());
 
+            int sourceCandidates = footprints.footprints().stream()
+                    .mapToInt(SkyIslandWaterbodyFootprint::sourceCandidateCount)
+                    .sum();
             int inundatedCells = footprints.footprints().stream()
                     .mapToInt(SkyIslandWaterbodyFootprint::inundatedCellCount)
                     .sum();
@@ -74,7 +79,7 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
                     .mapToDouble(SkyIslandWaterbodyFootprint::maxDepthPotential)
                     .max().orElse(0.0);
             double maxFill = footprints.footprints().stream()
-                    .mapToDouble(SkyIslandWaterbodyFootprint::fillFraction)
+                    .mapToDouble(SkyIslandWaterbodyFootprint::maxSourceFillFraction)
                     .max().orElse(0.0);
 
             int x = (n % 3) * MAP;
@@ -84,10 +89,10 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
             atlasGraphics.drawString("key=" + key + " / " + descriptor.morphologyFamily().identifier(), x + 8, y + 18);
             atlasGraphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
             atlasGraphics.drawString(
-                    "footprints=" + footprints.footprints().size()
-                            + " wetCells=" + inundatedCells
-                            + " wet/depression=" + format(maxInundatedFraction)
-                            + " depth=" + format(maxDepth),
+                    "bodies=" + footprints.footprints().size()
+                            + " sources=" + sourceCandidates
+                            + " cells=" + inundatedCells
+                            + " wet/dep=" + format(maxInundatedFraction),
                     x + 8,
                     y + 38);
             atlasGraphics.drawImage(image, x, y + 64, null);
@@ -95,6 +100,7 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
             manifest.append(key).append(',')
                     .append(descriptor.morphologyFamily().identifier()).append(',')
                     .append(footprints.footprints().size()).append(',')
+                    .append(sourceCandidates).append(',')
                     .append(inundatedCells).append(',')
                     .append(shorelineCells).append(',')
                     .append(format(maxInundatedFraction)).append(',')
@@ -103,17 +109,24 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
 
             for (int ordinal = 0; ordinal < footprints.footprints().size(); ordinal++) {
                 SkyIslandWaterbodyFootprint footprint = footprints.footprints().get(ordinal);
+                String sinks = footprint.sourceCandidates().stream()
+                        .map(candidate -> Integer.toString(candidate.sinkCellIndex()))
+                        .collect(Collectors.joining("|"));
+                String kinds = footprint.sourceCandidates().stream()
+                        .map(candidate -> candidate.kind().name())
+                        .distinct()
+                        .collect(Collectors.joining("|"));
                 details.append(key).append(',')
                         .append(descriptor.morphologyFamily().identifier()).append(',')
                         .append(ordinal).append(',')
-                        .append(footprint.candidate().kind()).append(',')
-                        .append(footprint.candidate().sinkCellIndex()).append(',')
-                        .append(footprint.candidate().catchmentCellCount()).append(',')
+                        .append(footprint.sourceCandidateCount()).append(',')
+                        .append(sinks).append(',')
+                        .append(kinds).append(',')
                         .append(footprint.depressionCellCount()).append(',')
                         .append(footprint.inundatedCellCount()).append(',')
                         .append(format(footprint.inundatedDepressionFraction())).append(',')
                         .append(footprint.shorelineCellCount()).append(',')
-                        .append(format(footprint.fillFraction())).append(',')
+                        .append(format(footprint.maxSourceFillFraction())).append(',')
                         .append(format(footprint.waterSurfacePotential())).append(',')
                         .append(format(footprint.spillSurfacePotential())).append(',')
                         .append(format(footprint.maxDepthPotential())).append('\n');
@@ -129,9 +142,9 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
                 "<!doctype html><meta charset=\"utf-8\"><title>AUTH-0009</title>"
                         + "<h1>Retained waterbody footprint planning</h1>"
                         + "<p>Gray lines: accepted channel network. Colored cells: connected semantic inundation footprint inside the common priority-flood depression. "
-                        + "Cyan: pond, dark blue: lake, teal: wetland. Dark cell borders mark the coarse shoreline. "
-                        + "Black dots mark retained-sink anchors. Footprints use normalized semantic spill surfaces; "
-                        + "they are not Minecraft block shorelines or literal world Y water levels.</p>"
+                        + "Cyan: pond, dark blue: lake, teal: wetland, purple: mixed source kinds. Dark cell borders mark the coarse shoreline. "
+                        + "Black dots mark every retained source anchor. Overlapping candidate footprints are coalesced rather than double-counted. "
+                        + "Footprints are not Minecraft block shorelines or literal world Y water levels.</p>"
                         + "<img src=\"atlas.png\" style=\"max-width:100%\">"
                         + "<p><a href=\"manifest.csv\">manifest.csv</a> | <a href=\"footprints.csv\">footprints.csv</a></p>",
                 StandardCharsets.UTF_8);
@@ -161,8 +174,8 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
 
         int cellSize = Math.max(4, (int) Math.ceil(MAP / (double) watershed.gridSize()) + 1);
         for (SkyIslandWaterbodyFootprint footprint : footprints.footprints()) {
-            Color fill = lightColor(footprint.candidate().kind());
-            Color edge = darkColor(footprint.candidate().kind());
+            Color fill = lightColor(footprint);
+            Color edge = darkColor(footprint);
             for (SkyIslandWaterbodyFootprintCell cell : footprint.cells()) {
                 int x = mapX(cell.position(), radius);
                 int y = mapY(cell.position(), radius);
@@ -173,30 +186,42 @@ public final class AuthorshipWaterbodyFootprintCorpusCli {
                     g.drawRect(x - cellSize / 2, y - cellSize / 2, cellSize, cellSize);
                 }
             }
-            int anchorX = mapX(footprint.candidate().anchor(), radius);
-            int anchorY = mapY(footprint.candidate().anchor(), radius);
             g.setColor(Color.BLACK);
-            g.fillOval(anchorX - 3, anchorY - 3, 6, 6);
+            for (SkyIslandWaterbodyCandidate source : footprint.sourceCandidates()) {
+                int anchorX = mapX(source.anchor(), radius);
+                int anchorY = mapY(source.anchor(), radius);
+                g.fillOval(anchorX - 3, anchorY - 3, 6, 6);
+            }
         }
 
         g.dispose();
         return image;
     }
 
-    private static Color lightColor(SkyIslandWaterbodyKind kind) {
-        return switch (kind) {
+    private static Color lightColor(SkyIslandWaterbodyFootprint footprint) {
+        if (footprint.hasMixedKinds()) {
+            return new Color(180, 120, 190);
+        }
+        return switch (singleKind(footprint)) {
             case POND -> new Color(90, 195, 225);
             case LAKE -> new Color(80, 115, 205);
             case WETLAND -> new Color(90, 180, 165);
         };
     }
 
-    private static Color darkColor(SkyIslandWaterbodyKind kind) {
-        return switch (kind) {
+    private static Color darkColor(SkyIslandWaterbodyFootprint footprint) {
+        if (footprint.hasMixedKinds()) {
+            return new Color(115, 60, 130);
+        }
+        return switch (singleKind(footprint)) {
             case POND -> new Color(25, 125, 165);
             case LAKE -> new Color(25, 55, 145);
             case WETLAND -> new Color(25, 115, 105);
         };
+    }
+
+    private static SkyIslandWaterbodyKind singleKind(SkyIslandWaterbodyFootprint footprint) {
+        return footprint.sourceCandidates().getFirst().kind();
     }
 
     private static SkyIslandDescriptor descriptor(long key) {

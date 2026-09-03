@@ -24,9 +24,12 @@ class SkyIslandWaterbodyFootprintPlannerTest {
 
         assertEquals(first, second);
         assertFalse(first.footprints().isEmpty());
-        assertEquals(candidates.candidates().size(), first.footprints().size());
+        assertEquals(
+                candidates.candidates().size(),
+                first.footprints().stream().mapToInt(SkyIslandWaterbodyFootprint::sourceCandidateCount).sum());
 
         for (SkyIslandWaterbodyFootprint footprint : first.footprints()) {
+            assertTrue(footprint.sourceCandidateCount() >= 1);
             assertTrue(footprint.depressionCellCount() >= 1);
             assertTrue(footprint.inundatedCellCount() >= 1);
             assertTrue(footprint.inundatedCellCount() <= footprint.depressionCellCount());
@@ -34,12 +37,22 @@ class SkyIslandWaterbodyFootprintPlannerTest {
             assertTrue(footprint.inundatedDepressionFraction() <= 1.0);
             assertTrue(footprint.waterSurfacePotential() <= footprint.spillSurfacePotential() + 1.0e-12);
             assertTrue(footprint.shorelineCellCount() >= 1);
-            assertTrue(footprint.cells().stream()
-                    .anyMatch(cell -> cell.watershedCellIndex() == footprint.candidate().sinkCellIndex()));
+            for (SkyIslandWaterbodyCandidate source : footprint.sourceCandidates()) {
+                assertTrue(footprint.cells().stream()
+                        .anyMatch(cell -> cell.watershedCellIndex() == source.sinkCellIndex()));
+            }
             assertTrue(footprint.cells().stream()
                     .allMatch(cell -> cell.surfacePotential() <= footprint.waterSurfacePotential() + 1.0e-12));
             assertConnected(footprint, watershed.gridSize());
         }
+    }
+
+    @Test
+    void overlappingKey83RetentionAnchorsCoalesceIntoOneGeometricFootprint() {
+        SkyIslandWaterbodyFootprintPlan plan = SkyIslandWaterbodyFootprintPlanner.plan(descriptor(83L));
+        assertEquals(1, plan.footprints().size());
+        assertEquals(2, plan.footprints().getFirst().sourceCandidateCount());
+        assertFalse(plan.footprints().getFirst().hasMixedKinds());
     }
 
     @Test
@@ -68,7 +81,7 @@ class SkyIslandWaterbodyFootprintPlannerTest {
             footprintIndices.add(cell.watershedCellIndex());
         }
 
-        int start = footprint.candidate().sinkCellIndex();
+        int start = footprint.sourceCandidates().getFirst().sinkCellIndex();
         Set<Integer> visited = new HashSet<>();
         ArrayDeque<Integer> queue = new ArrayDeque<>();
         visited.add(start);
