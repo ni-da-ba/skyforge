@@ -7,7 +7,7 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.levelgen.GenerationStep;
 
 /**
- * Thread-confined vertical coordinate frame for native underground placement inside one exact
+ * Thread-confined vertical coordinate frame for native underground/local placement inside one exact
  * Skyforge volume.
  *
  * <p>Minecraft placed features commonly sample absolute dimension Y coordinates. A floating
@@ -18,9 +18,10 @@ import net.minecraft.world.level.levelgen.GenerationStep;
  * the admitted volume envelope without changing feature ordering or consuming any additional random
  * values.
  *
- * <p>The first admitted scope is deliberately narrow: only
- * {@link GenerationStep.Decoration#UNDERGROUND_ORES}. Surface population and BASE_WORLD generation
- * never open this frame and therefore retain vanilla coordinates exactly.
+ * <p>Phase admission is deliberately explicit. SF-IMP-0059 admitted
+ * {@link GenerationStep.Decoration#UNDERGROUND_ORES}; SF-IMP-0060 additionally admits
+ * {@link GenerationStep.Decoration#LOCAL_MODIFICATIONS}. Cave-surface decoration, springs, lakes,
+ * surface population and BASE_WORLD generation remain outside this frame until separately proven.
  */
 public final class SkyforgeVerticalPlacementFrame {
     private static final ThreadLocal<Frame> ACTIVE = new ThreadLocal<>();
@@ -30,7 +31,7 @@ public final class SkyforgeVerticalPlacementFrame {
     static Scope open(WorldGenLevel level, SkyforgePopulationOperation operation) {
         Objects.requireNonNull(level, "level");
         Objects.requireNonNull(operation, "operation");
-        if (operation.generationStep() != GenerationStep.Decoration.UNDERGROUND_ORES.ordinal()) {
+        if (!usesLocalVerticalFrame(operation.generationStep())) {
             return Scope.inactive();
         }
         if (ACTIVE.get() != null) {
@@ -60,7 +61,13 @@ public final class SkyforgeVerticalPlacementFrame {
         return new Scope(frame);
     }
 
-    /** Returns whether an underground exact-volume frame is active on the current thread. */
+    /** Returns whether a generation step is explicitly admitted to the local vertical frame. */
+    static boolean usesLocalVerticalFrame(int generationStep) {
+        return generationStep == GenerationStep.Decoration.UNDERGROUND_ORES.ordinal()
+                || generationStep == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal();
+    }
+
+    /** Returns whether an exact-volume local vertical frame is active on the current thread. */
     public static boolean active() {
         return ACTIVE.get() != null;
     }
@@ -68,7 +75,7 @@ public final class SkyforgeVerticalPlacementFrame {
     /**
      * Maps one native HeightRangePlacement result into the active exact-volume vertical frame.
      *
-     * <p>X/Z are preserved exactly. Outside an explicit underground frame, the original immutable
+     * <p>X/Z are preserved exactly. Outside an explicitly admitted frame, the original immutable
      * position object is returned unchanged.
      */
     public static BlockPos mapHeightRangePosition(BlockPos position) {
