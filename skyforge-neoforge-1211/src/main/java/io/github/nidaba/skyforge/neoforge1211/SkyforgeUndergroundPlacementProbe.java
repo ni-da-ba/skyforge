@@ -12,9 +12,9 @@ import net.minecraft.core.BlockPos;
  *
  * <p>The collector does not alter placement. A HeightRangePlacement mixin observes the positions
  * produced by Minecraft's own final-registry placement stack while an explicit probe scope is open.
- * Population write decisions are observed at the already-accepted exact-volume write envelope. The
+ * Population write and write-preflight decisions are observed at the exact-volume envelope. The
  * resulting evidence distinguishes absolute-height placement mismatch from configured-feature
- * failure without feature-ID compatibility rules or coordinate-specific rewrites.
+ * failure and verifies that optimized chunk-section writers are denied outside the owner domain.
  */
 public final class SkyforgeUndergroundPlacementProbe {
     static final String ENABLE_PROPERTY = "skyforge.dev.undergroundPlacement";
@@ -68,7 +68,21 @@ public final class SkyforgeUndergroundPlacementProbe {
         });
     }
 
-    /** Observes the existing exact-volume write decision without changing it. */
+    /** Observes a non-mutating {@code ensureCanWrite} domain preflight. */
+    static void observeWritePreflight(
+            SkyforgePopulationOperation operation,
+            BlockPos position,
+            boolean accepted) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(position, "position");
+        State state = ACTIVE.get();
+        if (state == null || !operation.volumeId().equals(state.volumeId)) {
+            return;
+        }
+        state.recordPreflight(position, accepted);
+    }
+
+    /** Observes the existing exact-volume high-level write decision without changing it. */
     static void observeWriteDecision(
             SkyforgePopulationOperation operation,
             BlockPos position,
@@ -92,6 +106,12 @@ public final class SkyforgeUndergroundPlacementProbe {
             int samplesAboveEnvelope,
             int minimumSampleY,
             int maximumSampleY,
+            int writePreflightChecks,
+            int acceptedWritePreflights,
+            int rejectedWritePreflights,
+            int uniqueRejectedPreflightPositions,
+            int minimumRejectedPreflightY,
+            int maximumRejectedPreflightY,
             int acceptedWriteAttempts,
             int rejectedWriteAttempts,
             int uniqueAcceptedWritePositions,
@@ -139,6 +159,12 @@ public final class SkyforgeUndergroundPlacementProbe {
         private int samplesAboveEnvelope;
         private int minimumSampleY = Integer.MAX_VALUE;
         private int maximumSampleY = Integer.MIN_VALUE;
+        private int writePreflightChecks;
+        private int acceptedWritePreflights;
+        private int rejectedWritePreflights;
+        private int minimumRejectedPreflightY = Integer.MAX_VALUE;
+        private int maximumRejectedPreflightY = Integer.MIN_VALUE;
+        private final Set<Long> uniqueRejectedPreflights = new HashSet<>();
         private int acceptedWriteAttempts;
         private int rejectedWriteAttempts;
         private int minimumAcceptedWriteY = Integer.MAX_VALUE;
@@ -168,6 +194,18 @@ public final class SkyforgeUndergroundPlacementProbe {
             }
         }
 
+        private void recordPreflight(BlockPos position, boolean accepted) {
+            writePreflightChecks++;
+            if (accepted) {
+                acceptedWritePreflights++;
+                return;
+            }
+            rejectedWritePreflights++;
+            uniqueRejectedPreflights.add(position.asLong());
+            minimumRejectedPreflightY = Math.min(minimumRejectedPreflightY, position.getY());
+            maximumRejectedPreflightY = Math.max(maximumRejectedPreflightY, position.getY());
+        }
+
         private void recordWrite(BlockPos position, boolean accepted) {
             if (!accepted) {
                 rejectedWriteAttempts++;
@@ -194,6 +232,12 @@ public final class SkyforgeUndergroundPlacementProbe {
                     samplesAboveEnvelope,
                     heightRangeSamples == 0 ? Integer.MIN_VALUE : minimumSampleY,
                     heightRangeSamples == 0 ? Integer.MIN_VALUE : maximumSampleY,
+                    writePreflightChecks,
+                    acceptedWritePreflights,
+                    rejectedWritePreflights,
+                    uniqueRejectedPreflights.size(),
+                    rejectedWritePreflights == 0 ? Integer.MIN_VALUE : minimumRejectedPreflightY,
+                    rejectedWritePreflights == 0 ? Integer.MIN_VALUE : maximumRejectedPreflightY,
                     acceptedWriteAttempts,
                     rejectedWriteAttempts,
                     uniqueAcceptedWrites.size(),
