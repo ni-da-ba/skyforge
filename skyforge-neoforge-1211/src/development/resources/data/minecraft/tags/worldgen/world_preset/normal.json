@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "skyforge:development"
+    "skyforge:development",
+    "skyforge:structure_projection_probe"
   ]
 }
