@@ -85,10 +85,13 @@ public final class SkyIslandWatershedPlanner {
                     continue;
                 }
                 double x = -extent + gx * spacing;
+                double fillDepth = Math.max(0.0, spill.spillLevel()[i] - surface[i]);
                 cells.add(new SkyIslandWatershedCell(
                         i,
                         new SkyIslandLocalPosition(x, z),
                         surface[i],
+                        spill.spillLevel()[i],
+                        fillDepth,
                         runoff[i],
                         accumulation[i],
                         downstream[i],
