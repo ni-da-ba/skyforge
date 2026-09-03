@@ -6,6 +6,7 @@
   "mixins": [
     "SkyforgeWorldGenRegionDomainMixin",
     "SkyforgeLevelDomainMixin",
+    "SkyforgeServerLevelWorldGenDomainMixin",
     "SkyforgeBiomeManagerDomainMixin",
     "SkyforgeChunkPostProcessingMixin",
     "SkyforgeHeightRangePlacementProbeMixin"
