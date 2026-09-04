@@ -321,12 +321,12 @@ neoForge {
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0063-auto-b").asFile
             programArgument("--quickPlaySingleplayer")
             programArgument("acceptance")
-            systemProperty("skyforge.dev.nativeLakesReload", "true")
+            systemProperty("skyforge.dev.fluidSpringsReload", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "client")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0063-fluid-springs-reload")
             systemProperty(
-                "skyforge.dev.nativeLakesExpectedResultFile",
+                "skyforge.dev.fluidSpringsExpectedResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0063/fluid-b.properties").get().asFile.absolutePath,
             )
             systemProperty(
@@ -407,12 +407,12 @@ neoForge {
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0064-auto-b").asFile
             programArgument("--quickPlaySingleplayer")
             programArgument("acceptance")
-            systemProperty("skyforge.dev.fluidSpringsReload", "true")
+            systemProperty("skyforge.dev.nativeLakesReload", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "client")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0064-native-lakes-reload")
             systemProperty(
-                "skyforge.dev.fluidSpringsExpectedResultFile",
+                "skyforge.dev.nativeLakesExpectedResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0064/lakes-b.properties").get().asFile.absolutePath,
             )
             systemProperty(
