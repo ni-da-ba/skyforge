@@ -21,8 +21,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /** Development-only SF-IMP-0065 sealed AUTH-0026/AUTH-0027 Minecraft realization proof. */
+@EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgeNeoForge1211AuthoredCaveDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.authoredCave";
 
@@ -80,6 +84,16 @@ final class SkyforgeNeoForge1211AuthoredCaveDevRuntime {
                         + ", isolatedChamberRadius=" + FIXTURE.chamber().horizontalRadius()
                         + ". The AUTH-0026 chamber is centered at Minecraft X/Z=0 by explicit fixture placement; "
                         + "AUTH-0027 supplies physical Y and the existing carver fence authorizes AIR.");
+    }
+
+    @SubscribeEvent
+    static void onServerTick(ServerTickEvent.Post event) {
+        if (!enabled() || proofComplete) {
+            return;
+        }
+        for (ServerLevel level : event.getServer().getAllLevels()) {
+            observeLoaded(level);
+        }
     }
 
     static synchronized void observeLoaded(ServerLevel level) {
