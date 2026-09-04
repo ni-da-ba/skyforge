@@ -113,6 +113,14 @@ final class SkyforgeNeoForge1211CarverStackedDevRuntime {
                         + ", mappedOwnerSolid=true, mappedForeignSolid=false, ownerWriteAccepted=true, "
                         + "foreignWriteRejected=true}. Same X/Z and same native carver Y sample remained "
                         + "independent across vertically stacked exact volumes.");
+
+        SkyforgeAutomatedAcceptanceHarness.completeServerCase(
+                level.getServer(),
+                java.util.Map.of(
+                        "lowerMappedY", lowerProof.mappedY(),
+                        "upperMappedY", upperProof.mappedY(),
+                        "foreignWriteRejected", true,
+                        "ownerWriteAccepted", true));
     }
 
     private static VolumeProof proveVolume(
