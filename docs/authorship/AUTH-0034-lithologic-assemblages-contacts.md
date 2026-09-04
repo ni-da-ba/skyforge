@@ -156,7 +156,9 @@ Each specimen renders:
 
 - PLAN UNITS — x/z projection of coherent assemblage interpretation;
 - SECTION UNITS — central x/depth section;
-- PLAN CONTACTS — lateral x/z traces of first-class contact relationships;\n\nVertical contacts remain visible through changes in SECTION UNITS rather than being collapsed into a filled plan-view contact field.
+- PLAN CONTACTS — lateral x/z traces of first-class contact relationships;
+
+Vertical contacts remain visible through changes in SECTION UNITS rather than being collapsed into a filled plan-view contact field.
 - ALTERATION — underlying AUTH-0033 altered-host affinity;
 - WATER — underlying AUTH-0033 water-conditioned affinity;
 - MINERAL — underlying AUTH-0033 mineral-bearing structural affinity.
