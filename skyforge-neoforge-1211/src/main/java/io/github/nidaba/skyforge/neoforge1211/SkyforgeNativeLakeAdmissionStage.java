@@ -58,6 +58,25 @@ public final class SkyforgeNativeLakeAdmissionStage {
         return feature.feature().value().feature() == Feature.LAKE;
     }
 
+    /**
+     * Deterministic acceptance-only probe for one native LakeFeature origin.
+     *
+     * <p>This opens the same production admission stage but performs no feature mutation. It exists
+     * so acceptance can exercise a known edge-crossing candidate without altering the live biome
+     * feature RNG stream merely to manufacture a rejection.
+     */
+    static Snapshot probe(
+            SkyforgePopulationOperation operation,
+            BlockPos origin) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(origin, "origin");
+        try (var scope = open(operation)) {
+            scope.requireActive();
+            admit(origin);
+            return scope.snapshot();
+        }
+    }
+
     /** Called at LakeFeature.place HEAD before any LakeFeature mutation is possible. */
     public static boolean admit(BlockPos origin) {
         Objects.requireNonNull(origin, "origin");
