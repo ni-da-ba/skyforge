@@ -186,6 +186,14 @@ final class SkyforgeNeoForge1211UndergroundPlacementDevRuntime {
                         + ", baseColumnPreserved=true. Native HeightRangePlacement randomness was sampled first, then "
                         + "mapped monotonically into the admitted exact-volume frame; optimized ore writes remained "
                         + "subject to exact owner preflight and vertically unrelated BASE_WORLD terrain stayed intact.");
+
+        SkyforgeAutomatedAcceptanceHarness.completeServerCase(
+                level.getServer(),
+                java.util.Map.of(
+                        "transformDigest", transformDigest,
+                        "mappedOutsideVolume", mappedOutsideEnvelope,
+                        "successfulFeatures", result.successfulFeatures(),
+                        "baseColumnPreserved", true));
     }
 
     private static List<BlockState> captureBaseColumn(ServerLevel level) {
