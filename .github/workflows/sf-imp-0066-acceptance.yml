@@ -1,0 +1,112 @@
+name: SF-IMP-0066 Automated Acceptance
+
+on:
+  pull_request:
+    paths:
+      - "skyforge-neoforge-1211/**"
+      - ".github/workflows/sf-imp-0066-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-imp-0066-acceptance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 130
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Compile and unit-test exterior cave slice
+        timeout-minutes: 8
+        run: ./gradlew :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:test --stacktrace --no-configuration-cache
+
+      - name: Exterior cave run A
+        timeout-minutes: 12
+        run: ./gradlew :skyforge-neoforge-1211:runExteriorConnectedCaveAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: Exterior cave run B deterministic repeat
+        timeout-minutes: 12
+        run: ./gradlew :skyforge-neoforge-1211:runExteriorConnectedCaveAcceptanceB --stacktrace --no-configuration-cache
+
+      - name: Save-reload exterior cave and actual ClientLevel verification
+        timeout-minutes: 8
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a ./gradlew :skyforge-neoforge-1211:runExteriorConnectedCaveAcceptanceReloadClient --stacktrace --no-configuration-cache
+
+      - name: Stacked-volume exterior cave isolation
+        timeout-minutes: 8
+        run: ./gradlew :skyforge-neoforge-1211:runExteriorConnectedCaveAcceptanceStacked --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0065 sealed authored-cave regression
+        timeout-minutes: 10
+        run: ./gradlew :skyforge-neoforge-1211:runAuthoredCaveAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0064 native-lake regression
+        timeout-minutes: 8
+        run: ./gradlew :skyforge-neoforge-1211:runNativeLakesAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0063 fluid-springs regression
+        timeout-minutes: 8
+        run: ./gradlew :skyforge-neoforge-1211:runFluidSpringsAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0062 cave-decoration regression
+        timeout-minutes: 9
+        run: ./gradlew :skyforge-neoforge-1211:runUndergroundDecorationAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0061 native-carver regression
+        timeout-minutes: 7
+        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0059 ore regression
+        timeout-minutes: 7
+        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceOreRegression --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0060 local-modification regression
+        timeout-minutes: 7
+        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceLocalModificationRegression --stacktrace --no-configuration-cache
+
+      - name: Verify aggregate exterior cave evidence
+        run: ./gradlew :skyforge-neoforge-1211:sfImp0066AcceptanceVerify --stacktrace --no-configuration-cache
+
+      - name: Publish acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sf-imp-0066-acceptance-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0066/*.properties
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0065/*.properties
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0064/*.properties
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0063/*.properties
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0062/*.properties
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0061/*.properties
+            skyforge-neoforge-1211/run-sf-imp-0066-auto-*/logs/*.log
+            skyforge-neoforge-1211/run-sf-imp-0065-auto-*/logs/*.log
+            skyforge-neoforge-1211/run-sf-imp-0064-auto-*/logs/*.log
+            skyforge-neoforge-1211/run-sf-imp-0063-auto-*/logs/*.log
+            skyforge-neoforge-1211/run-sf-imp-0062-auto-*/logs/*.log
+            skyforge-neoforge-1211/run-sf-imp-0061-auto-*/logs/*.log
