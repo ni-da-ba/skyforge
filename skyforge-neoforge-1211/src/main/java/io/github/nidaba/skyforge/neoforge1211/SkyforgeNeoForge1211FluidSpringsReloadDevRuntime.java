@@ -10,8 +10,6 @@ import java.util.Objects;
 import java.util.Properties;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.Fluid;
@@ -147,14 +145,10 @@ final class SkyforgeNeoForge1211FluidSpringsReloadDevRuntime {
                 return;
             }
             Fluid fluid = fluidState.getType();
-            if (!expectedSample.fluidKey().equals(BuiltInRegistries.FLUID.getKey(fluid))) {
-                SkyforgeAutomatedAcceptanceHarness.fail(
-                        event.getServer(),
-                        "SF-IMP-0063 persisted provenance sample changed fluid identity after reload at "
-                                + position + ": expected=" + expectedSample.fluidKey()
-                                + ", actual=" + BuiltInRegistries.FLUID.getKey(fluid));
-                return;
-            }
+            // The persisted provenance entry itself is the identity authority. In Minecraft a
+            // water block with level > 0 reports minecraft:flowing_water as its Fluid type, so
+            // deriving a registry key from the block-state text would incorrectly collapse source
+            // and flowing variants. beginFluidTick performs the real persisted-key comparison.
             level.scheduleTick(position, fluid, 1);
             scheduledFreshTick = true;
             return;
@@ -222,14 +216,11 @@ final class SkyforgeNeoForge1211FluidSpringsReloadDevRuntime {
         String stateText = Objects.requireNonNull(
                 properties.getProperty("sampleFluidState"),
                 "SF-IMP-0063 B result omitted sampleFluidState");
-        String fluidKeyText = stateText.contains("lava") ? "minecraft:lava" : "minecraft:water";
-
         var volume = SkyforgeNeoForge1211FluidSpringsDevRuntime.catalog().volumes().getFirst();
         try {
             return new ExpectedSample(
                     BlockPos.of(Long.parseLong(packedText)),
                     stateText,
-                    ResourceLocation.parse(fluidKeyText),
                     volume.id());
         } catch (NumberFormatException exception) {
             throw new IllegalStateException(
@@ -241,12 +232,10 @@ final class SkyforgeNeoForge1211FluidSpringsReloadDevRuntime {
     private record ExpectedSample(
             BlockPos position,
             String stateText,
-            ResourceLocation fluidKey,
             SkyIslandWorldVolumeId volumeId) {
         private ExpectedSample {
             Objects.requireNonNull(position, "position");
             Objects.requireNonNull(stateText, "stateText");
-            Objects.requireNonNull(fluidKey, "fluidKey");
             Objects.requireNonNull(volumeId, "volumeId");
         }
     }
