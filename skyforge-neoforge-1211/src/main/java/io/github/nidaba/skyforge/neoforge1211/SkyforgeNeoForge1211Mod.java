@@ -34,6 +34,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211AuthoredCaveDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ComposedCaveDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211ProductionComposedCaveDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ComposedCaveStackedDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ExteriorConnectedCaveStackedDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211AuthoredCaveStackedDevRuntime.installFromSystemProperty();
