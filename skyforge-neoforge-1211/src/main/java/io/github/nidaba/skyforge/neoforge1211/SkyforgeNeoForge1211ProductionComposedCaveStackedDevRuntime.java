@@ -25,12 +25,11 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeNeoForge1211ProductionComposedCaveStackedDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.productionComposedCaveStacked";
 
-    private static final ChunkPos TARGET_CHUNK = new ChunkPos(-2, -2);
     private static final int MAXIMUM_ATTACHMENT_DEPTH = 24;
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeNeoForge1211ProductionComposedCaveStackedDevRuntime.class.getName());
-    private static final SkyforgeNeoForge1211ComposedCaveStackedDevRuntime.Fixture FIXTURE =
-            SkyforgeNeoForge1211ComposedCaveStackedDevRuntime.fixtureDefinition();
+    private static final SkyforgeNeoForge1211ProductionComposedCaveFixture.Stacked FIXTURE =
+            SkyforgeNeoForge1211ProductionComposedCaveFixture.stacked();
 
     private static AutoCloseable persistentTerrainBinding;
     private static AutoCloseable persistentAdmissionBinding;
@@ -96,8 +95,8 @@ final class SkyforgeNeoForge1211ProductionComposedCaveStackedDevRuntime {
         });
         persistentComposedBinding = SkyforgeComposedCaveStage.install(
                 List.of(
-                        new SkyforgeComposedCavePlan(lower, FIXTURE.base().field()),
-                        new SkyforgeComposedCavePlan(upper, FIXTURE.base().field())));
+                        new SkyforgeComposedCavePlan(lower, FIXTURE.field()),
+                        new SkyforgeComposedCavePlan(upper, FIXTURE.field())));
 
         var lowerInitial = SkyforgeComposedCaveStage.snapshot(lower.id());
         var upperInitial = SkyforgeComposedCaveStage.snapshot(upper.id());
@@ -157,12 +156,14 @@ final class SkyforgeNeoForge1211ProductionComposedCaveStackedDevRuntime {
             return;
         }
 
-        LevelChunk chunk = level.getChunkSource().getChunkNow(TARGET_CHUNK.x, TARGET_CHUNK.z);
+        Set<Long> lowerRequired = SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(lower.id());
+        Set<Long> upperRequired = SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(upper.id());
+        LevelChunk chunk = findProofChunk(level, lower, upper, FIXTURE.field(), lowerRequired);
         if (chunk == null) {
             return;
         }
-        BlockPos lowerAnchor = firstDiscreteAuthoredPositive(lower, FIXTURE.base().field(), chunk);
-        BlockPos upperAnchor = firstDiscreteAuthoredPositive(upper, FIXTURE.base().field(), chunk);
+        BlockPos lowerAnchor = firstDiscreteAuthoredPositive(lower, FIXTURE.field(), chunk);
+        BlockPos upperAnchor = firstDiscreteAuthoredPositive(upper, FIXTURE.field(), chunk);
         if (lowerAnchor == null
                 || upperAnchor == null
                 || lowerAnchor.getY() == upperAnchor.getY()
@@ -175,8 +176,10 @@ final class SkyforgeNeoForge1211ProductionComposedCaveStackedDevRuntime {
 
         Aggregate lowerAggregate = aggregate(lower.id());
         Aggregate upperAggregate = aggregate(upper.id());
-        BlockPos lowerNativeOnly = firstNativeOnlyAir(level, lower, FIXTURE.base().field(), chunk);
-        BlockPos upperNativeOnly = firstNativeOnlyAir(level, upper, FIXTURE.base().field(), chunk);
+        BlockPos lowerNativeOnly = firstNativeOnlyAcross(
+                level, lower, FIXTURE.field(), lowerRequired);
+        BlockPos upperNativeOnly = firstNativeOnlyAcross(
+                level, upper, FIXTURE.field(), upperRequired);
         if (!lowerAggregate.valid()
                 || !upperAggregate.valid()
                 || lowerNativeOnly == null
@@ -208,7 +211,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveStackedDevRuntime {
         proofComplete = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
-                "SF-IMP-0068 PRODUCTION COMPOSED CAVE STACKED PASS: targetChunk=" + TARGET_CHUNK
+                "SF-IMP-0068 PRODUCTION COMPOSED CAVE STACKED PASS: targetChunk=" + chunk.getPos()
                         + ", lowerCompleted=" + lowerLedger.completedObligations()
                         + ", upperCompleted=" + upperLedger.completedObligations()
                         + ", lowerNativeChanged=" + lowerAggregate.nativeChanged()
@@ -222,7 +225,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveStackedDevRuntime {
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(
                 level.getServer(),
                 java.util.Map.ofEntries(
-                        java.util.Map.entry("targetChunk", TARGET_CHUNK.toLong()),
+                        java.util.Map.entry("targetChunk", chunk.getPos().toLong()),
                         java.util.Map.entry("lowerRequired", lowerAdmission.requiredChunks()),
                         java.util.Map.entry("upperRequired", upperAdmission.requiredChunks()),
                         java.util.Map.entry("lowerCompleted", lowerLedger.completedObligations()),
@@ -243,6 +246,55 @@ final class SkyforgeNeoForge1211ProductionComposedCaveStackedDevRuntime {
                         java.util.Map.entry("foreignVolumePreserved", true),
                         java.util.Map.entry("monotonicPending", true),
                         java.util.Map.entry("noReplay", true)));
+    }
+
+    private static LevelChunk findProofChunk(
+            ServerLevel level,
+            SkyIslandWorldVolume lower,
+            SkyIslandWorldVolume upper,
+            SkyIslandExteriorConnectedCaveVolumeField field,
+            Set<Long> chunkKeys) {
+        List<Long> ordered = new ArrayList<>(chunkKeys);
+        ordered.sort(java.util.Comparator
+                .comparingInt((Long key) -> ChunkPos.getX(key))
+                .thenComparingInt(key -> ChunkPos.getZ(key)));
+        for (long chunkKey : ordered) {
+            LevelChunk chunk = level.getChunkSource().getChunkNow(
+                    ChunkPos.getX(chunkKey),
+                    ChunkPos.getZ(chunkKey));
+            if (chunk == null) {
+                continue;
+            }
+            if (firstDiscreteAuthoredPositive(lower, field, chunk) != null
+                    && firstDiscreteAuthoredPositive(upper, field, chunk) != null) {
+                return chunk;
+            }
+        }
+        return null;
+    }
+
+    private static BlockPos firstNativeOnlyAcross(
+            ServerLevel level,
+            SkyIslandWorldVolume volume,
+            SkyIslandExteriorConnectedCaveVolumeField field,
+            Set<Long> chunkKeys) {
+        List<Long> ordered = new ArrayList<>(chunkKeys);
+        ordered.sort(java.util.Comparator
+                .comparingInt((Long key) -> ChunkPos.getX(key))
+                .thenComparingInt(key -> ChunkPos.getZ(key)));
+        for (long chunkKey : ordered) {
+            LevelChunk chunk = level.getChunkSource().getChunkNow(
+                    ChunkPos.getX(chunkKey),
+                    ChunkPos.getZ(chunkKey));
+            if (chunk == null) {
+                continue;
+            }
+            BlockPos result = firstNativeOnlyAir(level, volume, field, chunk);
+            if (result != null) {
+                return result;
+            }
+        }
+        return null;
     }
 
     private static Aggregate aggregate(SkyIslandWorldVolumeId volumeId) {
