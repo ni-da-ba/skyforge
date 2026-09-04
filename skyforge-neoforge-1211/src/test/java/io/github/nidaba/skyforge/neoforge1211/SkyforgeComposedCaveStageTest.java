@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,11 +27,13 @@ final class SkyforgeComposedCaveStageTest {
         var volumeId = fixture.volume().id();
 
         try (AutoCloseable admission = SkyforgePhysicalVolumeAdmissionStage.install(fixture.catalog())) {
+            assertNotNull(admission);
             int required = SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(volumeId).size();
             assertTrue(required > 0);
 
             try (AutoCloseable composed = SkyforgeComposedCaveStage.install(List.of(
                     new SkyforgeComposedCavePlan(fixture.volume(), fixture.field())))) {
+                assertNotNull(composed);
                 var aggregate = SkyforgeComposedCaveStage.snapshot();
                 var exact = SkyforgeComposedCaveStage.snapshot(volumeId);
 
@@ -55,6 +58,7 @@ final class SkyforgeComposedCaveStageTest {
         var plan = new SkyforgeComposedCavePlan(fixture.volume(), fixture.field());
 
         try (AutoCloseable admission = SkyforgePhysicalVolumeAdmissionStage.install(fixture.catalog())) {
+            assertNotNull(admission);
             assertThrows(
                     IllegalArgumentException.class,
                     () -> SkyforgeComposedCaveStage.install(List.of(plan, plan)));
