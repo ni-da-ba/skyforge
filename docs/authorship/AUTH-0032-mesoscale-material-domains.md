@@ -156,24 +156,28 @@ The `authorship-mesoscale-material-domains-v1` corpus uses the canonical six sub
 - eroded tableland key 1439;
 - spine key 3670.
 
-Each specimen renders:
+Each specimen renders x/z maximum-membership projections through semantic depth:
 
-- ALTERED — x/depth maximum membership through z;
-- SATURATED — x/z maximum membership through depth;
-- MINERALIZED — x/depth maximum membership through z;
-- FABRIC — x/z maximum membership through depth;
-- COMPOSITE — x/depth overlap of all four material systems.
+- ALTERED;
+- SATURATED;
+- MINERALIZED;
+- FABRIC;
+- COMPOSITE PLAN — overlap of all four material systems.
+
+Using plan projections preserves naturalized island morphology in the evidence instead of making broad three-dimensional systems appear as rectangular maximum-through-z section bands.
 
 White remains nonparticipating host/unowned/void evidence background.
 
-The projections are evidence views, not stored material geometry.
+The interpolated projections are evidence views, not stored material geometry.
 
-`manifest.csv` records for each domain kind:
+`manifest.csv` records:
 
-- connected-domain count;
+- active host-material planning-cell count;
+- carrier counts;
+- connected-domain count for each kind;
 - total participating cell count;
 - largest connected-domain size;
-- carrier counts.
+- participating-cell coverage fraction relative to active host material.
 
 ## Acceptance gate
 
@@ -183,7 +187,7 @@ Reject AUTH-0032 if:
 - components smaller than the accepted minimum survive;
 - domain components are disconnected;
 - all four kinds become mutually exclusive categorical labels;
-- any domain kind fills essentially the entire host-material volume;
+- any domain kind exceeds 85% of the active host-material planning volume;
 - mineralization appears without meaningful AUTH-0031 mineralization support;
 - mineralized bodies become high-frequency specks or generic uniform ore sheets;
 - saturated bodies ignore groundwater/permeability common causes;
