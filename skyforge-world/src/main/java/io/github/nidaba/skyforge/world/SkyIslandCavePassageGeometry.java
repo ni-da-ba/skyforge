@@ -25,7 +25,11 @@ public record SkyIslandCavePassageGeometry(
         }
     }
 
-    public double meanRadius() {
-        return points.stream().mapToDouble(SkyIslandCavePassagePoint::radius).average().orElse(0.0);
+    public double meanHorizontalRadius() {
+        return points.stream().mapToDouble(SkyIslandCavePassagePoint::horizontalRadius).average().orElse(0.0);
+    }
+
+    public double meanDepthRadius() {
+        return points.stream().mapToDouble(SkyIslandCavePassagePoint::depthRadius).average().orElse(0.0);
     }
 }
