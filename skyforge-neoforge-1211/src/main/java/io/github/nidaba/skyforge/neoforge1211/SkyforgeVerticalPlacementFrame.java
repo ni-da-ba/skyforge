@@ -26,7 +26,9 @@ import net.minecraft.world.level.levelgen.GenerationStep;
  * {@link GenerationStep.Decoration#UNDERGROUND_DECORATION} after SF-IMP-0061 established persistent
  * owner-local cave topology. SF-IMP-0063 admits {@link GenerationStep.Decoration#FLUID_SPRINGS}
  * against the same exact compiled owner-column support; asynchronous propagation is separately
- * fenced by the generated-fluid provenance stage.
+ * fenced by the generated-fluid provenance stage. SF-IMP-0064 admits
+ * {@link GenerationStep.Decoration#LAKES}; lake placement uses the exact owner-column frame and a
+ * separate whole-footprint admission gate before native LakeFeature mutation begins.
  *
  * <p>Sparse local modifications and cave-surface decoration use the exact compiled solid span of
  * their already-selected X/Z column when one exists, because a conservative volume bounding box
@@ -37,8 +39,8 @@ import net.minecraft.world.level.levelgen.GenerationStep;
  * column, the ordinary envelope mapping is retained and the existing exact write fence remains
  * authoritative.
  *
- * <p>Lakes, surface population and BASE_WORLD generation remain outside this frame until
- * separately proven.
+ * <p>Surface population and BASE_WORLD generation remain outside this frame unless separately
+ * admitted by their established surface scheduler.
  */
 public final class SkyforgeVerticalPlacementFrame {
     private static final ThreadLocal<Frame> ACTIVE = new ThreadLocal<>();
@@ -85,7 +87,8 @@ public final class SkyforgeVerticalPlacementFrame {
         return generationStep == GenerationStep.Decoration.UNDERGROUND_ORES.ordinal()
                 || generationStep == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal()
                 || generationStep == GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal()
-                || generationStep == GenerationStep.Decoration.FLUID_SPRINGS.ordinal();
+                || generationStep == GenerationStep.Decoration.FLUID_SPRINGS.ordinal()
+                || generationStep == GenerationStep.Decoration.LAKES.ordinal();
     }
 
     /**
@@ -93,12 +96,13 @@ public final class SkyforgeVerticalPlacementFrame {
      *
      * <p>SF-IMP-0059 ore mapping remains byte-for-byte on the accepted finite volume-envelope frame.
      * SF-IMP-0060 local modifications, SF-IMP-0062 cave-surface decoration, and SF-IMP-0063 fluid
-     * springs opt into the stricter compiled owner-column support frame.
+     * springs and SF-IMP-0064 lakes opt into the stricter compiled owner-column support frame.
      */
     static boolean usesExactSolidColumnFrame(int generationStep) {
         return generationStep == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal()
                 || generationStep == GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal()
-                || generationStep == GenerationStep.Decoration.FLUID_SPRINGS.ordinal();
+                || generationStep == GenerationStep.Decoration.FLUID_SPRINGS.ordinal()
+                || generationStep == GenerationStep.Decoration.LAKES.ordinal();
     }
 
     /** Returns whether an exact-volume local vertical frame is active on the current thread. */
