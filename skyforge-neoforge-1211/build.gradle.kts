@@ -169,6 +169,16 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // Final SF-IMP-0060 stacked-domain gate. Reuse the accepted 0054 vertically aligned
+        // forest/taiga tablelands, map the same LOCAL_MODIFICATIONS height sample independently
+        // into each exact solid owner column, and explicitly reject the other island at preflight.
+        create("localModificationsStackedClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0060-stacked")
+            systemProperty("skyforge.dev.localModificationsStacked", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Final SF-IMP-0059 stacked-domain gate. Reuse the accepted 0054 forest/taiga tablelands,
         // execute UNDERGROUND_ORES independently in both exact Y frames, preserve the other island
         // byte-for-byte during each replay and explicitly reject its solid coordinates at preflight.
