@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -68,6 +69,9 @@ final class SkyforgePhysicalVolumeCatchupService {
             SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.observeLoaded(level);
             SkyforgeNeoForge1211BiomePresentationDevRuntime.observeLoaded(level);
             SkyforgeNeoForge1211UndergroundPlacementDevRuntime.observeLoaded(level);
+            if (level.dimension().equals(Level.OVERWORLD)) {
+                SkyforgeNeoForge1211LocalModificationsDevRuntime.observeLoaded(level);
+            }
         }
     }
 }

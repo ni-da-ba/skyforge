@@ -1,26 +1,36 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.IntPredicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.levelgen.GenerationStep;
 
 /**
- * Thread-confined vertical coordinate frame for native underground placement inside one exact
+ * Thread-confined vertical coordinate frame for native underground/local placement inside one exact
  * Skyforge volume.
  *
  * <p>Minecraft placed features commonly sample absolute dimension Y coordinates. A floating
  * Skyforge volume can occupy an unrelated altitude, so those samples must be interpreted in the
  * owning volume's local vertical frame before configured features inspect or write terrain. The
- * transform is monotone and affine across the dimension build span. Samples outside that native
- * span clamp to its nearest endpoint before mapping, which keeps every transformed position inside
- * the admitted volume envelope without changing feature ordering or consuming any additional random
- * values.
+ * transform is monotone and affine across the dimension build span and consumes no additional
+ * random values.
  *
- * <p>The first admitted scope is deliberately narrow: only
- * {@link GenerationStep.Decoration#UNDERGROUND_ORES}. Surface population and BASE_WORLD generation
- * never open this frame and therefore retain vanilla coordinates exactly.
+ * <p>Phase admission is deliberately explicit. SF-IMP-0059 admitted
+ * {@link GenerationStep.Decoration#UNDERGROUND_ORES}; that accepted path continues to map against
+ * the finite volume envelope exactly as before. SF-IMP-0060 additionally admits
+ * {@link GenerationStep.Decoration#LOCAL_MODIFICATIONS}. Sparse local modifications use the exact
+ * solid span of their already-selected X/Z column when one exists, because a conservative volume
+ * bounding box may contain large amounts of non-owned air below an island. This keeps one-shot
+ * geological placements attached to actual owner terrain without changing X/Z, feature identity,
+ * placement ordering, or RNG consumption. If the sampled X/Z has no owner column, the ordinary
+ * envelope mapping is retained and the existing exact write fence remains authoritative.
+ *
+ * <p>Cave-surface decoration, springs, lakes, surface population and BASE_WORLD generation remain
+ * outside this frame until separately proven.
  */
 public final class SkyforgeVerticalPlacementFrame {
     private static final ThreadLocal<Frame> ACTIVE = new ThreadLocal<>();
@@ -30,7 +40,7 @@ public final class SkyforgeVerticalPlacementFrame {
     static Scope open(WorldGenLevel level, SkyforgePopulationOperation operation) {
         Objects.requireNonNull(level, "level");
         Objects.requireNonNull(operation, "operation");
-        if (operation.generationStep() != GenerationStep.Decoration.UNDERGROUND_ORES.ordinal()) {
+        if (!usesLocalVerticalFrame(operation.generationStep())) {
             return Scope.inactive();
         }
         if (ACTIVE.get() != null) {
@@ -51,16 +61,34 @@ public final class SkyforgeVerticalPlacementFrame {
         }
 
         Frame frame = new Frame(
+                operation.volumeId(),
                 operation.volumeId().path(),
                 sourceMinimumY,
                 sourceMaximumY,
                 targetMinimumY,
-                targetMaximumY);
+                targetMaximumY,
+                usesExactSolidColumnFrame(operation.generationStep()));
         ACTIVE.set(frame);
         return new Scope(frame);
     }
 
-    /** Returns whether an underground exact-volume frame is active on the current thread. */
+    /** Returns whether a generation step is explicitly admitted to the local vertical frame. */
+    static boolean usesLocalVerticalFrame(int generationStep) {
+        return generationStep == GenerationStep.Decoration.UNDERGROUND_ORES.ordinal()
+                || generationStep == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal();
+    }
+
+    /**
+     * Returns whether one admitted phase maps against exact solid owner-column support.
+     *
+     * <p>SF-IMP-0059 ore mapping remains byte-for-byte on the accepted finite volume-envelope frame.
+     * SF-IMP-0060 local modifications opt into the stricter owner-column support frame.
+     */
+    static boolean usesExactSolidColumnFrame(int generationStep) {
+        return generationStep == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal();
+    }
+
+    /** Returns whether an exact-volume local vertical frame is active on the current thread. */
     public static boolean active() {
         return ACTIVE.get() != null;
     }
@@ -68,7 +96,7 @@ public final class SkyforgeVerticalPlacementFrame {
     /**
      * Maps one native HeightRangePlacement result into the active exact-volume vertical frame.
      *
-     * <p>X/Z are preserved exactly. Outside an explicit underground frame, the original immutable
+     * <p>X/Z are preserved exactly. Outside an explicitly admitted frame, the original immutable
      * position object is returned unchanged.
      */
     public static BlockPos mapHeightRangePosition(BlockPos position) {
@@ -77,7 +105,7 @@ public final class SkyforgeVerticalPlacementFrame {
         if (frame == null) {
             return position;
         }
-        int mappedY = frame.mapY(position.getY());
+        int mappedY = frame.mapY(position);
         return mappedY == position.getY()
                 ? position
                 : new BlockPos(position.getX(), mappedY, position.getZ());
@@ -103,13 +131,66 @@ public final class SkyforgeVerticalPlacementFrame {
             int sourceMaximumY,
             int targetMinimumY,
             int targetMaximumY) {
-        return new Frame(
-                        "test",
-                        sourceMinimumY,
-                        sourceMaximumY,
-                        targetMinimumY,
-                        targetMaximumY)
-                .mapY(nativeY);
+        return mapY(
+                nativeY,
+                sourceMinimumY,
+                sourceMaximumY,
+                targetMinimumY,
+                targetMaximumY);
+    }
+
+    static Optional<TargetSpan> findSolidSpanForTest(
+            int minimumY,
+            int maximumY,
+            IntPredicate ownerSolidAtY) {
+        return findSolidSpan(minimumY, maximumY, ownerSolidAtY);
+    }
+
+    private static Optional<TargetSpan> findSolidSpan(
+            int minimumY,
+            int maximumY,
+            IntPredicate ownerSolidAtY) {
+        Objects.requireNonNull(ownerSolidAtY, "ownerSolidAtY");
+        if (maximumY < minimumY) {
+            throw new IllegalArgumentException("target vertical span must be ordered");
+        }
+
+        int first = Integer.MAX_VALUE;
+        int last = Integer.MIN_VALUE;
+        for (int y = minimumY; y <= maximumY; y++) {
+            if (!ownerSolidAtY.test(y)) {
+                continue;
+            }
+            first = Math.min(first, y);
+            last = y;
+        }
+        return first == Integer.MAX_VALUE
+                ? Optional.empty()
+                : Optional.of(new TargetSpan(first, last));
+    }
+
+    private static int mapY(
+            int nativeY,
+            int sourceMinimumY,
+            int sourceMaximumY,
+            int targetMinimumY,
+            int targetMaximumY) {
+        if (sourceMaximumY < sourceMinimumY) {
+            throw new IllegalArgumentException("source vertical frame must be ordered");
+        }
+        if (targetMaximumY < targetMinimumY) {
+            throw new IllegalArgumentException("target vertical frame must be ordered");
+        }
+        if (targetMinimumY == targetMaximumY || sourceMinimumY == sourceMaximumY) {
+            return targetMinimumY;
+        }
+        int clamped = Math.max(sourceMinimumY, Math.min(sourceMaximumY, nativeY));
+        long sourceOffset = (long) clamped - sourceMinimumY;
+        long sourceSpan = (long) sourceMaximumY - sourceMinimumY;
+        long targetSpan = (long) targetMaximumY - targetMinimumY;
+        long numerator = Math.multiplyExact(sourceOffset, targetSpan);
+        long mappedOffset = Math.floorDiv(Math.addExact(numerator, sourceSpan / 2L), sourceSpan);
+        return Math.toIntExact(Math.addExact((long) targetMinimumY, mappedOffset));
     }
 
     private static int ceilToInt(double value) {
@@ -139,13 +220,24 @@ public final class SkyforgeVerticalPlacementFrame {
         }
     }
 
+    record TargetSpan(int minimumY, int maximumY) {
+        TargetSpan {
+            if (maximumY < minimumY) {
+                throw new IllegalArgumentException("target vertical span must be ordered");
+            }
+        }
+    }
+
     private record Frame(
+            SkyIslandWorldVolumeId volumeId,
             String volumePath,
             int sourceMinimumY,
             int sourceMaximumY,
             int targetMinimumY,
-            int targetMaximumY) {
+            int targetMaximumY,
+            boolean exactSolidColumnFrame) {
         private Frame {
+            Objects.requireNonNull(volumeId, "volumeId");
             Objects.requireNonNull(volumePath, "volumePath");
             if (sourceMaximumY < sourceMinimumY) {
                 throw new IllegalArgumentException("source vertical frame must be ordered");
@@ -155,17 +247,31 @@ public final class SkyforgeVerticalPlacementFrame {
             }
         }
 
-        private int mapY(int nativeY) {
-            if (targetMinimumY == targetMaximumY || sourceMinimumY == sourceMaximumY) {
-                return targetMinimumY;
-            }
-            int clamped = Math.max(sourceMinimumY, Math.min(sourceMaximumY, nativeY));
-            long sourceOffset = (long) clamped - sourceMinimumY;
-            long sourceSpan = (long) sourceMaximumY - sourceMinimumY;
-            long targetSpan = (long) targetMaximumY - targetMinimumY;
-            long numerator = Math.multiplyExact(sourceOffset, targetSpan);
-            long mappedOffset = Math.floorDiv(Math.addExact(numerator, sourceSpan / 2L), sourceSpan);
-            return Math.toIntExact(Math.addExact((long) targetMinimumY, mappedOffset));
+        private int mapY(BlockPos position) {
+            TargetSpan target = exactSolidColumnFrame
+                    ? exactSolidTarget(position.getX(), position.getZ())
+                            .orElse(new TargetSpan(targetMinimumY, targetMaximumY))
+                    : new TargetSpan(targetMinimumY, targetMaximumY);
+            return SkyforgeVerticalPlacementFrame.mapY(
+                    position.getY(),
+                    sourceMinimumY,
+                    sourceMaximumY,
+                    target.minimumY(),
+                    target.maximumY());
+        }
+
+        private Optional<TargetSpan> exactSolidTarget(int worldX, int worldZ) {
+            return findSolidSpan(
+                    targetMinimumY,
+                    targetMaximumY,
+                    worldY -> SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(
+                                    volumeId,
+                                    worldX,
+                                    worldY,
+                                    worldZ)
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "local-modification vertical frame lost the active terrain binding for "
+                                            + volumePath)));
         }
     }
 
