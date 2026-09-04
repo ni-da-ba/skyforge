@@ -60,9 +60,11 @@ They do not become fracture regions by geometry alone. Actual fracture-region me
 
 ### Aquifer bodies
 
-Aquifer membership derives from groundwater potential, connected permeability, and a broad depth preference.
+AUTH-0023 gives potential aquifers a small deterministic family of broad oblique hydrogeological lenses with authored horizontal extent and semantic-depth thickness.
 
-High hydrological potential without permeability is therefore not sufficient by itself, and high permeability without water does not guarantee a saturated body.
+Lens geometry alone is insufficient. Aquifer membership derives jointly from lens support, AUTH-0022 groundwater potential, and connected permeability.
+
+High hydrological potential without permeability is therefore not sufficient by itself, and high permeability without water does not guarantee a saturated body. This localization prevents a generally wet or permeable island from becoming one undifferentiated island-wide aquifer.
 
 ### Void-prone domains
 
