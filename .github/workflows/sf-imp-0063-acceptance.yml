@@ -40,3 +40,25 @@ jobs:
       - name: Compile and unit-test generated-fluid slice
         timeout-minutes: 8
         run: ./gradlew :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:test --stacktrace --no-configuration-cache
+
+      - name: Fluid springs run A
+        timeout-minutes: 8
+        run: ./gradlew :skyforge-neoforge-1211:runFluidSpringsAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: Fluid springs run B deterministic repeat
+        timeout-minutes: 8
+        run: ./gradlew :skyforge-neoforge-1211:runFluidSpringsAcceptanceB --stacktrace --no-configuration-cache
+
+      - name: Verify first-pass generated-fluid evidence
+        run: ./gradlew :skyforge-neoforge-1211:sfImp0063AcceptanceVerify --stacktrace --no-configuration-cache
+
+      - name: Publish acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sf-imp-0063-acceptance-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0063/*.properties
+            skyforge-neoforge-1211/run-sf-imp-0063-auto-*/logs/*.log
