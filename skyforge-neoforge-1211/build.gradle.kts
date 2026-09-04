@@ -1306,6 +1306,7 @@ tasks.register("sfImp0064AcceptanceVerify") {
 
         check(stacked.getProperty("ownerWholeFootprintAccepted") == "true"
                 && stacked.getProperty("foreignWholeFootprintRejected") == "true"
+                && stacked.getProperty("provenanceVolumeIsolation") == "true"
                 && stacked.getProperty("sameXZIndependent") == "true"
                 && stacked.getProperty("lowerOriginY") != stacked.getProperty("upperOriginY")) {
             "SF-IMP-0064 stacked whole-lake isolation failed: $stacked"
