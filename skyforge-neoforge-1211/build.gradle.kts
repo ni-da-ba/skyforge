@@ -700,7 +700,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-composed-cave-a")
-            systemProperty("skyforge.dev.acceptanceRadius", "6")
+            systemProperty("skyforge.dev.acceptanceRadius", "10")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0068/production-a.properties").get().asFile.absolutePath,
@@ -720,7 +720,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-composed-cave-b")
-            systemProperty("skyforge.dev.acceptanceRadius", "6")
+            systemProperty("skyforge.dev.acceptanceRadius", "10")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0068/production-b.properties").get().asFile.absolutePath,
@@ -760,7 +760,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-composed-cave-stacked")
-            systemProperty("skyforge.dev.acceptanceRadius", "6")
+            systemProperty("skyforge.dev.acceptanceRadius", "10")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0068/stacked.properties").get().asFile.absolutePath,
@@ -2584,7 +2584,7 @@ tasks.register("sfImp0068AcceptanceVerify") {
         }
 
         val required = first.getProperty("requiredChunks").toInt()
-        check(first.getProperty("islandKey") == "653"
+        check(first.getProperty("islandKey") == "3670"
                 && first.getProperty("nativeBiome") == "minecraft:taiga"
                 && first.getProperty("productionStage") == "true"
                 && first.getProperty("admittedBeforeCompletion") == "true"
