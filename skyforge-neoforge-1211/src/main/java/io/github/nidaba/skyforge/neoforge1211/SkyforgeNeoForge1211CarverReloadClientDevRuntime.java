@@ -51,5 +51,14 @@ final class SkyforgeNeoForge1211CarverReloadClientDevRuntime {
                         + ", state=" + actual
                         + ". The tracking client's ClientLevel contains the same persisted cave block "
                         + "after a full save/stop/reload.");
+
+        SkyforgeAutomatedAcceptanceHarness.completeClientCase(
+                java.util.Map.of(
+                        "reloadClientPass", true,
+                        "clientPosition", position.toShortString(),
+                        "clientState", actual.toString()));
+        if (SkyforgeAutomatedAcceptanceHarness.clientMode()) {
+            minecraft.stop();
+        }
     }
 }
