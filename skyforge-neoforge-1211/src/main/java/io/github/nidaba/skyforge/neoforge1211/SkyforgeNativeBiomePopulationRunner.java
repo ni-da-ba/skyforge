@@ -107,6 +107,8 @@ final class SkyforgeNativeBiomePopulationRunner {
         int unsupportedLakeFeatures = 0;
         int lakeInspectedPositions = 0;
         long lakeDecisionDigest = 0xcbf29ce484222325L;
+        List<BlockPos> admittedLakeOrigins = new ArrayList<>();
+        List<BlockPos> rejectedLakeOrigins = new ArrayList<>();
 
         for (Holder<PlacedFeature> placedFeature : featureSteps.get(stepIndex)) {
             ResourceLocation featureKey = placedFeature.unwrapKey()
@@ -172,6 +174,8 @@ final class SkyforgeNativeBiomePopulationRunner {
                     lakeInspectedPositions = Math.addExact(lakeInspectedPositions, lake.inspectedPositions());
                     lakeDecisionDigest = mix(lakeDecisionDigest, featureKey.toString().hashCode());
                     lakeDecisionDigest = mix(lakeDecisionDigest, lake.decisionDigest());
+                    admittedLakeOrigins.addAll(lake.admittedOrigins());
+                    rejectedLakeOrigins.addAll(lake.rejectedOrigins());
                 }
             }
             featureResults.add(new FeatureResult(featureKey, result.placed(), result.attachmentWrites()));
@@ -202,7 +206,9 @@ final class SkyforgeNativeBiomePopulationRunner {
                                 lakeRejections,
                                 unsupportedLakeFeatures,
                                 lakeInspectedPositions,
-                                lakeDecisionDigest)
+                                lakeDecisionDigest,
+                                List.copyOf(admittedLakeOrigins),
+                                List.copyOf(rejectedLakeOrigins))
                         : LakeEvidence.empty());
     }
 
@@ -224,12 +230,16 @@ final class SkyforgeNativeBiomePopulationRunner {
             int rejectedConfiguredLakes,
             int unsupportedPlacedFeatures,
             int inspectedPositions,
-            long decisionDigest) {
+            long decisionDigest,
+            List<BlockPos> admittedOrigins,
+            List<BlockPos> rejectedOrigins) {
         private static LakeEvidence empty() {
-            return new LakeEvidence(0, 0, 0, 0, 0, 0xcbf29ce484222325L);
+            return new LakeEvidence(0, 0, 0, 0, 0, 0xcbf29ce484222325L, List.of(), List.of());
         }
 
         LakeEvidence {
+            Objects.requireNonNull(admittedOrigins, "admittedOrigins");
+            Objects.requireNonNull(rejectedOrigins, "rejectedOrigins");
             if (attemptedConfiguredLakes < 0
                     || admittedConfiguredLakes < 0
                     || rejectedConfiguredLakes < 0
@@ -237,9 +247,13 @@ final class SkyforgeNativeBiomePopulationRunner {
                     || inspectedPositions < 0) {
                 throw new IllegalArgumentException("lake evidence counts must be non-negative");
             }
-            if (admittedConfiguredLakes + rejectedConfiguredLakes != attemptedConfiguredLakes) {
+            if (admittedConfiguredLakes + rejectedConfiguredLakes != attemptedConfiguredLakes
+                    || admittedOrigins.size() != admittedConfiguredLakes
+                    || rejectedOrigins.size() != rejectedConfiguredLakes) {
                 throw new IllegalArgumentException("lake admission evidence counts are inconsistent");
             }
+            admittedOrigins = List.copyOf(admittedOrigins);
+            rejectedOrigins = List.copyOf(rejectedOrigins);
         }
     }
 
