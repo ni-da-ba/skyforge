@@ -39,8 +39,8 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeNeoForge1211ProductionComposedCaveDevRuntime.class.getName());
 
-    private static final SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime.Fixture FIXTURE =
-            SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime.fixtureDefinition();
+    private static final SkyforgeNeoForge1211ProductionComposedCaveFixture.Single FIXTURE =
+            SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
 
     private static AutoCloseable persistentTerrainBinding;
     private static AutoCloseable persistentAdmissionBinding;
