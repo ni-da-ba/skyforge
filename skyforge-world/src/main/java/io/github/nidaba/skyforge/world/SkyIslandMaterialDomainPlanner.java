@@ -48,7 +48,7 @@ public final class SkyIslandMaterialDomainPlanner {
         double alteredThreshold = clamp(
                 0.51
                         + 0.05 * descriptor.rockCompetence()
-                        - 0.08 * descriptor.erosionMaturity(),
+                        - 0.06 * descriptor.erosionMaturity(),
                 0.44,
                 0.55);
         double saturatedThreshold = clamp(
