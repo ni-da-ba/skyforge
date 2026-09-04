@@ -169,6 +169,16 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0061 proves the first exact-volume native AIR-carver execution against an
+        // already-admitted high Skyforge tableland. HeightProvider RNG is consumed natively before
+        // Y mapping; direct LevelChunk mutations are fenced to exact owner terrain.
+        create("nativeCarverClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0061")
+            systemProperty("skyforge.dev.nativeCarver", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Final SF-IMP-0060 stacked-domain gate. Reuse the accepted 0054 vertically aligned
         // forest/taiga tablelands, map the same LOCAL_MODIFICATIONS height sample independently
         // into each exact solid owner column, and explicitly reject the other island at preflight.
