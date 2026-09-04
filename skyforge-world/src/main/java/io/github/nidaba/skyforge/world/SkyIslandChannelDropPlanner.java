@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /** Selects sparse discrete waterfall/cascade events from accepted channel profiles and edge outflows. */
@@ -18,14 +19,29 @@ public final class SkyIslandChannelDropPlanner {
 
     private SkyIslandChannelDropPlanner() {}
 
+    /** Historical/raw visible-channel diagnostic retained for accepted AUTH-0013 evidence. */
     public static SkyIslandChannelDropPlan plan(SkyIslandDescriptor descriptor) {
-        SkyIslandChannelProfilePlan profilePlan = SkyIslandChannelProfilePlanner.plan(descriptor);
+        return plan(descriptor, SkyIslandChannelProfilePlanner.plan(descriptor).profiles());
+    }
+
+    /**
+     * Selects interior drop events from an explicit channel-profile subset.
+     *
+     * <p>Edge-outlet events remain watershed-derived rather than visible-channel-derived. This
+     * preserves physically meaningful minor edge discharge while AUTH-0019 removes redundant
+     * channel/riparian terrain shaping.
+     */
+    public static SkyIslandChannelDropPlan plan(
+            SkyIslandDescriptor descriptor,
+            List<SkyIslandChannelProfile> profiles) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        profiles = List.copyOf(profiles);
         SkyIslandHydrologicFeaturePlan featurePlan = SkyIslandHydrologicFeaturePlanner.plan(descriptor);
 
         Map<Integer, SkyIslandChannelProfile> bySource = new HashMap<>();
         Map<Integer, List<SkyIslandChannelProfile>> upstream = new HashMap<>();
         Map<Integer, Double> dropPotentials = new HashMap<>();
-        for (SkyIslandChannelProfile profile : profilePlan.profiles()) {
+        for (SkyIslandChannelProfile profile : profiles) {
             bySource.put(profile.segment().sourceCellIndex(), profile);
             upstream.computeIfAbsent(profile.segment().downstreamCellIndex(), ignored -> new ArrayList<>())
                     .add(profile);
@@ -42,7 +58,7 @@ public final class SkyIslandChannelDropPlanner {
         }
 
         List<InteriorCandidate> interior = new ArrayList<>();
-        for (SkyIslandChannelProfile profile : profilePlan.profiles()) {
+        for (SkyIslandChannelProfile profile : profiles) {
             double dropPotential = dropPotentials.get(profile.segment().sourceCellIndex());
             if (profile.gradientPotential() < INTERIOR_GRADIENT_THRESHOLD
                     || dropPotential < INTERIOR_DROP_THRESHOLD
@@ -58,7 +74,9 @@ public final class SkyIslandChannelDropPlanner {
         interior.sort(Comparator.comparingDouble(InteriorCandidate::eventStrength)
                 .reversed()
                 .thenComparingInt(candidate -> candidate.profile().segment().sourceCellIndex()));
-        int interiorBudget = Math.max(1, (int) Math.ceil(profilePlan.profiles().size() * 0.08));
+        int interiorBudget = profiles.isEmpty()
+                ? 0
+                : Math.max(1, (int) Math.ceil(profiles.size() * 0.08));
         double minimumSeparation = descriptor.nominalRadius() * MIN_INTERIOR_SEPARATION_RADIUS_FRACTION;
         List<InteriorCandidate> selectedInterior = new ArrayList<>();
         for (InteriorCandidate candidate : interior) {
@@ -70,7 +88,7 @@ public final class SkyIslandChannelDropPlanner {
             }
         }
 
-        List<SkyIslandChannelDrop> drops = new ArrayList<>();
+        List<SkyIslandChannelDrop> result = new ArrayList<>();
         for (InteriorCandidate candidate : selectedInterior) {
             SkyIslandChannelProfile profile = candidate.profile();
             SkyIslandChannelDropKind kind = candidate.dropPotential() >= 0.82
@@ -86,7 +104,7 @@ public final class SkyIslandChannelDropPlanner {
                     0.45 * profile.streamPowerPotential()
                             + 0.30 * discharge
                             + 0.25 * (1.0 - descriptor.rockCompetence()));
-            drops.add(new SkyIslandChannelDrop(
+            result.add(new SkyIslandChannelDrop(
                     kind,
                     profile.segment().sourceCellIndex(),
                     profile.segment().downstreamCellIndex(),
@@ -105,7 +123,7 @@ public final class SkyIslandChannelDropPlanner {
                     double dropPotential = clamp01(0.55 + 0.45 * discharge);
                     double persistence = clamp01(
                             0.60 * discharge + 0.40 * descriptor.hydrologicalPotential());
-                    drops.add(new SkyIslandChannelDrop(
+                    result.add(new SkyIslandChannelDrop(
                             SkyIslandChannelDropKind.EDGE_FALL,
                             feature.sourceCellIndex(),
                             -1,
@@ -116,9 +134,9 @@ public final class SkyIslandChannelDropPlanner {
                             0.0));
                 });
 
-        drops.sort(Comparator.comparingInt(SkyIslandChannelDrop::sourceCellIndex)
+        result.sort(Comparator.comparingInt(SkyIslandChannelDrop::sourceCellIndex)
                 .thenComparing(drop -> drop.kind().ordinal()));
-        return new SkyIslandChannelDropPlan(descriptor, drops);
+        return new SkyIslandChannelDropPlan(descriptor, result);
     }
 
     private static boolean spatiallySeparated(

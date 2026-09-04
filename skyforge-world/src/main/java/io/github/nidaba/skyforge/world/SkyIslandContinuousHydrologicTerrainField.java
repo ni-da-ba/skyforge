@@ -4,11 +4,7 @@ import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import java.util.Objects;
 
 /**
- * Continuous backend-neutral elevation field derived from the accepted AUTH-0015 coarse surface.
- *
- * <p>The original AUTH-0002 elevation field remains unchanged. This field interpolates only the
- * signed AUTH-0015 hydrologic adjustment and adds that continuous adjustment back to the original
- * semantic elevation. Every active AUTH-0015 lattice anchor is therefore reproduced exactly.
+ * Continuous backend-neutral elevation field derived from one coarse hydrologic terrain surface.
  */
 public final class SkyIslandContinuousHydrologicTerrainField implements SkyIslandSemanticField {
     private static final double DOMAIN_FADE_THRESHOLD = 0.025;
@@ -42,12 +38,17 @@ public final class SkyIslandContinuousHydrologicTerrainField implements SkyIslan
         }
     }
 
-    /** Creates one immutable continuous hydrologically adjusted field for an authored island. */
+    /** Creates the historical/raw AUTH-0016 field from the complete visible-channel diagnostic. */
     public static SkyIslandContinuousHydrologicTerrainField create(SkyIslandDescriptor descriptor) {
         Objects.requireNonNull(descriptor, "descriptor");
-        return new SkyIslandContinuousHydrologicTerrainField(
-                descriptor,
-                SkyIslandHydrologicTerrainSurfacePlanner.plan(descriptor));
+        return create(descriptor, SkyIslandHydrologicTerrainSurfacePlanner.plan(descriptor));
+    }
+
+    /** Creates a continuous field from one explicit hydrologic terrain surface plan. */
+    public static SkyIslandContinuousHydrologicTerrainField create(
+            SkyIslandDescriptor descriptor,
+            SkyIslandHydrologicTerrainSurfacePlan surface) {
+        return new SkyIslandContinuousHydrologicTerrainField(descriptor, surface);
     }
 
     public SkyIslandDescriptor descriptor() {
@@ -62,19 +63,10 @@ public final class SkyIslandContinuousHydrologicTerrainField implements SkyIslan
         return spacing;
     }
 
-    /** Returns the untouched AUTH-0002 elevation tendency at one island-local position. */
     public double baseElevation(SkyIslandLocalPosition position) {
         return semanticFields.elevationTendency().sample(Objects.requireNonNull(position, "position"));
     }
 
-    /**
-     * Returns the signed continuous hydrologic adjustment.
-     *
-     * <p>Interpolation uses a tensor-product quintic smootherstep between adjacent coarse anchors.
-     * Smootherstep weights remain in [0, 1], so the interpolated adjustment cannot overshoot the
-     * extrema already accepted by AUTH-0015. A narrow semantic-domain fade suppresses adjustment
-     * outside the island while remaining exactly 1 at every active watershed anchor.
-     */
     public double adjustment(SkyIslandLocalPosition position) {
         Objects.requireNonNull(position, "position");
         if (position.x() < -extent
@@ -110,11 +102,9 @@ public final class SkyIslandContinuousHydrologicTerrainField implements SkyIslan
         return interpolated * domainGate;
     }
 
-    /** Returns the normalized continuous elevation after hydrologic shaping. */
     @Override
     public double sample(SkyIslandLocalPosition position) {
-        double base = baseElevation(position);
-        return clamp01(base + adjustment(position));
+        return clamp01(baseElevation(position) + adjustment(position));
     }
 
     private int index(int x, int z) {
