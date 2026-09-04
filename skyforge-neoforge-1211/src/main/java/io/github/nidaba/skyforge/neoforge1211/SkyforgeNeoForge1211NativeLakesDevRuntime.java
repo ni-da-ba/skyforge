@@ -221,7 +221,7 @@ final class SkyforgeNeoForge1211NativeLakesDevRuntime {
         }
         BlockPos rejectionProbeOrigin = new BlockPos(
                 (int) Math.floor(volume.bounds().maximumX()),
-                volume.center().y(),
+                (int) Math.round((volume.bounds().minimumY() + volume.bounds().maximumY()) * 0.5),
                 (int) Math.round((volume.bounds().minimumZ() + volume.bounds().maximumZ()) * 0.5));
         StateSnapshot rejectionProbeBefore = StateSnapshot.capture(
                 level,
