@@ -442,6 +442,49 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0065 sealed authored-cave realization. The accepted isolated AUTH-0026
+        // chamber is explicitly paired with an authoritative physical volume and centered near
+        // spawn so the entire cave fits inside an already-loaded finite proof footprint.
+        create("authoredCaveAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0065-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.authoredCave", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0065-authored-cave-a")
+            systemProperty("skyforge.dev.acceptanceRadius", "3")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0065/cave-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("authoredCaveAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0065-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.authoredCave", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0065-authored-cave-b")
+            systemProperty("skyforge.dev.acceptanceRadius", "3")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0065/cave-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -1374,6 +1417,103 @@ tasks.register("sfImp0064Acceptance") {
         "runNativeCarverAcceptanceLocalModificationRegression",
     )
     finalizedBy("sfImp0064AcceptanceVerify")
+}
+
+val sfImp0065AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0065")
+val sfImp0065AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=600065
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSfImp0065AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(sfImp0065AcceptanceServerProperties)
+}
+
+mapOf(
+    "runAuthoredCaveAcceptanceA" to "run-sf-imp-0065-auto-a",
+    "runAuthoredCaveAcceptanceB" to "run-sf-imp-0065-auto-b",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareSfImp0065AcceptanceServerDirectory(relativePath)
+        }
+    }
+}
+
+tasks.named("runAuthoredCaveAcceptanceA").configure {
+    doFirst {
+        delete(sfImp0065AcceptanceResultDirectory)
+    }
+}
+tasks.named("runAuthoredCaveAcceptanceB").configure {
+    mustRunAfter("runAuthoredCaveAcceptanceA")
+}
+
+tasks.register("sfImp0065AcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic first-pass SF-IMP-0065 authored-cave realization evidence."
+    doLast {
+        fun load(name: String): Properties {
+            val file = sfImp0065AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0065 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        val first = load("cave-a")
+        val second = load("cave-b")
+        check(first.getProperty("status") == "PASS" && second.getProperty("status") == "PASS") {
+            "SF-IMP-0065 authored-cave repeat did not report PASS: A=$first B=$second"
+        }
+        for (key in listOf("changedDigest", "provenanceDigest")) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "SF-IMP-0065 deterministic evidence changed for $key: A=" +
+                    first.getProperty(key) + " B=" + second.getProperty(key)
+            }
+        }
+        check(first.getProperty("islandKey") == "1439"
+                && first.getProperty("positiveAuthoredSamples").toInt() > 0
+                && first.getProperty("ownerAuthorizedSamples")
+                    == first.getProperty("positiveAuthoredSamples")
+                && first.getProperty("changedBlocks")
+                    == first.getProperty("positiveAuthoredSamples")
+                && first.getProperty("unsafePositiveSamples") == "0"
+                && first.getProperty("sealed") == "true"
+                && first.getProperty("baseWorldPreserved") == "true"
+                && first.getProperty("sampleCaveState") == "Block{minecraft:air}"
+                && first.getProperty("samplePrimitiveKind") == "CHAMBER") {
+            "SF-IMP-0065 first-pass authored-cave evidence is incomplete: $first"
+        }
+        println(
+            "SF-IMP-0065 FIRST-PASS ACCEPTANCE PASS: changedDigest="
+                + first.getProperty("changedDigest")
+                + ", provenanceDigest=" + first.getProperty("provenanceDigest")
+                + ", changedBlocks=" + first.getProperty("changedBlocks")
+                + ", proofChunks=" + first.getProperty("proofChunks"),
+        )
+    }
+}
+
+tasks.register("sfImp0065Acceptance") {
+    group = "verification"
+    description = "Run deterministic first-pass SF-IMP-0065 authored-cave acceptance."
+    dependsOn(
+        "runAuthoredCaveAcceptanceA",
+        "runAuthoredCaveAcceptanceB",
+    )
+    finalizedBy("sfImp0065AcceptanceVerify")
 }
 
 dependencies {
