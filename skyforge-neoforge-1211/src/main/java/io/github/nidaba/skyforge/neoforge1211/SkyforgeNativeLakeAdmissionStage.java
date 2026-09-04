@@ -16,17 +16,17 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
  * "clip" a lake. LakeFeature is therefore allowed to begin only when a conservative finite envelope
  * around its final placed origin belongs entirely to the same compiled Skyforge owner.
  *
- * <p>The envelope deliberately covers both the longstanding LakeFeature convention that shifts the
- * origin by (-8,-4,-8) before operating on a 16x8x16 mask and implementations that keep the final
- * placed X/Z as a lower corner. This costs some admissible edge/surface lakes, but guarantees that
- * the first implementation fails closed without feature-ID policy.
+ * <p>Minecraft 1.21.1 LakeFeature uses the final placed X/Z as the 16x16 mask's lower corner and
+ * shifts its Y origin down four blocks before operating on eight vertical cells. The preflight
+ * therefore covers exactly that finite 16x8x16 mutation box. Candidates that need air/exterior
+ * beyond compiled owner support fail closed before native mutation.
  */
 public final class SkyforgeNativeLakeAdmissionStage {
-    static final int MIN_X_OFFSET = -8;
+    static final int MIN_X_OFFSET = 0;
     static final int MAX_X_OFFSET = 15;
     static final int MIN_Y_OFFSET = -4;
-    static final int MAX_Y_OFFSET = 7;
-    static final int MIN_Z_OFFSET = -8;
+    static final int MAX_Y_OFFSET = 3;
+    static final int MIN_Z_OFFSET = 0;
     static final int MAX_Z_OFFSET = 15;
 
     private static final long FNV_OFFSET_BASIS = 0xcbf29ce484222325L;
