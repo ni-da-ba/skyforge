@@ -59,10 +59,10 @@ public final class SkyIslandRiparianCorridorPlanner {
         List<SkyIslandChannelSegment> segments = profiles.stream()
                 .map(SkyIslandChannelProfile::segment)
                 .toList();
-        int maxStreamOrder = segments.stream()
-                .mapToInt(SkyIslandChannelSegment::streamOrder)
-                .max()
-                .orElse(0);
+        // Preserve the hierarchy normalization authored by the complete accepted network.
+        // Filtering visible components must never amplify the retained reaches merely because a
+        // higher-order neighboring component was suppressed by the coherence pass.
+        int maxStreamOrder = SkyIslandChannelNetworkPlanner.plan(descriptor).maxStreamOrder();
 
         Set<Integer> channelCells = new HashSet<>();
         for (SkyIslandChannelSegment segment : segments) {
