@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211.mixin;
 
+import io.github.nidaba.skyforge.neoforge1211.SkyforgeGeneratedFluidPropagationStage;
 import io.github.nidaba.skyforge.neoforge1211.SkyforgeWorldGenRegionDomainBridge;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -18,7 +19,8 @@ import org.spongepowered.asm.mixin.Mixin;
 abstract class SkyforgeServerLevelWorldGenDomainMixin implements WorldGenLevel {
     @Override
     public boolean ensureCanWrite(BlockPos position) {
-        if (!SkyforgeWorldGenRegionDomainBridge.canWrite(position)) {
+        if (!SkyforgeGeneratedFluidPropagationStage.acceptWrite(position)
+                || !SkyforgeWorldGenRegionDomainBridge.canWrite(position)) {
             return false;
         }
         return WorldGenLevel.super.ensureCanWrite(position);
