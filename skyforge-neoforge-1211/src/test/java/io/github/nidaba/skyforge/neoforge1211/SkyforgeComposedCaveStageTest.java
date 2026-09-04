@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 final class SkyforgeComposedCaveStageTest {
     @Test
     void stageRequiresPhysicalAdmissionBinding() {
-        var fixture = SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime.fixtureDefinition();
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         assertFalse(SkyforgePhysicalVolumeAdmissionStage.active());
         assertThrows(
                 IllegalStateException.class,
@@ -22,7 +22,7 @@ final class SkyforgeComposedCaveStageTest {
 
     @Test
     void installExpandsExactlyTheAdmissionFootprintAndStartsAllPending() throws Exception {
-        var fixture = SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime.fixtureDefinition();
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var volumeId = fixture.volume().id();
 
         try (AutoCloseable admission = SkyforgePhysicalVolumeAdmissionStage.install(fixture.catalog())) {
@@ -51,7 +51,7 @@ final class SkyforgeComposedCaveStageTest {
 
     @Test
     void duplicateExactVolumePlanIsRejectedBeforeBinding() throws Exception {
-        var fixture = SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime.fixtureDefinition();
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var plan = new SkyforgeComposedCavePlan(fixture.volume(), fixture.field());
 
         try (AutoCloseable admission = SkyforgePhysicalVolumeAdmissionStage.install(fixture.catalog())) {
