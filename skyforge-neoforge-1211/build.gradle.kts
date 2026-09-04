@@ -210,6 +210,26 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        create("undergroundDecorationAcceptanceStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0062-auto-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.undergroundDecorationStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0062-underground-decoration-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0062/stacked.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         create("undergroundDecorationAcceptanceB") {
             server()
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0062-auto-b").asFile
@@ -588,6 +608,7 @@ fun prepareSfImp0062AcceptanceServerDirectory(relativePath: String) {
 mapOf(
     "runUndergroundDecorationAcceptanceA" to "run-sf-imp-0062-auto-a",
     "runUndergroundDecorationAcceptanceB" to "run-sf-imp-0062-auto-b",
+    "runUndergroundDecorationAcceptanceStacked" to "run-sf-imp-0062-auto-stacked",
 ).forEach { (taskName, relativePath) ->
     tasks.named(taskName).configure {
         doFirst {
@@ -604,6 +625,9 @@ tasks.named("runUndergroundDecorationAcceptanceA").configure {
 tasks.named("runUndergroundDecorationAcceptanceB").configure {
     mustRunAfter("runUndergroundDecorationAcceptanceA")
 }
+tasks.named("runUndergroundDecorationAcceptanceStacked").configure {
+    mustRunAfter("runUndergroundDecorationAcceptanceB")
+}
 
 tasks.register("sfImp0062AcceptanceVerify") {
     group = "verification"
@@ -617,7 +641,10 @@ tasks.register("sfImp0062AcceptanceVerify") {
 
         val first = load("decoration-a")
         val second = load("decoration-b")
-        check(first.getProperty("status") == "PASS" && second.getProperty("status") == "PASS") {
+        val stacked = load("stacked")
+        check(first.getProperty("status") == "PASS"
+                && second.getProperty("status") == "PASS"
+                && stacked.getProperty("status") == "PASS") {
             "SF-IMP-0062 runtime repeat did not report PASS: A=$first B=$second"
         }
         for (key in listOf("carveTransformDigest", "carveDigest", "decorationTransformDigest", "decorationDigest")) {
@@ -625,6 +652,11 @@ tasks.register("sfImp0062AcceptanceVerify") {
                 "SF-IMP-0062 deterministic evidence changed for $key: A="
                     + first.getProperty(key) + " B=" + second.getProperty(key)
             }
+        }
+        check(stacked.getProperty("foreignWriteRejected") == "true"
+                && stacked.getProperty("ownerWriteAccepted") == "true"
+                && stacked.getProperty("lowerMappedY") != stacked.getProperty("upperMappedY")) {
+            "SF-IMP-0062 stacked exact-volume isolation failed: $stacked"
         }
         check(first.getProperty("successfulFeatures").toInt() > 0
                 && first.getProperty("changedCarvedAir").toInt() > 0
@@ -648,6 +680,7 @@ tasks.register("sfImp0062Acceptance") {
     dependsOn(
         "runUndergroundDecorationAcceptanceA",
         "runUndergroundDecorationAcceptanceB",
+        "runUndergroundDecorationAcceptanceStacked",
     )
     finalizedBy("sfImp0062AcceptanceVerify")
 }
