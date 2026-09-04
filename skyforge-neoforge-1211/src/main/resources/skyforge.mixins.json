@@ -12,7 +12,10 @@
     "SkyforgeHeightRangePlacementDomainMixin",
     "SkyforgeCarverHeightProviderDomainMixin",
     "SkyforgeLevelChunkCarverDomainMixin",
-    "SkyforgeWorldCarverDomainMixin"
+    "SkyforgeWorldCarverDomainMixin",
+    "SkyforgeFlowingFluidDomainMixin",
+    "SkyforgeLevelTicksFluidProvenanceMixin",
+    "SkyforgeWorldGenTickAccessFluidProvenanceMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -24,7 +24,9 @@ import net.minecraft.world.level.levelgen.GenerationStep;
  * the finite volume envelope exactly as before. SF-IMP-0060 additionally admitted
  * {@link GenerationStep.Decoration#LOCAL_MODIFICATIONS}. SF-IMP-0062 admits
  * {@link GenerationStep.Decoration#UNDERGROUND_DECORATION} after SF-IMP-0061 established persistent
- * owner-local cave topology.
+ * owner-local cave topology. SF-IMP-0063 admits {@link GenerationStep.Decoration#FLUID_SPRINGS}
+ * against the same exact compiled owner-column support; asynchronous propagation is separately
+ * fenced by the generated-fluid provenance stage.
  *
  * <p>Sparse local modifications and cave-surface decoration use the exact compiled solid span of
  * their already-selected X/Z column when one exists, because a conservative volume bounding box
@@ -35,7 +37,7 @@ import net.minecraft.world.level.levelgen.GenerationStep;
  * column, the ordinary envelope mapping is retained and the existing exact write fence remains
  * authoritative.
  *
- * <p>Springs, lakes, surface population and BASE_WORLD generation remain outside this frame until
+ * <p>Lakes, surface population and BASE_WORLD generation remain outside this frame until
  * separately proven.
  */
 public final class SkyforgeVerticalPlacementFrame {
@@ -82,19 +84,21 @@ public final class SkyforgeVerticalPlacementFrame {
     static boolean usesLocalVerticalFrame(int generationStep) {
         return generationStep == GenerationStep.Decoration.UNDERGROUND_ORES.ordinal()
                 || generationStep == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal()
-                || generationStep == GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal();
+                || generationStep == GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal()
+                || generationStep == GenerationStep.Decoration.FLUID_SPRINGS.ordinal();
     }
 
     /**
      * Returns whether one admitted phase maps against exact solid owner-column support.
      *
      * <p>SF-IMP-0059 ore mapping remains byte-for-byte on the accepted finite volume-envelope frame.
-     * SF-IMP-0060 local modifications and SF-IMP-0062 cave-surface decoration opt into the stricter
-     * compiled owner-column support frame.
+     * SF-IMP-0060 local modifications, SF-IMP-0062 cave-surface decoration, and SF-IMP-0063 fluid
+     * springs opt into the stricter compiled owner-column support frame.
      */
     static boolean usesExactSolidColumnFrame(int generationStep) {
         return generationStep == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal()
-                || generationStep == GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal();
+                || generationStep == GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal()
+                || generationStep == GenerationStep.Decoration.FLUID_SPRINGS.ordinal();
     }
 
     /** Returns whether an exact-volume local vertical frame is active on the current thread. */
