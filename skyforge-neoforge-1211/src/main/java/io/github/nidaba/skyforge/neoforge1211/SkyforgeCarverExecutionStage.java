@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
 
@@ -107,7 +108,10 @@ public final class SkyforgeCarverExecutionStage {
         execution.recordChanged(position);
         // LevelChunk#setBlockState already updates heightmaps and lighting. The missing stable-chunk
         // side effect is notifying tracking clients of the changed block.
-        chunk.getLevel().getChunkSource().blockChanged(position.immutable());
+        if (!(chunk.getLevel() instanceof ServerLevel serverLevel)) {
+            throw new IllegalStateException("exact-volume native carver requires a server LevelChunk");
+        }
+        serverLevel.getChunkSource().blockChanged(position.immutable());
     }
 
     static Optional<Snapshot> snapshotIfActive() {
