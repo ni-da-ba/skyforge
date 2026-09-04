@@ -90,18 +90,19 @@ final class SkyforgeNeoForge1211ComposedCaveStackedDevRuntime {
             throw new IllegalStateException("SF-IMP-0067 stacked proof requires noise generator");
         }
 
-        BlockPos lowerAuthoredAnchor = authoredAnchor(FIXTURE.lower());
-        BlockPos upperAuthoredAnchor = authoredAnchor(FIXTURE.upper());
-        if (lowerAuthoredAnchor.getX() != upperAuthoredAnchor.getX()
-                || lowerAuthoredAnchor.getZ() != upperAuthoredAnchor.getZ()
+        BlockPos lowerAuthoredAnchor =
+                firstDiscreteAuthoredPositive(FIXTURE.lower(), FIXTURE.base().field(), chunk);
+        BlockPos upperAuthoredAnchor =
+                firstDiscreteAuthoredPositive(FIXTURE.upper(), FIXTURE.base().field(), chunk);
+        if (lowerAuthoredAnchor == null || upperAuthoredAnchor == null
                 || lowerAuthoredAnchor.getY() == upperAuthoredAnchor.getY()) {
             throw new IllegalStateException(
-                    "SF-IMP-0067 stacked authored anchors lost same-X/Z distinct-Y mapping");
+                    "SF-IMP-0067 stacked proof could not resolve distinct discrete AUTH-0030 anchors");
         }
         if (level.getBlockState(lowerAuthoredAnchor).isAir()
                 || level.getBlockState(upperAuthoredAnchor).isAir()) {
             throw new IllegalStateException(
-                    "SF-IMP-0067 stacked authored anchors were AIR before composition");
+                    "SF-IMP-0067 stacked discrete authored anchors were AIR before composition");
         }
 
         Aggregate lower = compose(level, generator, FIXTURE.lower(), chunk);
@@ -146,7 +147,8 @@ final class SkyforgeNeoForge1211ComposedCaveStackedDevRuntime {
                         + ", lowerAnchor=" + lowerAuthoredAnchor
                         + ", upperAnchor=" + upperAuthoredAnchor
                         + ", unsafeLower=0, unsafeUpper=0"
-                        + ", sameXZIndependent=true, foreignVolumePreserved=true.");
+                        + ", discreteAuthoredAnchors=true"
+                        + ", stackedXZDomainIndependent=true, foreignVolumePreserved=true.");
 
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(
                 level.getServer(),
@@ -163,6 +165,7 @@ final class SkyforgeNeoForge1211ComposedCaveStackedDevRuntime {
                         java.util.Map.entry("unsafeLower", 0),
                         java.util.Map.entry("unsafeUpper", 0),
                         java.util.Map.entry("sameXZIndependent", true),
+                        java.util.Map.entry("discreteAuthoredAnchors", true),
                         java.util.Map.entry("foreignVolumePreserved", true)));
     }
 
@@ -211,20 +214,39 @@ final class SkyforgeNeoForge1211ComposedCaveStackedDevRuntime {
                 nativeOnly);
     }
 
-    private static BlockPos authoredAnchor(SkyIslandWorldVolume volume) {
+    private static BlockPos firstDiscreteAuthoredPositive(
+            SkyIslandWorldVolume volume,
+            SkyIslandExteriorConnectedCaveVolumeField field,
+            LevelChunk chunk) {
+        int minimumY = Math.max(
+                chunk.getMinBuildHeight(),
+                (int) Math.ceil(volume.bounds().minimumY()));
+        int maximumY = Math.min(
+                chunk.getMaxBuildHeight() - 1,
+                (int) Math.floor(volume.bounds().maximumY()));
         var realized = new SkyIslandRealizedExteriorConnectedCaveVolumeField(
-                FIXTURE.base().field(),
+                field,
                 new SkyIslandCompiledVolumeColumnField(volume.compiledVolume()));
-        var physical = realized.transform()
-                .toPhysical(FIXTURE.base().connection().caveSidePoint().position())
-                .orElseThrow(() -> new IllegalStateException(
-                        "SF-IMP-0067 authored anchor has no physical realization"));
-        return new BlockPos(
-                (int) Math.round(volume.compiledVolume().descriptor().centerX()
-                        + physical.horizontalPosition().x()),
-                (int) Math.round(physical.physicalY()),
-                (int) Math.round(volume.compiledVolume().descriptor().centerZ()
-                        + physical.horizontalPosition().z()));
+        var descriptor = volume.compiledVolume().descriptor();
+
+        for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
+            for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
+                var local = new SkyIslandLocalPosition(
+                        x - descriptor.centerX(),
+                        z - descriptor.centerZ());
+                for (int y = minimumY; y <= maximumY; y++) {
+                    if (!ownerSolid(volume, x, y, z)) {
+                        continue;
+                    }
+                    var sample = realized.sample(
+                            new SkyIslandRealizedSubsurfacePosition(local, y));
+                    if (sample.inside()) {
+                        return new BlockPos(x, y, z);
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private static OwnerSpan widestOwnerSpan(
