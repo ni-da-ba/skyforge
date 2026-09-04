@@ -1180,7 +1180,8 @@ tasks.register("sfImp0064AcceptanceVerify") {
         }
         check(first.getProperty("successfulFeatures").toInt() > 0
                 && first.getProperty("admittedConfiguredLakes").toInt() > 0
-                && first.getProperty("rejectedConfiguredLakes").toInt() > 0
+                && first.getProperty("rejectionProbeRejected") == "true"
+                && first.getProperty("rejectionProbeChangedBlocks") == "0"
                 && first.getProperty("changedRejectedOnly") == "0"
                 && first.getProperty("unsupportedLakeFeatures") == "0"
                 && first.getProperty("mappedOutsideVolume") == "0"
