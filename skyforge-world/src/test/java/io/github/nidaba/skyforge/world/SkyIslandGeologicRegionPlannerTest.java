@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -88,30 +90,40 @@ class SkyIslandGeologicRegionPlannerTest {
     }
 
     private static void assertConnected(SkyIslandGeologicRegion region) {
-        Set<Integer> regionIndices = new HashSet<>();
+        Map<Long, SkyIslandGeologicRegionCell> byCoordinate = new HashMap<>();
         for (SkyIslandGeologicRegionCell cell : region.cells()) {
-            regionIndices.add(cell.index());
+            byCoordinate.put(coordinateKey(cell.xIndex(), cell.depthIndex(), cell.zIndex()), cell);
         }
 
         Set<Integer> visited = new HashSet<>();
         java.util.ArrayDeque<SkyIslandGeologicRegionCell> queue = new java.util.ArrayDeque<>();
         queue.add(region.cells().getFirst());
 
+        int[][] offsets = {
+            {-1, 0, 0}, {1, 0, 0},
+            {0, -1, 0}, {0, 1, 0},
+            {0, 0, -1}, {0, 0, 1}
+        };
         while (!queue.isEmpty()) {
             SkyIslandGeologicRegionCell cell = queue.removeFirst();
             if (!visited.add(cell.index())) {
                 continue;
             }
-            for (SkyIslandGeologicRegionCell candidate : region.cells()) {
-                int distance = Math.abs(candidate.xIndex() - cell.xIndex())
-                        + Math.abs(candidate.depthIndex() - cell.depthIndex())
-                        + Math.abs(candidate.zIndex() - cell.zIndex());
-                if (distance == 1 && !visited.contains(candidate.index())) {
-                    queue.addLast(candidate);
+            for (int[] offset : offsets) {
+                SkyIslandGeologicRegionCell neighbor = byCoordinate.get(coordinateKey(
+                        cell.xIndex() + offset[0],
+                        cell.depthIndex() + offset[1],
+                        cell.zIndex() + offset[2]));
+                if (neighbor != null && !visited.contains(neighbor.index())) {
+                    queue.addLast(neighbor);
                 }
             }
         }
-        assertEquals(regionIndices.size(), visited.size());
+        assertEquals(byCoordinate.size(), visited.size());
+    }
+
+    private static long coordinateKey(int x, int depth, int z) {
+        return ((long) z << 32) ^ ((long) depth << 16) ^ (x & 0xFFFFL);
     }
 
     private static SkyIslandDescriptor extreme(
