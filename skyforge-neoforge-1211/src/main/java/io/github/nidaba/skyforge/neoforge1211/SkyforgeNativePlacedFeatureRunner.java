@@ -173,6 +173,7 @@ final class SkyforgeNativePlacedFeatureRunner {
             domain.requireActive();
             execution.requireActive();
             verticalFrame.requireActive();
+            generatedFluid.requireActive();
             RandomSource random = RandomSource.create(operation.seed());
             boolean placed = domainBiome.isPresent()
                     // Biome-owned generation must preserve Minecraft's top-feature provenance so
