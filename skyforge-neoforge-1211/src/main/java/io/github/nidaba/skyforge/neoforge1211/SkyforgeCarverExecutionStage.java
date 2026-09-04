@@ -19,6 +19,8 @@ import net.minecraft.world.level.chunk.LevelChunk;
  * No attachment halo exists for carving.
  */
 public final class SkyforgeCarverExecutionStage {
+    private static final long FNV_OFFSET_BASIS = 0xcbf29ce484222325L;
+    private static final long FNV_PRIME = 0x100000001b3L;
     private static final ThreadLocal<Execution> ACTIVE = new ThreadLocal<>();
 
     private SkyforgeCarverExecutionStage() {}
@@ -120,6 +122,7 @@ public final class SkyforgeCarverExecutionStage {
             int rejectedWriteAttempts,
             int changedBlocks,
             int uniqueChangedBlocks,
+            long changedPositionDigest,
             int minimumChangedY,
             int maximumChangedY) {
         Snapshot {
@@ -138,6 +141,7 @@ public final class SkyforgeCarverExecutionStage {
         private int acceptedWriteAttempts;
         private int rejectedWriteAttempts;
         private int changedBlocks;
+        private long changedPositionDigest = FNV_OFFSET_BASIS;
         private int minimumChangedY = Integer.MAX_VALUE;
         private int maximumChangedY = Integer.MIN_VALUE;
 
@@ -165,7 +169,10 @@ public final class SkyforgeCarverExecutionStage {
 
         private void recordChanged(BlockPos position) {
             changedBlocks++;
-            changedPositions.add(position.asLong());
+            long packed = position.asLong();
+            changedPositions.add(packed);
+            changedPositionDigest ^= packed;
+            changedPositionDigest *= FNV_PRIME;
             minimumChangedY = Math.min(minimumChangedY, position.getY());
             maximumChangedY = Math.max(maximumChangedY, position.getY());
         }
@@ -179,6 +186,7 @@ public final class SkyforgeCarverExecutionStage {
                     rejectedWriteAttempts,
                     changedBlocks,
                     changedPositions.size(),
+                    changedPositionDigest,
                     changedBlocks == 0 ? Integer.MIN_VALUE : minimumChangedY,
                     changedBlocks == 0 ? Integer.MIN_VALUE : maximumChangedY);
         }
