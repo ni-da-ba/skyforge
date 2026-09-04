@@ -64,8 +64,12 @@ public final class SkyIslandRiparianCorridorPlanner {
         // higher-order neighboring component was suppressed by the coherence pass.
         int maxStreamOrder = SkyIslandChannelNetworkPlanner.plan(descriptor).maxStreamOrder();
 
+        // Preserve the complete accepted centerline reservation while filtering influence.
+        // A suppressed visible river should revert toward baseline terrain; its former centerline
+        // must not immediately become newly authored riparian land around a neighboring retained
+        // reach during this same migration pass.
         Set<Integer> channelCells = new HashSet<>();
-        for (SkyIslandChannelSegment segment : segments) {
+        for (SkyIslandChannelSegment segment : SkyIslandChannelNetworkPlanner.plan(descriptor).segments()) {
             channelCells.add(segment.sourceCellIndex());
             channelCells.add(segment.downstreamCellIndex());
         }
