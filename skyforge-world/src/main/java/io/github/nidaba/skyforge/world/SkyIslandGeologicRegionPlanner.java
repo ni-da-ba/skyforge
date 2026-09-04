@@ -20,6 +20,8 @@ public final class SkyIslandGeologicRegionPlanner {
 
     private static final long CORRIDOR_DOMAIN = 0x47454F434F525249L;
     private static final long CORRIDOR_STEP = 0x9E3779B97F4A7C15L;
+    private static final long AQUIFER_DOMAIN = 0x4151554946455231L;
+    private static final long AQUIFER_STEP = 0xD1B54A32D192ED03L;
 
     private SkyIslandGeologicRegionPlanner() {}
 
@@ -43,17 +45,17 @@ public final class SkyIslandGeologicRegionPlanner {
                 0.50,
                 0.61);
         double aquiferThreshold = clamp(
-                0.55
-                        - 0.04 * descriptor.hydrologicalPotential()
-                        - 0.03 * descriptor.permeability(),
-                0.49,
-                0.55);
+                0.61
+                        - 0.03 * descriptor.hydrologicalPotential()
+                        - 0.02 * descriptor.permeability(),
+                0.56,
+                0.61);
         double voidThreshold = clamp(
-                0.57
+                0.55
                         + 0.03 * descriptor.rockCompetence()
-                        - 0.03 * descriptor.erosionMaturity(),
-                0.53,
-                0.60);
+                        - 0.02 * descriptor.erosionMaturity(),
+                0.52,
+                0.58);
 
         for (int iz = 0; iz < GRID_SIZE; iz++) {
             double z = -radius + iz * spacing;
@@ -81,26 +83,34 @@ public final class SkyIslandGeologicRegionPlanner {
                     double fractureMembership = clamp01(
                             0.62 * sample.fractureIntensity()
                                     + 0.38 * corridor);
+                    double expressedFracture =
+                            fractureMembership >= fractureThreshold ? fractureMembership : 0.0;
 
-                    double depthWaterBand = smoothstep(0.18, 0.62, depth);
+                    double aquiferLens = aquiferBodySupport(
+                            descriptor,
+                            nx,
+                            nz,
+                            depth);
                     double aquiferMembership = clamp01(
-                            0.58 * sample.groundwaterPotential()
-                                    + 0.30 * sample.connectedPermeability()
-                                    + 0.12 * depthWaterBand);
+                            0.38 * sample.groundwaterPotential()
+                                    + 0.27 * sample.connectedPermeability()
+                                    + 0.35 * aquiferLens);
+                    double expressedAquifer =
+                            aquiferMembership >= aquiferThreshold ? aquiferMembership : 0.0;
 
                     double midDepthBand =
                             clamp01(1.0 - Math.abs(depth - 0.53) / 0.53);
                     double voidMembership = clamp01(
-                            0.58 * sample.voidFormationPotential()
-                                    + 0.20 * fractureMembership
-                                    + 0.14 * aquiferMembership
-                                    + 0.08 * midDepthBand);
+                            0.55 * sample.voidFormationPotential()
+                                    + 0.20 * expressedFracture
+                                    + 0.20 * expressedAquifer
+                                    + 0.05 * midDepthBand);
 
-                    if (fractureMembership >= fractureThreshold) {
-                        fracture[index] = fractureMembership;
+                    if (expressedFracture > 0.0) {
+                        fracture[index] = expressedFracture;
                     }
-                    if (aquiferMembership >= aquiferThreshold) {
-                        aquifer[index] = aquiferMembership;
+                    if (expressedAquifer > 0.0) {
+                        aquifer[index] = expressedAquifer;
                     }
                     if (voidMembership >= voidThreshold) {
                         voidProne[index] = voidMembership;
@@ -176,6 +186,47 @@ public final class SkyIslandGeologicRegionPlanner {
                     normalX * x + normalZ * z - offset - (depth - 0.5) * drift;
             double normalized = distance / width;
             double local = Math.exp(-0.5 * normalized * normalized);
+            support = Math.max(support, local);
+        }
+        return support;
+    }
+
+    /**
+     * Provides a small family of broad hydrogeological lenses. A lens is only promoted to an
+     * aquifer where AUTH-0022 groundwater and connected permeability also support it.
+     */
+    private static double aquiferBodySupport(
+            SkyIslandDescriptor descriptor,
+            double x,
+            double z,
+            double depth) {
+        double bodyActivity = clamp01(
+                0.52 * descriptor.hydrologicalPotential()
+                        + 0.48 * descriptor.permeability());
+        int bodyCount = 1 + (int) Math.round(bodyActivity);
+        double support = 0.0;
+        for (int body = 0; body < bodyCount; body++) {
+            long seed = descriptor.authorshipSeed()
+                    ^ AQUIFER_DOMAIN
+                    ^ (AQUIFER_STEP * (body + 1L));
+            double angle = phase(seed);
+            double cos = Math.cos(angle);
+            double sin = Math.sin(angle);
+            double centerAlong = signedUnit(seed ^ 0x414C4F4E473031L) * 0.26;
+            double centerAcross = signedUnit(seed ^ 0x4143524F535331L) * 0.20;
+            double centerDepth = 0.38 + 0.34 * unit(seed ^ 0x44455054483031L);
+            double horizontalRadius = 0.25 + 0.13 * unit(seed ^ 0x4852414449555331L);
+            double verticalRadius = 0.15 + 0.10 * unit(seed ^ 0x5652414449555331L);
+
+            double along = x * cos + z * sin - centerAlong;
+            double across = -x * sin + z * cos - centerAcross;
+            double vertical = depth - centerDepth;
+            double distanceSquared =
+                    (along * along) / (horizontalRadius * horizontalRadius)
+                            + (across * across)
+                                    / ((horizontalRadius * 0.72) * (horizontalRadius * 0.72))
+                            + (vertical * vertical) / (verticalRadius * verticalRadius);
+            double local = Math.exp(-1.35 * distanceSquared);
             support = Math.max(support, local);
         }
         return support;
