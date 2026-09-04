@@ -13,7 +13,7 @@ import java.util.Objects;
  * local transition.
  */
 public final class SkyIslandLithologicContactRealizationField {
-    private static final double SUPPORT_RADIUS_MULTIPLIER = 3.0;
+    private static final double SUPPORT_RADIUS_MULTIPLIER = 2.25;
     private static final double MIN_REPORTED_INFLUENCE = 0.015;
 
     private final SkyIslandLithologicContactRealizationPlan plan;

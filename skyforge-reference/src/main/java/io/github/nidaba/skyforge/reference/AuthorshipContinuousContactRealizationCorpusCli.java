@@ -158,7 +158,7 @@ public final class AuthorshipContinuousContactRealizationCorpusCli {
                 49);
 
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
-        centered(g, "PLAN", 0, MAP, 64);
+        centered(g, "MID-DEPTH PLAN", 0, MAP, 64);
         centered(g, "SECTION", MAP, MAP, 64);
         centered(g, "ALTERATION", 2 * MAP, MAP, 64);
         centered(g, "WATER", 3 * MAP, MAP, 64);
@@ -166,7 +166,7 @@ public final class AuthorshipContinuousContactRealizationCorpusCli {
         centered(g, "CAVE", 5 * MAP, MAP, 64);
 
         SkyIslandLithologicContactRealizationSample[][] planSamples =
-                projectPlan(descriptor, field);
+                midDepthPlan(descriptor, field);
         SkyIslandLithologicContactRealizationSample[][] sectionSamples =
                 section(descriptor, field);
 
@@ -185,7 +185,7 @@ public final class AuthorshipContinuousContactRealizationCorpusCli {
         return image;
     }
 
-    private static SkyIslandLithologicContactRealizationSample[][] projectPlan(
+    private static SkyIslandLithologicContactRealizationSample[][] midDepthPlan(
             SkyIslandDescriptor descriptor,
             SkyIslandLithologicContactRealizationField field) {
         double radius = descriptor.nominalRadius();
@@ -195,16 +195,8 @@ public final class AuthorshipContinuousContactRealizationCorpusCli {
             double z = -radius + iz * (2.0 * radius / (SAMPLE - 1.0));
             for (int ix = 0; ix < SAMPLE; ix++) {
                 double x = -radius + ix * (2.0 * radius / (SAMPLE - 1.0));
-                SkyIslandLithologicContactRealizationSample best = null;
-                for (int id = 0; id < DEPTH_PROJECTION_SAMPLES; id++) {
-                    double depth = id / (DEPTH_PROJECTION_SAMPLES - 1.0);
-                    SkyIslandLithologicContactRealizationSample sample =
-                            field.sample(new SkyIslandSubsurfacePosition(x, z, depth));
-                    if (best == null || sample.contactInfluence() > best.contactInfluence()) {
-                        best = sample;
-                    }
-                }
-                result[iz][ix] = best;
+                result[iz][ix] =
+                        field.sample(new SkyIslandSubsurfacePosition(x, z, 0.52));
             }
         }
         return result;

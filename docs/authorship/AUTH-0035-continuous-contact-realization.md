@@ -110,7 +110,7 @@ It is authored semantic evidence for later realization.
 
 The field uses compact support around every finite patch.
 
-Influence is exactly zero at and beyond three realized half-widths from the finite patch.
+Influence is exactly zero at and beyond 2.25 realized half-widths from the finite patch.
 
 Within support, influence falls smoothly from the patch.
 
@@ -166,7 +166,7 @@ The authorship-continuous-contact-realization-v1 corpus uses the canonical six s
 
 Each specimen renders:
 
-- PLAN — maximum continuous contact influence through five semantic-depth slices;
+- MID-DEPTH PLAN — continuous contact influence at semantic depth 0.52;
 - SECTION — continuous contact influence on a central x/depth plane;
 - ALTERATION — alteration-transition channel;
 - WATER — hydrologic-transition channel;

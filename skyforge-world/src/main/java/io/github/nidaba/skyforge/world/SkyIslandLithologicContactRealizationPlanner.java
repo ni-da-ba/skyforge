@@ -14,8 +14,8 @@ import java.util.Map;
  * here.
  */
 public final class SkyIslandLithologicContactRealizationPlanner {
-    public static final double MIN_HALF_WIDTH = 0.022;
-    public static final double MAX_HALF_WIDTH = 0.135;
+    public static final double MIN_HALF_WIDTH = 0.010;
+    public static final double MAX_HALF_WIDTH = 0.072;
 
     private SkyIslandLithologicContactRealizationPlanner() {}
 
@@ -163,11 +163,11 @@ public final class SkyIslandLithologicContactRealizationPlanner {
 
     private static double baseHalfWidth(SkyIslandLithologicContactKind kind) {
         return switch (kind) {
-            case GRADATIONAL_CONTACT -> 0.092;
-            case HOST_FABRIC_CONTACT -> 0.043;
-            case ALTERATION_FRONT -> 0.071;
-            case HYDROLOGIC_FRONT -> 0.083;
-            case MINERALIZATION_FRONT -> 0.058;
+            case GRADATIONAL_CONTACT -> 0.040;
+            case HOST_FABRIC_CONTACT -> 0.018;
+            case ALTERATION_FRONT -> 0.031;
+            case HYDROLOGIC_FRONT -> 0.036;
+            case MINERALIZATION_FRONT -> 0.026;
         };
     }
 
