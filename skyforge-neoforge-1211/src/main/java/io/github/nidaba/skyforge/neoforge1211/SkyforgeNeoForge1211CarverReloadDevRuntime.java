@@ -139,6 +139,9 @@ final class SkyforgeNeoForge1211CarverReloadDevRuntime {
         }
 
         clientExpectation = first;
+        if (SkyforgeAutomatedAcceptanceHarness.clientMode()) {
+            level.players().getFirst().teleportTo(8.5, 280.0, 8.5);
+        }
         serverProofComplete = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
