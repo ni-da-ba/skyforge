@@ -149,8 +149,10 @@ The maximum projections are evidence views only. The field itself remains fully 
 - sampled 3D cave-volume fraction;
 - positive sample count;
 - maximum positive clearance;
-- minimum exterior clearance near the accepted sampled domain;
-- occupied connected-component count on the evidence sampling lattice.
+- nearest exterior clearance near the accepted sampled domain;
+- occupied connected-component count on a 73 x 37 x 73 evidence lattice.
+
+The evidence lattice is intentionally finer than the first-generation passage diameter scale so thin accepted corridors are not misreported as disconnected by undersampling.
 
 ## Acceptance gate
 
