@@ -135,10 +135,11 @@ class SkyIslandMaterialDomainPlannerTest {
             SkyIslandDescriptor descriptor = descriptor(key);
             SkyIslandMaterialDomainPlan plan =
                     SkyIslandMaterialDomainPlanner.plan(descriptor);
-            int active = activePlanningCells(descriptor);
+            int active = plan.activeHostCells();
 
             for (SkyIslandMaterialDomainKind kind : SkyIslandMaterialDomainKind.values()) {
                 assertTrue(plan.cellCount(kind) < active);
+                assertTrue(plan.cellCount(kind) <= Math.floor(active * 0.85));
             }
         }
     }
@@ -181,32 +182,6 @@ class SkyIslandMaterialDomainPlannerTest {
             }
         }
         assertTrue(overlapObserved);
-    }
-
-    private static int activePlanningCells(SkyIslandDescriptor descriptor) {
-        SkyIslandSubsurfaceMaterialFieldSet material =
-                SkyIslandSubsurfaceMaterialFieldSet.create(descriptor);
-        double radius = descriptor.nominalRadius();
-        double horizontalSpacing =
-                2.0 * radius / (SkyIslandMaterialDomainPlanner.GRID_SIZE - 1.0);
-        double depthSpacing =
-                1.0 / (SkyIslandMaterialDomainPlanner.DEPTH_SAMPLES - 1.0);
-        int active = 0;
-
-        for (int iz = 0; iz < SkyIslandMaterialDomainPlanner.GRID_SIZE; iz++) {
-            double z = -radius + iz * horizontalSpacing;
-            for (int id = 0; id < SkyIslandMaterialDomainPlanner.DEPTH_SAMPLES; id++) {
-                double depth = id * depthSpacing;
-                for (int ix = 0; ix < SkyIslandMaterialDomainPlanner.GRID_SIZE; ix++) {
-                    double x = -radius + ix * horizontalSpacing;
-                    if (material.sample(new SkyIslandSubsurfacePosition(x, z, depth))
-                            .materialPresent()) {
-                        active++;
-                    }
-                }
-            }
-        }
-        return active;
     }
 
     private static SkyIslandDescriptor descriptor(long key) {
