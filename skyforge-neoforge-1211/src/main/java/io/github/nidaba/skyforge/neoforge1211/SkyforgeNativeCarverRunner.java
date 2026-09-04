@@ -155,27 +155,31 @@ final class SkyforgeNativeCarverRunner {
                     SkyforgeCarverVerticalFrame.Snapshot verticalSnapshot;
                     SkyforgeCarverExecutionStage.Snapshot writeSnapshot;
                     boolean carved;
-                    try (var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
-                            var execution = SkyforgeCarverExecutionStage.open(volumeId, targetPos);
-                            var vertical = SkyforgeCarverVerticalFrame.open(
-                                    level, volumeId, targetMinimumY, targetMaximumY);
-                            var postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(level)) {
-                        domain.requireActive();
-                        execution.requireActive();
-                        vertical.requireActive();
+                    var postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(level);
+                    try {
+                        try (var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
+                                var execution = SkyforgeCarverExecutionStage.open(volumeId, targetPos);
+                                var vertical = SkyforgeCarverVerticalFrame.open(
+                                        level, volumeId, targetMinimumY, targetMaximumY)) {
+                            domain.requireActive();
+                            execution.requireActive();
+                            vertical.requireActive();
 
-                        carveCalls++;
-                        carved = configured.carve(
-                                context,
-                                targetChunk,
-                                position -> resolveBiome(level, biomeResolver, volumeId, position),
-                                random,
-                                aquifer,
-                                sourcePos,
-                                mask);
-                        SkyforgeDeferredPopulationPostProcessingBridge.flushIfActive();
-                        verticalSnapshot = vertical.snapshot();
-                        writeSnapshot = execution.snapshot();
+                            carveCalls++;
+                            carved = configured.carve(
+                                    context,
+                                    targetChunk,
+                                    position -> resolveBiome(level, biomeResolver, volumeId, position),
+                                    random,
+                                    aquifer,
+                                    sourcePos,
+                                    mask);
+                            SkyforgeDeferredPopulationPostProcessingBridge.flushIfActive();
+                            verticalSnapshot = vertical.snapshot();
+                            writeSnapshot = execution.snapshot();
+                        }
+                    } finally {
+                        postProcessing.close();
                     }
                     if (carved) {
                         successfulCalls++;
