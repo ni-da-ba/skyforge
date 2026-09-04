@@ -124,6 +124,10 @@ final class SkyforgeAuthoredCaveRealizer {
                     FNV_OFFSET_BASIS,
                     authoredProvenanceDigest,
                     firstUnsafe,
+                    null,
+                    -1,
+                    SkyIslandCaveVolumeSample.PrimitiveKind.NONE,
+                    -1,
                     Integer.MIN_VALUE,
                     Integer.MIN_VALUE);
         }
@@ -139,6 +143,7 @@ final class SkyforgeAuthoredCaveRealizer {
             writeSnapshot = execution.snapshot();
         }
 
+        Candidate sampleCandidate = candidates.isEmpty() ? null : candidates.getFirst();
         return new Result(
                 true,
                 sampledPhysicalBlocks,
@@ -150,6 +155,12 @@ final class SkyforgeAuthoredCaveRealizer {
                 writeSnapshot.changedPositionDigest(),
                 authoredProvenanceDigest,
                 null,
+                sampleCandidate == null ? null : sampleCandidate.position(),
+                sampleCandidate == null ? -1 : sampleCandidate.sample().systemId(),
+                sampleCandidate == null
+                        ? SkyIslandCaveVolumeSample.PrimitiveKind.NONE
+                        : sampleCandidate.sample().primitiveKind(),
+                sampleCandidate == null ? -1 : sampleCandidate.sample().primitiveId(),
                 writeSnapshot.minimumChangedY(),
                 writeSnapshot.maximumChangedY());
     }
@@ -174,9 +185,14 @@ final class SkyforgeAuthoredCaveRealizer {
             long changedPositionDigest,
             long authoredProvenanceDigest,
             BlockPos firstUnsafePosition,
+            BlockPos sampleAuthoredPosition,
+            int sampleSystemId,
+            SkyIslandCaveVolumeSample.PrimitiveKind samplePrimitiveKind,
+            int samplePrimitiveId,
             int minimumChangedY,
             int maximumChangedY) {
         Result {
+            Objects.requireNonNull(samplePrimitiveKind, "samplePrimitiveKind");
             if (sampledPhysicalBlocks < 0
                     || positiveAuthoredSamples < 0
                     || ownerAuthorizedSamples < 0
