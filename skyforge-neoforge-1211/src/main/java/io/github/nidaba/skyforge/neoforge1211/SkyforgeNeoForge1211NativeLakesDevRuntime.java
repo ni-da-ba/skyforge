@@ -322,6 +322,12 @@ final class SkyforgeNeoForge1211NativeLakesDevRuntime {
                             + ", mappedOutsideVolume=" + mappedOutsideVolume);
         }
 
+        // BASE_WORLD preservation is an operation-local invariant. Check it immediately after
+        // native LAKES placement, before the proof deliberately advances ordinary server ticks.
+        // Unrelated vanilla scheduled updates (for example leaf-distance recomputation) are allowed
+        // to occur later and are not evidence of a Skyforge lake mutation.
+        requireBaseColumnsPreserved(level, baseColumnsBefore);
+
         SkyforgeGeneratedFluidPropagationStage.TrackedFluid sample = tracked.getFirst();
         BlockPos samplePosition = BlockPos.of(sample.position());
         var sampleFluid = level.getFluidState(samplePosition);
@@ -412,7 +418,6 @@ final class SkyforgeNeoForge1211NativeLakesDevRuntime {
             }
         }
 
-        requireBaseColumnsPreserved(level, baseColumnsBefore);
         if (provenance.propagationTicks() <= 0
                 || matchingPersistentFluids <= 0
                 || sample == null
