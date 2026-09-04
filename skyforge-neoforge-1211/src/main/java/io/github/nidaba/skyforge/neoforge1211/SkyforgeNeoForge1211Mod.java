@@ -31,6 +31,8 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211UndergroundDecorationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211FluidSpringsDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211NativeLakesDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211AuthoredCaveDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211AuthoredCaveStackedDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211NativeLakesStackedDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211NativeLakesReloadDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211FluidSpringsStackedDevRuntime.installFromSystemProperty();
