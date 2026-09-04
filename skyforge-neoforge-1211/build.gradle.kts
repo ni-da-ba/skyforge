@@ -404,6 +404,13 @@ tasks.named("runNativeCarverAcceptanceB").configure {
 }
 tasks.named("runNativeCarverAcceptanceReloadClient").configure {
     mustRunAfter("runNativeCarverAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-sf-imp-0061-auto-b").asFile
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
 }
 tasks.named("runNativeCarverAcceptanceStacked").configure {
     mustRunAfter("runNativeCarverAcceptanceReloadClient")
