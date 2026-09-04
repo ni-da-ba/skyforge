@@ -45,6 +45,10 @@ jobs:
         timeout-minutes: 9
         run: ./gradlew :skyforge-neoforge-1211:runUndergroundDecorationAcceptanceB --stacktrace --no-configuration-cache
 
+      - name: Stacked-volume decoration isolation
+        timeout-minutes: 5
+        run: ./gradlew :skyforge-neoforge-1211:runUndergroundDecorationAcceptanceStacked --stacktrace --no-configuration-cache
+
       - name: Verify deterministic cave-decoration evidence
         run: ./gradlew :skyforge-neoforge-1211:sfImp0062AcceptanceVerify --stacktrace --no-configuration-cache
 
