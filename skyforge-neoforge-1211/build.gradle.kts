@@ -179,6 +179,34 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // Same final-head native-carver proof in an independent game directory for deterministic
+        // repeat evidence. This run must produce the same Skyforge transform/carve digests.
+        create("nativeCarverRepeatClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0061-repeat")
+            systemProperty("skyforge.dev.nativeCarver", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Reopens the repeat world's saved chunks without reinstalling terrain/admission/carver
+        // mutation. Server and logical client must both observe the persisted cave state.
+        create("nativeCarverReloadClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0061-repeat")
+            systemProperty("skyforge.dev.nativeCarverReload", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Final stacked-domain gate for the carver execution seam. The accepted two-volume fixture
+        // maps one native Y sample independently and explicitly vetoes the other island in both
+        // directions at the direct-carver write fence.
+        create("nativeCarverStackedClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0061-stacked")
+            systemProperty("skyforge.dev.nativeCarverStacked", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Final SF-IMP-0060 stacked-domain gate. Reuse the accepted 0054 vertically aligned
         // forest/taiga tablelands, map the same LOCAL_MODIFICATIONS height sample independently
         // into each exact solid owner column, and explicitly reject the other island at preflight.
