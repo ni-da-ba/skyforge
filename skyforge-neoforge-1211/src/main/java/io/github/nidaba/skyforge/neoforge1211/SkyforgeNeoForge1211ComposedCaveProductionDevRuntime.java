@@ -32,6 +32,8 @@ final class SkyforgeNeoForge1211ComposedCaveProductionDevRuntime {
 
     private static final int MAXIMUM_ATTACHMENT_DEPTH = 16;
     private static final int IDEMPOTENCE_TICKS = 5;
+    private static final long FNV_OFFSET_BASIS = 0xcbf29ce484222325L;
+    private static final long FNV_PRIME = 0x100000001b3L;
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeNeoForge1211ComposedCaveProductionDevRuntime.class.getName());
 
@@ -254,7 +256,12 @@ final class SkyforgeNeoForge1211ComposedCaveProductionDevRuntime {
         int authoredChanged = 0;
         int authoredUnsafe = 0;
         int emptyObligations = 0;
-        for (var result : SkyforgeComposedCavePopulationStage.completedResults(FIXTURE.volume().id())) {
+        long productionDigest = FNV_OFFSET_BASIS;
+        var completedResults = new ArrayList<>(
+                SkyforgeComposedCavePopulationStage.completedResults(FIXTURE.volume().id()));
+        completedResults.sort(Comparator.comparingLong(
+                result -> result.chunkPos().toLong()));
+        for (var result : completedResults) {
             nativeChanged = Math.addExact(nativeChanged, result.nativeChangedBlocks());
             nativeSuccessful = Math.addExact(nativeSuccessful, result.nativeSuccessfulCalls());
             authoredChanged = Math.addExact(authoredChanged, result.authoredChangedBlocks());
@@ -262,7 +269,19 @@ final class SkyforgeNeoForge1211ComposedCaveProductionDevRuntime {
             if (result.empty()) {
                 emptyObligations++;
             }
+            productionDigest = mix(productionDigest, result.chunkPos().toLong());
+            productionDigest = mix(productionDigest, result.empty() ? 1L : 0L);
+            productionDigest = mix(productionDigest, result.nativeChangedBlocks());
+            productionDigest = mix(productionDigest, result.nativeSuccessfulCalls());
+            productionDigest = mix(productionDigest, result.nativeTransformDigest());
+            productionDigest = mix(productionDigest, result.nativeCarveDigest());
+            productionDigest = mix(productionDigest, result.authoredPositiveSamples());
+            productionDigest = mix(productionDigest, result.authoredChangedBlocks());
+            productionDigest = mix(productionDigest, result.authoredUnsafeSamples());
+            productionDigest = mix(productionDigest, result.authoredChangedDigest());
+            productionDigest = mix(productionDigest, result.authoredProvenanceDigest());
         }
+        String productionDigestText = Long.toUnsignedString(productionDigest, 16);
         if (nativeChanged <= 0 || nativeSuccessful <= 0 || authoredUnsafe != 0) {
             throw new IllegalStateException(
                     "SF-IMP-0068 production service results lack composed cave activity");
@@ -284,6 +303,7 @@ final class SkyforgeNeoForge1211ComposedCaveProductionDevRuntime {
                         + ", authoredUnsafe=0"
                         + ", emptyObligations=" + emptyObligations
                         + ", nativeOnlySample=" + evidence.nativeOnlySample()
+                        + ", productionDigest=" + productionDigestText
                         + ", mouth=" + mouth
                         + ", outward=" + outward
                         + ", base=" + base
@@ -310,6 +330,7 @@ final class SkyforgeNeoForge1211ComposedCaveProductionDevRuntime {
                         java.util.Map.entry(
                                 "nativeOnlyPos",
                                 Long.toString(evidence.nativeOnlySample().asLong())),
+                        java.util.Map.entry("productionDigest", productionDigestText),
                         java.util.Map.entry("mouthPos", Long.toString(mouth.asLong())),
                         java.util.Map.entry("outwardPos", Long.toString(outward.asLong())),
                         java.util.Map.entry("baseCavePos", Long.toString(base.asLong())),
@@ -380,6 +401,15 @@ final class SkyforgeNeoForge1211ComposedCaveProductionDevRuntime {
                 authoredFinalAir,
                 nativeOnlyAir,
                 nativeOnlySample);
+    }
+
+    private static long mix(long digest, long value) {
+        long mixed = digest;
+        for (int shift = 0; shift < Long.SIZE; shift += Byte.SIZE) {
+            mixed ^= (value >>> shift) & 0xffL;
+            mixed *= FNV_PRIME;
+        }
+        return mixed;
     }
 
     private static boolean chunkIntersectsVolume(
