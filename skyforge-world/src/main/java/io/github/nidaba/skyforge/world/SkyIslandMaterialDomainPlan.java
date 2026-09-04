@@ -13,6 +13,7 @@ public record SkyIslandMaterialDomainPlan(
         double depthSpacing,
         int mineralCarrierCount,
         int fabricCarrierCount,
+        int activeHostCells,
         List<SkyIslandMaterialDomain> domains) {
 
     public SkyIslandMaterialDomainPlan {
@@ -26,6 +27,9 @@ public record SkyIslandMaterialDomainPlan(
         }
         if (mineralCarrierCount < 1 || fabricCarrierCount < 1) {
             throw new IllegalArgumentException("material-domain carrier counts must be positive");
+        }
+        if (activeHostCells < 1 || activeHostCells > gridSize * depthSamples * gridSize) {
+            throw new IllegalArgumentException("activeHostCells must fit inside planning lattice");
         }
         domains = List.copyOf(domains);
         domains.forEach(domain -> Objects.requireNonNull(domain, "material domain"));
