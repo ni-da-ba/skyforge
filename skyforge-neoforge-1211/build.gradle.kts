@@ -414,6 +414,82 @@ tasks.named("runNativeCarverAcceptanceLocalModificationRegression").configure {
     mustRunAfter("runNativeCarverAcceptanceOreRegression")
 }
 
+fun verifySfImp0061AcceptanceResults() {
+    fun loadResult(name: String): Properties {
+        val file = sfImp0061AcceptanceResultDirectory.get().file("$name.properties").asFile
+        check(file.isFile) { "missing SF-IMP-0061 acceptance result: $file" }
+        return Properties().also { properties ->
+            file.inputStream().use(properties::load)
+        }
+    }
+
+    fun requirePass(name: String): Properties {
+        val properties = loadResult(name)
+        check(properties.getProperty("status") == "PASS") {
+            "$name did not report PASS: $properties"
+        }
+        return properties
+    }
+
+    val carverA = requirePass("carver-a")
+    val carverB = requirePass("carver-b")
+    val reload = requirePass("reload")
+    val stacked = requirePass("stacked")
+    val ore = requirePass("ore-regression")
+    val localModification = requirePass("local-modification-regression")
+
+    val carverATransform = carverA.getProperty("transformDigest")
+    val carverACarve = carverA.getProperty("carveDigest")
+    check(carverATransform == carverB.getProperty("transformDigest")) {
+        "SF-IMP-0061 transform digest changed across identical automated runs"
+    }
+    check(carverACarve == carverB.getProperty("carveDigest")) {
+        "SF-IMP-0061 carved-position digest changed across identical automated runs"
+    }
+    check(carverATransform == "e97b5e7ee026c422") {
+        "SF-IMP-0061 transform digest regressed: $carverATransform"
+    }
+    check(carverACarve == "61f96a61f81c9b55") {
+        "SF-IMP-0061 carved-position digest regressed: $carverACarve"
+    }
+    check(reload.getProperty("reloadServerPass") == "true"
+            && reload.getProperty("reloadClientPass") == "true") {
+        "SF-IMP-0061 save/reload did not pass on both server and logical client: $reload"
+    }
+    check(stacked.getProperty("foreignWriteRejected") == "true"
+            && stacked.getProperty("ownerWriteAccepted") == "true"
+            && stacked.getProperty("lowerMappedY") != stacked.getProperty("upperMappedY")) {
+        "SF-IMP-0061 stacked exact-volume isolation failed: $stacked"
+    }
+    check(ore.getProperty("transformDigest") == "3397c516a115d6e4"
+            && ore.getProperty("mappedOutsideVolume") == "0"
+            && ore.getProperty("baseColumnPreserved") == "true") {
+        "SF-IMP-0059 regression gate failed: $ore"
+    }
+    check(localModification.getProperty("transformDigest") == "4fe92d09d07f8002"
+            && localModification.getProperty("mappedOutsideVolume") == "0"
+            && localModification.getProperty("baseColumnsPreserved") == "true") {
+        "SF-IMP-0060 regression gate failed: $localModification"
+    }
+
+    println(
+        "SF-IMP-0061 AUTOMATED ACCEPTANCE PASS: "
+            + "carverTransformDigest=$carverATransform, "
+            + "carveDigest=$carverACarve, "
+            + "reloadServerClient=true, stackedIsolation=true, "
+            + "sfImp0059Digest=" + ore.getProperty("transformDigest") + ", "
+            + "sfImp0060Digest=" + localModification.getProperty("transformDigest"),
+    )
+}
+
+tasks.register("sfImp0061AcceptanceVerify") {
+    group = "verification"
+    description = "Verify machine-readable results from the self-driving SF-IMP-0061 runtime slate."
+    doLast {
+        verifySfImp0061AcceptanceResults()
+    }
+}
+
 tasks.register("sfImp0061Acceptance") {
     group = "verification"
     description = "Run the complete self-driving SF-IMP-0061 Minecraft acceptance slate."
@@ -425,74 +501,7 @@ tasks.register("sfImp0061Acceptance") {
         "runNativeCarverAcceptanceOreRegression",
         "runNativeCarverAcceptanceLocalModificationRegression",
     )
-
-    doLast {
-        fun loadResult(name: String): Properties {
-            val file = sfImp0061AcceptanceResultDirectory.get().file("$name.properties").asFile
-            check(file.isFile) { "missing SF-IMP-0061 acceptance result: $file" }
-            return Properties().also { properties ->
-                file.inputStream().use(properties::load)
-            }
-        }
-
-        fun requirePass(name: String): Properties {
-            val properties = loadResult(name)
-            check(properties.getProperty("status") == "PASS") {
-                "$name did not report PASS: $properties"
-            }
-            return properties
-        }
-
-        val carverA = requirePass("carver-a")
-        val carverB = requirePass("carver-b")
-        val reload = requirePass("reload")
-        val stacked = requirePass("stacked")
-        val ore = requirePass("ore-regression")
-        val localModification = requirePass("local-modification-regression")
-
-        val carverATransform = carverA.getProperty("transformDigest")
-        val carverACarve = carverA.getProperty("carveDigest")
-        check(carverATransform == carverB.getProperty("transformDigest")) {
-            "SF-IMP-0061 transform digest changed across identical automated runs"
-        }
-        check(carverACarve == carverB.getProperty("carveDigest")) {
-            "SF-IMP-0061 carved-position digest changed across identical automated runs"
-        }
-        check(carverATransform == "e97b5e7ee026c422") {
-            "SF-IMP-0061 transform digest regressed: $carverATransform"
-        }
-        check(carverACarve == "61f96a61f81c9b55") {
-            "SF-IMP-0061 carved-position digest regressed: $carverACarve"
-        }
-        check(reload.getProperty("reloadServerPass") == "true"
-                && reload.getProperty("reloadClientPass") == "true") {
-            "SF-IMP-0061 save/reload did not pass on both server and logical client: $reload"
-        }
-        check(stacked.getProperty("foreignWriteRejected") == "true"
-                && stacked.getProperty("ownerWriteAccepted") == "true"
-                && stacked.getProperty("lowerMappedY") != stacked.getProperty("upperMappedY")) {
-            "SF-IMP-0061 stacked exact-volume isolation failed: $stacked"
-        }
-        check(ore.getProperty("transformDigest") == "3397c516a115d6e4"
-                && ore.getProperty("mappedOutsideVolume") == "0"
-                && ore.getProperty("baseColumnPreserved") == "true") {
-            "SF-IMP-0059 regression gate failed: $ore"
-        }
-        check(localModification.getProperty("transformDigest") == "4fe92d09d07f8002"
-                && localModification.getProperty("mappedOutsideVolume") == "0"
-                && localModification.getProperty("baseColumnsPreserved") == "true") {
-            "SF-IMP-0060 regression gate failed: $localModification"
-        }
-
-        println(
-            "SF-IMP-0061 AUTOMATED ACCEPTANCE PASS: "
-                + "carverTransformDigest=$carverATransform, "
-                + "carveDigest=$carverACarve, "
-                + "reloadServerClient=true, stackedIsolation=true, "
-                + "sfImp0059Digest=" + ore.getProperty("transformDigest") + ", "
-                + "sfImp0060Digest=" + localModification.getProperty("transformDigest"),
-        )
-    }
+    finalizedBy("sfImp0061AcceptanceVerify")
 }
 
 dependencies {
