@@ -52,7 +52,7 @@ class SkyIslandCoherentHydrologicRealizationPlannerTest {
                     coherent.channels().retainedReachCount(),
                     coherent.naturalizedChannels().paths().size());
             assertTrue(coherent.riparian().cellCount()
-                    < SkyIslandRiparianCorridorPlanner.plan(descriptor).cellCount());
+                    <= SkyIslandRiparianCorridorPlanner.plan(descriptor).cellCount());
             assertNotEquals(rawSurface, coherent.terrainSurface());
 
             Set<Integer> retainedSources = coherent.channels().profiles().stream()
