@@ -687,6 +687,69 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0068 production-stage lifecycle proof. Unlike SF-IMP-0067 these runs never
+        // enable the direct composed-cave development realizer; admission and catch-up must drain
+        // the installable production stage.
+        create("composedCaveProductionAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0068-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.composedCaveProduction", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-a")
+            systemProperty("skyforge.dev.acceptanceRadius", "8")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0068/production-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("composedCaveProductionAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0068-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.composedCaveProduction", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-b")
+            systemProperty("skyforge.dev.acceptanceRadius", "8")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0068/production-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("composedCaveProductionAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0068-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.composedCaveReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-reload")
+            systemProperty(
+                "skyforge.dev.composedCaveExpectedResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0068/production-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0068/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -2371,6 +2434,156 @@ tasks.register("sfImp0067Acceptance") {
         "runNativeCarverAcceptanceLocalModificationRegression",
     )
     finalizedBy("sfImp0067AcceptanceVerify")
+}
+
+val sfImp0068AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0068")
+val sfImp0068AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=600068
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=9
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSfImp0068AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(sfImp0068AcceptanceServerProperties)
+}
+
+mapOf(
+    "runComposedCaveProductionAcceptanceA" to "run-sf-imp-0068-auto-a",
+    "runComposedCaveProductionAcceptanceB" to "run-sf-imp-0068-auto-b",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareSfImp0068AcceptanceServerDirectory(relativePath)
+        }
+    }
+}
+
+tasks.named("runComposedCaveProductionAcceptanceA").configure {
+    doFirst {
+        delete(sfImp0068AcceptanceResultDirectory)
+    }
+}
+tasks.named("runComposedCaveProductionAcceptanceB").configure {
+    mustRunAfter("runComposedCaveProductionAcceptanceA")
+}
+tasks.named("runComposedCaveProductionAcceptanceReloadClient").configure {
+    mustRunAfter("runComposedCaveProductionAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-sf-imp-0068-auto-b").asFile
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.register("sfImp0068AcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic first-pass SF-IMP-0068 production lifecycle evidence."
+    doLast {
+        fun load(name: String): Properties {
+            val file = sfImp0068AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0068 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        val first = load("production-a")
+        val second = load("production-b")
+        val reload = load("reload")
+
+        for ((name, result) in listOf(
+            "production-a" to first,
+            "production-b" to second,
+            "reload" to reload,
+        )) {
+            check(result.getProperty("status") == "PASS") { "$name did not report PASS: $result" }
+        }
+
+        for (key in listOf(
+            "initialPending",
+            "completed",
+            "nativeChangedBlocks",
+            "nativeSuccessfulCalls",
+            "nativeOnlyAir",
+            "authoredPositive",
+            "authoredFinalAir",
+            "authoredChangedBlocks",
+            "emptyObligations",
+            "productionDigest",
+        )) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "SF-IMP-0068 deterministic evidence changed for $key: A=" +
+                    first.getProperty(key) + " B=" + second.getProperty(key)
+            }
+        }
+
+        check(first.getProperty("islandKey") == "653"
+                && first.getProperty("initialPending").toInt() > 0
+                && first.getProperty("completed") == first.getProperty("initialPending")
+                && first.getProperty("pending") == "0"
+                && first.getProperty("idempotenceTicks").toInt() >= 5
+                && first.getProperty("nativeChangedBlocks").toInt() > 0
+                && first.getProperty("nativeSuccessfulCalls").toInt() > 0
+                && first.getProperty("nativeOnlyAir").toInt() > 0
+                && first.getProperty("authoredPositive") == "89068"
+                && first.getProperty("authoredFinalAir") == "89068"
+                && first.getProperty("authoredUnsafe") == "0"
+                && first.getProperty("mouthState") == "Block{minecraft:air}"
+                && first.getProperty("outwardState") == "Block{minecraft:air}"
+                && first.getProperty("baseCaveState") == "Block{minecraft:air}"
+                && first.getProperty("noReplay") == "true"
+                && first.getProperty("noForcedChunks") == "true") {
+            "SF-IMP-0068 first-pass production lifecycle evidence is incomplete: $first"
+        }
+
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("persistedNativeOnlyPos") == first.getProperty("nativeOnlyPos")
+                && reload.getProperty("clientNativeOnlyPos") == first.getProperty("nativeOnlyPos")
+                && reload.getProperty("persistedNativeOnlyState") == "Block{minecraft:air}"
+                && reload.getProperty("clientNativeOnlyState") == "Block{minecraft:air}"
+                && reload.getProperty("persistedMouthState") == "Block{minecraft:air}"
+                && reload.getProperty("clientMouthState") == "Block{minecraft:air}"
+                && reload.getProperty("persistedOutwardState") == "Block{minecraft:air}"
+                && reload.getProperty("clientOutwardState") == "Block{minecraft:air}"
+                && reload.getProperty("persistedBaseState") == "Block{minecraft:air}"
+                && reload.getProperty("clientBaseState") == "Block{minecraft:air}") {
+            "SF-IMP-0068 persisted production union failed reload/client verification: $reload"
+        }
+
+        println(
+            "SF-IMP-0068 FIRST-PASS ACCEPTANCE PASS: productionDigest="
+                + first.getProperty("productionDigest")
+                + ", initialPending=" + first.getProperty("initialPending")
+                + ", nativeChangedBlocks=" + first.getProperty("nativeChangedBlocks")
+                + ", nativeOnlyAir=" + first.getProperty("nativeOnlyAir")
+                + ", authoredPositive=" + first.getProperty("authoredPositive")
+                + ", reloadServerClient=true, noReplay=true",
+        )
+    }
+}
+
+tasks.register("sfImp0068Acceptance") {
+    group = "verification"
+    description = "Run first-pass SF-IMP-0068 production composed-cave lifecycle acceptance."
+    dependsOn(
+        "runComposedCaveProductionAcceptanceA",
+        "runComposedCaveProductionAcceptanceB",
+        "runComposedCaveProductionAcceptanceReloadClient",
+    )
+    finalizedBy("sfImp0068AcceptanceVerify")
 }
 
 dependencies {
