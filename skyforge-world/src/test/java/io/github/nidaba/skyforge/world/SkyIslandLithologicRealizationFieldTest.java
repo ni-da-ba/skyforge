@@ -83,7 +83,7 @@ class SkyIslandLithologicRealizationFieldTest {
                     field.assemblagePlan().cells()) {
                 SkyIslandLithologicContactRealizationSample contact =
                         contacts.sample(cell.position());
-                if (contact.contactActive()) {
+                if (contact.contactId() >= 0) {
                     continue;
                 }
                 SkyIslandLithologicRealizationSample sample =
