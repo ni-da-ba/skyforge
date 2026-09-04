@@ -227,6 +227,37 @@ final class SkyforgeComposedCaveStage {
         return new Snapshot(binding.obligations().size(), pending, completed, empty);
     }
 
+    static Snapshot snapshot(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return new Snapshot(0, 0, 0, 0);
+        }
+        int total = 0;
+        int pending = 0;
+        int completed = 0;
+        int empty = 0;
+        synchronized (binding) {
+            for (var entry : binding.obligations().entrySet()) {
+                if (!entry.getKey().volumeId().equals(volumeId)) {
+                    continue;
+                }
+                total++;
+                Obligation obligation = entry.getValue();
+                if (obligation.state() == State.PENDING) {
+                    pending++;
+                } else {
+                    completed++;
+                    if (obligation.completion() != null
+                            && obligation.completion().result().isEmpty()) {
+                        empty++;
+                    }
+                }
+            }
+        }
+        return new Snapshot(total, pending, completed, empty);
+    }
+
     static List<Completion> completed() {
         Binding binding = ACTIVE.get();
         if (binding == null) {
