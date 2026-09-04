@@ -313,6 +313,52 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // Reopen B through the actual client after a full server stop. This restores only
+        // deterministic compiled terrain ownership so persisted SavedData provenance can fence a
+        // fresh generated-fluid tick; it does not rerun admission, carving, decoration, or springs.
+        create("fluidSpringsAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0063-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.fluidSpringsReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0063-fluid-springs-reload")
+            systemProperty(
+                "skyforge.dev.fluidSpringsExpectedResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0063/fluid-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0063/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Same-X/Z stacked exact volumes: persist a generated-fluid provenance entry independently
+        // in each volume, then reopen its asynchronous propagation scope and explicitly reject the
+        // other volume in both directions.
+        create("fluidSpringsAcceptanceStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0063-auto-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.fluidSpringsStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0063-fluid-springs-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0063/stacked.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -850,6 +896,7 @@ fun prepareSfImp0063AcceptanceServerDirectory(relativePath: String) {
 mapOf(
     "runFluidSpringsAcceptanceA" to "run-sf-imp-0063-auto-a",
     "runFluidSpringsAcceptanceB" to "run-sf-imp-0063-auto-b",
+    "runFluidSpringsAcceptanceStacked" to "run-sf-imp-0063-auto-stacked",
 ).forEach { (taskName, relativePath) ->
     tasks.named(taskName).configure {
         doFirst {
@@ -866,10 +913,23 @@ tasks.named("runFluidSpringsAcceptanceA").configure {
 tasks.named("runFluidSpringsAcceptanceB").configure {
     mustRunAfter("runFluidSpringsAcceptanceA")
 }
+tasks.named("runFluidSpringsAcceptanceReloadClient").configure {
+    mustRunAfter("runFluidSpringsAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-sf-imp-0063-auto-b").asFile
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+tasks.named("runFluidSpringsAcceptanceStacked").configure {
+    mustRunAfter("runFluidSpringsAcceptanceReloadClient")
+}
 
 tasks.register("sfImp0063AcceptanceVerify") {
     group = "verification"
-    description = "Verify deterministic first-pass SF-IMP-0063 generated-fluid containment evidence."
+    description = "Verify the complete deterministic SF-IMP-0063 native fluid-springs acceptance slate."
     doLast {
         fun load(name: String): Properties {
             val file = sfImp0063AcceptanceResultDirectory.get().file("$name.properties").asFile
@@ -877,42 +937,138 @@ tasks.register("sfImp0063AcceptanceVerify") {
             return Properties().also { properties -> file.inputStream().use(properties::load) }
         }
 
+        fun load0062(name: String): Properties {
+            val file = sfImp0062AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0062 regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        fun load0061(name: String): Properties {
+            val file = sfImp0061AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing inherited regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
         val first = load("fluid-a")
         val second = load("fluid-b")
-        check(first.getProperty("status") == "PASS" && second.getProperty("status") == "PASS") {
-            "SF-IMP-0063 runtime repeat did not report PASS: A=$first B=$second"
+        val reload = load("reload")
+        val stacked = load("stacked")
+        val decoration = load0062("decoration-a")
+        val carver = load0061("carver-a")
+        val ore = load0061("ore-regression")
+        val localModification = load0061("local-modification-regression")
+
+        for ((name, result) in listOf(
+            "fluid-a" to first,
+            "fluid-b" to second,
+            "reload" to reload,
+            "stacked" to stacked,
+            "sf-imp-0062-decoration" to decoration,
+            "sf-imp-0061-carver" to carver,
+            "sf-imp-0059-ore" to ore,
+            "sf-imp-0060-local-modification" to localModification,
+        )) {
+            check(result.getProperty("status") == "PASS") { "$name did not report PASS: $result" }
         }
+
         for (key in listOf("carveTransformDigest", "carveDigest", "springTransformDigest", "provenanceDigest")) {
             check(first.getProperty(key) == second.getProperty(key)) {
                 "SF-IMP-0063 deterministic evidence changed for $key: A=" +
                     first.getProperty(key) + " B=" + second.getProperty(key)
             }
         }
-        check(first.getProperty("successfulFeatures").toInt() > 0
-                && first.getProperty("matchingPersistentFluids").toInt() > 0
-                && first.getProperty("propagationTicks").toLong() > 0
+
+        check(first.getProperty("carveTransformDigest") == "10d4f06df3d8814f"
+                && first.getProperty("carveDigest") == "9432af9ead2c865d") {
+            "SF-IMP-0063 prerequisite carver invariants changed: $first"
+        }
+        check(first.getProperty("springTransformDigest") == "c8103b2012e79269"
+                && first.getProperty("provenanceDigest") == "2aa9b41371236b93"
+                && first.getProperty("successfulFeatures") == "7"
+                && first.getProperty("initialTrackedFluids") == "9"
+                && first.getProperty("finalTrackedFluids") == "138"
+                && first.getProperty("matchingPersistentFluids") == "138"
+                && first.getProperty("capturedSchedules") == "325"
+                && first.getProperty("propagationTicks") == "256"
+                && first.getProperty("hiddenBoundaryReads") == "1661"
                 && first.getProperty("mappedOutsideVolume") == "0"
                 && first.getProperty("ordinaryVanillaFluidFlowed") == "true"
                 && first.getProperty("ordinaryVanillaFluidUntracked") == "true"
                 && first.getProperty("baseColumnsPreserved") == "true") {
-            "SF-IMP-0063 containment evidence is incomplete: $first"
+            "SF-IMP-0063 native spring/propagation invariants regressed: $first"
         }
+
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("persistedFluidPos") == first.getProperty("sampleFluidPos")
+                && reload.getProperty("clientFluidPos") == first.getProperty("sampleFluidPos")
+                && reload.getProperty("reloadPropagationTicks").toLong() > 0
+                && reload.getProperty("persistedTrackedPositions").toInt() > 0) {
+            "SF-IMP-0063 save/reload provenance or ClientLevel evidence failed: $reload"
+        }
+
+        check(stacked.getProperty("ownerPropagationAccepted") == "true"
+                && stacked.getProperty("foreignPropagationRejected") == "true"
+                && stacked.getProperty("provenanceVolumeIsolation") == "true"
+                && stacked.getProperty("lowerMappedY") == "124"
+                && stacked.getProperty("upperMappedY") == "224") {
+            "SF-IMP-0063 stacked generated-fluid isolation failed: $stacked"
+        }
+
+        check(decoration.getProperty("carveTransformDigest") == "10d4f06df3d8814f"
+                && decoration.getProperty("carveDigest") == "9432af9ead2c865d"
+                && decoration.getProperty("decorationTransformDigest") == "1ed8887c547e0911"
+                && decoration.getProperty("decorationDigest") == "ce242ec84fb8ccfc"
+                && decoration.getProperty("successfulFeatures") == "33"
+                && decoration.getProperty("changedCarvedAir") == "2031"
+                && decoration.getProperty("mappedOutsideVolume") == "0") {
+            "SF-IMP-0062 regression gate failed: $decoration"
+        }
+
+        check(carver.getProperty("transformDigest") == "e97b5e7ee026c422"
+                && carver.getProperty("carveDigest") == "61f96a61f81c9b55"
+                && carver.getProperty("mappedOutsideTarget") == "0"
+                && carver.getProperty("baseColumnPreserved") == "true") {
+            "SF-IMP-0061 regression gate failed: $carver"
+        }
+        check(ore.getProperty("transformDigest") == "3397c516a115d6e4"
+                && ore.getProperty("mappedOutsideVolume") == "0"
+                && ore.getProperty("baseColumnPreserved") == "true") {
+            "SF-IMP-0059 regression gate failed: $ore"
+        }
+        check(localModification.getProperty("transformDigest") == "4fe92d09d07f8002"
+                && localModification.getProperty("mappedOutsideVolume") == "0"
+                && localModification.getProperty("baseColumnsPreserved") == "true") {
+            "SF-IMP-0060 regression gate failed: $localModification"
+        }
+
         println(
-            "SF-IMP-0063 FIRST-PASS ACCEPTANCE PASS: springTransformDigest="
-                + first.getProperty("springTransformDigest")
+            "SF-IMP-0063 AUTOMATED ACCEPTANCE PASS: "
+                + "springTransformDigest=" + first.getProperty("springTransformDigest")
                 + ", provenanceDigest=" + first.getProperty("provenanceDigest")
                 + ", propagationTicks=" + first.getProperty("propagationTicks")
-                + ", matchingPersistentFluids=" + first.getProperty("matchingPersistentFluids"),
+                + ", finalTrackedFluids=" + first.getProperty("finalTrackedFluids")
+                + ", reloadServerClient=true, stackedIsolation=true"
+                + ", sfImp0062DecorationDigest=" + decoration.getProperty("decorationDigest")
+                + ", sfImp0061Digest=" + carver.getProperty("transformDigest")
+                + ", sfImp0059Digest=" + ore.getProperty("transformDigest")
+                + ", sfImp0060Digest=" + localModification.getProperty("transformDigest"),
         )
     }
 }
 
 tasks.register("sfImp0063Acceptance") {
     group = "verification"
-    description = "Run deterministic first-pass SF-IMP-0063 fluid-springs acceptance."
+    description = "Run the complete deterministic SF-IMP-0063 fluid-springs acceptance slate."
     dependsOn(
         "runFluidSpringsAcceptanceA",
         "runFluidSpringsAcceptanceB",
+        "runFluidSpringsAcceptanceReloadClient",
+        "runFluidSpringsAcceptanceStacked",
+        "runUndergroundDecorationAcceptanceA",
+        "runNativeCarverAcceptanceA",
+        "runNativeCarverAcceptanceOreRegression",
+        "runNativeCarverAcceptanceLocalModificationRegression",
     )
     finalizedBy("sfImp0063AcceptanceVerify")
 }
