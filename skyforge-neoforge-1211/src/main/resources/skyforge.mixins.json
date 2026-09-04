@@ -15,7 +15,8 @@
     "SkyforgeWorldCarverDomainMixin",
     "SkyforgeFlowingFluidDomainMixin",
     "SkyforgeLevelTicksFluidProvenanceMixin",
-    "SkyforgeWorldGenTickAccessFluidProvenanceMixin"
+    "SkyforgeWorldGenTickAccessFluidProvenanceMixin",
+    "SkyforgeLakeFeatureAdmissionMixin"
   ],
   "injectors": {
     "defaultRequire": 1
