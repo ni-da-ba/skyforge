@@ -113,13 +113,22 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveStackedDevRuntime {
             throw new IllegalStateException(
                     "SF-IMP-0066 upper realization damaged persisted lower authored mouth");
         }
-        if (lower.mouth().getX() != upper.mouth().getX()
-                || lower.mouth().getZ() != upper.mouth().getZ()
-                || lower.mouth().getY() == upper.mouth().getY()) {
+        var lowerMouthSample = mouthSample(FIXTURE.lower(), lower.mouth());
+        var upperMouthSample = mouthSample(FIXTURE.upper(), upper.mouth());
+        if (lower.mouth().getY() == upper.mouth().getY()
+                || lowerMouthSample.sourceKind()
+                        != io.github.nidaba.skyforge.world.SkyIslandExteriorConnectedCaveVolumeSample.SourceKind.EXPOSURE_CONNECTION
+                || upperMouthSample.sourceKind()
+                        != io.github.nidaba.skyforge.world.SkyIslandExteriorConnectedCaveVolumeSample.SourceKind.EXPOSURE_CONNECTION
+                || lowerMouthSample.exposureSide() != upperMouthSample.exposureSide()
+                || lowerMouthSample.exposureSide() != FIXTURE.base().connection().side()) {
             throw new IllegalStateException(
-                    "SF-IMP-0066 stacked mouths lost same-X/Z independent-Y placement: lower="
-                            + lower.mouth() + ", upper=" + upper.mouth());
+                    "SF-IMP-0066 stacked mouths lost common AUTH-0030 exposure provenance: lower="
+                            + lower.mouth() + " -> " + lowerMouthSample
+                            + ", upper=" + upper.mouth() + " -> " + upperMouthSample);
         }
+        int horizontalMouthOffset = Math.abs(lower.mouth().getX() - upper.mouth().getX())
+                + Math.abs(lower.mouth().getZ() - upper.mouth().getZ());
 
         proofComplete = true;
         LOGGER.log(
@@ -131,7 +140,9 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveStackedDevRuntime {
                         + ", lowerExposure=" + lower.exposure()
                         + ", upperExposure=" + upper.exposure()
                         + ", unsafeLower=0, unsafeUpper=0"
-                        + ", sameXZIndependent=true, foreignVolumePreserved=true.");
+                        + ", horizontalMouthOffset=" + horizontalMouthOffset
+                        + ", sameAuthoredExposure=true"
+                        + ", stackedXZDomainIndependent=true, foreignVolumePreserved=true.");
 
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(
                 level.getServer(),
@@ -144,6 +155,8 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveStackedDevRuntime {
                         java.util.Map.entry("upperExposure", upper.exposure()),
                         java.util.Map.entry("unsafeLower", 0),
                         java.util.Map.entry("unsafeUpper", 0),
+                        java.util.Map.entry("horizontalMouthOffset", horizontalMouthOffset),
+                        java.util.Map.entry("sameAuthoredExposure", true),
                         java.util.Map.entry("sameXZIndependent", true),
                         java.util.Map.entry("foreignVolumePreserved", true)));
     }
@@ -190,6 +203,22 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveStackedDevRuntime {
                 unsafe,
                 mouth,
                 outward);
+    }
+
+    private static io.github.nidaba.skyforge.world.SkyIslandExteriorConnectedCaveVolumeSample mouthSample(
+            SkyIslandWorldVolume volume,
+            BlockPos mouth) {
+        var realized = new SkyIslandRealizedExteriorConnectedCaveVolumeField(
+                FIXTURE.base().field(),
+                new SkyIslandCompiledVolumeColumnField(volume.compiledVolume()));
+        var descriptor = volume.compiledVolume().descriptor();
+        var local = new io.github.nidaba.skyforge.world.SkyIslandLocalPosition(
+                mouth.getX() - descriptor.centerX(),
+                mouth.getZ() - descriptor.centerZ());
+        return realized.sample(
+                new io.github.nidaba.skyforge.world.SkyIslandRealizedSubsurfacePosition(
+                        local,
+                        mouth.getY()));
     }
 
     private static BlockPos caveAnchor(SkyIslandWorldVolume volume) {
