@@ -33,7 +33,7 @@ class SkyIslandCompiledVolumeColumnFieldTest {
         SkyIslandCompiledVolumeColumnField columns =
                 new SkyIslandCompiledVolumeColumnField(compiled);
         SkyIslandTerrainInterpreter interpreter =
-                new SkyIslandTerrainInterpreter(compiled, SkyIslandTerrainProfile.defaults());
+                new SkyIslandTerrainInterpreter(compiled, SkyIslandTerrainProfile.reference());
 
         for (SkyIslandLocalPosition local : new SkyIslandLocalPosition[] {
             new SkyIslandLocalPosition(0.0, 0.0),
