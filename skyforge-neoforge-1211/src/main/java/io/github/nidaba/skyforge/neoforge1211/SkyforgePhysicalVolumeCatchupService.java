@@ -75,7 +75,6 @@ final class SkyforgePhysicalVolumeCatchupService {
                 SkyforgeNeoForge1211UndergroundDecorationDevRuntime.observeLoaded(level);
                 SkyforgeNeoForge1211FluidSpringsDevRuntime.observeLoaded(level);
                 SkyforgeNeoForge1211NativeLakesDevRuntime.observeLoaded(level);
-                SkyforgeNeoForge1211AuthoredCaveDevRuntime.observeLoaded(level);
             }
         }
     }
