@@ -52,20 +52,21 @@ final class SkyforgeVerticalPlacementFrameTest {
                 GenerationStep.Decoration.UNDERGROUND_ORES.ordinal()));
         assertTrue(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
                 GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal()));
+        assertTrue(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
+                GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal()));
 
         assertFalse(SkyforgeVerticalPlacementFrame.usesExactSolidColumnFrame(
                 GenerationStep.Decoration.UNDERGROUND_ORES.ordinal()));
         assertTrue(SkyforgeVerticalPlacementFrame.usesExactSolidColumnFrame(
                 GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal()));
-
-        assertFalse(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
+        assertTrue(SkyforgeVerticalPlacementFrame.usesExactSolidColumnFrame(
                 GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal()));
         assertFalse(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
                 GenerationStep.Decoration.FLUID_SPRINGS.ordinal()));
         assertFalse(SkyforgeVerticalPlacementFrame.usesLocalVerticalFrame(
                 GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()));
         assertFalse(SkyforgeVerticalPlacementFrame.usesExactSolidColumnFrame(
-                GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal()));
+                GenerationStep.Decoration.FLUID_SPRINGS.ordinal()));
     }
 
     @Test
