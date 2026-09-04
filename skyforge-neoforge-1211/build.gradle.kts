@@ -359,6 +359,7 @@ val sfImp0061AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/s
 val sfImp0061AcceptanceServerProperties = """
     level-name=acceptance
     level-seed=600061
+    level-type=skyforge:development
     online-mode=false
     spawn-protection=0
     gamemode=creative
