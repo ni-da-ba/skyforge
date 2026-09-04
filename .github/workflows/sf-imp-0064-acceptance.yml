@@ -49,7 +49,37 @@ jobs:
         timeout-minutes: 8
         run: ./gradlew :skyforge-neoforge-1211:runNativeLakesAcceptanceB --stacktrace --no-configuration-cache
 
-      - name: Verify first-pass native lake evidence
+      - name: Save-reload lake provenance and actual ClientLevel verification
+        timeout-minutes: 8
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a ./gradlew :skyforge-neoforge-1211:runNativeLakesAcceptanceReloadClient --stacktrace --no-configuration-cache
+
+      - name: Stacked-volume whole-lake isolation
+        timeout-minutes: 5
+        run: ./gradlew :skyforge-neoforge-1211:runNativeLakesAcceptanceStacked --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0063 fluid-springs regression
+        timeout-minutes: 8
+        run: ./gradlew :skyforge-neoforge-1211:runFluidSpringsAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0062 cave-decoration regression
+        timeout-minutes: 9
+        run: ./gradlew :skyforge-neoforge-1211:runUndergroundDecorationAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0061 native-carver regression
+        timeout-minutes: 7
+        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0059 ore regression
+        timeout-minutes: 7
+        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceOreRegression --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0060 local-modification regression
+        timeout-minutes: 7
+        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceLocalModificationRegression --stacktrace --no-configuration-cache
+
+      - name: Verify aggregate native lake evidence
         run: ./gradlew :skyforge-neoforge-1211:sfImp0064AcceptanceVerify --stacktrace --no-configuration-cache
 
       - name: Publish acceptance evidence
@@ -61,4 +91,10 @@ jobs:
           retention-days: 7
           path: |
             skyforge-neoforge-1211/build/acceptance/sf-imp-0064/*.properties
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0063/*.properties
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0062/*.properties
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0061/*.properties
             skyforge-neoforge-1211/run-sf-imp-0064-auto-*/logs/*.log
+            skyforge-neoforge-1211/run-sf-imp-0063-auto-*/logs/*.log
+            skyforge-neoforge-1211/run-sf-imp-0062-auto-*/logs/*.log
+            skyforge-neoforge-1211/run-sf-imp-0061-auto-*/logs/*.log
