@@ -192,7 +192,7 @@ public final class AuthorshipCaveExposureGeometryCorpusCli {
             drawIntent(g, 0, descriptor, connection.intent());
             drawConnection(g, MAP, descriptor, connection);
             drawTopDown(g, 2 * MAP, descriptor, connection);
-            drawSupport(g, 3 * MAP, connection);
+            drawSupport(g, 3 * MAP, descriptor, connection);
         } else {
             g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
             g.setColor(new Color(100, 100, 100));
@@ -317,6 +317,7 @@ public final class AuthorshipCaveExposureGeometryCorpusCli {
     private static void drawSupport(
             Graphics2D g,
             int offsetX,
+            SkyIslandDescriptor descriptor,
             SkyIslandCaveExposureConnectionGeometry connection) {
         String[] labels = {"selected", "straight", "mouth offset", "max bend"};
         double[] values = {
@@ -348,11 +349,8 @@ public final class AuthorshipCaveExposureGeometryCorpusCli {
                 String.format(
                         Locale.ROOT,
                         "r: %.3fR -> %.3fR",
-                        connection.caveSidePoint().horizontalRadius()
-                                / connection.intent().caveAnchor().surfacePosition().distanceFromOrigin()
-                                * 0.0
-                                + connection.caveSidePoint().horizontalRadius(),
-                        connection.mouthPoint().horizontalRadius()),
+                        connection.caveSidePoint().horizontalRadius() / descriptor.nominalRadius(),
+                        connection.mouthPoint().horizontalRadius() / descriptor.nominalRadius()),
                 offsetX + 8,
                 HEADER + MAP - 18);
     }
