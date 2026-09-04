@@ -216,6 +216,45 @@ final class SkyforgeNeoForge1211NativeLakesDevRuntime {
             }
         }
 
+        if (featureKeys.isEmpty()) {
+            throw new IllegalStateException("SF-IMP-0064 final-registry river LAKES exposed no feature keys");
+        }
+        BlockPos rejectionProbeOrigin = new BlockPos(
+                (int) Math.floor(volume.bounds().maximumX()),
+                volume.center().y(),
+                (int) Math.round((volume.bounds().minimumZ() + volume.bounds().maximumZ()) * 0.5));
+        StateSnapshot rejectionProbeBefore = StateSnapshot.capture(
+                level,
+                rejectionProbeOrigin.getX() + SkyforgeNativeLakeAdmissionStage.MIN_X_OFFSET,
+                rejectionProbeOrigin.getX() + SkyforgeNativeLakeAdmissionStage.MAX_X_OFFSET,
+                rejectionProbeOrigin.getY() + SkyforgeNativeLakeAdmissionStage.MIN_Y_OFFSET,
+                rejectionProbeOrigin.getY() + SkyforgeNativeLakeAdmissionStage.MAX_Y_OFFSET,
+                rejectionProbeOrigin.getZ() + SkyforgeNativeLakeAdmissionStage.MIN_Z_OFFSET,
+                rejectionProbeOrigin.getZ() + SkyforgeNativeLakeAdmissionStage.MAX_Z_OFFSET);
+        var rejectionOperation = SkyforgePopulationOperation.create(
+                volumeId,
+                new ChunkPos(rejectionProbeOrigin),
+                featureKeys.getFirst(),
+                GenerationStep.Decoration.LAKES.ordinal(),
+                attemptedFeatures);
+        var rejectionProbe = SkyforgeNativeLakeAdmissionStage.probe(
+                rejectionOperation,
+                rejectionProbeOrigin);
+        int rejectionProbeChangedBlocks = rejectionProbeBefore.changedPositions(level).size();
+        boolean rejectionProbeRejected = rejectionProbe.rejected() == 1
+                && rejectionProbe.admitted() == 0
+                && rejectionProbeChangedBlocks == 0;
+        if (!rejectionProbeRejected) {
+            throw new IllegalStateException(
+                    "SF-IMP-0064 deterministic edge rejection probe did not fail closed: origin="
+                            + rejectionProbeOrigin
+                            + ", admitted=" + rejectionProbe.admitted()
+                            + ", rejected=" + rejectionProbe.rejected()
+                            + ", changedBlocks=" + rejectionProbeChangedBlocks);
+        }
+        admissionDigest = mix(admissionDigest, rejectionProbeOrigin.asLong());
+        admissionDigest = mix(admissionDigest, rejectionProbe.decisionDigest());
+
         List<Long> placementChanges = before.changedPositions(level);
         int changedInsideAdmitted = 0;
         int changedRejectedOnly = 0;
@@ -261,9 +300,9 @@ final class SkyforgeNeoForge1211NativeLakesDevRuntime {
                     "SF-IMP-0064 vanilla river LAKES unexpectedly contains unsupported configured feature classes: "
                             + unsupportedLakeFeatures);
         }
-        if (configuredLakeAttempts <= 0 || admittedConfiguredLakes <= 0 || rejectedConfiguredLakes <= 0) {
+        if (configuredLakeAttempts <= 0 || admittedConfiguredLakes <= 0) {
             throw new IllegalStateException(
-                    "SF-IMP-0064 deterministic specimen did not exercise both whole-lake decisions: configured="
+                    "SF-IMP-0064 deterministic registry stream produced no admitted native lake: configured="
                             + configuredLakeAttempts + ", admitted=" + admittedConfiguredLakes
                             + ", rejected=" + rejectedConfiguredLakes);
         }
@@ -304,6 +343,8 @@ final class SkyforgeNeoForge1211NativeLakesDevRuntime {
                 configuredLakeAttempts,
                 admittedConfiguredLakes,
                 rejectedConfiguredLakes,
+                rejectionProbeRejected,
+                rejectionProbeChangedBlocks,
                 unsupportedLakeFeatures,
                 inspectedPositions,
                 Long.toUnsignedString(admissionDigest, 16),
@@ -328,6 +369,8 @@ final class SkyforgeNeoForge1211NativeLakesDevRuntime {
                         + ", configuredLakeAttempts=" + configuredLakeAttempts
                         + ", admittedConfiguredLakes=" + admittedConfiguredLakes
                         + ", rejectedConfiguredLakes=" + rejectedConfiguredLakes
+                        + ", rejectionProbeRejected=" + rejectionProbeRejected
+                        + ", rejectionProbeChangedBlocks=" + rejectionProbeChangedBlocks
                         + ", unsupportedLakeFeatures=" + unsupportedLakeFeatures
                         + ", inspectedPositions=" + inspectedPositions
                         + ", admissionDigest=" + placementEvidence.admissionDigest()
@@ -389,6 +432,8 @@ final class SkyforgeNeoForge1211NativeLakesDevRuntime {
                         + ", configuredLakeAttempts=" + placementEvidence.configuredLakeAttempts()
                         + ", admittedConfiguredLakes=" + placementEvidence.admittedConfiguredLakes()
                         + ", rejectedConfiguredLakes=" + placementEvidence.rejectedConfiguredLakes()
+                        + ", rejectionProbeRejected=" + placementEvidence.rejectionProbeRejected()
+                        + ", rejectionProbeChangedBlocks=" + placementEvidence.rejectionProbeChangedBlocks()
                         + ", successfulFeatures=" + placementEvidence.successfulFeatures()
                         + ", placementChangedBlocks=" + placementEvidence.placementChangedBlocks()
                         + ", changedRejectedOnly=0"
@@ -413,6 +458,8 @@ final class SkyforgeNeoForge1211NativeLakesDevRuntime {
                         java.util.Map.entry("configuredLakeAttempts", placementEvidence.configuredLakeAttempts()),
                         java.util.Map.entry("admittedConfiguredLakes", placementEvidence.admittedConfiguredLakes()),
                         java.util.Map.entry("rejectedConfiguredLakes", placementEvidence.rejectedConfiguredLakes()),
+                        java.util.Map.entry("rejectionProbeRejected", placementEvidence.rejectionProbeRejected()),
+                        java.util.Map.entry("rejectionProbeChangedBlocks", placementEvidence.rejectionProbeChangedBlocks()),
                         java.util.Map.entry("unsupportedLakeFeatures", placementEvidence.unsupportedLakeFeatures()),
                         java.util.Map.entry("mappedOutsideVolume", placementEvidence.mappedOutsideVolume()),
                         java.util.Map.entry("placementChangedBlocks", placementEvidence.placementChangedBlocks()),
@@ -566,6 +613,8 @@ final class SkyforgeNeoForge1211NativeLakesDevRuntime {
             int configuredLakeAttempts,
             int admittedConfiguredLakes,
             int rejectedConfiguredLakes,
+            boolean rejectionProbeRejected,
+            int rejectionProbeChangedBlocks,
             int unsupportedLakeFeatures,
             int inspectedPositions,
             String admissionDigest,
