@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -31,7 +32,9 @@ final class SkyforgeNeoForge1211CarverReloadClientDevRuntime {
         }
 
         BlockPos position = BlockPos.of(expectation.position());
-        if (!minecraft.level.hasChunkAt(position)) {
+        if (!minecraft.level.getChunkSource().hasChunk(
+                SectionPos.blockToSectionCoord(position.getX()),
+                SectionPos.blockToSectionCoord(position.getZ()))) {
             return;
         }
         var actual = minecraft.level.getBlockState(position);
