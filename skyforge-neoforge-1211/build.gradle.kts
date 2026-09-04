@@ -321,12 +321,12 @@ neoForge {
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0063-auto-b").asFile
             programArgument("--quickPlaySingleplayer")
             programArgument("acceptance")
-            systemProperty("skyforge.dev.fluidSpringsReload", "true")
+            systemProperty("skyforge.dev.nativeLakesReload", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "client")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0063-fluid-springs-reload")
             systemProperty(
-                "skyforge.dev.fluidSpringsExpectedResultFile",
+                "skyforge.dev.nativeLakesExpectedResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0063/fluid-b.properties").get().asFile.absolutePath,
             )
             systemProperty(
@@ -400,8 +400,8 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-        // Full-stop/client reload of the actual B lake world. Reuse the accepted generic
-        // generated-fluid provenance verifier: no lake/admission rerun is installed.
+        // Full-stop/client reload of the actual B lake world. Restore only the deterministic
+        // native-surface ownership binding; no lake/admission rerun is installed.
         create("nativeLakesAcceptanceReloadClient") {
             client()
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0064-auto-b").asFile
