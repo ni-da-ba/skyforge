@@ -7,8 +7,9 @@ import java.util.Objects;
 /**
  * Deterministic island-local semantic fields derived from one authored island descriptor.
  *
- * <p>The field set establishes a reusable evaluation boundary for downstream terrain, ecology, and
- * hydrology. It is intentionally independent of backend placement and Minecraft concepts.
+ * <p>AUTH-0021 makes the AUTH-0020 morphology-aware naturalized domain the authoritative current
+ * ownership geometry. A legacy factory remains available only for historical AUTH-0002 diagnostic
+ * reproduction.
  */
 public final class SkyIslandSemanticFieldSet {
     private static final long ELEVATION_DOMAIN = 0x454C45564154494FL;
@@ -17,14 +18,20 @@ public final class SkyIslandSemanticFieldSet {
     private static final long EXPOSURE_DOMAIN = 0x4558504F53555245L;
 
     private final SkyIslandDescriptor descriptor;
+    private final SkyIslandNaturalizedDomainField naturalizedDomain;
+    private final boolean legacyCircularDomain;
     private final SkyIslandSemanticField interiority;
     private final SkyIslandSemanticField elevationTendency;
     private final SkyIslandSemanticField temperature;
     private final SkyIslandSemanticField moisture;
     private final SkyIslandSemanticField exposure;
 
-    private SkyIslandSemanticFieldSet(SkyIslandDescriptor descriptor) {
+    private SkyIslandSemanticFieldSet(
+            SkyIslandDescriptor descriptor,
+            boolean legacyCircularDomain) {
         this.descriptor = Objects.requireNonNull(descriptor, "descriptor");
+        this.naturalizedDomain = SkyIslandNaturalizedDomainField.create(descriptor);
+        this.legacyCircularDomain = legacyCircularDomain;
         this.interiority = this::sampleInteriority;
         this.elevationTendency = this::sampleElevationTendency;
         this.exposure = this::sampleExposure;
@@ -32,42 +39,58 @@ public final class SkyIslandSemanticFieldSet {
         this.moisture = this::sampleMoisture;
     }
 
-    /** Creates one immutable field set for an authored descriptor. */
+    /**
+     * Creates the current semantic field composition using the AUTH-0020 naturalized island domain.
+     */
     public static SkyIslandSemanticFieldSet create(SkyIslandDescriptor descriptor) {
-        return new SkyIslandSemanticFieldSet(descriptor);
+        return new SkyIslandSemanticFieldSet(descriptor, false);
     }
 
-    /** Returns the descriptor that acts as the common cause for these fields. */
+    /**
+     * Creates the historical AUTH-0002 circular-domain composition for evidence reproduction only.
+     */
+    public static SkyIslandSemanticFieldSet createLegacyCircular(SkyIslandDescriptor descriptor) {
+        return new SkyIslandSemanticFieldSet(descriptor, true);
+    }
+
     public SkyIslandDescriptor descriptor() {
         return descriptor;
     }
 
-    /** Interior-to-edge membership influence, with 1 near the core and 0 at/outside the boundary. */
     public SkyIslandSemanticField interiority() {
         return interiority;
     }
 
-    /** Normalized tendency toward higher authored surface relief. */
     public SkyIslandSemanticField elevationTendency() {
         return elevationTendency;
     }
 
-    /** Normalized local thermal tendency. */
     public SkyIslandSemanticField temperature() {
         return temperature;
     }
 
-    /** Normalized local moisture tendency. */
     public SkyIslandSemanticField moisture() {
         return moisture;
     }
 
-    /** Normalized local exposure tendency. */
     public SkyIslandSemanticField exposure() {
         return exposure;
     }
 
+    /** Returns the explicit AUTH-0020 domain underlying the current field composition. */
+    public SkyIslandNaturalizedDomainField naturalizedDomain() {
+        return naturalizedDomain;
+    }
+
+    /** Whether this field set is the historical circular diagnostic rather than current authorship. */
+    public boolean legacyCircularDomain() {
+        return legacyCircularDomain;
+    }
+
     private double sampleInteriority(SkyIslandLocalPosition position) {
+        if (!legacyCircularDomain) {
+            return naturalizedDomain.sample(position);
+        }
         double radius = descriptor.nominalRadius();
         double nx = position.x() / radius;
         double nz = position.z() / radius;
