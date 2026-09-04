@@ -83,15 +83,19 @@ public final class AuthorshipMesoscaleMaterialDomainsCorpusCli {
                     .append(descriptor.morphologyFamily().identifier()).append(',')
                     .append(plan.mineralCarrierCount()).append(',')
                     .append(plan.fabricCarrierCount()).append(',')
+                    .append(plan.activeHostCells()).append(',')
                     .append(plan.domainCount(SkyIslandMaterialDomainKind.ALTERED_ZONE)).append(',')
                     .append(plan.cellCount(SkyIslandMaterialDomainKind.ALTERED_ZONE)).append(',')
                     .append(plan.largestDomainCellCount(SkyIslandMaterialDomainKind.ALTERED_ZONE)).append(',')
+                    .append(format(coverage(plan, SkyIslandMaterialDomainKind.ALTERED_ZONE))).append(',')
                     .append(plan.domainCount(SkyIslandMaterialDomainKind.SATURATED_BODY)).append(',')
                     .append(plan.cellCount(SkyIslandMaterialDomainKind.SATURATED_BODY)).append(',')
                     .append(plan.largestDomainCellCount(SkyIslandMaterialDomainKind.SATURATED_BODY)).append(',')
+                    .append(format(coverage(plan, SkyIslandMaterialDomainKind.SATURATED_BODY))).append(',')
                     .append(plan.domainCount(SkyIslandMaterialDomainKind.MINERALIZED_BODY)).append(',')
                     .append(plan.cellCount(SkyIslandMaterialDomainKind.MINERALIZED_BODY)).append(',')
                     .append(plan.largestDomainCellCount(SkyIslandMaterialDomainKind.MINERALIZED_BODY)).append(',')
+                    .append(format(coverage(plan, SkyIslandMaterialDomainKind.MINERALIZED_BODY))).append(',')
                     .append(plan.domainCount(SkyIslandMaterialDomainKind.STRUCTURAL_FABRIC_DOMAIN)).append(',')
                     .append(plan.cellCount(SkyIslandMaterialDomainKind.STRUCTURAL_FABRIC_DOMAIN)).append(',')
                     .append(plan.largestDomainCellCount(SkyIslandMaterialDomainKind.STRUCTURAL_FABRIC_DOMAIN)).append('\n');
@@ -104,10 +108,11 @@ public final class AuthorshipMesoscaleMaterialDomainsCorpusCli {
                 out.resolve("index.html"),
                 "<!doctype html><meta charset=\"utf-8\"><title>AUTH-0032</title>"
                         + "<h1>Mesoscale subsurface material domains</h1>"
-                        + "<p>ALTERED and MINERALIZED are x/depth maximum-membership projections. "
-                        + "SATURATED and FABRIC are x/z maximum-membership projections. COMPOSITE "
-                        + "shows overlapping x/depth systems. Interpolation is evidence-only; stored "
-                        + "domains remain connected semantic planning cells.</p>"
+                        + "<p>All four domain panels are x/z maximum-membership projections through "
+                        + "semantic depth, preserving island morphology and regional geography. "
+                        + "COMPOSITE PLAN shows overlap among all four systems. Interpolation is "
+                        + "evidence-only; stored domains remain connected three-dimensional semantic "
+                        + "planning cells.</p>"
                         + "<img src=\"atlas.png\" style=\"max-width:100%\">"
                         + "<p><a href=\"manifest.csv\">manifest.csv</a></p>",
                 StandardCharsets.UTF_8);
@@ -135,9 +140,10 @@ public final class AuthorshipMesoscaleMaterialDomainsCorpusCli {
         g.drawString(
                 String.format(
                         Locale.ROOT,
-                        "carriers mineral=%d fabric=%d  cells A=%d S=%d M=%d F=%d",
+                        "carriers mineral=%d fabric=%d active=%d  cells A=%d S=%d M=%d F=%d",
                         plan.mineralCarrierCount(),
                         plan.fabricCarrierCount(),
+                        plan.activeHostCells(),
                         plan.cellCount(SkyIslandMaterialDomainKind.ALTERED_ZONE),
                         plan.cellCount(SkyIslandMaterialDomainKind.SATURATED_BODY),
                         plan.cellCount(SkyIslandMaterialDomainKind.MINERALIZED_BODY),
@@ -160,14 +166,12 @@ public final class AuthorshipMesoscaleMaterialDomainsCorpusCli {
         centered(g, "SATURATED", MAP, MAP, 62);
         centered(g, "MINERALIZED", 2 * MAP, MAP, 62);
         centered(g, "FABRIC", 3 * MAP, MAP, 62);
-        centered(g, "COMPOSITE", 4 * MAP, MAP, 62);
+        centered(g, "COMPOSITE PLAN", 4 * MAP, MAP, 62);
 
-        double[][] altered = sectionProjection(plan, SkyIslandMaterialDomainKind.ALTERED_ZONE);
+        double[][] altered = planProjection(plan, SkyIslandMaterialDomainKind.ALTERED_ZONE);
         double[][] saturated = planProjection(plan, SkyIslandMaterialDomainKind.SATURATED_BODY);
-        double[][] mineralized = sectionProjection(plan, SkyIslandMaterialDomainKind.MINERALIZED_BODY);
+        double[][] mineralized = planProjection(plan, SkyIslandMaterialDomainKind.MINERALIZED_BODY);
         double[][] fabric = planProjection(plan, SkyIslandMaterialDomainKind.STRUCTURAL_FABRIC_DOMAIN);
-        double[][] saturatedSection = sectionProjection(plan, SkyIslandMaterialDomainKind.SATURATED_BODY);
-        double[][] fabricSection = sectionProjection(plan, SkyIslandMaterialDomainKind.STRUCTURAL_FABRIC_DOMAIN);
 
         renderInterpolated(
                 image,
@@ -197,9 +201,9 @@ public final class AuthorshipMesoscaleMaterialDomainsCorpusCli {
                 image,
                 4 * MAP,
                 altered,
-                saturatedSection,
+                saturated,
                 mineralized,
-                fabricSection);
+                fabric);
 
         g.setColor(new Color(25, 25, 25));
         for (int panel = 0; panel < PANELS; panel++) {
@@ -363,6 +367,16 @@ public final class AuthorshipMesoscaleMaterialDomainsCorpusCli {
     private static void centered(Graphics2D g, String label, int x, int width, int y) {
         int textWidth = g.getFontMetrics().stringWidth(label);
         g.drawString(label, x + (width - textWidth) / 2, y);
+    }
+
+    private static double coverage(
+            SkyIslandMaterialDomainPlan plan,
+            SkyIslandMaterialDomainKind kind) {
+        return plan.cellCount(kind) / (double) plan.activeHostCells();
+    }
+
+    private static String format(double value) {
+        return String.format(Locale.ROOT, "%.8f", value);
     }
 
     private record Selection(String role, long key) {}
