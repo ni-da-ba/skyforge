@@ -411,9 +411,13 @@ final class SkyforgeComposedCavePopulationStage {
             boolean nativeAttempted,
             int nativeChangedBlocks,
             int nativeSuccessfulCalls,
+            long nativeTransformDigest,
+            long nativeCarveDigest,
             int authoredPositiveSamples,
             int authoredChangedBlocks,
-            int authoredUnsafeSamples) {
+            int authoredUnsafeSamples,
+            long authoredChangedDigest,
+            long authoredProvenanceDigest) {
         ServiceResult {
             Objects.requireNonNull(volumeId, "volumeId");
             Objects.requireNonNull(chunkPos, "chunkPos");
@@ -426,9 +430,13 @@ final class SkyforgeComposedCavePopulationStage {
             }
             if (empty && (nativeAttempted
                     || nativeChangedBlocks != 0
+                    || nativeTransformDigest != 0L
+                    || nativeCarveDigest != 0L
                     || authoredPositiveSamples != 0
                     || authoredChangedBlocks != 0
-                    || authoredUnsafeSamples != 0)) {
+                    || authoredUnsafeSamples != 0
+                    || authoredChangedDigest != 0L
+                    || authoredProvenanceDigest != 0L)) {
                 throw new IllegalArgumentException("empty composed cave obligation contains mutations");
             }
         }
@@ -437,7 +445,9 @@ final class SkyforgeComposedCavePopulationStage {
                 SkyIslandWorldVolumeId volumeId,
                 ChunkPos chunkPos) {
             return new ServiceResult(
-                    volumeId, chunkPos, true, false, 0, 0, 0, 0, 0);
+                    volumeId, chunkPos, true, false,
+                    0, 0, 0L, 0L,
+                    0, 0, 0, 0L, 0L);
         }
 
         static ServiceResult authoredOnly(
@@ -451,9 +461,13 @@ final class SkyforgeComposedCavePopulationStage {
                     false,
                     0,
                     0,
+                    0L,
+                    0L,
                     authored.positiveSamples(),
                     authored.changedBlocks(),
-                    authored.unsafePositiveSamples());
+                    authored.unsafePositiveSamples(),
+                    authored.changedPositionDigest(),
+                    authored.provenanceDigest());
         }
 
         static ServiceResult composed(
@@ -467,9 +481,13 @@ final class SkyforgeComposedCavePopulationStage {
                     true,
                     result.nativeResult().changedBlocks(),
                     result.nativeResult().successfulCalls(),
+                    result.nativeResult().transformDigest(),
+                    result.nativeResult().changedPositionDigest(),
                     result.authoredResult().positiveSamples(),
                     result.authoredResult().changedBlocks(),
-                    result.authoredResult().unsafePositiveSamples());
+                    result.authoredResult().unsafePositiveSamples(),
+                    result.authoredResult().changedPositionDigest(),
+                    result.authoredResult().provenanceDigest());
         }
     }
 
