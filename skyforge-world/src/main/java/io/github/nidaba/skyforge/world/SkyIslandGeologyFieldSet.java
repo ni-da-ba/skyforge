@@ -59,26 +59,30 @@ public final class SkyIslandGeologyFieldSet {
         double moisture = surfaceFields.moisture().sample(surface);
         double edge = 1.0 - interiority;
 
-        double structure = valueNoise3(
+        double structure = structuralNoise(
                 descriptor.authorshipSeed() ^ STRUCTURE_DOMAIN,
-                x / 0.34,
-                depth / 0.22,
-                z / 0.34);
-        double fractureTexture = valueNoise3(
+                x,
+                depth,
+                z,
+                0.38);
+        double fractureTexture = structuralNoise(
                 descriptor.authorshipSeed() ^ FRACTURE_DOMAIN,
-                x / 0.22,
-                depth / 0.16,
-                z / 0.22);
-        double connectivityTexture = valueNoise3(
+                x,
+                depth,
+                z,
+                0.26);
+        double connectivityTexture = structuralNoise(
                 descriptor.authorshipSeed() ^ CONNECTIVITY_DOMAIN,
-                x / 0.46,
-                depth / 0.28,
-                z / 0.46);
-        double waterTexture = valueNoise3(
+                x,
+                depth,
+                z,
+                0.48);
+        double waterTexture = structuralNoise(
                 descriptor.authorshipSeed() ^ WATER_DOMAIN,
-                x / 0.55,
-                depth / 0.34,
-                z / 0.55);
+                x,
+                depth,
+                z,
+                0.58);
 
         double shallowWeathering = (1.0 - depth) * (0.55 * edge + 0.45 * exposure);
         double structuralStress = clamp01(
@@ -105,13 +109,13 @@ public final class SkyIslandGeologyFieldSet {
                         + 0.18 * connectivityTexture);
 
         double groundwaterPotential = clamp01(
-                0.36 * descriptor.hydrologicalPotential()
-                        + 0.20 * moisture
-                        + 0.20 * connectedPermeability
-                        + 0.18 * depth
-                        + 0.10 * waterTexture
-                        - 0.08 * exposure
-                        - 0.06 * edge);
+                0.30 * descriptor.hydrologicalPotential()
+                        + 0.16 * moisture
+                        + 0.24 * connectedPermeability
+                        + 0.16 * depth
+                        + 0.18 * waterTexture
+                        - 0.06 * exposure
+                        - 0.05 * edge);
 
         double competenceBand =
                 clamp01(1.0 - Math.abs(bulkCompetence - 0.62) / 0.62);
@@ -131,6 +135,49 @@ public final class SkyIslandGeologyFieldSet {
                 connectedPermeability,
                 groundwaterPotential,
                 voidFormationPotential);
+    }
+
+    /**
+     * Produces low-frequency geological texture without exposing the lattice axes as geological
+     * structure. Two differently rotated/sheared smooth value fields are blended so continuity is
+     * retained while rectangular planning cells do not become visible subsurface features.
+     */
+    private static double structuralNoise(
+            long seed,
+            double x,
+            double depth,
+            double z,
+            double scale) {
+        double angleA = phase(seed ^ 0x47524F5441544531L);
+        double cosA = Math.cos(angleA);
+        double sinA = Math.sin(angleA);
+        double ax = x * cosA - z * sinA + depth * 0.31;
+        double ay = depth + x * 0.19 - z * 0.11;
+        double az = x * sinA + z * cosA - depth * 0.23;
+        double broad = valueNoise3(
+                seed,
+                ax / scale,
+                ay / (scale * 0.78),
+                az / scale);
+
+        double angleB = phase(seed ^ 0x47524F5441544532L);
+        double cosB = Math.cos(angleB);
+        double sinB = Math.sin(angleB);
+        double bx = x * cosB - z * sinB - depth * 0.17;
+        double by = depth - x * 0.13 + z * 0.21;
+        double bz = x * sinB + z * cosB + depth * 0.29;
+        double detail = valueNoise3(
+                seed ^ 0x47454F4445544149L,
+                bx / (scale * 0.56),
+                by / (scale * 0.62),
+                bz / (scale * 0.56));
+
+        return clamp01(0.68 * broad + 0.32 * detail);
+    }
+
+    private static double phase(long seed) {
+        long bits = mix64(seed);
+        return (bits >>> 11) * 0x1.0p-53 * 2.0 * Math.PI;
     }
 
     private static double valueNoise3(long seed, double x, double y, double z) {
