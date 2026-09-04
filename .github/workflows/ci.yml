@@ -157,6 +157,9 @@ jobs:
           test -f skyforge-reference/build/evidence/authorship-lithologic-realization-vocabulary-v1/index.html
           test -f skyforge-reference/build/evidence/authorship-lithologic-realization-vocabulary-v1/atlas.png
           test -f skyforge-reference/build/evidence/authorship-lithologic-realization-vocabulary-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-semantic-material-palette-roles-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-semantic-material-palette-roles-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-semantic-material-palette-roles-v1/manifest.csv
 
       - name: Publish compact evidence review bundle
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -281,6 +284,9 @@ jobs:
             skyforge-reference/build/evidence/authorship-lithologic-realization-vocabulary-v1/**/*.png
             skyforge-reference/build/evidence/authorship-lithologic-realization-vocabulary-v1/**/*.html
             skyforge-reference/build/evidence/authorship-lithologic-realization-vocabulary-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-semantic-material-palette-roles-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-semantic-material-palette-roles-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-semantic-material-palette-roles-v1/**/*.csv
           if-no-files-found: error
           retention-days: 7
           compression-level: 9
