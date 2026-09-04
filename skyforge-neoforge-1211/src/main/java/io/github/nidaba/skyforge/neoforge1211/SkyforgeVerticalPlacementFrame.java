@@ -21,16 +21,22 @@ import net.minecraft.world.level.levelgen.GenerationStep;
  *
  * <p>Phase admission is deliberately explicit. SF-IMP-0059 admitted
  * {@link GenerationStep.Decoration#UNDERGROUND_ORES}; that accepted path continues to map against
- * the finite volume envelope exactly as before. SF-IMP-0060 additionally admits
- * {@link GenerationStep.Decoration#LOCAL_MODIFICATIONS}. Sparse local modifications use the exact
- * solid span of their already-selected X/Z column when one exists, because a conservative volume
- * bounding box may contain large amounts of non-owned air below an island. This keeps one-shot
- * geological placements attached to actual owner terrain without changing X/Z, feature identity,
- * placement ordering, or RNG consumption. If the sampled X/Z has no owner column, the ordinary
- * envelope mapping is retained and the existing exact write fence remains authoritative.
+ * the finite volume envelope exactly as before. SF-IMP-0060 additionally admitted
+ * {@link GenerationStep.Decoration#LOCAL_MODIFICATIONS}. SF-IMP-0062 admits
+ * {@link GenerationStep.Decoration#UNDERGROUND_DECORATION} after SF-IMP-0061 established persistent
+ * owner-local cave topology.
  *
- * <p>Cave-surface decoration, springs, lakes, surface population and BASE_WORLD generation remain
- * outside this frame until separately proven.
+ * <p>Sparse local modifications and cave-surface decoration use the exact compiled solid span of
+ * their already-selected X/Z column when one exists, because a conservative volume bounding box
+ * may contain large amounts of non-owned air below an island. The compiled support span remains
+ * stable after carving, while ordinary Level reads still expose the actual post-carver AIR state;
+ * native cave predicates can therefore discover real interior surfaces without changing X/Z,
+ * feature identity, placement ordering, or RNG consumption. If the sampled X/Z has no owner
+ * column, the ordinary envelope mapping is retained and the existing exact write fence remains
+ * authoritative.
+ *
+ * <p>Springs, lakes, surface population and BASE_WORLD generation remain outside this frame until
+ * separately proven.
  */
 public final class SkyforgeVerticalPlacementFrame {
     private static final ThreadLocal<Frame> ACTIVE = new ThreadLocal<>();
@@ -75,17 +81,20 @@ public final class SkyforgeVerticalPlacementFrame {
     /** Returns whether a generation step is explicitly admitted to the local vertical frame. */
     static boolean usesLocalVerticalFrame(int generationStep) {
         return generationStep == GenerationStep.Decoration.UNDERGROUND_ORES.ordinal()
-                || generationStep == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal();
+                || generationStep == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal()
+                || generationStep == GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal();
     }
 
     /**
      * Returns whether one admitted phase maps against exact solid owner-column support.
      *
      * <p>SF-IMP-0059 ore mapping remains byte-for-byte on the accepted finite volume-envelope frame.
-     * SF-IMP-0060 local modifications opt into the stricter owner-column support frame.
+     * SF-IMP-0060 local modifications and SF-IMP-0062 cave-surface decoration opt into the stricter
+     * compiled owner-column support frame.
      */
     static boolean usesExactSolidColumnFrame(int generationStep) {
-        return generationStep == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal();
+        return generationStep == GenerationStep.Decoration.LOCAL_MODIFICATIONS.ordinal()
+                || generationStep == GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal();
     }
 
     /** Returns whether an exact-volume local vertical frame is active on the current thread. */
@@ -270,7 +279,7 @@ public final class SkyforgeVerticalPlacementFrame {
                                     worldY,
                                     worldZ)
                             .orElseThrow(() -> new IllegalStateException(
-                                    "local-modification vertical frame lost the active terrain binding for "
+                                    "exact-solid vertical frame lost the active terrain binding for "
                                             + volumePath)));
         }
     }

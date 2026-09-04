@@ -21,6 +21,12 @@ application {
 }
 
 tasks.withType<Test>().configureEach {
+    // Reference-corpus tests intentionally materialize build/evidence/** review packages as part of
+    // their assertions. Those files are not standard Test task outputs, so restoring the Test task
+    // FROM-CACHE can suppress the evidence side effects while CI still expects the review entry
+    // points to exist. Execute these tests rather than caching an incomplete task contract.
+    outputs.doNotCacheIf("reference tests materialize review evidence outside standard Test outputs") { true }
+
     systemProperty("junit.jupiter.execution.parallel.enabled", "true")
     systemProperty("junit.jupiter.execution.parallel.mode.default", "same_thread")
     systemProperty("junit.jupiter.execution.parallel.config.strategy", "fixed")

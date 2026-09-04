@@ -180,6 +180,98 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0062 composes the accepted native-carver seam with final-registry
+        // UNDERGROUND_DECORATION inside the same exact high tableland.
+        create("undergroundDecorationClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0062")
+            systemProperty("skyforge.dev.undergroundDecoration", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Self-driving first-pass SF-IMP-0062 acceptance runs. Independent disposable worlds must
+        // reproduce the cave/decorating decision stream before persistence/stacked gates are added.
+        create("undergroundDecorationAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0062-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.undergroundDecoration", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0062-underground-decoration-a")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0062/decoration-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("undergroundDecorationAcceptanceStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0062-auto-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.undergroundDecorationStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0062-underground-decoration-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0062/stacked.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("undergroundDecorationAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0062-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.undergroundDecoration", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0062-underground-decoration-b")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0062/decoration-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Reopen the deterministic B world's saved chunks without reinstalling any Skyforge
+        // realization/population binding. Server and actual logical ClientLevel must both observe
+        // the machine-selected native cave-decoration sample recorded by run B.
+        create("undergroundDecorationAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0062-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.undergroundDecorationReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0062-underground-decoration-reload")
+            systemProperty(
+                "skyforge.dev.undergroundDecorationExpectedResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0062/decoration-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0062/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -510,6 +602,184 @@ tasks.register("sfImp0061Acceptance") {
         "runNativeCarverAcceptanceLocalModificationRegression",
     )
     finalizedBy("sfImp0061AcceptanceVerify")
+}
+
+
+val sfImp0062AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0062")
+val sfImp0062AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=600062
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSfImp0062AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(sfImp0062AcceptanceServerProperties)
+}
+
+mapOf(
+    "runUndergroundDecorationAcceptanceA" to "run-sf-imp-0062-auto-a",
+    "runUndergroundDecorationAcceptanceB" to "run-sf-imp-0062-auto-b",
+    "runUndergroundDecorationAcceptanceStacked" to "run-sf-imp-0062-auto-stacked",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareSfImp0062AcceptanceServerDirectory(relativePath)
+        }
+    }
+}
+
+tasks.named("runUndergroundDecorationAcceptanceA").configure {
+    doFirst {
+        delete(sfImp0062AcceptanceResultDirectory)
+    }
+}
+tasks.named("runUndergroundDecorationAcceptanceB").configure {
+    mustRunAfter("runUndergroundDecorationAcceptanceA")
+}
+tasks.named("runUndergroundDecorationAcceptanceReloadClient").configure {
+    mustRunAfter("runUndergroundDecorationAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-sf-imp-0062-auto-b").asFile
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+tasks.named("runUndergroundDecorationAcceptanceStacked").configure {
+    mustRunAfter("runUndergroundDecorationAcceptanceReloadClient")
+}
+
+tasks.register("sfImp0062AcceptanceVerify") {
+    group = "verification"
+    description = "Verify the complete deterministic SF-IMP-0062 underground-decoration acceptance slate."
+    doLast {
+        fun load(name: String): Properties {
+            val file = sfImp0062AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0062 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        fun loadRegression(name: String): Properties {
+            val file = sfImp0061AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing inherited regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        val first = load("decoration-a")
+        val second = load("decoration-b")
+        val reload = load("reload")
+        val stacked = load("stacked")
+        val carver = loadRegression("carver-a")
+        val ore = loadRegression("ore-regression")
+        val localModification = loadRegression("local-modification-regression")
+
+        for ((name, result) in listOf(
+            "decoration-a" to first,
+            "decoration-b" to second,
+            "reload" to reload,
+            "stacked" to stacked,
+            "sf-imp-0061-carver" to carver,
+            "sf-imp-0059-ore" to ore,
+            "sf-imp-0060-local-modification" to localModification,
+        )) {
+            check(result.getProperty("status") == "PASS") { "$name did not report PASS: $result" }
+        }
+
+        for (key in listOf("carveTransformDigest", "carveDigest", "decorationTransformDigest", "decorationDigest")) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "SF-IMP-0062 deterministic evidence changed for $key: A=" +
+                    first.getProperty(key) + " B=" + second.getProperty(key)
+            }
+        }
+
+        check(first.getProperty("carveTransformDigest") == "10d4f06df3d8814f") {
+            "SF-IMP-0062 carver transform digest regressed: $first"
+        }
+        check(first.getProperty("carveDigest") == "9432af9ead2c865d") {
+            "SF-IMP-0062 carved-position digest regressed: $first"
+        }
+        check(first.getProperty("decorationTransformDigest") == "1ed8887c547e0911") {
+            "SF-IMP-0062 decoration transform digest regressed: $first"
+        }
+        check(first.getProperty("decorationDigest") == "ce242ec84fb8ccfc") {
+            "SF-IMP-0062 decoration digest regressed: $first"
+        }
+        check(first.getProperty("successfulFeatures") == "33"
+                && first.getProperty("changedCarvedAir") == "2031"
+                && first.getProperty("mappedOutsideVolume") == "0"
+                && first.getProperty("baseColumnsPreserved") == "true") {
+            "SF-IMP-0062 native cave-decoration realization evidence regressed: $first"
+        }
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("persistedDecorationPos") == first.getProperty("sampleDecorationPos")
+                && reload.getProperty("persistedDecorationState") == first.getProperty("sampleDecorationState")) {
+            "SF-IMP-0062 save/reload logical-client evidence failed: $reload"
+        }
+        check(stacked.getProperty("foreignWriteRejected") == "true"
+                && stacked.getProperty("ownerWriteAccepted") == "true"
+                && stacked.getProperty("lowerMappedY") == "124"
+                && stacked.getProperty("upperMappedY") == "224") {
+            "SF-IMP-0062 stacked exact-volume isolation failed: $stacked"
+        }
+
+        check(carver.getProperty("transformDigest") == "e97b5e7ee026c422"
+                && carver.getProperty("carveDigest") == "61f96a61f81c9b55") {
+            "SF-IMP-0061 regression gate failed: $carver"
+        }
+        check(ore.getProperty("transformDigest") == "3397c516a115d6e4"
+                && ore.getProperty("mappedOutsideVolume") == "0"
+                && ore.getProperty("baseColumnPreserved") == "true") {
+            "SF-IMP-0059 regression gate failed: $ore"
+        }
+        check(localModification.getProperty("transformDigest") == "4fe92d09d07f8002"
+                && localModification.getProperty("mappedOutsideVolume") == "0"
+                && localModification.getProperty("baseColumnsPreserved") == "true") {
+            "SF-IMP-0060 regression gate failed: $localModification"
+        }
+
+        println(
+            "SF-IMP-0062 AUTOMATED ACCEPTANCE PASS: "
+                + "carveTransformDigest=" + first.getProperty("carveTransformDigest")
+                + ", carveDigest=" + first.getProperty("carveDigest")
+                + ", decorationTransformDigest=" + first.getProperty("decorationTransformDigest")
+                + ", decorationDigest=" + first.getProperty("decorationDigest")
+                + ", successfulFeatures=" + first.getProperty("successfulFeatures")
+                + ", changedCarvedAir=" + first.getProperty("changedCarvedAir")
+                + ", reloadServerClient=true, stackedIsolation=true"
+                + ", sfImp0061Digest=" + carver.getProperty("transformDigest")
+                + ", sfImp0059Digest=" + ore.getProperty("transformDigest")
+                + ", sfImp0060Digest=" + localModification.getProperty("transformDigest"),
+        )
+    }
+}
+
+tasks.register("sfImp0062Acceptance") {
+    group = "verification"
+    description = "Run the complete deterministic SF-IMP-0062 underground-decoration acceptance slate."
+    dependsOn(
+        "runUndergroundDecorationAcceptanceA",
+        "runUndergroundDecorationAcceptanceB",
+        "runUndergroundDecorationAcceptanceReloadClient",
+        "runUndergroundDecorationAcceptanceStacked",
+        "runNativeCarverAcceptanceA",
+        "runNativeCarverAcceptanceOreRegression",
+        "runNativeCarverAcceptanceLocalModificationRegression",
+    )
+    finalizedBy("sfImp0062AcceptanceVerify")
 }
 
 dependencies {
