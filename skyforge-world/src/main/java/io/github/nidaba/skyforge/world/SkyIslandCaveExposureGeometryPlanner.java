@@ -83,11 +83,12 @@ public final class SkyIslandCaveExposureGeometryPlanner {
         candidates.add(baseline);
 
         double[] mouthFractions = {
-            0.018,
-            0.035,
+            0.010,
+            0.022,
+            0.040,
             MAX_MOUTH_OFFSET_FRACTION
         };
-        double[] bendSigns = {-1.0, 0.0, 1.0};
+        double[] bendSigns = {-1.0, -0.45, 0.0, 0.45, 1.0};
 
         int tieBreak = 1;
         for (int direction = 0; direction < 8; direction++) {
@@ -195,7 +196,8 @@ public final class SkyIslandCaveExposureGeometryPlanner {
             return null;
         }
 
-        double supportSum = 0.0;
+        double weightedSupportSum = 0.0;
+        double weightSum = 0.0;
         double mouthSupport = 0.0;
         for (int sampleIndex = 0; sampleIndex < CONNECTION_SAMPLES; sampleIndex++) {
             double t = sampleIndex / (CONNECTION_SAMPLES - 1.0);
@@ -212,21 +214,23 @@ public final class SkyIslandCaveExposureGeometryPlanner {
 
             SkyIslandGeologySample sample = geology.sample(position);
             double local = localSupport(intent.side(), descriptor, sample);
-            supportSum += local;
+            double exteriorWeight = 0.40 + 0.60 * t * t;
+            weightedSupportSum += local * exteriorWeight;
+            weightSum += exteriorWeight;
             if (sampleIndex == CONNECTION_SAMPLES - 1) {
                 double exposure = semantic.exposure().sample(position.surfacePosition());
                 mouthSupport = clamp01(
-                        0.78 * local
-                                + 0.22 * exposure);
+                        0.70 * local
+                                + 0.30 * exposure);
             }
         }
 
-        double meanSupport = supportSum / CONNECTION_SAMPLES;
-        double geologicSupport = clamp01(0.76 * meanSupport + 0.24 * mouthSupport);
+        double meanSupport = weightedSupportSum / weightSum;
+        double geologicSupport = clamp01(0.62 * meanSupport + 0.38 * mouthSupport);
         double score = geologicSupport
                 + 0.08 * intent.score()
-                - 0.045 * (mouthOffsetFraction / MAX_MOUTH_OFFSET_FRACTION)
-                - 0.025 * (bendFraction / MAX_BEND_FRACTION);
+                - 0.020 * (mouthOffsetFraction / MAX_MOUTH_OFFSET_FRACTION)
+                - 0.012 * (bendFraction / MAX_BEND_FRACTION);
 
         return new Candidate(
                 mouth,
