@@ -138,8 +138,15 @@ class SkyIslandMaterialDomainPlannerTest {
             int active = plan.activeHostCells();
 
             for (SkyIslandMaterialDomainKind kind : SkyIslandMaterialDomainKind.values()) {
-                assertTrue(plan.cellCount(kind) < active);
-                assertTrue(plan.cellCount(kind) <= Math.floor(active * 0.85));
+                int cells = plan.cellCount(kind);
+                double coverage = cells / (double) active;
+                String diagnostic = "key=" + key
+                        + " kind=" + kind
+                        + " cells=" + cells
+                        + " active=" + active
+                        + " coverage=" + coverage;
+                assertTrue(cells < active, diagnostic);
+                assertTrue(cells <= Math.floor(active * 0.85), diagnostic);
             }
         }
     }
