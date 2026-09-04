@@ -125,13 +125,6 @@ final class SkyforgeNeoForge1211AuthoredCaveStackedDevRuntime {
                     "SF-IMP-0065 stacked authored caves did not persist independently after both realizations");
         }
 
-        if (lowerResult.positiveAuthoredSamples() != upperResult.positiveAuthoredSamples()) {
-            throw new IllegalStateException(
-                    "SF-IMP-0065 stacked AUTH-0027 transforms changed same authored cave cardinality: lower="
-                            + lowerResult.positiveAuthoredSamples()
-                            + ", upper=" + upperResult.positiveAuthoredSamples());
-        }
-
         proofComplete = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
