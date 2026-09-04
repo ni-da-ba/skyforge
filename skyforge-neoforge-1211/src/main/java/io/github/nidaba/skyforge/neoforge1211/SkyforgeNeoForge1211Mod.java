@@ -28,6 +28,8 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211LocalModificationsDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211CarverDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211CarverReloadDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211CarverStackedDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211LocalModificationsStackedDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211UndergroundStackedDevRuntime.installFromSystemProperty();
     }
