@@ -64,7 +64,7 @@ neoForge {
         // Historical elevated-Massif structure-start visibility specimen.
         create("client") {
             client()
-            gameDirectory = project.file("run-sf-imp-0036")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0036").asFile
             systemProperty("skyforge.dev.specimen", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -73,7 +73,7 @@ neoForge {
         // foundation evidence cannot be confused with the earlier naturally supported Massif.
         create("accommodationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0046")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0046").asFile
             systemProperty("skyforge.dev.accommodation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -82,7 +82,7 @@ neoForge {
         // underside geometry to the admission evidence stream. No synthetic piece is serialized.
         create("undersideContradictionClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0050")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0050").asFile
             systemProperty("skyforge.dev.undersideContradiction", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -92,7 +92,7 @@ neoForge {
         // should remain native-ground-owned beneath the floating Massif.
         create("domainIsolationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0052")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0052").asFile
             systemProperty("skyforge.dev.domainIsolation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -102,7 +102,7 @@ neoForge {
         // surface ownership, independent operation seeds and successful bounded native writes.
         create("populationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0053")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0053").asFile
             systemProperty("skyforge.dev.population", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -112,7 +112,7 @@ neoForge {
         // placement modifiers choose occurrence positions; no individual tree origin is hard-coded.
         create("biomePopulationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0054")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054").asFile
             systemProperty("skyforge.dev.biomePopulation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -122,7 +122,7 @@ neoForge {
         // and fails unless the coordinator performs zero duplicate native feature executions.
         create("surfacePopulationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0055")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0055").asFile
             systemProperty("skyforge.dev.surfacePopulation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -132,7 +132,7 @@ neoForge {
         // without mutation while a clear multi-chunk upper island admits and catches up exactly.
         create("physicalAdmissionClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0056")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0056").asFile
             systemProperty("skyforge.dev.physicalAdmission", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -142,7 +142,7 @@ neoForge {
         // vertically unrelated native cells in the same X/Z column must remain unchanged.
         create("biomePresentationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0058")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0058").asFile
             systemProperty("skyforge.dev.physicalAdmission", "true")
             systemProperty("skyforge.dev.biomePresentation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
@@ -153,7 +153,7 @@ neoForge {
         // isolated from BASE_WORLD terrain.
         create("undergroundPlacementClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0059")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0059").asFile
             systemProperty("skyforge.dev.physicalAdmission", "true")
             systemProperty("skyforge.dev.biomePresentation", "true")
             systemProperty("skyforge.dev.undergroundPlacement", "true")
@@ -165,7 +165,7 @@ neoForge {
         // terrain, proving LOCAL_MODIFICATIONS without coupling the fixture to SF-IMP-0056 state.
         create("localModificationsClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0060")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0060").asFile
             systemProperty("skyforge.dev.localModifications", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -175,7 +175,7 @@ neoForge {
         // Y mapping; direct LevelChunk mutations are fenced to exact owner terrain.
         create("nativeCarverClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0061")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061").asFile
             systemProperty("skyforge.dev.nativeCarver", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -184,7 +184,7 @@ neoForge {
         // UNDERGROUND_DECORATION inside the same exact high tableland.
         create("undergroundDecorationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0062")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0062").asFile
             systemProperty("skyforge.dev.undergroundDecoration", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -404,7 +404,7 @@ neoForge {
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0061-repeat")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061-repeat").asFile
             systemProperty("skyforge.dev.nativeCarver", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -413,7 +413,7 @@ neoForge {
         // mutation. Server and logical client must both observe the persisted cave state.
         create("nativeCarverReloadClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0061-repeat")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061-repeat").asFile
             systemProperty("skyforge.dev.nativeCarverReload", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -423,7 +423,7 @@ neoForge {
         // directions at the direct-carver write fence.
         create("nativeCarverStackedClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0061-stacked")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061-stacked").asFile
             systemProperty("skyforge.dev.nativeCarverStacked", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -552,7 +552,7 @@ neoForge {
         // into each exact solid owner column, and explicitly reject the other island at preflight.
         create("localModificationsStackedClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0060-stacked")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0060-stacked").asFile
             systemProperty("skyforge.dev.localModificationsStacked", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -562,7 +562,7 @@ neoForge {
         // byte-for-byte during each replay and explicitly reject its solid coordinates at preflight.
         create("undergroundPlacementStackedClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0059-stacked")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0059-stacked").asFile
             systemProperty("skyforge.dev.undergroundPlacement", "true")
             systemProperty("skyforge.dev.undergroundPlacementStacked", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
@@ -1174,8 +1174,8 @@ tasks.register("sfImp0064AcceptanceVerify") {
         }
         for (key in listOf("admissionDigest", "transformDigest", "provenanceDigest")) {
             check(first.getProperty(key) == second.getProperty(key)) {
-                "SF-IMP-0064 deterministic evidence changed for $key: A="
-                    + first.getProperty(key) + " B=" + second.getProperty(key)
+                "SF-IMP-0064 deterministic evidence changed for $key: A=" +
+                    first.getProperty(key) + " B=" + second.getProperty(key)
             }
         }
         check(first.getProperty("successfulFeatures").toInt() > 0
