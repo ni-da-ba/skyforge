@@ -74,7 +74,7 @@ final class SkyforgeNeoForge1211CarverDevRuntime {
         if (!enabled() || proofStarted || proofComplete || !level.dimension().equals(Level.OVERWORLD)) {
             return;
         }
-        if (level.players().isEmpty()) {
+        if (level.players().isEmpty() && !SkyforgeAutomatedAcceptanceHarness.serverMode()) {
             return;
         }
 
@@ -151,6 +151,9 @@ final class SkyforgeNeoForge1211CarverDevRuntime {
         requireBaseColumnPreserved(level, baseColumnBefore);
 
         proofComplete = true;
+        boolean clientTrackingActive = !level.players().isEmpty();
+        String transformDigest = Long.toUnsignedString(result.transformDigest(), 16);
+        String carveDigest = Long.toUnsignedString(result.changedPositionDigest(), 16);
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "SF-IMP-0061 NATIVE CARVER PASS: volume=" + volumeId.path()
@@ -181,11 +184,23 @@ final class SkyforgeNeoForge1211CarverDevRuntime {
                         + ", air=" + carved.airBlocks()
                         + ", lava=" + carved.lavaBlocks()
                         + ", sample=" + carved.samplePosition() + "}"
-                        + ", transformDigest=" + Long.toUnsignedString(result.transformDigest(), 16)
-                        + ", carveDigest=" + Long.toUnsignedString(result.changedPositionDigest(), 16)
-                        + ", baseColumnPreserved=true, clientTrackingActive=true. Native HeightProvider sampling "
+                        + ", transformDigest=" + transformDigest
+                        + ", carveDigest=" + carveDigest
+                        + ", baseColumnPreserved=true, clientTrackingActive=" + clientTrackingActive
+                        + ". Native HeightProvider sampling "
                         + "completed before vertical mapping; direct LevelChunk writes were fenced to exact compiled "
                         + "owner terrain and published through the stable chunk's normal block-change channel.");
+
+        SkyforgeAutomatedAcceptanceHarness.completeServerCase(
+                level.getServer(),
+                java.util.Map.of(
+                        "transformDigest", transformDigest,
+                        "carveDigest", carveDigest,
+                        "changedBlocks", carved.changedBlocks(),
+                        "airBlocks", carved.airBlocks(),
+                        "lavaBlocks", carved.lavaBlocks(),
+                        "mappedOutsideTarget", result.mappedOutsideTarget(),
+                        "baseColumnPreserved", true));
     }
 
     static SkyIslandWorldCatalog catalog() {
