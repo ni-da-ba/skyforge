@@ -64,7 +64,7 @@ neoForge {
         // Historical elevated-Massif structure-start visibility specimen.
         create("client") {
             client()
-            gameDirectory = project.file("run-sf-imp-0036")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0036").asFile
             systemProperty("skyforge.dev.specimen", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -73,7 +73,7 @@ neoForge {
         // foundation evidence cannot be confused with the earlier naturally supported Massif.
         create("accommodationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0046")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0046").asFile
             systemProperty("skyforge.dev.accommodation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -82,7 +82,7 @@ neoForge {
         // underside geometry to the admission evidence stream. No synthetic piece is serialized.
         create("undersideContradictionClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0050")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0050").asFile
             systemProperty("skyforge.dev.undersideContradiction", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -92,7 +92,7 @@ neoForge {
         // should remain native-ground-owned beneath the floating Massif.
         create("domainIsolationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0052")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0052").asFile
             systemProperty("skyforge.dev.domainIsolation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -102,7 +102,7 @@ neoForge {
         // surface ownership, independent operation seeds and successful bounded native writes.
         create("populationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0053")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0053").asFile
             systemProperty("skyforge.dev.population", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -112,7 +112,7 @@ neoForge {
         // placement modifiers choose occurrence positions; no individual tree origin is hard-coded.
         create("biomePopulationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0054")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054").asFile
             systemProperty("skyforge.dev.biomePopulation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -122,7 +122,7 @@ neoForge {
         // and fails unless the coordinator performs zero duplicate native feature executions.
         create("surfacePopulationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0055")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0055").asFile
             systemProperty("skyforge.dev.surfacePopulation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -132,7 +132,7 @@ neoForge {
         // without mutation while a clear multi-chunk upper island admits and catches up exactly.
         create("physicalAdmissionClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0056")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0056").asFile
             systemProperty("skyforge.dev.physicalAdmission", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -142,7 +142,7 @@ neoForge {
         // vertically unrelated native cells in the same X/Z column must remain unchanged.
         create("biomePresentationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0058")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0058").asFile
             systemProperty("skyforge.dev.physicalAdmission", "true")
             systemProperty("skyforge.dev.biomePresentation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
@@ -153,7 +153,7 @@ neoForge {
         // isolated from BASE_WORLD terrain.
         create("undergroundPlacementClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0059")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0059").asFile
             systemProperty("skyforge.dev.physicalAdmission", "true")
             systemProperty("skyforge.dev.biomePresentation", "true")
             systemProperty("skyforge.dev.undergroundPlacement", "true")
@@ -165,7 +165,7 @@ neoForge {
         // terrain, proving LOCAL_MODIFICATIONS without coupling the fixture to SF-IMP-0056 state.
         create("localModificationsClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0060")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0060").asFile
             systemProperty("skyforge.dev.localModifications", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -175,7 +175,7 @@ neoForge {
         // Y mapping; direct LevelChunk mutations are fenced to exact owner terrain.
         create("nativeCarverClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0061")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061").asFile
             systemProperty("skyforge.dev.nativeCarver", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -184,7 +184,7 @@ neoForge {
         // UNDERGROUND_DECORATION inside the same exact high tableland.
         create("undergroundDecorationClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0062")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0062").asFile
             systemProperty("skyforge.dev.undergroundDecoration", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -359,11 +359,94 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0064 whole-footprint native LAKES proof. Independent disposable worlds must
+        // reproduce the same admission decisions and native lake state before final reload/stacked
+        // gates are added.
+        create("nativeLakesAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0064-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.nativeLakes", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0064-native-lakes-a")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0064/lakes-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("nativeLakesAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0064-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.nativeLakes", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0064-native-lakes-b")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0064/lakes-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Full-stop/client reload of the actual B lake world. Restore only the deterministic
+        // native-surface ownership binding; no lake/admission rerun is installed.
+        create("nativeLakesAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0064-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.nativeLakesReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0064-native-lakes-reload")
+            systemProperty(
+                "skyforge.dev.nativeLakesExpectedResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0064/lakes-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0064/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("nativeLakesAcceptanceStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0064-auto-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.nativeLakesStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0064-native-lakes-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0064/stacked.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0061-repeat")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061-repeat").asFile
             systemProperty("skyforge.dev.nativeCarver", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -372,7 +455,7 @@ neoForge {
         // mutation. Server and logical client must both observe the persisted cave state.
         create("nativeCarverReloadClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0061-repeat")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061-repeat").asFile
             systemProperty("skyforge.dev.nativeCarverReload", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -382,7 +465,7 @@ neoForge {
         // directions at the direct-carver write fence.
         create("nativeCarverStackedClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0061-stacked")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061-stacked").asFile
             systemProperty("skyforge.dev.nativeCarverStacked", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -511,7 +594,7 @@ neoForge {
         // into each exact solid owner column, and explicitly reject the other island at preflight.
         create("localModificationsStackedClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0060-stacked")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0060-stacked").asFile
             systemProperty("skyforge.dev.localModificationsStacked", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -521,7 +604,7 @@ neoForge {
         // byte-for-byte during each replay and explicitly reject its solid coordinates at preflight.
         create("undergroundPlacementStackedClient") {
             client()
-            gameDirectory = project.file("run-sf-imp-0059-stacked")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0059-stacked").asFile
             systemProperty("skyforge.dev.undergroundPlacement", "true")
             systemProperty("skyforge.dev.undergroundPlacementStacked", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
@@ -1071,6 +1154,226 @@ tasks.register("sfImp0063Acceptance") {
         "runNativeCarverAcceptanceLocalModificationRegression",
     )
     finalizedBy("sfImp0063AcceptanceVerify")
+}
+
+val sfImp0064AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0064")
+val sfImp0064AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=600064
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSfImp0064AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(sfImp0064AcceptanceServerProperties)
+}
+
+mapOf(
+    "runNativeLakesAcceptanceA" to "run-sf-imp-0064-auto-a",
+    "runNativeLakesAcceptanceB" to "run-sf-imp-0064-auto-b",
+    "runNativeLakesAcceptanceStacked" to "run-sf-imp-0064-auto-stacked",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareSfImp0064AcceptanceServerDirectory(relativePath)
+        }
+    }
+}
+
+tasks.named("runNativeLakesAcceptanceA").configure {
+    doFirst {
+        delete(sfImp0064AcceptanceResultDirectory)
+    }
+}
+tasks.named("runNativeLakesAcceptanceB").configure {
+    mustRunAfter("runNativeLakesAcceptanceA")
+}
+tasks.named("runNativeLakesAcceptanceReloadClient").configure {
+    mustRunAfter("runNativeLakesAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-sf-imp-0064-auto-b").asFile
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+tasks.named("runNativeLakesAcceptanceStacked").configure {
+    mustRunAfter("runNativeLakesAcceptanceReloadClient")
+}
+
+tasks.register("sfImp0064AcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic first-pass SF-IMP-0064 whole-lake acceptance evidence."
+    doLast {
+        fun load(name: String): Properties {
+            val file = sfImp0064AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0064 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        fun load0063(name: String): Properties {
+            val file = sfImp0063AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0063 regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+        fun load0062(name: String): Properties {
+            val file = sfImp0062AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0062 regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+        fun load0061(name: String): Properties {
+            val file = sfImp0061AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing inherited regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        val first = load("lakes-a")
+        val second = load("lakes-b")
+        val reload = load("reload")
+        val stacked = load("stacked")
+        val springs = load0063("fluid-a")
+        val decoration = load0062("decoration-a")
+        val carver = load0061("carver-a")
+        val ore = load0061("ore-regression")
+        val localModification = load0061("local-modification-regression")
+
+        for ((name, result) in listOf(
+            "lakes-a" to first,
+            "lakes-b" to second,
+            "reload" to reload,
+            "stacked" to stacked,
+            "sf-imp-0063-springs" to springs,
+            "sf-imp-0062-decoration" to decoration,
+            "sf-imp-0061-carver" to carver,
+            "sf-imp-0059-ore" to ore,
+            "sf-imp-0060-local-modification" to localModification,
+        )) {
+            check(result.getProperty("status") == "PASS") { "$name did not report PASS: $result" }
+        }
+        for (key in listOf("admissionDigest", "transformDigest", "provenanceDigest")) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "SF-IMP-0064 deterministic evidence changed for $key: A=" +
+                    first.getProperty(key) + " B=" + second.getProperty(key)
+            }
+        }
+        check(first.getProperty("successfulFeatures").toInt() > 0
+                && first.getProperty("admittedConfiguredLakes").toInt() > 0
+                && first.getProperty("rejectionProbeRejected") == "true"
+                && first.getProperty("rejectionProbeChangedBlocks") == "0"
+                && first.getProperty("changedRejectedOnly") == "0"
+                && first.getProperty("unsupportedLakeFeatures") == "0"
+                && first.getProperty("mappedOutsideVolume") == "0"
+                && first.getProperty("propagationTicks").toLong() > 0
+                && first.getProperty("matchingPersistentFluids").toInt() > 0
+                && first.getProperty("baseColumnsPreserved") == "true") {
+            "SF-IMP-0064 first-pass lake evidence is incomplete: $first"
+        }
+
+        check(first.getProperty("admissionDigest") == "9b568d83c71c5d04"
+                && first.getProperty("transformDigest") == "13c87b04bebea8ea"
+                && first.getProperty("provenanceDigest") == "f35dcb47fa1a38ef"
+                && first.getProperty("attemptedFeatures") == "42"
+                && first.getProperty("successfulFeatures") == "1"
+                && first.getProperty("configuredLakeAttempts") == "1"
+                && first.getProperty("admittedConfiguredLakes") == "1"
+                && first.getProperty("placementChangedBlocks") == "340"
+                && first.getProperty("finalTrackedLakeFluids") == "56"
+                && first.getProperty("matchingPersistentFluids") == "56"
+                && first.getProperty("propagationTicks") == "56") {
+            "SF-IMP-0064 stable native-lake invariants changed: $first"
+        }
+
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("persistedFluidPos") == first.getProperty("sampleFluidPos")
+                && reload.getProperty("clientFluidPos") == first.getProperty("sampleFluidPos")
+                && reload.getProperty("reloadPropagationTicks").toLong() > 0
+                && reload.getProperty("persistedTrackedPositions").toInt() > 0) {
+            "SF-IMP-0064 lake save/reload provenance or ClientLevel evidence failed: $reload"
+        }
+
+        check(stacked.getProperty("ownerWholeFootprintAccepted") == "true"
+                && stacked.getProperty("foreignWholeFootprintRejected") == "true"
+                && stacked.getProperty("provenanceVolumeIsolation") == "true"
+                && stacked.getProperty("sameXZIndependent") == "true"
+                && stacked.getProperty("lowerOriginY") != stacked.getProperty("upperOriginY")) {
+            "SF-IMP-0064 stacked whole-lake isolation failed: $stacked"
+        }
+
+        check(springs.getProperty("springTransformDigest") == "c8103b2012e79269"
+                && springs.getProperty("provenanceDigest") == "2aa9b41371236b93"
+                && springs.getProperty("successfulFeatures") == "7"
+                && springs.getProperty("mappedOutsideVolume") == "0"
+                && springs.getProperty("baseColumnsPreserved") == "true") {
+            "SF-IMP-0063 regression gate failed: $springs"
+        }
+        check(decoration.getProperty("decorationDigest") == "ce242ec84fb8ccfc"
+                && decoration.getProperty("successfulFeatures") == "33"
+                && decoration.getProperty("changedCarvedAir") == "2031"
+                && decoration.getProperty("mappedOutsideVolume") == "0") {
+            "SF-IMP-0062 regression gate failed: $decoration"
+        }
+        check(carver.getProperty("transformDigest") == "e97b5e7ee026c422"
+                && carver.getProperty("carveDigest") == "61f96a61f81c9b55"
+                && carver.getProperty("mappedOutsideTarget") == "0"
+                && carver.getProperty("baseColumnPreserved") == "true") {
+            "SF-IMP-0061 regression gate failed: $carver"
+        }
+        check(ore.getProperty("transformDigest") == "3397c516a115d6e4"
+                && ore.getProperty("mappedOutsideVolume") == "0"
+                && ore.getProperty("baseColumnPreserved") == "true") {
+            "SF-IMP-0059 regression gate failed: $ore"
+        }
+        check(localModification.getProperty("transformDigest") == "4fe92d09d07f8002"
+                && localModification.getProperty("mappedOutsideVolume") == "0"
+                && localModification.getProperty("baseColumnsPreserved") == "true") {
+            "SF-IMP-0060 regression gate failed: $localModification"
+        }
+        println(
+            "SF-IMP-0064 AUTOMATED ACCEPTANCE PASS: admissionDigest="
+                + first.getProperty("admissionDigest")
+                + ", transformDigest=" + first.getProperty("transformDigest")
+                + ", provenanceDigest=" + first.getProperty("provenanceDigest")
+                + ", admitted=" + first.getProperty("admittedConfiguredLakes")
+                + ", rejected=" + first.getProperty("rejectedConfiguredLakes")
+                + ", changed=" + first.getProperty("placementChangedBlocks")
+                + ", reloadServerClient=true, stackedIsolation=true"
+                + ", sfImp0063Digest=" + springs.getProperty("springTransformDigest")
+                + ", sfImp0062Digest=" + decoration.getProperty("decorationDigest")
+                + ", sfImp0061Digest=" + carver.getProperty("transformDigest")
+                + ", sfImp0059Digest=" + ore.getProperty("transformDigest")
+                + ", sfImp0060Digest=" + localModification.getProperty("transformDigest"),
+        )
+    }
+}
+
+tasks.register("sfImp0064Acceptance") {
+    group = "verification"
+    description = "Run complete deterministic SF-IMP-0064 native lakes acceptance."
+    dependsOn(
+        "runNativeLakesAcceptanceA",
+        "runNativeLakesAcceptanceB",
+        "runNativeLakesAcceptanceReloadClient",
+        "runNativeLakesAcceptanceStacked",
+        "runFluidSpringsAcceptanceA",
+        "runUndergroundDecorationAcceptanceA",
+        "runNativeCarverAcceptanceA",
+        "runNativeCarverAcceptanceOreRegression",
+        "runNativeCarverAcceptanceLocalModificationRegression",
+    )
+    finalizedBy("sfImp0064AcceptanceVerify")
 }
 
 dependencies {
