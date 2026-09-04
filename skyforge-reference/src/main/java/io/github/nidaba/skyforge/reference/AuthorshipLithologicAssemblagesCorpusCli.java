@@ -108,7 +108,7 @@ public final class AuthorshipLithologicAssemblagesCorpusCli {
                 "<!doctype html><meta charset=\"utf-8\"><title>AUTH-0034</title>"
                         + "<h1>Coherent lithologic assemblages and contacts</h1>"
                         + "<p>PLAN and SECTION show backend-neutral authored unit interpretation. "
-                        + "CONTACTS projects first-class adjacency relationships. The final three "
+                        + "PLAN CONTACTS projects lateral x/z contact traces; SECTION UNITS retains vertical " +\n                        "structure. The final three "
                         + "panels retain the underlying AUTH-0033 altered, water-conditioned, and "
                         + "mineral-bearing affinities so unit boundaries can be reviewed against "
                         + "their semantic causes.</p>"
@@ -162,7 +162,7 @@ public final class AuthorshipLithologicAssemblagesCorpusCli {
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
         centered(g, "PLAN UNITS", 0, MAP, 66);
         centered(g, "SECTION UNITS", MAP, MAP, 66);
-        centered(g, "CONTACTS", 2 * MAP, MAP, 66);
+        centered(g, "PLAN CONTACTS", 2 * MAP, MAP, 66);
         centered(g, "ALTERATION", 3 * MAP, MAP, 66);
         centered(g, "WATER", 4 * MAP, MAP, 66);
         centered(g, "MINERAL", 5 * MAP, MAP, 66);
@@ -251,7 +251,7 @@ public final class AuthorshipLithologicAssemblagesCorpusCli {
 
         int depthSamples = plan.depthSamples();
         for (SkyIslandLithologicAssemblageCell cell : plan.cells()) {
-            int[][] offsets = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+            int[][] offsets = {{1, 0, 0}, {0, 0, 1}};
             for (int[] offset : offsets) {
                 int x = cell.xIndex() + offset[0];
                 int d = cell.depthIndex() + offset[1];
@@ -392,7 +392,7 @@ public final class AuthorshipLithologicAssemblagesCorpusCli {
         double tx = gx - x0;
         double ty = gy - y0;
         double top = values[y0][x0] + (values[y0][x1] - values[y0][x0]) * tx;
-        double bottom = values[y1][x0] + (values[y1][x1] - values[y0][x0]) * tx;
+        double bottom = values[y1][x0] + (values[y1][x1] - values[y1][x0]) * tx;
         return top + (bottom - top) * ty;
     }
 
