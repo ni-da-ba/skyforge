@@ -51,6 +51,22 @@ final class SkyforgePhysicalVolumeCatchupService {
                 }
             }
 
+            // Production-facing composed cave obligations are serviced only after exact terrain
+            // catch-up has had a chance to complete for this tick. The stage maintains its own
+            // exact-volume idempotency ledger and reuses the already-selected native surface
+            // population biome identity. getChunkNow never creates a generation ticket.
+            if (level.dimension().equals(Level.OVERWORLD)) {
+                for (long chunkKey : SkyforgeComposedCavePopulationStage.eligibleChunkKeys()) {
+                    int chunkX = ChunkPos.getX(chunkKey);
+                    int chunkZ = ChunkPos.getZ(chunkKey);
+                    LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
+                    if (chunk == null) {
+                        continue;
+                    }
+                    SkyforgeComposedCavePopulationStage.populateDeferred(level, chunk, generator);
+                }
+            }
+
             // Biome identity is committed only after admission and only on stable chunks Minecraft
             // already loaded independently. The obligation includes the admission-triggering chunk,
             // which may never have needed terrain catch-up, as well as all earlier deferred chunks.
