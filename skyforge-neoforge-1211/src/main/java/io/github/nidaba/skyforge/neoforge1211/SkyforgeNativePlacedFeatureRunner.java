@@ -73,15 +73,6 @@ final class SkyforgeNativePlacedFeatureRunner {
         Objects.requireNonNull(operation, "operation");
 
         SurfaceProbe surface = findSurface(level, operation.originChunk(), operation);
-        if (operation.generationStep()
-                        == net.minecraft.world.level.levelgen.GenerationStep.Decoration.LAKES.ordinal()
-                && !SkyforgeNativeLakeAdmissionStage.supports(placedFeature.value())) {
-            // First LAKES capability admits the native bounded LakeFeature type generically by
-            // configured-feature class, never by registry ID. Unknown custom LAKES feature types
-            // remain fail-closed until they expose an equivalent whole-footprint contract.
-            return new Result(false, 0, null);
-        }
-
         try (var domain = SkyforgeGenerationDomainStage.openIsland(operation.volumeId());
                 var execution = SkyforgePopulationExecutionStage.open(
                         operation,
@@ -173,6 +164,15 @@ final class SkyforgeNativePlacedFeatureRunner {
         }
         if (!registryLocation.equals(operation.nativeDefinitionKey())) {
             throw new IllegalArgumentException("population operation key does not match PlacedFeature registry identity");
+        }
+
+        if (operation.generationStep()
+                        == net.minecraft.world.level.levelgen.GenerationStep.Decoration.LAKES.ordinal()
+                && !SkyforgeNativeLakeAdmissionStage.supports(placedFeature.value())) {
+            // First LAKES capability admits the native bounded LakeFeature type generically by
+            // configured-feature class, never by registry ID. Unknown custom LAKES feature types
+            // remain fail-closed until they expose an equivalent whole-footprint contract.
+            return new Result(false, 0, null);
         }
 
         try (var domain = SkyforgeGenerationDomainStage.openIsland(operation.volumeId());
