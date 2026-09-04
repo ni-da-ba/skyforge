@@ -179,8 +179,8 @@ final class SkyforgeAutomatedAcceptanceHarness {
 
     private static int radius() {
         int value = Integer.getInteger(RADIUS_PROPERTY, DEFAULT_RADIUS);
-        if (value < 0 || value > 8) {
-            throw new IllegalArgumentException("acceptance radius must be in [0,8], found " + value);
+        if (value < 0 || value > 12) {
+            throw new IllegalArgumentException("acceptance radius must be in [0,12], found " + value);
         }
         return value;
     }
