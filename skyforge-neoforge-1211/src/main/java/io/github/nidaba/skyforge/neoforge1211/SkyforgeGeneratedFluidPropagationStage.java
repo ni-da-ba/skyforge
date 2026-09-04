@@ -43,6 +43,8 @@ public final class SkyforgeGeneratedFluidPropagationStage {
     private static final String DATA_NAME = "skyforge_generated_fluid_provenance";
     private static final int MAX_TRACKED_POSITIONS = 250_000;
     private static final ThreadLocal<Context> ACTIVE = new ThreadLocal<>();
+    private static final ThreadLocal<Integer> CAPTURE_FLUID_TICK_DEPTH =
+            ThreadLocal.withInitial(() -> 0);
     private static final Map<ServerLevel, GeneratedFluidData> DATA_CACHE = new WeakHashMap<>();
     private static final Map<ServerLevel, Boolean> DATA_LOOKUP_COMPLETE = new WeakHashMap<>();
     private static final Map<ServerLevel, Map<SkyIslandWorldVolumeId, Counters>> COUNTERS =
@@ -91,7 +93,17 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         if (!(level instanceof ServerLevel serverLevel)) {
             return;
         }
-        if (ACTIVE.get() != null) {
+        Context active = ACTIVE.get();
+        if (active != null) {
+            if (active.mode() == Mode.CAPTURE && active.serverLevel() == serverLevel) {
+                // Deferred LevelChunk post-processing can synchronously tick a fluid created by the
+                // native feature before the population capture scope closes. The existing capture
+                // scope already supplies exact-volume ownership and schedule inheritance, so do
+                // not replace it with a second propagation scope. Balance this nesting in
+                // endFluidTick().
+                CAPTURE_FLUID_TICK_DEPTH.set(Math.addExact(CAPTURE_FLUID_TICK_DEPTH.get(), 1));
+                return;
+            }
             throw new IllegalStateException("nested Skyforge generated-fluid tick scopes are not supported");
         }
         GeneratedFluidData data = dataIfPresent(serverLevel);
@@ -117,6 +129,21 @@ public final class SkyforgeGeneratedFluidPropagationStage {
 
     /** Closes the propagation scope opened at the start of one generated FlowingFluid tick. */
     public static void endFluidTick() {
+        int captureDepth = CAPTURE_FLUID_TICK_DEPTH.get();
+        if (captureDepth > 0) {
+            if (captureDepth == 1) {
+                CAPTURE_FLUID_TICK_DEPTH.remove();
+            } else {
+                CAPTURE_FLUID_TICK_DEPTH.set(captureDepth - 1);
+            }
+            Context context = ACTIVE.get();
+            if (context == null || context.mode() != Mode.CAPTURE) {
+                throw new IllegalStateException(
+                        "generated-fluid nested capture tick outlived its population capture scope");
+            }
+            return;
+        }
+
         Context context = ACTIVE.get();
         if (context != null && context.mode() == Mode.PROPAGATION) {
             ACTIVE.remove();
@@ -451,6 +478,10 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             if (context != null) {
                 if (ACTIVE.get() != context) {
                     throw new IllegalStateException("generated-fluid scope changed before close");
+                }
+                if (context.mode() == Mode.CAPTURE && CAPTURE_FLUID_TICK_DEPTH.get() != 0) {
+                    throw new IllegalStateException(
+                            "generated-fluid population capture closed during a synchronous fluid tick");
                 }
                 ACTIVE.remove();
             }
