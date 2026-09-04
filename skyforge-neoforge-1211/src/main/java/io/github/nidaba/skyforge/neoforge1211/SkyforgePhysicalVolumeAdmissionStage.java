@@ -173,6 +173,32 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         return binding.ledger().snapshot(volumeId);
     }
 
+    /** Exact finite chunk footprint already owned by the physical-admission ledger. */
+    static Set<Long> requiredChunkKeys(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            throw new IllegalStateException("no physical Skyforge volume-admission stage is installed");
+        }
+        return binding.ledger().requiredChunkKeys(volumeId);
+    }
+
+    /** Whether one exact admitted volume/chunk still owes deferred terrain realization. */
+    static boolean hasPendingCatchup(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos chunkPos) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return false;
+        }
+        synchronized (binding) {
+            Map<Long, PendingRealization> byChunk = binding.pendingByVolume().get(volumeId);
+            return byChunk != null && byChunk.containsKey(chunkPos.toLong());
+        }
+    }
+
     /** Eligible deferred writes for one already-available chunk. Returned records remain pending. */
     static List<PendingRealization> eligibleCatchup(ChunkPos chunkPos) {
         Objects.requireNonNull(chunkPos, "chunkPos");
