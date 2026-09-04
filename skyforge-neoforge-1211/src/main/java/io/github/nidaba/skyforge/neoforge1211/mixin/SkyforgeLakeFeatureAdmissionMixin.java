@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * <p>Outside an explicit SF-IMP-0064 LAKES execution the admission stage is inactive and ordinary
  * Minecraft LakeFeature behavior is unchanged.
  */
+@SuppressWarnings("deprecation")
 @Mixin(LakeFeature.class)
 abstract class SkyforgeLakeFeatureAdmissionMixin {
     @Inject(
