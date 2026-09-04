@@ -159,6 +159,15 @@ final class SkyforgeAutomatedAcceptanceHarness {
                 "SKYFORGE AUTOMATED ACCEPTANCE FAIL: case=" + caseId() + ", reason=" + reason);
     }
 
+    static synchronized void failClientCase(String reason) {
+        Objects.requireNonNull(reason, "reason");
+        EVIDENCE.put("failure", reason);
+        complete("FAIL");
+        completionRequested = true;
+        throw new IllegalStateException(
+                "SKYFORGE AUTOMATED ACCEPTANCE CLIENT FAIL: case=" + caseId() + ", reason=" + reason);
+    }
+
     private static void warmOriginFootprint(ServerLevel level) {
         int radius = radius();
         for (int chunkX = -radius; chunkX <= radius; chunkX++) {
