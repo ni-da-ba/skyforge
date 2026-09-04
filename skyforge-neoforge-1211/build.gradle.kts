@@ -272,6 +272,47 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0063 native FLUID_SPRINGS proof. Each disposable server admits/carves the
+        // same high tableland, runs final-registry springs, closes population scope, then allows
+        // vanilla fluid ticks to propagate under persisted exact-volume provenance.
+        create("fluidSpringsAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0063-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.fluidSprings", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0063-fluid-springs-a")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0063/fluid-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("fluidSpringsAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0063-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.fluidSprings", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0063-fluid-springs-b")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0063/fluid-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -780,6 +821,100 @@ tasks.register("sfImp0062Acceptance") {
         "runNativeCarverAcceptanceLocalModificationRegression",
     )
     finalizedBy("sfImp0062AcceptanceVerify")
+}
+
+
+val sfImp0063AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0063")
+val sfImp0063AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=600063
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSfImp0063AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(sfImp0063AcceptanceServerProperties)
+}
+
+mapOf(
+    "runFluidSpringsAcceptanceA" to "run-sf-imp-0063-auto-a",
+    "runFluidSpringsAcceptanceB" to "run-sf-imp-0063-auto-b",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareSfImp0063AcceptanceServerDirectory(relativePath)
+        }
+    }
+}
+
+tasks.named("runFluidSpringsAcceptanceA").configure {
+    doFirst {
+        delete(sfImp0063AcceptanceResultDirectory)
+    }
+}
+tasks.named("runFluidSpringsAcceptanceB").configure {
+    mustRunAfter("runFluidSpringsAcceptanceA")
+}
+
+tasks.register("sfImp0063AcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic first-pass SF-IMP-0063 generated-fluid containment evidence."
+    doLast {
+        fun load(name: String): Properties {
+            val file = sfImp0063AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0063 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        val first = load("fluid-a")
+        val second = load("fluid-b")
+        check(first.getProperty("status") == "PASS" && second.getProperty("status") == "PASS") {
+            "SF-IMP-0063 runtime repeat did not report PASS: A=$first B=$second"
+        }
+        for (key in listOf("carveTransformDigest", "carveDigest", "springTransformDigest", "provenanceDigest")) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "SF-IMP-0063 deterministic evidence changed for $key: A=" +
+                    first.getProperty(key) + " B=" + second.getProperty(key)
+            }
+        }
+        check(first.getProperty("successfulFeatures").toInt() > 0
+                && first.getProperty("matchingPersistentFluids").toInt() > 0
+                && first.getProperty("propagationTicks").toLong() > 0
+                && first.getProperty("mappedOutsideVolume") == "0"
+                && first.getProperty("ordinaryVanillaFluidFlowed") == "true"
+                && first.getProperty("ordinaryVanillaFluidUntracked") == "true"
+                && first.getProperty("baseColumnsPreserved") == "true") {
+            "SF-IMP-0063 containment evidence is incomplete: $first"
+        }
+        println(
+            "SF-IMP-0063 FIRST-PASS ACCEPTANCE PASS: springTransformDigest="
+                + first.getProperty("springTransformDigest")
+                + ", provenanceDigest=" + first.getProperty("provenanceDigest")
+                + ", propagationTicks=" + first.getProperty("propagationTicks")
+                + ", matchingPersistentFluids=" + first.getProperty("matchingPersistentFluids"),
+        )
+    }
+}
+
+tasks.register("sfImp0063Acceptance") {
+    group = "verification"
+    description = "Run deterministic first-pass SF-IMP-0063 fluid-springs acceptance."
+    dependsOn(
+        "runFluidSpringsAcceptanceA",
+        "runFluidSpringsAcceptanceB",
+    )
+    finalizedBy("sfImp0063AcceptanceVerify")
 }
 
 dependencies {
