@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.GenerationStep;
+import net.minecraft.world.level.material.Fluids;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -86,6 +87,8 @@ final class SkyforgeNeoForge1211NativeLakesStackedDevRuntime {
         requireOwnerAdmission(upper, upperOrigin);
         requireForeignRejection(lower, upperOrigin);
         requireForeignRejection(upper, lowerOrigin);
+        proveProvenanceIsolation(level, lower.id(), upperOrigin, lowerOrigin, 3);
+        proveProvenanceIsolation(level, upper.id(), lowerOrigin, upperOrigin, 4);
 
         if (lowerOrigin.getY() == upperOrigin.getY()) {
             throw new IllegalStateException("SF-IMP-0064 stacked lake origins collapsed distinct Y domains");
@@ -98,6 +101,7 @@ final class SkyforgeNeoForge1211NativeLakesStackedDevRuntime {
                         + ", upperOrigin=" + upperOrigin
                         + ", ownerWholeFootprintAccepted=true"
                         + ", foreignWholeFootprintRejected=true"
+                        + ", provenanceVolumeIsolation=true"
                         + ", sameXZIndependent=true.");
 
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(
@@ -107,6 +111,7 @@ final class SkyforgeNeoForge1211NativeLakesStackedDevRuntime {
                         "upperOriginY", upperOrigin.getY(),
                         "ownerWholeFootprintAccepted", true,
                         "foreignWholeFootprintRejected", true,
+                        "provenanceVolumeIsolation", true,
                         "sameXZIndependent", true));
     }
 
@@ -145,6 +150,46 @@ final class SkyforgeNeoForge1211NativeLakesStackedDevRuntime {
             throw new IllegalStateException(
                     "SF-IMP-0064 stacked owner admitted foreign-volume lake footprint: owner="
                             + owner.id().path() + ", foreignOrigin=" + foreignOrigin);
+        }
+    }
+
+    private static void proveProvenanceIsolation(
+            ServerLevel level,
+            SkyIslandWorldVolumeId ownerId,
+            BlockPos foreignOrigin,
+            BlockPos ownerOrigin,
+            int ordinal) {
+        var operation = operation(ownerId, ordinal);
+        try (var capture = SkyforgeGeneratedFluidPropagationStage.openPopulation(level, operation)) {
+            capture.requireActive();
+            SkyforgeGeneratedFluidPropagationStage.observeScheduledTick(ownerOrigin, Fluids.LAVA);
+        }
+
+        boolean tracked = SkyforgeGeneratedFluidPropagationStage.trackedFluids(level, ownerId).stream()
+                .anyMatch(fluid -> fluid.position() == ownerOrigin.asLong());
+        if (!tracked) {
+            throw new IllegalStateException(
+                    "SF-IMP-0064 stacked proof failed to persist owner-local LAKES provenance");
+        }
+
+        SkyforgeGeneratedFluidPropagationStage.beginFluidTick(
+                level,
+                ownerOrigin,
+                Fluids.LAVA.defaultFluidState());
+        try {
+            if (!SkyforgeGeneratedFluidPropagationStage.propagationActive()
+                    || !SkyforgeGeneratedFluidPropagationStage.isVisible(ownerOrigin)
+                    || !SkyforgeGeneratedFluidPropagationStage.acceptWrite(ownerOrigin)) {
+                throw new IllegalStateException(
+                        "SF-IMP-0064 stacked LAKES provenance rejected owner terrain");
+            }
+            if (SkyforgeGeneratedFluidPropagationStage.isVisible(foreignOrigin)
+                    || SkyforgeGeneratedFluidPropagationStage.acceptWrite(foreignOrigin)) {
+                throw new IllegalStateException(
+                        "SF-IMP-0064 stacked LAKES provenance admitted a foreign volume");
+            }
+        } finally {
+            SkyforgeGeneratedFluidPropagationStage.endFluidTick();
         }
     }
 
