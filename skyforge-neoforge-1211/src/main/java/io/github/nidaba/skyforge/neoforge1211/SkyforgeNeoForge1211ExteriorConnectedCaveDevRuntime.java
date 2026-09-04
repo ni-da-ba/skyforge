@@ -120,6 +120,8 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime {
         int positive = 0;
         int basePositive = 0;
         int exposurePositive = 0;
+        int upperExposurePositive = 0;
+        int undersideExposurePositive = 0;
         int unsafe = 0;
         int mouthCells = 0;
         int changed = 0;
@@ -143,6 +145,10 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime {
             positive = Math.addExact(positive, result.positiveSamples());
             basePositive = Math.addExact(basePositive, result.basePositiveSamples());
             exposurePositive = Math.addExact(exposurePositive, result.exposurePositiveSamples());
+            upperExposurePositive = Math.addExact(
+                    upperExposurePositive, result.upperExposureSamples());
+            undersideExposurePositive = Math.addExact(
+                    undersideExposurePositive, result.undersideExposureSamples());
             unsafe = Math.addExact(unsafe, result.unsafePositiveSamples());
             mouthCells = Math.addExact(mouthCells, result.mouthCells());
             changed = Math.addExact(changed, result.changedBlocks());
@@ -161,6 +167,10 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime {
                 || exposurePositive <= 0
                 || unsafe != 0
                 || mouthCells <= 0
+                || upperExposurePositive + undersideExposurePositive != exposurePositive
+                || (mouthSide == SkyIslandCaveExposureSide.UPPER_SURFACE
+                        ? undersideExposurePositive != 0
+                        : upperExposurePositive != 0)
                 || changed != positive
                 || firstMouth == null
                 || mouthSide == null) {
@@ -185,7 +195,7 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime {
         }
 
         Connectivity connectivity = verifyConnectivity(level, firstMouth, chunks);
-        if (!connectivity.reachedBaseCave()) {
+        if (!connectivity.reachedBaseCave() || connectivity.basePosition() == null) {
             throw new IllegalStateException(
                     "SF-IMP-0066 mouth AIR component did not reach AUTH-0030 BASE_CAVE provenance");
         }
@@ -203,6 +213,8 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime {
                         + ", positiveSamples=" + positive
                         + ", basePositiveSamples=" + basePositive
                         + ", exposurePositiveSamples=" + exposurePositive
+                        + ", upperExposurePositiveSamples=" + upperExposurePositive
+                        + ", undersideExposurePositiveSamples=" + undersideExposurePositive
                         + ", unsafePositiveSamples=0"
                         + ", mouthCells=" + mouthCells
                         + ", changedBlocks=" + changed
@@ -211,6 +223,7 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime {
                         + ", mouth=" + firstMouth
                         + ", outwardExteriorAir=" + outward
                         + ", componentVisited=" + connectivity.visited()
+                        + ", componentBase=" + connectivity.basePosition()
                         + ", componentReachedBase=true"
                         + ", exactOwnerOnly=true.");
 
@@ -223,6 +236,8 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime {
                         java.util.Map.entry("positiveSamples", positive),
                         java.util.Map.entry("basePositiveSamples", basePositive),
                         java.util.Map.entry("exposurePositiveSamples", exposurePositive),
+                        java.util.Map.entry("upperExposurePositiveSamples", upperExposurePositive),
+                        java.util.Map.entry("undersideExposurePositiveSamples", undersideExposurePositive),
                         java.util.Map.entry("unsafePositiveSamples", 0),
                         java.util.Map.entry("mouthCells", mouthCells),
                         java.util.Map.entry("changedBlocks", changed),
@@ -234,6 +249,8 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime {
                         java.util.Map.entry("outwardState", level.getBlockState(outward).toString()),
                         java.util.Map.entry("componentReachedBase", true),
                         java.util.Map.entry("componentVisited", connectivity.visited()),
+                        java.util.Map.entry("baseCavePos", Long.toString(connectivity.basePosition().asLong())),
+                        java.util.Map.entry("baseCaveState", level.getBlockState(connectivity.basePosition()).toString()),
                         java.util.Map.entry("exactOwnerOnly", true)));
     }
 
@@ -253,7 +270,7 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime {
                 FIXTURE.field(),
                 new SkyIslandCompiledVolumeColumnField(FIXTURE.volume().compiledVolume()));
         var descriptor = FIXTURE.volume().compiledVolume().descriptor();
-        boolean reachedBase = false;
+        BlockPos basePosition = null;
 
         while (!queue.isEmpty()) {
             BlockPos position = queue.removeFirst();
@@ -275,7 +292,7 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime {
             }
             if (sample.sourceKind()
                     == SkyIslandExteriorConnectedCaveVolumeSample.SourceKind.BASE_CAVE) {
-                reachedBase = true;
+                basePosition = position.immutable();
                 break;
             }
 
@@ -286,7 +303,7 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime {
             queue.add(position.east());
             queue.add(position.west());
         }
-        return new Connectivity(reachedBase, visited.size());
+        return new Connectivity(basePosition != null, visited.size(), basePosition);
     }
 
     private static List<LevelChunk> loadedProofChunks(ServerLevel level) {
@@ -438,7 +455,10 @@ final class SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime {
         return mixed;
     }
 
-    private record Connectivity(boolean reachedBaseCave, int visited) {}
+    private record Connectivity(
+            boolean reachedBaseCave,
+            int visited,
+            BlockPos basePosition) {}
 
     private record CandidateSelection(
             long islandKey,
