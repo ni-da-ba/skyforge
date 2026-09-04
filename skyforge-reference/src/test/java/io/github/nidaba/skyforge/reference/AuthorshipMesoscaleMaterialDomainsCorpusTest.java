@@ -15,6 +15,17 @@ class AuthorshipMesoscaleMaterialDomainsCorpusTest {
         assertTrue(Files.isRegularFile(output.resolve("index.html")));
         assertTrue(Files.isRegularFile(output.resolve("atlas.png")));
         assertTrue(Files.isRegularFile(output.resolve("manifest.csv")));
-        assertTrue(Files.readString(output.resolve("manifest.csv")).lines().count() >= 7);
+        String manifest = Files.readString(output.resolve("manifest.csv"));
+        assertTrue(manifest.lines().count() >= 7);
+        String header = manifest.lines().findFirst().orElseThrow();
+        assertTrue(header.equals(
+                "role,islandKey,morphology,mineralCarriers,fabricCarriers,activeHostCells,"
+                        + "alteredDomains,alteredCells,largestAltered,alteredCoverage,"
+                        + "saturatedDomains,saturatedCells,largestSaturated,saturatedCoverage,"
+                        + "mineralizedDomains,mineralizedCells,largestMineralized,mineralizedCoverage,"
+                        + "fabricDomains,fabricCells,largestFabric,fabricCoverage"));
+        for (String line : manifest.lines().skip(1).toList()) {
+            assertTrue(line.split(",", -1).length == 22);
+        }
     }
 }
