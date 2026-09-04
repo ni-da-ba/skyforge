@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211.mixin;
 
+import io.github.nidaba.skyforge.neoforge1211.SkyforgeGeneratedFluidPropagationStage;
 import io.github.nidaba.skyforge.neoforge1211.SkyforgeWorldGenRegionDomainBridge;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -31,6 +32,11 @@ abstract class SkyforgeLevelDomainMixin {
     private void skyforge$readOwnedBlock(
             BlockPos position,
             CallbackInfoReturnable<BlockState> callback) {
+        if (SkyforgeGeneratedFluidPropagationStage.propagationActive()
+                && !SkyforgeGeneratedFluidPropagationStage.isVisible(position)) {
+            callback.setReturnValue(Blocks.BEDROCK.defaultBlockState());
+            return;
+        }
         if (SkyforgeWorldGenRegionDomainBridge.active()
                 && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
             callback.setReturnValue(Blocks.AIR.defaultBlockState());
@@ -44,6 +50,11 @@ abstract class SkyforgeLevelDomainMixin {
     private void skyforge$readOwnedFluid(
             BlockPos position,
             CallbackInfoReturnable<FluidState> callback) {
+        if (SkyforgeGeneratedFluidPropagationStage.propagationActive()
+                && !SkyforgeGeneratedFluidPropagationStage.isVisible(position)) {
+            callback.setReturnValue(Fluids.EMPTY.defaultFluidState());
+            return;
+        }
         if (SkyforgeWorldGenRegionDomainBridge.active()
                 && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
             callback.setReturnValue(Fluids.EMPTY.defaultFluidState());
@@ -81,9 +92,26 @@ abstract class SkyforgeLevelDomainMixin {
             int flags,
             int recursionLeft,
             CallbackInfoReturnable<Boolean> callback) {
-        if (!SkyforgeWorldGenRegionDomainBridge.acceptWrite(position)) {
+        if (!SkyforgeGeneratedFluidPropagationStage.acceptWrite(position)
+                || !SkyforgeWorldGenRegionDomainBridge.acceptWrite(position)) {
             callback.setReturnValue(false);
         }
+    }
+
+    @Inject(
+            method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
+            at = @At("RETURN"))
+    private void skyforge$observeGeneratedFluidWrite(
+            BlockPos position,
+            BlockState state,
+            int flags,
+            int recursionLeft,
+            CallbackInfoReturnable<Boolean> callback) {
+        SkyforgeGeneratedFluidPropagationStage.observeCommittedBlockWrite(
+                (Level) (Object) this,
+                position,
+                state,
+                Boolean.TRUE.equals(callback.getReturnValue()));
     }
 
     @Inject(
@@ -94,7 +122,8 @@ abstract class SkyforgeLevelDomainMixin {
             BlockPos position,
             boolean move,
             CallbackInfoReturnable<Boolean> callback) {
-        if (!SkyforgeWorldGenRegionDomainBridge.acceptWrite(position)) {
+        if (!SkyforgeGeneratedFluidPropagationStage.acceptWrite(position)
+                || !SkyforgeWorldGenRegionDomainBridge.acceptWrite(position)) {
             callback.setReturnValue(false);
         }
     }
