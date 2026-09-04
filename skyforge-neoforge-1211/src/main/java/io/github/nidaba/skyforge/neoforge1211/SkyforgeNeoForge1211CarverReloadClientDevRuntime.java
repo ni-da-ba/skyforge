@@ -13,7 +13,9 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 final class SkyforgeNeoForge1211CarverReloadClientDevRuntime {
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeNeoForge1211CarverReloadClientDevRuntime.class.getName());
+    private static final long CLIENT_TIMEOUT_NANOS = 90_000_000_000L;
     private static boolean proofComplete;
+    private static long firstClientTickNanos = Long.MIN_VALUE;
 
     private SkyforgeNeoForge1211CarverReloadClientDevRuntime() {}
 
@@ -21,6 +23,14 @@ final class SkyforgeNeoForge1211CarverReloadClientDevRuntime {
     static void onClientTick(ClientTickEvent.Post event) {
         if (proofComplete || !SkyforgeNeoForge1211CarverReloadDevRuntime.enabled()) {
             return;
+        }
+        if (firstClientTickNanos == Long.MIN_VALUE) {
+            firstClientTickNanos = System.nanoTime();
+        }
+        if (SkyforgeAutomatedAcceptanceHarness.clientMode()
+                && System.nanoTime() - firstClientTickNanos > CLIENT_TIMEOUT_NANOS) {
+            SkyforgeAutomatedAcceptanceHarness.failClientCase(
+                    "reload quick-play client did not reach persisted-world verification within 90 seconds");
         }
         var expectation = SkyforgeNeoForge1211CarverReloadDevRuntime.clientExpectation();
         if (expectation == null) {
