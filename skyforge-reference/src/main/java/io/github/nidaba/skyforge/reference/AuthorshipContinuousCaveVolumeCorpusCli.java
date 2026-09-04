@@ -32,9 +32,9 @@ public final class AuthorshipContinuousCaveVolumeCorpusCli {
     private static final int HEADER = 70;
     private static final int SPECIMEN_WIDTH = 4 * MAP;
     private static final int SPECIMEN_HEIGHT = HEADER + MAP;
-    private static final int PROJECTION_SAMPLES = 17;
-    private static final int GRID_XZ = 37;
-    private static final int GRID_DEPTH = 19;
+    private static final int PROJECTION_SAMPLES = 73;
+    private static final int GRID_XZ = 73;
+    private static final int GRID_DEPTH = 37;
 
     private static final Color OUTSIDE = Color.WHITE;
     private static final Color OWNED = new Color(241, 241, 237);
