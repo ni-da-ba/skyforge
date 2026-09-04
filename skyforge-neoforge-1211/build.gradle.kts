@@ -400,6 +400,48 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // Full-stop/client reload of the actual B lake world. Reuse the accepted generic
+        // generated-fluid provenance verifier: no lake/admission rerun is installed.
+        create("nativeLakesAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0064-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.fluidSpringsReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0064-native-lakes-reload")
+            systemProperty(
+                "skyforge.dev.fluidSpringsExpectedResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0064/lakes-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0064/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("nativeLakesAcceptanceStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0064-auto-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.nativeLakesStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0064-native-lakes-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0064/stacked.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -1140,6 +1182,7 @@ fun prepareSfImp0064AcceptanceServerDirectory(relativePath: String) {
 mapOf(
     "runNativeLakesAcceptanceA" to "run-sf-imp-0064-auto-a",
     "runNativeLakesAcceptanceB" to "run-sf-imp-0064-auto-b",
+    "runNativeLakesAcceptanceStacked" to "run-sf-imp-0064-auto-stacked",
 ).forEach { (taskName, relativePath) ->
     tasks.named(taskName).configure {
         doFirst {
@@ -1156,6 +1199,19 @@ tasks.named("runNativeLakesAcceptanceA").configure {
 tasks.named("runNativeLakesAcceptanceB").configure {
     mustRunAfter("runNativeLakesAcceptanceA")
 }
+tasks.named("runNativeLakesAcceptanceReloadClient").configure {
+    mustRunAfter("runNativeLakesAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-sf-imp-0064-auto-b").asFile
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+tasks.named("runNativeLakesAcceptanceStacked").configure {
+    mustRunAfter("runNativeLakesAcceptanceReloadClient")
+}
 
 tasks.register("sfImp0064AcceptanceVerify") {
     group = "verification"
@@ -1167,10 +1223,44 @@ tasks.register("sfImp0064AcceptanceVerify") {
             return Properties().also { properties -> file.inputStream().use(properties::load) }
         }
 
+        fun load0063(name: String): Properties {
+            val file = sfImp0063AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0063 regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+        fun load0062(name: String): Properties {
+            val file = sfImp0062AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0062 regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+        fun load0061(name: String): Properties {
+            val file = sfImp0061AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing inherited regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
         val first = load("lakes-a")
         val second = load("lakes-b")
-        check(first.getProperty("status") == "PASS" && second.getProperty("status") == "PASS") {
-            "SF-IMP-0064 runtime repeat did not report PASS: A=$first B=$second"
+        val reload = load("reload")
+        val stacked = load("stacked")
+        val springs = load0063("fluid-a")
+        val decoration = load0062("decoration-a")
+        val carver = load0061("carver-a")
+        val ore = load0061("ore-regression")
+        val localModification = load0061("local-modification-regression")
+
+        for ((name, result) in listOf(
+            "lakes-a" to first,
+            "lakes-b" to second,
+            "reload" to reload,
+            "stacked" to stacked,
+            "sf-imp-0063-springs" to springs,
+            "sf-imp-0062-decoration" to decoration,
+            "sf-imp-0061-carver" to carver,
+            "sf-imp-0059-ore" to ore,
+            "sf-imp-0060-local-modification" to localModification,
+        )) {
+            check(result.getProperty("status") == "PASS") { "$name did not report PASS: $result" }
         }
         for (key in listOf("admissionDigest", "transformDigest", "provenanceDigest")) {
             check(first.getProperty(key) == second.getProperty(key)) {
@@ -1190,24 +1280,97 @@ tasks.register("sfImp0064AcceptanceVerify") {
                 && first.getProperty("baseColumnsPreserved") == "true") {
             "SF-IMP-0064 first-pass lake evidence is incomplete: $first"
         }
+
+        check(first.getProperty("admissionDigest") == "9b568d83c71c5d04"
+                && first.getProperty("transformDigest") == "13c87b04bebea8ea"
+                && first.getProperty("provenanceDigest") == "f35dcb47fa1a38ef"
+                && first.getProperty("attemptedFeatures") == "42"
+                && first.getProperty("successfulFeatures") == "1"
+                && first.getProperty("configuredLakeAttempts") == "1"
+                && first.getProperty("admittedConfiguredLakes") == "1"
+                && first.getProperty("placementChangedBlocks") == "340"
+                && first.getProperty("finalTrackedLakeFluids") == "56"
+                && first.getProperty("matchingPersistentFluids") == "56"
+                && first.getProperty("propagationTicks") == "56") {
+            "SF-IMP-0064 stable native-lake invariants changed: $first"
+        }
+
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("persistedFluidPos") == first.getProperty("sampleFluidPos")
+                && reload.getProperty("clientFluidPos") == first.getProperty("sampleFluidPos")
+                && reload.getProperty("reloadPropagationTicks").toLong() > 0
+                && reload.getProperty("persistedTrackedPositions").toInt() > 0) {
+            "SF-IMP-0064 lake save/reload provenance or ClientLevel evidence failed: $reload"
+        }
+
+        check(stacked.getProperty("ownerWholeFootprintAccepted") == "true"
+                && stacked.getProperty("foreignWholeFootprintRejected") == "true"
+                && stacked.getProperty("sameXZIndependent") == "true"
+                && stacked.getProperty("lowerOriginY") != stacked.getProperty("upperOriginY")) {
+            "SF-IMP-0064 stacked whole-lake isolation failed: $stacked"
+        }
+
+        check(springs.getProperty("springTransformDigest") == "c8103b2012e79269"
+                && springs.getProperty("provenanceDigest") == "2aa9b41371236b93"
+                && springs.getProperty("successfulFeatures") == "7"
+                && springs.getProperty("mappedOutsideVolume") == "0"
+                && springs.getProperty("baseColumnsPreserved") == "true") {
+            "SF-IMP-0063 regression gate failed: $springs"
+        }
+        check(decoration.getProperty("decorationDigest") == "ce242ec84fb8ccfc"
+                && decoration.getProperty("successfulFeatures") == "33"
+                && decoration.getProperty("changedCarvedAir") == "2031"
+                && decoration.getProperty("mappedOutsideVolume") == "0") {
+            "SF-IMP-0062 regression gate failed: $decoration"
+        }
+        check(carver.getProperty("transformDigest") == "e97b5e7ee026c422"
+                && carver.getProperty("carveDigest") == "61f96a61f81c9b55"
+                && carver.getProperty("mappedOutsideTarget") == "0"
+                && carver.getProperty("baseColumnPreserved") == "true") {
+            "SF-IMP-0061 regression gate failed: $carver"
+        }
+        check(ore.getProperty("transformDigest") == "3397c516a115d6e4"
+                && ore.getProperty("mappedOutsideVolume") == "0"
+                && ore.getProperty("baseColumnPreserved") == "true") {
+            "SF-IMP-0059 regression gate failed: $ore"
+        }
+        check(localModification.getProperty("transformDigest") == "4fe92d09d07f8002"
+                && localModification.getProperty("mappedOutsideVolume") == "0"
+                && localModification.getProperty("baseColumnsPreserved") == "true") {
+            "SF-IMP-0060 regression gate failed: $localModification"
+        }
         println(
-            "SF-IMP-0064 FIRST-PASS ACCEPTANCE PASS: admissionDigest="
+            "SF-IMP-0064 AUTOMATED ACCEPTANCE PASS: admissionDigest="
                 + first.getProperty("admissionDigest")
                 + ", transformDigest=" + first.getProperty("transformDigest")
                 + ", provenanceDigest=" + first.getProperty("provenanceDigest")
                 + ", admitted=" + first.getProperty("admittedConfiguredLakes")
                 + ", rejected=" + first.getProperty("rejectedConfiguredLakes")
-                + ", changed=" + first.getProperty("placementChangedBlocks"),
+                + ", changed=" + first.getProperty("placementChangedBlocks")
+                + ", reloadServerClient=true, stackedIsolation=true"
+                + ", sfImp0063Digest=" + springs.getProperty("springTransformDigest")
+                + ", sfImp0062Digest=" + decoration.getProperty("decorationDigest")
+                + ", sfImp0061Digest=" + carver.getProperty("transformDigest")
+                + ", sfImp0059Digest=" + ore.getProperty("transformDigest")
+                + ", sfImp0060Digest=" + localModification.getProperty("transformDigest"),
         )
     }
 }
 
 tasks.register("sfImp0064Acceptance") {
     group = "verification"
-    description = "Run deterministic first-pass SF-IMP-0064 native lakes acceptance."
+    description = "Run complete deterministic SF-IMP-0064 native lakes acceptance."
     dependsOn(
         "runNativeLakesAcceptanceA",
         "runNativeLakesAcceptanceB",
+        "runNativeLakesAcceptanceReloadClient",
+        "runNativeLakesAcceptanceStacked",
+        "runFluidSpringsAcceptanceA",
+        "runUndergroundDecorationAcceptanceA",
+        "runNativeCarverAcceptanceA",
+        "runNativeCarverAcceptanceOreRegression",
+        "runNativeCarverAcceptanceLocalModificationRegression",
     )
     finalizedBy("sfImp0064AcceptanceVerify")
 }
