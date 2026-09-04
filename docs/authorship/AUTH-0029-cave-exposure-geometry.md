@@ -75,6 +75,8 @@ A route that leaves authored island ownership is rejected before geological scor
 
 AUTH-0029 evaluates each candidate through AUTH-0022 continuous geology.
 
+Samples nearer the exterior boundary receive greater route-selection weight than samples near the already-accepted cave anchor. This is deliberate: all candidates share nearly the same cave-side origin, while the authorship choice AUTH-0029 is actually making is how that cave reaches the exterior.
+
 Upper-surface routes favor:
 
 - fracture intensity;
