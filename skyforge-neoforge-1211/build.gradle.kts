@@ -606,6 +606,47 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0067 native-first/authored-last composed cave proof.
+        create("composedCaveAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0067-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.composedCave", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0067-composed-cave-a")
+            systemProperty("skyforge.dev.acceptanceRadius", "6")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0067/composed-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("composedCaveAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0067-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.composedCave", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0067-composed-cave-b")
+            systemProperty("skyforge.dev.acceptanceRadius", "6")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0067/composed-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -2018,6 +2059,115 @@ tasks.register("sfImp0066Acceptance") {
         "runNativeCarverAcceptanceLocalModificationRegression",
     )
     finalizedBy("sfImp0066AcceptanceVerify")
+}
+
+val sfImp0067AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0067")
+val sfImp0067AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=600067
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=7
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSfImp0067AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(sfImp0067AcceptanceServerProperties)
+}
+
+mapOf(
+    "runComposedCaveAcceptanceA" to "run-sf-imp-0067-auto-a",
+    "runComposedCaveAcceptanceB" to "run-sf-imp-0067-auto-b",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareSfImp0067AcceptanceServerDirectory(relativePath)
+        }
+    }
+}
+
+tasks.named("runComposedCaveAcceptanceA").configure {
+    doFirst {
+        delete(sfImp0067AcceptanceResultDirectory)
+    }
+}
+tasks.named("runComposedCaveAcceptanceB").configure {
+    mustRunAfter("runComposedCaveAcceptanceA")
+}
+
+tasks.register("sfImp0067AcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic first-pass SF-IMP-0067 native/authored cave union evidence."
+    doLast {
+        fun load(name: String): Properties {
+            val file = sfImp0067AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0067 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        val first = load("composed-a")
+        val second = load("composed-b")
+        check(first.getProperty("status") == "PASS" && second.getProperty("status") == "PASS") {
+            "SF-IMP-0067 composed-cave repeat did not report PASS: A=$first B=$second"
+        }
+        for (key in listOf(
+            "nativeTransformDigest",
+            "nativeCarveDigest",
+            "authoredChangedDigest",
+            "authoredProvenanceDigest",
+            "composedDigest",
+        )) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "SF-IMP-0067 deterministic evidence changed for $key: A="
+                    + first.getProperty(key) + " B=" + second.getProperty(key)
+            }
+        }
+        check(first.getProperty("islandKey") == "653"
+                && first.getProperty("nativeBiome") == "minecraft:taiga"
+                && first.getProperty("nativeChangedBlocks").toInt() > 0
+                && first.getProperty("nativeSuccessfulCalls").toInt() > 0
+                && first.getProperty("nativeOnlyAir").toInt() > 0
+                && first.getProperty("nativeMappedOutsideTarget") == "0"
+                && first.getProperty("authoredPositive") == "89068"
+                && first.getProperty("authoredBasePositive") == "78030"
+                && first.getProperty("authoredExposurePositive") == "11038"
+                && first.getProperty("authoredUnsafe") == "0"
+                && first.getProperty("finalAuthoredAir") == "89068"
+                && first.getProperty("baseWorldPreserved") == "true"
+                && first.getProperty("finalUnion") == "true") {
+            "SF-IMP-0067 first-pass composed-cave evidence is incomplete: $first"
+        }
+
+        println(
+            "SF-IMP-0067 FIRST-PASS ACCEPTANCE PASS: nativeTransformDigest="
+                + first.getProperty("nativeTransformDigest")
+                + ", nativeCarveDigest=" + first.getProperty("nativeCarveDigest")
+                + ", authoredChangedDigest=" + first.getProperty("authoredChangedDigest")
+                + ", authoredProvenanceDigest=" + first.getProperty("authoredProvenanceDigest")
+                + ", composedDigest=" + first.getProperty("composedDigest")
+                + ", nativeOnlyAir=" + first.getProperty("nativeOnlyAir")
+                + ", nativeAuthoredAirOverlap=" + first.getProperty("nativeAuthoredAirOverlap"),
+        )
+    }
+}
+
+tasks.register("sfImp0067Acceptance") {
+    group = "verification"
+    description = "Run deterministic first-pass SF-IMP-0067 native/authored cave union acceptance."
+    dependsOn(
+        "runComposedCaveAcceptanceA",
+        "runComposedCaveAcceptanceB",
+    )
+    finalizedBy("sfImp0067AcceptanceVerify")
 }
 
 dependencies {
