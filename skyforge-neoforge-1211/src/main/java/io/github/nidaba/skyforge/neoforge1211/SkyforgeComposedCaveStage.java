@@ -64,7 +64,7 @@ final class SkyforgeComposedCaveStage {
                     SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(volumeId));
             chunkKeys.sort(Comparator
                     .comparingInt((Long key) -> ChunkPos.getX(key))
-                    .thenComparingInt(ChunkPos::getZ));
+                    .thenComparingInt(key -> ChunkPos.getZ(key)));
             for (long chunkKey : chunkKeys) {
                 ObligationKey key = new ObligationKey(volumeId, chunkKey);
                 Obligation previous = obligations.put(
