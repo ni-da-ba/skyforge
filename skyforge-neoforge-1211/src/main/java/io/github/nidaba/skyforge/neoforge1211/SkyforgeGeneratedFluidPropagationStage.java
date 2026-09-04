@@ -25,8 +25,8 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.saveddata.SavedData;
 
 /**
- * Persistent provenance and asynchronous exact-volume fence for fluids created by native
- * {@code FLUID_SPRINGS} population.
+ * Persistent provenance and asynchronous exact-volume fence for fluids created by admitted native
+ * {@code FLUID_SPRINGS} or {@code LAKES} population.
  *
  * <p>Synchronous spring feature execution remains governed by the existing population execution
  * scope. This stage records only fluid states/ticks produced while that explicitly admitted phase
@@ -53,14 +53,17 @@ public final class SkyforgeGeneratedFluidPropagationStage {
 
     private SkyforgeGeneratedFluidPropagationStage() {}
 
-    /** Opens schedule/write capture only for one admitted native FLUID_SPRINGS operation. */
+    /** Opens schedule/write capture only for admitted native FLUID_SPRINGS / LAKES operations. */
     static Scope openPopulation(
             WorldGenLevel level,
             SkyforgePopulationOperation operation) {
         Objects.requireNonNull(level, "level");
         Objects.requireNonNull(operation, "operation");
-        if (operation.generationStep()
-                != net.minecraft.world.level.levelgen.GenerationStep.Decoration.FLUID_SPRINGS.ordinal()) {
+        int generationStep = operation.generationStep();
+        if (generationStep
+                        != net.minecraft.world.level.levelgen.GenerationStep.Decoration.FLUID_SPRINGS.ordinal()
+                && generationStep
+                        != net.minecraft.world.level.levelgen.GenerationStep.Decoration.LAKES.ordinal()) {
             return Scope.inactive();
         }
         if (ACTIVE.get() != null) {
