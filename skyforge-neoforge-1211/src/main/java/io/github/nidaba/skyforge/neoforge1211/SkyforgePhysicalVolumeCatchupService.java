@@ -51,6 +51,19 @@ final class SkyforgePhysicalVolumeCatchupService {
                 }
             }
 
+            // Composed caves are a post-terrain exact-volume obligation. The stage itself gates on
+            // whole-volume admission and on the absence of deferred terrain for the same
+            // volume/chunk. getChunkNow preserves the no-ticket lifecycle contract.
+            for (long chunkKey : SkyforgeComposedCaveStage.pendingChunkKeys()) {
+                int chunkX = ChunkPos.getX(chunkKey);
+                int chunkZ = ChunkPos.getZ(chunkKey);
+                LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
+                if (chunk == null) {
+                    continue;
+                }
+                SkyforgeComposedCaveStage.service(level, chunk, generator);
+            }
+
             // Biome identity is committed only after admission and only on stable chunks Minecraft
             // already loaded independently. The obligation includes the admission-triggering chunk,
             // which may never have needed terrain catch-up, as well as all earlier deferred chunks.
