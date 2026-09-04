@@ -139,7 +139,7 @@ public final class AuthorshipNaturalizedDomainCorpusCli {
         centered(g, "NATURALIZED DOMAIN", MAP, MAP, 50);
         centered(g, "MORPHOLOGY IN DOMAIN", 2 * MAP, MAP, 50);
 
-        SkyIslandSemanticFieldSet semantic = SkyIslandSemanticFieldSet.create(descriptor);
+        SkyIslandSemanticFieldSet semantic = SkyIslandSemanticFieldSet.createLegacyCircular(descriptor);
         double radius = descriptor.nominalRadius();
         double extent = radius * 1.04;
 
