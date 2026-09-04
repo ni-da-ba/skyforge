@@ -39,36 +39,35 @@ public record SkyIslandSemanticMaterialPaletteSelection(
                 throw new IllegalArgumentException(
                         "non-material palette selection must contain empty provenance and candidates");
             }
-            return;
-        }
-
-        if (localAssemblageId < 0 || localAssemblageKind == null) {
-            throw new IllegalArgumentException(
-                    "material palette selection requires local assemblage provenance");
-        }
-        if ((contactId < 0) != (contactKind == null)) {
-            throw new IllegalArgumentException(
-                    "contact id and kind must either both be present or both be absent");
-        }
-
-        EnumSet<SkyIslandSemanticMaterialPaletteRole> roles =
-                EnumSet.noneOf(SkyIslandSemanticMaterialPaletteRole.class);
-        int required = 0;
-        for (SkyIslandSemanticMaterialPaletteCandidate candidate : candidates) {
-            if (!roles.add(candidate.role())) {
-                throw new IllegalArgumentException("palette roles must be unique per selection");
+        } else {
+            if (localAssemblageId < 0 || localAssemblageKind == null) {
+                throw new IllegalArgumentException(
+                        "material palette selection requires local assemblage provenance");
             }
-            if (candidate.required()) {
-                required++;
+            if ((contactId < 0) != (contactKind == null)) {
+                throw new IllegalArgumentException(
+                        "contact id and kind must either both be present or both be absent");
             }
-        }
-        if (required != 1
-                || !roles.contains(SkyIslandSemanticMaterialPaletteRole.PRIMARY_MATRIX)) {
-            throw new IllegalArgumentException(
-                    "material palette selection requires exactly one required PRIMARY_MATRIX");
-        }
-        if (candidates.size() > SkyIslandSemanticMaterialPaletteRole.values().length) {
-            throw new IllegalArgumentException("too many semantic palette candidates");
+
+            EnumSet<SkyIslandSemanticMaterialPaletteRole> roles =
+                    EnumSet.noneOf(SkyIslandSemanticMaterialPaletteRole.class);
+            int required = 0;
+            for (SkyIslandSemanticMaterialPaletteCandidate candidate : candidates) {
+                if (!roles.add(candidate.role())) {
+                    throw new IllegalArgumentException("palette roles must be unique per selection");
+                }
+                if (candidate.required()) {
+                    required++;
+                }
+            }
+            if (required != 1
+                    || !roles.contains(SkyIslandSemanticMaterialPaletteRole.PRIMARY_MATRIX)) {
+                throw new IllegalArgumentException(
+                        "material palette selection requires exactly one required PRIMARY_MATRIX");
+            }
+            if (candidates.size() > SkyIslandSemanticMaterialPaletteRole.values().length) {
+                throw new IllegalArgumentException("too many semantic palette candidates");
+            }
         }
     }
 
