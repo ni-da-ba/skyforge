@@ -485,6 +485,46 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        create("authoredCaveAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0065-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.authoredCaveReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0065-authored-cave-reload")
+            systemProperty(
+                "skyforge.dev.authoredCaveExpectedResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0065/cave-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0065/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("authoredCaveAcceptanceStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0065-auto-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.authoredCaveStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0065-authored-cave-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0065/stacked.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -1445,6 +1485,7 @@ fun prepareSfImp0065AcceptanceServerDirectory(relativePath: String) {
 mapOf(
     "runAuthoredCaveAcceptanceA" to "run-sf-imp-0065-auto-a",
     "runAuthoredCaveAcceptanceB" to "run-sf-imp-0065-auto-b",
+    "runAuthoredCaveAcceptanceStacked" to "run-sf-imp-0065-auto-stacked",
 ).forEach { (taskName, relativePath) ->
     tasks.named(taskName).configure {
         doFirst {
@@ -1461,6 +1502,19 @@ tasks.named("runAuthoredCaveAcceptanceA").configure {
 tasks.named("runAuthoredCaveAcceptanceB").configure {
     mustRunAfter("runAuthoredCaveAcceptanceA")
 }
+tasks.named("runAuthoredCaveAcceptanceReloadClient").configure {
+    mustRunAfter("runAuthoredCaveAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-sf-imp-0065-auto-b").asFile
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+tasks.named("runAuthoredCaveAcceptanceStacked").configure {
+    mustRunAfter("runAuthoredCaveAcceptanceReloadClient")
+}
 
 tasks.register("sfImp0065AcceptanceVerify") {
     group = "verification"
@@ -1472,8 +1526,53 @@ tasks.register("sfImp0065AcceptanceVerify") {
             return Properties().also { properties -> file.inputStream().use(properties::load) }
         }
 
+        fun load0064(name: String): Properties {
+            val file = sfImp0064AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0064 regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+        fun load0063(name: String): Properties {
+            val file = sfImp0063AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0063 regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+        fun load0062(name: String): Properties {
+            val file = sfImp0062AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0062 regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+        fun load0061(name: String): Properties {
+            val file = sfImp0061AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing inherited regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
         val first = load("cave-a")
         val second = load("cave-b")
+        val reload = load("reload")
+        val stacked = load("stacked")
+        val lakes = load0064("lakes-a")
+        val springs = load0063("fluid-a")
+        val decoration = load0062("decoration-a")
+        val carver = load0061("carver-a")
+        val ore = load0061("ore-regression")
+        val localModification = load0061("local-modification-regression")
+
+        for ((name, result) in listOf(
+            "cave-a" to first,
+            "cave-b" to second,
+            "reload" to reload,
+            "stacked" to stacked,
+            "sf-imp-0064-lakes" to lakes,
+            "sf-imp-0063-springs" to springs,
+            "sf-imp-0062-decoration" to decoration,
+            "sf-imp-0061-carver" to carver,
+            "sf-imp-0059-ore" to ore,
+            "sf-imp-0060-local-modification" to localModification,
+        )) {
+            check(result.getProperty("status") == "PASS") { "$name did not report PASS: $result" }
+        }
+
         check(first.getProperty("status") == "PASS" && second.getProperty("status") == "PASS") {
             "SF-IMP-0065 authored-cave repeat did not report PASS: A=$first B=$second"
         }
@@ -1484,34 +1583,105 @@ tasks.register("sfImp0065AcceptanceVerify") {
             }
         }
         check(first.getProperty("islandKey") == "1439"
-                && first.getProperty("positiveAuthoredSamples").toInt() > 0
-                && first.getProperty("ownerAuthorizedSamples")
-                    == first.getProperty("positiveAuthoredSamples")
-                && first.getProperty("changedBlocks")
-                    == first.getProperty("positiveAuthoredSamples")
+                && first.getProperty("positiveAuthoredSamples") == "27379"
+                && first.getProperty("ownerAuthorizedSamples") == "27379"
+                && first.getProperty("changedBlocks") == "27379"
                 && first.getProperty("unsafePositiveSamples") == "0"
+                && first.getProperty("changedDigest") == "5e80ba344cffe29"
+                && first.getProperty("provenanceDigest") == "eabea7e356033e45"
                 && first.getProperty("sealed") == "true"
                 && first.getProperty("baseWorldPreserved") == "true"
                 && first.getProperty("sampleCaveState") == "Block{minecraft:air}"
-                && first.getProperty("samplePrimitiveKind") == "CHAMBER") {
-            "SF-IMP-0065 first-pass authored-cave evidence is incomplete: $first"
+                && first.getProperty("sampleSystemId") == "0"
+                && first.getProperty("samplePrimitiveKind") == "CHAMBER"
+                && first.getProperty("samplePrimitiveId") == "0") {
+            "SF-IMP-0065 stable authored-cave evidence changed: $first"
         }
+
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("persistedCavePos") == first.getProperty("sampleCavePos")
+                && reload.getProperty("clientCavePos") == first.getProperty("sampleCavePos")
+                && reload.getProperty("persistedCaveState") == "Block{minecraft:air}"
+                && reload.getProperty("clientCaveState") == "Block{minecraft:air}"
+                && reload.getProperty("persistedSolidControlState")
+                    == first.getProperty("solidControlState")) {
+            "SF-IMP-0065 save/reload or ClientLevel persistence failed: $reload"
+        }
+
+        check(stacked.getProperty("sameXZIndependent") == "true"
+                && stacked.getProperty("foreignVolumePreserved") == "true"
+                && stacked.getProperty("unsafeLower") == "0"
+                && stacked.getProperty("unsafeUpper") == "0"
+                && stacked.getProperty("lowerChanged").toInt() > 0
+                && stacked.getProperty("upperChanged").toInt() > 0
+                && stacked.getProperty("lowerCenterY") != stacked.getProperty("upperCenterY")) {
+            "SF-IMP-0065 stacked authored-cave isolation failed: $stacked"
+        }
+
+        check(lakes.getProperty("admissionDigest") == "9b568d83c71c5d04"
+                && lakes.getProperty("transformDigest") == "13c87b04bebea8ea"
+                && lakes.getProperty("provenanceDigest") == "f35dcb47fa1a38ef"
+                && lakes.getProperty("placementChangedBlocks") == "340"
+                && lakes.getProperty("changedRejectedOnly") == "0") {
+            "SF-IMP-0064 regression gate failed: $lakes"
+        }
+        check(springs.getProperty("springTransformDigest") == "c8103b2012e79269"
+                && springs.getProperty("provenanceDigest") == "2aa9b41371236b93"
+                && springs.getProperty("successfulFeatures") == "7"
+                && springs.getProperty("mappedOutsideVolume") == "0") {
+            "SF-IMP-0063 regression gate failed: $springs"
+        }
+        check(decoration.getProperty("decorationDigest") == "ce242ec84fb8ccfc"
+                && decoration.getProperty("successfulFeatures") == "33"
+                && decoration.getProperty("changedCarvedAir") == "2031"
+                && decoration.getProperty("mappedOutsideVolume") == "0") {
+            "SF-IMP-0062 regression gate failed: $decoration"
+        }
+        check(carver.getProperty("transformDigest") == "e97b5e7ee026c422"
+                && carver.getProperty("carveDigest") == "61f96a61f81c9b55"
+                && carver.getProperty("mappedOutsideTarget") == "0") {
+            "SF-IMP-0061 regression gate failed: $carver"
+        }
+        check(ore.getProperty("transformDigest") == "3397c516a115d6e4"
+                && ore.getProperty("mappedOutsideVolume") == "0") {
+            "SF-IMP-0059 regression gate failed: $ore"
+        }
+        check(localModification.getProperty("transformDigest") == "4fe92d09d07f8002"
+                && localModification.getProperty("mappedOutsideVolume") == "0") {
+            "SF-IMP-0060 regression gate failed: $localModification"
+        }
+
         println(
-            "SF-IMP-0065 FIRST-PASS ACCEPTANCE PASS: changedDigest="
+            "SF-IMP-0065 AUTOMATED ACCEPTANCE PASS: changedDigest="
                 + first.getProperty("changedDigest")
                 + ", provenanceDigest=" + first.getProperty("provenanceDigest")
                 + ", changedBlocks=" + first.getProperty("changedBlocks")
-                + ", proofChunks=" + first.getProperty("proofChunks"),
+                + ", reloadServerClient=true, stackedIsolation=true"
+                + ", sfImp0064Digest=" + lakes.getProperty("admissionDigest")
+                + ", sfImp0063Digest=" + springs.getProperty("springTransformDigest")
+                + ", sfImp0062Digest=" + decoration.getProperty("decorationDigest")
+                + ", sfImp0061Digest=" + carver.getProperty("transformDigest")
+                + ", sfImp0059Digest=" + ore.getProperty("transformDigest")
+                + ", sfImp0060Digest=" + localModification.getProperty("transformDigest"),
         )
     }
 }
 
 tasks.register("sfImp0065Acceptance") {
     group = "verification"
-    description = "Run deterministic first-pass SF-IMP-0065 authored-cave acceptance."
+    description = "Run complete deterministic SF-IMP-0065 authored-cave acceptance."
     dependsOn(
         "runAuthoredCaveAcceptanceA",
         "runAuthoredCaveAcceptanceB",
+        "runAuthoredCaveAcceptanceReloadClient",
+        "runAuthoredCaveAcceptanceStacked",
+        "runNativeLakesAcceptanceA",
+        "runFluidSpringsAcceptanceA",
+        "runUndergroundDecorationAcceptanceA",
+        "runNativeCarverAcceptanceA",
+        "runNativeCarverAcceptanceOreRegression",
+        "runNativeCarverAcceptanceLocalModificationRegression",
     )
     finalizedBy("sfImp0065AcceptanceVerify")
 }
