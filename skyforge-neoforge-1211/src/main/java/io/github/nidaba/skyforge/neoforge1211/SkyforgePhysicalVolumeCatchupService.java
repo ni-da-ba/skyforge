@@ -71,6 +71,7 @@ final class SkyforgePhysicalVolumeCatchupService {
             SkyforgeNeoForge1211UndergroundPlacementDevRuntime.observeLoaded(level);
             if (level.dimension().equals(Level.OVERWORLD)) {
                 SkyforgeNeoForge1211LocalModificationsDevRuntime.observeLoaded(level);
+                SkyforgeNeoForge1211CarverDevRuntime.observeLoaded(level);
             }
         }
     }
