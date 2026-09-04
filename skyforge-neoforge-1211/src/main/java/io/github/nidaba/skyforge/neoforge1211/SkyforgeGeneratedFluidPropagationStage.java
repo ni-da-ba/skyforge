@@ -2,6 +2,9 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.WeakHashMap;
@@ -42,6 +45,8 @@ public final class SkyforgeGeneratedFluidPropagationStage {
     private static final ThreadLocal<Context> ACTIVE = new ThreadLocal<>();
     private static final Map<ServerLevel, GeneratedFluidData> DATA_CACHE = new WeakHashMap<>();
     private static final Map<ServerLevel, Boolean> DATA_LOOKUP_COMPLETE = new WeakHashMap<>();
+    private static final Map<ServerLevel, Map<SkyIslandWorldVolumeId, Counters>> COUNTERS =
+            new WeakHashMap<>();
 
     private static final SavedData.Factory<GeneratedFluidData> DATA_FACTORY =
             new SavedData.Factory<>(GeneratedFluidData::new, GeneratedFluidData::load);
@@ -103,6 +108,7 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             data.remove(position.asLong());
             return;
         }
+        counters(serverLevel, provenance.volumeId()).propagationTicks++;
         ACTIVE.set(new Context(serverLevel, provenance.volumeId(), Mode.PROPAGATION));
     }
 
@@ -130,9 +136,14 @@ public final class SkyforgeGeneratedFluidPropagationStage {
     public static boolean isVisible(BlockPos position) {
         Objects.requireNonNull(position, "position");
         Context context = ACTIVE.get();
-        return context == null
-                || context.mode() != Mode.PROPAGATION
-                || ownerSolid(context.volumeId(), position);
+        if (context == null || context.mode() != Mode.PROPAGATION) {
+            return true;
+        }
+        boolean visible = ownerSolid(context.volumeId(), position);
+        if (!visible) {
+            counters(context.serverLevel(), context.volumeId()).hiddenBoundaryReads++;
+        }
+        return visible;
     }
 
     /** Exact-volume write fence for asynchronous generated-fluid propagation. */
@@ -142,7 +153,11 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         if (context == null || context.mode() != Mode.PROPAGATION) {
             return true;
         }
-        return ownerSolid(context.volumeId(), position);
+        boolean accepted = ownerSolid(context.volumeId(), position);
+        if (!accepted) {
+            counters(context.serverLevel(), context.volumeId()).rejectedBoundaryWrites++;
+        }
+        return accepted;
     }
 
     /**
@@ -158,9 +173,12 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         if (context == null || !(type instanceof Fluid fluid)) {
             return;
         }
+        Counters counters = counters(context.serverLevel(), context.volumeId());
         if (!ownerSolid(context.volumeId(), position)) {
+            counters.scheduledOutsideOwner++;
             return;
         }
+        counters.capturedSchedules++;
         track(context.serverLevel(), context.volumeId(), position, fluid);
     }
 
@@ -184,8 +202,15 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         Context context = ACTIVE.get();
         FluidState fluidState = state.getFluidState();
         if (context != null && context.serverLevel() == serverLevel) {
-            if (!fluidState.isEmpty() && ownerSolid(context.volumeId(), position)) {
-                track(serverLevel, context.volumeId(), position, fluidState.getType());
+            if (ownerSolid(context.volumeId(), position)) {
+                if (!fluidState.isEmpty()) {
+                    track(serverLevel, context.volumeId(), position, fluidState.getType());
+                } else {
+                    GeneratedFluidData activeData = dataIfPresent(serverLevel);
+                    if (activeData != null) {
+                        activeData.remove(position.asLong());
+                    }
+                }
             }
             return;
         }
@@ -216,20 +241,49 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         Objects.requireNonNull(level, "level");
         Objects.requireNonNull(volumeId, "volumeId");
         GeneratedFluidData data = dataIfPresent(level);
-        if (data == null) {
-            return new Snapshot(0, 0xcbf29ce484222325L);
-        }
         int count = 0;
         long digest = 0xcbf29ce484222325L;
-        for (var entry : data.entries.entrySet()) {
-            if (!entry.getValue().volumeId().equals(volumeId)) {
-                continue;
+        if (data != null) {
+            for (var entry : data.entries.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .toList()) {
+                if (!entry.getValue().volumeId().equals(volumeId)) {
+                    continue;
+                }
+                count++;
+                digest = mix(digest, entry.getKey());
+                digest = mix(digest, entry.getValue().fluidKey().toString().hashCode());
             }
-            count++;
-            digest = mix(digest, entry.getKey());
-            digest = mix(digest, entry.getValue().fluidKey().toString().hashCode());
         }
-        return new Snapshot(count, digest);
+        Counters counters = counters(level, volumeId);
+        return new Snapshot(
+                count,
+                digest,
+                counters.capturedSchedules,
+                counters.scheduledOutsideOwner,
+                counters.propagationTicks,
+                counters.hiddenBoundaryReads,
+                counters.rejectedBoundaryWrites);
+    }
+
+    /** Immutable sorted generated-fluid positions used only by runtime acceptance scans. */
+    static List<TrackedFluid> trackedFluids(
+            ServerLevel level,
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(volumeId, "volumeId");
+        GeneratedFluidData data = dataIfPresent(level);
+        if (data == null) {
+            return List.of();
+        }
+        List<TrackedFluid> result = new ArrayList<>();
+        for (var entry : data.entries.entrySet()) {
+            if (entry.getValue().volumeId().equals(volumeId)) {
+                result.add(new TrackedFluid(entry.getKey(), entry.getValue().fluidKey()));
+            }
+        }
+        result.sort(Comparator.comparingLong(TrackedFluid::position));
+        return List.copyOf(result);
     }
 
     private static void track(
@@ -268,6 +322,16 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         }
         throw new IllegalStateException(
                 "generated-fluid capture requires ServerLevel or WorldGenRegion, found " + level.getClass());
+    }
+
+    private static Counters counters(
+            ServerLevel level,
+            SkyIslandWorldVolumeId volumeId) {
+        synchronized (COUNTERS) {
+            return COUNTERS
+                    .computeIfAbsent(level, ignored -> new HashMap<>())
+                    .computeIfAbsent(volumeId, ignored -> new Counters());
+        }
     }
 
     private static GeneratedFluidData data(ServerLevel level) {
@@ -331,7 +395,28 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         }
     }
 
-    record Snapshot(int trackedPositions, long digest) {}
+    record Snapshot(
+            int trackedPositions,
+            long digest,
+            long capturedSchedules,
+            long scheduledOutsideOwner,
+            long propagationTicks,
+            long hiddenBoundaryReads,
+            long rejectedBoundaryWrites) {}
+
+    record TrackedFluid(long position, ResourceLocation fluidKey) {
+        TrackedFluid {
+            Objects.requireNonNull(fluidKey, "fluidKey");
+        }
+    }
+
+    private static final class Counters {
+        private long capturedSchedules;
+        private long scheduledOutsideOwner;
+        private long propagationTicks;
+        private long hiddenBoundaryReads;
+        private long rejectedBoundaryWrites;
+    }
 
     static final class Scope implements AutoCloseable {
         private final Context context;
