@@ -239,38 +239,52 @@ public final class AuthorshipLithologicAssemblagesCorpusCli {
     private static void renderContacts(
             BufferedImage image, int offsetX, SkyIslandLithologicAssemblagePlan plan) {
         int grid = plan.gridSize();
-        SkyIslandLithologicContactKind[][] kinds =
-                new SkyIslandLithologicContactKind[grid][grid];
-        Map<Integer, SkyIslandLithologicAssemblageCell> cells = new HashMap<>();
-        Map<Long, SkyIslandLithologicContactKind> contacts = new HashMap<>();
+        double[][] best = new double[grid][grid];
+        SkyIslandLithologicAssemblageCell[][] representatives =
+                new SkyIslandLithologicAssemblageCell[grid][grid];
         for (SkyIslandLithologicAssemblageCell cell : plan.cells()) {
-            cells.put(cell.index(), cell);
-        }
-        for (SkyIslandLithologicContact contact : plan.contacts()) {
-            contacts.put(pair(contact.firstAssemblageId(), contact.secondAssemblageId()), contact.kind());
+            double support = SkyIslandLithologicAssemblagePlanner.semanticSupport(
+                    cell.familyCharacter(), cell.assemblageKind());
+            if (support > best[cell.zIndex()][cell.xIndex()]) {
+                best[cell.zIndex()][cell.xIndex()] = support;
+                representatives[cell.zIndex()][cell.xIndex()] = cell;
+            }
         }
 
-        int depthSamples = plan.depthSamples();
-        for (SkyIslandLithologicAssemblageCell cell : plan.cells()) {
-            int[][] offsets = {{1, 0, 0}, {0, 0, 1}};
-            for (int[] offset : offsets) {
-                int x = cell.xIndex() + offset[0];
-                int d = cell.depthIndex() + offset[1];
-                int z = cell.zIndex() + offset[2];
-                if (x < 0 || d < 0 || z < 0 || x >= grid || d >= depthSamples || z >= grid) {
+        Map<Long, SkyIslandLithologicContactKind> contacts = new HashMap<>();
+        for (SkyIslandLithologicContact contact : plan.contacts()) {
+            contacts.put(
+                    pair(contact.firstAssemblageId(), contact.secondAssemblageId()),
+                    contact.kind());
+        }
+
+        SkyIslandLithologicContactKind[][] kinds =
+                new SkyIslandLithologicContactKind[grid][grid];
+        int[][] offsets = {{1, 0}, {0, 1}};
+        for (int z = 0; z < grid; z++) {
+            for (int x = 0; x < grid; x++) {
+                SkyIslandLithologicAssemblageCell cell = representatives[z][x];
+                if (cell == null) {
                     continue;
                 }
-                int neighborIndex = (z * depthSamples + d) * grid + x;
-                SkyIslandLithologicAssemblageCell neighbor = cells.get(neighborIndex);
-                if (neighbor == null || neighbor.assemblageId() == cell.assemblageId()) {
-                    continue;
+                for (int[] offset : offsets) {
+                    int nx = x + offset[0];
+                    int nz = z + offset[1];
+                    if (nx >= grid || nz >= grid) {
+                        continue;
+                    }
+                    SkyIslandLithologicAssemblageCell neighbor = representatives[nz][nx];
+                    if (neighbor == null || neighbor.assemblageId() == cell.assemblageId()) {
+                        continue;
+                    }
+                    SkyIslandLithologicContactKind kind =
+                            contacts.get(pair(cell.assemblageId(), neighbor.assemblageId()));
+                    if (kind == null) {
+                        continue;
+                    }
+                    kinds[z][x] = stronger(kinds[z][x], kind);
+                    kinds[nz][nx] = stronger(kinds[nz][nx], kind);
                 }
-                SkyIslandLithologicContactKind kind =
-                        contacts.get(pair(cell.assemblageId(), neighbor.assemblageId()));
-                kinds[cell.zIndex()][cell.xIndex()] = stronger(
-                        kinds[cell.zIndex()][cell.xIndex()], kind);
-                kinds[neighbor.zIndex()][neighbor.xIndex()] = stronger(
-                        kinds[neighbor.zIndex()][neighbor.xIndex()], kind);
             }
         }
 
