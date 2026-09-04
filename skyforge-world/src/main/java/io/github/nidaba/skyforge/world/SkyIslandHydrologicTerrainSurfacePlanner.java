@@ -6,22 +6,33 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /** Applies accepted hydrologic terrain-response semantics to a derived coarse authored surface. */
 public final class SkyIslandHydrologicTerrainSurfacePlanner {
-    /** Maximum normalized lowering applied by this first-pass coarse semantic transform. */
     public static final double MAX_LOWERING = 0.16;
-    /** Maximum normalized raising applied by this first-pass coarse semantic transform. */
     public static final double MAX_RAISING = 0.08;
 
     private SkyIslandHydrologicTerrainSurfacePlanner() {}
 
+    /** Historical/raw visible-channel diagnostic retained for accepted AUTH-0015 evidence. */
     public static SkyIslandHydrologicTerrainSurfacePlan plan(SkyIslandDescriptor descriptor) {
+        return plan(
+                descriptor,
+                SkyIslandHydrologicTerrainInfluencePlanner.plan(descriptor),
+                SkyIslandRiparianCorridorPlanner.plan(descriptor));
+    }
+
+    /** Applies one explicit internally consistent hydrologic influence/riparian composition. */
+    public static SkyIslandHydrologicTerrainSurfacePlan plan(
+            SkyIslandDescriptor descriptor,
+            SkyIslandHydrologicTerrainInfluencePlan influence,
+            SkyIslandRiparianCorridorPlan riparian) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(influence, "influence");
+        Objects.requireNonNull(riparian, "riparian");
         SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
-        SkyIslandHydrologicTerrainInfluencePlan influence =
-                SkyIslandHydrologicTerrainInfluencePlanner.plan(descriptor);
-        SkyIslandRiparianCorridorPlan riparian = SkyIslandRiparianCorridorPlanner.plan(descriptor);
         SkyIslandWaterbodyFootprintPlan waterbodies = SkyIslandWaterbodyFootprintPlanner.plan(descriptor);
         SkyIslandWaterbodyMarginPlan margins = SkyIslandWaterbodyMarginPlanner.plan(descriptor);
 

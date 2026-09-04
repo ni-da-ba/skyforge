@@ -8,21 +8,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Produces deterministic sub-grid channel centerlines while preserving accepted routing topology.
- *
- * <p>AUTH-0017 never moves graph nodes or changes downstream ownership. Shared node tangents smooth
- * lattice corners, while a small profile-dependent interior bend adds bounded sub-grid variation.
- */
+/** Produces deterministic sub-grid channel centerlines while preserving accepted routing topology. */
 public final class SkyIslandNaturalizedChannelPlanner {
     public static final int SUBDIVISIONS = 8;
     public static final double MAX_CHORD_DEVIATION_SPACING_FRACTION = 0.42;
 
     private SkyIslandNaturalizedChannelPlanner() {}
 
+    /** Historical/raw AUTH-0017 geometry for the complete visible-channel diagnostic. */
     public static SkyIslandNaturalizedChannelPlan plan(SkyIslandDescriptor descriptor) {
+        return plan(descriptor, SkyIslandChannelProfilePlanner.plan(descriptor).profiles());
+    }
+
+    /** Naturalizes one explicit channel-profile subset without changing any graph node. */
+    public static SkyIslandNaturalizedChannelPlan plan(
+            SkyIslandDescriptor descriptor,
+            List<SkyIslandChannelProfile> profiles) {
         Objects.requireNonNull(descriptor, "descriptor");
-        SkyIslandChannelProfilePlan profiles = SkyIslandChannelProfilePlanner.plan(descriptor);
+        profiles = List.copyOf(profiles);
         SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
         double spacing = watershed.spacing();
 
@@ -30,7 +33,7 @@ public final class SkyIslandNaturalizedChannelPlanner {
         Map<Integer, List<SkyIslandChannelProfile>> incoming = new HashMap<>();
         Map<Integer, SkyIslandLocalPosition> positions = new HashMap<>();
 
-        for (SkyIslandChannelProfile profile : profiles.profiles()) {
+        for (SkyIslandChannelProfile profile : profiles) {
             SkyIslandChannelSegment segment = profile.segment();
             SkyIslandChannelProfile previous = outgoing.put(segment.sourceCellIndex(), profile);
             if (previous != null) {
@@ -50,8 +53,8 @@ public final class SkyIslandNaturalizedChannelPlanner {
             tangents.put(cellIndex, tangent(cellIndex, positions, outgoing, incoming));
         }
 
-        List<SkyIslandNaturalizedChannelPath> paths = new ArrayList<>(profiles.profiles().size());
-        for (SkyIslandChannelProfile profile : profiles.profiles()) {
+        List<SkyIslandNaturalizedChannelPath> paths = new ArrayList<>(profiles.size());
+        for (SkyIslandChannelProfile profile : profiles) {
             paths.add(naturalize(descriptor, profile, tangents, spacing));
         }
         return new SkyIslandNaturalizedChannelPlan(descriptor, spacing, paths);

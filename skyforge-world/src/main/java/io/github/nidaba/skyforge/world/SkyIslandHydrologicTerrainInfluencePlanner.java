@@ -1,23 +1,40 @@
 package io.github.nidaba.skyforge.world;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /** Derives normalized terrain-response influence from accepted hydrologic semantics. */
 public final class SkyIslandHydrologicTerrainInfluencePlanner {
     private SkyIslandHydrologicTerrainInfluencePlanner() {}
 
+    /** Historical/raw visible-channel diagnostic retained for accepted AUTH-0014 evidence. */
     public static SkyIslandHydrologicTerrainInfluencePlan plan(SkyIslandDescriptor descriptor) {
+        List<SkyIslandChannelProfile> profiles =
+                SkyIslandChannelProfilePlanner.plan(descriptor).profiles();
+        return plan(
+                descriptor,
+                profiles,
+                SkyIslandRiparianCorridorPlanner.plan(descriptor, profiles),
+                SkyIslandChannelDropPlanner.plan(descriptor, profiles));
+    }
+
+    /** Derives terrain response from one explicit internally consistent channel realization. */
+    public static SkyIslandHydrologicTerrainInfluencePlan plan(
+            SkyIslandDescriptor descriptor,
+            List<SkyIslandChannelProfile> profiles,
+            SkyIslandRiparianCorridorPlan riparian,
+            SkyIslandChannelDropPlan drops) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        profiles = List.copyOf(profiles);
+        Objects.requireNonNull(riparian, "riparian");
+        Objects.requireNonNull(drops, "drops");
         SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
-        SkyIslandChannelProfilePlan profiles = SkyIslandChannelProfilePlanner.plan(descriptor);
-        SkyIslandRiparianCorridorPlan riparian = SkyIslandRiparianCorridorPlanner.plan(descriptor);
-        SkyIslandChannelDropPlan drops = SkyIslandChannelDropPlanner.plan(descriptor);
         SkyIslandWaterbodyFootprintPlan waterbodies = SkyIslandWaterbodyFootprintPlanner.plan(descriptor);
         SkyIslandWaterbodyMarginPlan margins = SkyIslandWaterbodyMarginPlanner.plan(descriptor);
 
@@ -39,8 +56,8 @@ public final class SkyIslandHydrologicTerrainInfluencePlanner {
         }
 
         Map<SegmentKey, SkyIslandChannelProfile> bySegment = new HashMap<>();
-        Map<Integer, InfluenceAccumulator> influence = new HashMap<>();
-        for (SkyIslandChannelProfile profile : profiles.profiles()) {
+        Map<Integer, InfluenceAccumulator> terrain = new HashMap<>();
+        for (SkyIslandChannelProfile profile : profiles) {
             SkyIslandChannelSegment segment = profile.segment();
             bySegment.put(new SegmentKey(segment.sourceCellIndex(), segment.downstreamCellIndex()), profile);
 
@@ -54,8 +71,8 @@ public final class SkyIslandHydrologicTerrainInfluencePlanner {
                             + 0.22 * segment.relativeDischarge()
                             + 0.19 * (1.0 - profile.incisionPotential()));
 
-            add(influence, reserved, watershedCells, segment.sourceCellIndex(), incision, deposition, 0.0, 0.0);
-            add(influence, reserved, watershedCells, segment.downstreamCellIndex(), incision, deposition, 0.0, 0.0);
+            add(terrain, reserved, watershedCells, segment.sourceCellIndex(), incision, deposition, 0.0, 0.0);
+            add(terrain, reserved, watershedCells, segment.downstreamCellIndex(), incision, deposition, 0.0, 0.0);
         }
 
         for (SkyIslandRiparianCell cell : riparian.cells()) {
@@ -102,7 +119,7 @@ public final class SkyIslandHydrologicTerrainInfluencePlanner {
                             + 0.13 * cell.retentionPotential()
                             + 0.10 * cell.channelInfluence()));
             add(
-                    influence,
+                    terrain,
                     reserved,
                     watershedCells,
                     cell.watershedCellIndex(),
@@ -116,7 +133,7 @@ public final class SkyIslandHydrologicTerrainInfluencePlanner {
             int target = drop.kind() == SkyIslandChannelDropKind.EDGE_FALL
                     ? drop.sourceCellIndex()
                     : drop.downstreamCellIndex();
-            add(influence, reserved, watershedCells, target, 0.0, 0.0, 0.0, drop.dropPotential());
+            add(terrain, reserved, watershedCells, target, 0.0, 0.0, 0.0, drop.dropPotential());
 
             if (drop.kind() != SkyIslandChannelDropKind.EDGE_FALL) {
                 double fringe = clamp01(
@@ -124,7 +141,7 @@ public final class SkyIslandHydrologicTerrainInfluencePlanner {
                 for (SkyIslandRiparianCell cell : riparian.cells()) {
                     if (chebyshevDistance(cell.watershedCellIndex(), target, watershed.gridSize()) <= 1) {
                         add(
-                                influence,
+                                terrain,
                                 reserved,
                                 watershedCells,
                                 cell.watershedCellIndex(),
@@ -137,7 +154,7 @@ public final class SkyIslandHydrologicTerrainInfluencePlanner {
             }
         }
 
-        List<SkyIslandHydrologicTerrainCell> cells = influence.values().stream()
+        List<SkyIslandHydrologicTerrainCell> cells = terrain.values().stream()
                 .map(InfluenceAccumulator::toCell)
                 .sorted(Comparator.comparingInt(SkyIslandHydrologicTerrainCell::watershedCellIndex))
                 .toList();

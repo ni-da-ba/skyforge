@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /** Derives dry riparian transition semantics around accepted routed channel segments. */
@@ -16,9 +17,23 @@ public final class SkyIslandRiparianCorridorPlanner {
 
     private SkyIslandRiparianCorridorPlanner() {}
 
+    /** Historical/raw visible-channel diagnostic retained for accepted AUTH-0011 evidence. */
     public static SkyIslandRiparianCorridorPlan plan(SkyIslandDescriptor descriptor) {
+        return plan(descriptor, SkyIslandChannelProfilePlanner.plan(descriptor).profiles());
+    }
+
+    /**
+     * Derives riparian semantics from an explicit accepted channel-profile subset.
+     *
+     * <p>AUTH-0019 uses this entry point with the AUTH-0018 coherent skeleton while historical
+     * callers may continue to inspect the complete pre-coherence visible network.
+     */
+    public static SkyIslandRiparianCorridorPlan plan(
+            SkyIslandDescriptor descriptor,
+            List<SkyIslandChannelProfile> profiles) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        profiles = List.copyOf(profiles);
         SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
-        SkyIslandChannelNetworkPlan channels = SkyIslandChannelNetworkPlanner.plan(descriptor);
         SkyIslandWaterbodyFootprintPlan waterbodies = SkyIslandWaterbodyFootprintPlanner.plan(descriptor);
         SkyIslandWaterbodyMarginPlan waterbodyMargins = SkyIslandWaterbodyMarginPlanner.plan(descriptor);
         SkyIslandEcologyField ecology = SkyIslandEcologyField.create(descriptor);
@@ -41,18 +56,30 @@ public final class SkyIslandRiparianCorridorPlanner {
             }
         }
 
+        List<SkyIslandChannelSegment> segments = profiles.stream()
+                .map(SkyIslandChannelProfile::segment)
+                .toList();
+        // Preserve the hierarchy normalization authored by the complete accepted network.
+        // Filtering visible components must never amplify the retained reaches merely because a
+        // higher-order neighboring component was suppressed by the coherence pass.
+        int maxStreamOrder = SkyIslandChannelNetworkPlanner.plan(descriptor).maxStreamOrder();
+
+        // Preserve the complete accepted centerline reservation while filtering influence.
+        // A suppressed visible river should revert toward baseline terrain; its former centerline
+        // must not immediately become newly authored riparian land around a neighboring retained
+        // reach during this same migration pass.
         Set<Integer> channelCells = new HashSet<>();
-        for (SkyIslandChannelSegment segment : channels.segments()) {
+        for (SkyIslandChannelSegment segment : SkyIslandChannelNetworkPlanner.plan(descriptor).segments()) {
             channelCells.add(segment.sourceCellIndex());
             channelCells.add(segment.downstreamCellIndex());
         }
 
         Map<Integer, ProvisionalRiparianCell> ownership = new HashMap<>();
-        for (SkyIslandChannelSegment segment : channels.segments()) {
+        for (SkyIslandChannelSegment segment : segments) {
             int radius = segment.corridorScale() >= 0.58 ? 2 : 1;
-            double orderScale = channels.maxStreamOrder() == 0
+            double orderScale = maxStreamOrder == 0
                     ? 0.0
-                    : (double) segment.streamOrder() / channels.maxStreamOrder();
+                    : (double) segment.streamOrder() / maxStreamOrder;
             double channelInfluence = clamp01(
                     0.45 * segment.corridorScale()
                             + 0.35 * segment.relativeDischarge()
@@ -103,8 +130,10 @@ public final class SkyIslandRiparianCorridorPlanner {
                         saturation,
                         retention,
                         riparianPotential);
-                ProvisionalRiparianCell proposed = new ProvisionalRiparianCell(riparian);
-                ownership.merge(index, proposed, SkyIslandRiparianCorridorPlanner::stronger);
+                ownership.merge(
+                        index,
+                        new ProvisionalRiparianCell(riparian),
+                        SkyIslandRiparianCorridorPlanner::stronger);
             }
         }
 
