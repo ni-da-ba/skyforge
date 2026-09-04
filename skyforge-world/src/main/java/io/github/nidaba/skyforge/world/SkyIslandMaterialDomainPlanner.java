@@ -43,6 +43,7 @@ public final class SkyIslandMaterialDomainPlanner {
 
         int mineralCarrierCount = mineralCarrierCount(descriptor);
         int fabricCarrierCount = fabricCarrierCount(descriptor);
+        int activeHostCells = 0;
 
         double alteredThreshold = clamp(
                 0.51
@@ -82,6 +83,7 @@ public final class SkyIslandMaterialDomainPlanner {
                         continue;
                     }
                     active[index] = true;
+                    activeHostCells++;
 
                     SkyIslandGeologySample geologic = geology.sample(position);
                     double shallowBand = 1.0 - depth;
@@ -179,6 +181,7 @@ public final class SkyIslandMaterialDomainPlanner {
                 depthSpacing,
                 mineralCarrierCount,
                 fabricCarrierCount,
+                activeHostCells,
                 domains);
     }
 
