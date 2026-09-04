@@ -359,6 +359,47 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0064 whole-footprint native LAKES proof. Independent disposable worlds must
+        // reproduce the same admission decisions and native lake state before final reload/stacked
+        // gates are added.
+        create("nativeLakesAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0064-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.nativeLakes", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0064-native-lakes-a")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0064/lakes-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("nativeLakesAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0064-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.nativeLakes", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0064-native-lakes-b")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0064/lakes-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -1071,6 +1112,103 @@ tasks.register("sfImp0063Acceptance") {
         "runNativeCarverAcceptanceLocalModificationRegression",
     )
     finalizedBy("sfImp0063AcceptanceVerify")
+}
+
+val sfImp0064AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0064")
+val sfImp0064AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=600064
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSfImp0064AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(sfImp0064AcceptanceServerProperties)
+}
+
+mapOf(
+    "runNativeLakesAcceptanceA" to "run-sf-imp-0064-auto-a",
+    "runNativeLakesAcceptanceB" to "run-sf-imp-0064-auto-b",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareSfImp0064AcceptanceServerDirectory(relativePath)
+        }
+    }
+}
+
+tasks.named("runNativeLakesAcceptanceA").configure {
+    doFirst {
+        delete(sfImp0064AcceptanceResultDirectory)
+    }
+}
+tasks.named("runNativeLakesAcceptanceB").configure {
+    mustRunAfter("runNativeLakesAcceptanceA")
+}
+
+tasks.register("sfImp0064AcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic first-pass SF-IMP-0064 whole-lake acceptance evidence."
+    doLast {
+        fun load(name: String): Properties {
+            val file = sfImp0064AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0064 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        val first = load("lakes-a")
+        val second = load("lakes-b")
+        check(first.getProperty("status") == "PASS" && second.getProperty("status") == "PASS") {
+            "SF-IMP-0064 runtime repeat did not report PASS: A=$first B=$second"
+        }
+        for (key in listOf("admissionDigest", "transformDigest", "provenanceDigest")) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "SF-IMP-0064 deterministic evidence changed for $key: A="
+                    + first.getProperty(key) + " B=" + second.getProperty(key)
+            }
+        }
+        check(first.getProperty("successfulFeatures").toInt() > 0
+                && first.getProperty("admittedConfiguredLakes").toInt() > 0
+                && first.getProperty("rejectedConfiguredLakes").toInt() > 0
+                && first.getProperty("changedRejectedOnly") == "0"
+                && first.getProperty("unsupportedLakeFeatures") == "0"
+                && first.getProperty("mappedOutsideVolume") == "0"
+                && first.getProperty("propagationTicks").toLong() > 0
+                && first.getProperty("matchingPersistentFluids").toInt() > 0
+                && first.getProperty("baseColumnsPreserved") == "true") {
+            "SF-IMP-0064 first-pass lake evidence is incomplete: $first"
+        }
+        println(
+            "SF-IMP-0064 FIRST-PASS ACCEPTANCE PASS: admissionDigest="
+                + first.getProperty("admissionDigest")
+                + ", transformDigest=" + first.getProperty("transformDigest")
+                + ", provenanceDigest=" + first.getProperty("provenanceDigest")
+                + ", admitted=" + first.getProperty("admittedConfiguredLakes")
+                + ", rejected=" + first.getProperty("rejectedConfiguredLakes")
+                + ", changed=" + first.getProperty("placementChangedBlocks"),
+        )
+    }
+}
+
+tasks.register("sfImp0064Acceptance") {
+    group = "verification"
+    description = "Run deterministic first-pass SF-IMP-0064 native lakes acceptance."
+    dependsOn(
+        "runNativeLakesAcceptanceA",
+        "runNativeLakesAcceptanceB",
+    )
+    finalizedBy("sfImp0064AcceptanceVerify")
 }
 
 dependencies {
