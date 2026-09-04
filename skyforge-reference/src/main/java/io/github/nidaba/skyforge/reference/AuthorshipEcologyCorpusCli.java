@@ -6,6 +6,7 @@ import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
 import io.github.nidaba.skyforge.world.SkyIslandEcologyField;
 import io.github.nidaba.skyforge.world.SkyIslandLocalPosition;
+import io.github.nidaba.skyforge.world.SkyIslandSemanticFieldSet;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -120,6 +121,7 @@ public final class AuthorshipEcologyCorpusCli {
 
     private static BufferedImage render(SkyIslandDescriptor descriptor) {
         SkyIslandEcologyField ecology = SkyIslandEcologyField.create(descriptor);
+        SkyIslandSemanticFieldSet semantic = SkyIslandSemanticFieldSet.create(descriptor);
         BufferedImage image = new BufferedImage(MAP_SIZE, MAP_SIZE, BufferedImage.TYPE_INT_RGB);
         double extent = descriptor.nominalRadius() * 1.08;
         for (int py = 0; py < MAP_SIZE; py++) {
@@ -127,8 +129,7 @@ public final class AuthorshipEcologyCorpusCli {
             for (int px = 0; px < MAP_SIZE; px++) {
                 double x = -extent + 2.0 * extent * px / (MAP_SIZE - 1.0);
                 SkyIslandLocalPosition position = new SkyIslandLocalPosition(x, z);
-                double radial = Math.sqrt(x * x + z * z) / descriptor.nominalRadius();
-                if (radial >= 1.0) {
+                if (semantic.interiority().sample(position) <= 0.0) {
                     image.setRGB(px, py, Color.WHITE.getRGB());
                 } else {
                     image.setRGB(px, py, color(ecology.sample(position).regime()).getRGB());

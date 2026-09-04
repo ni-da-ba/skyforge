@@ -43,7 +43,7 @@ public final class AuthorshipSemanticFieldCorpusCli {
         Files.createDirectories(output);
 
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(IDENTITY);
-        SkyIslandSemanticFieldSet fields = SkyIslandSemanticFieldSet.create(descriptor);
+        SkyIslandSemanticFieldSet fields = SkyIslandSemanticFieldSet.createLegacyCircular(descriptor);
         Files.write(output.resolve("descriptor.json"), new SkyIslandDescriptorJson().write(descriptor));
 
         List<FieldPanel> panels = List.of(
