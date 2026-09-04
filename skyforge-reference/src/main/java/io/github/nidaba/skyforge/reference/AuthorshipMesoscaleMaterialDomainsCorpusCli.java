@@ -53,11 +53,11 @@ public final class AuthorshipMesoscaleMaterialDomainsCorpusCli {
         ag.fillRect(0, 0, atlas.getWidth(), atlas.getHeight());
 
         StringBuilder manifest = new StringBuilder(
-                "role,islandKey,morphology,mineralCarriers,fabricCarriers,"
-                        + "alteredDomains,alteredCells,largestAltered,"
-                        + "saturatedDomains,saturatedCells,largestSaturated,"
-                        + "mineralizedDomains,mineralizedCells,largestMineralized,"
-                        + "fabricDomains,fabricCells,largestFabric\n");
+                "role,islandKey,morphology,mineralCarriers,fabricCarriers,activeHostCells,"
+                        + "alteredDomains,alteredCells,largestAltered,alteredCoverage,"
+                        + "saturatedDomains,saturatedCells,largestSaturated,saturatedCoverage,"
+                        + "mineralizedDomains,mineralizedCells,largestMineralized,mineralizedCoverage,"
+                        + "fabricDomains,fabricCells,largestFabric,fabricCoverage\n");
 
         for (int n = 0; n < selections.size(); n++) {
             Selection selection = selections.get(n);
@@ -98,7 +98,8 @@ public final class AuthorshipMesoscaleMaterialDomainsCorpusCli {
                     .append(format(coverage(plan, SkyIslandMaterialDomainKind.MINERALIZED_BODY))).append(',')
                     .append(plan.domainCount(SkyIslandMaterialDomainKind.STRUCTURAL_FABRIC_DOMAIN)).append(',')
                     .append(plan.cellCount(SkyIslandMaterialDomainKind.STRUCTURAL_FABRIC_DOMAIN)).append(',')
-                    .append(plan.largestDomainCellCount(SkyIslandMaterialDomainKind.STRUCTURAL_FABRIC_DOMAIN)).append('\n');
+                    .append(plan.largestDomainCellCount(SkyIslandMaterialDomainKind.STRUCTURAL_FABRIC_DOMAIN)).append(',')
+                    .append(format(coverage(plan, SkyIslandMaterialDomainKind.STRUCTURAL_FABRIC_DOMAIN))).append('\n');
         }
         ag.dispose();
 
