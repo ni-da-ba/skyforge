@@ -2454,6 +2454,236 @@ tasks.register("sfImp0067Acceptance") {
     finalizedBy("sfImp0067AcceptanceVerify")
 }
 
+val sfImp0068AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0068")
+val sfImp0068AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=600068
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=7
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSfImp0068AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(sfImp0068AcceptanceServerProperties)
+}
+
+mapOf(
+    "runProductionComposedCaveAcceptanceA" to "run-sf-imp-0068-auto-a",
+    "runProductionComposedCaveAcceptanceB" to "run-sf-imp-0068-auto-b",
+    "runProductionComposedCaveAcceptanceStacked" to "run-sf-imp-0068-auto-stacked",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareSfImp0068AcceptanceServerDirectory(relativePath)
+        }
+    }
+}
+
+tasks.named("runProductionComposedCaveAcceptanceA").configure {
+    doFirst {
+        delete(sfImp0068AcceptanceResultDirectory)
+    }
+}
+tasks.named("runProductionComposedCaveAcceptanceB").configure {
+    mustRunAfter("runProductionComposedCaveAcceptanceA")
+}
+tasks.named("runProductionComposedCaveAcceptanceReloadClient").configure {
+    mustRunAfter("runProductionComposedCaveAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-sf-imp-0068-auto-b").asFile
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+tasks.named("runProductionComposedCaveAcceptanceStacked").configure {
+    mustRunAfter("runProductionComposedCaveAcceptanceReloadClient")
+}
+tasks.named("runComposedCaveAcceptanceA").configure {
+    mustRunAfter("runProductionComposedCaveAcceptanceStacked")
+}
+
+tasks.register("sfImp0068AcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic SF-IMP-0068 production composed-cave lifecycle evidence."
+    doLast {
+        fun load0068(name: String): Properties {
+            val file = sfImp0068AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0068 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+        fun load0067(name: String): Properties {
+            val file = sfImp0067AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0067 regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        val first = load0068("production-a")
+        val second = load0068("production-b")
+        val reload = load0068("reload")
+        val stacked = load0068("stacked")
+        val composed0067 = load0067("composed-a")
+
+        for ((name, result) in listOf(
+            "production-a" to first,
+            "production-b" to second,
+            "reload" to reload,
+            "stacked" to stacked,
+            "sf-imp-0067-composed" to composed0067,
+        )) {
+            check(result.getProperty("status") == "PASS") { "$name did not report PASS: $result" }
+        }
+
+        for (key in listOf(
+            "islandKey",
+            "nativeBiome",
+            "initialTotal",
+            "initialPending",
+            "initialCompleted",
+            "requiredChunks",
+            "finalPending",
+            "finalCompleted",
+            "resultChunks",
+            "emptyChunks",
+            "nativeChangedBlocks",
+            "nativeSuccessfulCalls",
+            "nativeOnlyAir",
+            "nativeRejectedWrites",
+            "nativeMappedOutsideTarget",
+            "nativeTransformDigest",
+            "nativeCarveDigest",
+            "authoredPositive",
+            "authoredBasePositive",
+            "authoredExposurePositive",
+            "authoredUnsafe",
+            "authoredChangedBlocks",
+            "authoredChangedDigest",
+            "authoredProvenanceDigest",
+            "finalAuthoredAir",
+            "nativeOnlyPos",
+            "mouthPos",
+            "outwardPos",
+            "baseCavePos",
+            "composedDigest",
+        )) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "SF-IMP-0068 deterministic evidence changed for $key: A="
+                    + first.getProperty(key) + " B=" + second.getProperty(key)
+            }
+        }
+
+        val required = first.getProperty("requiredChunks").toInt()
+        check(first.getProperty("islandKey") == "653"
+                && first.getProperty("nativeBiome") == "minecraft:taiga"
+                && first.getProperty("productionStage") == "true"
+                && first.getProperty("admittedBeforeCompletion") == "true"
+                && first.getProperty("terrainCatchupEmptyBeforeCompletion") == "true"
+                && first.getProperty("monotonicPending") == "true"
+                && first.getProperty("noReplay") == "true"
+                && required > 0
+                && first.getProperty("initialTotal").toInt() == required
+                && first.getProperty("initialPending").toInt() == required
+                && first.getProperty("initialCompleted") == "0"
+                && first.getProperty("finalPending") == "0"
+                && first.getProperty("finalCompleted").toInt() == required
+                && first.getProperty("resultChunks").toInt() > 0
+                && first.getProperty("nativeChangedBlocks").toInt() > 0
+                && first.getProperty("nativeSuccessfulCalls").toInt() > 0
+                && first.getProperty("nativeOnlyAir").toInt() > 0
+                && first.getProperty("nativeRejectedWrites") == "0"
+                && first.getProperty("nativeMappedOutsideTarget") == "0"
+                && first.getProperty("authoredPositive").toInt() > 0
+                && first.getProperty("authoredBasePositive").toInt() > 0
+                && first.getProperty("authoredExposurePositive").toInt() > 0
+                && first.getProperty("authoredUnsafe") == "0"
+                && first.getProperty("finalAuthoredAir") == first.getProperty("authoredPositive")) {
+            "SF-IMP-0068 production lifecycle evidence incomplete: $first"
+        }
+
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("mutationBindingsAbsent") == "true"
+                && reload.getProperty("persistedNativeOnlyPos") == first.getProperty("nativeOnlyPos")
+                && reload.getProperty("clientNativeOnlyPos") == first.getProperty("nativeOnlyPos")
+                && reload.getProperty("persistedNativeOnlyState") == "Block{minecraft:air}"
+                && reload.getProperty("clientNativeOnlyState") == "Block{minecraft:air}"
+                && reload.getProperty("persistedMouthState") == "Block{minecraft:air}"
+                && reload.getProperty("clientMouthState") == "Block{minecraft:air}"
+                && reload.getProperty("persistedOutwardState") == "Block{minecraft:air}"
+                && reload.getProperty("clientOutwardState") == "Block{minecraft:air}"
+                && reload.getProperty("persistedBaseState") == "Block{minecraft:air}"
+                && reload.getProperty("clientBaseState") == "Block{minecraft:air}") {
+            "SF-IMP-0068 save/reload or ClientLevel persistence failed: $reload"
+        }
+
+        check(stacked.getProperty("lowerRequired").toInt() > 0
+                && stacked.getProperty("upperRequired").toInt() > 0
+                && stacked.getProperty("lowerCompleted") == stacked.getProperty("lowerRequired")
+                && stacked.getProperty("upperCompleted") == stacked.getProperty("upperRequired")
+                && stacked.getProperty("lowerFinalPending") == "0"
+                && stacked.getProperty("upperFinalPending") == "0"
+                && stacked.getProperty("lowerNativeChanged").toInt() > 0
+                && stacked.getProperty("upperNativeChanged").toInt() > 0
+                && stacked.getProperty("lowerAuthoredPositive").toInt() > 0
+                && stacked.getProperty("upperAuthoredPositive").toInt() > 0
+                && stacked.getProperty("lowerUnsafe") == "0"
+                && stacked.getProperty("upperUnsafe") == "0"
+                && stacked.getProperty("lowerAnchorY") != stacked.getProperty("upperAnchorY")
+                && stacked.getProperty("independentLedgers") == "true"
+                && stacked.getProperty("foreignVolumePreserved") == "true"
+                && stacked.getProperty("monotonicPending") == "true"
+                && stacked.getProperty("noReplay") == "true") {
+            "SF-IMP-0068 stacked production isolation failed: $stacked"
+        }
+
+        check(composed0067.getProperty("nativeTransformDigest") == "95c046280c7f1c11"
+                && composed0067.getProperty("nativeCarveDigest") == "c277e3af5030dd01"
+                && composed0067.getProperty("authoredChangedDigest") == "6d2120967a6c73bd"
+                && composed0067.getProperty("authoredProvenanceDigest") == "3032a41620c93935"
+                && composed0067.getProperty("composedDigest") == "911b02f4fe5b0518"
+                && composed0067.getProperty("nativeOnlyAir") == "584"
+                && composed0067.getProperty("authoredUnsafe") == "0"
+                && composed0067.getProperty("finalUnion") == "true") {
+            "SF-IMP-0067 standalone regression gate failed: $composed0067"
+        }
+
+        println(
+            "SF-IMP-0068 AUTOMATED ACCEPTANCE PASS: obligations="
+                + first.getProperty("requiredChunks")
+                + ", nativeChanged=" + first.getProperty("nativeChangedBlocks")
+                + ", nativeOnlyAir=" + first.getProperty("nativeOnlyAir")
+                + ", authoredPositive=" + first.getProperty("authoredPositive")
+                + ", composedDigest=" + first.getProperty("composedDigest")
+                + ", reloadServerClient=true, stackedIndependent=true"
+                + ", sfImp0067Digest=" + composed0067.getProperty("composedDigest"),
+        )
+    }
+}
+
+tasks.register("sfImp0068Acceptance") {
+    group = "verification"
+    description = "Run complete deterministic SF-IMP-0068 production composed-cave acceptance."
+    dependsOn(
+        "runProductionComposedCaveAcceptanceA",
+        "runProductionComposedCaveAcceptanceB",
+        "runProductionComposedCaveAcceptanceReloadClient",
+        "runProductionComposedCaveAcceptanceStacked",
+        "runComposedCaveAcceptanceA",
+    )
+    finalizedBy("sfImp0068AcceptanceVerify")
+}
+
 dependencies {
     api(project(":skyforge-world"))
 
