@@ -10,7 +10,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.ProtoChunk;
 
 /**
- * Preserves Minecraft's native post-processing contract for deferred Skyforge population.
+ * Preserves Minecraft's native post-processing contract for deferred Skyforge exact-volume mutation.
  *
  * <p>Ordinary biome population runs during Minecraft's world-generation lifecycle, where
  * {@link ProtoChunk#markPosForPostprocessing(BlockPos)} records positions for later neighbor-shape
@@ -18,12 +18,12 @@ import net.minecraft.world.level.chunk.ProtoChunk;
  * volume has caught up into already-loaded {@link LevelChunk}s. LevelChunk intentionally does not
  * implement that generation-time recording path.
  *
- * <p>This bridge is active only around that deferred population path. While one exact-volume
- * population execution is active, a mixin redirects LevelChunk post-processing requests into the
- * chunk's native packed post-processing queue. Pre-existing native marks are detached temporarily so
- * Skyforge resolves only work produced by the deferred feature, then restored unchanged for
- * Minecraft's own lifecycle. Direct world-generation population never opens this bridge and
- * therefore remains unchanged.
+ * <p>This bridge is active only around explicitly deferred Skyforge mutation paths. While one
+ * exact-volume population or carver execution is active, a mixin redirects LevelChunk
+ * post-processing requests into the chunk's native packed post-processing queue. Pre-existing
+ * native marks are detached temporarily so Skyforge resolves only work produced by that deferred
+ * native operation, then restored unchanged for Minecraft's own lifecycle. Direct ordinary
+ * world-generation never opens this bridge and therefore remains unchanged.
  */
 public final class SkyforgeDeferredPopulationPostProcessingBridge {
     private static final ThreadLocal<State> ACTIVE = new ThreadLocal<>();
@@ -48,14 +48,14 @@ public final class SkyforgeDeferredPopulationPostProcessingBridge {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(position, "position");
         State state = ACTIVE.get();
-        if (state == null || SkyforgePopulationExecutionStage.activeExecution().isEmpty()) {
+        if (state == null || !exactVolumeMutationActive()) {
             return false;
         }
         if (!(chunk instanceof LevelChunk levelChunk)) {
             return false;
         }
         if (levelChunk.getLevel() != state.level) {
-            throw new IllegalStateException("deferred Skyforge population attempted post-processing in another level");
+            throw new IllegalStateException("deferred Skyforge mutation attempted post-processing in another level");
         }
         if (state.flushing) {
             throw new IllegalStateException("deferred native post-processing recursively requested another mark");
@@ -75,16 +75,21 @@ public final class SkyforgeDeferredPopulationPostProcessingBridge {
         return true;
     }
 
-    /** Flushes captured marks while the caller's exact-volume population execution is still open. */
+    /** Flushes captured marks while the caller's exact-volume native execution is still open. */
     static void flushIfActive() {
         State state = ACTIVE.get();
         if (state == null || state.touched.isEmpty()) {
             return;
         }
-        if (SkyforgePopulationExecutionStage.activeExecution().isEmpty()) {
-            throw new IllegalStateException("deferred post-processing flush requires an active population execution");
+        if (!exactVolumeMutationActive()) {
+            throw new IllegalStateException("deferred post-processing flush requires an active exact-volume execution");
         }
         state.flush();
+    }
+
+    private static boolean exactVolumeMutationActive() {
+        return SkyforgePopulationExecutionStage.activeExecution().isPresent()
+                || SkyforgeCarverExecutionStage.active();
     }
 
     private static boolean nativeQueueEmpty(LevelChunk chunk) {
@@ -223,7 +228,7 @@ public final class SkyforgeDeferredPopulationPostProcessingBridge {
             ACTIVE.remove();
             if (!state.touched.isEmpty()) {
                 state.abandon();
-                throw new IllegalStateException("deferred Skyforge population closed with unflushed post-processing work");
+                throw new IllegalStateException("deferred Skyforge mutation closed with unflushed post-processing work");
             }
         }
     }

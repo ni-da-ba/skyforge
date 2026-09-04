@@ -2,6 +2,7 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.jvm.toolchain.JavaLanguageVersion
+import java.util.Properties
 
 plugins {
     `java-library`
@@ -169,6 +170,163 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0061 proves the first exact-volume native AIR-carver execution against an
+        // already-admitted high Skyforge tableland. HeightProvider RNG is consumed natively before
+        // Y mapping; direct LevelChunk mutations are fenced to exact owner terrain.
+        create("nativeCarverClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0061")
+            systemProperty("skyforge.dev.nativeCarver", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Same final-head native-carver proof in an independent game directory for deterministic
+        // repeat evidence. This run must produce the same Skyforge transform/carve digests.
+        create("nativeCarverRepeatClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0061-repeat")
+            systemProperty("skyforge.dev.nativeCarver", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Reopens the repeat world's saved chunks without reinstalling terrain/admission/carver
+        // mutation. Server and logical client must both observe the persisted cave state.
+        create("nativeCarverReloadClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0061-repeat")
+            systemProperty("skyforge.dev.nativeCarverReload", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Final stacked-domain gate for the carver execution seam. The accepted two-volume fixture
+        // maps one native Y sample independently and explicitly vetoes the other island in both
+        // directions at the direct-carver write fence.
+        create("nativeCarverStackedClient") {
+            client()
+            gameDirectory = project.file("run-sf-imp-0061-stacked")
+            systemProperty("skyforge.dev.nativeCarverStacked", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Self-running SF-IMP-0061 acceptance harness. Dedicated-server cases create/load their
+        // disposable worlds without a player, warm only the finite proof footprint, emit machine-readable
+        // evidence, and stop themselves. One quick-play client reopens the saved repeat world automatically
+        // to verify actual ClientLevel persistence, then closes itself.
+        create("nativeCarverAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.nativeCarver", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0061-carver-a")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0061/carver-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("nativeCarverAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.nativeCarver", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0061-carver-b")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0061/carver-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("nativeCarverAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.nativeCarverReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0061-reload-client")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0061/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("nativeCarverAcceptanceStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061-auto-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.nativeCarverStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0061-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0061/stacked.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("nativeCarverAcceptanceOreRegression") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061-auto-0059").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.physicalAdmission", "true")
+            systemProperty("skyforge.dev.biomePresentation", "true")
+            systemProperty("skyforge.dev.undergroundPlacement", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0059-regression")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0061/ore-regression.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("nativeCarverAcceptanceLocalModificationRegression") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0061-auto-0060").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.localModifications", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0060-regression")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0061/local-modification-regression.properties")
+                    .get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Final SF-IMP-0060 stacked-domain gate. Reuse the accepted 0054 vertically aligned
         // forest/taiga tablelands, map the same LOCAL_MODIFICATIONS height sample independently
         // into each exact solid owner column, and explicitly reject the other island at preflight.
@@ -195,6 +353,163 @@ neoForge {
         enable()
         testedMod.set(mods.named("skyforge"))
     }
+}
+
+val sfImp0061AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0061")
+val sfImp0061AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=600061
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSfImp0061AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(sfImp0061AcceptanceServerProperties)
+}
+
+val sfImp0061FreshServerRuns = mapOf(
+    "runNativeCarverAcceptanceA" to "run-sf-imp-0061-auto-a",
+    "runNativeCarverAcceptanceB" to "run-sf-imp-0061-auto-b",
+    "runNativeCarverAcceptanceStacked" to "run-sf-imp-0061-auto-stacked",
+    "runNativeCarverAcceptanceOreRegression" to "run-sf-imp-0061-auto-0059",
+    "runNativeCarverAcceptanceLocalModificationRegression" to "run-sf-imp-0061-auto-0060",
+)
+
+sfImp0061FreshServerRuns.forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareSfImp0061AcceptanceServerDirectory(relativePath)
+        }
+    }
+}
+
+tasks.named("runNativeCarverAcceptanceA").configure {
+    doFirst {
+        delete(sfImp0061AcceptanceResultDirectory)
+    }
+}
+tasks.named("runNativeCarverAcceptanceB").configure {
+    mustRunAfter("runNativeCarverAcceptanceA")
+}
+tasks.named("runNativeCarverAcceptanceReloadClient").configure {
+    mustRunAfter("runNativeCarverAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-sf-imp-0061-auto-b").asFile
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+tasks.named("runNativeCarverAcceptanceStacked").configure {
+    mustRunAfter("runNativeCarverAcceptanceReloadClient")
+}
+tasks.named("runNativeCarverAcceptanceOreRegression").configure {
+    mustRunAfter("runNativeCarverAcceptanceStacked")
+}
+tasks.named("runNativeCarverAcceptanceLocalModificationRegression").configure {
+    mustRunAfter("runNativeCarverAcceptanceOreRegression")
+}
+
+fun verifySfImp0061AcceptanceResults() {
+    fun loadResult(name: String): Properties {
+        val file = sfImp0061AcceptanceResultDirectory.get().file("$name.properties").asFile
+        check(file.isFile) { "missing SF-IMP-0061 acceptance result: $file" }
+        return Properties().also { properties ->
+            file.inputStream().use(properties::load)
+        }
+    }
+
+    fun requirePass(name: String): Properties {
+        val properties = loadResult(name)
+        check(properties.getProperty("status") == "PASS") {
+            "$name did not report PASS: $properties"
+        }
+        return properties
+    }
+
+    val carverA = requirePass("carver-a")
+    val carverB = requirePass("carver-b")
+    val reload = requirePass("reload")
+    val stacked = requirePass("stacked")
+    val ore = requirePass("ore-regression")
+    val localModification = requirePass("local-modification-regression")
+
+    val carverATransform = carverA.getProperty("transformDigest")
+    val carverACarve = carverA.getProperty("carveDigest")
+    check(carverATransform == carverB.getProperty("transformDigest")) {
+        "SF-IMP-0061 transform digest changed across identical automated runs"
+    }
+    check(carverACarve == carverB.getProperty("carveDigest")) {
+        "SF-IMP-0061 carved-position digest changed across identical automated runs"
+    }
+    check(carverATransform == "e97b5e7ee026c422") {
+        "SF-IMP-0061 transform digest regressed: $carverATransform"
+    }
+    check(carverACarve == "61f96a61f81c9b55") {
+        "SF-IMP-0061 carved-position digest regressed: $carverACarve"
+    }
+    check(reload.getProperty("reloadServerPass") == "true"
+            && reload.getProperty("reloadClientPass") == "true") {
+        "SF-IMP-0061 save/reload did not pass on both server and logical client: $reload"
+    }
+    check(stacked.getProperty("foreignWriteRejected") == "true"
+            && stacked.getProperty("ownerWriteAccepted") == "true"
+            && stacked.getProperty("lowerMappedY") != stacked.getProperty("upperMappedY")) {
+        "SF-IMP-0061 stacked exact-volume isolation failed: $stacked"
+    }
+    check(ore.getProperty("transformDigest") == "3397c516a115d6e4"
+            && ore.getProperty("mappedOutsideVolume") == "0"
+            && ore.getProperty("baseColumnPreserved") == "true") {
+        "SF-IMP-0059 regression gate failed: $ore"
+    }
+    check(localModification.getProperty("transformDigest") == "4fe92d09d07f8002"
+            && localModification.getProperty("mappedOutsideVolume") == "0"
+            && localModification.getProperty("baseColumnsPreserved") == "true") {
+        "SF-IMP-0060 regression gate failed: $localModification"
+    }
+
+    println(
+        "SF-IMP-0061 AUTOMATED ACCEPTANCE PASS: "
+            + "carverTransformDigest=$carverATransform, "
+            + "carveDigest=$carverACarve, "
+            + "reloadServerClient=true, stackedIsolation=true, "
+            + "sfImp0059Digest=" + ore.getProperty("transformDigest") + ", "
+            + "sfImp0060Digest=" + localModification.getProperty("transformDigest"),
+    )
+}
+
+tasks.register("sfImp0061AcceptanceVerify") {
+    group = "verification"
+    description = "Verify machine-readable results from the self-driving SF-IMP-0061 runtime slate."
+    doLast {
+        verifySfImp0061AcceptanceResults()
+    }
+}
+
+tasks.register("sfImp0061Acceptance") {
+    group = "verification"
+    description = "Run the complete self-driving SF-IMP-0061 Minecraft acceptance slate."
+    dependsOn(
+        "runNativeCarverAcceptanceA",
+        "runNativeCarverAcceptanceB",
+        "runNativeCarverAcceptanceReloadClient",
+        "runNativeCarverAcceptanceStacked",
+        "runNativeCarverAcceptanceOreRegression",
+        "runNativeCarverAcceptanceLocalModificationRegression",
+    )
+    finalizedBy("sfImp0061AcceptanceVerify")
 }
 
 dependencies {

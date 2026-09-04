@@ -282,6 +282,14 @@ final class SkyforgeNeoForge1211LocalModificationsDevRuntime {
                         + "LOCAL_MODIFICATIONS consumed native placement randomness. Absolute HeightRangePlacement "
                         + "output was then mapped into the exact-volume frame and vertically unrelated BASE_WORLD proof "
                         + "columns remained unchanged.");
+
+        SkyforgeAutomatedAcceptanceHarness.completeServerCase(
+                level.getServer(),
+                java.util.Map.of(
+                        "transformDigest", Long.toUnsignedString(transformDigest, 16),
+                        "mappedOutsideVolume", mappedOutsideVolume,
+                        "geodeSuccesses", geodeSuccesses,
+                        "baseColumnsPreserved", true));
     }
 
     static SkyIslandWorldCatalog catalog() {

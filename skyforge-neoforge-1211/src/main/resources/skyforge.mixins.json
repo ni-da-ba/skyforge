@@ -9,7 +9,10 @@
     "SkyforgeServerLevelWorldGenDomainMixin",
     "SkyforgeBiomeManagerDomainMixin",
     "SkyforgeChunkPostProcessingMixin",
-    "SkyforgeHeightRangePlacementDomainMixin"
+    "SkyforgeHeightRangePlacementDomainMixin",
+    "SkyforgeCarverHeightProviderDomainMixin",
+    "SkyforgeLevelChunkCarverDomainMixin",
+    "SkyforgeWorldCarverDomainMixin"
   ],
   "injectors": {
     "defaultRequire": 1
