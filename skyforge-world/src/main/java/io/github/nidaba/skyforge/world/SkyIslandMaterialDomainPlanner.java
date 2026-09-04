@@ -16,6 +16,7 @@ public final class SkyIslandMaterialDomainPlanner {
     public static final int GRID_SIZE = 25;
     public static final int DEPTH_SAMPLES = 13;
     public static final int MIN_DOMAIN_CELLS = 5;
+    public static final double MAX_SUPPORT_FRACTION = 0.78;
 
     private static final long MINERAL_CARRIER_DOMAIN = 0x4D41544D494E4552L;
     private static final long MINERAL_CARRIER_STEP = 0x9E3779B97F4A7C15L;
@@ -88,21 +89,15 @@ public final class SkyIslandMaterialDomainPlanner {
                     SkyIslandGeologySample geologic = geology.sample(position);
                     double shallowBand = 1.0 - depth;
 
-                    double alteredMembership = clamp01(
+                    altered[index] = clamp01(
                             0.70 * sample.alteration()
                                     + 0.18 * (1.0 - sample.matrixIntegrity())
                                     + 0.12 * shallowBand);
-                    if (alteredMembership >= alteredThreshold) {
-                        altered[index] = alteredMembership;
-                    }
 
-                    double saturatedMembership = clamp01(
+                    saturated[index] = clamp01(
                             0.72 * sample.saturation()
                                     + 0.16 * geologic.groundwaterPotential()
                                     + 0.12 * geologic.connectedPermeability());
-                    if (saturatedMembership >= saturatedThreshold) {
-                        saturated[index] = saturatedMembership;
-                    }
 
                     double nx = x / radius;
                     double nz = z / radius;
@@ -116,11 +111,8 @@ public final class SkyIslandMaterialDomainPlanner {
                             0.65 * sample.mineralizationTendency()
                                     + 0.20 * geologic.fractureIntensity()
                                     + 0.15 * sample.alteration());
-                    double mineralizedMembership =
+                    mineralized[index] =
                             mineralBase * (0.58 + 0.42 * mineralCarrier);
-                    if (mineralizedMembership >= mineralizedThreshold) {
-                        mineralized[index] = mineralizedMembership;
-                    }
 
                     double fabricCarrier = fabricCarrierSupport(
                             descriptor,
@@ -128,16 +120,18 @@ public final class SkyIslandMaterialDomainPlanner {
                             nx,
                             nz,
                             depth);
-                    double fabricMembership = clamp01(
+                    fabric[index] = clamp01(
                             0.58 * sample.matrixIntegrity()
                                     + 0.18 * (1.0 - sample.alteration())
                                     + 0.24 * fabricCarrier);
-                    if (fabricMembership >= fabricThreshold) {
-                        fabric[index] = fabricMembership;
-                    }
                 }
             }
         }
+
+        retainMesoscaleSupport(active, altered, alteredThreshold);
+        retainMesoscaleSupport(active, saturated, saturatedThreshold);
+        retainMesoscaleSupport(active, mineralized, mineralizedThreshold);
+        retainMesoscaleSupport(active, fabric, fabricThreshold);
 
         List<SkyIslandMaterialDomain> domains = new ArrayList<>();
         appendDomains(
@@ -271,6 +265,48 @@ public final class SkyIslandMaterialDomainPlanner {
             support = Math.max(support, clamp01(band * longitudinal));
         }
         return support;
+    }
+
+    /**
+     * Keeps absolute semantic meaning while preventing a broadly elevated condition from becoming
+     * synonymous with the entire island interior.
+     *
+     * <p>Only cells clearing the domain's absolute geological threshold are candidates. If those
+     * candidates exceed the first-generation mesoscale support fraction, the strongest candidates
+     * are retained deterministically by membership and stable lattice index. Low-support material
+     * is never normalized upward into a domain.
+     */
+    private static void retainMesoscaleSupport(
+            boolean[] active,
+            double[] membership,
+            double absoluteThreshold) {
+        int activeCount = 0;
+        List<Integer> candidates = new ArrayList<>();
+        for (int index = 0; index < membership.length; index++) {
+            if (!active[index]) {
+                membership[index] = 0.0;
+                continue;
+            }
+            activeCount++;
+            if (membership[index] >= absoluteThreshold) {
+                candidates.add(index);
+            } else {
+                membership[index] = 0.0;
+            }
+        }
+
+        int maximum = Math.max(1, (int) Math.floor(activeCount * MAX_SUPPORT_FRACTION));
+        if (candidates.size() <= maximum) {
+            return;
+        }
+
+        candidates.sort((first, second) -> {
+            int byMembership = Double.compare(membership[second], membership[first]);
+            return byMembership != 0 ? byMembership : Integer.compare(first, second);
+        });
+        for (int rank = maximum; rank < candidates.size(); rank++) {
+            membership[candidates.get(rank)] = 0.0;
+        }
     }
 
     private static void appendDomains(
