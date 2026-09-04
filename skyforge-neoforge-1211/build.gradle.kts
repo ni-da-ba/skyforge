@@ -649,8 +649,8 @@ tasks.register("sfImp0062AcceptanceVerify") {
         }
         for (key in listOf("carveTransformDigest", "carveDigest", "decorationTransformDigest", "decorationDigest")) {
             check(first.getProperty(key) == second.getProperty(key)) {
-                "SF-IMP-0062 deterministic evidence changed for $key: A="
-                    + first.getProperty(key) + " B=" + second.getProperty(key)
+                "SF-IMP-0062 deterministic evidence changed for $key: A=" +
+                    first.getProperty(key) + " B=" + second.getProperty(key)
             }
         }
         check(stacked.getProperty("foreignWriteRejected") == "true"
