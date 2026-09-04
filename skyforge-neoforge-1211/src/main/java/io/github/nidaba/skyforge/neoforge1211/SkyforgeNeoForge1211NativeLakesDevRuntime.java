@@ -561,15 +561,27 @@ final class SkyforgeNeoForge1211NativeLakesDevRuntime {
             List<ProofChunk> proofChunks) {
         int minimumY = Math.max(level.getMinBuildHeight(), BASE_COLUMN_MINIMUM_Y);
         int maximumY = Math.min(level.getMaxBuildHeight() - 1, BASE_COLUMN_MAXIMUM_Y);
-        List<BaseColumnSnapshot> result = new ArrayList<>(proofChunks.size());
+        List<BaseColumnSnapshot> result = new ArrayList<>();
         for (ProofChunk proofChunk : proofChunks) {
             int x = proofChunk.surfaceBlock().getX();
             int z = proofChunk.surfaceBlock().getZ();
-            List<BlockState> states = new ArrayList<>(maximumY - minimumY + 1);
             for (int y = minimumY; y <= maximumY; y++) {
-                states.add(level.getBlockState(new BlockPos(x, y, z)));
+                BlockPos position = new BlockPos(x, y, z);
+                BlockState state = level.getBlockState(position);
+                // BASE_WORLD acceptance must not confuse unrelated vanilla ticking (leaf-distance,
+                // crop age, water level, etc.) with a Skyforge write. Record only property-free,
+                // non-fluid solids: a real lake replay write would change their block identity/state,
+                // while these controls are otherwise inert across the short acceptance window.
+                if (state.isAir()
+                        || !state.getFluidState().isEmpty()
+                        || !state.getProperties().isEmpty()) {
+                    continue;
+                }
+                result.add(new BaseColumnSnapshot(position.immutable(), state));
             }
-            result.add(new BaseColumnSnapshot(x, z, minimumY, List.copyOf(states)));
+        }
+        if (result.isEmpty()) {
+            throw new IllegalStateException("SF-IMP-0064 found no stable BASE_WORLD proof blocks");
         }
         return List.copyOf(result);
     }
@@ -577,17 +589,12 @@ final class SkyforgeNeoForge1211NativeLakesDevRuntime {
     private static void requireBaseColumnsPreserved(
             ServerLevel level,
             List<BaseColumnSnapshot> before) {
-        for (BaseColumnSnapshot column : before) {
-            for (int index = 0; index < column.states().size(); index++) {
-                int y = column.minimumY() + index;
-                BlockState expected = column.states().get(index);
-                BlockState actual = level.getBlockState(new BlockPos(column.x(), y, column.z()));
-                if (!actual.equals(expected)) {
-                    throw new IllegalStateException(
-                            "SF-IMP-0064 mutated vertically unrelated BASE_WORLD terrain at BlockPos{x="
-                                    + column.x() + ", y=" + y + ", z=" + column.z()
-                                    + "}: before=" + expected + ", after=" + actual);
-                }
+        for (BaseColumnSnapshot sample : before) {
+            BlockState actual = level.getBlockState(sample.position());
+            if (!actual.equals(sample.state())) {
+                throw new IllegalStateException(
+                        "SF-IMP-0064 mutated stable vertically unrelated BASE_WORLD terrain at "
+                                + sample.position() + ": before=" + sample.state() + ", after=" + actual);
             }
         }
     }
@@ -603,7 +610,12 @@ final class SkyforgeNeoForge1211NativeLakesDevRuntime {
 
     private record ProofChunk(LevelChunk chunk, BlockPos surfaceBlock) {}
 
-    private record BaseColumnSnapshot(int x, int z, int minimumY, List<BlockState> states) {}
+    private record BaseColumnSnapshot(BlockPos position, BlockState state) {
+        private BaseColumnSnapshot {
+            java.util.Objects.requireNonNull(position, "position");
+            java.util.Objects.requireNonNull(state, "state");
+        }
+    }
 
     private record PlacementEvidence(
             int attemptedFeatures,
