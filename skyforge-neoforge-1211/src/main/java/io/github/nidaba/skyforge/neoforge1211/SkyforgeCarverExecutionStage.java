@@ -205,6 +205,11 @@ public final class SkyforgeCarverExecutionStage {
             return execution.snapshot();
         }
 
+        boolean authorizeForTest(BlockPos position) {
+            requireActive();
+            return execution.authorize(Objects.requireNonNull(position, "position"));
+        }
+
         void requireActive() {
             if (closed || ACTIVE.get() != execution) {
                 throw new IllegalStateException("Skyforge carver execution scope is not active");
