@@ -7,7 +7,7 @@ public record SkyIslandCaveChamberGeometry(
         int nodeId,
         SkyIslandSubsurfacePosition center,
         double horizontalRadius,
-        double verticalRadius,
+        double depthRadius,
         double irregularity) {
 
     public SkyIslandCaveChamberGeometry {
@@ -16,7 +16,10 @@ public record SkyIslandCaveChamberGeometry(
         }
         center = Objects.requireNonNull(center, "center");
         requirePositive("horizontalRadius", horizontalRadius);
-        requirePositive("verticalRadius", verticalRadius);
+        requirePositive("depthRadius", depthRadius);
+        if (depthRadius > 0.35) {
+            throw new IllegalArgumentException("depthRadius is a semantic depth fraction and must remain local");
+        }
         if (!Double.isFinite(irregularity) || irregularity < 0.0 || irregularity > 1.0) {
             throw new IllegalArgumentException("irregularity must be finite and in [0, 1]");
         }
