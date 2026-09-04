@@ -98,6 +98,7 @@ final class SkyforgeNativeCarverRunner {
                     Integer.MIN_VALUE, Integer.MIN_VALUE,
                     Integer.MIN_VALUE, Integer.MIN_VALUE,
                     0, 0,
+                    0, 0, 0, 0,
                     FNV_OFFSET_BASIS,
                     FNV_OFFSET_BASIS,
                     List.of());
