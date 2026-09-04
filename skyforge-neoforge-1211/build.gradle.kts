@@ -525,6 +525,47 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0066 AUTH-0030 exterior-connected authored cave proof.
+        create("exteriorConnectedCaveAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0066-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.exteriorConnectedCave", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0066-exterior-cave-a")
+            systemProperty("skyforge.dev.acceptanceRadius", "6")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0066/exterior-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("exteriorConnectedCaveAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0066-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.exteriorConnectedCave", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0066-exterior-cave-b")
+            systemProperty("skyforge.dev.acceptanceRadius", "6")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0066/exterior-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -1684,6 +1725,102 @@ tasks.register("sfImp0065Acceptance") {
         "runNativeCarverAcceptanceLocalModificationRegression",
     )
     finalizedBy("sfImp0065AcceptanceVerify")
+}
+
+val sfImp0066AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0066")
+val sfImp0066AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=600066
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=7
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSfImp0066AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(sfImp0066AcceptanceServerProperties)
+}
+
+mapOf(
+    "runExteriorConnectedCaveAcceptanceA" to "run-sf-imp-0066-auto-a",
+    "runExteriorConnectedCaveAcceptanceB" to "run-sf-imp-0066-auto-b",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareSfImp0066AcceptanceServerDirectory(relativePath)
+        }
+    }
+}
+
+tasks.named("runExteriorConnectedCaveAcceptanceA").configure {
+    doFirst {
+        delete(sfImp0066AcceptanceResultDirectory)
+    }
+}
+tasks.named("runExteriorConnectedCaveAcceptanceB").configure {
+    mustRunAfter("runExteriorConnectedCaveAcceptanceA")
+}
+
+tasks.register("sfImp0066AcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic first-pass SF-IMP-0066 exterior-connected cave evidence."
+    doLast {
+        fun load(name: String): Properties {
+            val file = sfImp0066AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0066 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        val first = load("exterior-a")
+        val second = load("exterior-b")
+        check(first.getProperty("status") == "PASS" && second.getProperty("status") == "PASS") {
+            "SF-IMP-0066 runtime repeat did not report PASS: A=$first B=$second"
+        }
+        for (key in listOf("changedDigest", "provenanceDigest")) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "SF-IMP-0066 deterministic evidence changed for $key: A=" +
+                    first.getProperty(key) + " B=" + second.getProperty(key)
+            }
+        }
+        check(first.getProperty("positiveSamples").toInt() > 0
+                && first.getProperty("basePositiveSamples").toInt() > 0
+                && first.getProperty("exposurePositiveSamples").toInt() > 0
+                && first.getProperty("unsafePositiveSamples") == "0"
+                && first.getProperty("mouthCells").toInt() > 0
+                && first.getProperty("changedBlocks") == first.getProperty("positiveSamples")
+                && first.getProperty("mouthState") == "Block{minecraft:air}"
+                && first.getProperty("outwardState") == "Block{minecraft:air}"
+                && first.getProperty("componentReachedBase") == "true"
+                && first.getProperty("exactOwnerOnly") == "true") {
+            "SF-IMP-0066 first-pass exterior cave evidence is incomplete: $first"
+        }
+        println(
+            "SF-IMP-0066 FIRST-PASS ACCEPTANCE PASS: changedDigest="
+                + first.getProperty("changedDigest")
+                + ", provenanceDigest=" + first.getProperty("provenanceDigest")
+                + ", mouthCells=" + first.getProperty("mouthCells")
+                + ", changedBlocks=" + first.getProperty("changedBlocks"),
+        )
+    }
+}
+
+tasks.register("sfImp0066Acceptance") {
+    group = "verification"
+    description = "Run deterministic first-pass SF-IMP-0066 exterior cave acceptance."
+    dependsOn(
+        "runExteriorConnectedCaveAcceptanceA",
+        "runExteriorConnectedCaveAcceptanceB",
+    )
+    finalizedBy("sfImp0066AcceptanceVerify")
 }
 
 dependencies {
