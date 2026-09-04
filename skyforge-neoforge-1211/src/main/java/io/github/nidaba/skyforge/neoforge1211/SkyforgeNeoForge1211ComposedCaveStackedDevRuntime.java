@@ -48,6 +48,10 @@ final class SkyforgeNeoForge1211ComposedCaveStackedDevRuntime {
         return Boolean.getBoolean(ENABLE_PROPERTY);
     }
 
+    static Fixture fixtureDefinition() {
+        return FIXTURE;
+    }
+
     static synchronized void installFromSystemProperty() {
         if (!enabled() || persistentTerrainBinding != null) {
             return;
@@ -384,7 +388,7 @@ final class SkyforgeNeoForge1211ComposedCaveStackedDevRuntime {
         return new SkyIslandWorldVolume(id, bounds, compiled);
     }
 
-    private record Fixture(
+    record Fixture(
             SkyforgeNeoForge1211ExteriorConnectedCaveDevRuntime.Fixture base,
             SkyIslandWorldVolume lower,
             SkyIslandWorldVolume upper,
