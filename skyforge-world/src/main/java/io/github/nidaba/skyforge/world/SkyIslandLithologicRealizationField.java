@@ -73,7 +73,7 @@ public final class SkyIslandLithologicRealizationField {
         SkyIslandLithologicContactRealizationSample contactSample =
                 contacts.sample(position);
 
-        if (!contactSample.contactActive()) {
+        if (contactSample.contactId() < 0) {
             return new SkyIslandLithologicRealizationSample(
                     true,
                     true,

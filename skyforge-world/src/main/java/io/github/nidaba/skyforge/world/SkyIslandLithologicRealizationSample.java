@@ -59,31 +59,28 @@ public record SkyIslandLithologicRealizationSample(
                 throw new IllegalArgumentException(
                         "non-material realization samples must contain empty provenance and zero channels");
             }
-            return;
-        }
-
-        if (localAssemblageId < 0 || localAssemblageKind == null) {
-            throw new IllegalArgumentException(
-                    "material realization requires local AUTH-0034 assemblage provenance");
-        }
-        if (Math.max(massiveMatrix, fabricRichMatrix) <= 0.0) {
-            throw new IllegalArgumentException(
-                    "material realization requires at least one host-matrix channel");
-        }
-
-        if (contactId < 0) {
-            if (contactKind != null
-                    || firstAssemblageId != localAssemblageId
-                    || firstAssemblageKind != localAssemblageKind
-                    || firstAssemblageWeight != 1.0
-                    || secondAssemblageId != -1
-                    || secondAssemblageKind != null
-                    || secondAssemblageWeight != 0.0) {
-                throw new IllegalArgumentException(
-                        "non-contact material must resolve completely to its local assemblage");
-            }
         } else {
-            if (contactKind == null
+            if (localAssemblageId < 0 || localAssemblageKind == null) {
+                throw new IllegalArgumentException(
+                        "material realization requires local AUTH-0034 assemblage provenance");
+            }
+            if (Math.max(massiveMatrix, fabricRichMatrix) <= 0.0) {
+                throw new IllegalArgumentException(
+                        "material realization requires at least one host-matrix channel");
+            }
+
+            if (contactId < 0) {
+                if (contactKind != null
+                        || firstAssemblageId != localAssemblageId
+                        || firstAssemblageKind != localAssemblageKind
+                        || firstAssemblageWeight != 1.0
+                        || secondAssemblageId != -1
+                        || secondAssemblageKind != null
+                        || secondAssemblageWeight != 0.0) {
+                    throw new IllegalArgumentException(
+                            "non-contact material must resolve completely to its local assemblage");
+                }
+            } else if (contactKind == null
                     || firstAssemblageId < 0
                     || secondAssemblageId < 0
                     || firstAssemblageKind == null
