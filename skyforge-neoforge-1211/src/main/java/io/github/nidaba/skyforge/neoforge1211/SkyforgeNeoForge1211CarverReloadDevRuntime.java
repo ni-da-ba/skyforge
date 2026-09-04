@@ -151,6 +151,14 @@ final class SkyforgeNeoForge1211CarverReloadDevRuntime {
                         + ", clientExpectedState=" + first.expectedState()
                         + ". Persisted cave state survived a full save/stop/reload without reinstalling "
                         + "the Skyforge terrain, admission, or carver mutation pipeline.");
+
+        SkyforgeAutomatedAcceptanceHarness.record(
+                java.util.Map.of(
+                        "reloadServerPass", true,
+                        "persistedCarved", persistedCarved,
+                        "persistedAir", persistedAir,
+                        "persistedLava", persistedLava,
+                        "persistenceDigest", Long.toUnsignedString(digest, 16)));
     }
 
     static ClientExpectation clientExpectation() {
