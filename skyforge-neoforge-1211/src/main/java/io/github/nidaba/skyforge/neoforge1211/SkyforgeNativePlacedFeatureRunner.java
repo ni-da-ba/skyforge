@@ -73,6 +73,15 @@ final class SkyforgeNativePlacedFeatureRunner {
         Objects.requireNonNull(operation, "operation");
 
         SurfaceProbe surface = findSurface(level, operation.originChunk(), operation);
+        if (operation.generationStep()
+                        == net.minecraft.world.level.levelgen.GenerationStep.Decoration.LAKES.ordinal()
+                && !SkyforgeNativeLakeAdmissionStage.supports(placedFeature.value())) {
+            // First LAKES capability admits the native bounded LakeFeature type generically by
+            // configured-feature class, never by registry ID. Unknown custom LAKES feature types
+            // remain fail-closed until they expose an equivalent whole-footprint contract.
+            return new Result(false, 0, null);
+        }
+
         try (var domain = SkyforgeGenerationDomainStage.openIsland(operation.volumeId());
                 var execution = SkyforgePopulationExecutionStage.open(
                         operation,
@@ -169,11 +178,13 @@ final class SkyforgeNativePlacedFeatureRunner {
         try (var domain = SkyforgeGenerationDomainStage.openIsland(operation.volumeId());
                 var execution = openExecution(operation, domainBiome, maximumAttachmentDepth);
                 var verticalFrame = SkyforgeVerticalPlacementFrame.open(level, operation);
-                var generatedFluid = SkyforgeGeneratedFluidPropagationStage.openPopulation(level, operation)) {
+                var generatedFluid = SkyforgeGeneratedFluidPropagationStage.openPopulation(level, operation);
+                var lakeAdmission = SkyforgeNativeLakeAdmissionStage.open(operation)) {
             domain.requireActive();
             execution.requireActive();
             verticalFrame.requireActive();
             generatedFluid.requireActive();
+            lakeAdmission.requireActive();
             RandomSource random = RandomSource.create(operation.seed());
             boolean placed = domainBiome.isPresent()
                     // Biome-owned generation must preserve Minecraft's top-feature provenance so
@@ -186,7 +197,13 @@ final class SkyforgeNativePlacedFeatureRunner {
             // as worldgen, then resolves them here before the exact-volume execution scope closes.
             // Direct worldgen never opens the bridge, so this is a no-op on the accepted path.
             SkyforgeDeferredPopulationPostProcessingBridge.flushIfActive();
-            return new Result(placed, execution.execution().attachmentCount());
+            return new Result(
+                    placed,
+                    execution.execution().attachmentCount(),
+                    operation.generationStep()
+                                    == net.minecraft.world.level.levelgen.GenerationStep.Decoration.LAKES.ordinal()
+                            ? lakeAdmission.snapshot()
+                            : null);
         }
     }
 
@@ -221,7 +238,10 @@ final class SkyforgeNativePlacedFeatureRunner {
         }
     }
 
-    record Result(boolean placed, int attachmentWrites) {
+    record Result(
+            boolean placed,
+            int attachmentWrites,
+            SkyforgeNativeLakeAdmissionStage.Snapshot lakeAdmission) {
         Result {
             if (attachmentWrites < 0) {
                 throw new IllegalArgumentException("attachmentWrites must be non-negative");
