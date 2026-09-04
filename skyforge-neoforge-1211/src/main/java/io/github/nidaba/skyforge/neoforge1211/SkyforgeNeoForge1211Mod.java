@@ -30,6 +30,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211CarverDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211UndergroundDecorationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211UndergroundDecorationStackedDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211UndergroundDecorationReloadDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211CarverReloadDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211CarverStackedDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211LocalModificationsStackedDevRuntime.installFromSystemProperty();
