@@ -345,6 +345,15 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             return new Scope(null);
         }
 
+        void requireActive() {
+            if (closed) {
+                throw new IllegalStateException("generated-fluid scope is closed");
+            }
+            if (context != null && ACTIVE.get() != context) {
+                throw new IllegalStateException("generated-fluid scope changed before completion");
+            }
+        }
+
         @Override
         public void close() {
             if (closed) {
