@@ -324,7 +324,7 @@ public final class SkyforgeGeneratedFluidPropagationStage {
     record Provenance(
             SkyIslandWorldVolumeId volumeId,
             ResourceLocation fluidKey) {
-        private Provenance {
+        Provenance {
             Objects.requireNonNull(volumeId, "volumeId");
             Objects.requireNonNull(fluidKey, "fluidKey");
         }
