@@ -1,6 +1,8 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.levelgen.GenerationStep;
@@ -104,10 +106,12 @@ public final class SkyforgeNativeLakeAdmissionStage {
             state.decisionDigest = mix(state.decisionDigest, firstRejected.asLong());
             state.lastRejectedOrigin = origin.immutable();
             state.lastRejectedPosition = firstRejected.immutable();
+            state.rejectedOrigins.add(origin.immutable());
             return false;
         }
 
         state.admitted++;
+        state.admittedOrigins.add(origin.immutable());
         state.decisionDigest = mix(state.decisionDigest, 1L);
         return true;
     }
@@ -137,7 +141,14 @@ public final class SkyforgeNativeLakeAdmissionStage {
             int inspectedPositions,
             long decisionDigest,
             BlockPos lastRejectedOrigin,
-            BlockPos lastRejectedPosition) {}
+            BlockPos lastRejectedPosition,
+            List<BlockPos> admittedOrigins,
+            List<BlockPos> rejectedOrigins) {
+        Snapshot {
+            admittedOrigins = List.copyOf(admittedOrigins);
+            rejectedOrigins = List.copyOf(rejectedOrigins);
+        }
+    }
 
     private static final class State {
         private final SkyIslandWorldVolumeId volumeId;
@@ -148,6 +159,8 @@ public final class SkyforgeNativeLakeAdmissionStage {
         private long decisionDigest = FNV_OFFSET_BASIS;
         private BlockPos lastRejectedOrigin;
         private BlockPos lastRejectedPosition;
+        private final List<BlockPos> admittedOrigins = new ArrayList<>();
+        private final List<BlockPos> rejectedOrigins = new ArrayList<>();
 
         private State(SkyIslandWorldVolumeId volumeId) {
             this.volumeId = Objects.requireNonNull(volumeId, "volumeId");
@@ -161,7 +174,9 @@ public final class SkyforgeNativeLakeAdmissionStage {
                     inspectedPositions,
                     decisionDigest,
                     lastRejectedOrigin,
-                    lastRejectedPosition);
+                    lastRejectedPosition,
+                    admittedOrigins,
+                    rejectedOrigins);
         }
     }
 
@@ -189,7 +204,7 @@ public final class SkyforgeNativeLakeAdmissionStage {
         Snapshot snapshot() {
             requireActive();
             if (state == null) {
-                return new Snapshot(0, 0, 0, 0, FNV_OFFSET_BASIS, null, null);
+                return new Snapshot(0, 0, 0, 0, FNV_OFFSET_BASIS, null, null, List.of(), List.of());
             }
             return state.snapshot();
         }
