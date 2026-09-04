@@ -258,6 +258,7 @@ public final class SkyforgeGeneratedFluidPropagationStage {
                         "generated-fluid propagation requires the active compiled Skyforge terrain binding"));
     }
 
+    @SuppressWarnings("deprecation")
     private static ServerLevel serverLevel(WorldGenLevel level) {
         if (level instanceof ServerLevel serverLevel) {
             return serverLevel;
