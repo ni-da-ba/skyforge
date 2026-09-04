@@ -135,6 +135,20 @@ Both remain in the first-generation range 1–3.
 
 Carrier geometry is deterministic from island authorship identity.
 
+## Mesoscale localization
+
+Absolute geological thresholds remain the first gate.
+
+If one material condition is so broadly elevated that it would occupy most of the host interior, AUTH-0032 keeps only the strongest deterministic support cells up to a first-generation maximum of 78% of active host-material planning volume.
+
+This is not percentile normalization of weak material:
+
+- cells below the absolute semantic threshold remain excluded;
+- the relative localization rule can only remove already-qualified cells;
+- it cannot promote low-support material into a domain.
+
+The rule exists because a mesoscale domain must remain geographically discriminating even on an island whose overall alteration, saturation, or structural integrity is high.
+
 ## Connected-component filtering
 
 Each domain kind is flood-filled independently using face-adjacent planning cells.
@@ -187,7 +201,7 @@ Reject AUTH-0032 if:
 - components smaller than the accepted minimum survive;
 - domain components are disconnected;
 - all four kinds become mutually exclusive categorical labels;
-- any domain kind exceeds 85% of the active host-material planning volume;
+- any domain kind exceeds the accepted 78% mesoscale support fraction of active host-material planning volume;
 - mineralization appears without meaningful AUTH-0031 mineralization support;
 - mineralized bodies become high-frequency specks or generic uniform ore sheets;
 - saturated bodies ignore groundwater/permeability common causes;
