@@ -39,32 +39,32 @@ jobs:
 
       - name: Carver run A
         timeout-minutes: 7
-        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceA --stacktrace
+        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceA --stacktrace --no-configuration-cache
 
       - name: Carver run B deterministic repeat
         timeout-minutes: 7
-        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceB --stacktrace
+        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceB --stacktrace --no-configuration-cache
 
       - name: Save-reload logical client verification
         timeout-minutes: 8
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
-        run: xvfb-run -a ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceReloadClient --stacktrace
+        run: xvfb-run -a ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceReloadClient --stacktrace --no-configuration-cache
 
       - name: Stacked-volume carver isolation
         timeout-minutes: 5
-        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceStacked --stacktrace
+        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceStacked --stacktrace --no-configuration-cache
 
       - name: SF-IMP-0059 ore regression
         timeout-minutes: 7
-        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceOreRegression --stacktrace
+        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceOreRegression --stacktrace --no-configuration-cache
 
       - name: SF-IMP-0060 local-modification regression
         timeout-minutes: 7
-        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceLocalModificationRegression --stacktrace
+        run: ./gradlew :skyforge-neoforge-1211:runNativeCarverAcceptanceLocalModificationRegression --stacktrace --no-configuration-cache
 
       - name: Verify aggregate acceptance evidence
-        run: ./gradlew :skyforge-neoforge-1211:sfImp0061AcceptanceVerify --stacktrace
+        run: ./gradlew :skyforge-neoforge-1211:sfImp0061AcceptanceVerify --stacktrace --no-configuration-cache
 
       - name: Publish acceptance evidence
         if: always()
