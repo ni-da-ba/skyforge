@@ -146,7 +146,10 @@ class SkyIslandMaterialDomainPlannerTest {
                         + " active=" + active
                         + " coverage=" + coverage;
                 assertTrue(cells < active, diagnostic);
-                assertTrue(cells <= Math.floor(active * 0.85), diagnostic);
+                assertTrue(
+                        cells <= Math.floor(
+                                active * SkyIslandMaterialDomainPlanner.MAX_SUPPORT_FRACTION),
+                        diagnostic);
             }
         }
     }
