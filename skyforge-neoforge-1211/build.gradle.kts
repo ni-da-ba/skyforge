@@ -2578,8 +2578,8 @@ tasks.register("sfImp0068AcceptanceVerify") {
             "composedDigest",
         )) {
             check(first.getProperty(key) == second.getProperty(key)) {
-                "SF-IMP-0068 deterministic evidence changed for $key: A="
-                    + first.getProperty(key) + " B=" + second.getProperty(key)
+                "SF-IMP-0068 deterministic evidence changed for $key: A=" +
+                    first.getProperty(key) + " B=" + second.getProperty(key)
             }
         }
 
