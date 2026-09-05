@@ -7,6 +7,15 @@ This document defines how much authority a structure intent has over Skyforge wo
 
 > Common structures adapt to the world; important structures negotiate with the world; exceptional structures may shape the world; progression-critical structures are guaranteed by the world.
 
+
+## Morphology-authority clarification
+
+This policy's references to terrain forcing or terrain influence mean **requirement satisfaction**, not direct structure-shaped terrain generation.
+
+By default, a structure declares constraints such as minimum connected interior capacity, support, cover, surface area, cliff/water capability, clearance, or access. Skyforge remains free to satisfy those constraints with any compatible accepted morphology family or hybrid. See [Structure-to-Terrain Compatibility Contract v0.1](structure-terrain-compatibility-contract-v0.1.md).
+
+Only explicitly exceptional content should directly bias visible morphology.
+
 ## Four authority tiers
 
 ### Tier 0 — Opportunistic
