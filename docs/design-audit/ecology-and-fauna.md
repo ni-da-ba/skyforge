@@ -39,6 +39,7 @@ POLLINATOR        -> Naturalist butterfly
 DETRITIVORE       -> Critters & Companions microfauna
 SMALL_AERIAL      -> Fowl Play songbird
 AERIAL_RAPTOR     -> Fowl Play hawk
+THERMAL_SOARER    -> adapted red-tailed-hawk / selected hawk realization
 ```
 
 This keeps ecological semantics independent of a particular content dependency.
@@ -93,6 +94,28 @@ Useful niches:
 - cold birds.
 
 Fowl Play hawks are a strong candidate for a thin wind/thermal integration hook.
+
+A particularly useful behavior target is the previously discussed **adapted red-tailed-hawk / ordinary thermal soarer** role:
+
+- searches for authored or simulated lift rather than flapping continuously;
+- circles while climbing in thermals;
+- transitions into long glides between lift sources;
+- favors cliff/ridge lift where appropriate;
+- can exploit strong natural heat sources and, if technically practical, modest anthropogenic thermal sources;
+- serves as atmospheric legibility for players using gliders.
+
+This should preferably be a behavioral adaptation/integration of an existing hawk asset rather than a bespoke new species unless the available model/animation set proves inadequate.
+
+The design payoff is substantial:
+
+~~~text
+player sees hawk circling
+    -> infers rising air
+    -> approaches with glider
+    -> catches same thermal
+~~~
+
+Fauna therefore teaches atmosphere through observation rather than exposition.
 
 ### Critters & Companions — probable ecology dependency, pending performance/visual testing
 
@@ -242,6 +265,7 @@ aquatic_fauna
 Examples:
 
 - Fowl Play hawks hunt selected small Naturalist fauna.
+- adapted thermal-soaring hawks prefer local thermal/ridge-lift opportunities shared with glider gameplay.
 - Naturalist deer recognize cliff raptor as predator.
 - Naturalist vultures recognize Skyforge carcass anchors.
 - Fowl Play birds avoid active raptor nesting cores.
