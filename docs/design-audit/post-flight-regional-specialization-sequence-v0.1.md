@@ -7,6 +7,10 @@
 
 > The first powered aircraft should immediately reveal why the world is geographically distributed.
 
+Resource geography is justified by **capability payoff**, not by nominal material tier.
+
+See [Post-Flight Capability Payoff Audit v0.1](post-flight-capability-payoff-audit-v0.1.md).
+
 Skyforge should not wait several progression tiers before resource geography matters.
 
 Once the player proves a practical first aircraft, the world may begin shifting from:
@@ -317,6 +321,26 @@ A mature region should move fuel through tanks, vehicles, depots, and routes.
 
 Create Crafts & Additions currently leads the electricity slot.
 
+Current 1.21.1 source suggests electricity itself has an internal maturity gradient:
+
+~~~text
+Alternator
+    Andesite Alloy + iron + copper spool
+    -> mechanical-to-electric generation can appear relatively early
+
+Electric Motor
+    Brass + capacitor + copper spool
+    -> electric-to-kinetic conversion is more mature
+
+Modular Accumulator
+    Brass Casing + capacitor + copper + electrum wire
+    -> storage adds another dependency layer
+
+Digital Adapter
+    wired modem + Brass + redstone
+    -> CC/Create coordination
+~~~
+
 Its strategic value is not merely another power tier.
 
 Electricity should enable:
@@ -333,9 +357,14 @@ Electricity should enable:
 Potential input geography includes:
 
 - copper;
-- gold;
+- zinc;
+- Brass;
 - redstone;
+- gold;
+- silver/electrum only if the final selected stack supplies a coherent Silver path;
 - manufactured electrical components.
+
+Do not add a Skyforge Silver resource merely because the current Modular Accumulator recipe references electrum. Resolve the final tag/recipe ecology first.
 
 This should emerge after the player already understands mechanical Create and aviation.
 
