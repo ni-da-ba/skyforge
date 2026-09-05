@@ -210,7 +210,7 @@ public final class AuthorshipAcceptedConvergenceCompilationCorpusCli {
         SkyIslandSupportConvergenceReport accepted =
                 acceptedConvergence(
                         57501L,
-                        new ProviderMorphologySpec(massifId, 1.0, 1.0),
+                        new ProviderMorphologySpec(massifId, 0.0, 0.0),
                         acceptedRegistry,
                         360.0,
                         440.0);
@@ -281,7 +281,7 @@ public final class AuthorshipAcceptedConvergenceCompilationCorpusCli {
         SkyIslandSupportConvergenceReport repeatConvergence =
                 acceptedConvergence(
                         57504L,
-                        new ProviderMorphologySpec(basinId, 1.0, 1.0),
+                        new ProviderMorphologySpec(basinId, 0.0, 0.0),
                         repeatRegistry,
                         360.0,
                         440.0);
