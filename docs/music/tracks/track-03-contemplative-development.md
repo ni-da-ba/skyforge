@@ -2,8 +2,8 @@
 
 **Status:** Active development  
 **Role:** lonely / ponderous / thoughtful exploration state  
-**Current method:** literature-backed first-principles melodic rewrite  
-**Current boundary:** First-Principles Theme 03 — cadential arc
+**Current method:** preserve cadential audit while adding a composite melodic fingerprint  
+**Current boundary:** First-Principles Theme 04 — afterimage hook
 
 ## Emotional target
 
@@ -557,6 +557,122 @@ The primary gate is whether the phrase endings now feel rhetorically natural to 
 In particular:
 
 > Does the music still ask for continuation after descending into a lower register, proving that harmony and musical meaning—not habitual high endings—can carry the unresolved thought?
+
+
+## First-Principles Theme 04 — afterimage hook / character pass
+
+The user judged Theme 03 substantially better in phrase rhetoric, but still too generic in identity: it read primarily as an "up and down string section" rather than a memorable piece with distinguishing components.
+
+This is treated as a different defect from the Theme 02 cadence problem.
+
+Theme 03 had good **grammar** but insufficient **fingerprint**.
+
+### Governing correction
+
+Theme 04 preserves the phrase-closure audit and adds a deliberately small composite identity rather than returning to arbitrary melodic complexity.
+
+The principal cello head is:
+
+`D4 -> D4 -> F4 -> Bb4`
+
+followed by:
+
+`A4 -> F4 -> G4 -> E4`
+
+Its intended distinguishing features are:
+
+- repeated-note hesitation;
+- an exposed F-to-B-flat leap;
+- immediate downward reversal after that leap;
+- a recurring E-natural "catch" inside the B-flat-major sound world;
+- a tiny piano afterimage `E5 -> F5` after major statements.
+
+The theme is therefore conceived as a **composite call-and-afterimage identity**, not merely a smooth cello contour.
+
+### Why this differs from the earlier hook experiments
+
+The earlier theme labs tried to construct memorability from abstract traits such as neighbor motion, asymmetry, and large leaps. Theme 04 instead starts from a complete audible phrase and lets a few features recur because they are part of that phrase's identity.
+
+No full sentence is transposed as a development technique.
+
+### Phrase design
+
+**Phrase 1 (bars 1–4)**
+
+- establishes the signature `D-D-F-Bb` head;
+- introduces the E-natural catch;
+- local apex occurs internally;
+- descends to low/middle C4 over V;
+- remains open harmonically rather than registrally.
+
+**Phrase 2 (bars 5–8)**
+
+- a genuinely different answer;
+- retains the E-natural catch as family resemblance;
+- local apex occurs internally;
+- descends to a long low B-flat3 tonic close.
+
+**Phrase 3 (bars 9–12)**
+
+- returns the signature head literally enough for recognition;
+- diverges after the head instead of repeating Phrase 1;
+- receives the piano `E-F` afterimage again;
+- ends low/open on C4.
+
+**Phrase 4 (bars 13–16)**
+
+- develops the repeated-note cell through compression and fragmentation;
+- reaches the single global apex internally in bar 14;
+- transforms the piano afterimage from `E-F` to `F-G`;
+- spends the remainder of the phrase descending;
+- ends low/open on C4.
+
+**Phrase 5 (bars 17–20)**
+
+- returns the signature head;
+- replaces the earlier answer with a quieter descent derived from Phrase 2;
+- closes on long B-flat3.
+
+### Retained cadence constraints
+
+The Melodic Design Audit 01 remains binding:
+
+- phrase apex and phrase endpoint remain separate;
+- high notes are generally interior expressive events;
+- significant upward leaps receive downward reversal;
+- phrase-final onset density decreases;
+- phrase-final arrivals lengthen;
+- open/closed status is harmonic rather than "high versus low."
+
+Theme 04 therefore attempts to solve memorability **without regressing** on the phrase-ending correction.
+
+Uncompressed full MIDI SHA-256:
+
+`5abe2d97fc2111de4e3d531c47a37f5c35e6f4df21525b4b10393fef376ee41b`
+
+Repository source:
+
+`assets/music/source/track-03-first-principles-theme-04-afterimage-hook.mid.gz`
+
+Uncompressed melody-only MIDI SHA-256:
+
+`7534ff2b642bb440b863a61e354402c7eb961defad7b04a9ff0fdfc0941a0668`
+
+Repository source:
+
+`assets/music/source/track-03-first-principles-theme-04-afterimage-hook-melody-only.mid.gz`
+
+A composite cello+piano diagnostic is also persisted:
+
+`assets/music/source/track-03-first-principles-theme-04-composite-hook-focus.mid.gz`
+
+Its uncompressed MIDI SHA-256 is:
+
+`5253c48618b82e9f588a57f2a07492d9b2d4782c6de87598a0e6fcabdb60cbe2`
+
+### Current acceptance question
+
+> Does the listener remember the `D-D-F-Bb` call and the little piano afterimage as belonging specifically to this piece, while the low/open and low/closed phrase endings still feel natural?
 
 ## Current acceptance gate
 
