@@ -279,6 +279,13 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationDevRuntime {
             throw new IllegalStateException(
                     "SF-IMP-0069 generated-fluid containment evidence is incomplete: " + fluids);
         }
+        var sampleFluid = SkyforgeGeneratedFluidPropagationStage.trackedFluids(level, volumeId).stream()
+                .filter(tracked -> !level.getFluidState(net.minecraft.core.BlockPos.of(tracked.position())).isEmpty())
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "SF-IMP-0069 tracked generated-fluid provenance has no persistent fluid sample"));
+        BlockPos sampleFluidPosition = BlockPos.of(sampleFluid.position());
+        String sampleFluidState = level.getBlockState(sampleFluidPosition).toString();
 
         long replayChunkKey = completions.stream()
                 .filter(completion -> !completion.phaseResults().isEmpty())
@@ -341,6 +348,8 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationDevRuntime {
                         java.util.Map.entry("springsSuccessful", successful.getOrDefault(GenerationStep.Decoration.FLUID_SPRINGS, 0)),
                         java.util.Map.entry("trackedFluids", fluids.trackedPositions()),
                         java.util.Map.entry("fluidDigest", Long.toUnsignedString(fluids.digest(), 16)),
+                        java.util.Map.entry("sampleFluidPos", Long.toString(sampleFluidPosition.asLong())),
+                        java.util.Map.entry("sampleFluidState", sampleFluidState),
                         java.util.Map.entry("scheduledOutsideOwner", fluids.scheduledOutsideOwner()),
                         java.util.Map.entry("rejectedBoundaryWrites", fluids.rejectedBoundaryWrites()),
                         java.util.Map.entry("successfulFeatureKeys", String.join(",", successfulFeatureKeys))));
