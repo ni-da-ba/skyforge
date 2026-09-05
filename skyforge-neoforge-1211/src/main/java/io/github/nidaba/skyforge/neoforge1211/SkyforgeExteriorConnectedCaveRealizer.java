@@ -50,11 +50,31 @@ final class SkyforgeExteriorConnectedCaveRealizer {
                     "exterior-connected cave realization requires an active Skyforge terrain binding");
         }
 
-        var compiled = volume.compiledVolume();
-        var descriptor = compiled.descriptor();
         var realized = new SkyIslandRealizedExteriorConnectedCaveVolumeField(
                 caveField,
-                new SkyIslandCompiledVolumeColumnField(compiled));
+                new SkyIslandCompiledVolumeColumnField(volume.compiledVolume()));
+        return realize(level, volume, realized, chunk);
+    }
+
+    static Result realize(
+            ServerLevel level,
+            SkyIslandWorldVolume volume,
+            SkyIslandRealizedExteriorConnectedCaveVolumeField realized,
+            LevelChunk chunk) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(volume, "volume");
+        Objects.requireNonNull(realized, "realized");
+        Objects.requireNonNull(chunk, "chunk");
+        if (chunk.getLevel() != level) {
+            throw new IllegalArgumentException("exterior-connected cave target chunk belongs to another level");
+        }
+        if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
+            throw new IllegalStateException(
+                    "exterior-connected cave realization requires an active Skyforge terrain binding");
+        }
+
+        var compiled = volume.compiledVolume();
+        var descriptor = compiled.descriptor();
 
         int minimumY = Math.max(
                 chunk.getMinBuildHeight(),
