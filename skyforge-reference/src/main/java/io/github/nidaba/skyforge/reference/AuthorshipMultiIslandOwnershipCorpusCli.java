@@ -135,7 +135,7 @@ public final class AuthorshipMultiIslandOwnershipCorpusCli {
                         fixture.forward().resolve(point);
                 SkyIslandAuthoredRealizationOwnershipSelection reverse =
                         fixture.reverse().resolve(point);
-                selections[iy][ix] = selection;
+                selections[iy][iz] = selection;
                 sampled++;
 
                 int conservative = selection.conservativeCandidateCount();
@@ -297,9 +297,9 @@ public final class AuthorshipMultiIslandOwnershipCorpusCli {
             Grid grid,
             int panel) {
         for (int iy = 0; iy < SAMPLE_Y; iy++) {
-            for (int ix = 0; ix < SAMPLE_Z; ix++) {
+            for (int iz = 0; iz < SAMPLE_Z; iz++) {
                 SkyIslandAuthoredRealizationOwnershipSelection selection =
-                        grid.selections()[iy][ix];
+                        grid.selections()[iy][iz];
                 Color color =
                         switch (panel) {
                             case 0 -> countColor(selection.conservativeCandidateCount());
@@ -312,7 +312,7 @@ public final class AuthorshipMultiIslandOwnershipCorpusCli {
                 for (int dy = 0; dy < SCALE; dy++) {
                     for (int dx = 0; dx < SCALE; dx++) {
                         image.setRGB(
-                                offsetX + ix * SCALE + dx,
+                                offsetX + iz * SCALE + dx,
                                 HEADER + (SAMPLE_Y - 1 - iy) * SCALE + dy,
                                 color.getRGB());
                     }
