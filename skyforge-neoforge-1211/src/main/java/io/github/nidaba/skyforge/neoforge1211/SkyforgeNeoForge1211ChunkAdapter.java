@@ -163,13 +163,26 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             int worldY,
             int worldZ) {
         Objects.requireNonNull(volumeId, "volumeId");
+        SkyIslandTerrainInterpreter interpreter = interpretersByVolumeId.get(volumeId);
+        return interpreter != null
+                && interpreter.classify(worldX, worldY, worldZ).isSolid();
+    }
+
+    /** Returns whether any different exact compiled volume owns this solid sample. */
+    boolean isSolidOwnedByOtherVolume(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        if (interpretersByVolumeId.size() <= 1) {
+            return false;
+        }
         return catalog.query(pointBounds(worldX, worldY, worldZ)).stream()
-                .filter(candidate -> candidate.id().equals(volumeId))
-                .findFirst()
-                .map(candidate -> requireInterpreter(candidate.id())
+                .filter(candidate -> !candidate.id().equals(volumeId))
+                .anyMatch(candidate -> requireInterpreter(candidate.id())
                         .classify(worldX, worldY, worldZ)
-                        .isSolid())
-                .orElse(false);
+                        .isSolid());
     }
 
     /**
