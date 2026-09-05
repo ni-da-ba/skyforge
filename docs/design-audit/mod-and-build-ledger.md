@@ -241,6 +241,11 @@ Portable Storage / Freight Integrity Contract
 Backpack Capacity / Nesting Audit
 Shulker / Ender-Chest Late-Courier Acceptance
 Bulk / Fluid / Entity / Contraption Freight Acceptance
+Post-Flight Regional Specialization Sequence
+Copper / Zinc First-Route Placement Contract
+Brass Capability-Payoff Acceptance
+Sample-vs-Industrial Deposit Scale Contract
+Petroleum Freight-Route Acceptance
 ~~~
 
 ### Onboarding / guidance
@@ -298,3 +303,5 @@ non-omniscient sensor access to Skyforge truth
 16. Do not reduce vanilla inventory merely to manufacture aircraft demand; preserve freight value through throughput and payload classes.
 17. Vanilla Shulker Boxes remain provisionally acceptable as late manual-courier storage; large early backpack capacity and recursive portable-container nesting do not.
 18. Prefer a datapack-level Nether `coordinate_scale = 1.0` prototype before any bespoke portal implementation.
+19. Copper, zinc, and Brass are current early-R2/post-flight resources, not first-aircraft guarantees; preserve the audited pre-brass closure unless manual testing disproves it.
+20. Petroleum should first create strategic freight geography, not first-flight dependency.
