@@ -2605,7 +2605,7 @@ tasks.register("sfImp0068AcceptanceVerify") {
         }
 
         val required = first.getProperty("requiredChunks").toInt()
-        check(first.getProperty("islandKey") == "3670"
+        check(first.getProperty("islandKey") == "1471"
                 && first.getProperty("nativeBiome") == "minecraft:taiga"
                 && first.getProperty("productionStage") == "true"
                 && first.getProperty("admittedBeforeCompletion") == "true"
