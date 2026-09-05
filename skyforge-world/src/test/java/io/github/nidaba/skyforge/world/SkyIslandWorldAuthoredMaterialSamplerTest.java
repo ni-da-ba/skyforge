@@ -35,7 +35,7 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
     @Test
     void worldSampleRoundTripsThroughAuthoritativeColumnAndFinalWinner() {
         Fixture fixture = fixture(1439L, 1200.0, -800.0, 0, 0, 0.62);
-        SkyIslandSubsurfacePosition semantic = firstMaterialSemantic(fixture.authored());
+        SkyIslandSubsurfacePosition semantic = firstMaterialSemantic(fixture);
         Coordinate3 world = toWorld(fixture.association(), semantic);
 
         SkyIslandWorldAuthoredMaterialSample sample =
@@ -45,7 +45,11 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
         assertTrue(sample.authoredOwned());
         assertTrue(sample.materialPresent());
         assertFalse(sample.authoredVoid());
-        assertEquals(semantic.surfacePosition(), sample.semantic().orElseThrow().surfacePosition());
+        assertHorizontalRoundTrip(
+                semantic,
+                sample.semantic().orElseThrow(),
+                world,
+                fixture.physical());
         assertEquals(
                 semantic.depthFraction(),
                 sample.semantic().orElseThrow().depthFraction(),
@@ -58,7 +62,7 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
     @Test
     void sampleEnvelopeRejectsForgedWorldLocalFrame() {
         Fixture fixture = fixture(1439L, 1200.0, -800.0, 0, 0, 0.62);
-        SkyIslandSubsurfacePosition semantic = firstMaterialSemantic(fixture.authored());
+        SkyIslandSubsurfacePosition semantic = firstMaterialSemantic(fixture);
         SkyIslandWorldAuthoredMaterialSample valid =
                 fixture.sampler()
                         .sample(
@@ -82,36 +86,56 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
     }
 
     @Test
-    void worldTranslationDoesNotChangeNativeSemanticWinner() {
+    void worldTranslationDoesNotEnterStableSemanticIdentity() {
         SkyIslandDescriptor authored = authored(2211L);
         Fixture first = fixture(authored, 1200.0, -800.0, 0, 0, 0.58);
         Fixture second = fixture(authored, -3400.0, 2700.0, 1, 0, 0.58);
-        SkyIslandSubsurfacePosition semantic = firstMaterialSemantic(authored);
+        int compared = 0;
+        double radius = authored.nominalRadius();
 
-        SkyIslandWorldAuthoredMaterialSample a =
-                first.sampler()
-                        .sample(
-                                toWorld(first.association(), semantic),
-                                SkyIslandWorldAuthoredMaterialSamplerTest::decision);
-        SkyIslandWorldAuthoredMaterialSample b =
-                second.sampler()
-                        .sample(
-                                toWorld(second.association(), semantic),
-                                SkyIslandWorldAuthoredMaterialSamplerTest::decision);
+        for (int z = -(int) radius; z <= (int) radius; z += 16) {
+            for (int x = -(int) radius; x <= (int) radius; x += 16) {
+                SkyIslandSubsurfacePosition semantic =
+                        new SkyIslandSubsurfacePosition(x, z, 0.5);
+                if (!SkyIslandMaterialBindingRequestField.create(authored)
+                        .sample(semantic)
+                        .materialPresent()) {
+                    continue;
+                }
+                Coordinate3 firstWorld = toWorldOrNull(first.association(), semantic);
+                Coordinate3 secondWorld = toWorldOrNull(second.association(), semantic);
+                if (firstWorld == null || secondWorld == null) {
+                    continue;
+                }
 
-        assertTrue(a.materialPresent());
-        assertTrue(b.materialPresent());
-        assertEquals(
-                a.semantic().orElseThrow().surfacePosition(),
-                b.semantic().orElseThrow().surfacePosition());
-        assertEquals(
-                a.semantic().orElseThrow().depthFraction(),
-                b.semantic().orElseThrow().depthFraction(),
-                1.0e-12);
-        assertEquals(
-                a.materialRealization().orElseThrow().winnerBindingKey(),
-                b.materialRealization().orElseThrow().winnerBindingKey());
-        assertEquals(a.applicationKey(), b.applicationKey());
+                SkyIslandWorldAuthoredMaterialSample a =
+                        first.sampler()
+                                .sample(
+                                        firstWorld,
+                                        SkyIslandWorldAuthoredMaterialSamplerTest::decision);
+                SkyIslandWorldAuthoredMaterialSample b =
+                        second.sampler()
+                                .sample(
+                                        secondWorld,
+                                        SkyIslandWorldAuthoredMaterialSamplerTest::decision);
+
+                assertHorizontalRoundTrip(
+                        semantic, a.semantic().orElseThrow(), firstWorld, first.physical());
+                assertHorizontalRoundTrip(
+                        semantic, b.semantic().orElseThrow(), secondWorld, second.physical());
+                assertEquals(
+                        a.materialRealization().orElseThrow().winnerBindingKey(),
+                        directWinnerAtRecovered(first, a).winnerBindingKey());
+                assertEquals(
+                        b.materialRealization().orElseThrow().winnerBindingKey(),
+                        directWinnerAtRecovered(second, b).winnerBindingKey());
+                assertEquals(
+                        a.applicationKey().map(SkyIslandSemanticPaletteBindingKey::islandIdentity),
+                        b.applicationKey().map(SkyIslandSemanticPaletteBindingKey::islandIdentity));
+                compared++;
+            }
+        }
+        assertTrue(compared > 20);
     }
 
     @Test
@@ -221,7 +245,7 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
     @Test
     void providerDecisionForDifferentRequestIsRejected() {
         Fixture fixture = fixture(2332L, 0.0, 0.0, 0, 0, 0.55);
-        SkyIslandSubsurfacePosition semantic = firstMaterialSemantic(fixture.authored());
+        SkyIslandSubsurfacePosition semantic = firstMaterialSemantic(fixture);
         Coordinate3 world = toWorld(fixture.association(), semantic);
         SkyIslandMaterialBindingRequest foreignRequest =
                 SkyIslandMaterialBindingRequestCatalog.create(authored(653L))
@@ -257,8 +281,12 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
                         fixture.sampler().sample(
                                 world,
                                 SkyIslandWorldAuthoredMaterialSamplerTest::decision);
+                SkyIslandSubsurfacePosition recovered =
+                        actual.semantic().orElseThrow();
+                assertHorizontalRoundTrip(
+                        semantic, recovered, world, fixture.physical());
                 SkyIslandMaterialBindingRequestSelection source =
-                        directField.sample(semantic);
+                        directField.sample(recovered);
                 java.util.Map<
                                 SkyIslandSemanticPaletteBindingKey,
                                 SkyIslandMaterialResolutionDecision>
@@ -268,7 +296,7 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
                 }
                 SkyIslandMaterialRealizationSelection expected =
                         SkyIslandMaterialExpressionRealizer.realize(
-                                semantic,
+                                recovered,
                                 SkyIslandMaterialExpressionAllocator.allocate(
                                         source, decisions));
 
@@ -312,22 +340,24 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
     }
 
     private static SkyIslandSubsurfacePosition firstMaterialSemantic(
-            SkyIslandDescriptor descriptor) {
+            Fixture fixture) {
         SkyIslandMaterialBindingRequestField field =
-                SkyIslandMaterialBindingRequestField.create(descriptor);
-        double radius = descriptor.nominalRadius();
+                SkyIslandMaterialBindingRequestField.create(fixture.authored());
+        double radius = fixture.authored().nominalRadius();
         for (int iz = 0; iz < 25; iz++) {
             double z = -radius + iz * (2.0 * radius / 24.0);
             for (int ix = 0; ix < 25; ix++) {
                 double x = -radius + ix * (2.0 * radius / 24.0);
                 SkyIslandSubsurfacePosition position =
                         new SkyIslandSubsurfacePosition(x, z, 0.52);
-                if (field.sample(position).materialPresent()) {
+                if (field.sample(position).materialPresent()
+                        && toWorldOrNull(fixture.association(), position) != null) {
                     return position;
                 }
             }
         }
-        throw new IllegalStateException("canonical fixture produced no material point");
+        throw new IllegalStateException(
+                "canonical fixture produced no physically mappable material point");
     }
 
     private static SkyIslandSubsurfacePosition firstAuthoredVoidSemantic(
@@ -383,6 +413,38 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
                 physical.centerX() + semantic.x(),
                 realized.orElseThrow().physicalY(),
                 physical.centerZ() + semantic.z());
+    }
+
+    private static SkyIslandMaterialRealizationSelection directWinnerAtRecovered(
+            Fixture fixture,
+            SkyIslandWorldAuthoredMaterialSample sample) {
+        SkyIslandSubsurfacePosition recovered = sample.semantic().orElseThrow();
+        SkyIslandMaterialBindingRequestSelection source =
+                SkyIslandMaterialBindingRequestField.create(fixture.authored()).sample(recovered);
+        java.util.Map<
+                        SkyIslandSemanticPaletteBindingKey,
+                        SkyIslandMaterialResolutionDecision>
+                decisions = new java.util.HashMap<>();
+        for (SkyIslandMaterialBindingRequestUse use : source.uses()) {
+            decisions.put(use.request().bindingKey(), decision(use.request()));
+        }
+        return SkyIslandMaterialExpressionRealizer.realize(
+                recovered,
+                SkyIslandMaterialExpressionAllocator.allocate(source, decisions));
+    }
+
+    private static void assertHorizontalRoundTrip(
+            SkyIslandSubsurfacePosition input,
+            SkyIslandSubsurfacePosition recovered,
+            Coordinate3 world,
+            SkyIslandVolumeDescriptor physical) {
+        double tolerance =
+                8.0
+                        * Math.max(
+                                Math.max(Math.ulp(world.x()), Math.ulp(physical.centerX())),
+                                Math.max(Math.ulp(world.z()), Math.ulp(physical.centerZ())));
+        assertEquals(input.x(), recovered.x(), tolerance);
+        assertEquals(input.z(), recovered.z(), tolerance);
     }
 
     private static SkyIslandMaterialResolutionDecision decision(
