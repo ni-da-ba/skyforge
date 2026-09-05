@@ -28,7 +28,7 @@ MUS-0001 captures the score-development process through the first three frozen c
 
 ## Canonical source identities
 
-The current canonical MIDI sources outside the repository were hashed before this record was created:
+The frozen Track 00–02 MIDI sources were hashed before this record was created. The active Track 03 Sketch 5 MIDI is also committed under `assets/music/source/`:
 
 | Cue | SHA-256 |
 | --- | --- |
@@ -37,7 +37,7 @@ The current canonical MIDI sources outside the repository were hashed before thi
 | Track 02 Draft 4.2 | `73aa596990090b22d250d994714e24bc3162eba5a04b5a70bf7c36ace8a5ef28` |
 | Track 03 Sketch 5 | `013fc776b59c3ae9d7f356d4f65f8423794d64d87514545918f6e6deaa393e19` |
 
-Rendered WAV masters are intentionally not added in MUS-0001. They are large derived artifacts rather than compact authoring sources. Their mastering measurements and accepted roles are preserved in the track records.
+The current Track 03 authoring sketch is persisted as `assets/music/source/track-03-sketch-05-songlike-strings.mid`. The frozen Track 00–02 source identities are checksum-pinned in this first persistence pass; importing those compact MIDI sources into the repository remains a follow-up. Rendered WAV masters are intentionally not added in MUS-0001 because they are large derived artifacts. Their mastering measurements and accepted roles are preserved in the track records.
 
 ## Documents
 
