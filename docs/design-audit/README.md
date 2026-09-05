@@ -42,6 +42,7 @@ Core principle:
 - Nether and End generation are **current vanilla-authority implementation domains, not permanent exceptions**. Their future terrain must be derived from gameplay requirements first; outer End remains the preferred low-risk cross-dimension pilot, while a solid-dominant Nether cavern province is only the leading stress-test hypothesis if it best serves Nether gameplay.
 - Sable already gives Nether and End distinct pressure profiles, and current Sable lift/propeller code scales aerodynamic forces by local pressure. End thin-air engineering and Nether roof-pressure decay therefore require gameplay testing before dimension morphology is frozen.
 - Create Aeronautics itself gives the End a major technology loop: End Stone -> End Stone Powder -> zinc/water/heated Levitite Blend -> crystallized Levitite. Aeronautics Ponder shows Levitite can keep a contraption afloat but cannot provide climb alone, making it a strong End-derived lift-support technology rather than free propulsion.
+- The Nether's leading gameplay role is hostile corridor operation and advanced process/mining capability. Current Create: Metallurgy makes Nether Wolframite feed Tungsten -> superheated Obdurium -> Industrial Crucible infrastructure, while Sable pressure decay makes roof-level aerodynamic bypass naturally unattractive.
 - Create Propulsion: Simulated is now a strong advanced-propulsion R&D candidate because its current 1.21.1 branch includes chemical/solid/ion thrusters and optional atmosphere-dependent performance, but that pressure behavior is not yet a locked pack assumption.
 - Portable storage is governed separately from freight: vanilla inventory/Shulkers remain provisionally intact, while early warehouse-scale backpacks are disfavored and aircraft should win on bulk throughput, fluids, entities, contraptions, and automation.
 - Copper/zinc/Brass now form the leading **first post-flight regional engineering loop**; petroleum remains a later strategic-node resource, so first flight turns regional specialization on rather than depending on it.
@@ -104,6 +105,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Post-flight regional specialization sequence v0.1](post-flight-regional-specialization-sequence-v0.1.md)
 - [Dimension gameplay requirements v0.1](dimension-gameplay-requirements-v0.1.md)
 - [End Aeronautics progression contract v0.1](end-aeronautics-progression-contract-v0.1.md)
+- [Nether gameplay and aviation contract v0.1](nether-gameplay-and-aviation-contract-v0.1.md)
 - [Cross-dimension Skyforge authorship strategy v0.1](cross-dimension-skyforge-authorship-strategy-v0.1.md)
 - [Dimension world-grammar matrix v0.1](dimension-world-grammar-matrix-v0.1.md)
 - [Bootstrap region recipe v0.1](bootstrap-region-recipe-v0.1.md)
