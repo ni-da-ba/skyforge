@@ -126,4 +126,36 @@ public final class SkyIslandWorldCatalogCompiler {
                 new SkyIslandWorldCatalog(plan.rootSeed(), volumes);
         return new SkyIslandWorldCatalogSupportBundle(catalog, certificates);
     }
+
+    /**
+     * Evaluates AUTH-0053 support/reservation admission without compiling procedural graphs.
+     */
+    public SkyIslandSupportReservationPreflightReport preflightSupportReservations(
+            SkyIslandArchipelagoPlan plan,
+            SkyIslandMorphologyProviderRegistry registry,
+            SkyIslandWorldVerticalReservation verticalReservation) {
+        return new SkyIslandSupportReservationPreflight()
+                .evaluate(plan, registry, verticalReservation);
+    }
+
+    /**
+     * Compiles a fully proof-backed world catalog only after AUTH-0053 accepts every exact member
+     * and consumed reservation assumption.
+     */
+    public SkyIslandWorldCatalogSupportBundle compileProofBacked(
+            SkyIslandArchipelagoPlan plan,
+            SkyIslandMorphologyProviderRegistry registry,
+            SkyIslandWorldVerticalReservation verticalReservation) {
+        SkyIslandSupportReservationPreflightReport preflight =
+                preflightSupportReservations(plan, registry, verticalReservation);
+        preflight.requireAdmitted();
+
+        SkyIslandWorldCatalogSupportBundle bundle =
+                compileWithSupport(plan, registry, verticalReservation);
+        if (!bundle.fullyCertified()) {
+            throw new IllegalStateException(
+                    "AUTH-0053 admitted plan produced a partially certified world bundle");
+        }
+        return bundle;
+    }
 }
