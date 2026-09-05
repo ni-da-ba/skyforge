@@ -1,9 +1,22 @@
-# Track 03 — contemplative development record
+# Track 03 — Count the Leagues
 
-**Status:** Active development  
+**Status:** Full-form development; title and thematic identity locked  
 **Role:** lonely / ponderous / thoughtful exploration state  
-**Current method:** preserve Theme 04's fingerprint while reducing note density and strengthening structural holds  
-**Current boundary:** First-Principles Theme 05 — held thought
+**Title:** **Count the Leagues**  
+**Current method:** develop the locked Theme 07 refrain through context, dialogue, augmentation, fragmentation, stripping, inheritance, and return  
+**Current boundary:** Full Draft 01 — Locked-Motif Form
+
+
+## Title lock
+
+**Canonical title:** **Count the Leagues**
+
+The title is intentionally evocative rather than descriptive. It treats the sky as an oceanic space measured in old travel language and fits the cue's central image: stopping somewhere high, looking back across accumulated distance, and quietly reckoning with how far the journey has carried you.
+
+**Reserved future title:** **As the Whale Flies**
+
+That phrase is intentionally saved for a later cue rather than reused here. It is especially promising for a future track involving migration, long-range traversal, sky-fauna, or another part of the setting where a vernacular "as the crow flies" analogue would feel native.
+
 
 ## Emotional target
 
