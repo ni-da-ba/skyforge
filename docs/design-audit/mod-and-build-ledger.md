@@ -236,6 +236,14 @@ Optional Hazardous Rocket-Use Feedback
 Riptide-to-Glider Acceptance
 Nether Portal Distance-Compression Audit
 1:1 Nether Dimension-Type Datapack Prototype
+Cross-Dimension Skyforge Authorship Strategy
+Dimension-Domain Authority Boundary
+Outer-End Skyforge Pilot
+End Gateway / End City Compatibility Contract
+Nether Solid-Dominant Cavern Province Pilot
+Nether Fortress / Bastion Compatibility Contract
+Dimension-Specific Environment Profile
+Interdomain Travel Edge Semantics
 Teleport / Waystone Dependency Audit
 Portable Storage / Freight Integrity Contract
 Backpack Capacity / Nesting Audit
@@ -305,3 +313,7 @@ non-omniscient sensor access to Skyforge truth
 18. Prefer a datapack-level Nether `coordinate_scale = 1.0` prototype before any bespoke portal implementation.
 19. Copper, zinc, and Brass are current early-R2/post-flight resources, not first-aircraft guarantees; preserve the audited pre-brass closure unless manual testing disproves it.
 20. Petroleum should first create strategic freight geography, not first-flight dependency.
+21. Nether and End vanilla terrain generation are current implementation defaults, not permanent exceptions to Skyforge authorship.
+22. Cross-dimension reuse should occur at the kernel/planning/provenance/ownership level while each dimension keeps a distinct semantic terrain grammar.
+23. Prefer the outer End as the first cross-dimension pilot; use a solid-dominant Nether cavern province to test whether the architecture generalizes beyond suspended islands.
+24. Do not rename/generalize the accepted SkyIsland APIs until a real second-domain implementation proves what abstraction is actually shared.
