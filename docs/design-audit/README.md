@@ -38,7 +38,8 @@ Core principle:
 - A cheap early glider is preserved as personal soaring mobility, not as a replacement for powered flight logistics; Reliable Gliders is the leading prototype pending recipe override and gameplay validation.
 - Thermals/updrafts are treated as a shared world language for gliders and soaring fauna: natural lift, terrain lift, and limited anthropogenic heat can all participate without turning gliding into freight logistics.
 - Vanilla-style Elytra firework boosting is considered a mobility bypass and should be suppressed while preserving ordinary fireworks; optional blast/instability feedback may make the rule diegetic.
-- Nether/portal distance compression is now an explicit audit item because dimension identity may be preserved without allowing portal transit to erase province-scale aviation.
+- Nether/portal distance compression is now an explicit audit item because dimension identity may be preserved without allowing portal transit to erase province-scale aviation; a 1:1 Nether coordinate-scale datapack is the leading low-bespoke prototype.
+- Portable storage is governed separately from freight: vanilla inventory/Shulkers remain provisionally intact, while early warehouse-scale backpacks are disfavored and aircraft should win on bulk throughput, fluids, entities, contraptions, and automation.
 - Aerodynamics4MC is the leading authoritative wind/atmosphere prototype; not yet locked.
 - Naturalist + Fowl Play + Critters & Companions + Sky Whales form the leading ecology stack.
 - Ecology is niche-first: Skyforge derives feasible ecological roles, then maps them to available species.
@@ -94,6 +95,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Engineering and mobility progression ladder v0.1](engineering-and-mobility-progression-ladder-v0.1.md)
 - [Early glider mobility contract v0.1](early-glider-mobility-contract-v0.1.md)
 - [Vanilla mobility bypass governance v0.1](vanilla-mobility-bypass-governance-v0.1.md)
+- [Portable storage and freight integrity v0.1](portable-storage-and-freight-integrity-v0.1.md)
 - [Bootstrap region recipe v0.1](bootstrap-region-recipe-v0.1.md)
 - [Onboarding, guidance, and quest layer v0.1](onboarding-guidance-and-quest-layer-v0.1.md)
 - [First-flight recipe closure audit v0.1](first-flight-recipe-closure-audit-v0.1.md)
