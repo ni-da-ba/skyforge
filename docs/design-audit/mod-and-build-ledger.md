@@ -153,6 +153,9 @@ Structure-Seeded Terrain Mode
 Required/Progression-Critical Structure Intent
 Structure Terrain Envelope
 Structure Population Provenance
+Structure Site Plan / Claim Set
+Staged Structure Site Capability Profile
+Structure-to-Authorship Negotiation Policy
 ```
 
 ### World composition
