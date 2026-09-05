@@ -93,6 +93,95 @@ Useful for controlled proof of:
 - AmbientSounds — strong atmosphere candidate.
 - Sound Physics Remastered — strong acoustic candidate.
 
+## Sable dimension-physics audit
+
+Sable already provides data-driven per-dimension physics.
+
+Current source exposes:
+
+~~~text
+base_gravity
+base_pressure
+pressure_function
+universal_drag
+magnetic_north
+~~~
+
+and allows datapack overrides by dimension.
+
+This is highly relevant to Nether/End design.
+
+### Aerodynamic coupling
+
+Sable's current `BlockSubLevelLiftProvider` reads local air pressure and multiplies:
+
+- parallel drag;
+- directionless drag;
+- lift;
+
+by that pressure.
+
+Its `BlockEntityPropeller` likewise multiplies propeller thrust by current air pressure.
+
+Therefore dimension pressure is already a **real aircraft-performance input**, not merely environmental metadata.
+
+### Current End defaults
+
+The audited Sable built-in End profile is approximately:
+
+~~~text
+Y 0     pressure 1.0000
+Y 200   pressure 0.4493
+Y 216   pressure 0.4215
+Y 256   pressure 0.0000
+~~~
+
+with ordinary downward gravity.
+
+Consequences to test:
+
+- reduced propeller thrust at higher End altitude;
+- reduced wing/control-surface authority;
+- altitude becoming an engineering/route decision;
+- value of larger aerodynamic surfaces or later low-pressure propulsion.
+
+Do not overwrite this profile casually merely to make Overworld aircraft behave identically in the End.
+
+### Current Nether defaults
+
+The audited Sable built-in Nether profile is approximately:
+
+~~~text
+Y 0     pressure 1.1366
+Y 32    pressure 1.0000
+Y 88    pressure 0.7993
+Y 128   pressure 0.0000
+~~~
+
+with ordinary downward gravity.
+
+This may naturally support:
+
+- ordinary aerodynamic flight in lower/mid Nether spaces;
+- deteriorating performance near the roof;
+- a physical reason not to make roof-level aircraft transit dominant.
+
+Exact gameplay remains an in-game validation question.
+
+### Pressure ownership
+
+If Skyforge later supplies dimension environment profiles, preserve the one-authority rule.
+
+Preferred relationship:
+
+~~~text
+Skyforge semantic dimension environment
+    -> Sable dimension-physics datapack/profile
+    -> Aeronautics lift / drag / propeller behavior
+~~~
+
+Do not implement a second independent Skyforge pressure force on vehicles.
+
 ## Flight behavior requirements
 
 Wind must affect real relative-airflow behavior rather than apply arbitrary lateral force.
@@ -242,6 +331,44 @@ largestContiguousOccludedPatch
 numberOfOverheadLayers
 overlapWithHabitableTerrain
 ```
+
+## Advanced propulsion candidate
+
+### Create Propulsion: Simulated — strong prototype, not yet locked
+
+The current 1.21.1 NeoForge project adds:
+
+- liquid/chemical thrusters;
+- solid-fuel thrusters;
+- ion thrusters;
+- vectored-thrust variants;
+- Sable/Aeronautics force integration.
+
+It also contains configurable atmospheric-pressure behavior and dimension atmosphere data.
+
+The audited current source tests a potentially useful distinction:
+
+~~~text
+chemical thruster
+    remains usable at low/vacuum pressure
+
+ion thruster
+    performs best toward vacuum
+    weaker in dense atmosphere
+~~~
+
+However, its common config currently defaults the atmospheric-pressure effect **off**.
+
+Therefore this behavior is not yet a Skyforge assumption.
+
+It is a strong R&D candidate for:
+
+- End-adapted propulsion;
+- high-altitude flight;
+- differentiated late-game aircraft;
+- possible Nether specialized craft.
+
+Selection should follow actual gameplay testing and recipe/progression audit.
 
 ## Navigation
 
