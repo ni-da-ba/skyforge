@@ -18,7 +18,9 @@ The Nether already has excellent:
 - resource specialization;
 - mixed-mode mobility potential.
 
-Its main unresolved question is **long-term economic persistence**.
+Its main unresolved questions are **long-term economic persistence** and **exploration variation**.
+
+Tight, dangerous traversal is only a virtue if the player repeatedly finds destinations, behaviors, resource regimes, and route problems different enough to justify the effort.
 
 Several important Nether rewards are:
 
@@ -34,6 +36,33 @@ Those are good, but full realization becomes substantially more worthwhile if th
 - revisit stations;
 - move bulk or recurring goods;
 - operate dimension-specific machinery.
+
+## Exploration-worth requirement
+
+The Nether should be difficult to traverse, but not monotonous.
+
+A mature authored Nether must vary along several axes:
+
+- route geometry;
+- hostile/faction behavior;
+- structures;
+- resource/process opportunities;
+- environmental regimes;
+- rare exceptional encounters.
+
+The desired rhythm is:
+
+~~~text
+hostile constrained route
+    -> route problem
+    -> environmental/behavioral change
+    -> worthwhile discovery
+    -> decision to establish access
+~~~
+
+Third-party content should expand this portfolio while remaining subordinate to Skyforge placement/population authority.
+
+See [Dimension Exploration Enrichment Audit v0.1](dimension-exploration-enrichment-audit-v0.1.md).
 
 ## Gameplay identity
 
@@ -692,6 +721,19 @@ If all caverns are too cramped, the aviation stack disappears from an entire maj
 Beautiful cavern authorship becomes expensive scenery around one-time progression.
 
 **Mitigation:** require repeated site operation before locking full Nether scope.
+
+## Third-party enrichment direction
+
+Current 1.21.1 NeoForge audit identifies a promising reuse-first slate:
+
+- **BetterNether: New Dawn** or **Jaden's Nether Expansion** as competing candidates for a single broad content-substrate slot;
+- **Eternal Nether** as a strong selected structure/faction/threat layer;
+- **Bosses of Mass Destruction** for rare Nether Gauntlet-type exceptional encounters;
+- **Luminous: Nether** as a reserve creature/legendary A/B if the winning substrate lacks behavioral variety.
+
+Do not install all broad candidates simultaneously.
+
+The first prototype should prove that one broad substrate plus narrow complementary layers can supply enough variation without turning the Nether into content soup.
 
 ## Full-realization minimum
 
