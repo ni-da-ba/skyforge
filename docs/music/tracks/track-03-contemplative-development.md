@@ -1003,6 +1003,131 @@ Theme 06 established a thematic nucleus worth preserving. Theme 07 asks a narrow
 
 The next decision should be made by ear from Theme 06 versus Theme 07, not by further theoretical rewriting.
 
+
+
+## Theme 07 lock decision
+
+The user explicitly accepted Theme 07 as the **general theme / motif of Track 03**.
+
+This is a stronger decision than the earlier provisional Theme 06 freeze.
+
+### Locked thematic DNA
+
+Canonical refrain:
+
+`D-D-F-Bb | A-E-F`
+
+Primary owner:
+
+- clarinet.
+
+Protected identity:
+
+- repeated-D hesitation;
+- F-to-B-flat reach;
+- A-to-E drop;
+- exposed E-to-F semitone resolution;
+- canonical rhythmic fingerprint;
+- sparse cello-answer architecture;
+- restrained piano continuity;
+- rare high afterimage;
+- low/open versus low/closed cadential grammar.
+
+### Lock semantics
+
+"Locked" does **not** mean the motif may never be transformed.
+
+It means the canonical version is now the reference object. Development may alter:
+
+- duration;
+- accompaniment;
+- harmony;
+- register;
+- phrase ownership in a limited local passage;
+- fragmentation;
+- density;
+- surrounding counterpoint;
+- tail behavior.
+
+Development should not casually alter the motif's core identity all at once.
+
+The canonical form must remain recoverable by ear.
+
+### Governing rule
+
+> Development changes what the motif means in context; it does not repeatedly replace the motif itself.
+
+This lock ends the first-principles thematic-search phase unless later real-orchestra evidence demonstrates that the motif fails in practice.
+
+## Development Lab 01 — locked motif development suite
+
+The first post-lock study explores several transformation classes while preserving Theme 07 as the reference.
+
+**A / bars 1-4 — canonical**
+
+- exact clarinet refrain;
+- sparse cello answer.
+
+**B / bars 5-8 — inward adjacent version**
+
+- canonical head and rhythm;
+- altered tail turns inward and closes lower.
+
+**C / bars 9-12 — split motif**
+
+- clarinet states the head;
+- cello completes the emotional tail;
+- tests dialogic distribution without losing recognition.
+
+**D1 / bars 13-16 — fragmentation / compression**
+
+- only the repeated-note head is fragmented;
+- no full-sentence transposition;
+- cello supplies long counterweight.
+
+**D2 / bars 17-20 — augmentation**
+
+- same identity stretched in time;
+- development comes primarily from duration and harmony;
+- cello follows with the study's expressive apex.
+
+**E / bars 21-24 — stripped recollection**
+
+- near-empty accompaniment;
+- canonical contour stretched and exposed;
+- tests whether the motif survives without textural support.
+
+**F / bars 25-28 — motif inheritance**
+
+- one deliberate local timbral transfer;
+- cello carries the canonical rhythm/shape one octave lower;
+- clarinet becomes sustained horizon color;
+- this is an adjacent version, not a permanent ownership change.
+
+**G / bars 29-32 — canonical return / coda**
+
+- clarinet retakes ownership;
+- canonical refrain returns before a sparse final answer.
+
+Persisted full source:
+
+`assets/music/source/track-03-development-lab-01-motif-development-suite.mid.gz`
+
+Uncompressed full MIDI SHA-256:
+
+`130306058f411d2c2e05c24ac611463aac08fd63b531d8c916fdafe23dff1d6c`
+
+Diagnostics:
+
+- `assets/music/source/track-03-development-lab-01-leads-only.mid.gz`
+- `assets/music/source/track-03-development-lab-01-refrain-and-context.mid.gz`
+
+### Current development question
+
+> Which transformations sound like natural states of the same song, and which sound like theory exercises imposed on the motif?
+
+The winning transformation classes should become the vocabulary of the eventual complete cue.
+
 ## Current acceptance gate
 
 Do **not** resume development or full-cue expansion merely because one candidate is technically coherent.
