@@ -8,7 +8,7 @@ The soundtrack is not treated as detached promotional media. Its purpose is to d
 
 The initial persistence milestone is **MUS-0001**.
 
-MUS-0001 captures the score-development process through the first three frozen cues and the active Track 03 contemplative experiment. The lane uses the same evidence-first principles as the rest of the repository:
+MUS-0001 captures score development through the first three frozen cues and the active Track 03 contemplative experiment. The lane uses the same evidence-first principles as the rest of the repository:
 
 - preserve accepted source identity instead of silently rewriting history;
 - distinguish synthetic diagnostics from authoritative BBCSO renders;
@@ -21,23 +21,39 @@ MUS-0001 captures the score-development process through the first three frozen c
 
 | Track | Title / working role | Status | Primary proof |
 | --- | --- | --- | --- |
-| 00 | **A Windborne Fantasia** — first ascent / panorama / rare revelation | Frozen | 72-bar BBCSO-orchestrated source and GAME/OST masters |
-| 01 | **Rambling Through the Gentle Blue** — ordinary daylight exploration | Frozen | 56-bar BBCSO-orchestrated source and GAME/OST masters |
-| 02 | **The Lord of Empty Miles** — legendary dragon territory / awe / panic | Frozen as successful first draft | 92-bar BBCSO-orchestrated source and GAME/OST masters |
-| 03 | contemplative / lonely / ponderous cue | Active development | melodic-gate sketches; current direction is song-like strings over a preserved piano/harmonic bed |
+| 00 | **A Windborne Fantasia** — first ascent / panorama / rare revelation | Frozen | persisted authoring MIDI + BBCSO GAME/OST master record |
+| 01 | **Rambling Through the Gentle Blue** — ordinary daylight exploration | Frozen | persisted authoring MIDI + BBCSO GAME/OST master record |
+| 02 | **The Lord of Empty Miles** — legendary dragon territory / awe / panic | Frozen as successful first draft | persisted authoring MIDI + BBCSO GAME/OST master record |
+| 03 | contemplative / lonely / ponderous cue | Active development | melodic-gate sketches; current boundary is Sketch 6 developmental A/B argument |
 
 ## Canonical source identities
 
-The frozen Track 00–02 MIDI sources were hashed before this record was created. The active Track 03 Sketch 5 MIDI is also committed under `assets/music/source/`:
+The accepted Track 00–02 MIDI sources and current Track 03 source are persisted under `assets/music/source/`.
 
-| Cue | SHA-256 |
+| Cue | Uncompressed MIDI SHA-256 |
 | --- | --- |
 | Track 00 V2F.1 | `beb0c9d7d5625c7764207d140cce6b5496bbf1ad0803b2f0d78c26ce3cde9695` |
 | Track 01 Draft 5.1 | `5fed750e6650b8996785e0197214b4d94517cb88e904a73ff03a4b85ad5a2b65` |
 | Track 02 Draft 4.2 | `73aa596990090b22d250d994714e24bc3162eba5a04b5a70bf7c36ace8a5ef28` |
-| Track 03 Sketch 5 | `013fc776b59c3ae9d7f356d4f65f8423794d64d87514545918f6e6deaa393e19` |
+| Track 03 Sketch 6 | `e41498d0c6fa0b29dc4f4ec5b5cf4a7d2dd44967dd707b15e905fff8c26cfec8` |
 
-The current Track 03 authoring sketch is persisted as `assets/music/source/track-03-sketch-05-songlike-strings.mid`. The frozen Track 00–02 source identities are checksum-pinned in this first persistence pass; importing those compact MIDI sources into the repository remains a follow-up. Rendered WAV masters are intentionally not added in MUS-0001 because they are large derived artifacts. Their mastering measurements and accepted roles are preserved in the track records.
+Frozen source paths:
+
+```text
+assets/music/source/frozen/track-00-a-windborne-fantasia-v2f1.mid.gz
+assets/music/source/frozen/track-01-rambling-through-the-gentle-blue-d5-1.mid.gz
+assets/music/source/frozen/track-02-the-lord-of-empty-miles-d4-2.mid.gz
+```
+
+Active source path:
+
+```text
+assets/music/source/track-03-sketch-06-developing-melody.mid.gz
+```
+
+The larger MIDI sources are gzip-compressed only for compact Git storage. Decompression reproduces the exact authoring MIDI represented by the hashes above.
+
+Rendered WAV masters remain outside ordinary Git history pending an explicit large-artifact strategy; their mastering measurements and accepted roles remain preserved in the cue records.
 
 ## Documents
 
@@ -52,13 +68,19 @@ The current Track 03 authoring sketch is persisted as `assets/music/source/track
 
 The immediate musical boundary is Track 03.
 
-Three early full-cue attempts established what does **not** solve “lonely, ponderous, thoughtful”:
+Early experiments established what does **not** solve “lonely, ponderous, thoughtful”:
 
 1. sparse Skyforge ambience alone reads as familiar atmosphere rather than thought;
 2. silence plus isolated statements can become underwritten;
-3. continuous accompaniment without a memorable lead idea becomes wallpaper.
+3. continuous accompaniment without a memorable lead becomes wallpaper;
+4. a formally structured line can still feel arbitrary;
+5. one memorable sentence repeatedly transposed is not sufficient development.
 
-The accepted current method is therefore a **melodic gate**: a short piano/string sketch must work as music before it is expanded into a complete cue. The active Sketch 5 replaces bar-by-bar string construction with a recognizable phrase-scale A / A′ / B / A″ melodic architecture.
+The accepted current method remains a **melodic gate**, but Sketch 6 strengthens it:
+
+> Theme A -> Theme B -> development/synthesis -> Theme A return -> Theme B changes the answer.
+
+The cue should feel as if it has considered and revised an idea, not merely repeated it.
 
 ## Future runtime use
 
