@@ -59,7 +59,11 @@ public record SkyIslandSupportReplanGroupProposal(
             throw new IllegalArgumentException(
                     "provisional group radius must include current-layout dependent floor");
         }
-        if (freshPlacementValidationRequired != changesPlanningGeometry()) {
+        boolean changesPlanningGeometry =
+                memberHorizontal.raisedByProofOrMargin()
+                        || layoutMinimumCenterSpacing.raisedByProofOrMargin()
+                        || provisionalGroupRadius.raisedByProofOrMargin();
+        if (freshPlacementValidationRequired != changesPlanningGeometry) {
             throw new IllegalArgumentException(
                     "freshPlacementValidationRequired must match planning-geometry changes");
         }
