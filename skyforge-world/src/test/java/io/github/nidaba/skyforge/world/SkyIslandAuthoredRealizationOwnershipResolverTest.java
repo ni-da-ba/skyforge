@@ -482,7 +482,9 @@ class SkyIslandAuthoredRealizationOwnershipResolverTest {
                         32.0,
                         44.0,
                         30.0,
-                        0.15,
+                        authored.morphologyFamily() == SkyIslandMorphologyFamily.SPINE
+                                ? Math.PI / 2.0
+                                : 0.0,
                         0.46,
                         0.61,
                         0.08,
