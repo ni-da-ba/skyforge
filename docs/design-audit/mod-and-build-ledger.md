@@ -248,6 +248,11 @@ Nether Portal Distance-Compression Audit
 Dimension Gameplay Requirements
 Dimension Realization Value Audit
 Dimension Exploration Enrichment Audit
+Cross-Dimension Route and Infrastructure Grammar
+Route Capability / Payload / Reliability Proof
+Dimension Route-Value Node Planning
+Nether Mixed-Mode Corridor Proof
+End Staging / Recovery Route Proof
 Third-Party Dimension Content Authority Decomposition
 Broad-Substrate A/B Selection (one per dimension)
 Nether Exploration Variation Acceptance
@@ -370,3 +375,6 @@ non-omniscient sensor access to Skyforge truth
 40. Prefer at most one broad content-overhaul dependency per dimension in the first integrated prototype; add narrow structure/boss/ecology layers only when they fill non-overlapping roles.
 41. Third-party dimension mods are content libraries, not semantic authorities: decompose mobs, structures, biomes, resources, loot, and global mechanics and assign KEEP/GOVERN/DISABLE/REDIRECT decisions.
 42. Preserve local sparsity even with a large installed catalogue; End especially should gain contrast through rare high-value phenomena rather than dense biome/structure coverage.
+43. Route semantics are capability- and payload-specific: personal reach does not imply bulk freight, and directed modes such as gliding require explicit return/recovery reasoning.
+44. Generated civilization and player-built infrastructure should share the same visible route language; infrastructure roles should be semantic services rather than bespoke NPC-only mechanics.
+45. Nether route difficulty must purchase meaningful destination value; End forward staging/navigation/recovery must measurably improve expedition capability.
