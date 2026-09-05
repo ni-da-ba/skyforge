@@ -108,7 +108,7 @@ Therefore:
 AUTH-0051 therefore certifies:
 
     maximumHorizontalRadius
-        = 1.65 * nominalRadius
+        = outward(1.65 * nominalRadius)
 
 This intentionally keeps analytical margin.
 
@@ -128,7 +128,7 @@ The quadratic reaches its maximum below 0.88.
 Therefore the common built-in certificate is:
 
     maximumUpperOffset
-        = upperElevation
+        = outward(upperElevation)
 
 ### Underside support
 
@@ -146,7 +146,7 @@ The resulting shaped-depth multiplier stays below approximately 1.91 across the 
 AUTH-0051 deliberately rounds outward to:
 
     maximumUndersideDepth
-        = 2.0 * undersideDepth
+        = outward(2.0 * undersideDepth)
 
 The certificate is conservative rather than optimized.
 
@@ -202,6 +202,21 @@ Therefore the final AUTH-0051 certificate is:
           * detailMaximumFactor
 
 No sampled graph extrema participate in certification.
+
+## Floating-point conservatism
+
+AUTH-0051 certificates are conservative in binary64 arithmetic as well as in the underlying real-valued analysis.
+
+Derived positive maxima are rounded outward with `Math.nextUp`.
+
+When an association-relative envelope becomes world-space bounds:
+
+- minima use `Math.nextDown(center - extent)`;
+- maxima use `Math.nextUp(center + extent)`.
+
+This prevents an analytically safe bound from becoming microscopically inward because of one floating-point rounding step.
+
+The outward margin is intentionally tiny. It is proof hygiene, not an authored geometry expansion.
 
 ## Certified compiled path
 
