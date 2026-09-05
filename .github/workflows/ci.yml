@@ -169,6 +169,27 @@ jobs:
           test -f skyforge-reference/build/evidence/authorship-material-capability-compatibility-v1/index.html
           test -f skyforge-reference/build/evidence/authorship-material-capability-compatibility-v1/atlas.png
           test -f skyforge-reference/build/evidence/authorship-material-capability-compatibility-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-material-candidate-ranking-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-material-candidate-ranking-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-material-candidate-ranking-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-material-resolution-decision-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-material-resolution-decision-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-material-resolution-decision-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-material-expression-allocation-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-material-expression-allocation-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-material-expression-allocation-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-discrete-material-realization-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-discrete-material-realization-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-discrete-material-realization-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-material-binding-application-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-material-binding-application-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-material-binding-application-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-authored-realization-association-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-authored-realization-association-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-authored-realization-association-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-world-space-material-sampling-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-world-space-material-sampling-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-world-space-material-sampling-v1/manifest.csv
 
       - name: Publish compact evidence review bundle
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -305,6 +326,27 @@ jobs:
             skyforge-reference/build/evidence/authorship-material-capability-compatibility-v1/**/*.png
             skyforge-reference/build/evidence/authorship-material-capability-compatibility-v1/**/*.html
             skyforge-reference/build/evidence/authorship-material-capability-compatibility-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-material-candidate-ranking-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-material-candidate-ranking-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-material-candidate-ranking-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-material-resolution-decision-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-material-resolution-decision-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-material-resolution-decision-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-material-expression-allocation-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-material-expression-allocation-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-material-expression-allocation-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-discrete-material-realization-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-discrete-material-realization-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-discrete-material-realization-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-material-binding-application-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-material-binding-application-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-material-binding-application-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-authored-realization-association-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-authored-realization-association-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-authored-realization-association-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-world-space-material-sampling-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-world-space-material-sampling-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-world-space-material-sampling-v1/**/*.csv
           if-no-files-found: error
           retention-days: 7
           compression-level: 9
