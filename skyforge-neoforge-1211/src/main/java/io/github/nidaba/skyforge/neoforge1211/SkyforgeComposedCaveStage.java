@@ -40,6 +40,9 @@ import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
  * resolver into {@link SkyforgeComposedCaveRealizer}.
  */
 final class SkyforgeComposedCaveStage {
+    private static final int MAX_PREPARE_COLUMNS_PER_SERVICE = 8;
+    private static final int MAX_PREPARE_VOXELS_PER_SERVICE = 2048;
+    private static final int MAX_PREPARE_CANONICAL_SAMPLES_PER_SERVICE = 32;
     private static final AtomicReference<Binding> ACTIVE = new AtomicReference<>();
 
     private SkyforgeComposedCaveStage() {}
@@ -93,7 +96,10 @@ final class SkyforgeComposedCaveStage {
             throw new IllegalArgumentException("composed cave stage requires at least one exact-volume obligation");
         }
 
-        Binding binding = new Binding(obligations);
+        Binding binding = new Binding(
+                obligations,
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>());
         if (!ACTIVE.compareAndSet(null, binding)) {
             throw new IllegalStateException("a composed cave production stage is already installed");
         }
@@ -110,7 +116,7 @@ final class SkyforgeComposedCaveStage {
      * <p>This method never asks Minecraft for a chunk. Callers must obtain the supplied chunk through
      * a no-ticket path such as {@code ServerChunkCache#getChunkNow}.
      */
-    static List<Completion> service(
+    static ServiceResult service(
             ServerLevel level,
             LevelChunk chunk,
             ChunkGenerator generator) {
@@ -123,7 +129,7 @@ final class SkyforgeComposedCaveStage {
 
         Binding binding = ACTIVE.get();
         if (binding == null || !SkyforgePhysicalVolumeAdmissionStage.active()) {
-            return List.of();
+            return ServiceResult.idle();
         }
 
         long chunkKey = chunk.getPos().toLong();
@@ -137,7 +143,6 @@ final class SkyforgeComposedCaveStage {
             }
         }
 
-        List<Completion> completed = new ArrayList<>();
         for (ObligationKey key : candidates) {
             Obligation obligation = requirePending(binding, key);
             SkyIslandWorldVolume volume = obligation.plan().volume();
@@ -156,8 +161,17 @@ final class SkyforgeComposedCaveStage {
                                     "admitted composed cave obligation has no exact-volume native surface plan: "
                                             + volumeId.path() + "/" + chunk.getPos()));
 
-            OwnerSpan ownerSpan = widestOwnerSpan(volume, obligation.columns(), chunk);
-            Completion completion;
+            Optional<OwnerSpan> cachedOwnerSpan;
+            synchronized (binding) {
+                cachedOwnerSpan = binding.ownerSpans().get(key);
+                if (cachedOwnerSpan == null) {
+                    cachedOwnerSpan = Optional.ofNullable(
+                            widestOwnerSpan(volume, obligation.columns(), chunk));
+                    binding.ownerSpans().put(key, cachedOwnerSpan);
+                }
+            }
+            OwnerSpan ownerSpan = cachedOwnerSpan.orElse(null);
+
             if (ownerSpan == null) {
                 if (containsAuthoredPositive(
                         volume,
@@ -169,40 +183,85 @@ final class SkyforgeComposedCaveStage {
                             "AUTH-0030-positive composed cave chunk has no exact owner-solid terrain: "
                                     + volumeId.path() + "/" + chunk.getPos());
                 }
-                completion = Completion.empty(volumeId, chunk.getPos());
-            } else {
-                if (!(generator instanceof NoiseBasedChunkGenerator noiseGenerator)) {
-                    throw new IllegalStateException(
-                            "composed cave realization requires Minecraft's active noise generator");
-                }
-                BlockPos biomeSample = new BlockPos(
-                        ownerSpan.x(),
-                        ownerSpan.minimumY() + (ownerSpan.maximumY() - ownerSpan.minimumY()) / 2,
-                        ownerSpan.z());
-                var result = SkyforgeComposedCaveRealizer.realize(
-                        level,
-                        noiseGenerator,
-                        populationPlan.biomeResolver(),
-                        volume,
-                        obligation.realizedAuthoredField(),
-                        obligation.spatialIndex(),
-                        chunk,
-                        biomeSample,
-                        ownerSpan.minimumY(),
-                        ownerSpan.maximumY());
-                completion = new Completion(
-                        volumeId,
-                        chunk.getPos(),
-                        biomeSample,
-                        ownerSpan.minimumY(),
-                        ownerSpan.maximumY(),
-                        Optional.of(result));
+                Completion completion = Completion.empty(volumeId, chunk.getPos());
+                complete(binding, key, obligation, completion);
+                return ServiceResult.completed(completion);
             }
 
+            if (!(generator instanceof NoiseBasedChunkGenerator noiseGenerator)) {
+                throw new IllegalStateException(
+                        "composed cave realization requires Minecraft's active noise generator");
+            }
+
+            SkyforgeExteriorConnectedCavePreparationCursor preparation;
+            synchronized (binding) {
+                preparation = binding.preparations().get(key);
+                if (preparation == null) {
+                    preparation = new SkyforgeExteriorConnectedCavePreparationCursor(
+                            volume,
+                            obligation.realizedAuthoredField(),
+                            obligation.spatialIndex(),
+                            chunk.getPos(),
+                            chunk.getMinBuildHeight(),
+                            chunk.getMaxBuildHeight(),
+                            position -> ownerSolid(
+                                    volumeId,
+                                    position.getX(),
+                                    position.getY(),
+                                    position.getZ()),
+                            position -> foreignSolid(
+                                    volumeId,
+                                    position.getX(),
+                                    position.getY(),
+                                    position.getZ()));
+                    binding.preparations().put(key, preparation);
+                }
+            }
+
+            var advance = preparation.advance(
+                    MAX_PREPARE_COLUMNS_PER_SERVICE,
+                    MAX_PREPARE_VOXELS_PER_SERVICE,
+                    MAX_PREPARE_CANONICAL_SAMPLES_PER_SERVICE);
+            if (!advance.complete()) {
+                return advance.worked() ? ServiceResult.worked() : ServiceResult.idle();
+            }
+
+            var prepared = preparation.prepared();
+            if (prepared.unsafePositiveSamples() > 0) {
+                throw new IllegalStateException(
+                        "AUTH-0030 authored preflight rejected before native carving: unsafePositiveSamples="
+                                + prepared.unsafePositiveSamples()
+                                + ", firstUnsafe=" + prepared.firstUnsafePosition());
+            }
+
+            BlockPos biomeSample = new BlockPos(
+                    ownerSpan.x(),
+                    ownerSpan.minimumY() + (ownerSpan.maximumY() - ownerSpan.minimumY()) / 2,
+                    ownerSpan.z());
+            var result = SkyforgeComposedCaveRealizer.realizePrepared(
+                    level,
+                    noiseGenerator,
+                    populationPlan.biomeResolver(),
+                    volume,
+                    prepared,
+                    chunk,
+                    biomeSample,
+                    ownerSpan.minimumY(),
+                    ownerSpan.maximumY());
+            Completion completion = new Completion(
+                    volumeId,
+                    chunk.getPos(),
+                    biomeSample,
+                    ownerSpan.minimumY(),
+                    ownerSpan.maximumY(),
+                    Optional.of(result));
+            synchronized (binding) {
+                binding.preparations().remove(key);
+            }
             complete(binding, key, obligation, completion);
-            completed.add(completion);
+            return ServiceResult.completed(completion);
         }
-        return List.copyOf(completed);
+        return ServiceResult.idle();
     }
 
     /** Chunk keys with at least one still-pending exact-volume obligation. */
@@ -476,6 +535,20 @@ final class SkyforgeComposedCaveStage {
                         "Skyforge terrain binding disappeared during composed cave planning"));
     }
 
+    private static boolean foreignSolid(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        return SkyforgeNeoForge1211SurfaceStage.isSolidOwnedByOtherVolume(
+                        volumeId,
+                        worldX,
+                        worldY,
+                        worldZ)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Skyforge terrain binding disappeared during composed cave planning"));
+    }
+
     private static int floorToInt(double value) {
         double floored = Math.floor(value);
         if (floored < Integer.MIN_VALUE || floored > Integer.MAX_VALUE) {
@@ -577,9 +650,36 @@ final class SkyforgeComposedCaveStage {
     }
 
     private record Binding(
-            LinkedHashMap<ObligationKey, Obligation> obligations) {
+            LinkedHashMap<ObligationKey, Obligation> obligations,
+            LinkedHashMap<ObligationKey, Optional<OwnerSpan>> ownerSpans,
+            LinkedHashMap<ObligationKey, SkyforgeExteriorConnectedCavePreparationCursor> preparations) {
         private Binding {
             Objects.requireNonNull(obligations, "obligations");
+            Objects.requireNonNull(ownerSpans, "ownerSpans");
+            Objects.requireNonNull(preparations, "preparations");
+        }
+    }
+
+    record ServiceResult(
+            boolean worked,
+            List<Completion> completions) {
+        ServiceResult {
+            completions = List.copyOf(completions);
+            if (!worked && !completions.isEmpty()) {
+                throw new IllegalArgumentException("idle composed cave service cannot complete obligations");
+            }
+        }
+
+        static ServiceResult idle() {
+            return new ServiceResult(false, List.of());
+        }
+
+        static ServiceResult worked() {
+            return new ServiceResult(true, List.of());
+        }
+
+        static ServiceResult completed(Completion completion) {
+            return new ServiceResult(true, List.of(Objects.requireNonNull(completion, "completion")));
         }
     }
 
