@@ -40,6 +40,7 @@ Core principle:
 - Vanilla-style Elytra firework boosting is considered a mobility bypass and should be suppressed while preserving ordinary fireworks; optional blast/instability feedback may make the rule diegetic.
 - Nether/portal distance compression is now an explicit audit item because dimension identity may be preserved without allowing portal transit to erase province-scale aviation; a 1:1 Nether coordinate-scale datapack is the leading low-bespoke interim prototype.
 - Nether and End generation are **current vanilla-authority implementation domains, not permanent exceptions**. Their future terrain must be derived from gameplay requirements first; outer End remains the preferred low-risk cross-dimension pilot, while a solid-dominant Nether cavern province is only the leading stress-test hypothesis if it best serves Nether gameplay.
+- Detailed realization-value audit now treats the dimensions asymmetrically: **Overworld full realization is already justified; Nether is a strong conditional yes pending repeatable multi-node operations; End is a promising conditional yes pending enduring post-Elytra/Shulker/Levitite expedition value.**
 - Sable's built-in Overworld, Nether, and End profiles **all** decrease pressure with altitude, and current Sable lift/propeller code scales aerodynamic forces by local pressure. Dimension identity therefore comes from each curve's relevant operating envelope—not from altitude pressure loss itself. The End is referenced at pressure 1.0 around Y 0 (vs ~Y 63 Overworld), while the Nether reaches zero near its low ceiling; both require gameplay testing before morphology is frozen.
 - Create Aeronautics itself gives the End a major technology loop: End Stone -> End Stone Powder -> zinc/water/heated Levitite Blend -> crystallized Levitite. Aeronautics Ponder shows Levitite can keep a contraption afloat but cannot provide climb alone, making it a strong End-derived lift-support technology rather than free propulsion.
 - The Nether's leading gameplay role is hostile corridor operation and advanced process/mining capability. Current Create: Metallurgy makes Nether Wolframite feed Tungsten -> superheated Obdurium -> Industrial Crucible infrastructure, while Sable pressure decay makes roof-level aerodynamic bypass naturally unattractive.
@@ -103,6 +104,10 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Vanilla mobility bypass governance v0.1](vanilla-mobility-bypass-governance-v0.1.md)
 - [Portable storage and freight integrity v0.1](portable-storage-and-freight-integrity-v0.1.md)
 - [Post-flight regional specialization sequence v0.1](post-flight-regional-specialization-sequence-v0.1.md)
+- [Dimension realization value audit v0.1](dimension-realization-value-audit-v0.1.md)
+- [Overworld realization audit v0.1](overworld-realization-audit-v0.1.md)
+- [Nether realization audit v0.1](nether-realization-audit-v0.1.md)
+- [End realization audit v0.1](end-realization-audit-v0.1.md)
 - [Dimension gameplay requirements v0.1](dimension-gameplay-requirements-v0.1.md)
 - [End Aeronautics progression contract v0.1](end-aeronautics-progression-contract-v0.1.md)
 - [Nether gameplay and aviation contract v0.1](nether-gameplay-and-aviation-contract-v0.1.md)
