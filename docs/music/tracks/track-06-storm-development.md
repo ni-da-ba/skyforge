@@ -1,11 +1,11 @@
 # Track 06 — storm / weather development record
 
-**Status:** Draft 01 active  
+**Status:** Draft 02 active  
 **Role:** energetic environmental danger / storm-cell traversal  
 **Tempo:** 144 BPM  
 **Meter:** 4/4  
 **Center:** D-minor-centered storm language  
-**Current boundary:** Draft 01 — Territory of Weather
+**Current boundary:** Draft 02 — Thunderbreak
 
 ## Dramatic function
 
@@ -135,3 +135,98 @@ Working artifact:
 `SF_Track06_Storm_Draft01_TERRITORY_OF_WEATHER.mid`
 
 The synthetic preview is diagnostic only. BBCSO remains authoritative for percussion balance, brass mass, attack behavior, and section seams.
+
+
+## Draft 02 — Thunderbreak
+
+The first pass was accepted as a strong foundation, with two user-directed changes:
+
+1. the dragon callback should use the **full Track 02 motif** because it appears only at the beginning and ending;
+2. the storm needs one explicitly physical, highly energetic passage with **crashes, booms, and violent weather mass**.
+
+### Full territorial callback
+
+Track 02 motif:
+
+`E-F-B-Bb / A-G-F-E`
+
+Draft 02 now gives this phrase two discrete cameo statements:
+
+- opening: entering dangerous territory;
+- ending: leaving that territory behind.
+
+The full phrase does **not** appear in the storm's middle development. This protects the dragon theme from becoming generic storm material while allowing the score to establish a broader semantic connection between dangerous domains.
+
+Interpretation:
+
+> dragon and storm are different entities, but both can make the sky feel claimed.
+
+### Thunderbreak insertion
+
+No accepted Draft 01 section was deleted.
+
+An eight-bar section is inserted after the charged-eye / false-clearing material, expanding the cue from 64 to 72 bars.
+
+New bars 41-48:
+
+**THUNDERBREAK / CRASHING CORE**
+
+The section adds:
+
+- lightning flash followed by delayed thunder impact;
+- crash-like percussion;
+- low-drum impacts;
+- tuba / bass-trombone / trombone thunder body;
+- low piano shock clusters;
+- intensified low-string gust motor;
+- compressed storm-theme statements;
+- slicing flute/piccolo gusts;
+- an escalating final strike into the existing eyewall.
+
+The intended sequence is:
+
+```text
+false clearing
+-> first catastrophic thunderbreak
+-> sustained eyewall / maximum storm
+-> escape run
+```
+
+This separates **impact violence** from **sustained weather pressure** rather than asking one section to do both.
+
+### Revised form
+
+| Bars | Function |
+| --- | --- |
+| 1-8 | pressure front / full territorial cameo |
+| 9-16 | storm theme / first gust wall |
+| 17-24 | crosswind / acceleration |
+| 25-32 | lightning core |
+| 33-40 | charged eye / false clearing |
+| 41-48 | **Thunderbreak / crashing core** |
+| 49-56 | eyewall / maximum storm |
+| 57-64 | escape run |
+| 65-68 | receding territory |
+| 69-72 | full dragon-language callback / coda |
+
+### Source identity
+
+Uncompressed Draft 02 full MIDI SHA-256:
+
+`22e83d65ed0baefbc425a2ccca4e00c381858ce3559dee7f940f6a06af6850a8`
+
+Working artifact:
+
+`SF_Track06_Storm_Draft02_THUNDERBREAK_72bar.mid`
+
+### Real-render caution
+
+The crash / low-drum MIDI pitches use a first-pass percussion mapping. BBCSO Discover's actual percussion-key layout must be treated as authoritative. If the first real render triggers the wrong samples, remap those percussion notes rather than rewriting the Thunderbreak composition.
+
+### Current acceptance questions
+
+1. Does the full dragon phrase feel like a rare territorial callback rather than a literal dragon presence?
+2. Does Thunderbreak provide the missing physical storm violence?
+3. Does the inserted section preserve the excitement of Draft 01 rather than overloading the cue?
+4. Does the false-clearing -> Thunderbreak -> eyewall sequence feel like escalation rather than two unrelated climaxes?
+5. Is the storm now fun to survive as well as dangerous?
