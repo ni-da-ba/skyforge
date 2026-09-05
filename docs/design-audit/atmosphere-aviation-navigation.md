@@ -38,6 +38,7 @@ authoritative atmosphere
   instantaneous wind / weather state
         |
         +--> Sable / Aeronautics vehicle physics
+        +--> gliders / soaring
         +--> sensors / CC / radar
         +--> visuals / sound
         +--> ecology
@@ -99,11 +100,63 @@ Wind must affect real relative-airflow behavior rather than apply arbitrary late
 Expected outcomes:
 
 - fixed wing: ground track, crosswind correction, takeoff/landing, route efficiency;
-- glider: thermals/updrafts as energy;
+- glider: thermals/updrafts/ridge lift as energy and route-planning resources;
+- soaring fauna: thermal/ridge-lift selection, circling/climb behavior, and visible cues to local lift;
 - balloon: air-mass drift and altitude-selection gameplay;
 - airship: propulsion versus wind and exposed-area consequences;
 - high altitude: exploitable wind layers;
 - storms: gust/turbulence and route hazard.
+
+## Thermals as shared world language
+
+Skyforge should treat rising air as a shared environmental mechanic rather than a glider-only trick.
+
+Conceptually:
+
+~~~text
+UPDRAFT / THERMAL AVAILABILITY
+    = atmospheric convection
+    + terrain / ridge interaction
+    + weather forcing
+    + local heat sources
+~~~
+
+Natural and anthropogenic sources may both matter.
+
+Examples:
+
+- sun-heated terrain or authored convection -> natural thermal;
+- windward cliff/ridge -> orographic lift;
+- lava field -> persistent local thermal;
+- fire/campfire/industrial heat -> small anthropogenic thermal contribution.
+
+The exact physical model can remain simplified. The important requirement is semantic coherence: **gliders and soaring fauna should be responding to the same kind of environmental opportunity.**
+
+This gives the player non-instrumented atmospheric information through animal behavior.
+
+A circling adapted red-tailed hawk / ordinary thermal soarer can function as a visible clue:
+
+~~~text
+bird circles and gains altitude
+        -> likely lift nearby
+        -> player investigates
+        -> glider can exploit the same air
+~~~
+
+That is preferable to making every useful atmospheric quantity visible only through HUD instrumentation.
+
+Player-built thermal routes are allowed in principle. A chain of campfires or stronger heat sources may create a low-throughput personal soaring route. This should be balanced against powered aircraft by logistics capability rather than by forbidding the route.
+
+Powered aviation still owns:
+
+- freight;
+- flexible departure;
+- schedule independence;
+- route reversibility without prepared thermal sites;
+- industrial throughput;
+- operation when the convenient soaring line is unavailable.
+
+The authoritative atmosphere system remains the owner of ambient wind/weather. Local block heat may be treated as a forcing/input term or compatibility proxy rather than a second weather simulation.
 
 ## Weather legibility
 
