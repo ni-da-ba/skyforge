@@ -469,7 +469,11 @@ If a required route uses gliding, the proof is directional and includes a return
 
 ### Glider / aircraft separation
 
-When a glider is selected, representative starter-group crossings may be glider-reachable, but the first powered aircraft must materially expand route reach, reversibility, and cargo capability.
+When a glider is selected, representative starter-group crossings should be comfortably glider-reachable.
+
+Longer personal crossings may also become possible through favorable terrain, natural thermals, weather knowledge, or prepared updraft sites.
+
+The first powered aircraft must still materially expand **logistical** reach: cargo capacity, route flexibility, takeoff independence, schedule reliability, and routine two-way operation.
 
 ### Regional reveal
 
