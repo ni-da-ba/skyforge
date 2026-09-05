@@ -1,0 +1,174 @@
+package io.github.nidaba.skyforge.recipes.skyisland;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandMorphologyFamily;
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
+import java.util.Optional;
+import org.junit.jupiter.api.Test;
+
+class CertifiedSkyIslandSupportEnvelopeCompilerTest {
+
+    @Test
+    void certifiesEveryAcceptedSchema2BuiltInFamily() {
+        CertifiedSkyIslandSupportEnvelopeCompiler compiler =
+                new CertifiedSkyIslandSupportEnvelopeCompiler();
+
+        for (SkyIslandMorphologyFamily semanticFamily :
+                SkyIslandMorphologyFamily.values()) {
+            SkyIslandVolumeDescriptor descriptor =
+                    SkyIslandVolumeDescriptor.schema2(
+                            0x5100000000000000L ^ semanticFamily.ordinal(),
+                            120.0,
+                            -80.0,
+                            260.0,
+                            100.0,
+                            42.0,
+                            58.0,
+                            24.0,
+                            0.31,
+                            0.63,
+                            0.57,
+                            -0.18,
+                            semanticFamily,
+                            0.40,
+                            36.0,
+                            0.55);
+            CompiledSkyIslandVolume compiled =
+                    new SemanticSkyIslandVolumeRecipe().compile(descriptor);
+
+            CertifiedSkyIslandSupportEnvelope envelope =
+                    compiler.certify(compiled).orElseThrow();
+
+            MorphologyFamily family = MorphologyFamily.fromSemantic(semanticFamily);
+            SkyIslandMorphologyProvider provider =
+                    SkyIslandMorphologyProviders.builtIn(family);
+            double detailMaximum =
+                    1.0
+                            + SeededSkyIslandVolumeRecipe.MAXIMUM_RELATIVE_DISPLACEMENT
+                                    * descriptor.detailAmplitude();
+            double secondaryMaximum =
+                    provider.compileSecondaryMorphology(
+                                    descriptor,
+                                    descriptor.secondaryMorphologyAmplitude())
+                            .orElseThrow()
+                            .maximumFactor();
+
+            assertEquals(
+                    1.65 * descriptor.nominalRadius(),
+                    envelope.maximumHorizontalRadius(),
+                    0.0);
+            assertEquals(
+                    descriptor.upperElevation() * detailMaximum * secondaryMaximum,
+                    envelope.maximumUpperOffset(),
+                    1.0e-12);
+            assertEquals(
+                    2.0 * descriptor.undersideDepth() * detailMaximum,
+                    envelope.maximumUndersideDepth(),
+                    1.0e-12);
+            assertEquals(
+                    "semantic-built-in-v1:" + family.identifier(),
+                    envelope.certificateKind());
+        }
+    }
+
+    @Test
+    void unknownRecipePathRemainsUncertified() {
+        SkyIslandVolumeDescriptor descriptor =
+                new SkyIslandVolumeDescriptor(
+                        SkyIslandVolumeDescriptor.SCHEMA_VERSION_1,
+                        51002L,
+                        0.0,
+                        0.0,
+                        220.0,
+                        100.0,
+                        40.0,
+                        56.0,
+                        24.0,
+                        0.0,
+                        0.55,
+                        0.60,
+                        0.10,
+                        0.0,
+                        32.0);
+        CompiledSkyIslandVolume primary =
+                new MorphologyFamilySkyIslandVolumeRecipe()
+                        .compile(descriptor, MorphologyFamily.MASSIF);
+
+        assertTrue(
+                new CertifiedSkyIslandSupportEnvelopeCompiler()
+                        .certify(primary)
+                        .isEmpty());
+    }
+
+    @Test
+    void providerCertificationIsExplicitOptIn() {
+        SkyIslandMorphologyProvider uncertified =
+                new SkyIslandMorphologyProvider() {
+                    @Override
+                    public MorphologyProviderId id() {
+                        return new MorphologyProviderId("test", "uncertified");
+                    }
+
+                    @Override
+                    public PrimaryMorphologyContribution compilePrimary(
+                            SkyIslandVolumeDescriptor descriptor) {
+                        throw new UnsupportedOperationException("not needed");
+                    }
+                };
+        SkyIslandVolumeDescriptor descriptor =
+                new SkyIslandVolumeDescriptor(
+                        SkyIslandVolumeDescriptor.SCHEMA_VERSION_1,
+                        51003L,
+                        0.0,
+                        0.0,
+                        220.0,
+                        100.0,
+                        40.0,
+                        56.0,
+                        24.0,
+                        0.0,
+                        0.55,
+                        0.60,
+                        0.10,
+                        0.0,
+                        32.0);
+
+        Optional<PrimaryMorphologySupportEnvelope> envelope =
+                uncertified.certifiedPrimarySupportEnvelope(descriptor);
+
+        assertTrue(envelope.isEmpty());
+    }
+
+    @Test
+    void builtInPrimaryCertificateKeepsAnalyticalMargin() {
+        SkyIslandVolumeDescriptor descriptor =
+                new SkyIslandVolumeDescriptor(
+                        SkyIslandVolumeDescriptor.SCHEMA_VERSION_1,
+                        51004L,
+                        0.0,
+                        0.0,
+                        220.0,
+                        100.0,
+                        40.0,
+                        56.0,
+                        24.0,
+                        0.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        0.0,
+                        32.0);
+
+        for (MorphologyFamily family : MorphologyFamily.values()) {
+            PrimaryMorphologySupportEnvelope envelope =
+                    SkyIslandMorphologyProviders.builtIn(family)
+                            .certifiedPrimarySupportEnvelope(descriptor)
+                            .orElseThrow();
+            assertEquals(165.0, envelope.maximumHorizontalRadius(), 0.0);
+            assertEquals(40.0, envelope.maximumUpperOffset(), 0.0);
+            assertEquals(112.0, envelope.maximumUndersideDepth(), 0.0);
+        }
+    }
+}
