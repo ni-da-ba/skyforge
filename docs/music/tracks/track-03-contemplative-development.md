@@ -2,8 +2,8 @@
 
 **Status:** Active development  
 **Role:** lonely / ponderous / thoughtful exploration state  
-**Current method:** literature-backed melodic design audit before further theme generation  
-**Current boundary:** Melodic Design Audit 01 — phrase closure and expectation
+**Current method:** literature-backed first-principles melodic rewrite  
+**Current boundary:** First-Principles Theme 03 — cadential arc
 
 ## Emotional target
 
@@ -461,6 +461,102 @@ Additional adopted constraints:
 > Continuity is not the same as inevitability. A satisfying low arrival can create a stronger need for the next phrase than an unresolved high note.
 
 No new theme pass should be written until the audit constraints are treated as the design basis.
+
+
+## First-Principles Theme 03 — cadential-arc full rewrite
+
+This pass is the first full rewrite built directly from Melodic Design Audit 01 rather than from literal phrase-hinge continuity.
+
+It preserves only the accepted sound world:
+
+- 76 BPM;
+- 3/4;
+- B-flat-major-centered harmony with G-minor shading;
+- restrained piano + cello reduction;
+- quiet, wistful, contemplative affect.
+
+It does **not** preserve the prior Theme 01 or Theme 02 melody.
+
+### Governing correction
+
+Apex, cadence, and continuation are treated as separate functions.
+
+The melody is allowed to rise toward an expressive point, reverse after leaps, descend before phrase closure, and end low or in the middle of its range. Open phrases remain open because of harmonic function rather than registral suspension.
+
+The piano now carries some phrase-to-phrase continuation through restrained late-bar pickups and unstable dominant harmony. The cello is therefore allowed to finish rhetorical sentences naturally.
+
+### Phrase design
+
+**Phrase 1 — open question (bars 1–4)**
+
+- local apex: D5 in bar 2;
+- sustained descent after the apex;
+- long C4 ending over dominant harmony;
+- open cadence, but lower/middle register.
+
+**Phrase 2 — answer (bars 5–8)**
+
+- genuinely new sentence rather than transposition;
+- local apex: C5 in bar 6;
+- descent to a long B-flat3;
+- closed and low.
+
+**Phrase 3 — second thought (bars 9–12)**
+
+- more inward and stepwise;
+- local apex: E-flat5 in bar 10;
+- immediate reversal and longer descent;
+- long C4 ending over V;
+- open, but lower/middle register.
+
+**Phrase 4 — development (bars 13–16)**
+
+- fragments accelerate the opening language;
+- F5 in bar 14 is the single global apex of the 20-bar theme;
+- the apex is explicitly interior rather than phrase-final;
+- almost two bars of descent follow it;
+- phrase ends on long C4 over V.
+
+**Phrase 5 — return (bars 17–20)**
+
+- opening identity returns in reduced form;
+- local apex: D5 in bar 18;
+- final descent reaches long B-flat3;
+- stable low-register tonic close.
+
+### Audit constraints enforced
+
+- no major phrase ends at a local registral high;
+- every important upward leap receives reversal before closure;
+- phrase-final onset density decreases;
+- major phrase-final notes are lengthened;
+- open versus closed function is carried primarily by harmony;
+- the global apex occurs internally rather than at a phrase boundary;
+- continuation is partly delegated to accompaniment rather than forced through the cello's endpoint.
+
+Uncompressed full MIDI SHA-256:
+
+`41a555b005ef492628a1b4c3f26a9e52fbeae964f1b172cae28980cd82805a7a`
+
+Repository source:
+
+`assets/music/source/track-03-first-principles-theme-03-cadential-arc.mid.gz`
+
+Uncompressed melody-only MIDI SHA-256:
+
+`d44835dd1d3e79b1db570a48768fccd16caba38262214d8766948b499c1f35f6`
+
+Repository source:
+
+`assets/music/source/track-03-first-principles-theme-03-cadential-arc-melody-only.mid.gz`
+
+### Current acceptance question
+
+The primary gate is whether the phrase endings now feel rhetorically natural to the ear while the theme still retains forward motion.
+
+In particular:
+
+> Does the music still ask for continuation after descending into a lower register, proving that harmony and musical meaning—not habitual high endings—can carry the unresolved thought?
 
 ## Current acceptance gate
 
