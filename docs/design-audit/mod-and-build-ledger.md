@@ -238,6 +238,11 @@ Riptide-to-Glider Acceptance
 Nether Portal Distance-Compression Audit
 1:1 Nether Dimension-Type Datapack Prototype
 Dimension Gameplay Requirements
+Dimension Realization Value Audit
+Overworld Realization Audit
+Nether Realization Audit
+End Realization Audit
+Dimension Repeatability / Persistent-Value Acceptance
 Cross-Dimension Skyforge Authorship Strategy
 Dimension World-Grammar Matrix
 Dimension-Domain Authority Boundary
@@ -344,3 +349,7 @@ non-omniscient sensor access to Skyforge truth
 32. The Nether should preserve mixed-mode route engineering: aircraft may solve suitable vault/lava crossings without making tunnels, rail, bridges, staging sites, and defended corridors obsolete.
 33. If Create: Metallurgy remains selected, treat Wolframite/Tungsten as advanced foundry capability whose deposit scale follows real Obdurium/Industrial-Crucible demand.
 34. Nether terrain morphology remains downstream of route, structure, resource, pressure, and recovery gameplay; enclosed cavern geometry is a leading hypothesis, not a locked aesthetic.
+35. Full dimension realization requires durable gameplay value, not merely unique first-time loot or an attractive terrain concept.
+36. Dimension value may take different forms: Overworld breadth/network permanence, Nether hostile operational depth, End expeditionary/specialist engineering depth.
+37. Treat capital-unlock resources separately from recurring economic resources: current Tungsten/Obdurium demand and Levitite demand must be measured before using them as freight assumptions.
+38. Do not claim Create Propulsion ion thrust as End-gated under current source; its present recipe lacks an End-specific input.
