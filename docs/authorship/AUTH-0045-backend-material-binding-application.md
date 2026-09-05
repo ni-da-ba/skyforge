@@ -270,17 +270,43 @@ AUTH-0045 does not modify or supersede the implementation agent's existing nativ
 
 ## Next milestone
 
-If AUTH-0045 is accepted, the next authorship milestone should define **world-space authored-material sampling**.
+If AUTH-0045 is accepted, the next authorship milestone should define an **authored-island realization association contract**.
 
-The current material chain is expressed in island-local horizontal coordinates plus semantic depth.
+The native authorship hierarchy and the established compiled world-volume hierarchy are intentionally different compatibility surfaces:
 
-A backend eventually needs a deterministic backend-neutral bridge from one authoritative world-space point inside an island to:
+~~~text
+native authorship:
+World -> Province -> Cluster -> Island -> SkyIslandDescriptor
 
-- island-local position;
-- semantic depth;
-- AUTH-0044 realization;
-- AUTH-0045 application key;
+compiled realization:
+archipelago -> group -> member -> SkyIslandWorldVolume
+~~~
 
-while preserving naturalized island ownership and AUTH-0030 cave void.
+AUTH-0001 deliberately kept authored island identity free of placement coordinates, while the accepted world-volume path predates the native authorship lane and carries concrete compiled placement.
 
-That bridge should still stop before concrete backend material identity or block placement.
+No accepted contract currently states which one native-authored island is realized by which one compiled world volume.
+
+A world-space material sampler must not infer that association from:
+
+- list position;
+- geometry seed;
+- nominal radius;
+- morphology family;
+- nearest center;
+- encounter order;
+- backend chunk ownership.
+
+Therefore the next milestone should first make the association explicit, deterministic, immutable, and backend-neutral.
+
+Only after that association is accepted should a following milestone define the world-space sampling bridge:
+
+~~~text
+world point
+    -> associated authored island + compiled volume
+    -> island-local horizontal position
+    -> authoritative semantic depth
+    -> AUTH-0044 realization
+    -> AUTH-0045 application key
+~~~
+
+That later bridge should still stop before concrete backend material identity or block placement.
