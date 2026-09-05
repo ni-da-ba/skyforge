@@ -321,3 +321,29 @@ Corrected full MIDI SHA-256:
 `eae3d8696ab1181a8bb21b93ff00f8120b0ff3fe3a44cbf3ed0075f6957176c2`
 
 The tuned-percussion track was not remapped in this correction; its patch realization should be checked separately if the lightning glints do not behave as expected.
+
+
+## Sonar/BBCSO routing diagnosis
+
+The user reported that both the PERC and TP tracks appear to contain MIDI but produce no audible sound in Sonar.
+
+The corrected Draft 02.1 MIDI itself is not empty:
+
+- PERC / track 12 contains 254 note attacks:
+  - MIDI 36 x108;
+  - MIDI 38 x70;
+  - MIDI 40 x72;
+  - MIDI 41 x4.
+- TP / track 13 contains 21 note attacks in the high register:
+  - principally MIDI 91, plus 86-96.
+
+Therefore, silence on both tracks points primarily to synth routing / patch assignment in the Sonar BBCSO template rather than absent MIDI data.
+
+Required Track 06 routing:
+
+- **12 PERC | Percussion -> BBCSO Discover Untuned Percussion**
+- **13 TP | Tuned Percussion -> BBCSO Discover Glockenspiel** for the current lightning-flash writing.
+
+BBCSO Discover does not provide one generic "Tuned Percussion" instrument representing all tuned percussion. Timpani, marimba, xylophone, glockenspiel, tubular bells, etc. are distinct instrument patches. Track 06's TP notes are high-register lightning punctuation and should currently be realized with Glockenspiel rather than Timpani.
+
+If PERC remains silent while routed to Untuned Percussion, inspect the Sonar MIDI track Output and BBCSO plugin instance before changing MIDI notes again.
