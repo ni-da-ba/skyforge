@@ -300,6 +300,7 @@ Post-Flight Capability Payoff Audit
 Material and Process Retention Audit
 Unified Industrial Production Graph
 Recipe and Material Normalization Backlog
+Exact Recipe / Worldgen Collision Manifest
 Canonical Shared-Material Tag/Recipe Audit
 Create Big Cannons Industrial Integration Audit
 Copper / Zinc First-Route Placement Contract
