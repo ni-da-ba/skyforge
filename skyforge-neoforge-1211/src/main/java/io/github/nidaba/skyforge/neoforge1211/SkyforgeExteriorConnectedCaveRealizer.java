@@ -116,7 +116,7 @@ final class SkyforgeExteriorConnectedCaveRealizer {
         BlockPos firstUnsafe = null;
         BlockPos firstMouth = null;
         SkyIslandCaveExposureSide firstMouthSide = null;
-        List<Candidate> candidates = new ArrayList<>();
+        List<BlockPos> candidates = new ArrayList<>();
 
         double localMinimumX = chunk.getPos().getMinBlockX() - descriptor.centerX();
         double localMaximumX = chunk.getPos().getMaxBlockX() - descriptor.centerX();
@@ -208,30 +208,64 @@ final class SkyforgeExteriorConnectedCaveRealizer {
                             }
                         }
                     }
-                    candidates.add(new Candidate(position.immutable(), sample, mouth));
+                    candidates.add(position.immutable());
                 }
             }
         }
 
-        if (unsafePositiveSamples > 0) {
+        var prepared = new SkyforgeExteriorConnectedCavePreparationCursor.Prepared(
+                sampledPhysicalBlocks,
+                positiveSamples,
+                basePositiveSamples,
+                exposurePositiveSamples,
+                upperExposureSamples,
+                undersideExposureSamples,
+                candidates,
+                unsafePositiveSamples,
+                mouthCells,
+                provenanceDigest,
+                firstUnsafe,
+                firstMouth,
+                firstMouthSide);
+        return commitPrepared(level, volume, prepared, chunk);
+    }
+
+    static Result commitPrepared(
+            ServerLevel level,
+            SkyIslandWorldVolume volume,
+            SkyforgeExteriorConnectedCavePreparationCursor.Prepared prepared,
+            LevelChunk chunk) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(volume, "volume");
+        Objects.requireNonNull(prepared, "prepared");
+        Objects.requireNonNull(chunk, "chunk");
+        if (chunk.getLevel() != level) {
+            throw new IllegalArgumentException("exterior-connected cave target chunk belongs to another level");
+        }
+        if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
+            throw new IllegalStateException(
+                    "exterior-connected cave realization requires an active Skyforge terrain binding");
+        }
+
+        if (prepared.unsafePositiveSamples() > 0) {
             return new Result(
                     false,
-                    sampledPhysicalBlocks,
-                    positiveSamples,
-                    basePositiveSamples,
-                    exposurePositiveSamples,
-                    upperExposureSamples,
-                    undersideExposureSamples,
-                    candidates.size(),
-                    unsafePositiveSamples,
-                    mouthCells,
+                    prepared.sampledPhysicalBlocks(),
+                    prepared.positiveSamples(),
+                    prepared.basePositiveSamples(),
+                    prepared.exposurePositiveSamples(),
+                    prepared.upperExposureSamples(),
+                    prepared.undersideExposureSamples(),
+                    prepared.candidates().size(),
+                    prepared.unsafePositiveSamples(),
+                    prepared.mouthCells(),
                     0,
                     0,
                     FNV_OFFSET_BASIS,
-                    provenanceDigest,
-                    firstUnsafe,
-                    firstMouth,
-                    firstMouthSide);
+                    prepared.provenanceDigest(),
+                    prepared.firstUnsafePosition(),
+                    prepared.firstMouthPosition(),
+                    prepared.firstMouthSide());
         }
 
         SkyforgeCarverExecutionStage.Snapshot writeSnapshot;
@@ -239,30 +273,30 @@ final class SkyforgeExteriorConnectedCaveRealizer {
                 var execution = SkyforgeCarverExecutionStage.open(volume.id(), chunk.getPos())) {
             domain.requireActive();
             execution.requireActive();
-            for (Candidate candidate : candidates) {
-                chunk.setBlockState(candidate.position(), Blocks.AIR.defaultBlockState(), false);
+            for (BlockPos position : prepared.candidates()) {
+                chunk.setBlockState(position, Blocks.AIR.defaultBlockState(), false);
             }
             writeSnapshot = execution.snapshot();
         }
 
         return new Result(
                 true,
-                sampledPhysicalBlocks,
-                positiveSamples,
-                basePositiveSamples,
-                exposurePositiveSamples,
-                upperExposureSamples,
-                undersideExposureSamples,
-                candidates.size(),
+                prepared.sampledPhysicalBlocks(),
+                prepared.positiveSamples(),
+                prepared.basePositiveSamples(),
+                prepared.exposurePositiveSamples(),
+                prepared.upperExposureSamples(),
+                prepared.undersideExposureSamples(),
+                prepared.candidates().size(),
                 0,
-                mouthCells,
+                prepared.mouthCells(),
                 writeSnapshot.writeAttempts(),
                 writeSnapshot.changedBlocks(),
                 writeSnapshot.changedPositionDigest(),
-                provenanceDigest,
+                prepared.provenanceDigest(),
                 null,
-                firstMouth,
-                firstMouthSide);
+                prepared.firstMouthPosition(),
+                prepared.firstMouthSide());
     }
 
     private static boolean ownerSolid(
@@ -360,13 +394,4 @@ final class SkyforgeExteriorConnectedCaveRealizer {
         }
     }
 
-    private record Candidate(
-            BlockPos position,
-            SkyIslandExteriorConnectedCaveVolumeSample sample,
-            boolean mouth) {
-        Candidate {
-            Objects.requireNonNull(position, "position");
-            Objects.requireNonNull(sample, "sample");
-        }
-    }
 }
