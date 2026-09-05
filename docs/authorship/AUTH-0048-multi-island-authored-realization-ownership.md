@@ -272,7 +272,7 @@ A forged candidate whose world/local frame does not match the selection world po
 
 The AUTH-0048 diagnostic corpus should emphasize composition rather than individual morphology.
 
-Its primary atlas is an X/Y vertical slice containing:
+Its primary atlas is a Z/Y vertical slice at X=0 containing:
 
 - a same-X/Z stacked pair with deliberately overlapping conservative bounds;
 - a deliberately co-located true-overlap pair.
