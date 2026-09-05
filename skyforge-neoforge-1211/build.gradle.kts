@@ -701,6 +701,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-composed-cave-a")
             systemProperty("skyforge.dev.acceptanceRadius", "10")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0068/production-a.properties").get().asFile.absolutePath,
@@ -721,6 +722,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-composed-cave-b")
             systemProperty("skyforge.dev.acceptanceRadius", "10")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0068/production-b.properties").get().asFile.absolutePath,
@@ -761,6 +763,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-composed-cave-stacked")
             systemProperty("skyforge.dev.acceptanceRadius", "10")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0068/stacked.properties").get().asFile.absolutePath,
@@ -2477,14 +2480,28 @@ fun prepareSfImp0068AcceptanceServerDirectory(relativePath: String) {
     directory.resolve("server.properties").writeText(sfImp0068AcceptanceServerProperties)
 }
 
-mapOf(
-    "runProductionComposedCaveAcceptanceA" to "run-sf-imp-0068-auto-a",
-    "runProductionComposedCaveAcceptanceB" to "run-sf-imp-0068-auto-b",
-    "runProductionComposedCaveAcceptanceStacked" to "run-sf-imp-0068-auto-stacked",
-).forEach { (taskName, relativePath) ->
+fun requireSfImp0068AcceptancePass(resultName: String) {
+    val file = sfImp0068AcceptanceResultDirectory.get().file("$resultName.properties").asFile
+    check(file.isFile) { "SF-IMP-0068 acceptance result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS") {
+        "SF-IMP-0068 acceptance case $resultName did not PASS: "
+            + properties.getProperty("failure", "status=" + properties.getProperty("status"))
+    }
+}
+
+listOf(
+    Triple("runProductionComposedCaveAcceptanceA", "run-sf-imp-0068-auto-a", "production-a"),
+    Triple("runProductionComposedCaveAcceptanceB", "run-sf-imp-0068-auto-b", "production-b"),
+    Triple("runProductionComposedCaveAcceptanceStacked", "run-sf-imp-0068-auto-stacked", "stacked"),
+).forEach { (taskName, relativePath, resultName) ->
     tasks.named(taskName).configure {
         doFirst {
             prepareSfImp0068AcceptanceServerDirectory(relativePath)
+        }
+        doLast {
+            requireSfImp0068AcceptancePass(resultName)
         }
     }
 }
@@ -2505,6 +2522,9 @@ tasks.named("runProductionComposedCaveAcceptanceReloadClient").configure {
             "onboardAccessibility:false\n"
                 + "narrator:0\n",
         )
+    }
+    doLast {
+        requireSfImp0068AcceptancePass("reload")
     }
 }
 tasks.named("runProductionComposedCaveAcceptanceStacked").configure {
