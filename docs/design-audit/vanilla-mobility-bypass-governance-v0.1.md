@@ -367,7 +367,11 @@ This preserves the Nether's:
 
 while removing its automatic horizontal-distance compression as an Overworld transport network.
 
-That is currently the **leading prototype** because it is extremely low-bespoke and directly addresses the logistics problem without deleting a dimension.
+That is currently the **leading interim prototype** because it is extremely low-bespoke and directly addresses the logistics problem without deleting a dimension.
+
+It should not be mistaken for permanent cosmology.
+
+If Skyforge later authors the Nether itself, portal relationships can become explicit interdomain topology and the coordinate rule should be reconsidered alongside that authored world.
 
 Required validation:
 
@@ -380,6 +384,8 @@ Required validation:
 Alternative ratios between 1:1 and vanilla may be tested later, but there is no reason to preserve 8:1 merely from convention.
 
 No policy is fully locked yet.
+
+See [Cross-Dimension Skyforge Authorship Strategy v0.1](cross-dimension-skyforge-authorship-strategy-v0.1.md).
 
 The reuse-first principle still applies: prefer datapack/config/mod behavior over bespoke portal code.
 
