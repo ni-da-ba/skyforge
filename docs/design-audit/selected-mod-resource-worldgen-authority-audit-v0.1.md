@@ -137,6 +137,30 @@ vein size 9
 replaces netherrack
 ~~~
 
+### Gameplay role
+
+Current 1.21.1 Create: Metallurgy source gives Wolframite/Tungsten a concrete advanced-industry payoff:
+
+~~~text
+Wolframite Ore
+-> crushed/raw Tungsten processing
+-> molten Tungsten
+
+Andesite Alloy
++ molten Tungsten
++ SUPERHEATED alloying
+-> molten Obdurium
+
+Obdurium plate
++ molten Tungsten
++ refractory/assembly steps
+-> Industrial Crucible
+~~~
+
+This supports treating Wolframite as an advanced Nether mining resource rather than generic decorative ore.
+
+Its required deposit scale should be derived from actual foundry/Obdurium demand during pack testing.
+
 ### Decision direction
 
 Skyforge's **current Minecraft implementation authority** is the Overworld island system.
