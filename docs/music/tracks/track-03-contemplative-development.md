@@ -940,6 +940,69 @@ Retained rule:
 
 > Once a theme produces genuine recognition and user attachment, preserve its identity and make subsequent complexity earn itself.
 
+## First-Principles Theme 07 — refrain consolidation
+
+Theme 07 is a conservative refinement of Theme 06. It does not replace the thematic nucleus.
+
+### Protected identity
+
+Theme 07 preserves:
+
+- clarinet as primary recurring thematic owner;
+- canonical refrain `D-D-F-Bb | A-E-F`;
+- refrain rhythm;
+- sparse cello-answer architecture;
+- restrained piano continuity;
+- rare high E-F afterimage;
+- low/open versus low/closed cadential grammar;
+- Theme 05 note-economy principles.
+
+### Refinements
+
+The principal changes are deliberately limited.
+
+1. **Teach the refrain more literally.**  
+   Canonical statements occur at bars 1, 5, 9, and 17 rather than introducing an early tail variant before the listener has fully learned the object.
+
+2. **Develop by duration and context.**  
+   Bars 13-14 preserve the refrain's pitch identity and stretch its principal arrivals instead of inventing a new contour.
+
+3. **Simplify cello answers.**  
+   The cello now uses only 16 attacks across the 20-bar sketch. Its role is rhetorical/emotional rather than continuous thematic activity.
+
+4. **Clarify ownership of the E-natural catch.**  
+   That color is primarily retained in the clarinet refrain. The cello no longer repeats it in every answer.
+
+5. **Extend the global cello apex.**  
+   The bar-15 F5 is held substantially longer before the descent.
+
+6. **Make the afterimage scarcer.**  
+   The E-F high glint appears after selected canonical statements, plus one transformed developmental response, rather than after every possible refrain.
+
+### Source identity
+
+Uncompressed full MIDI SHA-256:
+
+`1d1f0a3fce7f56bf3da2e0f106f269b6a7c28a28baad031ea962defbe24cc94a`
+
+Repository source:
+
+`assets/music/source/track-03-first-principles-theme-07-refrain-consolidation.mid.gz`
+
+Diagnostics:
+
+`assets/music/source/track-03-first-principles-theme-07-refrain-focus.mid.gz`
+
+`assets/music/source/track-03-first-principles-theme-07-leads-only.mid.gz`
+
+### Current question
+
+Theme 06 established a thematic nucleus worth preserving. Theme 07 asks a narrower question:
+
+> Does the refrain become clearer and more inevitable when it is taught literally, while the cello answers and development become simpler?
+
+The next decision should be made by ear from Theme 06 versus Theme 07, not by further theoretical rewriting.
+
 ## Current acceptance gate
 
 Do **not** resume development or full-cue expansion merely because one candidate is technically coherent.
