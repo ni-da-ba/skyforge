@@ -40,10 +40,15 @@ import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
  * resolver into {@link SkyforgeComposedCaveRealizer}.
  */
 final class SkyforgeComposedCaveStage {
-    private static final int MAX_PREPARE_COLUMNS_PER_SERVICE = 8;
-    private static final int MAX_PREPARE_VOXELS_PER_SERVICE = 2048;
-    private static final int MAX_PREPARE_CANONICAL_SAMPLES_PER_SERVICE = 32;
-    private static final int MAX_NATIVE_CARVER_START_CHECKS_PER_SERVICE = 16;
+    // One production service slot is intentionally limited to one chunk per level tick. The
+    // per-chunk cursor quanta must therefore be large enough to make finite-volume progress while
+    // remaining bounded. At eight columns/service, a 400-chunk acceptance footprint required at
+    // least 12,800 service ticks before carving; these quanta preserve resumability while removing
+    // that scheduler-induced starvation bound.
+    private static final int MAX_PREPARE_COLUMNS_PER_SERVICE = 32;
+    private static final int MAX_PREPARE_VOXELS_PER_SERVICE = 8192;
+    private static final int MAX_PREPARE_CANONICAL_SAMPLES_PER_SERVICE = 128;
+    private static final int MAX_NATIVE_CARVER_START_CHECKS_PER_SERVICE = 64;
     private static final int MAX_AUTHORED_COMMIT_WRITES_PER_SERVICE = 512;
     private static final AtomicReference<Binding> ACTIVE = new AtomicReference<>();
 
