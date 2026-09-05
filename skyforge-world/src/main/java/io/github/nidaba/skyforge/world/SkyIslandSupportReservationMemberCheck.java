@@ -11,6 +11,9 @@ public record SkyIslandSupportReservationMemberCheck(
         int memberOrdinal,
         long descriptorSeed,
         String morphologyIdentifier,
+        double centerX,
+        double centerZ,
+        double suspensionElevation,
         double reservedHorizontalRadius,
         double reservedBelowSuspension,
         double reservedAboveSuspension,
@@ -23,6 +26,9 @@ public record SkyIslandSupportReservationMemberCheck(
         groupIdentifier = Objects.requireNonNull(groupIdentifier, "groupIdentifier");
         morphologyIdentifier =
                 Objects.requireNonNull(morphologyIdentifier, "morphologyIdentifier");
+        requireFinite("centerX", centerX);
+        requireFinite("centerZ", centerZ);
+        requireFinite("suspensionElevation", suspensionElevation);
         requirePositive("reservedHorizontalRadius", reservedHorizontalRadius);
         requireNonNegative("reservedBelowSuspension", reservedBelowSuspension);
         requireNonNegative("reservedAboveSuspension", reservedAboveSuspension);
@@ -52,15 +58,30 @@ public record SkyIslandSupportReservationMemberCheck(
     }
 
     public boolean horizontalReservationAdequate() {
-        return certified() && requiredHorizontalRadius() <= reservedHorizontalRadius;
+        if (!certified()) {
+            return false;
+        }
+        double support = requiredHorizontalRadius();
+        return Math.nextDown(centerX - support) >= centerX - reservedHorizontalRadius
+                && Math.nextUp(centerX + support) <= centerX + reservedHorizontalRadius
+                && Math.nextDown(centerZ - support) >= centerZ - reservedHorizontalRadius
+                && Math.nextUp(centerZ + support) <= centerZ + reservedHorizontalRadius;
     }
 
     public boolean belowReservationAdequate() {
-        return certified() && requiredBelowSuspension() <= reservedBelowSuspension;
+        if (!certified()) {
+            return false;
+        }
+        return Math.nextDown(suspensionElevation - requiredBelowSuspension())
+                >= suspensionElevation - reservedBelowSuspension;
     }
 
     public boolean aboveReservationAdequate() {
-        return certified() && requiredAboveSuspension() <= reservedAboveSuspension;
+        if (!certified()) {
+            return false;
+        }
+        return Math.nextUp(suspensionElevation + requiredAboveSuspension())
+                <= suspensionElevation + reservedAboveSuspension;
     }
 
     public boolean verticalReservationAdequate() {
@@ -70,6 +91,12 @@ public record SkyIslandSupportReservationMemberCheck(
     /** Whether this exact member is fully proof-backed by its existing query reservations. */
     public boolean admitted() {
         return horizontalReservationAdequate() && verticalReservationAdequate();
+    }
+
+    private static void requireFinite(String property, double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException(property + " must be finite");
+        }
     }
 
     private static void requirePositive(String property, double value) {
