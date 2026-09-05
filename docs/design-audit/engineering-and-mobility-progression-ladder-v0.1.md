@@ -268,28 +268,44 @@ This avoids soft locks.
 
 Progression should not only increase player travel speed.
 
-Cargo capacity should be one of the largest functional differences between transport stages.
+Cargo capability should be one of the largest functional differences between transport stages.
 
-Example:
+Do not define this only by raw inventory slots.
+
+Minecraft portable storage can make a player an effective manual courier, especially late game.
+
+Instead distinguish:
 
 ~~~text
-glider
-  strong local personal mobility
-  launch-height/range limited
-  negligible freight
+glider / Elytra
+  strong personal mobility
+  ordinary inventory
+  later portable-container couriering
+  poor bulk / fluid / entity / contraption throughput
 
 small aircraft
   good personal mobility
   modest freight
+  repeatable supply runs
 
 cargo aircraft
-  strong freight
+  bulk containers / fuel / regional hauling
   landing-space/fuel cost
 
 airship
   very large freight / mobile infrastructure
+  machinery / entities / contraption-scale payloads
   slower / weather / handling tradeoffs
+
+mature logistics network
+  repeated / scheduled / automated throughput
 ~~~
+
+Vanilla inventory should not be reduced merely to force vehicle use.
+
+Vanilla Shulker Boxes remain provisionally acceptable as a late manual-courier upgrade. Large early backpack capacity or recursive portable-container nesting is not.
+
+See [Portable Storage and Freight Integrity v0.1](portable-storage-and-freight-integrity-v0.1.md).
 
 Exact vehicle balance remains downstream.
 
@@ -429,5 +445,7 @@ Overworld sky geography should enrich normal Minecraft progression without being
 11. A selected early glider may solve starter-group crossings and longer personal soaring, but must not make P2 powered flight economically optional.
 12. Progression-critical glider traversal is evaluated as a directed, recoverable capability graph rather than raw distance alone.
 13. Elytra may remain as later personal soaring equipment, but vanilla-style firework propulsion should not create cheap self-contained powered flight.
-14. Nether/portal transit must be explicitly shown not to erase ordinary regional aviation before progression is locked.
+14. Nether/portal transit must be explicitly shown not to erase ordinary regional aviation before progression is locked; a 1:1 Nether coordinate-scale datapack is the leading low-bespoke prototype.
 15. Convenience teleportation is rejected by default unless it has a deliberate late-tier logistics role with meaningful constraints.
+16. Personal portable storage may improve manual couriering, but mature aircraft/logistics must retain clear advantages in bulk, fluid, entity, contraption, and repeated-route throughput.
+17. Inventory or encumbrance nerfs are a last resort, not a foundational progression tool.
