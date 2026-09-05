@@ -59,6 +59,9 @@ This document consolidates the current candidate stack from the content-integrat
 
 - FTB Quests — leading guided-onboarding/quest-book prototype; vanilla advancements remain lightweight fallback
 - Reliable Gliders — leading cheap personal-soaring prototype for 1.21.1 NeoForge; requires a pack-level early recipe override, while its campfire/fire/lava/magma updraft behavior should be retained for testing as a useful local-thermal proxy rather than disabled by default
+- Disable Elytra Outside The End — strong reuse candidate for selectively suppressing vanilla firework boosting on 1.21.1 NeoForge while preserving ordinary fireworks; LGPL-3.0-or-later
+- No More Elytra Boosting — mechanically narrow server-side 1.21.1 NeoForge alternative; restrictive license means dependency candidate only, not code source
+- Elytra Tuning — reserve tuning candidate if reduced boost strength/duration is preferable to a binary disable
 
 - Aerodynamics4MC
 - Simple Clouds
@@ -227,6 +230,12 @@ Glider Recipe Override
 Thermal / Updraft Compatibility Layer
 Glider-vs-Aircraft Logistics Non-Substitution Acceptance
 Starter-Group Recovery Connectivity
+Vanilla Mobility Bypass Governance
+Elytra Firework-Boost Suppression
+Optional Hazardous Rocket-Use Feedback
+Riptide-to-Glider Acceptance
+Nether Portal Distance-Compression Audit
+Teleport / Waystone Dependency Audit
 ~~~
 
 ### Onboarding / guidance
@@ -278,3 +287,6 @@ non-omniscient sensor access to Skyforge truth
 10. New dependencies must fill a genuine missing role rather than merely add variety.
 11. Cheap personal gliding may solve local starter-group topology and may extend much farther through natural or prepared thermal routes, but powered flight remains the first logistics-enabling mobility transition.
 12. Player-buildable updraft routes are allowed as low-throughput personal infrastructure; balance them against aircraft through freight, flexibility, convenience, and throughput rather than an artificial hard range prohibition.
+13. Vanilla firework rockets should not provide safe sustained propulsion while fall-flying; preserve ordinary fireworks and prefer an existing server-side control before bespoke behavior.
+14. Dimension identity and dimension transport are separate concerns: Nether/End content may remain intact while portal distance compression is altered if it would erase aviation geography.
+15. General-purpose teleport convenience must not silently bypass authored distance and logistics.
