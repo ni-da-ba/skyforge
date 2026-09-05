@@ -45,6 +45,25 @@ public final class SkyIslandMorphologyProviders {
         private static final NodeId GENERIC_SECONDARY_FACTOR = new NodeId("secondary.upper-factor");
         private static final NodeId FAMILY_SECONDARY_FACTOR = new NodeId("family-aware.upper-factor");
 
+        /*
+         * Analytical AUTH-0051 primary support bounds for every accepted built-in family.
+         *
+         * Horizontal: non-lobed maximum = 1.03 radius scale * 1.40 SPINE major factor = 1.442.
+         * LOBED may expand raw ellipse radius by sqrt(1 + lobeStrength), with lobeStrength < 1.76:
+         * 1.03 * 0.96 * sqrt(2.76) < 1.65.
+         *
+         * Upper: inside the positive primary footprint, every accepted built-in crown expression is
+         * bounded by descriptor.upperElevation. MASSIF/TABLELAND/SPINE/LOBED are <= 1 directly;
+         * the BASIN quadratic (1-r)*(0.58+2.20r), r in [0,1], peaks below 0.88.
+         *
+         * Underside: tapered remaining <= 1. Non-lobed along-normalized magnitude is < 1, while
+         * LOBED is bounded by sqrt(2.76). With maximum signed asymmetry 0.25 and family depth
+         * factors <= 1.45 (non-lobed) / 1.20 (lobed), shaped depth remains < 1.91. Factor 2.0
+         * deliberately retains analytical margin.
+         */
+        private static final double CERTIFIED_MAXIMUM_HORIZONTAL_RADIUS_FACTOR = 1.65;
+        private static final double CERTIFIED_MAXIMUM_UNDERSIDE_DEPTH_FACTOR = 2.0;
+
         private final MorphologyFamily family;
         private final MorphologyFamilySkyIslandVolumeRecipe primaryRecipe =
                 new MorphologyFamilySkyIslandVolumeRecipe();
@@ -71,6 +90,19 @@ public final class SkyIslandMorphologyProviders {
                     Optional.of(LOBE),
                     UPPER_FACTOR,
                     DEPTH_FACTOR);
+        }
+
+        @Override
+        public Optional<PrimaryMorphologySupportEnvelope> certifiedPrimarySupportEnvelope(
+                SkyIslandVolumeDescriptor descriptor) {
+            Objects.requireNonNull(descriptor, "descriptor");
+            return Optional.of(
+                    new PrimaryMorphologySupportEnvelope(
+                            CERTIFIED_MAXIMUM_HORIZONTAL_RADIUS_FACTOR
+                                    * descriptor.nominalRadius(),
+                            descriptor.upperElevation(),
+                            CERTIFIED_MAXIMUM_UNDERSIDE_DEPTH_FACTOR
+                                    * descriptor.undersideDepth()));
         }
 
         @Override
