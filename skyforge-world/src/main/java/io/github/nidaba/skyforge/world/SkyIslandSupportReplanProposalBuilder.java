@@ -54,27 +54,29 @@ public final class SkyIslandSupportReplanProposalBuilder {
                             proofHorizontal,
                             authorMargin.memberHorizontal());
 
+            boolean pairwiseSpacingRelevant = template.memberMorphologies().size() > 1;
             OptionalDouble proofLayoutSpacing =
-                    proofHorizontal.isPresent()
+                    pairwiseSpacingRelevant && proofHorizontal.isPresent()
                             ? OptionalDouble.of(
                                     outwardPairSpacing(
                                             proofHorizontal.orElseThrow(),
                                             template.minimumMemberGap()))
                             : OptionalDouble.empty();
             double derivedLayoutMargin =
-                    Math.nextUp(2.0 * authorMargin.memberHorizontal());
-            if (authorMargin.memberHorizontal() == 0.0) {
-                derivedLayoutMargin = 0.0;
-            }
+                    pairwiseSpacingRelevant && authorMargin.memberHorizontal() > 0.0
+                            ? Math.nextUp(2.0 * authorMargin.memberHorizontal())
+                            : 0.0;
             SkyIslandSupportReplanValue layoutSpacingBase =
                     SkyIslandSupportReplanValue.propose(
                             template.layout().minimumCenterSpacing(),
                             proofLayoutSpacing,
                             derivedLayoutMargin);
             double exactCandidateSpacing =
-                    outwardPairSpacing(
-                            memberHorizontal.proposedValue(),
-                            template.minimumMemberGap());
+                    pairwiseSpacingRelevant
+                            ? outwardPairSpacing(
+                                    memberHorizontal.proposedValue(),
+                                    template.minimumMemberGap())
+                            : template.layout().minimumCenterSpacing();
             SkyIslandSupportReplanValue layoutSpacing =
                     new SkyIslandSupportReplanValue(
                             layoutSpacingBase.originalValue(),
