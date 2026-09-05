@@ -339,9 +339,100 @@ Candidate policies, from least to most invasive:
 4. **Treat Nether as a destination/resource dimension rather than a transport shortcut.**
 5. **Disable routine Overworld-Nether-Overworld transit if no elegant integration exists.**
 
-No candidate is locked yet.
+### Leading low-bespoke prototype: 1:1 Nether coordinate scale
+
+Minecraft dimension types expose `coordinate_scale` as data.
+
+Vanilla uses approximately:
+
+~~~text
+Overworld coordinate_scale = 1.0
+Nether coordinate_scale    = 8.0
+~~~
+
+A pack datapack can override the Nether dimension type so:
+
+~~~text
+Nether coordinate_scale = 1.0
+~~~
+
+This preserves the Nether's:
+
+- terrain;
+- resources;
+- mobs;
+- structures;
+- hazards;
+- progression role;
+
+while removing its automatic horizontal-distance compression as an Overworld transport network.
+
+That is currently the **leading prototype** because it is extremely low-bespoke and directly addresses the logistics problem without deleting a dimension.
+
+Required validation:
+
+- portal linking remains predictable;
+- existing Nether worldgen/content is unaffected;
+- multiplayer portal behavior remains stable;
+- no mod silently assumes the vanilla 8:1 ratio;
+- long-distance Overworld routes are no longer economically dominated by a trivial Nether corridor.
+
+Alternative ratios between 1:1 and vanilla may be tested later, but there is no reason to preserve 8:1 merely from convention.
+
+No policy is fully locked yet.
 
 The reuse-first principle still applies: prefer datapack/config/mod behavior over bespoke portal code.
+
+## Portable-storage interaction
+
+Mobility balance cannot be audited independently from carried capacity.
+
+A glider or Elytra carrying only the normal player inventory is one thing.
+
+The same player carrying many portable containers can become a high-capacity courier:
+
+~~~text
+personal flight
+    + shulker boxes / backpack
+    -> large item payload
+~~~
+
+This does not automatically invalidate aircraft.
+
+Skyforge should distinguish:
+
+~~~text
+MANUAL COURIER
+    one player
+    finite carried containers
+    active piloting
+    one-off / irregular trips
+
+LOGISTICS NETWORK
+    bulk and/or continuous throughput
+    fluids
+    entities
+    contraptions / machines
+    multiple destinations
+    automation
+    scheduled repeatability
+~~~
+
+Vanilla Shulker Boxes are naturally late enough to be treated as a mature manual-courier upgrade unless playtesting proves otherwise.
+
+Large early-game backpack mods are a greater risk because they can move this compression before the player has any reason to build cargo aviation.
+
+Current direction:
+
+- do not nerf vanilla player inventory merely to manufacture aircraft demand;
+- retain vanilla Shulker Boxes provisionally;
+- treat Ender Chest + Shulker use as late-game high-value courier behavior;
+- avoid or strongly constrain early backpack upgrades that multiply carried capacity;
+- forbid recursive portable-container nesting where a dependency allows it;
+- make aircraft economics increasingly about throughput, fluids, entities, contraptions, and automation rather than only number of item slots;
+- add encumbrance/mass effects to personal gliding only if actual playtesting proves necessary.
+
+See the dedicated freight-integrity audit when present.
 
 ## Teleport / Waystone dependencies
 
