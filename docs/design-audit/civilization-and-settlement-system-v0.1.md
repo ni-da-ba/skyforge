@@ -3,6 +3,11 @@
 **Snapshot:** 2026-09-05  
 **Status:** Working design direction. Not yet an accepted ADR.
 
+
+## Infrastructure-teaching companion
+
+The concrete settlement/archetype layer is developed in [Civilization Archetypes and Infrastructure Teaching v0.1](civilization-archetypes-and-infrastructure-teaching-v0.1.md). It treats civilization density as a later experience-tuning parameter and focuses this architecture on functional networks, observation, technically plausible infrastructure, and role-specific salvage/loot.
+
 ## Core principle
 
 > Civilization is a regional condition and functional network, not a structure-placement probability.
