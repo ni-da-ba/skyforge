@@ -76,4 +76,5 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Representative structure realization matrix v0.1](representative-structure-realization-matrix-v0.1.md)
 - [Structure reservation and relocation policy v0.1](structure-reservation-and-relocation-policy-v0.1.md)
 - [Structure-to-terrain compatibility contract v0.1](structure-terrain-compatibility-contract-v0.1.md)
+- [Structure–authorship interaction policy v0.1](structure-authorship-interaction-policy-v0.1.md)
 - [Working mod and to-build ledger](mod-and-build-ledger.md)
