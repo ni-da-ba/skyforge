@@ -90,14 +90,34 @@ Do not install or retain another ore-generating dependency merely to satisfy the
 
 ## Electrum resolution gate
 
-Electrum remains provisional because the electrical distinction is real.
+Electrum remains provisional because the electrical distinction is real, but current CC&A data gives us a lower-bespoke baseline than inventing an alloy recipe.
 
-Candidate paths, in preference order:
+Current source defines `createaddition:modular_accumulator_usable_wires` as accepting:
 
-1. retain Electrum but provide a small pack-level manufacturing route that does not introduce Silver geology;
-2. retain Electrum as a trace/byproduct material if an existing retained geology/process already produces it at useful scale;
-3. replace Electrum-only recipes with Gold/high-current alternatives and accept a lower electrical-network ceiling;
-4. remove Electrum from progression if integrated electrical play proves 1024 FE/t Gold circuits sufficient.
+- Gold wire;
+- Electrum wire.
+
+Yet the stock Modular Accumulator crafting recipe directly hard-requires Electrum wire.
+
+Therefore the leading pack integration is:
+
+~~~text
+Modular Accumulator recipe
+    Electrum-only wire ingredient
+        -> use the mod's existing usable-wire tag
+~~~
+
+This lets **Gold** satisfy baseline electrical storage without Silver or Electrum.
+
+Electrum can then remain an optional high-current conductor rather than a progression dependency.
+
+Current preferred sequence:
+
+1. normalize the accumulator recipe onto the existing Gold/Electrum usable-wire tag;
+2. run representative electrical networks on Gold's 1024 FE/t ceiling;
+3. if that ceiling creates a useful high-current engineering problem, retain Electrum as an optional manufactured/byproduct upgrade;
+4. only then design an Electrum production route, without Silver geology;
+5. if 1024 FE/t is sufficient, do not force Electrum production at all.
 
 Do **not** invent a Silver mining economy to preserve the name of one alloy.
 
