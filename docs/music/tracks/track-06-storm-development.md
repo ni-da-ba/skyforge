@@ -384,3 +384,23 @@ This pass preserves composition and mapping while increasing Track 12 impact:
 - leaves TP / Glockenspiel unchanged.
 
 The intent is for percussion to become a physical foreground event in Thunderbreak rather than barely audible support.
+
+
+## Draft 02.3 percussion level acceptance
+
+The user confirmed that the revised percussion level pass works.
+
+Accepted Track 06 percussion realization:
+
+- Track 12 PERC uses **Percussion -> Untuned Percussion**;
+- Track 13 TP uses **Tuned Percussion -> Glockenspiel**;
+- PERC absolute MIDI pitches are corrected to the BBCSO octave convention;
+- the Draft 02.3 velocity/expression lift is accepted;
+- Thunderbreak remains part of the preferred form.
+
+Do not further increase Track 06 percussion globally unless the later full BBCSO render reveals a specific masking problem.
+
+Next planned maintenance task:
+- return to Track 02, *The Lord of Empty Miles*;
+- repair its percussion MIDI using the now-correct BBCSO absolute-note mapping;
+- preserve the frozen musical structure and treat the correction as a controlled implementation repair.
