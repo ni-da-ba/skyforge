@@ -53,7 +53,12 @@ final class SkyforgeExteriorConnectedCaveRealizer {
         var realized = new SkyIslandRealizedExteriorConnectedCaveVolumeField(
                 caveField,
                 new SkyIslandCompiledVolumeColumnField(volume.compiledVolume()));
-        return realize(level, volume, realized, chunk);
+        return realize(
+                level,
+                volume,
+                realized,
+                SkyforgeExteriorConnectedCaveSpatialIndex.create(caveField),
+                chunk);
     }
 
     static Result realize(
@@ -61,9 +66,24 @@ final class SkyforgeExteriorConnectedCaveRealizer {
             SkyIslandWorldVolume volume,
             SkyIslandRealizedExteriorConnectedCaveVolumeField realized,
             LevelChunk chunk) {
+        return realize(
+                level,
+                volume,
+                realized,
+                SkyforgeExteriorConnectedCaveSpatialIndex.create(realized.semanticField()),
+                chunk);
+    }
+
+    static Result realize(
+            ServerLevel level,
+            SkyIslandWorldVolume volume,
+            SkyIslandRealizedExteriorConnectedCaveVolumeField realized,
+            SkyforgeExteriorConnectedCaveSpatialIndex spatialIndex,
+            LevelChunk chunk) {
         Objects.requireNonNull(level, "level");
         Objects.requireNonNull(volume, "volume");
         Objects.requireNonNull(realized, "realized");
+        Objects.requireNonNull(spatialIndex, "spatialIndex");
         Objects.requireNonNull(chunk, "chunk");
         if (chunk.getLevel() != level) {
             throw new IllegalArgumentException("exterior-connected cave target chunk belongs to another level");
@@ -97,6 +117,16 @@ final class SkyforgeExteriorConnectedCaveRealizer {
         SkyIslandCaveExposureSide firstMouthSide = null;
         List<Candidate> candidates = new ArrayList<>();
 
+        double localMinimumX = chunk.getPos().getMinBlockX() - descriptor.centerX();
+        double localMaximumX = chunk.getPos().getMaxBlockX() - descriptor.centerX();
+        double localMinimumZ = chunk.getPos().getMinBlockZ() - descriptor.centerZ();
+        double localMaximumZ = chunk.getPos().getMaxBlockZ() - descriptor.centerZ();
+        var spatialSlice = spatialIndex.slice(
+                localMinimumX,
+                localMaximumX,
+                localMinimumZ,
+                localMaximumZ);
+
         for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
             double localX = x - descriptor.centerX();
             for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
@@ -105,8 +135,17 @@ final class SkyforgeExteriorConnectedCaveRealizer {
                 for (int y = minimumY; y <= maximumY; y++) {
                     sampledPhysicalBlocks++;
                     BlockPos position = new BlockPos(x, y, z);
-                    SkyIslandExteriorConnectedCaveVolumeSample sample = realized.sample(
-                            new SkyIslandRealizedSubsurfacePosition(local, y));
+                    var semanticPosition = realized.transform()
+                            .toSemantic(new SkyIslandRealizedSubsurfacePosition(local, y));
+                    if (semanticPosition.isEmpty()) {
+                        continue;
+                    }
+                    var semantic = semanticPosition.orElseThrow();
+                    if (!spatialSlice.mayContainPositive(semantic)) {
+                        continue;
+                    }
+                    SkyIslandExteriorConnectedCaveVolumeSample sample =
+                            realized.semanticField().sample(semantic);
                     if (!sample.inside()) {
                         continue;
                     }
