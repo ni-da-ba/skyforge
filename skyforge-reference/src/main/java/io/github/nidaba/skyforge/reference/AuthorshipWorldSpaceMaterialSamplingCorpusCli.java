@@ -108,7 +108,8 @@ public final class AuthorshipWorldSpaceMaterialSamplingCorpusCli {
                                 + "mappableSamples,ownedSamples,authoredVoidSamples,"
                                 + "materialSamples,applicationSamples,conditionedSamples,"
                                 + "winnerMismatches,applicationKeyMismatches,"
-                                + "localFrameMismatches,maxDepthError,uniqueApplicationKeys\n");
+                                + "localFrameMismatches,maxHorizontalError,maxDepthError,"
+                                + "uniqueApplicationKeys\n");
 
         for (int index = 0; index < selections.size(); index++) {
             Fixture fixture = fixture(selections.get(index), index);
@@ -145,6 +146,7 @@ public final class AuthorshipWorldSpaceMaterialSamplingCorpusCli {
                     .append(metrics.winnerMismatches()).append(',')
                     .append(metrics.applicationKeyMismatches()).append(',')
                     .append(metrics.localFrameMismatches()).append(',')
+                    .append(format(metrics.maximumHorizontalError())).append(',')
                     .append(format(metrics.maximumDepthError())).append(',')
                     .append(metrics.uniqueApplicationKeys()).append('\n');
         }
@@ -182,6 +184,7 @@ public final class AuthorshipWorldSpaceMaterialSamplingCorpusCli {
         int winnerMismatches = 0;
         int applicationKeyMismatches = 0;
         int localFrameMismatches = 0;
+        double maxHorizontalError = 0.0;
         double maxDepthError = 0.0;
         Set<SkyIslandSemanticPaletteBindingKey> uniqueKeys = new HashSet<>();
         double radius = fixture.authored().nominalRadius();
@@ -199,17 +202,30 @@ public final class AuthorshipWorldSpaceMaterialSamplingCorpusCli {
                     }
                     mappable++;
 
-                    SkyIslandMaterialRealizationSelection direct =
-                            direct(fixture.directField(), semantic);
                     SkyIslandWorldAuthoredMaterialSample worldSample =
                             fixture.sampler().sample(
                                     world,
                                     AuthorshipWorldSpaceMaterialSamplingCorpusCli::decision);
                     SkyIslandSubsurfacePosition recovered =
                             worldSample.semantic().orElseThrow();
+                    SkyIslandMaterialRealizationSelection direct =
+                            direct(fixture.directField(), recovered);
 
-                    if (Math.abs(recovered.x() - semantic.x()) > 1.0e-12
-                            || Math.abs(recovered.z() - semantic.z()) > 1.0e-12) {
+                    double horizontalError =
+                            Math.hypot(
+                                    recovered.x() - semantic.x(),
+                                    recovered.z() - semantic.z());
+                    maxHorizontalError = Math.max(maxHorizontalError, horizontalError);
+                    double horizontalTolerance =
+                            8.0
+                                    * Math.max(
+                                            Math.max(
+                                                    Math.ulp(world.x()),
+                                                    Math.ulp(fixture.physical().centerX())),
+                                            Math.max(
+                                                    Math.ulp(world.z()),
+                                                    Math.ulp(fixture.physical().centerZ())));
+                    if (horizontalError > Math.sqrt(2.0) * horizontalTolerance) {
                         localFrameMismatches++;
                     }
                     maxDepthError =
@@ -264,6 +280,7 @@ public final class AuthorshipWorldSpaceMaterialSamplingCorpusCli {
                 winnerMismatches,
                 applicationKeyMismatches,
                 localFrameMismatches,
+                maxHorizontalError,
                 maxDepthError,
                 uniqueKeys.size());
     }
@@ -285,11 +302,14 @@ public final class AuthorshipWorldSpaceMaterialSamplingCorpusCli {
                 if (worldPoint == null) {
                     continue;
                 }
-                direct[iz][ix] = direct(fixture.directField(), semantic);
                 world[iz][ix] =
                         fixture.sampler().sample(
                                 worldPoint,
                                 AuthorshipWorldSpaceMaterialSamplingCorpusCli::decision);
+                direct[iz][ix] =
+                        direct(
+                                fixture.directField(),
+                                world[iz][ix].semantic().orElseThrow());
             }
         }
         return new Grid(direct, world);
@@ -337,10 +357,11 @@ public final class AuthorshipWorldSpaceMaterialSamplingCorpusCli {
         graphics.drawString(
                 String.format(
                         Locale.ROOT,
-                        "winner mismatch=%d app mismatch=%d frame mismatch=%d depth err<=%.3g",
+                        "winner mismatch=%d app mismatch=%d frame mismatch=%d xy err<=%.3g depth err<=%.3g",
                         metrics.winnerMismatches(),
                         metrics.applicationKeyMismatches(),
                         metrics.localFrameMismatches(),
+                        metrics.maximumHorizontalError(),
                         metrics.maximumDepthError()),
                 7,
                 50);
@@ -577,6 +598,7 @@ public final class AuthorshipWorldSpaceMaterialSamplingCorpusCli {
             int winnerMismatches,
             int applicationKeyMismatches,
             int localFrameMismatches,
+            double maximumHorizontalError,
             double maximumDepthError,
             int uniqueApplicationKeys) {}
 }
