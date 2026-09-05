@@ -5,12 +5,15 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -46,6 +49,10 @@ final class SkyforgeAutomatedAcceptanceHarness {
     private static final String MODE_SERVER = "server";
     private static final String MODE_CLIENT = "client";
     private static final int DEFAULT_RADIUS = 2;
+    private static final int ACCEPTANCE_TICKET_DISTANCE = 3;
+    private static final TicketType<ChunkPos> ACCEPTANCE_TICKET = TicketType.create(
+            "skyforge_acceptance",
+            Comparator.comparingLong(ChunkPos::toLong));
     private static final long DEFAULT_TIMEOUT_SECONDS = 180L;
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeAutomatedAcceptanceHarness.class.getName());
@@ -89,14 +96,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
                         System.Logger.Level.INFO,
                         "SKYFORGE AUTOMATED ACCEPTANCE WARMUP: case=" + caseId()
                                 + ", radiusChunks=" + radius()
-                                + ". Development harness synchronously loaded the finite proof footprint.");
-            } else {
-                // Acceptance is the independent load reason for this finite proof corpus. Retouch
-                // the same bounded footprint every tick so production no-ticket services can keep
-                // resuming work without the chunk manager unloading a cursor's target between
-                // quanta. This remains test orchestration: production code still uses getChunkNow
-                // and never creates generation tickets of its own.
-                warmOriginFootprint(level);
+                                + ". Development harness synchronously loaded and ticketed the finite proof footprint.");
             }
         }
 
@@ -180,8 +180,19 @@ final class SkyforgeAutomatedAcceptanceHarness {
 
     private static void warmOriginFootprint(ServerLevel level) {
         int radius = radius();
+        var chunkSource = level.getChunkSource();
         for (int chunkX = -radius; chunkX <= radius; chunkX++) {
             for (int chunkZ = -radius; chunkZ <= radius; chunkZ++) {
+                ChunkPos pos = new ChunkPos(chunkX, chunkZ);
+                // The harness itself is the independent load reason for this finite proof corpus.
+                // A non-persistent development-only region ticket keeps each target stable between
+                // resumable production quanta without repeatedly synchronously loading hundreds of
+                // chunks on every server tick. Production code remains strictly getChunkNow-only.
+                chunkSource.addRegionTicket(
+                        ACCEPTANCE_TICKET,
+                        pos,
+                        ACCEPTANCE_TICKET_DISTANCE,
+                        pos);
                 level.getChunk(chunkX, chunkZ);
             }
         }
