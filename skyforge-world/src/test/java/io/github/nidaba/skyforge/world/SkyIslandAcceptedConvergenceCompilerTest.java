@@ -22,6 +22,7 @@ import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandGroupRol
 import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandGroupTemplate;
 import io.github.nidaba.skyforge.recipes.skyisland.group.ProviderMorphologySpec;
 import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandGroupLayout;
+import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandMorphologySpec;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -370,8 +371,7 @@ final class SkyIslandAcceptedConvergenceCompilerTest {
 
     private static SkyIslandArchipelagoRequest request(
             long rootSeed,
-            List<? extends io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandMorphologySpec>
-                    morphologies,
+            List<SkyIslandMorphologySpec> morphologies,
             double horizontal,
             double groupRadius,
             SkyIslandGroupLayout layout,
@@ -384,7 +384,7 @@ final class SkyIslandAcceptedConvergenceCompilerTest {
                         horizontal,
                         minimumGap,
                         0.0,
-                        List.copyOf(morphologies),
+                        morphologies,
                         layout,
                         groupRadius);
         return new SkyIslandArchipelagoRequest(
