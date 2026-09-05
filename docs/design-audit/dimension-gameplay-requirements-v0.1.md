@@ -7,6 +7,13 @@
 
 > Design each dimension around the gameplay it should create, then make Skyforge author the world that best supports that gameplay.
 
+The detailed worth/realization gates are tracked in:
+
+- [Dimension Realization Value Audit v0.1](dimension-realization-value-audit-v0.1.md);
+- [Overworld Realization Audit v0.1](overworld-realization-audit-v0.1.md);
+- [Nether Realization Audit v0.1](nether-realization-audit-v0.1.md);
+- [End Realization Audit v0.1](end-realization-audit-v0.1.md).
+
 Skyforge's cross-dimension architecture is valuable only if it serves the experience.
 
 Do not begin with:
