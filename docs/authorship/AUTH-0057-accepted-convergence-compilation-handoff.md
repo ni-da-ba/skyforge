@@ -134,6 +134,8 @@ There is no fallback provider, retry, or silent downgrade to an ordinary catalog
 
 The canonical test wraps one accepted built-in provider with a primary-compilation counter.
 
+The counting fixture deliberately uses zero detail and zero secondary-morphology enrichment. In that neutral fixture, one provider primary call is a faithful sentinel for one world-compilation entry. Enriched recipes may legitimately invoke provider primary compilation more than once inside one world compilation (for example, to construct a canonical enrichment carrier), so this counter is not a universal claim about provider-internal call topology.
+
 Before AUTH-0057:
 
     AUTH-0056 accepted convergence
