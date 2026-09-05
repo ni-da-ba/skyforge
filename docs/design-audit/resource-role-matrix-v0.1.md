@@ -60,7 +60,10 @@ DIMENSION
 | Diamond | S | No | deep mature geology | trade/structure limited | high-value mining | Direct mining remains valid; favor large deep islands |
 | Emerald ore | S | No | regional geology | villager economy | trade | Ore need not supply most currency circulation |
 | Quartz | DIMENSION | No | Nether | trade/structure optional | advanced recipes | Keep Nether identity unless later design says otherwise |
-| Blaze products | DIMENSION | No | Nether | trade only if intentionally limited | progression | Preserve normal dimension progression |
+| Blaze products | DIMENSION | No | Nether | trade only if intentionally limited | progression / process heat | Preserve normal dimension progression; also intersects Create high-temperature processing |
+| Wolframite (Create: Metallurgy) | DIMENSION, currently Nether-native | No | Nether mineral geology | trade/salvage only if deliberately added | advanced mining/metallurgy | Current 1.21.1 worldgen targets netherrack; reopen placement when Skyforge authors Nether geology |
+| Tungsten (Create: Metallurgy) | manufactured from Wolframite | No | ore processing | trade/salvage limited | foundry / advanced metallurgy | Molten Tungsten participates in Obdurium and Industrial Crucible production |
+| Obdurium (Create: Metallurgy) | manufactured | No | superheated Andesite Alloy + molten Tungsten | trade/salvage limited | advanced foundry infrastructure | Current alloy recipe uses Andesite Alloy + molten Tungsten; Industrial Crucible assembly consumes Obdurium plate |
 | End Stone | DIMENSION, abundant | No | End terrain | import only after End access | End aviation feedstock | Current Aeronautics crushing path produces End Stone Powder; raw abundance can be balanced through processing rather than scarcity |
 | End Stone Powder (Aeronautics) | manufactured from End Stone | No | crushing | none needed | levitation precursor | Carries Aeronautics levitating item component; input to Levitite Blend |
 | Levitite Blend (Aeronautics) | manufactured | No | End Stone Powder + zinc + water + heated mixing | trade/salvage only if deliberately added | advanced aviation industry | Current recipe: 4 powder + 2 zinc nuggets + 500 mB water -> 500 mB blend |
@@ -174,6 +177,30 @@ few suitable geological districts:
 This makes fuel geography visible.
 
 However the player must always retain at least one non-petroleum route to practical early air mobility.
+
+## Nether metallurgy material policy
+
+If Create: Metallurgy remains selected, current source provides a useful capability chain:
+
+~~~text
+Wolframite
+-> Tungsten
+-> superheated Tungsten + Andesite Alloy
+-> Obdurium
+-> Industrial Crucible / advanced foundry infrastructure
+~~~
+
+This gives Nether mining a concrete engineering payoff.
+
+Current direction:
+
+- keep native Nether Wolframite provisionally while Nether terrain remains vanilla-authored;
+- if Skyforge authors Nether geology, redirect Wolframite through authored mineral semantics;
+- tune deposit scale from actual Tungsten/Obdurium recipe demand rather than assuming "advanced metal = extremely rare";
+- preserve fortress/Blaze and high-temperature processing as distinct but intersecting Nether capability paths;
+- do not make Wolframite part of first-flight or early Overworld bootstrap.
+
+See [Nether Gameplay and Aviation Contract v0.1](nether-gameplay-and-aviation-contract-v0.1.md).
 
 ## End Aeronautics material policy
 
