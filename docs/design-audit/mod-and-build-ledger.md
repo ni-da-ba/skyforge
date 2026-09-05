@@ -202,6 +202,9 @@ Trade / Salvage Substitution Profiles
 Civilization Resource Dependencies
 Progression-Sensitive Asset Classification
 Selected-Mod Worldgen Authority Audit
+Create Zinc / Striated-Material Worldgen Redirect
+Diesel-Generator Petroleum Authority Adapter
+Oil-Field Column-Exclusivity Prototype
 Resource Evidence / Telemetry
 Engineering / Mobility Progression Ladder
 First-Flight Transitive Recipe Closure Audit
