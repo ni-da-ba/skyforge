@@ -212,3 +212,14 @@ Relevant confirmed white-key mapping used by Skyforge includes:
 - B3 / MIDI 59 — Piatti.
 
 Track 06 Draft 02 exposed this defect when GM-style notes 42 and 49 failed to realize the intended hits. Future percussion authoring must use the BBCSO map explicitly and should receive a percussion-only audition before orchestral acceptance.
+
+
+### Generic TP track is a routing abstraction
+
+The canonical `13 TP | Tuned Percussion` MIDI lane is an authoring slot, not the name of a single BBCSO Discover patch.
+
+BBCSO Discover exposes tuned percussion as separate instruments (for example Timpani, Marimba, Xylophone, Glockenspiel, and Tubular Bells). Each cue must explicitly choose the actual BBCSO patch appropriate to the written register and function.
+
+For Track 06, the high-register lightning punctuation currently belongs on **Glockenspiel**.
+
+A silent TP lane should first be treated as a patch/routing mismatch, especially if the MIDI pitches lie outside the loaded instrument's playable range.
