@@ -2781,7 +2781,7 @@ dependencies {
 val sfImp0069AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0069")
 val sfImp0069AcceptanceServerProperties = """
     level-name=acceptance
-    level-seed=600069
+    level-seed=600068
     level-type=skyforge:development
     online-mode=false
     spawn-protection=0
