@@ -203,7 +203,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveStackedDevRuntime {
         var replay = SkyforgeComposedCaveStage.service(
                 level, chunk, level.getChunkSource().getGenerator());
         var afterReplay = SkyforgeComposedCaveStage.snapshot();
-        if (!replay.isEmpty() || !beforeReplay.equals(afterReplay)) {
+        if (replay.worked() || !replay.completions().isEmpty() || !beforeReplay.equals(afterReplay)) {
             throw new IllegalStateException(
                     "SF-IMP-0068 stacked completed obligations replayed");
         }
