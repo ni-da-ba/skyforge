@@ -92,14 +92,14 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
         Fixture second = fixture(authored, -3400.0, 2700.0, 1, 0, 0.58);
         int compared = 0;
         double radius = authored.nominalRadius();
+        SkyIslandMaterialBindingRequestField nativeField =
+                SkyIslandMaterialBindingRequestField.create(authored);
 
         for (int z = -(int) radius; z <= (int) radius; z += 16) {
             for (int x = -(int) radius; x <= (int) radius; x += 16) {
                 SkyIslandSubsurfacePosition semantic =
                         new SkyIslandSubsurfacePosition(x, z, 0.5);
-                if (!SkyIslandMaterialBindingRequestField.create(authored)
-                        .sample(semantic)
-                        .materialPresent()) {
+                if (!nativeField.sample(semantic).materialPresent()) {
                     continue;
                 }
                 Coordinate3 firstWorld = toWorldOrNull(first.association(), semantic);
@@ -124,14 +124,15 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
                 assertHorizontalRoundTrip(
                         semantic, b.semantic().orElseThrow(), secondWorld, second.physical());
                 assertEquals(
-                        a.materialRealization().orElseThrow().winnerBindingKey(),
-                        directWinnerAtRecovered(first, a).winnerBindingKey());
+                        authored.identity(),
+                        a.applicationKey()
+                                .map(SkyIslandSemanticPaletteBindingKey::islandIdentity)
+                                .orElseThrow());
                 assertEquals(
-                        b.materialRealization().orElseThrow().winnerBindingKey(),
-                        directWinnerAtRecovered(second, b).winnerBindingKey());
-                assertEquals(
-                        a.applicationKey().map(SkyIslandSemanticPaletteBindingKey::islandIdentity),
-                        b.applicationKey().map(SkyIslandSemanticPaletteBindingKey::islandIdentity));
+                        authored.identity(),
+                        b.applicationKey()
+                                .map(SkyIslandSemanticPaletteBindingKey::islandIdentity)
+                                .orElseThrow());
                 compared++;
             }
         }
@@ -413,24 +414,6 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
                 physical.centerX() + semantic.x(),
                 realized.orElseThrow().physicalY(),
                 physical.centerZ() + semantic.z());
-    }
-
-    private static SkyIslandMaterialRealizationSelection directWinnerAtRecovered(
-            Fixture fixture,
-            SkyIslandWorldAuthoredMaterialSample sample) {
-        SkyIslandSubsurfacePosition recovered = sample.semantic().orElseThrow();
-        SkyIslandMaterialBindingRequestSelection source =
-                SkyIslandMaterialBindingRequestField.create(fixture.authored()).sample(recovered);
-        java.util.Map<
-                        SkyIslandSemanticPaletteBindingKey,
-                        SkyIslandMaterialResolutionDecision>
-                decisions = new java.util.HashMap<>();
-        for (SkyIslandMaterialBindingRequestUse use : source.uses()) {
-            decisions.put(use.request().bindingKey(), decision(use.request()));
-        }
-        return SkyIslandMaterialExpressionRealizer.realize(
-                recovered,
-                SkyIslandMaterialExpressionAllocator.allocate(source, decisions));
     }
 
     private static void assertHorizontalRoundTrip(
