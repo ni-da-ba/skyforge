@@ -1,7 +1,6 @@
 package io.github.nidaba.skyforge.reference.backend;
 
 import io.github.nidaba.skyforge.world.SkyIslandLithologicRealizationChannel;
-import io.github.nidaba.skyforge.world.SkyIslandSemanticMaterialPaletteRole;
 import io.github.nidaba.skyforge.world.SkyIslandSemanticPaletteBindingKey;
 import java.util.ArrayList;
 import java.util.Collection;
