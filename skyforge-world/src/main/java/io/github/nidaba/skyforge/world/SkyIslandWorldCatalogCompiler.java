@@ -57,4 +57,73 @@ public final class SkyIslandWorldCatalogCompiler {
         }
         return new SkyIslandWorldCatalog(plan.rootSeed(), volumes);
     }
+
+    /**
+     * Compiles the same world catalog while carrying every available AUTH-0052 provider-spec
+     * support certificate.
+     *
+     * <p>The existing query reservation remains unchanged. If a certified support envelope exceeds
+     * that reservation, compilation fails rather than publishing a query catalog that could cull
+     * real geometry.
+     */
+    public SkyIslandWorldCatalogSupportBundle compileWithSupport(
+            SkyIslandArchipelagoPlan plan,
+            SkyIslandMorphologyProviderRegistry registry,
+            SkyIslandWorldVerticalReservation verticalReservation) {
+        Objects.requireNonNull(plan, "plan");
+        Objects.requireNonNull(registry, "registry");
+        Objects.requireNonNull(verticalReservation, "verticalReservation");
+
+        ArrayList<SkyIslandWorldVolume> volumes =
+                new ArrayList<>(plan.totalMemberCount());
+        ArrayList<SkyIslandWorldVolumeSupportCertificate> certificates =
+                new ArrayList<>();
+
+        for (SkyIslandArchipelagoGroupPlan group : plan.groups()) {
+            for (int memberOrdinal = 0;
+                    memberOrdinal < group.groupPlan().memberCount();
+                    memberOrdinal++) {
+                SkyIslandGroupMemberPlan member =
+                        group.groupPlan().members().get(memberOrdinal);
+                var compilation =
+                        morphologyCompiler.compileWithSupport(
+                                member.descriptor(),
+                                member.morphology(),
+                                registry);
+                CompiledSkyIslandVolume compiled = compilation.volume();
+                var descriptor = member.descriptor();
+                double radius = member.reservedHorizontalRadius();
+                WorldBounds bounds =
+                        new WorldBounds(
+                                descriptor.centerX() - radius,
+                                descriptor.centerX() + radius,
+                                descriptor.suspensionElevation()
+                                        - verticalReservation.belowSuspension(),
+                                descriptor.suspensionElevation()
+                                        + verticalReservation.aboveSuspension(),
+                                descriptor.centerZ() - radius,
+                                descriptor.centerZ() + radius);
+                SkyIslandWorldVolumeId id =
+                        new SkyIslandWorldVolumeId(
+                                plan.rootSeed(),
+                                group.identifier(),
+                                group.ordinal(),
+                                memberOrdinal,
+                                descriptor.seed());
+                SkyIslandWorldVolume volume =
+                        new SkyIslandWorldVolume(id, bounds, compiled);
+                volumes.add(volume);
+                compilation.supportEnvelope()
+                        .ifPresent(
+                                envelope ->
+                                        certificates.add(
+                                                new SkyIslandWorldVolumeSupportCertificate(
+                                                        volume, envelope)));
+            }
+        }
+
+        SkyIslandWorldCatalog catalog =
+                new SkyIslandWorldCatalog(plan.rootSeed(), volumes);
+        return new SkyIslandWorldCatalogSupportBundle(catalog, certificates);
+    }
 }
