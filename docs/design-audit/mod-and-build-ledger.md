@@ -243,6 +243,10 @@ Dimension World-Grammar Matrix
 Dimension-Domain Authority Boundary
 Sable Dimension-Physics Acceptance
 End Thin-Air Aircraft Acceptance
+End Aeronautics Progression Contract
+End Stone -> Levitite Recipe/Process Acceptance
+Levitite Lift-Support / No-Free-Climb Acceptance
+Pre-Dragon Levitite / Dragon-Encounter Compatibility
 Nether Roof-Pressure Aviation Acceptance
 Cross-Dimension Contraption Transfer Audit
 Advanced Low-Pressure Propulsion Audit
@@ -329,3 +333,6 @@ non-omniscient sensor access to Skyforge truth
 26. Preserve and test Sable's existing dimension-pressure physics before adding bespoke End/Nether flight penalties.
 27. Do not assume assembled Aeronautics craft can cross Nether portals, End portals, or End gateways; cross-dimension contraption transfer requires explicit proof.
 28. Advanced reaction/ion propulsion should earn a specialized low-pressure/high-altitude role rather than replacing propellers everywhere.
+29. End-derived Levitite should be treated as lift support, not self-contained propulsion: preserve the upstream no-free-climb behavior and test its low-speed handling cost.
+30. Do not artificially post-Dragon-gate Levitite unless actual Dragon/outer-End play proves central-island access breaks the desired progression.
+31. Dimension technology may deliberately combine resources from multiple worlds; prefer meaningful cross-domain production chains over isolated per-dimension tech trees.
