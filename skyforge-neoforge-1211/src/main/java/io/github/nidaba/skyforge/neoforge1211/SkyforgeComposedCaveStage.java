@@ -223,7 +223,7 @@ final class SkyforgeComposedCaveStage {
                     MAX_PREPARE_VOXELS_PER_SERVICE,
                     MAX_PREPARE_CANONICAL_SAMPLES_PER_SERVICE);
             if (!advance.complete()) {
-                return advance.worked() ? ServiceResult.worked() : ServiceResult.idle();
+                return advance.worked() ? ServiceResult.progressed() : ServiceResult.idle();
             }
 
             var prepared = preparation.prepared();
@@ -674,7 +674,7 @@ final class SkyforgeComposedCaveStage {
             return new ServiceResult(false, List.of());
         }
 
-        static ServiceResult worked() {
+        static ServiceResult progressed() {
             return new ServiceResult(true, List.of());
         }
 
