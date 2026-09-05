@@ -128,6 +128,28 @@ public final class SkyIslandWorldCatalogCompiler {
     }
 
     /**
+     * Builds an AUTH-0055 immutable re-plan proposal from matching original intent, exact plan,
+     * AUTH-0054 synthesis, current vertical reservation, and explicit author margin.
+     *
+     * <p>The builder validates provenance by replaying the original request only. It does not
+     * execute the candidate request.
+     */
+    public SkyIslandSupportReplanProposal proposeSupportAwareReplan(
+            SkyIslandArchipelagoRequest originalRequest,
+            SkyIslandArchipelagoPlan originalPlan,
+            SkyIslandSupportReservationRequirementSynthesis synthesis,
+            SkyIslandWorldVerticalReservation originalVerticalReservation,
+            SkyIslandSupportReplanMargin authorMargin) {
+        return new SkyIslandSupportReplanProposalBuilder()
+                .propose(
+                        originalRequest,
+                        originalPlan,
+                        synthesis,
+                        originalVerticalReservation,
+                        authorMargin);
+    }
+
+    /**
      * Synthesizes AUTH-0054 admission-safe reservation minima for the exact deterministic plan.
      *
      * <p>The result is advisory and immutable. Applying larger horizontal/group reservations
