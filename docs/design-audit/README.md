@@ -81,4 +81,5 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Civilization and settlement system v0.1](civilization-and-settlement-system-v0.1.md)
 - [Civilization archetypes and infrastructure teaching v0.1](civilization-archetypes-and-infrastructure-teaching-v0.1.md)
 - [Civilization history and regional composition v0.1](civilization-history-and-regional-composition-v0.1.md)
+- [Civilization reuse-first realization strategy v0.1](civilization-reuse-first-realization-strategy-v0.1.md)
 - [Working mod and to-build ledger](mod-and-build-ledger.md)
