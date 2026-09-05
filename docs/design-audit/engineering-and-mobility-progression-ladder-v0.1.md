@@ -412,9 +412,15 @@ This is an experience-tuning concern but should inform recipes and salvage later
 
 Skyforge's first Minecraft realization should generally preserve Nether/End **identity and resource progression**.
 
+For the current implementation, Nether and End terrain remain under vanilla authority.
+
+That is provisional rather than architectural: both dimensions are now explicit future Skyforge-authorship candidates.
+
+The outer End is the preferred first cross-dimension terrain pilot because suspended-volume concepts transfer naturally; a solid-dominant Nether cavern province is the more demanding proof that Skyforge can author worlds other than islands.
+
 That does not imply preserving every vanilla dimension as an unrestricted transportation shortcut.
 
-Nether and End resources can remain dimension-native unless a specific design reason says otherwise.
+Nether and End resources can remain dimension-native for the current implementation, but their placement authority must be reopened if Skyforge begins authoring those dimensions.
 
 However, normal Nether portal distance compression is a mandatory audit item because a short Nether corridor between portals can erase Overworld province-scale aviation geography and can participate in entity/item transport.
 
@@ -449,3 +455,5 @@ Overworld sky geography should enrich normal Minecraft progression without being
 15. Convenience teleportation is rejected by default unless it has a deliberate late-tier logistics role with meaningful constraints.
 16. Personal portable storage may improve manual couriering, but mature aircraft/logistics must retain clear advantages in bulk, fluid, entity, contraption, and repeated-route throughput.
 17. Inventory or encumbrance nerfs are a last resort, not a foundational progression tool.
+18. Nether/End vanilla terrain authority is current implementation scope, not a permanent world-design rule.
+19. Cross-dimension authorship must preserve each dimension's distinct world grammar rather than repainting Overworld islands.
