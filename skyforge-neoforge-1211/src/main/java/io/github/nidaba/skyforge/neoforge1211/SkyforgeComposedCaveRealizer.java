@@ -1,6 +1,8 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandCompiledVolumeColumnField;
 import io.github.nidaba.skyforge.world.SkyIslandExteriorConnectedCaveVolumeField;
+import io.github.nidaba.skyforge.world.SkyIslandRealizedExteriorConnectedCaveVolumeField;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import java.util.Objects;
 import net.minecraft.core.BlockPos;
@@ -44,6 +46,39 @@ final class SkyforgeComposedCaveRealizer {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(biomeSample, "biomeSample");
 
+        var realizedAuthoredField = new SkyIslandRealizedExteriorConnectedCaveVolumeField(
+                authoredField,
+                new SkyIslandCompiledVolumeColumnField(volume.compiledVolume()));
+        return realize(
+                level,
+                generator,
+                biomeResolver,
+                volume,
+                realizedAuthoredField,
+                chunk,
+                biomeSample,
+                nativeTargetMinimumY,
+                nativeTargetMaximumY);
+    }
+
+    static Result realize(
+            ServerLevel level,
+            NoiseBasedChunkGenerator generator,
+            SkyforgeExactVolumeBiomeResolver biomeResolver,
+            SkyIslandWorldVolume volume,
+            SkyIslandRealizedExteriorConnectedCaveVolumeField realizedAuthoredField,
+            LevelChunk chunk,
+            BlockPos biomeSample,
+            int nativeTargetMinimumY,
+            int nativeTargetMaximumY) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(generator, "generator");
+        Objects.requireNonNull(biomeResolver, "biomeResolver");
+        Objects.requireNonNull(volume, "volume");
+        Objects.requireNonNull(realizedAuthoredField, "realizedAuthoredField");
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(biomeSample, "biomeSample");
+
         var nativeResult = SkyforgeNativeCarverRunner.carveAir(
                 level,
                 generator,
@@ -57,7 +92,7 @@ final class SkyforgeComposedCaveRealizer {
         var authoredResult = SkyforgeExteriorConnectedCaveRealizer.realize(
                 level,
                 volume,
-                authoredField,
+                realizedAuthoredField,
                 chunk);
         if (!authoredResult.accepted()) {
             throw new IllegalStateException(
