@@ -404,3 +404,47 @@ Next planned maintenance task:
 - return to Track 02, *The Lord of Empty Miles*;
 - repair its percussion MIDI using the now-correct BBCSO absolute-note mapping;
 - preserve the frozen musical structure and treat the correction as a controlled implementation repair.
+
+
+## First real BBCSO render review
+
+Render reviewed:
+
+`Skyforge_Storm.wav`
+
+Approximate duration: 119.96 seconds.
+
+### Result
+
+The accepted Draft 02.3 percussion correction survives the real BBCSO render.
+
+The cue now has a clear macro-dynamic architecture:
+
+- bars 1-8: restrained territorial opening;
+- bars 9-32: progressive storm acceleration;
+- bars 33-40: substantial false-clearing drop;
+- bars 41-48: unmistakable Thunderbreak impact peak;
+- bars 49-56: sustained eyewall violence at a lower average level than Thunderbreak;
+- bars 57-72: recession and territorial coda.
+
+Measured stereo RMS confirms the intended contrast:
+
+- false clearing: approximately -43.9 dBFS RMS;
+- Thunderbreak: approximately -28.5 dBFS RMS;
+- eyewall: approximately -32.2 dBFS RMS.
+
+The Thunderbreak therefore functions as a discrete physical-impact climax rather than merely another dense orchestral section.
+
+### Current judgment
+
+The cue is substantially stronger than Draft 01.
+
+Most successful elements:
+
+- the new violent-weather insert gives the track a physical center;
+- the false clearing now earns the crash-and-boom arrival;
+- the storm motif remains perceptible through the increased density;
+- the full Track 02 motif at opening and ending reads as territorial-language recurrence rather than a literal dragon encounter;
+- the percussion is audible and useful after the mapping/level repairs.
+
+Potential later refinements should be surgical rather than structural. Do not rewrite the accepted form before a user-directed issue appears.
