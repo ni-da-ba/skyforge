@@ -61,7 +61,7 @@ This document consolidates the current candidate stack from the content-integrat
 - Weather2 / Expanded Weather2 Dynamics for severe-weather R&D only
 - Birds/Boids Reforged
 - Hybrid Birds
-- Towns & Towers
+- Towns & Towers — leading civilian village/settlement vocabulary prototype
 - Explorify **or** Structory
 - selected YUNG temple/hut/monument mods
 - Create Aeronautics Structures, pending license/distribution verification
@@ -76,6 +76,7 @@ This document consolidates the current candidate stack from the content-integrat
 - Enderman Overhaul
 - Rotten Creatures
 - CTOV
+- Guard Villagers — optional maintained-settlement defense prototype only if vanilla golems prove insufficient
 - Dungeons & Taverns
 - Cataclysm
 - Quark
@@ -170,6 +171,10 @@ Maintenance / Abandonment State
 Faction / Control State
 Settlement Site Planning
 Distance / Horizon Signaling
+Civilization History Grammar
+Regional Hub / Route Graph
+Successor-Use / Repurposing State
+Data-Driven Active / Declining / Abandoned / Occupied Variants
 ~~~
 
 ### World composition
