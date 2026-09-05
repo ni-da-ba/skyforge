@@ -290,7 +290,13 @@ Backpack Capacity / Nesting Audit
 Shulker / Ender-Chest Late-Courier Acceptance
 Bulk / Fluid / Entity / Contraption Freight Acceptance
 Post-Flight Regional Specialization Sequence
+Post-Flight Capability Payoff Audit
 Copper / Zinc First-Route Placement Contract
+Copper Fluid/Electrical Payoff Acceptance
+Zinc Persistence / Brass / Capacitor / Levitite Acceptance
+Electricity Conversion / Storage / CC Integration Acceptance
+Silver / Electrum Dependency Resolution
+Petroleum Distillation / Heavy-Engine Payoff Acceptance
 Brass Capability-Payoff Acceptance
 Sample-vs-Industrial Deposit Scale Contract
 Petroleum Freight-Route Acceptance
@@ -378,3 +384,8 @@ non-omniscient sensor access to Skyforge truth
 43. Route semantics are capability- and payload-specific: personal reach does not imply bulk freight, and directed modes such as gliding require explicit return/recovery reasoning.
 44. Generated civilization and player-built infrastructure should share the same visible route language; infrastructure roles should be semantic services rather than bespoke NPC-only mechanics.
 45. Nether route difficulty must purchase meaningful destination value; End forward staging/navigation/recovery must measurably improve expedition capability.
+46. Post-flight resources must be justified by engineering capability payoffs rather than nominal tiering or material rarity.
+47. Preserve the current electrical asymmetry where useful: current CC&A Alternator is achievable without Brass while Electric Motor/storage/control branches are more mature and pull in Brass/capacitor/electrum dependencies.
+48. Resolve the final pack's Silver/electrum path before treating Modular Accumulator as required progression; do not invent Silver geology by assumption.
+49. Petroleum should create a sustained field->refinery->fuel-network loop; current Diesel Generators heated/superheated distillation and Brass-heavy engine progression are strong prototype evidence.
+50. Treat Tungsten/Obdurium and Levitite as demand-measurement gates: special materials do not automatically imply recurring freight economies.
