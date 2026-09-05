@@ -172,27 +172,9 @@ final class SkyforgeComposedCaveStage {
             }
             OwnerSpan ownerSpan = cachedOwnerSpan.orElse(null);
 
-            if (ownerSpan == null) {
-                if (containsAuthoredPositive(
-                        volume,
-                        obligation.columns(),
-                        obligation.realizedAuthoredField(),
-                        obligation.spatialIndex(),
-                        chunk)) {
-                    throw new IllegalStateException(
-                            "AUTH-0030-positive composed cave chunk has no exact owner-solid terrain: "
-                                    + volumeId.path() + "/" + chunk.getPos());
-                }
-                Completion completion = Completion.empty(volumeId, chunk.getPos());
-                complete(binding, key, obligation, completion);
-                return ServiceResult.completed(completion);
-            }
-
-            if (!(generator instanceof NoiseBasedChunkGenerator noiseGenerator)) {
-                throw new IllegalStateException(
-                        "composed cave realization requires Minecraft's active noise generator");
-            }
-
+            // Every obligation, including a physically empty edge chunk, uses the same bounded
+            // resumable AUTH-0030 preflight. This preserves the fail-closed rule without allowing
+            // an empty edge proof to monopolize one server tick with a whole-chunk canonical scan.
             SkyforgeExteriorConnectedCavePreparationCursor preparation;
             synchronized (binding) {
                 preparation = binding.preparations().get(key);
@@ -227,11 +209,33 @@ final class SkyforgeComposedCaveStage {
             }
 
             var prepared = preparation.prepared();
+
+            if (ownerSpan == null) {
+                if (prepared.positiveSamples() > 0) {
+                    throw new IllegalStateException(
+                            "AUTH-0030-positive composed cave chunk has no exact owner-solid terrain: "
+                                    + volumeId.path() + "/" + chunk.getPos()
+                                    + ", positiveSamples=" + prepared.positiveSamples()
+                                    + ", firstUnsafe=" + prepared.firstUnsafePosition());
+                }
+                Completion completion = Completion.empty(volumeId, chunk.getPos());
+                synchronized (binding) {
+                    binding.preparations().remove(key);
+                }
+                complete(binding, key, obligation, completion);
+                return ServiceResult.completed(completion);
+            }
+
             if (prepared.unsafePositiveSamples() > 0) {
                 throw new IllegalStateException(
                         "AUTH-0030 authored preflight rejected before native carving: unsafePositiveSamples="
                                 + prepared.unsafePositiveSamples()
                                 + ", firstUnsafe=" + prepared.firstUnsafePosition());
+            }
+
+            if (!(generator instanceof NoiseBasedChunkGenerator noiseGenerator)) {
+                throw new IllegalStateException(
+                        "composed cave realization requires Minecraft's active noise generator");
             }
 
             BlockPos biomeSample = new BlockPos(
@@ -455,70 +459,6 @@ final class SkyforgeComposedCaveStage {
             }
         }
         return best;
-    }
-
-    private static boolean containsAuthoredPositive(
-            SkyIslandWorldVolume volume,
-            SkyIslandCompiledVolumeColumnField columns,
-            SkyIslandRealizedExteriorConnectedCaveVolumeField realized,
-            SkyforgeExteriorConnectedCaveSpatialIndex spatialIndex,
-            LevelChunk chunk) {
-        var descriptor = volume.compiledVolume().descriptor();
-
-        int minimumY = Math.max(
-                chunk.getMinBuildHeight(),
-                floorToInt(volume.bounds().minimumY()));
-        int maximumY = Math.min(
-                chunk.getMaxBuildHeight() - 1,
-                ceilToInt(volume.bounds().maximumY()));
-        if (maximumY < minimumY) {
-            return false;
-        }
-
-        double localMinimumX = chunk.getPos().getMinBlockX() - descriptor.centerX();
-        double localMaximumX = chunk.getPos().getMaxBlockX() - descriptor.centerX();
-        double localMinimumZ = chunk.getPos().getMinBlockZ() - descriptor.centerZ();
-        double localMaximumZ = chunk.getPos().getMaxBlockZ() - descriptor.centerZ();
-        var spatialSlice = spatialIndex.slice(
-                localMinimumX,
-                localMaximumX,
-                localMinimumZ,
-                localMaximumZ);
-        if (spatialSlice.candidatePrimitiveBounds() == 0) {
-            return false;
-        }
-
-        for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
-            for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
-                SkyIslandLocalPosition local = new SkyIslandLocalPosition(
-                        x - descriptor.centerX(),
-                        z - descriptor.centerZ());
-                var column = columns.columnAt(local);
-                if (column.isEmpty()) {
-                    continue;
-                }
-
-                var present = column.orElseThrow();
-                int first = Math.max(minimumY, ceilToInt(present.undersideY()));
-                int last = Math.min(maximumY, floorToInt(present.upperY()));
-                for (int y = first; y <= last; y++) {
-                    var depth = present.depthFractionAt(y);
-                    if (depth.isEmpty()) {
-                        continue;
-                    }
-                    var semantic = new io.github.nidaba.skyforge.world.SkyIslandSubsurfacePosition(
-                            local,
-                            depth.orElseThrow());
-                    if (!spatialSlice.mayContainPositive(semantic)) {
-                        continue;
-                    }
-                    if (realized.semanticField().sample(semantic).inside()) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
     }
 
     private static boolean ownerSolid(
