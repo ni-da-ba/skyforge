@@ -2,8 +2,8 @@
 
 **Status:** Active development  
 **Role:** lonely / ponderous / thoughtful exploration state  
-**Current method:** melodic gate before full-cue expansion  
-**Current sketch:** Sketch 6 — developing melody
+**Current method:** thematic audition gate before further development  
+**Current boundary:** Theme Lab 01
 
 ## Emotional target
 
@@ -23,220 +23,194 @@ A useful refined image is:
 
 ## Why this cue exists
 
-Tracks 00–02 already demonstrate:
+Tracks 00–02 already demonstrate revelation, ordinary exploration, and menace / awe / panic.
 
-- revelation;
-- ordinary exploration;
-- menace / awe / panic.
-
-Track 03 is intended to test a different range boundary:
-
-- sustained reflection;
-- melodic restraint;
-- emotional weight without a large climax;
-- a cue that invites thought without relying on danger or sadness.
+Track 03 is intended to test sustained reflection, melodic restraint, emotional weight without a large climax, and a cue that invites thought without relying on danger or sadness.
 
 ## Development history
 
 ### Draft 1 — sparse 5/4 A-Dorian atmosphere
 
-The cue was lonely, but it did not make the listener sit and think. It resembled the ambient portions of Tracks 00 and 01.
+Lonely, but too close to the ambient portions of Tracks 00 and 01.
 
-Retained lesson:
-
-> Sparsity can establish loneliness, but it does not automatically establish thought.
+**Retained lesson:** sparsity can establish loneliness, but it does not automatically establish thought.
 
 ### Draft 2 — explicit question / answer
 
-The cue had more conceptual structure, but spent too much time with very little happening.
+More conceptual structure, but too much time with very little happening.
 
-Retained lesson:
-
-> Silence is useful punctuation only after the music has given the listener something worth mentally continuing.
+**Retained lesson:** silence is useful punctuation only after the music has given the listener something worth mentally continuing.
 
 ### Draft 3 — continuous piano “thought engine”
 
-The cue was more continuously active, but the piano remained perceptually weak and the central material was not memorable enough.
+More continuous activity, but the central material remained unmemorable.
 
-Retained lesson:
+**Retained lesson:** continuous motion cannot substitute for melodic identity.
 
-> Continuous motion cannot substitute for a compelling melodic identity.
+### Melodic Gate Sketch 1 — piano + cello
 
-### Melodic Gate Sketch 1 — piano + cello reduction
-
-The method changed deliberately. Instead of writing another full cue, a short piano/cello sketch asked a severe question:
+The method changed deliberately. Instead of another full cue, a short reduction asked:
 
 > Does the music itself matter before orchestration?
 
-This was the first Track 03 attempt that received a clearly positive response. The harmonic/piano bed became the preserved foundation for later melodic work.
+This was the first Track 03 attempt to receive a clearly positive response. Its restrained piano / harmonic bed became the accepted foundation for later melody work.
 
 ### Sketch 2 — structured string line
 
-The cello gained statement / answer / expansion / return form.
+Statement / answer / expansion / return improved the string writing substantially, but the material still felt arbitrary.
 
-Result: substantially better, but still too arbitrary to be memorable.
-
-Retained lesson:
-
-> Form is not the same thing as melodic identity.
+**Retained lesson:** form is not melodic identity.
 
 ### Sketch 3 — recurring string hook
 
-The cello received a repeated hook family, and viola / violins were derived from it rather than treated as unrelated counterpoint.
+A repeated hook family finally created recognizable identity, but the rhythm remained metrically square.
 
-Result: much stronger. The cue finally possessed a recognizable identity, but the string rhythm still read as a square one-two-three-four cadence.
-
-Retained lesson:
-
-> A memorable pitch hook can still feel mechanical if the phrase is trapped inside the bar grid.
+**Retained lesson:** a memorable pitch hook can still feel mechanical if the phrase is trapped inside the bar grid.
 
 ### Sketch 4 — rhythmic character pass
 
-Pickups, ties, delayed entries, offbeat viola, staggered violin fragments, and a contracted 3+3+2 high point attacked the square-meter symptom.
+Pickups, ties, delayed entries, offbeat viola, staggered violin fragments, and contracted rhythms attacked the square-meter symptom.
 
-Result: the pass was still too mechanical. It made individual bars less square without making the larger melody more inevitable.
+Result: still too mechanical at the larger phrase level.
 
-Retained lesson:
-
-> Rhythmic variation must be downstream of phrase shape.
+**Retained lesson:** rhythmic variation must be downstream of phrase shape.
 
 ### Sketch 5 — song-like melodic sentence
 
-Sketch 5 moved to phrase-scale writing. The cello had a recognizable melodic head:
+The cello received a phrase-scale A / A′ / B / A″ design with a recognizable head.
 
-```text
-F -> A -> D -> C
-```
+Result: clearly stronger, but development still behaved too much like one sentence restated or re-pitched.
 
-and a larger A / A′ / B / A″ design.
+**Retained lesson:** recognizable melody needs genuine continuation and development, not only transposition or restatement.
 
-Result: the song-like approach was clearly stronger, but the development was still too close to “one sentence returns at another level.”
+### Sketch 6 — two-theme development
 
-Retained lesson:
+Sketch 6 introduced:
 
-> Recognizable melody needs genuine continuation and development, not only transposition or re-statement.
+- Theme A in cello;
+- a distinct Theme B in viola;
+- A/B fragmentation and exchange;
+- a developmental apex;
+- a return of A whose ending was changed by B.
+
+This solved part of the formal-development problem.
+
+Result: **rejected at the thematic gate.** The structure developed more convincingly, but the themes themselves still did not stick strongly enough.
+
+**Retained lesson:**
+
+> Development cannot rescue weak thematic DNA.
+
+The failure was not primarily orchestration, phrase architecture, or developmental logic. The motifs themselves lacked the inevitable contour / rhythmic fingerprint needed to remain in memory after one listen.
 
 ## Reference-listening conclusion
 
-Analytical reference listening has converged on a stronger rule.
+The current reference-derived rule is stricter than before.
 
-The relevant music does not achieve memorability by constantly varying every beat, nor by simply restating one phrase at different pitches.
+Useful melodies in the reference space do not become memorable because they are:
 
-Useful structural lessons:
+- sparse;
+- harmonically pretty;
+- rhythmically varied;
+- repeated at new pitch levels;
+- surrounded by evocative orchestration.
 
-### Space Junk Road
+They tend to have a **recognizable melodic face**: a contour, rhythm, arrival, or interval pattern that can be anticipated before the phrase finishes.
 
-A continuous piano / harmonic layer carries low-pressure motion while the lead material is free to form longer melodic sentences.
-
-### Rosalina in the Observatory
-
-A lyrical identity remains recognizable across genuine continuation, contrasting material, orchestral handoffs, and later return.
-
-### Outer Wilds
-
-Small recurring ideas gain meaning through placement and context; repetition is useful when it participates in an argument rather than substituting for one.
+Development should therefore be downstream of thematic quality.
 
 Current Track 03 rule:
 
-> Establish a memorable first thought, introduce a real second thought, develop fragments of both, then let the return reveal that the music has changed.
+> First write a theme worth remembering. Only then ask what it develops into.
 
-## Current Sketch 6 — developing melody
+## Theme Lab 01 — current boundary
 
-Sketch 6 deliberately abandons the model of one complete sentence repeated at different pitch levels.
+Theme Lab 01 freezes the accepted restrained piano / harmonic bed and auditions four independent eight-bar lead themes against it.
 
-Its 16-bar logic is:
+This is intentionally **not** a full-cue draft.
 
-```text
-bars 1-4    Theme A — cello
-bars 5-8    Theme B — viola
-bars 9-12   development — A/B fragments, exchange, compression, synthesis
-bar 11      single developmental apex
-bars 13-14  recognizable return of Theme A
-bars 15-16  new ending — Theme B answers Theme A
-```
+### Candidate A — Far Lantern
 
-### Theme A
+Design:
 
-Cello identity:
+- repeated-note pickup;
+- large emotional reach;
+- falling sigh;
+- most conventionally lyrical / song-like candidate.
 
-```text
-F -> A -> D -> C
-```
+Uncompressed MIDI SHA-256:
 
-Character:
-
-- broad upward reach;
-- then a “looking back” descent;
-- lyrical rather than metrically busy.
-
-### Theme B
-
-Viola owns a genuinely different second thought:
-
-```text
-C -> D -> E -> G
-F -> E -> C -> D
-```
-
-Character:
-
-- more stepwise;
-- more conversational;
-- more inward than Theme A.
-
-### Development
-
-Bars 9–12 stop presenting either theme as a complete sentence.
-
-Instead:
-
-- cello states an A-head fragment;
-- viola interrupts with B-derived stepwise material;
-- A returns inverted / redirected;
-- B rhythm and A intervals begin to fuse;
-- the combined material reaches one apex rather than another full repetition.
-
-### Return and synthesis
-
-Bars 13–14 restore the opening of Theme A closely enough to trigger recognition.
-
-Bars 15–16 do **not** repeat A’s original answer. Theme B’s stepwise language supplies the final response.
-
-This is the intended developmental proposition:
-
-> A thought occurs; another thought answers it; the two are mentally worked over; when the first thought returns, the second has changed what it means.
-
-## Current source identity
-
-Sketch 6 uncompressed MIDI SHA-256:
-
-```text
-e41498d0c6fa0b29dc4f4ec5b5cf4a7d2dd44967dd707b15e905fff8c26cfec8
-```
+`0b8cc98da97c5bb91ab1d0c7f2be9459b3e131646eda3098c105237ba52de479`
 
 Repository source:
 
-```text
-assets/music/source/track-03-sketch-06-developing-melody.mid.gz
-```
+`assets/music/source/experiments/track-03-theme-lab-01/A-far-lantern.mid.gz`
 
-The repository stores this exact MIDI gzip-compressed. Decompression reproduces the authoring MIDI whose SHA-256 is recorded above.
+### Candidate B — Turning Question
 
-Sketch 5 remains in repository history as the accepted predecessor rather than being rewritten out of the record.
+Design:
 
-## Acceptance gate for full-cue expansion
+- three-note anacrusis;
+- long target note;
+- answer begins by dwelling on that target;
+- questioning / conversational profile.
 
-Do **not** expand Track 03 to a full cue until the short sketch passes these tests:
+Uncompressed MIDI SHA-256:
 
-1. Theme A is recognizable after one listen;
-2. Theme B reads as an actual second thought, not Theme A transposed;
-3. bars 9–12 sound like development rather than another statement;
-4. the bar-11 apex feels earned by the combined material;
-5. Theme A is immediately recognizable on return;
-6. the final B-derived answer makes the return feel changed;
-7. the 16-bar sketch feels as though it went somewhere;
-8. the strings sound intentionally melodic rather than generated from structural rules.
+`4b2a19206aa61748cdbe035fa28993fc467044b657485eeef70642df15879a6f`
 
-If the gate passes, expand this A/B/development/synthesis lineage into the full cue.
+Repository source:
 
-If it fails, rewrite the melodic argument again. Do not rescue it with orchestration.
+`assets/music/source/experiments/track-03-theme-lab-01/B-turning-question.mid.gz`
+
+### Candidate C — Homeward Sky
+
+Design:
+
+- downward-neighbor turn;
+- leap upward;
+- flowing contour;
+- closest candidate to existing Skyforge rhythmic DNA.
+
+Uncompressed MIDI SHA-256:
+
+`87ce9b86fa0fb9437e616d5a711c2d7915f41e80fdb7c63c5684235c99ccd1de`
+
+Repository source:
+
+`assets/music/source/experiments/track-03-theme-lab-01/C-homeward-sky.mid.gz`
+
+### Candidate D — Old Thought
+
+Design:
+
+- held opening note;
+- falling third;
+- unexpected upward sixth;
+- deliberately less conventionally pretty;
+- strongest attempt at an idiosyncratic melodic fingerprint.
+
+Uncompressed MIDI SHA-256:
+
+`66662ced65c62a98ff630a9c79788ba651d91c6bf5b6f2eecaac861f83ce4dee`
+
+Repository source:
+
+`assets/music/source/experiments/track-03-theme-lab-01/D-old-thought.mid.gz`
+
+## Current acceptance gate
+
+Do **not** resume development or full-cue expansion merely because one candidate is technically coherent.
+
+A candidate should pass these tests:
+
+1. some part of the theme is remembered after one listen;
+2. the listener can anticipate a contour or arrival when it returns;
+3. the phrase feels authored rather than procedurally assembled;
+4. it remains interesting in piano + one lead instrument;
+5. it creates an emotional response before orchestration is added;
+6. it suggests obvious possibilities for continuation without requiring literal transposition.
+
+If none passes, discard all four and write another theme set.
+
+That is preferable to developing a competent but forgettable theme.
