@@ -58,7 +58,7 @@ This document consolidates the current candidate stack from the content-integrat
 ## Strong prototypes / decision-stage candidates
 
 - FTB Quests — leading guided-onboarding/quest-book prototype; vanilla advancements remain lightweight fallback
-- Reliable Gliders — leading cheap local-mobility prototype for 1.21.1 NeoForge, **only** with a pack-level early recipe override and default campfire/fire/lava/magma updraft behavior disabled or subordinated; must remain starter-group personal traversal rather than a logistics substitute
+- Reliable Gliders — leading cheap personal-soaring prototype for 1.21.1 NeoForge; requires a pack-level early recipe override, while its campfire/fire/lava/magma updraft behavior should be retained for testing as a useful local-thermal proxy rather than disabled by default
 
 - Aerodynamics4MC
 - Simple Clouds
@@ -223,8 +223,9 @@ Bootstrap Presentation Profiles
 Parameterized First-Flight BOM Verifier
 Early Glider Mobility Contract
 Directed Glider Traversal-Edge Proof
-Glider Recipe / Updraft Data Override
-Glider-vs-Aircraft Non-Substitution Acceptance
+Glider Recipe Override
+Thermal / Updraft Compatibility Layer
+Glider-vs-Aircraft Logistics Non-Substitution Acceptance
 Starter-Group Recovery Connectivity
 ~~~
 
@@ -250,6 +251,8 @@ Authoritative Wind Selection
 Skyforge-to-Atmosphere Semantic Adapter
 True Relative-Airflow Acceptance Tests
 Glider Interaction with Authoritative Wind/Thermals
+Soaring-Fauna Shared Lift Response
+Anthropogenic Heat / Local-Thermal Compatibility
 Wind/Weather Instrumentation Hooks
 Distant Entity/Contraption Visibility Validation
 ```
@@ -273,5 +276,5 @@ non-omniscient sensor access to Skyforge truth
 8. Player construction is not automatically exempt from ambient-spawn governance.
 9. Technical farms should remain viable through engineered/structure/spawner semantics.
 10. New dependencies must fill a genuine missing role rather than merely add variety.
-11. Cheap personal gliding may solve local starter-group topology, but powered flight remains the first logistics-enabling mobility transition.
-12. Player-buildable updraft chains must not create an alternate infinite-range early aviation network.
+11. Cheap personal gliding may solve local starter-group topology and may extend much farther through natural or prepared thermal routes, but powered flight remains the first logistics-enabling mobility transition.
+12. Player-buildable updraft routes are allowed as low-throughput personal infrastructure; balance them against aircraft through freight, flexibility, convenience, and throughput rather than an artificial hard range prohibition.
