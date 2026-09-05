@@ -282,6 +282,8 @@ The exact method by which player-built contraptions enter or are constructed in 
 
 Do not assume Sable/Aeronautics contraptions can simply pass through vanilla End portals.
 
+Because End Stone is immediately present on the central island, also test whether pre-Dragon Levitite experimentation improves or trivializes the Dragon/gateway loop before imposing any artificial post-Dragon recipe gate.
+
 ### Outer End job
 
 The outer End should provide more than:
@@ -308,6 +310,34 @@ The dimension can remain sparse while becoming richer in decisions.
 ### Aeronautics is a core End consideration
 
 Sable's current End dimension physics are already nontrivial.
+
+Create Aeronautics itself also makes the End a technology source through the Levitite chain.
+
+Current source-backed chain:
+
+~~~text
+End Stone
+    -> crushing
+    -> End Stone Powder
+
+4 x End Stone Powder
++ 2 x zinc nuggets
++ 500 mB water
++ heated mixing
+    -> 500 mB Levitite Blend
+
+Levitite Blend
++ valid crystallization heat/catalyst
+    -> Levitite
+~~~
+
+Aeronautics' own Ponder sequence demonstrates that enough Levitite keeps a simulated contraption afloat, but **cannot make it gain altitude by itself**. Additional force is required.
+
+It also gives Levitite substantial low-speed motion resistance that drops at higher speed.
+
+This means End progression can unlock a qualitatively different aircraft architecture without granting a universal engine.
+
+See [End Aeronautics Progression Contract v0.1](end-aeronautics-progression-contract-v0.1.md).
 
 Built-in defaults include:
 
@@ -342,13 +372,17 @@ A possible late-game progression is:
 ~~~text
 OVERWORLD AIRCRAFT
     works in End
-    but performance margin is reduced
+    but aerodynamic / propeller margin is reduced
+
+END-DERIVED LEVITATION
+    End Stone -> Levitite production
+    passive weight support
+    no self-climb
+    low-speed handling cost
 
 END-ADAPTED AIRCRAFT
-    more wing area
-    larger propellers
-    better power-to-weight
-    stronger control margins
+    hybrid Levitite + propulsion/control
+    stronger payload/stationkeeping options
     better navigation/recovery
 
 ADVANCED PROPULSION
