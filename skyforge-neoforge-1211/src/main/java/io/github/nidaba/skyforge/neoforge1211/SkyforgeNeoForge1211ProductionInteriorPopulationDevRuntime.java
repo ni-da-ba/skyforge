@@ -164,7 +164,11 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationDevRuntime {
         if (observationTicks % 200 == 0) {
             LOGGER.log(
                     System.Logger.Level.INFO,
-                    "SF-IMP-0069 PRODUCTION PROGRESS: cave=" + cave + ", interior=" + interior);
+                    "SF-IMP-0069 PRODUCTION PROGRESS: admission="
+                            + SkyforgePhysicalVolumeAdmissionStage.snapshot(volumeId)
+                            + ", pendingCatchup="
+                            + SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId).size()
+                            + ", cave=" + cave + ", interior=" + interior);
         }
 
         var admission = SkyforgePhysicalVolumeAdmissionStage.snapshot(volumeId);
