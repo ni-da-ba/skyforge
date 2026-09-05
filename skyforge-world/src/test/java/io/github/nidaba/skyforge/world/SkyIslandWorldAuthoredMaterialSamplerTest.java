@@ -56,6 +56,32 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
     }
 
     @Test
+    void sampleEnvelopeRejectsForgedWorldLocalFrame() {
+        Fixture fixture = fixture(1439L, 1200.0, -800.0, 0, 0, 0.62);
+        SkyIslandSubsurfacePosition semantic = firstMaterialSemantic(fixture.authored());
+        SkyIslandWorldAuthoredMaterialSample valid =
+                fixture.sampler()
+                        .sample(
+                                toWorld(fixture.association(), semantic),
+                                SkyIslandWorldAuthoredMaterialSamplerTest::decision);
+        Coordinate3 forgedWorld =
+                new Coordinate3(
+                        valid.worldPosition().x() + 1.0,
+                        valid.worldPosition().y(),
+                        valid.worldPosition().z());
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandWorldAuthoredMaterialSample(
+                        valid.association(),
+                        forgedWorld,
+                        valid.realizedPosition(),
+                        valid.semanticPosition(),
+                        valid.realization(),
+                        valid.application()));
+    }
+
+    @Test
     void worldTranslationDoesNotChangeNativeSemanticWinner() {
         SkyIslandDescriptor authored = authored(2211L);
         Fixture first = fixture(authored, 1200.0, -800.0, 0, 0, 0.58);
