@@ -83,6 +83,22 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadClientDevRuntime {
                         "clientOutwardState", outwardState.toString(),
                         "clientBaseState", baseState.toString()));
         if (SkyforgeAutomatedAcceptanceHarness.clientMode()) {
+            // The proof file is durably written before this point. Ordinarily Minecraft.stop()
+            // shuts down the integrated server within a few seconds, but headless CI has
+            // occasionally remained alive indefinitely after an otherwise complete ClientLevel
+            // PASS. Keep graceful shutdown as the primary path, with a development-only bounded
+            // fallback so acceptance never depends on a wedged UI/audio process after proof.
+            Thread exitFallback = new Thread(() -> {
+                try {
+                    Thread.sleep(5_000L);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                Runtime.getRuntime().halt(0);
+            }, "skyforge-sf-imp-0068-client-pass-exit");
+            exitFallback.setDaemon(true);
+            exitFallback.start();
             minecraft.stop();
         }
     }
