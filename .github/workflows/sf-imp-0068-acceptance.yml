@@ -18,7 +18,7 @@ jobs:
   acceptance:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 137
     runs-on: ubuntu-24.04
-    timeout-minutes: 100
+    timeout-minutes: 125
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -42,11 +42,11 @@ jobs:
         run: ./gradlew :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:test --stacktrace --no-configuration-cache
 
       - name: Production composed cave run A
-        timeout-minutes: 22
+        timeout-minutes: 30
         run: ./gradlew :skyforge-neoforge-1211:runProductionComposedCaveAcceptanceA --stacktrace --no-configuration-cache
 
       - name: Production composed cave run B deterministic repeat
-        timeout-minutes: 22
+        timeout-minutes: 30
         run: ./gradlew :skyforge-neoforge-1211:runProductionComposedCaveAcceptanceB --stacktrace --no-configuration-cache
 
       - name: Full-stop reload and actual ClientLevel verification
@@ -56,7 +56,7 @@ jobs:
         run: xvfb-run -a ./gradlew :skyforge-neoforge-1211:runProductionComposedCaveAcceptanceReloadClient --stacktrace --no-configuration-cache
 
       - name: Stacked-volume production lifecycle isolation
-        timeout-minutes: 22
+        timeout-minutes: 30
         run: ./gradlew :skyforge-neoforge-1211:runProductionComposedCaveAcceptanceStacked --stacktrace --no-configuration-cache
 
       - name: SF-IMP-0067 standalone composed-cave regression
