@@ -201,6 +201,9 @@ Civilization Resource Dependencies
 Progression-Sensitive Asset Classification
 Selected-Mod Worldgen Authority Audit
 Resource Evidence / Telemetry
+Engineering / Mobility Progression Ladder
+First-Flight Transitive Recipe Closure Audit
+Cargo / Logistics Progression
 ~~~
 
 ### World composition
