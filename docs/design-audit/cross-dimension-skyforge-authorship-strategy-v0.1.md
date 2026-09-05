@@ -7,6 +7,12 @@
 
 > The Nether and the End should be treated as candidate Skyforge-authored worlds, not permanent vanilla exceptions.
 
+> Their terrain must be derived from gameplay requirements, not the other way around.
+
+See [Dimension Gameplay Requirements v0.1](dimension-gameplay-requirements-v0.1.md).
+
+The terrain families and world grammars in this document are architectural hypotheses. They are retained only where later gameplay testing supports them.
+
 Skyforge is a procedural **world synthesis** architecture, not merely an Overworld floating-island generator.
 
 The current Minecraft implementation only proves the Overworld suspended-island realization.
@@ -172,9 +178,11 @@ This hierarchy should be reviewed by the architecture/authorship lane before bec
 
 Do not rename current accepted types merely to anticipate this possibility.
 
-## The three-dimensional grammar
+## The three-dimensional grammar — hypothesis after gameplay
 
-The dimensions should share architecture but differ at the first-order occupancy level.
+The dimensions should share architecture but may differ at the first-order occupancy level.
+
+The following occupancy models are candidate ways to satisfy the gameplay roles. They are **not** prior requirements.
 
 ### Overworld — air-dominant suspended geography
 
@@ -246,6 +254,16 @@ The same signed-density / field architecture can plausibly express it, but the a
 If Skyforge can author this convincingly, it demonstrates that the architecture is genuinely a world-synthesis engine rather than an island generator.
 
 ## End authorship direction
+
+### Gameplay precondition
+
+Do not select outer-End morphology until the pack has measured the actual Aeronautics/Sable experience there.
+
+Sable currently provides an End-specific pressure curve, and its lift-provider/propeller APIs scale wing lift/drag and propeller thrust by local pressure.
+
+Therefore the End may already create a distinct thin-air aircraft problem.
+
+That gameplay behavior should be characterized first.
 
 ### Preserve the End's macro-progression identity
 
@@ -376,6 +394,16 @@ Elytra remain thematically tied to the End, but the existing policy against chea
 The eventual atmosphere system should support a **dimension profile**, not hardcode Overworld weather everywhere.
 
 ## Nether authorship direction
+
+### Gameplay precondition
+
+Do not select Nether cavern morphology merely because it is architecturally elegant.
+
+First prove what traversal, resource, structure, and Aeronautics loops the Nether should support.
+
+Sable's current Nether pressure profile decreases toward zero at the dimension ceiling, which may naturally discourage ordinary aerodynamic craft from treating the roof as the optimal aviation layer.
+
+That behavior is a gameplay asset if it survives pack testing.
 
 ### Preserve enclosed-world identity
 
@@ -602,7 +630,7 @@ Most powerful, but risks becoming non-Minecraft-like and requires substantially 
 
 Current recommendation:
 
-> Use 1:1 as the low-risk prototype. Do not lock it as permanent cosmology until Nether authorship has been explored.
+> Use 1:1 as the low-risk prototype. Do not lock it as permanent cosmology until Nether gameplay and authorship have been explored.
 
 ## End gateway topology
 
@@ -992,11 +1020,12 @@ The eventual visual review should ask:
 
 1. **Commit now to considering Skyforge authorship for all three vanilla dimensions.**
 2. Keep the current Overworld implementation focus.
-3. Treat the **outer End** as the first future cross-dimension pilot.
-4. Treat a **solid-dominant Nether cavern province** as the architecture stress test.
-5. Preserve vanilla critical sites until their Skyforge replacements have explicit compatibility contracts.
-6. Keep the 1:1 Nether portal scale as a low-bespoke interim prototype, not a permanent cosmological decision.
-7. Do not prematurely rename or universalize the existing SkyIsland code.
+3. Define and test Nether/End gameplay requirements before freezing morphology.
+4. Treat the **outer End** as the preferred first future cross-dimension pilot because it can test Skyforge authorship with lower geometry risk and strong Aeronautics relevance.
+5. Treat a **solid-dominant Nether cavern province** as the leading architecture stress-test hypothesis only if it best supports the selected Nether gameplay.
+6. Preserve vanilla critical sites until their Skyforge replacements have explicit compatibility contracts.
+7. Keep the 1:1 Nether portal scale as a low-bespoke interim prototype, not a permanent cosmological decision.
+8. Do not prematurely rename or universalize the existing SkyIsland code.
 
 ## Acceptance principle
 
