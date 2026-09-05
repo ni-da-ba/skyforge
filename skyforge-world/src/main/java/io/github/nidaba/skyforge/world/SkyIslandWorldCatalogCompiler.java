@@ -4,6 +4,7 @@ import io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume;
 import io.github.nidaba.skyforge.recipes.skyisland.SkyIslandMorphologyProviderRegistry;
 import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandArchipelagoGroupPlan;
 import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandArchipelagoPlan;
+import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandArchipelagoRequest;
 import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandGroupMemberPlan;
 import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandMorphologySpecCompiler;
 import java.util.ArrayList;
@@ -125,6 +126,28 @@ public final class SkyIslandWorldCatalogCompiler {
         SkyIslandWorldCatalog catalog =
                 new SkyIslandWorldCatalog(plan.rootSeed(), volumes);
         return new SkyIslandWorldCatalogSupportBundle(catalog, certificates);
+    }
+
+    /**
+     * Builds an AUTH-0055 immutable re-plan proposal from matching original intent, exact plan,
+     * AUTH-0054 synthesis, current vertical reservation, and explicit author margin.
+     *
+     * <p>The builder validates provenance by replaying the original request only. It does not
+     * execute the candidate request.
+     */
+    public SkyIslandSupportReplanProposal proposeSupportAwareReplan(
+            SkyIslandArchipelagoRequest originalRequest,
+            SkyIslandArchipelagoPlan originalPlan,
+            SkyIslandSupportReservationRequirementSynthesis synthesis,
+            SkyIslandWorldVerticalReservation originalVerticalReservation,
+            SkyIslandSupportReplanMargin authorMargin) {
+        return new SkyIslandSupportReplanProposalBuilder()
+                .propose(
+                        originalRequest,
+                        originalPlan,
+                        synthesis,
+                        originalVerticalReservation,
+                        authorMargin);
     }
 
     /**
