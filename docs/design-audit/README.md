@@ -100,6 +100,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Portable storage and freight integrity v0.1](portable-storage-and-freight-integrity-v0.1.md)
 - [Post-flight regional specialization sequence v0.1](post-flight-regional-specialization-sequence-v0.1.md)
 - [Cross-dimension Skyforge authorship strategy v0.1](cross-dimension-skyforge-authorship-strategy-v0.1.md)
+- [Dimension world-grammar matrix v0.1](dimension-world-grammar-matrix-v0.1.md)
 - [Bootstrap region recipe v0.1](bootstrap-region-recipe-v0.1.md)
 - [Onboarding, guidance, and quest layer v0.1](onboarding-guidance-and-quest-layer-v0.1.md)
 - [First-flight recipe closure audit v0.1](first-flight-recipe-closure-audit-v0.1.md)
