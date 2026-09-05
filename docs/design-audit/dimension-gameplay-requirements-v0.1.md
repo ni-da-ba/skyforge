@@ -223,6 +223,8 @@ Therefore:
 
 It remains a promising way to create later non-aerodynamic propulsion.
 
+See [Nether Gameplay and Aviation Contract v0.1](nether-gameplay-and-aviation-contract-v0.1.md) for the source-backed route, pressure, metallurgy, structure, and recovery requirements.
+
 ## Nether terrain follows gameplay
 
 Only after the above requirements should terrain be selected.
