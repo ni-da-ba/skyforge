@@ -15,9 +15,10 @@ public record SkyIslandPublishedWorldEntry(
         volume = Objects.requireNonNull(volume, "volume");
         supportCertificate = Objects.requireNonNull(supportCertificate, "supportCertificate");
 
+        SkyIslandWorldVolumeId volumeId = volume.id();
         SkyIslandWorldVolume catalogVolume =
                 publication.catalog().volumes().stream()
-                        .filter(candidate -> candidate.id().equals(volume.id()))
+                        .filter(candidate -> candidate.id().equals(volumeId))
                         .findFirst()
                         .orElseThrow(
                                 () ->
