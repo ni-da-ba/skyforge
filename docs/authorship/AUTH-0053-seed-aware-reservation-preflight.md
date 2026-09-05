@@ -1,6 +1,6 @@
 # AUTH-0053 — Seed-Aware Provider-Support Reservation Preflight
 
-AUTH-0053 moves proof-backed reservation admission earlier than procedural-graph/world-volume compilation.
+AUTH-0053 moves proof-backed reservation admission earlier than primary/full-volume/world-volume compilation.
 
 It consumes an already deterministic SkyIslandArchipelagoPlan, where exact group/member seeds and descriptors are known, and determines whether the reservations already consumed by planning remain sufficient for every analytically certifiable morphology spec.
 
@@ -13,6 +13,7 @@ It does not move islands, enlarge reservations, or rewrite an archipelago.
         -> exact member seeds/descriptors now exist
         -> AUTH-0053 reservation preflight
         -> only admitted plans may use compileProofBacked
+        -> primary/full-volume compilation
         -> AUTH-0052 world support bundle
 
 This is the earliest generic stage where arbitrary provider certificates can safely be evaluated, because provider support may depend on the exact derived member descriptor and seed.
@@ -133,7 +134,7 @@ SkyIslandWorldCatalogCompiler gains:
 
 compileProofBacked performs AUTH-0053 first.
 
-If preflight rejects, procedural graphs are not compiled.
+If preflight rejects, primary morphology and full world-volume graphs are not compiled.
 
 If preflight admits, AUTH-0052 compileWithSupport runs and must produce a fully certified bundle.
 
@@ -165,16 +166,22 @@ The provider's compilePrimary method intentionally fails if called during the te
 Therefore the result proves that AUTH-0053:
 
 - uses exact derived descriptors;
-- does not compile procedural graphs;
+- does not compile primary/full-volume morphology;
 - does not infer support from reusable templates.
 
-## Fail-before-graph proof
+Provider support certification may still call compileSecondaryMorphology to obtain the
+provider-declared analytical factor envelope. SecondaryMorphologyContribution contains its factor
+graph, so AUTH-0053 does not claim that literally no graph object can be constructed during
+preflight.
+
+## Fail-before-primary/full-volume proof
 
 A second test provider supplies no support certificate and throws an AssertionError from compilePrimary.
 
 compileProofBacked rejects at AUTH-0053 with an uncertified-member report before compilePrimary can run.
 
-Thus preflight is genuinely upstream of graph compilation rather than merely a second check after compilation.
+Thus preflight is genuinely upstream of primary/full-volume compilation rather than merely a
+second check after world-volume compilation.
 
 ## Visual evidence atlas
 
