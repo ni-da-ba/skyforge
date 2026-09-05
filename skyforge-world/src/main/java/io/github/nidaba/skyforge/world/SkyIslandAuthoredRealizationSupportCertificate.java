@@ -22,12 +22,20 @@ public record SkyIslandAuthoredRealizationSupportCertificate(
         var descriptor =
                 association.realizedVolume().compiledVolume().descriptor();
         return new WorldBounds(
-                descriptor.centerX() - envelope.maximumHorizontalRadius(),
-                descriptor.centerX() + envelope.maximumHorizontalRadius(),
-                descriptor.suspensionElevation() - envelope.maximumUndersideDepth(),
-                descriptor.suspensionElevation() + envelope.maximumUpperOffset(),
-                descriptor.centerZ() - envelope.maximumHorizontalRadius(),
-                descriptor.centerZ() + envelope.maximumHorizontalRadius());
+                Math.nextDown(
+                        descriptor.centerX() - envelope.maximumHorizontalRadius()),
+                Math.nextUp(
+                        descriptor.centerX() + envelope.maximumHorizontalRadius()),
+                Math.nextDown(
+                        descriptor.suspensionElevation()
+                                - envelope.maximumUndersideDepth()),
+                Math.nextUp(
+                        descriptor.suspensionElevation()
+                                + envelope.maximumUpperOffset()),
+                Math.nextDown(
+                        descriptor.centerZ() - envelope.maximumHorizontalRadius()),
+                Math.nextUp(
+                        descriptor.centerZ() + envelope.maximumHorizontalRadius()));
     }
 
     public String associationToken() {
