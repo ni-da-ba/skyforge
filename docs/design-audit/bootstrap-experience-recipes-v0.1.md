@@ -20,6 +20,20 @@ survival
 
 The profile changes distribution, civilization presence, teaching aids, and atmospheric framing.
 
+An early glider is an optional selected realization of the local traversal step, not a replacement for first reliable powered flight.
+
+When the glider is selected:
+
+~~~text
+starting-group scope
+  -> glider/local-crossing closure may be required
+
+starting-cluster scope
+  -> powered first-aircraft closure remains required
+~~~
+
+See [Early Glider Mobility Contract v0.1](early-glider-mobility-contract-v0.1.md).
+
 ## Shared hard guarantees
 
 Every normal bootstrap profile should guarantee, within pre-flight-accessible scope:
@@ -35,6 +49,7 @@ Every normal bootstrap profile should guarantee, within pre-flight-accessible sc
 - one viable workshop-power path;
 - safe-enough build/test area;
 - at least one meaningful nearby destination;
+- when a selected starter layout requires gliding, complete cheap-glider recipe closure before the first required glide edge;
 - no dependence on brass, petroleum, electricity, or rare loot unless the tested first-flight design later proves otherwise.
 
 ## Profile A — STANDARD
@@ -53,7 +68,8 @@ Intent: default balanced Skyforge onboarding.
 - at least one contrasting island;
 - deeper iron/andesite opportunity;
 - renewable wool/fiber and adhesive opportunity;
-- one cave/geology teaching opportunity.
+- one cave/geology teaching opportunity;
+- if gliding is selected, a local crossing pattern may demonstrate it without making every valid seed glider-mandatory.
 
 ### Starting cluster
 
@@ -222,6 +238,7 @@ All profiles should retain:
 - replacement adhesive path;
 - enough foundational materials for another attempt;
 - a lower-tech traversal fallback;
+- when gliding participates in a progression-critical route, a directed return/recovery path;
 - no unique irreplaceable first-flight chest item.
 
 ## Quest interaction
@@ -267,6 +284,8 @@ Presentation profile influences:
 5. Every profile provides a meaningful post-flight destination.
 6. HARD_FRONTIER increases pressure without introducing soft locks.
 7. ENGINEERING_GUIDED teaches more without giving away mature capability.
+8. A selected glider can improve starter-group mobility without making powered first flight optional.
+9. Required glider edges are directionally recoverable and do not depend on rare hostile loot.
 
 ## Acceptance principle
 
