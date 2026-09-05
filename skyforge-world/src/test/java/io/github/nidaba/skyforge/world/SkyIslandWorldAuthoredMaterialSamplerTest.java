@@ -117,9 +117,27 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
                 new SkyIslandCompiledVolumeColumnField(
                         fixture.association().realizedVolume().compiledVolume());
 
-        SkyIslandLocalPosition outsideNative =
-                new SkyIslandLocalPosition(1.10 * radius, 0.0);
-        SkyIslandVerticalColumn column = columns.columnAt(outsideNative).orElseThrow();
+        SkyIslandNaturalizedDomainField nativeDomain =
+                SkyIslandNaturalizedDomainField.create(authored);
+        SkyIslandLocalPosition outsideNative = null;
+        SkyIslandVerticalColumn column = null;
+        for (int iz = 0; iz < 31 && outsideNative == null; iz++) {
+            double z = -1.30 * radius + iz * (2.60 * radius / 30.0);
+            for (int ix = 0; ix < 31; ix++) {
+                double x = -1.30 * radius + ix * (2.60 * radius / 30.0);
+                SkyIslandLocalPosition candidate = new SkyIslandLocalPosition(x, z);
+                var candidateColumn = columns.columnAt(candidate);
+                if (candidateColumn.isPresent() && nativeDomain.sample(candidate) <= 0.0) {
+                    outsideNative = candidate;
+                    column = candidateColumn.orElseThrow();
+                    break;
+                }
+            }
+        }
+        if (outsideNative == null || column == null) {
+            throw new IllegalStateException(
+                    "fixture produced no physical column outside native authored ownership");
+        }
         Coordinate3 world =
                 new Coordinate3(
                         fixture.physical().centerX() + outsideNative.x(),
@@ -138,7 +156,8 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
     @Test
     void authoredCaveVoidSurvivesWorldSpaceSampling() {
         Fixture fixture = fixture(1439L, 900.0, -1100.0, 0, 0, 0.64);
-        SkyIslandSubsurfacePosition voidSemantic = firstAuthoredVoidSemantic(fixture.authored());
+        SkyIslandSubsurfacePosition voidSemantic =
+                firstAuthoredVoidSemantic(fixture.authored(), fixture.association());
         Coordinate3 world = toWorld(fixture.association(), voidSemantic);
 
         SkyIslandWorldAuthoredMaterialSample sample =
@@ -286,7 +305,8 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
     }
 
     private static SkyIslandSubsurfacePosition firstAuthoredVoidSemantic(
-            SkyIslandDescriptor descriptor) {
+            SkyIslandDescriptor descriptor,
+            SkyIslandAuthoredRealizationAssociation association) {
         SkyIslandMaterialBindingRequestField field =
                 SkyIslandMaterialBindingRequestField.create(descriptor);
         double radius = descriptor.nominalRadius();
@@ -299,7 +319,9 @@ class SkyIslandWorldAuthoredMaterialSamplerTest {
                     SkyIslandSubsurfacePosition position =
                             new SkyIslandSubsurfacePosition(x, z, depth);
                     SkyIslandMaterialBindingRequestSelection source = field.sample(position);
-                    if (source.owned() && !source.materialPresent()) {
+                    if (source.owned()
+                            && !source.materialPresent()
+                            && toWorldOrNull(association, position) != null) {
                         return position;
                     }
                 }
