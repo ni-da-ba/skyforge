@@ -61,21 +61,24 @@ class SkyIslandMaterialBindingApplicatorTest {
     }
 
     @Test
-    void authoredVoidProducesNoApplicationAndNoBackendLookup() {
-        SkyIslandMaterialExpressionSample outside =
-                new SkyIslandMaterialExpressionSample(
+    void outsideAndAuthoredVoidProduceNoApplicationAndNoBackendLookup() {
+        for (SkyIslandMaterialBindingRequestSelection source :
+                List.of(
                         SkyIslandMaterialBindingRequestSelection.outside(),
-                        List.of());
-        SkyIslandMaterialRealizationSelection realization =
-                SkyIslandMaterialExpressionRealizer.realize(
-                        new SkyIslandSubsurfacePosition(0.0, 0.0, 0.52), outside);
+                        SkyIslandMaterialBindingRequestSelection.authoredVoid())) {
+            SkyIslandMaterialExpressionSample absent =
+                    new SkyIslandMaterialExpressionSample(source, List.of());
+            SkyIslandMaterialRealizationSelection realization =
+                    SkyIslandMaterialExpressionRealizer.realize(
+                            new SkyIslandSubsurfacePosition(0.0, 0.0, 0.52), absent);
 
-        assertTrue(SkyIslandMaterialBindingApplication.from(realization).isEmpty());
-        assertTrue(
-                SkyIslandMaterialBindingApplicator.apply(
-                                realization,
-                                Map.<SkyIslandSemanticPaletteBindingKey, Object>of())
-                        .isEmpty());
+            assertTrue(SkyIslandMaterialBindingApplication.from(realization).isEmpty());
+            assertTrue(
+                    SkyIslandMaterialBindingApplicator.apply(
+                                    realization,
+                                    Map.<SkyIslandSemanticPaletteBindingKey, Object>of())
+                            .isEmpty());
+        }
     }
 
     @Test
