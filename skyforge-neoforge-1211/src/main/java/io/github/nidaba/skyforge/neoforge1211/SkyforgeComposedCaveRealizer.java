@@ -55,6 +55,7 @@ final class SkyforgeComposedCaveRealizer {
                 biomeResolver,
                 volume,
                 realizedAuthoredField,
+                SkyforgeExteriorConnectedCaveSpatialIndex.create(authoredField),
                 chunk,
                 biomeSample,
                 nativeTargetMinimumY,
@@ -71,11 +72,36 @@ final class SkyforgeComposedCaveRealizer {
             BlockPos biomeSample,
             int nativeTargetMinimumY,
             int nativeTargetMaximumY) {
+        return realize(
+                level,
+                generator,
+                biomeResolver,
+                volume,
+                realizedAuthoredField,
+                SkyforgeExteriorConnectedCaveSpatialIndex.create(realizedAuthoredField.semanticField()),
+                chunk,
+                biomeSample,
+                nativeTargetMinimumY,
+                nativeTargetMaximumY);
+    }
+
+    static Result realize(
+            ServerLevel level,
+            NoiseBasedChunkGenerator generator,
+            SkyforgeExactVolumeBiomeResolver biomeResolver,
+            SkyIslandWorldVolume volume,
+            SkyIslandRealizedExteriorConnectedCaveVolumeField realizedAuthoredField,
+            SkyforgeExteriorConnectedCaveSpatialIndex spatialIndex,
+            LevelChunk chunk,
+            BlockPos biomeSample,
+            int nativeTargetMinimumY,
+            int nativeTargetMaximumY) {
         Objects.requireNonNull(level, "level");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(biomeResolver, "biomeResolver");
         Objects.requireNonNull(volume, "volume");
         Objects.requireNonNull(realizedAuthoredField, "realizedAuthoredField");
+        Objects.requireNonNull(spatialIndex, "spatialIndex");
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(biomeSample, "biomeSample");
 
@@ -93,6 +119,7 @@ final class SkyforgeComposedCaveRealizer {
                 level,
                 volume,
                 realizedAuthoredField,
+                spatialIndex,
                 chunk);
         if (!authoredResult.accepted()) {
             throw new IllegalStateException(
