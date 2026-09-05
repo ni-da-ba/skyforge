@@ -17,12 +17,33 @@ public final class SkyIslandAuthoredOverlapAdmissionAuditor {
 
     private final SkyIslandAuthoredRealizationCatalog catalog;
     private final SkyIslandAuthoredOverlapAdmissionPolicy policy;
+    private final SkyIslandAuthoredRealizationSupportCatalog supportCatalog;
 
     public SkyIslandAuthoredOverlapAdmissionAuditor(
             SkyIslandAuthoredRealizationCatalog catalog,
             SkyIslandAuthoredOverlapAdmissionPolicy policy) {
+        this(
+                catalog,
+                policy,
+                new SkyIslandAuthoredRealizationSupportCatalog(
+                        Objects.requireNonNull(catalog, "catalog"),
+                        java.util.List.of()));
+    }
+
+    /**
+     * Creates a support-aware AUTH-0050 auditor.
+     *
+     * <p>AUTH-0051 support bounds may tighten proof geometry, but never replace the original
+     * associated WorldBounds used for candidate/witness search.
+     */
+    public SkyIslandAuthoredOverlapAdmissionAuditor(
+            SkyIslandAuthoredRealizationCatalog catalog,
+            SkyIslandAuthoredOverlapAdmissionPolicy policy,
+            SkyIslandAuthoredRealizationSupportCatalog supportCatalog) {
         this.catalog = Objects.requireNonNull(catalog, "catalog");
         this.policy = Objects.requireNonNull(policy, "policy");
+        this.supportCatalog = Objects.requireNonNull(supportCatalog, "supportCatalog");
+        validateSupportCatalog();
         validatePolicyReferences();
     }
 
@@ -52,9 +73,13 @@ public final class SkyIslandAuthoredOverlapAdmissionAuditor {
         SkyIslandAuthoredOverlapPairRule rule = policy.ruleFor(first, second);
         WorldBounds firstBounds = first.realizedVolume().bounds();
         WorldBounds secondBounds = second.realizedVolume().bounds();
+        WorldBounds firstProofBounds = proofBounds(first);
+        WorldBounds secondProofBounds = proofBounds(second);
         boolean boundsIntersect = firstBounds.intersects(secondBounds);
+        boolean proofBoundsIntersect = firstProofBounds.intersects(secondProofBounds);
         boolean supportDisjoint = nativeSupportDiscsDisjoint(first, second);
-        double verticalGap = conservativeVerticalGap(firstBounds, secondBounds);
+        double verticalGap =
+                conservativeVerticalGap(firstProofBounds, secondProofBounds);
 
         if (rule.mode() == SkyIslandAuthoredOverlapMode.COMPOSE) {
             Coordinate3 witness =
@@ -103,7 +128,7 @@ public final class SkyIslandAuthoredOverlapAdmissionAuditor {
                     witness);
         }
 
-        if (!boundsIntersect || supportDisjoint) {
+        if (!proofBoundsIntersect || supportDisjoint) {
             return new SkyIslandAuthoredOverlapPairAudit(
                     first,
                     second,
@@ -216,6 +241,24 @@ public final class SkyIslandAuthoredOverlapAdmissionAuditor {
             return first.minimumY() - second.maximumY();
         }
         return 0.0;
+    }
+
+    private WorldBounds proofBounds(
+            SkyIslandAuthoredRealizationAssociation association) {
+        return supportCatalog.certificateFor(association)
+                .map(SkyIslandAuthoredRealizationSupportCertificate::supportBounds)
+                .orElseGet(() -> association.realizedVolume().bounds());
+    }
+
+    private void validateSupportCatalog() {
+        SkyIslandAuthoredRealizationCatalog supportAssociations =
+                supportCatalog.associationCatalog();
+        if (supportAssociations.authoredWorldSeed() != catalog.authoredWorldSeed()
+                || supportAssociations.realizationRootSeed() != catalog.realizationRootSeed()
+                || !supportAssociations.associations().equals(catalog.associations())) {
+            throw new IllegalArgumentException(
+                    "AUTH-0051 support catalog must describe the exact AUTH-0050 association catalog");
+        }
     }
 
     private void validatePolicyReferences() {
