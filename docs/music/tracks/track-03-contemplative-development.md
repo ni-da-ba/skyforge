@@ -3,7 +3,7 @@
 **Status:** Active development  
 **Role:** lonely / ponderous / thoughtful exploration state  
 **Current method:** thematic audition gate before further development  
-**Current boundary:** Theme Lab 01
+**Current boundary:** Theme Lab 02
 
 ## Emotional target
 
@@ -123,7 +123,7 @@ Current Track 03 rule:
 
 > First write a theme worth remembering. Only then ask what it develops into.
 
-## Theme Lab 01 — current boundary
+## Theme Lab 01 — completed audition
 
 Theme Lab 01 freezes the accepted restrained piano / harmonic bed and auditions four independent eight-bar lead themes against it.
 
@@ -197,6 +197,106 @@ Uncompressed MIDI SHA-256:
 Repository source:
 
 `assets/music/source/experiments/track-03-theme-lab-01/D-old-thought.mid.gz`
+
+
+### Theme Lab 01 result
+
+No candidate passed the enthusiasm / memorability gate.
+
+The user's relative preference was:
+
+1. **C — Homeward Sky**
+2. **D — Old Thought**
+
+but neither produced strong attachment.
+
+This is treated as directional evidence, not acceptance.
+
+Useful signal from C:
+
+- neighbor motion gave the line a more recognizable local face;
+- the leap after the turn gave the phrase direction;
+- flowing motion remained compatible with the contemplative role.
+
+Useful signal from D:
+
+- asymmetric interval behavior was more distinctive than smooth lyricism;
+- held note -> downward third -> upward sixth produced more character;
+- slight awkwardness / surprise was preferable to polished generic contour.
+
+Retained rule:
+
+> A "strongest of the set" result is not a pass. Relative ranking without positive attachment means write another set.
+
+## Theme Lab 02 — current boundary
+
+Theme Lab 02 does not literally combine C and D. It writes four new themes biased toward the traits that made those candidates relatively stronger: neighbor motion, asymmetry, one exposed leap, and a recognizable short melodic face.
+
+### Candidate E — Glass Horizon
+
+Design:
+
+- A-G-A-D opening hook;
+- neighbor turn followed by an upward fourth;
+- later B-natural introduces a restrained Lydian / luminous color;
+- designed to remain flowing without becoming generic.
+
+Uncompressed MIDI SHA-256:
+
+`068cb7d4908dd4cc0aec2b596d5a075296a02941ae24ef279bc1aafcb00fe763`
+
+Repository source:
+
+`assets/music/source/experiments/track-03-theme-lab-02/E-glass-horizon.mid`
+
+### Candidate F — Old Thought II
+
+Design:
+
+- long note -> downward third -> upward sixth;
+- most direct investigation of why Theme Lab 01 candidate D had character;
+- second half answers rather than transposes the first sentence.
+
+Uncompressed MIDI SHA-256:
+
+`e03b2bb424acc82658bc784ff6dcef6772532e9e4fd9d7a05b13f7c150a0d828`
+
+Repository source:
+
+`assets/music/source/experiments/track-03-theme-lab-02/F-old-thought-II.mid`
+
+### Candidate G — Lantern Below
+
+Design:
+
+- C-Bb-C-A opening hook;
+- neighbor turn followed by a much wider upward reach;
+- intended to create a "look down, then suddenly look far away" contour.
+
+Uncompressed MIDI SHA-256:
+
+`bd1167b9c8f7b0c0ed03ec624098bc68e2fc42db8bca7851cb98e47144e47bb3`
+
+Repository source:
+
+`assets/music/source/experiments/track-03-theme-lab-02/G-lantern-below.mid`
+
+### Candidate H — Still Between
+
+Design:
+
+- short-short-long tag;
+- exposed leap after an asymmetric opening;
+- least smooth candidate;
+- intended to prioritize individual voice over generic lyricism.
+
+Uncompressed MIDI SHA-256:
+
+`549156e07be6f5ee99069c7f85b9bd0554d7af270341158206f8d49040f7909b`
+
+Repository source:
+
+`assets/music/source/experiments/track-03-theme-lab-02/H-still-between.mid`
 
 ## Current acceptance gate
 
