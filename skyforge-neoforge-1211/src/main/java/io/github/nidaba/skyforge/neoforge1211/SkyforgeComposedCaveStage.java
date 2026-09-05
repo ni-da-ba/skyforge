@@ -408,6 +408,25 @@ final class SkyforgeComposedCaveStage {
         return List.copyOf(result);
     }
 
+    static Progress progress() {
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return new Progress(0, 0, 0);
+        }
+        int preparing = 0;
+        synchronized (binding) {
+            for (var cursor : binding.preparations().values()) {
+                if (!cursor.complete()) {
+                    preparing++;
+                }
+            }
+            return new Progress(
+                    preparing,
+                    binding.nativeCarvers().size(),
+                    binding.authoredCommits().size());
+        }
+    }
+
     static boolean active() {
         return ACTIVE.get() != null;
     }
@@ -572,6 +591,19 @@ final class SkyforgeComposedCaveStage {
                     || pendingObligations + completedObligations != totalObligations
                     || emptyObligations > completedObligations) {
                 throw new IllegalArgumentException("invalid composed cave stage ledger counts");
+            }
+        }
+    }
+
+    record Progress(
+            int preparingObligations,
+            int nativeCarverObligations,
+            int authoredCommitObligations) {
+        Progress {
+            if (preparingObligations < 0
+                    || nativeCarverObligations < 0
+                    || authoredCommitObligations < 0) {
+                throw new IllegalArgumentException("invalid composed cave progress counts");
             }
         }
     }
