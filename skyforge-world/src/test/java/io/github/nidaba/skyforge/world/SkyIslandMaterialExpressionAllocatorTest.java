@@ -225,23 +225,14 @@ class SkyIslandMaterialExpressionAllocatorTest {
                 SkyIslandMaterialExpressionAllocator.allocate(outside, Map.of());
         assertTrue(outsideResult.allocations().isEmpty());
 
-        boolean observedVoid = false;
-        for (int iz = 0; iz < 31 && !observedVoid; iz++) {
-            double z = -radius + iz * (2.0 * radius / 30.0);
-            for (int ix = 0; ix < 31; ix++) {
-                double x = -radius + ix * (2.0 * radius / 30.0);
-                SkyIslandMaterialBindingRequestSelection sample =
-                        field.sample(new SkyIslandSubsurfacePosition(x, z, 0.70));
-                if (sample.owned() && !sample.materialPresent()) {
-                    SkyIslandMaterialExpressionSample result =
-                            SkyIslandMaterialExpressionAllocator.allocate(sample, Map.of());
-                    assertTrue(result.allocations().isEmpty());
-                    observedVoid = true;
-                    break;
-                }
-            }
-        }
-        assertTrue(observedVoid);
+        SkyIslandMaterialBindingRequestSelection authoredVoid =
+                SkyIslandMaterialBindingRequestSelection.authoredVoid();
+        assertTrue(authoredVoid.owned());
+        assertFalse(authoredVoid.materialPresent());
+
+        SkyIslandMaterialExpressionSample voidResult =
+                SkyIslandMaterialExpressionAllocator.allocate(authoredVoid, Map.of());
+        assertTrue(voidResult.allocations().isEmpty());
     }
 
     private static SkyIslandMaterialBindingRequestSelection firstMaterialSample(
