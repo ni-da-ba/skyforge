@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.recipes.skyisland;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -16,6 +17,18 @@ public interface SkyIslandMorphologyProvider {
 
     /** Compiles one signal-free primary morphology contribution. */
     PrimaryMorphologyContribution compilePrimary(SkyIslandVolumeDescriptor descriptor);
+
+    /**
+     * Optionally declares a proof-grade conservative support envelope for the signal-free primary.
+     *
+     * <p>Providers that cannot analytically certify their continuous support return empty. AUTH-0051
+     * never derives a certificate from finite sampling.
+     */
+    default Optional<PrimaryMorphologySupportEnvelope> certifiedPrimarySupportEnvelope(
+            SkyIslandVolumeDescriptor descriptor) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        return Optional.empty();
+    }
 
     /**
      * Compiles organized secondary geography at the requested amplitude.
