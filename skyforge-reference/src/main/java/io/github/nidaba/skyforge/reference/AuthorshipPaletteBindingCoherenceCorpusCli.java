@@ -253,11 +253,11 @@ public final class AuthorshipPaletteBindingCoherenceCorpusCli {
         return new Color(red, green, blue);
     }
 
-    @SuppressWarnings("unchecked")
     private static Stats stats(SkyIslandSemanticPaletteBindingSelection[][] samples) {
-        Set<String>[] keys = new Set[SkyIslandSemanticMaterialPaletteRole.values().length];
-        for (int i = 0; i < keys.length; i++) {
-            keys[i] = new HashSet<>();
+        List<Set<String>> keys =
+                new ArrayList<>(SkyIslandSemanticMaterialPaletteRole.values().length);
+        for (int i = 0; i < SkyIslandSemanticMaterialPaletteRole.values().length; i++) {
+            keys.add(new HashSet<>());
         }
         int material = 0;
         int contactFallback = 0;
@@ -270,7 +270,7 @@ public final class AuthorshipPaletteBindingCoherenceCorpusCli {
                 boolean fallback = false;
                 for (SkyIslandSemanticPaletteBindingCandidate binding :
                         selection.bindings()) {
-                    keys[binding.candidate().role().ordinal()]
+                    keys.get(binding.candidate().role().ordinal())
                             .add(binding.bindingKey().canonicalToken());
                     fallback |= binding.bindingKey().domainKind()
                             == SkyIslandSemanticPaletteBindingDomainKind.CONTACT_TRANSITION;
@@ -291,9 +291,9 @@ public final class AuthorshipPaletteBindingCoherenceCorpusCli {
     private record Stats(
             int materialSamples,
             int contactFallbackSamples,
-            Set<String>[] keys) {
+            List<Set<String>> keys) {
         int keyCount(SkyIslandSemanticMaterialPaletteRole role) {
-            return keys[role.ordinal()].size();
+            return keys.get(role.ordinal()).size();
         }
     }
 
