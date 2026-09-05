@@ -787,6 +787,124 @@ Repository source:
 
 > Does the theme now have enough space for its signature notes and arrivals to become memorable, without losing the character first established in Theme 04?
 
+
+## Success Audit 01 — Tracks 01 and 02 as positive references
+
+The user identified two stronger internal references:
+
+- **Track 01 — Rambling Through the Gentle Blue** as the strongest complete cue so far;
+- **Track 02 — The Lord of Empty Miles** as containing the strongest compact motif so far, especially the recurring horn figure remembered syllabically as a "wah..." sound.
+
+This changes the Track 03 method.
+
+The project should not learn only from rejected drafts. It should also extract the construction principles that already produced convincing music.
+
+The full audit is persisted at:
+
+`docs/music/success-audit-01-tracks-01-and-02.md`
+
+### Track 01 retained lessons
+
+- one clear foreground owner;
+- a separate recurring motion / identity layer;
+- support voices respond rather than compete;
+- multiple stable musical objects can share the burden of memorability;
+- melody does not need to provide continuity, groove, color, and environment simultaneously.
+
+### Track 02 retained lessons
+
+The canonical dragon horn motif is:
+
+`E -> F -> B -> Bb -> A -> G -> F -> E`
+
+The important lesson is not those literal pitches.
+
+Its memorability comes from a compact fusion of:
+
+- distinctive rhythm;
+- distinctive interval contour;
+- characteristic timbre;
+- literal recurrence;
+- enough space for the listener to learn the object.
+
+The user's ability to recall it by syllabic sound rather than note names is strong evidence that rhythm and timbre are integral to the motif.
+
+### Governing positive rule
+
+> Give the listener a few stable objects with different jobs.
+
+For Track 03, Theme 06 therefore separates:
+
+- **clarinet refrain = something to remember;**
+- **cello answer = something to feel;**
+- **piano harmony = something that keeps the thought moving.**
+
+## First-Principles Theme 06 — Thought Refrain
+
+Theme 06 is the first pass built explicitly from the positive lessons of Tracks 01 and 02.
+
+### Clarinet refrain
+
+Compact two-bar identity:
+
+`D - D - F - Bb | A - E - F`
+
+Its intended syllabic feel is approximately:
+
+> long ... short-short LONG | short-short LOOONG
+
+Its identity comes from:
+
+- repeated-note hesitation;
+- F-to-B-flat upward fourth;
+- broad B-flat arrival;
+- A-to-E drop;
+- exposed E-to-F semitone resolution;
+- clarinet timbre.
+
+This is not a transposition or imitation of the dragon motif. It applies the same successful construction principle: rhythm, contour, color, and timbre form one compact object.
+
+### Cello answers
+
+The cello is deliberately sparse and no longer responsible for constant thematic identity.
+
+It provides:
+
+- long reflective arrivals;
+- low/open and low/closed cadence rhetoric;
+- emotional answers to the refrain;
+- the global expressive apex.
+
+### Form
+
+- bars 1-2: canonical clarinet refrain;
+- bars 3-4: sparse cello answer;
+- bars 5-6: refrain variant;
+- bars 7-8: cello answer / low close;
+- bars 9-10: canonical refrain returns;
+- bars 11-12: cello second thought;
+- bars 13-14: refrain fragmentation / development;
+- bars 15-16: cello global apex and long descent;
+- bars 17-18: canonical refrain final return;
+- bars 19-20: sparse final cello answer.
+
+Persisted full source:
+
+`assets/music/source/track-03-first-principles-theme-06-thought-refrain.mid.gz`
+
+Full uncompressed MIDI SHA-256:
+
+`8180ffab1032c0d8c5bcf0669591c8b77d5b9574a27d073cb718b38085e99590`
+
+Additional diagnostics:
+
+- `assets/music/source/track-03-first-principles-theme-06-refrain-focus.mid.gz`
+- `assets/music/source/track-03-first-principles-theme-06-leads-only.mid.gz`
+
+### Current acceptance question
+
+> Does the clarinet refrain become a compact object the listener can recall by sound-shape, while the sparse cello answers make the cue feel emotionally specific rather than merely patterned?
+
 ## Current acceptance gate
 
 Do **not** resume development or full-cue expansion merely because one candidate is technically coherent.
