@@ -77,7 +77,8 @@ class AuthorshipReservationRequirementSynthesisCorpusTest {
         assertEquals(2, replan.lines().count());
         assertEquals(
                 "sameRootSeed,originalRequiredGroupRadius,freshRequiredGroupRadius,"
-                        + "originalMember1X,freshMember1X,requirementsDiffer",
+                        + "originalObservedCenterSpacing,freshObservedCenterSpacing,"
+                        + "requirementsDiffer",
                 replan.lines().findFirst().orElseThrow());
         String[] summary =
                 replan.lines().skip(1).findFirst().orElseThrow().split(",", -1);
@@ -85,5 +86,6 @@ class AuthorshipReservationRequirementSynthesisCorpusTest {
         assertEquals("true", summary[0]);
         assertEquals("true", summary[5]);
         assertTrue(!summary[1].equals(summary[2]));
+        assertTrue(!summary[3].equals(summary[4]));
     }
 }
