@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
@@ -81,6 +82,27 @@ final class SkyforgeNeoForge1211ChunkAdapterTest {
     }
 
     @Test
+    void exactOwnershipQueriesPreserveKnownVolumeAndSingleVolumeForeignIsolation() {
+        SkyIslandWorldCatalog catalog = catalog();
+        SkyIslandWorldVolumeId volumeId = catalog.volumes().getFirst().id();
+        SkyforgeNeoForge1211ChunkAdapter adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+
+        assertTrue(adapter.isSolidOwnedBy(volumeId, 0, 320, 0));
+        assertFalse(adapter.isSolidOwnedByOtherVolume(volumeId, 0, 320, 0));
+
+        SkyIslandWorldVolumeId unknown = new SkyIslandWorldVolumeId(
+                ROOT_SEED,
+                "unknown",
+                0,
+                0,
+                ROOT_SEED ^ 0x554e4b4e4f574eL);
+        assertFalse(adapter.isSolidOwnedBy(unknown, 0, 320, 0));
+    }
+
+    @Test
     void exactVolumeRematerializationExcludesOtherStackedVolumeAtSameXZ() {
         long lowerSeed = ROOT_SEED ^ 0x4c4f574552L;
         long upperSeed = ROOT_SEED ^ 0x5550504552L;
@@ -112,6 +134,14 @@ final class SkyforgeNeoForge1211ChunkAdapterTest {
         assertEquals(1, upper.candidateVolumeReferences());
         assertTrue(lower.solidBlockCount() > 0);
         assertTrue(upper.solidBlockCount() > 0);
+        assertTrue(adapter.isSolidOwnedBy(lowerId, 0, 236, 0));
+        assertTrue(adapter.isSolidOwnedBy(upperId, 0, 356, 0));
+        assertFalse(
+                adapter.isSolidOwnedByOtherVolume(lowerId, 0, 236, 0),
+                "upper volume must not claim the lower suspension sample");
+        assertTrue(
+                adapter.isSolidOwnedByOtherVolume(lowerId, 0, 356, 0),
+                "upper volume must be visible as a foreign owner at its suspension sample");
         assertEquals(
                 lower.solidBlockCount() + upper.solidBlockCount(),
                 composite.solidBlockCount(),
