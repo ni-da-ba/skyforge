@@ -1328,3 +1328,16 @@ Preserve the 72-bar form and locked motif. Further work should be limited to:
 - final game/OST mastering.
 
 Do not remove the second horizon or reopen large-scale form without a concrete listening defect.
+
+
+## Stereo mastering — Count the Leagues
+
+Approved 72-bar BBCSO render mastered for final audition.
+
+Shared EQ: -0.4 dB low shelf near 140 Hz; -0.8 dB broad cut near 500 Hz (Q ~0.85); +0.9 dB high shelf near 5 kHz.
+
+GAME: no broadband compression; about -19.6 LUFS, 13.8 LU LRA, -1.8 dBTP.
+
+OST: gentle 1.22:1 compression, max gain reduction about 2 dB; about -17.7 LUFS, 12.7 LU LRA, -1.0 dBTP.
+
+Full 175-second render and tail preserved. Final freeze depends on listening acceptance of these masters.
