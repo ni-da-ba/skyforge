@@ -115,6 +115,52 @@ Player lesson:
 
 This ladder is semantic. Generated settlements need not be labeled with maturity levels in-game.
 
+## Route-grammar integration
+
+Civilization should not merely demonstrate isolated infrastructure roles.
+
+It should demonstrate **routes between roles** using the same semantic grammar the player can reproduce.
+
+See [Cross-Dimension Route and Infrastructure Grammar v0.1](cross-dimension-route-and-infrastructure-grammar-v0.1.md).
+
+Examples:
+
+~~~text
+MINE
+    -> stockpile
+    -> cargo transfer
+    -> airfield / rail
+    -> processor
+
+WEATHER STATION
+    -> route information
+    -> safer/reliable air corridor
+
+NETHER FORTRESS STATION
+    -> defended corridor
+    -> farm / progression site
+
+END FORWARD DEPOT
+    -> navigation / repair / rescue
+    -> expanded expedition range
+~~~
+
+A generated route does not require visible constructed infrastructure on every edge.
+
+The semantic relationship can be expressed through:
+
+- approach clearances;
+- route markers;
+- rail/bridge fragments;
+- traffic evidence;
+- maps/signals;
+- storage orientation;
+- repeated functional adjacency.
+
+The player lesson should be:
+
+> Infrastructure becomes valuable because it makes a route repeatable.
+
 ## Teaching through spatial arrangement
 
 The first teaching layer is simply where structures are placed.
