@@ -189,7 +189,8 @@ ENTER HOSTILE WORLD
 - quartz;
 - Netherite;
 - lava / high-temperature industrial language;
-- Wolframite/Tungsten/Obdurium if Metallurgy remains selected;
+- CBC Steel/Nethersteel artillery and ammunition industry;
+- optional Create: Metallurgy general foundry if its process gameplay survives A/B;
 - soul-fire crystallization context;
 - farms and hostile sites.
 
@@ -207,19 +208,32 @@ heavy aircraft in selected spaces
 portal terminal
 ~~~
 
-### Key source-backed caution
+### Key source-backed heavy-industry result
 
-Create: Metallurgy's current Tungsten/Obdurium chain is primarily a **capital unlock**.
+CBC gives the Nether a durable industrial payoff without another ore family:
 
-Current source use is dominated by:
+~~~text
+Iron + Coal
+    -> Steel
 
-- material form conversion;
-- Obdurium production;
-- Industrial Crucible construction.
+Netherite Scrap
++ Steel or Cast Iron
++ SUPERHEATED
+    -> Nethersteel
+~~~
 
-Do not count Wolframite as permanent freight demand until actual pack use proves it.
+Steel and Nethersteel materially alter viable cannon/autocannon designs.
 
-### Full-realization gate
+The recurring logistics question is therefore not "how much Tungsten must the player mine?" but:
+
+- how much Steel/Nethersteel does realistic artillery consume;
+- how much ammunition does operation consume;
+- how valuable are Blaze/superheat and Netherite supply chains over time;
+- whether a larger Create: Metallurgy foundry makes that production materially better.
+
+Wolframite/Tungsten/Obdurium are excluded from current progression unless a later independent consumer reopens the case.
+
+### Full-realization gate### Full-realization gate
 
 The Nether earns full implementation scope when play shows:
 
@@ -634,15 +648,16 @@ Human review must judge:
 ### Nether
 
 6. How often does a mature player actually consume quartz?
-7. How much Tungsten/Obdurium is needed for realistic Metallurgy infrastructure?
-8. Does a fortress/bartering/mining network justify several maintained sites?
-9. Does roof access undermine authored routes even if aircraft pressure falls?
+7. How much Steel/Nethersteel and ammunition does a realistic CBC installation consume?
+8. Does CBC-only metalworking versus CBC + Create: Metallurgy produce a meaningful gameplay/throughput difference?
+9. Does a fortress/bartering/mining/artillery network justify several maintained sites?
+10. Does roof access undermine authored routes even if aircraft pressure falls?
 
 ### End
 
-10. How many Levitite blocks does a useful hybrid/heavy craft require?
-11. Does Levitite remain a design tradeoff in practice?
-12. Does pre-Dragon Levitite alter the Dragon fight?
+11. How many Levitite blocks does a useful hybrid/heavy craft require?
+12. Does Levitite remain a design tradeoff in practice?
+13. Does pre-Dragon Levitite alter the Dragon fight?
 13. After Elytra/Shulker acquisition, what still motivates repeated outer-End operations?
 14. Does forward staging measurably improve exploration?
 15. Is there enough recoverability for aircraft experimentation?
