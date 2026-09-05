@@ -4,6 +4,7 @@ import io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume;
 import io.github.nidaba.skyforge.recipes.skyisland.SkyIslandMorphologyProviderRegistry;
 import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandArchipelagoGroupPlan;
 import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandArchipelagoPlan;
+import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandArchipelagoRequest;
 import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandGroupMemberPlan;
 import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandMorphologySpecCompiler;
 import java.util.ArrayList;
@@ -56,5 +57,156 @@ public final class SkyIslandWorldCatalogCompiler {
             }
         }
         return new SkyIslandWorldCatalog(plan.rootSeed(), volumes);
+    }
+
+    /**
+     * Compiles the same world catalog while carrying every available AUTH-0052 provider-spec
+     * support certificate.
+     *
+     * <p>The existing query reservation remains unchanged. If a certified support envelope exceeds
+     * that reservation, compilation fails rather than publishing a query catalog that could cull
+     * real geometry.
+     */
+    public SkyIslandWorldCatalogSupportBundle compileWithSupport(
+            SkyIslandArchipelagoPlan plan,
+            SkyIslandMorphologyProviderRegistry registry,
+            SkyIslandWorldVerticalReservation verticalReservation) {
+        Objects.requireNonNull(plan, "plan");
+        Objects.requireNonNull(registry, "registry");
+        Objects.requireNonNull(verticalReservation, "verticalReservation");
+
+        ArrayList<SkyIslandWorldVolume> volumes =
+                new ArrayList<>(plan.totalMemberCount());
+        ArrayList<SkyIslandWorldVolumeSupportCertificate> certificates =
+                new ArrayList<>();
+
+        for (SkyIslandArchipelagoGroupPlan group : plan.groups()) {
+            for (int memberOrdinal = 0;
+                    memberOrdinal < group.groupPlan().memberCount();
+                    memberOrdinal++) {
+                SkyIslandGroupMemberPlan member =
+                        group.groupPlan().members().get(memberOrdinal);
+                var compilation =
+                        morphologyCompiler.compileWithSupport(
+                                member.descriptor(),
+                                member.morphology(),
+                                registry);
+                CompiledSkyIslandVolume compiled = compilation.volume();
+                var descriptor = member.descriptor();
+                double radius = member.reservedHorizontalRadius();
+                WorldBounds bounds =
+                        new WorldBounds(
+                                descriptor.centerX() - radius,
+                                descriptor.centerX() + radius,
+                                descriptor.suspensionElevation()
+                                        - verticalReservation.belowSuspension(),
+                                descriptor.suspensionElevation()
+                                        + verticalReservation.aboveSuspension(),
+                                descriptor.centerZ() - radius,
+                                descriptor.centerZ() + radius);
+                SkyIslandWorldVolumeId id =
+                        new SkyIslandWorldVolumeId(
+                                plan.rootSeed(),
+                                group.identifier(),
+                                group.ordinal(),
+                                memberOrdinal,
+                                descriptor.seed());
+                SkyIslandWorldVolume volume =
+                        new SkyIslandWorldVolume(id, bounds, compiled);
+                volumes.add(volume);
+                compilation.supportEnvelope()
+                        .ifPresent(
+                                envelope ->
+                                        certificates.add(
+                                                new SkyIslandWorldVolumeSupportCertificate(
+                                                        volume, envelope)));
+            }
+        }
+
+        SkyIslandWorldCatalog catalog =
+                new SkyIslandWorldCatalog(plan.rootSeed(), volumes);
+        return new SkyIslandWorldCatalogSupportBundle(catalog, certificates);
+    }
+
+    /**
+     * Executes one complete AUTH-0055 candidate exactly once and reports AUTH-0056 convergence.
+     *
+     * <p>This method does not retry, adjust margins, or compile world volumes.
+     */
+    public SkyIslandSupportConvergenceReport executeSupportAwareReplanOnce(
+            SkyIslandSupportReplanProposal proposal,
+            SkyIslandMorphologyProviderRegistry registry) {
+        return new SkyIslandSupportConvergenceExecutor().executeOnce(proposal, registry);
+    }
+
+    /**
+     * Builds an AUTH-0055 immutable re-plan proposal from matching original intent, exact plan,
+     * AUTH-0054 synthesis, current vertical reservation, and explicit author margin.
+     *
+     * <p>The builder validates provenance by replaying the original request only. It does not
+     * execute the candidate request.
+     */
+    public SkyIslandSupportReplanProposal proposeSupportAwareReplan(
+            SkyIslandArchipelagoRequest originalRequest,
+            SkyIslandArchipelagoPlan originalPlan,
+            SkyIslandSupportReservationRequirementSynthesis synthesis,
+            SkyIslandWorldVerticalReservation originalVerticalReservation,
+            SkyIslandSupportReplanMargin authorMargin) {
+        return new SkyIslandSupportReplanProposalBuilder()
+                .propose(
+                        originalRequest,
+                        originalPlan,
+                        synthesis,
+                        originalVerticalReservation,
+                        authorMargin);
+    }
+
+    /**
+     * Synthesizes AUTH-0054 admission-safe reservation minima for the exact deterministic plan.
+     *
+     * <p>The result is advisory and immutable. Applying larger horizontal/group reservations
+     * requires constructing a fresh planning request and re-running deterministic placement.
+     */
+    public SkyIslandSupportReservationRequirementSynthesis synthesizeSupportReservationRequirements(
+            SkyIslandArchipelagoPlan plan,
+            SkyIslandMorphologyProviderRegistry registry) {
+        return new SkyIslandSupportReservationRequirementSynthesizer()
+                .synthesize(plan, registry);
+    }
+
+    /**
+     * Evaluates AUTH-0053 support/reservation admission without compiling procedural graphs.
+     */
+    public SkyIslandSupportReservationPreflightReport preflightSupportReservations(
+            SkyIslandArchipelagoPlan plan,
+            SkyIslandMorphologyProviderRegistry registry,
+            SkyIslandWorldVerticalReservation verticalReservation) {
+        return new SkyIslandSupportReservationPreflight()
+                .evaluate(plan, registry, verticalReservation);
+    }
+
+    /**
+     * Compiles a fully proof-backed world catalog only after AUTH-0053 accepts every exact member
+     * and consumed reservation assumption.
+     *
+     * <p>Preflight runs before primary/full-volume compilation. Provider support certification may
+     * still construct a secondary-factor contribution in order to consume its declared analytical
+     * envelope.
+     */
+    public SkyIslandWorldCatalogSupportBundle compileProofBacked(
+            SkyIslandArchipelagoPlan plan,
+            SkyIslandMorphologyProviderRegistry registry,
+            SkyIslandWorldVerticalReservation verticalReservation) {
+        SkyIslandSupportReservationPreflightReport preflight =
+                preflightSupportReservations(plan, registry, verticalReservation);
+        preflight.requireAdmitted();
+
+        SkyIslandWorldCatalogSupportBundle bundle =
+                compileWithSupport(plan, registry, verticalReservation);
+        if (!bundle.fullyCertified()) {
+            throw new IllegalStateException(
+                    "AUTH-0053 admitted plan produced a partially certified world bundle");
+        }
+        return bundle;
     }
 }
