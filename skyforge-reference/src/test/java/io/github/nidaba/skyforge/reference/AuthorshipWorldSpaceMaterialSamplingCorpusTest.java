@@ -49,8 +49,14 @@ class AuthorshipWorldSpaceMaterialSamplingCorpusTest {
             assertEquals("0", columns[11]);
             assertEquals("0", columns[12]);
             assertEquals("0", columns[13]);
-            assertTrue(Double.parseDouble(columns[14]) <= 1.0e-9);
-            assertTrue(Double.parseDouble(columns[15]) <= 1.0e-12);
+            assertTrue(
+                    Double.parseDouble(columns[14]) <= 1.0e-9,
+                    "horizontal world/local round-trip drift exceeded AUTH-0047 tolerance: "
+                            + columns[14]);
+            assertTrue(
+                    Double.parseDouble(columns[15]) <= 1.0e-9,
+                    "column-relative depth drift exceeded AUTH-0047 tolerance: "
+                            + columns[15]);
             assertTrue(Integer.parseInt(columns[16]) > 0);
 
             totalVoid += Integer.parseInt(columns[7]);
