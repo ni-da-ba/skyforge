@@ -72,7 +72,7 @@ N/A
 | Atmosphere / physics | Wind/weather/thermals | Sable pressure decay + possible enclosed convection/heat | Sable thin-air pressure curve + future anomalous flow | PROFILED |
 | Navigation | Horizon + beacons + weather | Corridors + landmarks + maps | Void landmarks + gateways | PROFILED |
 | Aviation | Foundational logistics | Specialized enclosed-route tool; exact niche after testing | Late expedition / thin-air engineering candidate | PROFILED |
-| Resource geography | Metals/agriculture/fuel | Quartz/Wolframite/heat/blaze/etc. | Chorus/shulker/End loot/etc. | PROFILED |
+| Resource geography | Metals/agriculture/fuel | Quartz/Ancient Debris/heat/blaze/Nethersteel inputs | Chorus/shulker/End loot/etc. | PROFILED |
 | Native critical sites | Stronghold etc. | Fortress/bastion/portal | Dragon arena/gateways/End cities | SPECIALIZED |
 | Structure admission | Semantic + geometry | Semantic + enclosure geometry | Semantic + landmass geometry | SHARED framework |
 | Structure realization | Surface/subsurface/detached | Embedded/bridged/fortified | Surface/detached/tower/ship | PROFILED |
