@@ -1,7 +1,7 @@
 # Nether Gameplay and Aviation Contract v0.1
 
 **Snapshot:** 2026-09-05
-**Status:** Working design direction based on the current Minecraft/Create/Aeronautics/Metallurgy stack. Terrain grammar remains downstream of gameplay proof.
+**Status:** Working design direction based on the current Minecraft/Create/Aeronautics/CBC stack, with Create: Metallurgy retained only as an optional foundry A/B candidate. Terrain grammar remains downstream of gameplay proof.
 
 ## Core rule
 
@@ -15,7 +15,7 @@ It should begin by preserving and strengthening the reasons a mature Overworld p
 - brewing/Nether materials;
 - quartz and other dimension-native resources;
 - bastions and hostile civilization sites;
-- advanced metallurgy through Wolframite/Tungsten if Create: Metallurgy remains selected;
+- advanced heavy industry through CBC Steel/Nethersteel and optional general foundry processing;
 - high-temperature / soul-fire processes;
 - transport and recovery problems that differ from the Overworld.
 
@@ -95,75 +95,61 @@ Exact rarity and geography should be reviewed when Nether authorship begins.
 
 Do not make every resource strategic merely because Skyforge can localize it.
 
-## Advanced metallurgy: Wolframite / Tungsten
+## Heavy industry: Steel / Nethersteel / CBC
 
-Create: Metallurgy is currently a strong processing-depth candidate.
+Create: Big Cannons is a retained industrial system and gives the Nether a cleaner payoff than the previously proposed Wolframite/Tungsten ladder.
 
-Current 1.21.1 source places Wolframite in netherrack in the Nether.
+### Current source-backed material chain
 
-Existing Skyforge policy therefore remains, for the present vanilla-authored Nether:
-
-~~~text
-WOLFRAMITE
-    -> ALLOW_DIMENSION_NATIVE
-~~~
-
-This is provisional.
-
-If Skyforge begins authoring Nether geology, Wolframite placement should move under the same semantic resource-authority policy used for Overworld metals.
-
-### Current source-backed processing role
-
-Current Create: Metallurgy recipes establish:
+CBC can produce its mature cannon materials entirely from retained resources:
 
 ~~~text
-Wolframite Ore
-    -> crushing
-    -> Crushed Raw Tungsten
+Iron + Coal / Charcoal + HEATED
+    -> Steel
 
-Tungsten
-    -> molten Tungsten / cast material family
-
-Create Andesite Alloy
-+ 60 mB molten Tungsten
-+ SUPERHEATED alloying
-    -> 150 mB molten Obdurium
+Netherite Scrap
++ Steel or Cast Iron
++ SUPERHEATED
+    -> Nethersteel
 ~~~
 
-The current Industrial Crucible sequenced assembly consumes:
+CBC material properties make this an engineering transition rather than a cosmetic tier.
 
-- Obdurium plate;
-- molten Tungsten;
-- refractory mortar;
-- deepslate-brick starting body;
-- Create assembly/grinding/filling steps.
+Steel provides a major increase in viable cannon/autocannon performance.
 
-Therefore Nether Wolframite can serve a real capability role:
+Nethersteel further improves safe propellant stress and ballistic performance, but is heavier and not weldable.
 
-> access to advanced foundry-scale metallurgy.
-
-That is much stronger than treating Tungsten as a generic "higher-tier metal."
-
-### Gameplay implication
-
-Wolframite should support **repeated extraction**, not merely one lucky ore sample.
-
-A healthy loop may be:
+Therefore the Nether industrial loop can be:
 
 ~~~text
-find Wolframite-bearing district
-    -> establish safe access
-    -> mine / process ore
-    -> haul Tungsten out
-    -> build Obdurium / Industrial Crucible infrastructure
-    -> unlock deeper metallurgy
+find / establish Blaze and superheat capability
+    -> extract Netherite Scrap
+    -> maintain Steel supply from wider economy
+    -> manufacture Nethersteel
+    -> build high-performance artillery / fortification
 ~~~
 
-If Industrial Crucible scale proves modest enough that one backpack trip supplies everything permanently, the resource can remain an expedition material rather than being forced into bulk logistics.
+This uses already meaningful Nether resources instead of adding a new ore solely to support an addon.
 
-Measure actual recipe demand before deciding deposit scale.
+### Wolframite/Tungsten decision
 
-## Aeronautics: Sable Nether pressure
+The material-subtraction audit rejects Wolframite, Tungsten, and Obdurium from current Skyforge progression.
+
+~~~text
+WOLFRAMITE WORLDGEN
+    -> DISABLE / DO NOT AUTHOR
+
+TUNGSTEN / OBDURIUM
+    -> NOT REQUIRED
+~~~
+
+Create: Metallurgy may still survive as a general-purpose foundry if its bulk melting, multi-fluid crucibles, casting, and factory layout are sufficiently useful/fun in A/B testing.
+
+If retained, its Industrial Crucible should be re-gated with retained materials and its molten fluids should be bridged to CBC common molten-metal tags.
+
+See [Material and Process Retention Audit v0.1](material-and-process-retention-audit-v0.1.md) and [Create: Big Cannons Industrial Integration Audit v0.1](create-big-cannons-industrial-integration-audit-v0.1.md).
+
+## Aeronautics: Sable Nether pressure## Aeronautics: Sable Nether pressure
 
 Sable already gives the Nether a distinct pressure profile.
 
@@ -448,7 +434,9 @@ A gameplay-first Nether authoring system should consider a network of:
 PORTAL_NODE
 FORTRESS_NODE
 BASTION_NODE
-WOLFRAMITE_DISTRICT
+ANCIENT_DEBRIS_OPERATION
+NETHERSTEEL_WORKS
+ARTILLERY_FOUNDRY
 QUARTZ / ORDINARY_RESOURCE_DISTRICT
 LAVA_BASIN
 INDUSTRIAL_FOOTHOLD
@@ -527,8 +515,8 @@ If/when Skyforge takes terrain authority, classify resources semantically.
 Possible causes:
 
 ~~~text
-WOLFRAMITE
-    specific high-temperature / mineralized Nether lithology
+ANCIENT_DEBRIS
+    deep / old / exceptional geological context supporting Nethersteel industry
 
 QUARTZ
     broader but regionally variable mineral systems
@@ -597,13 +585,13 @@ Sable's pressure decay should be tested before adding any extra restriction.
 
 If the selected terrain uses chamber/corridor geometry, compact and heavy aircraft gain different practical route envelopes without hardcoded vehicle classes.
 
-### NETH-6 — Wolframite payoff
+### NETH-6 — heavy-industry payoff
 
-If Create: Metallurgy remains selected, obtaining Wolframite/Tungsten produces a meaningful advanced-metallurgy capability such as Obdurium/Industrial Crucible access.
+Nether access materially enables CBC Nethersteel and other high-temperature/heavy-industry capabilities worth maintaining after the first progression visit.
 
 ### NETH-7 — resource scale
 
-Wolframite and other specialized resources appear at scales appropriate to their actual recipe demand; neither trivial one-time fetch nor forced bulk freight is assumed without evidence.
+Quartz, Ancient Debris/Netherite, fuel/heat inputs, and other retained Nether resources appear at scales appropriate to real recipe/operational demand; neither trivial one-time fetch nor forced bulk freight is assumed without evidence.
 
 ### NETH-8 — structure usability
 
@@ -636,7 +624,8 @@ When the pack prototype exists, test:
 - ordinary Nether portal arrival;
 - fortress discovery and Blaze acquisition;
 - bastion approach;
-- Wolframite mine/extraction loop;
+- representative Ancient Debris/Netherite extraction loop;
+- representative Steel -> Nethersteel -> CBC production loop;
 - representative quartz/resource loop;
 - compact aircraft in low/mid Nether;
 - heavy aircraft in a large chamber;
@@ -672,10 +661,13 @@ ESTABLISH CORRIDOR
     -> mark, tunnel, bridge, rail, or fly where appropriate
 
 EXTRACT
-    -> quartz / Wolframite / other dimension resources
+    -> quartz / Ancient Debris / other retained dimension resources
 
 INDUSTRIALIZE
-    -> Blaze heat / Tungsten / Obdurium / foundry capability
+    -> Blaze heat / superheat
+    -> Nethersteel
+    -> advanced artillery / heavy engineering
+    -> optional general foundry capability if Metallurgy survives A/B
 
 OPERATE
     -> compact aircraft + ground infrastructure coexist
