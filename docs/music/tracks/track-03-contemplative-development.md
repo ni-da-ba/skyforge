@@ -3,7 +3,7 @@
 **Status:** Active development  
 **Role:** lonely / ponderous / thoughtful exploration state  
 **Current method:** melodic gate before full-cue expansion  
-**Current sketch:** Sketch 5 — song-like strings
+**Current sketch:** Sketch 6 — developing melody
 
 ## Emotional target
 
@@ -40,18 +40,6 @@ Track 03 is intended to test a different range boundary:
 
 ### Draft 1 — sparse 5/4 A-Dorian atmosphere
 
-Design:
-
-- 70 BPM;
-- 5/4, weak 3+2;
-- A-Dorian center;
-- viola as principal voice;
-- sparse piano/celeste;
-- distant horns;
-- no percussion.
-
-Result:
-
 The cue was lonely, but it did not make the listener sit and think. It resembled the ambient portions of Tracks 00 and 01.
 
 Retained lesson:
@@ -59,17 +47,6 @@ Retained lesson:
 > Sparsity can establish loneliness, but it does not automatically establish thought.
 
 ### Draft 2 — explicit question / answer
-
-Design:
-
-- 64 BPM;
-- 4/4;
-- piano states a short recognizable thought;
-- viola answers;
-- cello later inherits it;
-- silence separates statements.
-
-Result:
 
 The cue had more conceptual structure, but spent too much time with very little happening.
 
@@ -79,16 +56,6 @@ Retained lesson:
 
 ### Draft 3 — continuous piano “thought engine”
 
-Design:
-
-- 68 BPM;
-- continuous quiet piano figure;
-- viola/cello thematic inheritance;
-- low-pressure continuity;
-- restricted orchestral palette.
-
-Result:
-
 The cue was more continuously active, but the piano remained perceptually weak and the central material was not memorable enough.
 
 Retained lesson:
@@ -97,28 +64,17 @@ Retained lesson:
 
 ### Melodic Gate Sketch 1 — piano + cello reduction
 
-The method changed deliberately.
-
-Instead of writing another full cue, a roughly 16-bar piano/cello sketch was used to ask a severe question:
+The method changed deliberately. Instead of writing another full cue, a short piano/cello sketch asked a severe question:
 
 > Does the music itself matter before orchestration?
 
-This was the first Track 03 attempt that received a clearly positive response.
-
-The harmonic color was retained as a useful foundation.
+This was the first Track 03 attempt that received a clearly positive response. The harmonic/piano bed became the preserved foundation for later melodic work.
 
 ### Sketch 2 — structured string line
 
-The cello gained a clearer 16-bar architecture:
+The cello gained statement / answer / expansion / return form.
 
-- statement;
-- answer;
-- expansion / high point;
-- return.
-
-Result:
-
-Substantially better, but the line still felt too arbitrary to be memorable.
+Result: substantially better, but still too arbitrary to be memorable.
 
 Retained lesson:
 
@@ -128,11 +84,7 @@ Retained lesson:
 
 The cello received a repeated hook family, and viola / violins were derived from it rather than treated as unrelated counterpoint.
 
-Result:
-
-Much stronger. The cue finally possessed a recognizable identity.
-
-However, the string rhythm still read as a square one-two-three-four cadence.
+Result: much stronger. The cue finally possessed a recognizable identity, but the string rhythm still read as a square one-two-three-four cadence.
 
 Retained lesson:
 
@@ -140,107 +92,151 @@ Retained lesson:
 
 ### Sketch 4 — rhythmic character pass
 
-The hook was displaced with:
+Pickups, ties, delayed entries, offbeat viola, staggered violin fragments, and a contracted 3+3+2 high point attacked the square-meter symptom.
 
-- pickups;
-- ties across barlines;
-- delayed entries;
-- offbeat viola;
-- staggered violin fragments;
-- a contracted 3+3+2 high point.
-
-Result:
-
-The attempt attacked the symptom too locally. It made individual bars less square, but still treated “complexity” as something to add bar by bar.
+Result: the pass was still too mechanical. It made individual bars less square without making the larger melody more inevitable.
 
 Retained lesson:
 
-> Rhythmic variation must be downstream of a musical sentence, not applied as a corrective decoration.
+> Rhythmic variation must be downstream of phrase shape.
 
-## Reference-listening conclusion
+### Sketch 5 — song-like melodic sentence
 
-The relevant reference works do not achieve memorability by constantly varying every beat.
-
-Broad lessons extracted from the current analytical references:
-
-### Space Junk Road
-
-The piano / harmonic layer maintains gentle continuity while the musical foreground is allowed to breathe.
-
-### Rosalina in the Observatory
-
-The cue has a recognizable lyrical identity at phrase scale. Repeated statements remain identifiable while orchestration and countermelody change around them.
-
-### Outer Wilds
-
-Recurring small-scale ideas gain emotional meaning through repetition, placement, and context rather than constant novelty.
-
-The important conclusion for Track 03 is:
-
-> Write one melody somebody could remember, then let the arrangement reinterpret it.
-
-## Current Sketch 5
-
-Sketch 5 abandons “make every bar interesting” as a design goal.
-
-The cello instead owns a song-like 16-bar architecture:
-
-```text
-A   bars 1-4
-A'  bars 5-8
-B   bars 9-12
-A'' bars 13-16
-```
-
-The characteristic head is:
+Sketch 5 moved to phrase-scale writing. The cello had a recognizable melodic head:
 
 ```text
 F -> A -> D -> C
 ```
 
-Its interval profile is:
+and a larger A / A′ / B / A″ design.
 
-- up a third;
-- up a fourth;
-- step back.
+Result: the song-like approach was clearly stronger, but the development was still too close to “one sentence returns at another level.”
 
-The head returns at **phrase scale**, not every bar.
+Retained lesson:
 
-### String roles
+> Recognizable melody needs genuine continuation and development, not only transposition or re-statement.
 
-- cello: complete melodic sentence;
-- viola: derived memory / answer of the head;
-- violin 2: phrase-tail bridge;
-- violin 1: mainly the B-section expansion and apex.
+## Reference-listening conclusion
 
-There is one intended major apex in bar 11 rather than a repeated local swell in every phrase.
+Analytical reference listening has converged on a stronger rule.
+
+The relevant music does not achieve memorability by constantly varying every beat, nor by simply restating one phrase at different pitches.
+
+Useful structural lessons:
+
+### Space Junk Road
+
+A continuous piano / harmonic layer carries low-pressure motion while the lead material is free to form longer melodic sentences.
+
+### Rosalina in the Observatory
+
+A lyrical identity remains recognizable across genuine continuation, contrasting material, orchestral handoffs, and later return.
+
+### Outer Wilds
+
+Small recurring ideas gain meaning through placement and context; repetition is useful when it participates in an argument rather than substituting for one.
+
+Current Track 03 rule:
+
+> Establish a memorable first thought, introduce a real second thought, develop fragments of both, then let the return reveal that the music has changed.
+
+## Current Sketch 6 — developing melody
+
+Sketch 6 deliberately abandons the model of one complete sentence repeated at different pitch levels.
+
+Its 16-bar logic is:
+
+```text
+bars 1-4    Theme A — cello
+bars 5-8    Theme B — viola
+bars 9-12   development — A/B fragments, exchange, compression, synthesis
+bar 11      single developmental apex
+bars 13-14  recognizable return of Theme A
+bars 15-16  new ending — Theme B answers Theme A
+```
+
+### Theme A
+
+Cello identity:
+
+```text
+F -> A -> D -> C
+```
+
+Character:
+
+- broad upward reach;
+- then a “looking back” descent;
+- lyrical rather than metrically busy.
+
+### Theme B
+
+Viola owns a genuinely different second thought:
+
+```text
+C -> D -> E -> G
+F -> E -> C -> D
+```
+
+Character:
+
+- more stepwise;
+- more conversational;
+- more inward than Theme A.
+
+### Development
+
+Bars 9–12 stop presenting either theme as a complete sentence.
+
+Instead:
+
+- cello states an A-head fragment;
+- viola interrupts with B-derived stepwise material;
+- A returns inverted / redirected;
+- B rhythm and A intervals begin to fuse;
+- the combined material reaches one apex rather than another full repetition.
+
+### Return and synthesis
+
+Bars 13–14 restore the opening of Theme A closely enough to trigger recognition.
+
+Bars 15–16 do **not** repeat A’s original answer. Theme B’s stepwise language supplies the final response.
+
+This is the intended developmental proposition:
+
+> A thought occurs; another thought answers it; the two are mentally worked over; when the first thought returns, the second has changed what it means.
 
 ## Current source identity
 
-Sketch 5 SHA-256:
+Sketch 6 uncompressed MIDI SHA-256:
 
 ```text
-013fc776b59c3ae9d7f356d4f65f8423794d64d87514545918f6e6deaa393e19
+e41498d0c6fa0b29dc4f4ec5b5cf4a7d2dd44967dd707b15e905fff8c26cfec8
 ```
 
-Authoring source:
+Repository source:
 
 ```text
-SF_Track03_MelodicGate_Sketch5_SONGLIKE_STRINGS.mid
+assets/music/source/track-03-sketch-06-developing-melody.mid.gz
 ```
 
-## Acceptance gate for the next step
+The repository stores this exact MIDI gzip-compressed. Decompression reproduces the authoring MIDI whose SHA-256 is recorded above.
 
-Do **not** expand Track 03 to a full cue until the current short sketch passes the following tests:
+Sketch 5 remains in repository history as the accepted predecessor rather than being rewritten out of the record.
 
-1. the principal melodic head is recognizable after one listen;
-2. bars 1–4 sound like one sentence rather than four designed bars;
-3. A′ sounds related without merely repeating A;
-4. B creates real contrast without sounding like a different cue;
-5. the apex feels earned;
-6. A″ is satisfying because the opening identity is recognizable;
-7. the strings sound intentionally melodic rather than generated from structural rules.
+## Acceptance gate for full-cue expansion
 
-If the melodic gate passes, the next step is full-cue development while preserving the accepted 16-bar lineage.
+Do **not** expand Track 03 to a full cue until the short sketch passes these tests:
 
-If it fails, rewrite the melody again. Do not rescue it with orchestration.
+1. Theme A is recognizable after one listen;
+2. Theme B reads as an actual second thought, not Theme A transposed;
+3. bars 9–12 sound like development rather than another statement;
+4. the bar-11 apex feels earned by the combined material;
+5. Theme A is immediately recognizable on return;
+6. the final B-derived answer makes the return feel changed;
+7. the 16-bar sketch feels as though it went somewhere;
+8. the strings sound intentionally melodic rather than generated from structural rules.
+
+If the gate passes, expand this A/B/development/synthesis lineage into the full cue.
+
+If it fails, rewrite the melodic argument again. Do not rescue it with orchestration.
