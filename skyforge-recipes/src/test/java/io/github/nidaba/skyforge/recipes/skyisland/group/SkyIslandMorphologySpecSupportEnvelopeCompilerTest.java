@@ -38,7 +38,7 @@ final class SkyIslandMorphologySpecSupportEnvelopeCompilerTest {
         assertEquals(ordinary, supported.volume());
         CertifiedSkyIslandSupportEnvelope envelope =
                 supported.supportEnvelope().orElseThrow();
-        assertEquals(
+        assertEnvelopeExtents(
                 expected(descriptor, registry.require(id), 1.0, 1.0),
                 envelope);
         assertEquals("provider-spec-v1:" + id, envelope.certificateKind());
