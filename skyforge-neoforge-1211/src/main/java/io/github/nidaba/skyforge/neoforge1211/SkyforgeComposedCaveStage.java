@@ -43,6 +43,8 @@ final class SkyforgeComposedCaveStage {
     private static final int MAX_PREPARE_COLUMNS_PER_SERVICE = 8;
     private static final int MAX_PREPARE_VOXELS_PER_SERVICE = 2048;
     private static final int MAX_PREPARE_CANONICAL_SAMPLES_PER_SERVICE = 32;
+    private static final int MAX_NATIVE_CARVER_START_CHECKS_PER_SERVICE = 16;
+    private static final int MAX_AUTHORED_COMMIT_WRITES_PER_SERVICE = 512;
     private static final AtomicReference<Binding> ACTIVE = new AtomicReference<>();
 
     private SkyforgeComposedCaveStage() {}
@@ -98,6 +100,8 @@ final class SkyforgeComposedCaveStage {
 
         Binding binding = new Binding(
                 obligations,
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>(),
                 new LinkedHashMap<>(),
                 new LinkedHashMap<>());
         if (!ACTIVE.compareAndSet(null, binding)) {
@@ -242,16 +246,60 @@ final class SkyforgeComposedCaveStage {
                     ownerSpan.x(),
                     ownerSpan.minimumY() + (ownerSpan.maximumY() - ownerSpan.minimumY()) / 2,
                     ownerSpan.z());
-            var result = SkyforgeComposedCaveRealizer.realizePrepared(
-                    level,
-                    noiseGenerator,
-                    populationPlan.biomeResolver(),
-                    volume,
-                    prepared,
+
+            SkyforgeNativeCarverCursor nativeCursor;
+            synchronized (binding) {
+                nativeCursor = binding.nativeCarvers().get(key);
+                if (nativeCursor == null) {
+                    nativeCursor = new SkyforgeNativeCarverCursor(
+                            level,
+                            noiseGenerator,
+                            populationPlan.biomeResolver(),
+                            volumeId,
+                            chunk,
+                            biomeSample,
+                            ownerSpan.minimumY(),
+                            ownerSpan.maximumY());
+                    binding.nativeCarvers().put(key, nativeCursor);
+                }
+            }
+
+            var nativeAdvance = nativeCursor.advance(
                     chunk,
-                    biomeSample,
-                    ownerSpan.minimumY(),
-                    ownerSpan.maximumY());
+                    MAX_NATIVE_CARVER_START_CHECKS_PER_SERVICE);
+            if (!nativeAdvance.complete()) {
+                return nativeAdvance.worked() ? ServiceResult.progressed() : ServiceResult.idle();
+            }
+            var nativeResult = nativeCursor.result();
+
+            SkyforgeExteriorConnectedCaveCommitCursor authoredCommit;
+            synchronized (binding) {
+                authoredCommit = binding.authoredCommits().get(key);
+                if (authoredCommit == null) {
+                    authoredCommit = new SkyforgeExteriorConnectedCaveCommitCursor(
+                            volume,
+                            prepared,
+                            chunk);
+                    binding.authoredCommits().put(key, authoredCommit);
+                }
+            }
+
+            var authoredAdvance = authoredCommit.advance(
+                    level,
+                    chunk,
+                    MAX_AUTHORED_COMMIT_WRITES_PER_SERVICE);
+            if (!authoredAdvance.complete()) {
+                return authoredAdvance.worked() ? ServiceResult.progressed() : ServiceResult.idle();
+            }
+            var authoredResult = authoredCommit.result();
+            if (!authoredResult.accepted()) {
+                throw new IllegalStateException(
+                        "prepared AUTH-0030 authored commit rejected after successful preflight");
+            }
+
+            var result = new SkyforgeComposedCaveRealizer.Result(
+                    nativeResult,
+                    authoredResult);
             Completion completion = new Completion(
                     volumeId,
                     chunk.getPos(),
@@ -261,6 +309,8 @@ final class SkyforgeComposedCaveStage {
                     Optional.of(result));
             synchronized (binding) {
                 binding.preparations().remove(key);
+                binding.nativeCarvers().remove(key);
+                binding.authoredCommits().remove(key);
             }
             complete(binding, key, obligation, completion);
             return ServiceResult.completed(completion);
@@ -592,11 +642,15 @@ final class SkyforgeComposedCaveStage {
     private record Binding(
             LinkedHashMap<ObligationKey, Obligation> obligations,
             LinkedHashMap<ObligationKey, Optional<OwnerSpan>> ownerSpans,
-            LinkedHashMap<ObligationKey, SkyforgeExteriorConnectedCavePreparationCursor> preparations) {
+            LinkedHashMap<ObligationKey, SkyforgeExteriorConnectedCavePreparationCursor> preparations,
+            LinkedHashMap<ObligationKey, SkyforgeNativeCarverCursor> nativeCarvers,
+            LinkedHashMap<ObligationKey, SkyforgeExteriorConnectedCaveCommitCursor> authoredCommits) {
         private Binding {
             Objects.requireNonNull(obligations, "obligations");
             Objects.requireNonNull(ownerSpans, "ownerSpans");
             Objects.requireNonNull(preparations, "preparations");
+            Objects.requireNonNull(nativeCarvers, "nativeCarvers");
+            Objects.requireNonNull(authoredCommits, "authoredCommits");
         }
     }
 
