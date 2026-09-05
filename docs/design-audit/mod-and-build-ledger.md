@@ -158,6 +158,20 @@ Staged Structure Site Capability Profile
 Structure-to-Authorship Negotiation Policy
 ```
 
+### Civilization
+~~~text
+Province Civilization Context
+Cluster Settlement Plan
+Settlement Tier
+Island Functional Roles
+Coarse Needs / Capacities
+Route / Logistics Intent
+Maintenance / Abandonment State
+Faction / Control State
+Settlement Site Planning
+Distance / Horizon Signaling
+~~~
+
 ### World composition
 ```text
 Sky Exposure / Persistent Occlusion Metrics
