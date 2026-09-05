@@ -74,7 +74,7 @@ final class SkyforgePhysicalVolumeCatchupService {
                 if (chunk == null) {
                     continue;
                 }
-                if (!SkyforgeComposedCaveStage.service(level, chunk, generator).isEmpty()) {
+                if (SkyforgeComposedCaveStage.service(level, chunk, generator).worked()) {
                     servicedComposedCaveChunks++;
                 }
             }
