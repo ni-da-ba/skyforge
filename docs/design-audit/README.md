@@ -71,4 +71,5 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Atmosphere, aviation, navigation, and horizon](atmosphere-aviation-navigation.md)
 - [Threats, hostile spawning, and farm compatibility](threats-and-spawn-governance.md)
 - [Structures, dungeons, settlements, and realization modes](structures-and-realization-modes.md)
+- [Structure realization contract v0.1](structure-realization-contract-v0.1.md)
 - [Working mod and to-build ledger](mod-and-build-ledger.md)
