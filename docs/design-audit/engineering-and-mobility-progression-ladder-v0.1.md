@@ -140,6 +140,41 @@ Design goal:
 
 > Flight should unlock economic geography, not merely sightseeing.
 
+## Post-flight capability rule
+
+After P2, progression should be evaluated as a branching capability graph rather than a strict ore ladder.
+
+Current strong branches include:
+
+~~~text
+COPPER
+    -> fluids / wiring / early electrical generation
+
+ZINC + COPPER
+    -> Brass
+    -> mature logistics / control / engines
+
+REDSTONE + NETHER QUARTZ
+    -> Create control / Electron Tube chain
+
+PETROLEUM
+    -> refinery / strategic fuel network / heavy engines
+
+ELECTRICITY
+    -> conversion / distribution / storage / computation
+
+NETHER HEAT / METALLURGY
+    -> superheat / foundry capability
+
+END STONE
+    -> Levitite
+    -> new lift-support vehicle architecture
+~~~
+
+A resource earns progression importance only when it changes what the player can engineer.
+
+See [Post-Flight Capability Payoff Audit v0.1](post-flight-capability-payoff-audit-v0.1.md).
+
 ## Stage P3 — cargo and industrial aviation
 
 Player capabilities:
