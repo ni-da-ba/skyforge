@@ -700,7 +700,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-composed-cave-a")
-            systemProperty("skyforge.dev.acceptanceRadius", "10")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
             systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
@@ -721,7 +721,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-composed-cave-b")
-            systemProperty("skyforge.dev.acceptanceRadius", "10")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
             systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
@@ -762,7 +762,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-composed-cave-stacked")
-            systemProperty("skyforge.dev.acceptanceRadius", "10")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
             systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
