@@ -28,6 +28,23 @@ public record SkyIslandWorldAuthoredMaterialSample(
         } else {
             realizedPosition = Objects.requireNonNull(realizedPosition, "realizedPosition");
             realization = Objects.requireNonNull(realization, "realization");
+            if (!realizedPosition.horizontalPosition().equals(semanticPosition.surfacePosition())) {
+                throw new IllegalArgumentException(
+                        "realized and semantic samples must share island-local horizontal position");
+            }
+            var physicalDescriptor =
+                    association.realizedVolume().compiledVolume().descriptor();
+            double expectedLocalX = worldPosition.x() - physicalDescriptor.centerX();
+            double expectedLocalZ = worldPosition.z() - physicalDescriptor.centerZ();
+            if (Double.doubleToLongBits(expectedLocalX)
+                            != Double.doubleToLongBits(realizedPosition.localX())
+                    || Double.doubleToLongBits(expectedLocalZ)
+                            != Double.doubleToLongBits(realizedPosition.localZ())
+                    || Double.doubleToLongBits(worldPosition.y())
+                            != Double.doubleToLongBits(realizedPosition.physicalY())) {
+                throw new IllegalArgumentException(
+                        "world position must match the AUTH-0046 realized local frame");
+            }
             if (realization.materialPresent() != (application != null)) {
                 throw new IllegalArgumentException(
                         "AUTH-0045 application presence must match AUTH-0044 material presence");
