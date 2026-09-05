@@ -195,3 +195,20 @@ Compact source and engineering records belong in the repository.
 Large derived WAV masters are not part of MUS-0001 because they add substantial repository weight and are reproducible from the source session/render chain. If the soundtrack later needs distributable binaries in version control, use a deliberate release or large-file strategy rather than silently bloating ordinary Git history.
 
 Third-party sample content and copyrighted reference works must never be committed.
+
+
+### BBCSO percussion mapping is not General MIDI
+
+BBCSO Discover's Untuned Percussion patch must not be authored from General MIDI drum-number assumptions.
+
+Relevant confirmed white-key mapping used by Skyforge includes:
+
+- C2 / MIDI 36 — Bass Drum;
+- D2 / MIDI 38 — Tenor Drum;
+- E2 / MIDI 40 — Snare Drum;
+- F2 / MIDI 41 — Suspended Cymbal;
+- G2 / MIDI 43 — Suspended Cymbal Roll;
+- B2 / MIDI 47 — Tam Tam;
+- B3 / MIDI 59 — Piatti.
+
+Track 06 Draft 02 exposed this defect when GM-style notes 42 and 49 failed to realize the intended hits. Future percussion authoring must use the BBCSO map explicitly and should receive a percussion-only audition before orchestral acceptance.
