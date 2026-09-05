@@ -177,6 +177,10 @@ Successor-Use / Repurposing State
 Data-Driven Active / Declining / Abandoned / Occupied Variants
 Asset-Role Indirection / Fallback Mapping
 Functional Civilization Loot Tables
+Settlement Service Profile
+Active / Abandoned / Hostile Interaction Policy
+Navigation / Weather Information Rewards
+Repairable Infrastructure via Ordinary Block Mechanics
 ~~~
 
 ### World composition
