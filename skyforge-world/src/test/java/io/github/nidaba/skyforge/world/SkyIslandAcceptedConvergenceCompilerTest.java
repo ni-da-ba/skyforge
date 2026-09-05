@@ -49,7 +49,7 @@ final class SkyIslandAcceptedConvergenceCompilerTest {
         SkyIslandSupportConvergenceReport convergence =
                 acceptedConvergence(
                         57001L,
-                        new ProviderMorphologySpec(id, 1.0, 1.0),
+                        new ProviderMorphologySpec(id, 0.0, 0.0),
                         registry,
                         360.0,
                         440.0);
@@ -256,7 +256,7 @@ final class SkyIslandAcceptedConvergenceCompilerTest {
         SkyIslandSupportConvergenceReport convergence =
                 acceptedConvergence(
                         57005L,
-                        new ProviderMorphologySpec(id, 1.0, 1.0),
+                        new ProviderMorphologySpec(id, 0.0, 0.0),
                         registry,
                         360.0,
                         440.0);
