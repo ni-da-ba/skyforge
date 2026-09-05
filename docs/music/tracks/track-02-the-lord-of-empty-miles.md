@@ -214,3 +214,18 @@ The MIDI-49 events occur at bars 27, 28, 37, 41, 44, 53, 57, 60, 61, 65, 68, 77,
 This is a latent implementation defect in the authored percussion layer, not a discovered failure of the accepted composition. The frozen BBCSO render/master was reviewed and accepted with those events effectively absent or nonfunctional.
 
 Do not silently alter the frozen Track 02 master. If Track 02 is remastered or re-rendered in the future, create an explicit A/B correction candidate for these 14 accents and judge whether restoring them improves the cue before replacing the canonical source.
+
+
+### Octave-convention correction to the audit
+
+The first post-freeze percussion audit incorrectly treated Spitfire's documented C2 as MIDI note 36.
+
+That conversion was wrong. BBCSO Discover's Spitfire convention places MIDI note 0 at C-2, so C2 corresponds to MIDI 48.
+
+Accordingly, the frozen Track 02 PERC lane requires a broader future correction than first recorded:
+
+- MIDI 36 events are one octave below the intended BBCSO Bass Drum key;
+- MIDI 41 events are one octave below the intended BBCSO Suspended Cymbal key if that was their authored intent;
+- MIDI 49 events also retain the separate GM-style crash-assumption problem.
+
+Do not modify the frozen master yet. When the user returns to the dragon MIDI, rebuild the PERC mapping from intended instrument function to absolute BBCSO MIDI numbers and A/B the result against the accepted render.
