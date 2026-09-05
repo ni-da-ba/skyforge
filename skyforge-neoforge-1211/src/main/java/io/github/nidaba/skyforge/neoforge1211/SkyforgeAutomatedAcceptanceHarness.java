@@ -90,6 +90,13 @@ final class SkyforgeAutomatedAcceptanceHarness {
                         "SKYFORGE AUTOMATED ACCEPTANCE WARMUP: case=" + caseId()
                                 + ", radiusChunks=" + radius()
                                 + ". Development harness synchronously loaded the finite proof footprint.");
+            } else {
+                // Acceptance is the independent load reason for this finite proof corpus. Retouch
+                // the same bounded footprint every tick so production no-ticket services can keep
+                // resuming work without the chunk manager unloading a cursor's target between
+                // quanta. This remains test orchestration: production code still uses getChunkNow
+                // and never creates generation tickets of its own.
+                warmOriginFootprint(level);
             }
         }
 
