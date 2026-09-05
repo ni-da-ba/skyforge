@@ -64,6 +64,7 @@ This document consolidates the current candidate stack from the content-integrat
 - Elytra Tuning — reserve tuning candidate if reduced boost strength/duration is preferable to a binary disable
 
 - Aerodynamics4MC
+- Create Propulsion: Simulated — strong advanced-propulsion R&D candidate for 1.21.1 NeoForge; chemical/solid/ion thrust and optional pressure coupling are especially relevant to End/high-altitude gameplay, but recipe balance and pressure configuration are not locked
 - Simple Clouds
 - Weather2 / Expanded Weather2 Dynamics for severe-weather R&D only
 - Birds/Boids Reforged
@@ -236,9 +237,15 @@ Optional Hazardous Rocket-Use Feedback
 Riptide-to-Glider Acceptance
 Nether Portal Distance-Compression Audit
 1:1 Nether Dimension-Type Datapack Prototype
+Dimension Gameplay Requirements
 Cross-Dimension Skyforge Authorship Strategy
 Dimension World-Grammar Matrix
 Dimension-Domain Authority Boundary
+Sable Dimension-Physics Acceptance
+End Thin-Air Aircraft Acceptance
+Nether Roof-Pressure Aviation Acceptance
+Cross-Dimension Contraption Transfer Audit
+Advanced Low-Pressure Propulsion Audit
 Outer-End Skyforge Pilot
 End Gateway / End City Compatibility Contract
 Nether Solid-Dominant Cavern Province Pilot
@@ -318,3 +325,7 @@ non-omniscient sensor access to Skyforge truth
 22. Cross-dimension reuse should occur at the kernel/planning/provenance/ownership level while each dimension keeps a distinct semantic terrain grammar.
 23. Prefer the outer End as the first cross-dimension pilot; use a solid-dominant Nether cavern province to test whether the architecture generalizes beyond suspended islands.
 24. Do not rename/generalize the accepted SkyIsland APIs until a real second-domain implementation proves what abstraction is actually shared.
+25. Dimension morphology is downstream of gameplay role, progression, traversal, resources, Aeronautics behavior, structures, and hazards.
+26. Preserve and test Sable's existing dimension-pressure physics before adding bespoke End/Nether flight penalties.
+27. Do not assume assembled Aeronautics craft can cross Nether portals, End portals, or End gateways; cross-dimension contraption transfer requires explicit proof.
+28. Advanced reaction/ion propulsion should earn a specialized low-pressure/high-altitude role rather than replacing propellers everywhere.
