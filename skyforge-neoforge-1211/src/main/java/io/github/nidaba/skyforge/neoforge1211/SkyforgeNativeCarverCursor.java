@@ -19,7 +19,6 @@ import net.minecraft.world.level.levelgen.Aquifer;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
-import net.minecraft.world.level.levelgen.RandomSupport;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.level.levelgen.carver.CarvingContext;
 import net.minecraft.world.level.levelgen.carver.ConfiguredWorldCarver;
@@ -118,7 +117,11 @@ final class SkyforgeNativeCarverCursor {
         this.aquifer = Aquifer.createDisabled((x, y, z) ->
                 new Aquifer.FluidStatus(Integer.MIN_VALUE, Blocks.AIR.defaultBlockState()));
         this.mask = new CarvingMask(targetHeight, targetMinimumBuildY);
-        this.random = new WorldgenRandom(new LegacyRandomSource(RandomSupport.generateUniqueSeed()));
+        // Every source/carver attempt is reseeded immediately through setLargeFeatureSeed(...).
+        // Start the wrapper from a fixed value rather than process entropy so no implementation
+        // detail of WorldgenRandom/LegacyRandomSource can leak JVM-specific state into a production
+        // cursor before or between those deterministic reseeds.
+        this.random = new WorldgenRandom(new LegacyRandomSource(0L));
 
         if (carvers.isEmpty()) {
             finish();
