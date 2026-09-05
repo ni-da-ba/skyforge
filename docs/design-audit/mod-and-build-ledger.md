@@ -57,6 +57,8 @@ This document consolidates the current candidate stack from the content-integrat
 
 ## Strong prototypes / decision-stage candidates
 
+- FTB Quests — leading guided-onboarding/quest-book prototype; vanilla advancements remain lightweight fallback
+
 - Aerodynamics4MC
 - Simple Clouds
 - Weather2 / Expanded Weather2 Dynamics for severe-weather R&D only
@@ -204,6 +206,19 @@ Resource Evidence / Telemetry
 Engineering / Mobility Progression Ladder
 First-Flight Transitive Recipe Closure Audit
 Cargo / Logistics Progression
+Bootstrap Region Recipe
+Scope-Flexible Progression Guarantees
+Starting-Region Traversal Proof
+Quest-Off Bootstrap Acceptance
+~~~
+
+### Onboarding / guidance
+~~~text
+Skyforge Milestone / Advancement Semantics
+Optional FTB Quests Adapter
+Bootstrap Evidence Hooks
+Optional Structure/Role Visit Detection
+Compact Quest/Guidance Content
 ~~~
 
 ### World composition
