@@ -79,7 +79,7 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
         return completed.size();
     }
 
-    private static Optional<SurfaceSample> findSurface(
+    static Optional<SurfaceSample> findSurface(
             WorldGenLevel level,
             SkyIslandWorldVolumeId volumeId,
             ChunkPos chunkPos) {
