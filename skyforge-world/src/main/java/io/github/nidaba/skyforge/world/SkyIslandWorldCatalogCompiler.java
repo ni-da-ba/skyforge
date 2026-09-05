@@ -129,6 +129,17 @@ public final class SkyIslandWorldCatalogCompiler {
     }
 
     /**
+     * Compiles one AUTH-0056 ACCEPTED_ONE_PASS convergence report into a fully certified world
+     * support bundle exactly once.
+     */
+    public SkyIslandAcceptedConvergenceCompilation compileAcceptedConvergenceOnce(
+            SkyIslandSupportConvergenceReport convergence,
+            SkyIslandMorphologyProviderRegistry registry) {
+        return new SkyIslandAcceptedConvergenceCompiler()
+                .compileOnce(convergence, registry);
+    }
+
+    /**
      * Executes one complete AUTH-0055 candidate exactly once and reports AUTH-0056 convergence.
      *
      * <p>This method does not retry, adjust margins, or compile world volumes.
