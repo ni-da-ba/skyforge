@@ -10,7 +10,7 @@ import java.util.Objects;
  * It is stateless and independent of sample/chunk traversal order.
  */
 public final class SkyIslandMaterialExpressionSpatialField {
-    private static final double HORIZONTAL_CELL_SIZE = 8.0;
+    private static final double HORIZONTAL_CELL_SIZE = 14.0;
     private static final double DEPTH_CELL_COUNT = 6.0;
     private static final long FNV_OFFSET_BASIS = 0xcbf29ce484222325L;
     private static final long FNV_PRIME = 0x100000001b3L;
