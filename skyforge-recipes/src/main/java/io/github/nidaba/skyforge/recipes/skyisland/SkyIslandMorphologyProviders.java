@@ -98,11 +98,13 @@ public final class SkyIslandMorphologyProviders {
             Objects.requireNonNull(descriptor, "descriptor");
             return Optional.of(
                     new PrimaryMorphologySupportEnvelope(
-                            CERTIFIED_MAXIMUM_HORIZONTAL_RADIUS_FACTOR
-                                    * descriptor.nominalRadius(),
-                            descriptor.upperElevation(),
-                            CERTIFIED_MAXIMUM_UNDERSIDE_DEPTH_FACTOR
-                                    * descriptor.undersideDepth()));
+                            Math.nextUp(
+                                    CERTIFIED_MAXIMUM_HORIZONTAL_RADIUS_FACTOR
+                                            * descriptor.nominalRadius()),
+                            Math.nextUp(descriptor.upperElevation()),
+                            Math.nextUp(
+                                    CERTIFIED_MAXIMUM_UNDERSIDE_DEPTH_FACTOR
+                                            * descriptor.undersideDepth())));
         }
 
         @Override
