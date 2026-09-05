@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
+import io.github.nidaba.skyforge.recipes.skyisland.CertifiedSkyIslandSupportEnvelope;
 import io.github.nidaba.skyforge.recipes.skyisland.MorphologyFamily;
 import io.github.nidaba.skyforge.recipes.skyisland.MorphologyProviderBlend;
 import io.github.nidaba.skyforge.recipes.skyisland.MorphologyProviderId;
@@ -235,6 +236,46 @@ final class SkyIslandSupportReservationPreflightTest {
                                                 registry,
                                                 ADEQUATE_VERTICAL));
         assertTrue(error.getMessage().contains("AUTH-0053"));
+    }
+
+    @Test
+    void exactExtentEqualityNeedsTheSameOutwardWorldSpaceMarginAsAuth0052() {
+        var envelope =
+                new CertifiedSkyIslandSupportEnvelope(
+                        100.0, 50.0, 50.0, "test");
+        var exact =
+                new SkyIslandSupportReservationMemberCheck(
+                        0,
+                        "group",
+                        0,
+                        1L,
+                        "test",
+                        0.0,
+                        0.0,
+                        0.0,
+                        100.0,
+                        50.0,
+                        50.0,
+                        Optional.of(envelope));
+        var outwardMargin =
+                new SkyIslandSupportReservationMemberCheck(
+                        0,
+                        "group",
+                        0,
+                        1L,
+                        "test",
+                        0.0,
+                        0.0,
+                        0.0,
+                        Math.nextUp(100.0),
+                        Math.nextUp(50.0),
+                        Math.nextUp(50.0),
+                        Optional.of(envelope));
+
+        assertFalse(exact.horizontalReservationAdequate());
+        assertFalse(exact.verticalReservationAdequate());
+        assertTrue(outwardMargin.horizontalReservationAdequate());
+        assertTrue(outwardMargin.verticalReservationAdequate());
     }
 
     @Test
