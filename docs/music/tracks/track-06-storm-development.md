@@ -369,3 +369,18 @@ No rhythm, timing, velocity, form, or orchestration was changed.
 Current MIDI SHA-256:
 
 `921e8a640f53d7f857e65474710e3f266c96346862120ff455aac27d0e245169`
+
+
+## Draft 02.3 — percussion level pass
+
+After correcting the PERC absolute-note octave, the user confirmed Track 12 is now audible but judged it too quiet.
+
+This pass preserves composition and mapping while increasing Track 12 impact:
+
+- raises all PERC note velocities;
+- gives the largest boost to bars 41-48 Thunderbreak;
+- gives a secondary boost to bars 49-56 Eyewall;
+- raises PERC CC11 through the storm core;
+- leaves TP / Glockenspiel unchanged.
+
+The intent is for percussion to become a physical foreground event in Thunderbreak rather than barely audible support.
