@@ -205,11 +205,14 @@ Selected-Mod Worldgen Authority Audit
 Resource Evidence / Telemetry
 Engineering / Mobility Progression Ladder
 First-Flight Transitive Recipe Closure Audit
+Source-Backed First-Flight BOM / Playable Craft Proof
+Adhesive Bootstrap Path
 Cargo / Logistics Progression
 Bootstrap Region Recipe
 Scope-Flexible Progression Guarantees
 Starting-Region Traversal Proof
 Quest-Off Bootstrap Acceptance
+Pre-Brass First-Flight Prototype
 ~~~
 
 ### Onboarding / guidance
