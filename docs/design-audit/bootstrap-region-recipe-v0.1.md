@@ -319,7 +319,7 @@ Example valid starting arrangements:
 - spawn on broad shoulder;
 - mine in deep interior;
 - nearby small agricultural Tableland;
-- second island supplies zinc.
+- second island supplies andesite / deeper iron.
 
 ### Basin start
 
