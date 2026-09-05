@@ -7,6 +7,7 @@ import io.github.nidaba.skyforge.world.SkyIslandExteriorConnectedCaveVolumeSampl
 import io.github.nidaba.skyforge.world.SkyIslandLocalPosition;
 import io.github.nidaba.skyforge.world.SkyIslandRealizedExteriorConnectedCaveVolumeField;
 import io.github.nidaba.skyforge.world.SkyIslandRealizedSubsurfacePosition;
+import io.github.nidaba.skyforge.world.SkyIslandSubsurfacePosition;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import java.util.ArrayList;
 import java.util.List;
@@ -127,23 +128,33 @@ final class SkyforgeExteriorConnectedCaveRealizer {
                 localMinimumZ,
                 localMaximumZ);
 
+        int physicalYSpan = maximumY >= minimumY ? maximumY - minimumY + 1 : 0;
         for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
             double localX = x - descriptor.centerX();
             for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
                 double localZ = z - descriptor.centerZ();
                 SkyIslandLocalPosition local = new SkyIslandLocalPosition(localX, localZ);
-                for (int y = minimumY; y <= maximumY; y++) {
-                    sampledPhysicalBlocks++;
-                    BlockPos position = new BlockPos(x, y, z);
-                    var semanticPosition = realized.transform()
-                            .toSemantic(new SkyIslandRealizedSubsurfacePosition(local, y));
-                    if (semanticPosition.isEmpty()) {
+                sampledPhysicalBlocks = Math.addExact(sampledPhysicalBlocks, physicalYSpan);
+
+                var physicalColumn = realized.transform().columns().columnAt(local);
+                if (physicalColumn.isEmpty()) {
+                    continue;
+                }
+                var column = physicalColumn.orElseThrow();
+                int columnMinimumY = Math.max(minimumY, (int) Math.ceil(column.undersideY()));
+                int columnMaximumY = Math.min(maximumY, (int) Math.floor(column.upperY()));
+                for (int y = columnMinimumY; y <= columnMaximumY; y++) {
+                    var depth = column.depthFractionAt(y);
+                    if (depth.isEmpty()) {
                         continue;
                     }
-                    var semantic = semanticPosition.orElseThrow();
+                    var semantic = new SkyIslandSubsurfacePosition(
+                            local,
+                            depth.orElseThrow());
                     if (!spatialSlice.mayContainPositive(semantic)) {
                         continue;
                     }
+                    BlockPos position = new BlockPos(x, y, z);
                     SkyIslandExteriorConnectedCaveVolumeSample sample =
                             realized.semanticField().sample(semantic);
                     if (!sample.inside()) {
