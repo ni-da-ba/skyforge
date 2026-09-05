@@ -25,7 +25,24 @@ This is a stronger design basis than choosing End terrain first.
 
 ### End pressure
 
-Sable supplies a dimension-specific End pressure profile.
+Sable supplies a dimension-specific End pressure profile, but **altitude-dependent pressure loss is not unique to the End**.
+
+All three built-in vanilla Sable profiles decrease pressure with altitude.
+
+The relevant difference is the curve's reference altitude and usable envelope:
+
+~~~text
+OVERWORLD
+    pressure ~= 1.0 at Y 63
+
+NETHER
+    pressure ~= 1.0 at Y 32
+
+END
+    pressure = 1.0 at Y 0
+~~~
+
+So the End may be thinner at ordinary island elevations than the Overworld at comparable Y, but the End should not be designed around a false premise that only it has an altitude-pressure gradient.
 
 Its current built-in values are approximately:
 
@@ -40,7 +57,9 @@ Sable's lift-provider code scales lift and drag by local air pressure.
 
 Its propeller code likewise scales thrust by local air pressure.
 
-Therefore ordinary aerodynamic craft naturally lose performance with End altitude.
+Therefore ordinary aerodynamic craft naturally lose performance as they climb in the End, just as they do in the other Sable vanilla dimensions.
+
+The End-specific design question is whether its lower-pressure envelope at relevant island elevations and its vertical terrain distribution materially change aircraft design.
 
 These values are upstream defaults, not Skyforge balance constants.
 
@@ -174,8 +193,8 @@ A strong first hypothesis is:
 1. ENTER END
    mature Overworld aircraft technology already exists
 
-2. DISCOVER ENVIRONMENTAL DIFFERENCE
-   thinner air reduces ordinary wing/propeller margins
+2. DISCOVER ENVIRONMENTAL ENVELOPE
+   End-relevant altitudes may place ordinary aircraft in a lower-pressure regime than familiar Overworld operations
 
 3. OBTAIN END STONE
    discover End-derived levitating material path
@@ -444,9 +463,9 @@ Many can be realized with ordinary player-built infrastructure or existing vanil
 
 ## Acceptance tests
 
-### END-AERO-1 — pressure difference is perceptible
+### END-AERO-1 — pressure-envelope difference is perceptible
 
-A representative Overworld aircraft behaves materially differently across representative End altitudes without becoming unusable everywhere.
+A representative Overworld aircraft encounters a meaningfully different pressure/performance envelope at representative End operating altitudes than during ordinary Overworld operations, without becoming unusable everywhere.
 
 ### END-AERO-2 — End Stone chain works
 
