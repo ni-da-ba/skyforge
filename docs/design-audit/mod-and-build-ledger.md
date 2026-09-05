@@ -71,6 +71,8 @@ This document consolidates the current candidate stack from the content-integrat
 
 ## Reserve / optional
 
+- FTB Chunks / Open Parties and Claims / Flan — multiplayer/server claim options; not generated-civilization protection
+
 - Illager Invasion
 - Creeper Overhaul
 - Enderman Overhaul
@@ -181,6 +183,8 @@ Settlement Service Profile
 Active / Abandoned / Hostile Interaction Policy
 Navigation / Weather Information Rewards
 Repairable Infrastructure via Ordinary Block Mechanics
+Progression-Sensitive Civilization Asset Audit
+Optional Sparse Civic-Asset Provenance Fallback
 ~~~
 
 ### World composition
