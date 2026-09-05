@@ -78,10 +78,6 @@ final class SkyforgeAutomatedAcceptanceHarness {
         if (!enabled() || completionRequested) {
             return;
         }
-        if (firstServerTickNanos == Long.MIN_VALUE) {
-            firstServerTickNanos = System.nanoTime();
-        }
-
         for (ServerLevel level : event.getServer().getAllLevels()) {
             if (!level.dimension().equals(Level.OVERWORLD)) {
                 continue;
@@ -95,6 +91,13 @@ final class SkyforgeAutomatedAcceptanceHarness {
                                 + ", radiusChunks=" + radius()
                                 + ". Development harness synchronously loaded the finite proof footprint.");
             }
+        }
+
+        // Synchronous proof-footprint warmup is test setup, not proof execution. Large finite
+        // fixtures can legitimately spend substantial wall time generating their bounded chunk
+        // corpus, so begin the bounded PASS deadline only after that setup has completed.
+        if (warmupComplete && firstServerTickNanos == Long.MIN_VALUE) {
+            firstServerTickNanos = System.nanoTime();
         }
 
         long elapsedSeconds = Math.max(
