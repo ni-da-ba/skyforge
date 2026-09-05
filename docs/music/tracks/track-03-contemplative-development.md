@@ -905,6 +905,41 @@ Additional diagnostics:
 
 > Does the clarinet refrain become a compact object the listener can recall by sound-shape, while the sparse cello answers make the cue feel emotionally specific rather than merely patterned?
 
+## Theme 06 user result
+
+Theme 06 is the first Track 03 pass the user explicitly judged as **workable** rather than merely improved.
+
+User response:
+
+> "this is more like it! it sure aint perfect, but we can work with this"
+
+This is not a final acceptance of the cue, but it is a meaningful development boundary.
+
+### Provisional freeze
+
+Until a specific listening defect requires otherwise, preserve:
+
+- the clarinet as primary recurring thematic owner;
+- the compact `D-D-F-Bb | A-E-F` refrain family;
+- the refrain's rhythmic identity;
+- the split between compact clarinet identity and sparse cello answers;
+- the restrained piano continuity layer;
+- the tiny high afterimage;
+- low/open versus low/closed cadential grammar;
+- the note-economy lessons from Theme 05.
+
+Do **not** restart thematic search from first principles unless this nucleus later fails under real BBCSO audition or full-form development.
+
+### Next-pass philosophy
+
+The next pass should be conservative.
+
+It should respond to concrete listening defects in Theme 06 rather than broadly "improving" every parameter at once. The refrain has finally crossed the threshold where unnecessary rewriting is more dangerous than local correction.
+
+Retained rule:
+
+> Once a theme produces genuine recognition and user attachment, preserve its identity and make subsequent complexity earn itself.
+
 ## Current acceptance gate
 
 Do **not** resume development or full-cue expansion merely because one candidate is technically coherent.
