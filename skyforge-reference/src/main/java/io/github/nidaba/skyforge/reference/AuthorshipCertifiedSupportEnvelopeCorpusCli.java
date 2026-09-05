@@ -382,10 +382,10 @@ public final class AuthorshipCertifiedSupportEnvelopeCorpusCli {
             WorldBounds bounds,
             Color fill,
             Color border) {
-        int left = xPixel(bounds.minimumX());
-        int right = xPixel(bounds.maximumX());
-        int top = yPixel(bounds.maximumY());
-        int bottom = yPixel(bounds.minimumY());
+        int left = clamp(xPixel(bounds.minimumX()), PLOT_X, PLOT_X + PLOT_WIDTH);
+        int right = clamp(xPixel(bounds.maximumX()), PLOT_X, PLOT_X + PLOT_WIDTH);
+        int top = clamp(yPixel(bounds.maximumY()), PLOT_Y, PLOT_Y + PLOT_HEIGHT);
+        int bottom = clamp(yPixel(bounds.minimumY()), PLOT_Y, PLOT_Y + PLOT_HEIGHT);
         graphics.setColor(fill);
         graphics.fillRect(left, top, Math.max(1, right - left), Math.max(1, bottom - top));
         graphics.setColor(border);
@@ -426,6 +426,10 @@ public final class AuthorshipCertifiedSupportEnvelopeCorpusCli {
         graphics.setColor(new Color(220, 220, 220));
         graphics.drawRect(PLOT_X, PLOT_Y, PLOT_WIDTH, PLOT_HEIGHT);
         return graphics;
+    }
+
+    private static int clamp(int value, int minimum, int maximum) {
+        return Math.max(minimum, Math.min(maximum, value));
     }
 
     private static int xPixel(double worldX) {
