@@ -187,18 +187,25 @@ AUTH-0054 produces correspondingly different admission-safe requirements without
 
 No reusable-template assumption replaces the exact member descriptor.
 
-## No graph compilation
+## No primary/full-volume compilation
 
-Requirement synthesis calls only the provider support-certification seam.
+Requirement synthesis calls the provider support-certification seam rather than compilePrimary or
+world-volume compilation.
 
 It does not call:
 
 - compilePrimary;
-- procedural graph construction;
+- primary morphology compilation;
+- full suspended-volume compilation;
 - world-volume compilation;
 - backend realization.
 
-A test provider throws if compilePrimary is invoked; AUTH-0054 still synthesizes successfully from the support certificate.
+The support-certification seam may call compileSecondaryMorphology so it can consume the
+provider-declared analytical minimum/maximum factor. A SecondaryMorphologyContribution includes its
+factor graph, so AUTH-0054 does not claim that literally no graph object is constructed.
+
+A test provider throws if compilePrimary is invoked; AUTH-0054 still synthesizes successfully from
+the support certificate.
 
 ## World-catalog facade
 
@@ -259,7 +266,7 @@ Reject AUTH-0054 if:
 - global vertical requirements are published for a partially uncertified plan;
 - exact-plan group radius is described as re-plan invariant;
 - synthesis mutates an existing plan or template;
-- synthesis compiles procedural graphs;
+- synthesis invokes primary/full-volume compilation;
 - applying recommendations is hidden inside the synthesis API;
 - Minecraft or NeoForge types enter the contract.
 
