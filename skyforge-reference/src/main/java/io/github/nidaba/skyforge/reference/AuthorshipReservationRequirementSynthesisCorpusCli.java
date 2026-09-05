@@ -162,17 +162,18 @@ public final class AuthorshipReservationRequirementSynthesisCorpusCli {
                         .orElseThrow();
         String replan =
                 "sameRootSeed,originalRequiredGroupRadius,freshRequiredGroupRadius,"
-                        + "originalMember1X,freshMember1X,requirementsDiffer\n"
+                        + "originalObservedCenterSpacing,freshObservedCenterSpacing,"
+                        + "requirementsDiffer\n"
                         + "true,"
                         + f(originalGroup)
                         + ","
                         + f(freshGroup)
                         + ","
-                        + f(evidence.replanOriginalPlan().groups().get(0).groupPlan().members().get(1)
-                                .descriptor().centerX())
+                        + f(evidence.replanOriginalPlan().groups().get(0).groupPlan()
+                                .minimumObservedCenterSpacing())
                         + ","
-                        + f(evidence.replanFreshPlan().groups().get(0).groupPlan().members().get(1)
-                                .descriptor().centerX())
+                        + f(evidence.replanFreshPlan().groups().get(0).groupPlan()
+                                .minimumObservedCenterSpacing())
                         + ","
                         + (Double.doubleToLongBits(originalGroup)
                                 != Double.doubleToLongBits(freshGroup))
