@@ -42,8 +42,9 @@ This document consolidates the current candidate stack from the content-integrat
 - CC:Tweaked likely core advanced automation/navigation
 - Create: Radars candidate
 - Create avionics/telemetry integration candidate
-- Create Diesel Generators probable
-- one electricity ecosystem; avoid stacking multiple redundant systems initially
+- Create Diesel Generators probable; strategic petroleum/refining candidate
+- Create: Metallurgy strong processing-depth candidate; Skyforge remains ore/geology authority
+- Create Crafts & Additions currently leads the single-electricity-ecosystem slot; avoid redundant power stacks initially
 - late-game logistics automation candidate
 - Sophisticated Storage/Backpacks only if freight gameplay remains meaningful
 
@@ -185,6 +186,21 @@ Navigation / Weather Information Rewards
 Repairable Infrastructure via Ordinary Block Mechanics
 Progression-Sensitive Civilization Asset Audit
 Optional Sparse Civic-Asset Provenance Fallback
+~~~
+
+### Resources / progression
+~~~text
+Resource Availability Classes
+Bootstrap Completeness Requirement
+Resource Deposit Scale / Quality
+Resource-to-Geology Mapping
+Resource-to-Ecology Mapping
+Strategic Fuel Geography
+Trade / Salvage Substitution Profiles
+Civilization Resource Dependencies
+Progression-Sensitive Asset Classification
+Selected-Mod Worldgen Authority Audit
+Resource Evidence / Telemetry
 ~~~
 
 ### World composition
