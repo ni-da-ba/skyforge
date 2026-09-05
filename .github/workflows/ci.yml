@@ -227,6 +227,12 @@ jobs:
           test -f skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/manifest.csv
           test -f skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/binding.csv
           test -f skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/attempts.csv
+          test -f skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/binding.csv
+          test -f skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/version.csv
+          test -f skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/regional.csv
 
       - name: Publish compact evidence review bundle
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -414,6 +420,9 @@ jobs:
             skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/**/*.png
             skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/**/*.html
             skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/**/*.csv
           if-no-files-found: error
           retention-days: 7
           compression-level: 9
