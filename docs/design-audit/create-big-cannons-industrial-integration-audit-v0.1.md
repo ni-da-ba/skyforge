@@ -26,6 +26,12 @@ CBC 5.11.7:
 
 This is a favorable fit for Skyforge's low-bespoke policy.
 
+## Material-access closure
+
+The exact survival acquisition paths and hidden capability gates are tracked separately in [Create: Big Cannons material access closure v0.1](create-big-cannons-material-access-closure-v0.1.md).
+
+Important correction to simplistic ingredient-only readings: CBC Cast Iron, Bronze, and Steel use Create `HEATED` processing and are therefore naturally **post-Blaze-Burner** in the stock Create progression. Wrought-Iron cannon components remain the leading pre-Blaze family. Nethersteel adds `SUPERHEATED` processing and therefore also requires the Blaze-Cake supply chain.
+
 # Why CBC matters to Skyforge industry
 
 CBC is not merely a combat-content mod.
