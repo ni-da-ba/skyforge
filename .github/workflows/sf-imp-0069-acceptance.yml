@@ -49,7 +49,33 @@ jobs:
         timeout-minutes: 35
         run: ./gradlew :skyforge-neoforge-1211:runProductionInteriorPopulationAcceptanceB --stacktrace --no-configuration-cache
 
-      - name: Verify deterministic production interior evidence
+      - name: Full-stop reload and actual ClientLevel verification
+        timeout-minutes: 10
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a ./gradlew :skyforge-neoforge-1211:runProductionInteriorPopulationAcceptanceReloadClient --stacktrace --no-configuration-cache
+
+      - name: Stacked-volume production interior isolation
+        timeout-minutes: 30
+        run: ./gradlew :skyforge-neoforge-1211:runProductionInteriorPopulationAcceptanceStacked --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0068 production composed-cave regression
+        timeout-minutes: 12
+        run: ./gradlew :skyforge-neoforge-1211:runProductionComposedCaveAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0062 underground-decoration regression
+        timeout-minutes: 12
+        run: ./gradlew :skyforge-neoforge-1211:runUndergroundDecorationAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0063 generated-fluid regression
+        timeout-minutes: 12
+        run: ./gradlew :skyforge-neoforge-1211:runFluidSpringsAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: SF-IMP-0064 native-lake regression
+        timeout-minutes: 12
+        run: ./gradlew :skyforge-neoforge-1211:runNativeLakesAcceptanceA --stacktrace --no-configuration-cache
+
+      - name: Verify aggregate production interior evidence
         run: ./gradlew :skyforge-neoforge-1211:sfImp0069AcceptanceVerify --stacktrace --no-configuration-cache
 
       - name: Publish acceptance evidence
