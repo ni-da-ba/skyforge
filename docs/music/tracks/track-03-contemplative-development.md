@@ -1144,3 +1144,48 @@ A candidate should pass these tests:
 If none passes, discard all four and write another theme set.
 
 That is preferable to developing a competent but forgettable theme.
+
+
+## Full Draft 01 — locked-motif form
+
+The user accepted all Development Lab 01 transformation classes as viable and authorized proceeding with whichever implementation best serves the cue.
+
+This ends the transformation-atlas phase and begins full-form composition.
+
+Full Draft 01 is a 64-bar / approximately 151.6-second cue that assigns each accepted transformation a dramatic function rather than using every transformation equally.
+
+Form:
+
+- bars 1–8: thesis / canonical teaching;
+- bars 9–16: inward adjacent version;
+- bars 17–24: split dialogue / first widening;
+- bars 25–32: fragmentation + augmentation development;
+- bars 33–40: emotional widening / one cello motif inheritance / principal apex;
+- bars 41–48: stripped recollection;
+- bars 49–56: reassembly;
+- bars 57–64: canonical return / coda.
+
+Orchestration remains role-driven:
+
+- clarinet = canonical motif owner;
+- cello = emotional answer / apex;
+- piano = continuity;
+- harp/celeste = rare afterimage;
+- upper strings = selective widening;
+- horn = one distant horizon gesture, not climax.
+
+Full source SHA-256:
+
+`e7f9a68fa6e43b984d56d0d81d8cda1bb5e7bb08a4d170a3dfbe7bc8791daffd`
+
+Repository source:
+
+`assets/music/source/track-03-full-draft-01-locked-motif-form.mid.gz`
+
+Dedicated record:
+
+`docs/music/tracks/track-03-full-draft-01-locked-motif-form.md`
+
+### Current acceptance question
+
+> Does the locked refrain survive a complete dramatic arc in which each transformation has a clear emotional job, while the cue remains contemplative rather than becoming either static or over-orchestrated?
