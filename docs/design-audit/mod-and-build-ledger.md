@@ -247,7 +247,12 @@ End Aeronautics Progression Contract
 End Stone -> Levitite Recipe/Process Acceptance
 Levitite Lift-Support / No-Free-Climb Acceptance
 Pre-Dragon Levitite / Dragon-Encounter Compatibility
+Nether Gameplay and Aviation Contract
 Nether Roof-Pressure Aviation Acceptance
+Nether Route-Topology / Mixed-Mode Mobility Acceptance
+Fortress / Bastion Authored-Terrain Compatibility
+Wolframite -> Tungsten -> Obdurium -> Industrial-Crucible Acceptance
+Nether Portal Arrival / Recovery Acceptance
 Cross-Dimension Contraption Transfer Audit
 Advanced Low-Pressure Propulsion Audit
 Outer-End Skyforge Pilot
@@ -336,3 +341,6 @@ non-omniscient sensor access to Skyforge truth
 29. End-derived Levitite should be treated as lift support, not self-contained propulsion: preserve the upstream no-free-climb behavior and test its low-speed handling cost.
 30. Do not artificially post-Dragon-gate Levitite unless actual Dragon/outer-End play proves central-island access breaks the desired progression.
 31. Dimension technology may deliberately combine resources from multiple worlds; prefer meaningful cross-domain production chains over isolated per-dimension tech trees.
+32. The Nether should preserve mixed-mode route engineering: aircraft may solve suitable vault/lava crossings without making tunnels, rail, bridges, staging sites, and defended corridors obsolete.
+33. If Create: Metallurgy remains selected, treat Wolframite/Tungsten as advanced foundry capability whose deposit scale follows real Obdurium/Industrial-Crucible demand.
+34. Nether terrain morphology remains downstream of route, structure, resource, pressure, and recovery gameplay; enclosed cavern geometry is a leading hypothesis, not a locked aesthetic.
