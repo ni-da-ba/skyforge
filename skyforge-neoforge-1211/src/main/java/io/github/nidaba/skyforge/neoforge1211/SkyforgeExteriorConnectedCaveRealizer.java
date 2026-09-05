@@ -239,64 +239,15 @@ final class SkyforgeExteriorConnectedCaveRealizer {
         Objects.requireNonNull(volume, "volume");
         Objects.requireNonNull(prepared, "prepared");
         Objects.requireNonNull(chunk, "chunk");
-        if (chunk.getLevel() != level) {
-            throw new IllegalArgumentException("exterior-connected cave target chunk belongs to another level");
-        }
-        if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
-            throw new IllegalStateException(
-                    "exterior-connected cave realization requires an active Skyforge terrain binding");
-        }
 
-        if (prepared.unsafePositiveSamples() > 0) {
-            return new Result(
-                    false,
-                    prepared.sampledPhysicalBlocks(),
-                    prepared.positiveSamples(),
-                    prepared.basePositiveSamples(),
-                    prepared.exposurePositiveSamples(),
-                    prepared.upperExposureSamples(),
-                    prepared.undersideExposureSamples(),
-                    prepared.candidates().size(),
-                    prepared.unsafePositiveSamples(),
-                    prepared.mouthCells(),
-                    0,
-                    0,
-                    FNV_OFFSET_BASIS,
-                    prepared.provenanceDigest(),
-                    prepared.firstUnsafePosition(),
-                    prepared.firstMouthPosition(),
-                    prepared.firstMouthSide());
+        var cursor = new SkyforgeExteriorConnectedCaveCommitCursor(
+                volume,
+                prepared,
+                chunk);
+        while (!cursor.complete()) {
+            cursor.advance(level, chunk, Integer.MAX_VALUE);
         }
-
-        SkyforgeCarverExecutionStage.Snapshot writeSnapshot;
-        try (var domain = SkyforgeGenerationDomainStage.openIsland(volume.id());
-                var execution = SkyforgeCarverExecutionStage.open(volume.id(), chunk.getPos())) {
-            domain.requireActive();
-            execution.requireActive();
-            for (BlockPos position : prepared.candidates()) {
-                chunk.setBlockState(position, Blocks.AIR.defaultBlockState(), false);
-            }
-            writeSnapshot = execution.snapshot();
-        }
-
-        return new Result(
-                true,
-                prepared.sampledPhysicalBlocks(),
-                prepared.positiveSamples(),
-                prepared.basePositiveSamples(),
-                prepared.exposurePositiveSamples(),
-                prepared.upperExposureSamples(),
-                prepared.undersideExposureSamples(),
-                prepared.candidates().size(),
-                0,
-                prepared.mouthCells(),
-                writeSnapshot.writeAttempts(),
-                writeSnapshot.changedBlocks(),
-                writeSnapshot.changedPositionDigest(),
-                prepared.provenanceDigest(),
-                null,
-                prepared.firstMouthPosition(),
-                prepared.firstMouthSide());
+        return cursor.result();
     }
 
     private static boolean ownerSolid(
