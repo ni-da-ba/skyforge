@@ -250,7 +250,7 @@ final class SkyIslandSupportReservationRequirementSynthesizerTest {
     void exactPlanGroupRadiusMustBeResynthesizedAfterFreshReplan() {
         SkyIslandMorphologySpec morphology = direct(MorphologyFamily.MASSIF);
         SkyIslandArchipelagoPlan original =
-                twoMemberPlan(54007L, morphology, 120.0, 170.0, 260.0);
+                twoMemberPlan(54007L, morphology, 120.0, 280.0, 260.0);
         var registry = SkyIslandMorphologyProviders.builtInRegistry();
         var synthesizer = new SkyIslandSupportReservationRequirementSynthesizer();
         var originalSynthesis = synthesizer.synthesize(original, registry);
@@ -263,7 +263,7 @@ final class SkyIslandSupportReservationRequirementSynthesizerTest {
                         .orElseThrow();
 
         SkyIslandArchipelagoPlan fresh =
-                twoMemberPlan(54007L, morphology, 360.0, 700.0, 820.0);
+                twoMemberPlan(54007L, morphology, 360.0, 900.0, 820.0);
         var freshSynthesis = synthesizer.synthesize(fresh, registry);
         double freshExactGroup =
                 freshSynthesis
