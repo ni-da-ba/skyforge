@@ -27,6 +27,7 @@ final class SkyforgePhysicalVolumeCatchupService {
      * server tick for an entire exact volume.
      */
     private static final int MAX_COMPOSED_CAVE_CHUNKS_PER_LEVEL_TICK = 1;
+    private static final int MAX_NATIVE_INTERIOR_POPULATION_CHUNKS_PER_LEVEL_TICK = 1;
 
     private SkyforgePhysicalVolumeCatchupService() {}
 
@@ -76,6 +77,26 @@ final class SkyforgePhysicalVolumeCatchupService {
                 }
                 if (SkyforgeComposedCaveStage.service(level, chunk, generator).worked()) {
                     servicedComposedCaveChunks++;
+                }
+            }
+
+            // Native interior population is downstream of the final composed cave topology.
+            // The stage itself requires whole-volume cave completion and reuses the existing
+            // surface-population biome resolver. As with cave catch-up, only already-loaded chunks
+            // are visible here and work is explicitly bounded per tick.
+            int servicedInteriorPopulationChunks = 0;
+            for (long chunkKey : SkyforgeNativeInteriorPopulationStage.pendingChunkKeys()) {
+                if (servicedInteriorPopulationChunks >= MAX_NATIVE_INTERIOR_POPULATION_CHUNKS_PER_LEVEL_TICK) {
+                    break;
+                }
+                int chunkX = ChunkPos.getX(chunkKey);
+                int chunkZ = ChunkPos.getZ(chunkKey);
+                LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
+                if (chunk == null) {
+                    continue;
+                }
+                if (SkyforgeNativeInteriorPopulationStage.service(level, chunk, generator).worked()) {
+                    servicedInteriorPopulationChunks++;
                 }
             }
 
