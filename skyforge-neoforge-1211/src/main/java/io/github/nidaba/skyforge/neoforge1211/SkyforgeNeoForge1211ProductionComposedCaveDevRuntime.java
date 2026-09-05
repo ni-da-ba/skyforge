@@ -48,6 +48,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
     private static AutoCloseable persistentComposedBinding;
     private static SkyforgeComposedCaveStage.Snapshot initialSnapshot;
     private static int previousPending = Integer.MAX_VALUE;
+    private static int progressObservationTicks;
     private static boolean proofComplete;
 
     private SkyforgeNeoForge1211ProductionComposedCaveDevRuntime() {}
@@ -147,6 +148,13 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                             + previousPending + ", after=" + stage.pendingObligations());
         }
         previousPending = stage.pendingObligations();
+        progressObservationTicks++;
+        if (progressObservationTicks % 200 == 0) {
+            LOGGER.log(
+                    System.Logger.Level.INFO,
+                    "SF-IMP-0068 PRODUCTION PROGRESS: stage=" + stage
+                            + ", phase=" + SkyforgeComposedCaveStage.progress());
+        }
 
         SkyIslandWorldVolume volume = FIXTURE.volume();
         SkyIslandWorldVolumeId volumeId = volume.id();
