@@ -37,6 +37,7 @@ final class SkyIslandCompiledWorldPublicationTest {
                 compilation.supportBundle().catalog().rootSeed(),
                 publication.id().archipelagoRootSeed());
         assertEquals(compilation, publication.compilation());
+        assertEquals(compilation.convergence(), publication.acceptedConvergence());
         assertEquals(
                 compilation.convergence().freshPlan().orElseThrow(),
                 publication.acceptedPlan());
