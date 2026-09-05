@@ -109,7 +109,24 @@ magnetic_north
 
 and allows datapack overrides by dimension.
 
-This is highly relevant to Nether/End design.
+This is highly relevant to all dimensions.
+
+Sable's built-in vanilla profiles all use an altitude-dependent pressure curve that decreases upward. The dimensional distinction is **not** that the End or Nether uniquely lose pressure with altitude; it is where each curve is referenced and how quickly it reaches low pressure / vacuum near that dimension's build ceiling.
+
+Approximate reference points from Sable's current built-ins:
+
+~~~text
+OVERWORLD
+    pressure ~= 1.0 at Y 63
+
+NETHER
+    pressure ~= 1.0 at Y 32
+
+END
+    pressure = 1.0 at Y 0
+~~~
+
+Thus, at the same ordinary positive Y-level, End air is generally thinner than Overworld air under the defaults, but altitude-dependent pressure loss itself is universal.
 
 ### Aerodynamic coupling
 
@@ -140,12 +157,12 @@ with ordinary downward gravity.
 
 Consequences to test:
 
-- reduced propeller thrust at higher End altitude;
-- reduced wing/control-surface authority;
-- altitude becoming an engineering/route decision;
-- value of larger aerodynamic surfaces or later low-pressure propulsion.
+- ordinary upward flight loses propeller and aerodynamic margin in the End just as it does elsewhere;
+- because the End curve is referenced at Y 0 rather than Overworld sea level, typical End-island elevations may begin at materially lower pressure than comparable Overworld elevations;
+- altitude can become an engineering/route decision if End terrain spans enough vertical range;
+- larger aerodynamic surfaces or later low-pressure propulsion may become valuable.
 
-Do not overwrite this profile casually merely to make Overworld aircraft behave identically in the End.
+Do not characterize "pressure decreases upward" as an End-specific mechanic. The End-specific question is whether its **particular pressure-at-relevant-altitude envelope** produces meaningfully different aircraft design.
 
 ### Current Nether defaults
 
