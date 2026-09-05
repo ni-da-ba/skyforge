@@ -1,10 +1,10 @@
 # Track 03 — Count the Leagues
 
-**Status:** Full-form development; title and thematic identity locked  
+**Status:** 72-bar form accepted; title and thematic identity locked  
 **Role:** lonely / ponderous / thoughtful exploration state  
 **Title:** **Count the Leagues**  
 **Current method:** develop the locked Theme 07 refrain through context, dialogue, augmentation, fragmentation, stripping, inheritance, and return  
-**Current boundary:** Full Draft 01 — Locked-Motif Form
+**Current boundary:** Full Draft 02 — Second Horizon (72-bar form accepted)
 
 
 ## Title lock
@@ -1294,3 +1294,37 @@ Uncompressed full MIDI SHA-256:
 ### Current acceptance question
 
 > Does the second large-world statement feel like the same vista understood differently, and does it make the final coda feel earned rather than merely extending the cue?
+
+
+## Full Draft 02 — Second Horizon user result
+
+The user explicitly liked the 72-bar form with the second large-world reprise after the stripped recollection.
+
+### Accepted late-form architecture
+
+- bars 33-40: first large-world widening / realization;
+- bars 41-48: stripped recollection;
+- bars 49-56: reassembly;
+- bars 57-64: second large-world widening / acceptance;
+- bars 65-66: exhale;
+- bars 67-72: final coda.
+
+The second horizon is therefore no longer a speculative extension. It is the preferred structural form of **Count the Leagues**.
+
+### Real BBCSO render observation
+
+The accepted 72-bar BBCSO render confirms that the second horizon functions as a genuine return of scale rather than filler.
+
+The reprise is slightly fuller in sustained average energy than the first widening while retaining a slightly lower peak. This is acceptable and musically useful: the second horizon reads as broad and inhabited rather than more climactic.
+
+### Next production boundary
+
+Preserve the 72-bar form and locked motif. Further work should be limited to:
+
+- transition and balance correction;
+- performance shaping;
+- release/tail handling;
+- mix refinement;
+- final game/OST mastering.
+
+Do not remove the second horizon or reopen large-scale form without a concrete listening defect.
