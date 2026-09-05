@@ -51,6 +51,11 @@ public record SkyIslandCompiledWorldPublication(
         }
     }
 
+    /** Exact accepted AUTH-0056 convergence report carried by the AUTH-0057 binding. */
+    public SkyIslandSupportConvergenceReport acceptedConvergence() {
+        return compilation.convergence();
+    }
+
     /** Exact accepted fresh plan whose proof-backed compilation is being published. */
     public SkyIslandArchipelagoPlan acceptedPlan() {
         return compilation.convergence().freshPlan().orElseThrow();
