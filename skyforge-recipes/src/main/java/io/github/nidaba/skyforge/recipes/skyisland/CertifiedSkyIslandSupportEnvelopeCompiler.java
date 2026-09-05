@@ -29,6 +29,13 @@ public final class CertifiedSkyIslandSupportEnvelopeCompiler {
         }
 
         MorphologyFamily family = MorphologyFamily.fromSemantic(descriptor.morphologyFamily());
+        String semanticFamilyControl =
+                "semantic-morphology-family:" + descriptor.morphologyFamily().identifier();
+        if (!volume.provenance().containsKey(semanticFamilyControl)
+                || !volume.provenance().containsKey("detail-amplitude")
+                || !volume.provenance().containsKey("secondary-morphology-amplitude")) {
+            return Optional.empty();
+        }
         SkyIslandMorphologyProvider provider = SkyIslandMorphologyProviders.builtIn(family);
         Optional<PrimaryMorphologySupportEnvelope> primary =
                 provider.certifiedPrimarySupportEnvelope(descriptor);
