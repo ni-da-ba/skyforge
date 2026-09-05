@@ -61,9 +61,12 @@ DIMENSION
 | Emerald ore | S | No | regional geology | villager economy | trade | Ore need not supply most currency circulation |
 | Quartz | DIMENSION | No | Nether | trade/structure optional | advanced recipes | Keep Nether identity unless later design says otherwise |
 | Blaze products | DIMENSION | No | Nether | trade only if intentionally limited | progression / process heat | Preserve normal dimension progression; also intersects Create high-temperature processing |
-| Wolframite (Create: Metallurgy) | DIMENSION, currently Nether-native | No | Nether mineral geology | trade/salvage only if deliberately added | advanced mining/metallurgy | Current 1.21.1 worldgen targets netherrack; reopen placement when Skyforge authors Nether geology |
-| Tungsten (Create: Metallurgy) | manufactured from Wolframite | No | ore processing | trade/salvage limited | foundry / advanced metallurgy | Molten Tungsten participates in Obdurium and Industrial Crucible production |
-| Obdurium (Create: Metallurgy) | manufactured | No | superheated Andesite Alloy + molten Tungsten | trade/salvage limited | advanced foundry infrastructure | Current alloy recipe uses Andesite Alloy + molten Tungsten; Industrial Crucible assembly consumes Obdurium plate |
+| Cast Iron (CBC) | manufactured | No | Iron + Coal/Charcoal + heated processing | trade/salvage | cannon foundries / forts | Distinct low/mid cannon material; no new geology |
+| Bronze (CBC) | manufactured | No | Copper + Zinc + Cinder Flour + heated mixing | trade/salvage | cannon foundries / ports | CBC's tinless route means Tin need not be added |
+| Steel (CBC/common) | manufactured | No | Iron + Coal/Charcoal + heated mixing | trade/salvage | heavy industry / artillery | Major CBC cannon/autocannon/built-up construction material; no Steel ore |
+| Nethersteel (CBC) | manufactured, Nether-linked | No | Netherite Scrap + Cast Iron/Steel + superheat | exceptional trade/salvage limited | advanced artillery / fortification | Stronger/accurate but heavier and unweldable; real Nether engineering payoff |
+| Electrum (CC&A) | manufactured, provisional | No | integration recipe/byproduct TBD; **not Silver geology** | trade/salvage | high-current electrical distribution | Current wire is materially higher-throughput than Gold; retain only if that capability matters |
+| Wolframite / Tungsten / Obdurium (Create: Metallurgy) | EXCLUDED candidate family | No | none in current Skyforge progression | none by default | none by default | Reopen only if a later selected system gives a genuine external engineering role |
 | End Stone | DIMENSION, abundant | No | End terrain | import only after End access | End aviation feedstock | Current Aeronautics crushing path produces End Stone Powder; raw abundance can be balanced through processing rather than scarcity |
 | End Stone Powder (Aeronautics) | manufactured from End Stone | No | crushing | none needed | levitation precursor | Carries Aeronautics levitating item component; input to Levitite Blend |
 | Levitite Blend (Aeronautics) | manufactured | No | End Stone Powder + zinc + water + heated mixing | trade/salvage only if deliberately added | advanced aviation industry | Current recipe: 4 powder + 2 zinc nuggets + 500 mB water -> 500 mB blend |
@@ -178,31 +181,40 @@ This makes fuel geography visible.
 
 However the player must always retain at least one non-petroleum route to practical early air mobility.
 
-## Nether metallurgy material policy
+## Nether heavy-industry material policy
 
-If Create: Metallurgy remains selected, current source provides a useful capability chain:
+The current leading Nether-linked heavy-industry payoff is CBC Nethersteel rather than Wolframite/Tungsten.
 
 ~~~text
-Wolframite
--> Tungsten
--> superheated Tungsten + Andesite Alloy
--> Obdurium
--> Industrial Crucible / advanced foundry infrastructure
+Iron + Coal
+    -> Steel
+
+Netherite Scrap
++ Steel or Cast Iron
++ SUPERHEATED
+    -> Nethersteel
 ~~~
 
-This gives Nether mining a concrete engineering payoff.
+This is a stronger progression fit because:
+
+- Steel is already a major CBC structural/ballistic material;
+- Netherite Scrap retains vanilla Nether exploration value;
+- superheating is already useful across Create and petroleum processing;
+- Nethersteel changes cannon engineering through higher pressure tolerance, weight, accuracy, and loss of weldability;
+- no new ore family is required.
 
 Current direction:
 
-- keep native Nether Wolframite provisionally while Nether terrain remains vanilla-authored;
-- if Skyforge authors Nether geology, redirect Wolframite through authored mineral semantics;
-- tune deposit scale from actual Tungsten/Obdurium recipe demand rather than assuming "advanced metal = extremely rare";
-- preserve fortress/Blaze and high-temperature processing as distinct but intersecting Nether capability paths;
-- do not make Wolframite part of first-flight or early Overworld bootstrap.
+- preserve ordinary Netherite/Ancient Debris access;
+- preserve Blaze/superheat progression;
+- make CBC Steel/Nethersteel industry a candidate durable Nether payoff;
+- do not author Wolframite deposits;
+- do not require Tungsten/Obdurium;
+- if Create: Metallurgy is retained, treat its foundry as process infrastructure and normalize it onto retained Steel/CBC material identities.
 
-See [Nether Gameplay and Aviation Contract v0.1](nether-gameplay-and-aviation-contract-v0.1.md).
+See [Material and Process Retention Audit v0.1](material-and-process-retention-audit-v0.1.md) and [Create: Big Cannons Industrial Integration Audit v0.1](create-big-cannons-industrial-integration-audit-v0.1.md).
 
-## End Aeronautics material policy
+## End Aeronautics material policy## End Aeronautics material policy
 
 Current Aeronautics creates a direct cross-dimensional production chain:
 
@@ -239,14 +251,21 @@ If Create Crafts & Additions is selected:
 
 ## Metallurgy policy
 
-If Create: Metallurgy is selected:
+Create: Metallurgy is no longer selected by virtue of its Tungsten tree.
 
-- use its processing mechanics;
-- map its raw-material requirements onto Skyforge semantic resource families;
-- avoid duplicate independently generated ores;
-- review any unique ore such as wolframite/tungsten-class material for R3/R4 role rather than allowing default distribution to define Skyforge geography.
+If it remains after A/B testing:
 
-## Civilization trade profiles
+- keep only the foundry/casting/process depth that materially improves real industrial play;
+- disable Wolframite worldgen;
+- remove Tungsten/Obdurium from required progression;
+- re-gate the Industrial Crucible with retained process/material inputs;
+- bridge its molten fluids into CBC/common molten-metal tags;
+- normalize duplicate Steel identity and eliminate conversion exploits;
+- prefer datapack/tag/recipe integration over code.
+
+If realistic CBC production is not materially better with the larger foundry, omit Create: Metallurgy.
+
+## Civilization trade profiles## Civilization trade profiles
 
 ### Agricultural cluster
 
