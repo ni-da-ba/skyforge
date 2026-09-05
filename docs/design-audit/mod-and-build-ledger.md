@@ -51,8 +51,9 @@ This document consolidates the current candidate stack from the content-integrat
 - Create: Radars candidate
 - Create avionics/telemetry integration candidate
 - Create Diesel Generators probable; strategic petroleum/refining candidate
-- Create: Metallurgy strong processing-depth candidate; Skyforge remains ore/geology authority
-- Create Crafts & Additions currently leads the single-electricity-ecosystem slot; avoid redundant power stacks initially
+- Create: Big Cannons retained; leading heavy-industry/artillery material and manufacturing spine
+- Create: Metallurgy provisional foundry-mechanics A/B only; Wolframite/Tungsten/Obdurium are not current Skyforge progression
+- Create Crafts & Additions currently leads the single-electricity-ecosystem slot; Silver geology excluded and Electrum retained only if its high-current role proves useful
 - late-game logistics automation candidate
 - Sophisticated Storage/Backpacks only if freight gameplay remains meaningful; reject warehouse-scale early backpack configurations, recursive portable storage, or early fluid capacity that erases freight roles
 
@@ -274,7 +275,12 @@ Nether Gameplay and Aviation Contract
 Nether Roof-Pressure Aviation Acceptance
 Nether Route-Topology / Mixed-Mode Mobility Acceptance
 Fortress / Bastion Authored-Terrain Compatibility
-Wolframite -> Tungsten -> Obdurium -> Industrial-Crucible Acceptance
+CBC Steel / Nethersteel Heavy-Industry Acceptance
+CBC Melt -> Cast -> Bore -> Build-Up Manufacturing Acceptance
+CBC Ammunition / Guncotton / Nitro Throughput Acceptance
+Create: Metallurgy Foundry A/B
+Metallurgy-to-CBC Molten-Fluid Tag Bridge Acceptance
+Unified Steel Identity / Conversion-Loop Acceptance
 Nether Portal Arrival / Recovery Acceptance
 Cross-Dimension Contraption Transfer Audit
 Advanced Low-Pressure Propulsion Audit
@@ -291,11 +297,13 @@ Shulker / Ender-Chest Late-Courier Acceptance
 Bulk / Fluid / Entity / Contraption Freight Acceptance
 Post-Flight Regional Specialization Sequence
 Post-Flight Capability Payoff Audit
+Material and Process Retention Audit
+Create Big Cannons Industrial Integration Audit
 Copper / Zinc First-Route Placement Contract
 Copper Fluid/Electrical Payoff Acceptance
 Zinc Persistence / Brass / Capacitor / Levitite Acceptance
 Electricity Conversion / Storage / CC Integration Acceptance
-Silver / Electrum Dependency Resolution
+Silver Exclusion / Electrum High-Current Resolution
 Petroleum Distillation / Heavy-Engine Payoff Acceptance
 Brass Capability-Payoff Acceptance
 Sample-vs-Industrial Deposit Scale Contract
@@ -371,11 +379,11 @@ non-omniscient sensor access to Skyforge truth
 30. Do not artificially post-Dragon-gate Levitite unless actual Dragon/outer-End play proves central-island access breaks the desired progression.
 31. Dimension technology may deliberately combine resources from multiple worlds; prefer meaningful cross-domain production chains over isolated per-dimension tech trees.
 32. The Nether should preserve mixed-mode route engineering: aircraft may solve suitable vault/lava crossings without making tunnels, rail, bridges, staging sites, and defended corridors obsolete.
-33. If Create: Metallurgy remains selected, treat Wolframite/Tungsten as advanced foundry capability whose deposit scale follows real Obdurium/Industrial-Crucible demand.
+33. Do not author Wolframite or require Tungsten/Obdurium under the current stack; Create: Metallurgy must earn retention through foundry gameplay rather than its material tree.
 34. Nether terrain morphology remains downstream of route, structure, resource, pressure, and recovery gameplay; enclosed cavern geometry is a leading hypothesis, not a locked aesthetic.
 35. Full dimension realization requires durable gameplay value, not merely unique first-time loot or an attractive terrain concept.
 36. Dimension value may take different forms: Overworld breadth/network permanence, Nether hostile operational depth, End expeditionary/specialist engineering depth.
-37. Treat capital-unlock resources separately from recurring economic resources: current Tungsten/Obdurium demand and Levitite demand must be measured before using them as freight assumptions.
+37. Treat capital materials separately from recurring logistics: CBC cannon metals may create large one-time builds while ammunition/fuel may create the stronger continuing freight demand; Levitite demand still requires measurement.
 38. Do not claim Create Propulsion ion thrust as End-gated under current source; its present recipe lacks an End-specific input.
 39. Exploration variation is a separate requirement from economic worth: difficult traversal must lead to behaviorally/structurally/resource-distinct discoveries.
 40. Prefer at most one broad content-overhaul dependency per dimension in the first integrated prototype; add narrow structure/boss/ecology layers only when they fill non-overlapping roles.
@@ -386,6 +394,10 @@ non-omniscient sensor access to Skyforge truth
 45. Nether route difficulty must purchase meaningful destination value; End forward staging/navigation/recovery must measurably improve expedition capability.
 46. Post-flight resources must be justified by engineering capability payoffs rather than nominal tiering or material rarity.
 47. Preserve the current electrical asymmetry where useful: current CC&A Alternator is achievable without Brass while Electric Motor/storage/control branches are more mature and pull in Brass/capacitor/electrum dependencies.
-48. Resolve the final pack's Silver/electrum path before treating Modular Accumulator as required progression; do not invent Silver geology by assumption.
+48. Silver is excluded as a Skyforge raw resource. Electrum may remain only as a manufactured high-current electrical tier if integrated throughput testing justifies it; otherwise normalize required electrical recipes onto retained materials.
 49. Petroleum should create a sustained field->refinery->fuel-network loop; current Diesel Generators heated/superheated distillation and Brass-heavy engine progression are strong prototype evidence.
-50. Treat Tungsten/Obdurium and Levitite as demand-measurement gates: special materials do not automatically imply recurring freight economies.
+50. CBC Cast Iron/Bronze/Steel/Nethersteel are the leading heavy-industry material ladder because they alter weapon engineering without requiring new ores; Tin is not required because CBC provides a tinless Bronze route.
+51. Superheating remains retained independently of Create: Metallurgy through Create power/process uses, improved petroleum refining, and CBC Nethersteel.
+52. If Create: Metallurgy survives A/B testing, bridge its molten Steel/other shared metals into CBC common fluid tags and normalize duplicate Steel recipes rather than maintaining parallel metal silos.
+53. CBC on Sable/Aeronautics craft requires explicit manual acceptance for recoil, moving-fire behavior, reload/fuze automation, HE destruction, save/reload, and crash recovery before showcase.
+54. Prefer CBC's existing mass/recoil/ammunition/stability costs for aircraft artillery balance before adding bespoke airborne-weapon penalties.
