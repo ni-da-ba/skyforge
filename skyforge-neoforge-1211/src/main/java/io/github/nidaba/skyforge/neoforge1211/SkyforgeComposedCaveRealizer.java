@@ -131,6 +131,52 @@ final class SkyforgeComposedCaveRealizer {
         return new Result(nativeResult, authoredResult);
     }
 
+    static Result realizePrepared(
+            ServerLevel level,
+            NoiseBasedChunkGenerator generator,
+            SkyforgeExactVolumeBiomeResolver biomeResolver,
+            SkyIslandWorldVolume volume,
+            SkyforgeExteriorConnectedCavePreparationCursor.Prepared preparedAuthored,
+            LevelChunk chunk,
+            BlockPos biomeSample,
+            int nativeTargetMinimumY,
+            int nativeTargetMaximumY) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(generator, "generator");
+        Objects.requireNonNull(biomeResolver, "biomeResolver");
+        Objects.requireNonNull(volume, "volume");
+        Objects.requireNonNull(preparedAuthored, "preparedAuthored");
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(biomeSample, "biomeSample");
+        if (preparedAuthored.unsafePositiveSamples() > 0) {
+            throw new IllegalStateException(
+                    "AUTH-0030 authored preflight rejected before native carving: unsafePositiveSamples="
+                            + preparedAuthored.unsafePositiveSamples()
+                            + ", firstUnsafe=" + preparedAuthored.firstUnsafePosition());
+        }
+
+        var nativeResult = SkyforgeNativeCarverRunner.carveAir(
+                level,
+                generator,
+                biomeResolver,
+                volume.id(),
+                chunk,
+                biomeSample,
+                nativeTargetMinimumY,
+                nativeTargetMaximumY);
+
+        var authoredResult = SkyforgeExteriorConnectedCaveRealizer.commitPrepared(
+                level,
+                volume,
+                preparedAuthored,
+                chunk);
+        if (!authoredResult.accepted()) {
+            throw new IllegalStateException(
+                    "prepared AUTH-0030 authored pass rejected after native carving");
+        }
+        return new Result(nativeResult, authoredResult);
+    }
+
     record Result(
             SkyforgeNativeCarverRunner.Result nativeResult,
             SkyforgeExteriorConnectedCaveRealizer.Result authoredResult) {
