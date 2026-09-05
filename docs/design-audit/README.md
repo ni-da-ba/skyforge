@@ -84,4 +84,5 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Civilization reuse-first realization strategy v0.1](civilization-reuse-first-realization-strategy-v0.1.md)
 - [Civilization player interaction and progression v0.1](civilization-player-interaction-and-progression-v0.1.md)
 - [Civilization service and reward matrix v0.1](civilization-service-and-reward-matrix-v0.1.md)
+- [Civilization modification, looting, and civic assets v0.1](civilization-modification-looting-and-civic-assets-v0.1.md)
 - [Working mod and to-build ledger](mod-and-build-ledger.md)
