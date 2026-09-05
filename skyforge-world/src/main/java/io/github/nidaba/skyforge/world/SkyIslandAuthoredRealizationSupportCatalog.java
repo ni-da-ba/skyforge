@@ -78,6 +78,51 @@ public final class SkyIslandAuthoredRealizationSupportCatalog {
                 associationCatalog, certificates);
     }
 
+    /**
+     * Binds AUTH-0052 world-volume proof to an already explicit AUTH-0046 association catalog.
+     *
+     * <p>No authored identity is inferred from the world catalog. Every association must already
+     * exist, and its realized volume must equal the exact world-catalog volume with the same ID.
+     */
+    public static SkyIslandAuthoredRealizationSupportCatalog fromWorldSupport(
+            SkyIslandAuthoredRealizationCatalog associationCatalog,
+            SkyIslandWorldCatalogSupportBundle worldSupport) {
+        Objects.requireNonNull(associationCatalog, "associationCatalog");
+        Objects.requireNonNull(worldSupport, "worldSupport");
+        if (associationCatalog.realizationRootSeed()
+                != worldSupport.catalog().rootSeed()) {
+            throw new IllegalArgumentException(
+                    "AUTH-0046 realization root differs from AUTH-0052 world catalog root");
+        }
+
+        Map<SkyIslandWorldVolumeId, SkyIslandWorldVolume> worldVolumes =
+                new HashMap<>();
+        for (SkyIslandWorldVolume volume : worldSupport.catalog().volumes()) {
+            worldVolumes.put(volume.id(), volume);
+        }
+
+        ArrayList<SkyIslandAuthoredRealizationSupportCertificate> certificates =
+                new ArrayList<>();
+        for (SkyIslandAuthoredRealizationAssociation association :
+                associationCatalog.associations()) {
+            SkyIslandWorldVolume realized = association.realizedVolume();
+            SkyIslandWorldVolume expected = worldVolumes.get(realized.id());
+            if (expected == null || !expected.equals(realized)) {
+                throw new IllegalArgumentException(
+                        "AUTH-0046 association does not bind an exact AUTH-0052 world-catalog volume");
+            }
+            worldSupport.certificateFor(realized)
+                    .ifPresent(
+                            worldCertificate ->
+                                    certificates.add(
+                                            new SkyIslandAuthoredRealizationSupportCertificate(
+                                                    association,
+                                                    worldCertificate.envelope())));
+        }
+        return new SkyIslandAuthoredRealizationSupportCatalog(
+                associationCatalog, certificates);
+    }
+
     public SkyIslandAuthoredRealizationCatalog associationCatalog() {
         return associationCatalog;
     }
