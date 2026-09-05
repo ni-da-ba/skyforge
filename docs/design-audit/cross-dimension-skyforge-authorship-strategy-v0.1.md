@@ -672,9 +672,10 @@ Candidate roles:
 
 - quartz;
 - blaze products;
-- Create: Metallurgy Wolframite;
+- Ancient Debris / Netherite feeding CBC Nethersteel;
 - dimension-specific biological materials;
-- late heat/process capability.
+- late heat/superheat and heavy-industry capability;
+- optional Create: Metallurgy foundry infrastructure, but no planned Wolframite/Tungsten progression.
 
 If Skyforge begins authoring Nether geology, the current ALLOW_DIMENSION_NATIVE resource decisions must be reopened.
 
