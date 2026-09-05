@@ -26,7 +26,9 @@ It already contains:
 
 Its weakness is not uniqueness.
 
-Its weakness is **post-unlock persistence**.
+Its unresolved issues are **post-unlock persistence** and **long-range exploration variation**.
+
+Sparse negative space is valuable only if distant expeditions are punctuated by enough distinct behaviors, structures, resources, and phenomena to sustain anticipation.
 
 A player can currently obtain:
 
@@ -41,6 +43,34 @@ Dragon victory
 and then have little systemic reason to maintain an End network.
 
 Full Skyforge realization is justified if the End becomes a world the player repeatedly **surveys, stages from, extracts from, engineers for, and expands through**.
+
+## Exploration-worth requirement
+
+The End should remain sparse.
+
+It should **not** remain repetitive.
+
+Desired rhythm:
+
+~~~text
+long quiet crossing
+    -> distant silhouette / signal / anomaly
+    -> expedition commitment
+    -> behaviorally distinct site or phenomenon
+    -> staging / recovery decision
+    -> next horizon
+~~~
+
+Variation should come from:
+
+- landmass/negative-space composition;
+- unusual mob behavior;
+- rare structures;
+- resource/process differences;
+- environmental phenomena;
+- exceptional encounters.
+
+See [Dimension Exploration Enrichment Audit v0.1](dimension-exploration-enrichment-audit-v0.1.md).
 
 ## Gameplay identity
 
@@ -799,6 +829,20 @@ Filling empty space makes the dimension feel like another province network.
 Current Propulsion Ion Thruster recipe does not require End materials.
 
 **Mitigation:** do not claim that progression without a deliberate integration decision.
+
+## Third-party enrichment direction
+
+Current 1.21.1 NeoForge audit identifies:
+
+- **Unusual End** as the leading broad End behavior/content prototype because it combines configurable generation changes, Create compatibility, distinctive mobs, counterplay, maps/information, and varied structures;
+- **MES / Moog's End Structures** as a narrow structure supplement if needed;
+- **Enderman Overhaul** as a creature/reward A/B whose special pearls require mobility-governance review;
+- **Bosses of Mass Destruction** as a sparse exceptional boss/site layer;
+- **End's Delight** as an optional local-life/sustenance layer if expedition bases feel too sterile.
+
+Do not use multiple broad End overhauls merely to increase biome count.
+
+The End should gain **rare contrast**, not uniform richness.
 
 ## Full-realization minimum
 
