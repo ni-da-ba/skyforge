@@ -6,7 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import net.minecraft.world.level.ChunkPos;
 import org.junit.jupiter.api.Test;
 
 final class SkyforgeComposedCaveStageTest {
@@ -45,6 +48,16 @@ final class SkyforgeComposedCaveStageTest {
                 assertEquals(
                         SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(volumeId),
                         SkyforgeComposedCaveStage.pendingChunkKeys());
+
+                var expectedOrder = new ArrayList<>(
+                        SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(volumeId));
+                expectedOrder.sort(Comparator
+                        .comparingInt((Long key) -> ChunkPos.getX(key))
+                        .thenComparingInt(key -> ChunkPos.getZ(key)));
+                assertEquals(
+                        expectedOrder,
+                        new ArrayList<>(SkyforgeComposedCaveStage.pendingChunkKeys()),
+                        "bounded catch-up scheduling must preserve deterministic plan order");
             }
         }
 
