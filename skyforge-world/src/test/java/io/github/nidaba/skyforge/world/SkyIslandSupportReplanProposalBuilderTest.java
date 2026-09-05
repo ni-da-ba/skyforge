@@ -362,7 +362,7 @@ final class SkyIslandSupportReplanProposalBuilderTest {
                                 plan,
                                 oldSynthesis,
                                 ADEQUATE_VERTICAL,
-                                new SkyIslandSupportReplanMargin(0.0, 400.0, 0.0, 0.0));
+                                new SkyIslandSupportReplanMargin(1.0, 400.0, 0.0, 0.0));
         SkyIslandArchipelagoRequest candidate =
                 proposal.candidateRequest().orElseThrow();
 
