@@ -339,7 +339,7 @@ public final class AuthorshipImmutableReplanProposalCorpusCli {
         int bx = x + 28;
         int by = y + 104;
         int bw = PANEL_W - 58;
-        drawValue(g, "member horizontal", group.memberHorizontal(), bx, by, bw, 500.0);
+        drawValue(g, "member horizontal", group.memberHorizontal(), bx, by, bw, 500.0, "?");
         drawValue(
                 g,
                 "layout min spacing",
@@ -347,7 +347,8 @@ public final class AuthorshipImmutableReplanProposalCorpusCli {
                 bx,
                 by + 54,
                 bw,
-                900.0);
+                900.0,
+                group.originalTemplate().memberMorphologies().size() == 1 ? "n/a" : "?");
         drawValue(
                 g,
                 "provisional group radius",
@@ -355,9 +356,10 @@ public final class AuthorshipImmutableReplanProposalCorpusCli {
                 bx,
                 by + 108,
                 bw,
-                1000.0);
-        drawValue(g, "below suspension", proposal.belowSuspension(), bx, by + 162, bw, 300.0);
-        drawValue(g, "above suspension", proposal.aboveSuspension(), bx, by + 216, bw, 220.0);
+                1000.0,
+                "?");
+        drawValue(g, "below suspension", proposal.belowSuspension(), bx, by + 162, bw, 300.0, "?");
+        drawValue(g, "above suspension", proposal.aboveSuspension(), bx, by + 216, bw, 220.0, "?");
     }
 
     private static void renderBoundary(
@@ -405,7 +407,8 @@ public final class AuthorshipImmutableReplanProposalCorpusCli {
             int x,
             int y,
             int width,
-            double scaleMax) {
+            double scaleMax,
+            String absentProofLabel) {
         text(g, x, y - 5, label, 9);
         int originalX = x + scaled(value.originalValue(), width, scaleMax);
         int proofX =
@@ -422,8 +425,6 @@ public final class AuthorshipImmutableReplanProposalCorpusCli {
         if (proofX >= 0) {
             g.setColor(new Color(170, 70, 70));
             g.fillRect(proofX - 2, y - 3, 4, 20);
-        } else {
-            text(g, x + width - 60, y + 12, "proof ?", 9);
         }
 
         g.setColor(new Color(55, 120, 70));
@@ -435,7 +436,7 @@ public final class AuthorshipImmutableReplanProposalCorpusCli {
                 "O " + shortF(value.originalValue())
                         + " / P " + (value.proofMinimum().isPresent()
                                 ? shortF(value.proofMinimum().orElseThrow())
-                                : "?")
+                                : absentProofLabel)
                         + " / M " + shortF(value.authorMargin())
                         + " / N " + shortF(value.proposedValue()),
                 8);
