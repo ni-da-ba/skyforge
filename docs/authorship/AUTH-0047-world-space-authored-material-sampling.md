@@ -203,43 +203,61 @@ world point
 
 is the end of the native authorship responsibility in this milestone.
 
-## Translation invariance
+## World/local floating-point contract
 
-Changing the compiled volume's world center while preserving:
+World coordinates are authoritative inputs.
 
-- the same native authored descriptor;
-- the same compatible local physical realization shape;
-- the corresponding translated world query point;
+AUTH-0047 performs ordinary binary64 translation:
 
-must not change:
+~~~text
+localX = worldX - centerX
+localZ = worldZ - centerZ
+~~~
 
-- recovered island-local position;
-- semantic depth;
-- AUTH-0039 requests;
-- AUTH-0044 winner key;
-- AUTH-0045 application key.
+An arbitrary binary64 semantic coordinate translated into world space and then subtracted from the center is not guaranteed to recover the original low bits exactly. Floating-point addition may already have rounded them away.
 
-World translation is placement, not authorship.
+AUTH-0047 therefore does not claim a mathematically impossible bit-exact inverse for arbitrary double coordinates.
+
+Instead:
+
+- the recovered local coordinate is the authoritative semantic coordinate for that world query;
+- semantic -> world -> semantic diagnostics must remain within normal binary64 translation error;
+- the world center is not mixed into authored seeds, binding identity, or material-selection policy;
+- translation contributes no semantic effect beyond the recovered coordinate itself.
+
+For corpus round trips, horizontal error is measured against a tolerance derived from the ULPs of the world coordinate and realized center. Semantic-depth round-trip error remains bounded independently.
+
+This is placement, not a new authorship source.
 
 ## Direct-chain equivalence
 
-For every world point that is constructed from a valid semantic point through the associated authoritative physical column transform:
+AUTH-0047 must agree exactly with direct native evaluation at the **recovered semantic point**.
+
+For a world query:
 
 ~~~text
-semantic point
-    -> physical world point
-    -> AUTH-0047
+world point
+    -> AUTH-0027 recovered semantic point
+    -> AUTH-0047 material chain
 ~~~
 
-must agree with direct native evaluation at the original semantic point.
+the result is compared with:
 
-Specifically, AUTH-0047 may not change:
+~~~text
+same recovered semantic point
+    -> direct AUTH-0039 / 0043 / 0044 evaluation
+~~~
+
+The two paths must agree on:
 
 - owned state;
 - authored cave void;
 - material-present state;
 - final winner binding key;
-- conditioned-winner state.
+- conditioned-winner state;
+- AUTH-0045 application key.
+
+A semantic -> world -> semantic diagnostic may also compare the recovered coordinate with its original test input, but infinitesimal binary64 input drift is not itself a material-semantic failure.
 
 ## Evidence
 
@@ -255,9 +273,10 @@ The corpus records:
 - material samples;
 - AUTH-0045 applications;
 - conditioned final winners;
-- semantic round-trip error;
-- local-frame mismatches;
-- direct-chain winner mismatches;
+- horizontal semantic round-trip error;
+- semantic-depth round-trip error;
+- local-frame mismatches beyond ULP-derived tolerance;
+- direct-chain winner mismatches at the recovered semantic point;
 - application-key mismatches;
 - unique application keys.
 
@@ -281,8 +300,9 @@ Reject AUTH-0047 if:
 - compiled solid outside native authored ownership becomes authored material;
 - AUTH-0030 authored cave void receives material/application state;
 - the decision provider may substitute a decision for a different request;
-- world placement changes the native semantic winner;
-- AUTH-0047 differs from direct native evaluation after exact semantic/physical round trip;
+- world placement is mixed into native authored identity or selection policy;
+- semantic/world round-trip drift materially exceeds binary64 translation precision;
+- AUTH-0047 differs from direct native evaluation at the recovered semantic point;
 - conditioned final winners fall back to structural matrix;
 - AUTH-0045 application key differs from AUTH-0044 final winner key;
 - concrete backend material identity enters the sampler;
