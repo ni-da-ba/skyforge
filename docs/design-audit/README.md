@@ -91,4 +91,6 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Bootstrap region recipe v0.1](bootstrap-region-recipe-v0.1.md)
 - [Onboarding, guidance, and quest layer v0.1](onboarding-guidance-and-quest-layer-v0.1.md)
 - [First-flight recipe closure audit v0.1](first-flight-recipe-closure-audit-v0.1.md)
+- [First-flight bootstrap BOM v0.1](first-flight-bootstrap-bom-v0.1.md)
+- [Bootstrap experience recipes v0.1](bootstrap-experience-recipes-v0.1.md)
 - [Working mod and to-build ledger](mod-and-build-ledger.md)
