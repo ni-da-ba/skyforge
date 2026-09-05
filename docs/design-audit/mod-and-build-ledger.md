@@ -29,7 +29,7 @@ This document consolidates the current candidate stack from the content-integrat
 
 ### Hostiles / structures
 - vanilla hostile and structure mechanics
-- Eternal Nether — strong 1.21.1 NeoForge Nether structure/threat prototype; MIT; selected Piglin/Wither/corrupted-Enderman structures and mobs are especially relevant if native placement can be subordinated
+- Eternal Nether — strong 1.21.1 NeoForge Nether structure/threat prototype; MIT; maintained branch exposes Piglin Manor/Citadel/Catacomb through data-driven structure/structure-set/template-pool resources, making Skyforge-controlled placement especially promising
 - BetterNether: New Dawn — strong broad Nether-content R&D candidate; MIT; 1.21.1 NeoForge; current releases expose configuration for biomes/structures and provide mobs, plants, materials, farmables, dungeons/cities; high dependency/worldgen surface requires A/B
 - Jaden's Nether Expansion — strong alternative single broad Nether-content substrate; actively targeting 1.21.1 NeoForge; broad mobs/mechanics/biomes; restrictive license means external-dependency use only and worldgen authority must remain with Skyforge
 - Unusual End — leading broad End behavior/content prototype; 1.21.1 NeoForge; configurable generation changes, Create compatibility, behavior-rich mobs, mapped structures, flying ships/stations; native density/placement requires governance
