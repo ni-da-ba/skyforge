@@ -4,6 +4,7 @@ import io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume;
 import io.github.nidaba.skyforge.recipes.skyisland.SkyIslandMorphologyProviderRegistry;
 import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandArchipelagoGroupPlan;
 import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandArchipelagoPlan;
+import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandArchipelagoRequest;
 import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandGroupMemberPlan;
 import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandMorphologySpecCompiler;
 import java.util.ArrayList;
