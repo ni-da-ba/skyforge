@@ -546,34 +546,41 @@ Electrical progression can combine:
 
 This is a good reason for a mature industrial network to pull resources from several regions.
 
-## Silver / electrum caution
+## Silver / Electrum decision
 
-The current audited Electrum mixing recipe in Create Crafts & Additions is conditional on a non-empty common Silver ingot tag.
+Silver does **not** earn Skyforge raw-resource status.
 
-It uses:
+Current Create Crafts & Additions only uses Silver as the conditional precursor to Electrum; it does not provide a Silver worldgen economy of its own.
+
+Electrum itself has a potentially real capability distinction:
 
 ~~~text
-Gold Ingot
-+ Silver Ingot
-+ HEATED mixing
-    -> 2 Electrum Ingots
+Copper wire   256 FE/t
+Gold wire    1024 FE/t
+Electrum     8196 FE/t
 ~~~
 
-Therefore the exact accumulator/electrum progression depends on whether the final pack supplies Silver.
+while current large electrical connectors/motor/generator/storage interfaces operate around the 5000 FE/t class.
 
-Do not assume a new Skyforge Silver deposit is required until the selected mod stack and tags are finalized.
+Therefore:
 
-If no selected dependency provides Silver, the pack must either:
+~~~text
+SILVER GEOLOGY
+    -> EXCLUDE
 
-- choose another supported recipe path;
-- provide a minimal integration recipe;
-- or avoid treating Modular Accumulator as required progression.
+ELECTRUM
+    -> PROVISIONAL MANUFACTURED HIGH-CURRENT MATERIAL
+~~~
 
-This is an explicit pack-integration gate.
+If integrated electrical play actually needs the high-current tier, provide a minimal manufacturing/byproduct path that does not require a Silver deposit.
 
-# Nether heat and metallurgy — process capability
+If Gold-level distribution is sufficient, simplify the electrical recipes and remove Electrum from required progression.
 
-The Nether provides multiple capability inputs rather than one monolithic tier.
+Do not invent a regional Silver economy merely to preserve an alloy recipe.
+
+# Nether heavy industry — heat, Steel, Nethersteel, CBC
+
+Nether access now has a stronger industrial payoff than the previously proposed Wolframite chain.
 
 ## Blaze / superheat
 
@@ -581,7 +588,8 @@ Blaze progression supplies:
 
 - brewing;
 - End progression;
-- Create heat capability.
+- Create heat capability;
+- CBC Nethersteel processing.
 
 Create's Blaze Cake chain further supports superheated processing.
 
@@ -601,45 +609,67 @@ Blaze Cake Base
     -> Blaze Cake
 ~~~
 
-This makes Nether-derived material part of repeatable high-temperature processing.
+Superheating also improves current Diesel Generators crude-oil yield.
 
-## Wolframite / Tungsten / Obdurium
+Therefore superheat survives the subtraction audit **independently of Create: Metallurgy**.
 
-Current Create: Metallurgy chain:
+## CBC heavy-industry materials
+
+Current CBC creates a coherent manufactured ladder without new ores:
 
 ~~~text
-Wolframite
-    -> Tungsten
+Iron + Coal
+    -> Cast Iron
 
-Andesite Alloy
-+ molten Tungsten
+Copper + Zinc + Cinder Flour
+    -> Bronze
+
+Iron + Coal
+    -> Steel
+
+Netherite Scrap
++ Cast Iron or Steel
 + SUPERHEATED
-    -> Obdurium
-
-Obdurium + Tungsten
-    -> Industrial Crucible construction
+    -> Nethersteel
 ~~~
 
-## Capability identity
+These materials materially change cannon/autocannon design.
 
-Nether metallurgy should mean:
+Steel supports much stronger and longer artillery than Cast Iron/Bronze.
 
-- PROCESS_HEAT;
-- METALLURGY;
-- foundry-scale processing;
-- access to specialized materials.
+Nethersteel further raises safe propellant stress and ballistic performance while becoming heavier and unweldable.
 
-## Economic caution
+This gives the Nether a clean industrial payoff:
 
-Current source audit suggests Tungsten/Obdurium demand is primarily **capital equipment / material-form** demand.
+~~~text
+BLAZE / SUPERHEAT
++ NETHERITE SCRAP
+    -> NETHERSTEEL
+    -> ADVANCED ARTILLERY / HEAVY INDUSTRY
+~~~
 
-Therefore:
+## Create: Metallurgy status
 
-> Do not assume Wolframite creates permanent high-throughput freight merely because it is advanced.
+Create: Metallurgy is now an **optional foundry-mechanics A/B**.
 
-Measure realistic foundry construction and repair demand.
+Its general-purpose casting, multi-fluid crucibles, bulk melting, and foundry logistics may be enjoyable enough to retain.
 
-# End Stone / Levitite — new vehicle architecture
+Its Wolframite/Tungsten/Obdurium ladder is not.
+
+Current decision:
+
+~~~text
+Wolframite worldgen       -> EXCLUDE
+Tungsten progression      -> EXCLUDE
+Obdurium progression      -> EXCLUDE
+Metallurgy foundry        -> A/B TEST
+~~~
+
+If the foundry is retained, re-gate its Industrial Crucible with retained Steel/refractory inputs and bridge its molten fluids to CBC common molten-metal tags.
+
+See [Material and Process Retention Audit v0.1](material-and-process-retention-audit-v0.1.md) and [Create: Big Cannons Industrial Integration Audit v0.1](create-big-cannons-industrial-integration-audit-v0.1.md).
+
+# End Stone / Levitite# End Stone / Levitite — new vehicle architecture
 
 Current Aeronautics chain:
 
@@ -727,8 +757,11 @@ Any recipe adjustment must solve a real progression need, not merely force dimen
 | Nether Quartz | Rose Quartz / Electron Tube control chain | Nether extraction/import | moderate/strong |
 | Petroleum | fuel, refining, heavy engines, fluid logistics | strategic field/refinery routes | very strong |
 | Electricity | distributed power, conversion, storage, control | multi-resource technical network | strong |
-| Blaze / superheat | process heat + progression | fortress / farm / industrial link | strong |
-| Wolframite/Tungsten | advanced metallurgy / Industrial Crucible | Nether extraction | capital-heavy; recurring demand unproven |
+| Blaze / superheat | process heat + progression + Nethersteel | fortress / farm / industrial link | strong |
+| CBC Cast Iron / Bronze / Steel | materially distinct artillery/heavy-industry materials | regional metal industry / defense | strong capital + ammunition-linked |
+| CBC Nethersteel | high-pressure late artillery with weight/weldability tradeoff | Netherite + superheat industrial route | strong specialist |
+| Electrum | provisional high-current electrical conductor | manufactured electrical network | retain only if Gold throughput is insufficient |
+| Create: Metallurgy foundry | optional bulk/general metalworking process | industrial hub | A/B; no Wolframite dependency |
 | End Stone / Levitite | passive lift support / new vehicle architecture | End industrial-expedition route | recurring demand unproven |
 | Advanced propulsion | specialized low-pressure/reaction propulsion | future severe-environment routes | dependency/progression unproven |
 
@@ -760,7 +793,7 @@ FIRST FLIGHT
     +--> NETHER / BLAZE
     |      +--> heat / superheat
     |      +--> End progression
-    |      +--> metallurgy
+    |      +--> Nethersteel / advanced artillery
     |
     +--> PETROLEUM
     |      +--> refinery
@@ -891,9 +924,17 @@ Electricity expands distribution, conversion, storage, instrumentation, or autom
 
 Blaze/superheat materially enables processes worth maintaining after the first fortress visit.
 
-## CAP-8 — metallurgy demand measurement
+## CAP-8 — material-subtraction integrity
 
-Wolframite/Tungsten deposit scale is based on realistic industrial consumption, not assumed rarity.
+Silver, Tin, Wolframite, Tungsten, and Obdurium do not enter Skyforge geology/progression unless a distinct retained engineering role independently justifies them.
+
+## CAP-8A — CBC heavy-industry payoff
+
+Cast Iron, Bronze, Steel, and Nethersteel produce observable engineering differences worth their manufacturing steps.
+
+## CAP-8B — Metallurgy foundry gate
+
+Create: Metallurgy remains only if CBC/general metal production is materially more useful or enjoyable with its foundry than without it.
 
 ## CAP-9 — Levitite demand measurement
 
@@ -930,8 +971,10 @@ For each branch specifically measure:
 - Brass consumed by logistics, motors, storage, engines, aircraft;
 - Quartz consumed by mature Create controls;
 - petroleum consumption rate under representative aviation/industry;
-- electrical network size and actual value;
-- Tungsten/Obdurium required by realistic foundry builds;
+- electrical network size, Gold-wire limits, and whether Electrum/high-current distribution is actually needed;
+- Cast Iron/Bronze/Steel/Nethersteel consumed by representative CBC installations;
+- ammunition throughput and recurring Gunpowder/Brass/Redstone demand;
+- CBC-only versus CBC+Metallurgy factory footprint, throughput, clarity, and enjoyment;
 - Levitite required by representative utility/cargo/expedition aircraft.
 
 # Current strongest progression thesis
