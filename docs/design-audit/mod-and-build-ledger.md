@@ -213,6 +213,8 @@ Scope-Flexible Progression Guarantees
 Starting-Region Traversal Proof
 Quest-Off Bootstrap Acceptance
 Pre-Brass First-Flight Prototype
+Bootstrap Presentation Profiles
+Parameterized First-Flight BOM Verifier
 ~~~
 
 ### Onboarding / guidance
