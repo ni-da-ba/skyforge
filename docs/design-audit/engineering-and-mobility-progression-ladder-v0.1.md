@@ -45,6 +45,35 @@ Design goal:
 
 > The player can establish themselves without already solving the sky.
 
+## Stage P0.5 — local glide / assisted crossing
+
+This is a semantic planning tier, not necessarily a player-facing progression label.
+
+Player capabilities may include:
+
+- a cheap personal glider if selected for the pack;
+- short launch-height-dependent crossings;
+- safer descent and emergency recovery;
+- local scouting within a tightly composed island group.
+
+The glider supplies a **movement envelope**, not a logistics envelope.
+
+It should remain:
+
+- personal-scale;
+- negligible-freight;
+- terrain/launch dependent;
+- unable to sustain powered climb by itself;
+- unsuitable as the routine answer to ordinary inter-cluster travel.
+
+Starting-group authoring may deliberately include glider-feasible directed edges, but progression-critical edges must also have a proven return/recovery path.
+
+See [Early Glider Mobility Contract v0.1](early-glider-mobility-contract-v0.1.md).
+
+Design goal:
+
+> Let the player learn to cross a local piece of the sky without giving them regional logistics for free.
+
 ## Stage P1 — mechanical bootstrap
 
 Player capabilities:
@@ -58,15 +87,18 @@ Player capabilities:
 Possible movement:
 
 - bridges where short;
-- gliding/parachute/paraglider if selected;
+- the P0.5 glider/local-crossing path if selected;
 - rope/lift solutions;
-- first buoyant or mechanically simple flight path.
+- first buoyant or mechanically simple flight experiments.
 
 Resource expectations:
 
 - all transitive recipe inputs for this stage guaranteed within the bootstrap-access domain;
-- foundational iron/copper/zinc-class materials available;
+- foundational iron/andesite and selected glider-material closure available;
+- copper and zinc are not mandatory merely because Create exists;
 - petroleum not required.
+
+The current first-flight closure audit indicates that copper, zinc, brass, petroleum, and electricity can remain post-bootstrap unless playable testing proves a hidden dependency.
 
 Civilization interaction:
 
@@ -242,8 +274,9 @@ Example:
 
 ~~~text
 glider
-  excellent personal mobility
-  poor freight
+  strong local personal mobility
+  launch-height/range limited
+  negligible freight
 
 small aircraft
   good personal mobility
@@ -379,3 +412,5 @@ Overworld sky geography should enrich normal Minecraft progression, not necessar
 8. Information/navigation becomes increasingly important at mature stages.
 9. Nether/End progression remains intact by default.
 10. Late game is about operating networks, not merely owning rarer items.
+11. A selected early glider may solve starter-group crossings but must not make P2 powered flight economically optional.
+12. Progression-critical glider traversal is evaluated as a directed, recoverable capability graph rather than raw distance alone.
