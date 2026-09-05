@@ -394,11 +394,25 @@ This is an experience-tuning concern but should inform recipes and salvage later
 
 ## Dimension progression
 
-Skyforge's first Minecraft realization should generally preserve Nether/End identity.
+Skyforge's first Minecraft realization should generally preserve Nether/End **identity and resource progression**.
+
+That does not imply preserving every vanilla dimension as an unrestricted transportation shortcut.
 
 Nether and End resources can remain dimension-native unless a specific design reason says otherwise.
 
-Overworld sky geography should enrich normal Minecraft progression, not necessarily flatten all dimensions into one Skyforge resource system.
+However, normal Nether portal distance compression is a mandatory audit item because a short Nether corridor between portals can erase Overworld province-scale aviation geography and can participate in entity/item transport.
+
+The desired separation is:
+
+~~~text
+dimension content / progression
+    may remain intact
+
+dimension transit / coordinate compression
+    must prove compatibility with flight logistics
+~~~
+
+Overworld sky geography should enrich normal Minecraft progression without being reduced to decorative scenery between portal endpoints.
 
 ## Acceptance principles
 
@@ -412,5 +426,8 @@ Overworld sky geography should enrich normal Minecraft progression, not necessar
 8. Information/navigation becomes increasingly important at mature stages.
 9. Nether/End progression remains intact by default.
 10. Late game is about operating networks, not merely owning rarer items.
-11. A selected early glider may solve starter-group crossings but must not make P2 powered flight economically optional.
+11. A selected early glider may solve starter-group crossings and longer personal soaring, but must not make P2 powered flight economically optional.
 12. Progression-critical glider traversal is evaluated as a directed, recoverable capability graph rather than raw distance alone.
+13. Elytra may remain as later personal soaring equipment, but vanilla-style firework propulsion should not create cheap self-contained powered flight.
+14. Nether/portal transit must be explicitly shown not to erase ordinary regional aviation before progression is locked.
+15. Convenience teleportation is rejected by default unless it has a deliberate late-tier logistics role with meaningful constraints.
