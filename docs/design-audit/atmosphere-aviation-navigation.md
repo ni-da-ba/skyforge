@@ -332,6 +332,49 @@ numberOfOverheadLayers
 overlapWithHabitableTerrain
 ```
 
+## End-derived levitation technology
+
+Create Aeronautics itself contains a major End progression hook independent of Sable pressure.
+
+Current source-backed processing:
+
+~~~text
+End Stone
+-> crushing
+-> End Stone Powder
+
+4 End Stone Powder
++ 2 Create zinc nuggets
++ 500 mB water
++ HEATED mixing
+-> 500 mB Levitite Blend
+
+Levitite Blend
++ valid heat/catalyst crystallization
+-> Levitite
+~~~
+
+Aeronautics' Ponder documentation demonstrates:
+
+- enough Levitite attached to a simulated contraption can keep it afloat;
+- Levitite **cannot produce altitude gain by itself**;
+- another force source is required for climb;
+- Levitite strongly resists low-speed movement;
+- this resistance diminishes at higher speed.
+
+This is a very strong fit for Skyforge because it creates **lift support without propulsion substitution**.
+
+Potential aircraft roles include:
+
+- heavy cargo support;
+- hovering/stationkeeping platforms;
+- hybrid wing + Levitite craft;
+- End-adapted vehicles where ordinary aerodynamic margin is reduced.
+
+Do not assume exact Levitite block ratios or force behavior until runtime testing.
+
+See [End Aeronautics Progression Contract v0.1](end-aeronautics-progression-contract-v0.1.md).
+
 ## Advanced propulsion candidate
 
 ### Create Propulsion: Simulated — strong prototype, not yet locked
