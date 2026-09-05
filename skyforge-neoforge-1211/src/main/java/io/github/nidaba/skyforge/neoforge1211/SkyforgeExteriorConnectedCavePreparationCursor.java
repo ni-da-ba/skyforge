@@ -47,6 +47,7 @@ final class SkyforgeExteriorConnectedCavePreparationCursor {
     private int currentMaximumY;
     private boolean columnActive;
     private boolean complete;
+    private Prepared preparedResult;
 
     private int positiveSamples;
     private int basePositiveSamples;
@@ -177,20 +178,23 @@ final class SkyforgeExteriorConnectedCavePreparationCursor {
         if (!complete) {
             throw new IllegalStateException("AUTH-0030 preparation is not complete");
         }
-        return new Prepared(
-                sampledPhysicalBlocks,
-                positiveSamples,
-                basePositiveSamples,
-                exposurePositiveSamples,
-                upperExposureSamples,
-                undersideExposureSamples,
-                candidates,
-                unsafePositiveSamples,
-                mouthCells,
-                provenanceDigest,
-                firstUnsafe,
-                firstMouth,
-                firstMouthSide);
+        if (preparedResult == null) {
+            preparedResult = new Prepared(
+                    sampledPhysicalBlocks,
+                    positiveSamples,
+                    basePositiveSamples,
+                    exposurePositiveSamples,
+                    upperExposureSamples,
+                    undersideExposureSamples,
+                    candidates,
+                    unsafePositiveSamples,
+                    mouthCells,
+                    provenanceDigest,
+                    firstUnsafe,
+                    firstMouth,
+                    firstMouthSide);
+        }
+        return preparedResult;
     }
 
     private void startCurrentColumn() {
