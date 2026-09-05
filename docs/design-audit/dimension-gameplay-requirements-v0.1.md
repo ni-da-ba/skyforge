@@ -311,7 +311,9 @@ The dimension can remain sparse while becoming richer in decisions.
 
 ### Aeronautics is a core End consideration
 
-Sable's current End dimension physics are already nontrivial.
+Sable's current End dimension physics are already nontrivial, but pressure decreasing with altitude is **not** an End-exclusive effect.
+
+All built-in vanilla Sable profiles use an upward-decreasing pressure curve. The End distinction is that its curve is referenced differently (pressure 1.0 at Y 0, versus approximately Y 63 in the Overworld and Y 32 in the Nether), so typical End operating altitudes may occupy a lower-pressure regime.
 
 Create Aeronautics itself also makes the End a technology source through the Levitite chain.
 
@@ -351,7 +353,9 @@ pressure at Y 216  ~= 0.4215
 pressure at Y 256  = 0.0
 ~~~
 
-Because wing lift/drag and propeller thrust are scaled by local air pressure, ordinary Aeronautics craft lose performance as they climb.
+Because wing lift/drag and propeller thrust are scaled by local air pressure, ordinary Aeronautics craft lose performance as they climb in every vanilla Sable dimension.
+
+For the End, test whether its particular pressure-at-island-altitude envelope is sufficiently different from ordinary Overworld operating conditions to create a genuine aircraft-design problem.
 
 This creates a natural End engineering problem:
 
@@ -570,8 +574,8 @@ Good examples:
 Nether high-altitude pressure loss
     -> stay within cavern routes
 
-End thin air
-    -> redesign aircraft / choose altitude carefully
+End pressure envelope
+    -> familiar altitude-pressure behavior may begin from a thinner operating regime; redesign aircraft / choose altitude carefully if testing supports it
 
 Overworld thermals
     -> glider route reading
@@ -635,9 +639,9 @@ Dragon, fortress, blaze, End-city, gateway, and other critical progression behav
 
 Representative aircraft experiences differ by dimension for understandable physical/environmental reasons.
 
-### DGR-5 — End pressure has gameplay consequence
+### DGR-5 — End pressure envelope has gameplay consequence
 
-Sable's End pressure profile materially changes at least one aircraft design/operation decision if retained.
+Sable's End pressure profile, relative to ordinary Overworld operating altitudes, materially changes at least one aircraft design/operation decision if retained. The mere fact that pressure decreases upward does not satisfy this test.
 
 ### DGR-6 — Nether roof is not dominant aviation space
 
@@ -682,7 +686,7 @@ NETHER
     aviation is a specialized tool inside a dangerous enclosed route network
 
 END
-    aviation becomes expeditionary engineering under thin-air / void constraints
+    aviation becomes expeditionary engineering under End-specific pressure-envelope / void constraints
 ~~~
 
 This should guide the next audit, but remains falsifiable by playtesting.
