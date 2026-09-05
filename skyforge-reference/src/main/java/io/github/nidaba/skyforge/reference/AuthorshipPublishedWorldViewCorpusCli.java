@@ -186,7 +186,7 @@ public final class AuthorshipPublishedWorldViewCorpusCli {
         SkyIslandCompiledWorldPublication overlapFirst =
                 publication(59501L, 1L, 0.0);
         SkyIslandCompiledWorldPublication overlapSecond =
-                publication(59502L, 1L, 680.0);
+                publication(-1L, 1L, 680.0);
         boolean queryBoundsIntersect =
                 overlapFirst.catalog().volumes().get(0).bounds()
                         .intersects(overlapSecond.catalog().volumes().get(0).bounds());
