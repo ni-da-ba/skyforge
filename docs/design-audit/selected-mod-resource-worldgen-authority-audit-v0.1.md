@@ -120,64 +120,74 @@ If column exclusivity harms Skyforge composition or stacked-island behavior, rep
 
 Do not begin by reimplementing pumpjacks/refineries.
 
-## Create: Metallurgy — Wolframite/Tungsten
+## Create: Metallurgy — material/worldgen decision
 
-Current 1.21.1 source adds Wolframite through a NeoForge biome modifier restricted to:
+Current 1.21.1 source adds Wolframite through a Nether biome modifier, but the subtraction audit does **not** find enough downstream engineering value to justify keeping that ore in Skyforge.
 
-~~~text
-#minecraft:is_nether
-~~~
-
-Current feature:
+Current source-backed chain:
 
 ~~~text
-7 attempts per chunk
-uniform Y 0 through 60
-vein size 9
-replaces netherrack
-~~~
-
-### Gameplay role
-
-Current 1.21.1 Create: Metallurgy source gives Wolframite/Tungsten a concrete advanced-industry payoff:
-
-~~~text
-Wolframite Ore
--> crushed/raw Tungsten processing
--> molten Tungsten
-
-Andesite Alloy
-+ molten Tungsten
-+ SUPERHEATED alloying
--> molten Obdurium
-
-Obdurium plate
-+ molten Tungsten
-+ refractory/assembly steps
+Wolframite
+-> Tungsten
+-> superheated Tungsten + Andesite Alloy
+-> Obdurium
 -> Industrial Crucible
 ~~~
 
-This supports treating Wolframite as an advanced Nether mining resource rather than generic decorative ore.
+The present problem is that Tungsten and Obdurium are overwhelmingly consumed by Create: Metallurgy's own material forms and Industrial Crucible gate. That is not sufficient reason to create a new Nether mining economy.
 
-Its required deposit scale should be derived from actual foundry/Obdurium demand during pack testing.
-
-### Decision direction
-
-Skyforge's **current Minecraft implementation authority** is the Overworld island system.
-
-Therefore, for the current implementation:
+### Decision
 
 ~~~text
-METALLURGY WOLFRAMITE
-Nether native worldgen -> ALLOW_DIMENSION_NATIVE
-processing/alloys -> KEEP
+METALLURGY WOLFRAMITE WORLDGEN
+    -> DISABLE
+
+TUNGSTEN / OBDURIUM AS SKYFORGE PROGRESSION
+    -> EXCLUDE
+
+CREATE: METALLURGY FOUNDRY MACHINERY
+    -> A/B TEST
 ~~~
 
-This is explicitly provisional.
+If the foundry machinery earns retention, keep the process system while replacing its self-referential Tungsten/Obdurium capital gate with retained materials such as refractory construction + Steel, with Nethersteel considered only if a genuinely high-temperature late capital gate is useful.
 
-The cross-dimension authorship strategy now treats the Nether as a future Skyforge domain candidate. If/when the Nether cavern-world pilot begins, reopen Wolframite and every other Nether resource so authored geology—not legacy dimension-native distribution—can become the authority where appropriate.
+The retained foundry must also interoperate with CBC common molten-metal identities through data/tag integration rather than becoming a parallel metal silo.
 
-## Create Crafts & Additions
+See [Material and Process Retention Audit v0.1](material-and-process-retention-audit-v0.1.md) and [Create: Big Cannons Industrial Integration Audit v0.1](create-big-cannons-industrial-integration-audit-v0.1.md).
+
+## Create: Big Cannons — manufactured heavy-industry materials
+
+CBC's retained material ladder does **not** require new ore worldgen:
+
+~~~text
+Iron + Coal
+    -> Cast Iron / Steel
+
+Copper + Zinc + Cinder Flour
+    -> Bronze
+
+Netherite Scrap + Cast Iron or Steel + SUPERHEATED
+    -> Nethersteel
+~~~
+
+These materials have source-backed differences in cannon pressure tolerance, weight, accuracy, weldability, barrel behavior, and autocannon envelope.
+
+### Decision
+
+~~~text
+CBC RAW WORLDGEN CONFLICT
+    -> NONE FOR THE CORE MATERIAL LADDER
+
+CAST IRON / BRONZE / STEEL / NETHERSTEEL
+    -> KEEP
+
+UNDERLYING RAW MATERIALS
+    -> supplied through existing Skyforge / vanilla resource authority
+~~~
+
+Skyforge therefore needs to author or preserve adequate Iron, Coal, Copper, Zinc, Netherite Scrap access and heat progression—not add CBC-specific ores.
+
+## Create Crafts & Additions## Create Crafts & Additions
 
 Current 1.21.1 source contains material/processing systems such as electrum and zinc sheets, but the audited tree shows no independent ore/configured-feature/biome-modifier worldgen layer.
 
@@ -189,7 +199,7 @@ resource worldgen conflict -> NONE FOUND
 processing/electricity -> KEEP subject to recipe/progression audit
 ~~~
 
-Electrum and electrical materials can remain manufactured goods downstream of Skyforge-authored raw resources.
+Electrum remains a provisional manufactured high-current conductor, but Silver is explicitly **not** a Skyforge raw resource. If Electrum survives electrical A/B testing, use a minimal alternate manufacturing/byproduct route rather than introducing Silver geology.
 
 ## Authority matrix
 
@@ -198,8 +208,9 @@ Electrum and electrical materials can remain manufactured goods downstream of Sk
 | Create | Zinc | Overworld | Redirect/disable native island placement | Yes |
 | Create | Striated materials | Overworld | Redirect into Skyforge lithology | Yes, as block vocabulary |
 | Diesel Generators | Crude petroleum | Overworld chunk columns | Skyforge-select fields; seed reservoir via adapter | Yes |
-| Create: Metallurgy | Wolframite | Nether | Allow dimension-native for now | Yes |
-| Crafts & Additions | Electrum/electrical goods | Manufactured | No worldgen conflict found | Yes |
+| Create: Metallurgy | Wolframite | Nether | Disable native worldgen; exclude from planned progression | Foundry machinery only, pending A/B |
+| Create: Big Cannons | Cast Iron / Bronze / Steel / Nethersteel | Manufactured | No raw worldgen conflict; use existing resource authorities | Yes |
+| Crafts & Additions | Electrum/electrical goods | Manufactured | No Silver geology; resolve Electrum through recipe/byproduct A/B | Yes, subject to electrical audit |
 
 ## Exact-volume principle
 
