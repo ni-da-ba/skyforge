@@ -61,6 +61,11 @@ final class SkyforgeComposedCaveStage {
                         "duplicate composed cave plan for volume " + volumeId.path());
             }
 
+            var columns = new SkyIslandCompiledVolumeColumnField(plan.volume().compiledVolume());
+            var realizedAuthoredField = new SkyIslandRealizedExteriorConnectedCaveVolumeField(
+                    plan.authoredField(),
+                    columns);
+
             List<Long> chunkKeys = new ArrayList<>(
                     SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(volumeId));
             chunkKeys.sort(Comparator
@@ -70,7 +75,7 @@ final class SkyforgeComposedCaveStage {
                 ObligationKey key = new ObligationKey(volumeId, chunkKey);
                 Obligation previous = obligations.put(
                         key,
-                        new Obligation(plan, State.PENDING, null));
+                        new Obligation(plan, columns, realizedAuthoredField, State.PENDING, null));
                 if (previous != null) {
                     throw new IllegalStateException(
                             "duplicate composed cave obligation " + volumeId.path() + "/" + chunkPos(chunkKey));
@@ -144,10 +149,14 @@ final class SkyforgeComposedCaveStage {
                                     "admitted composed cave obligation has no exact-volume native surface plan: "
                                             + volumeId.path() + "/" + chunk.getPos()));
 
-            OwnerSpan ownerSpan = widestOwnerSpan(volume, chunk);
+            OwnerSpan ownerSpan = widestOwnerSpan(volume, obligation.columns(), chunk);
             Completion completion;
             if (ownerSpan == null) {
-                if (containsAuthoredPositive(volume, obligation.plan().authoredField(), chunk)) {
+                if (containsAuthoredPositive(
+                        volume,
+                        obligation.columns(),
+                        obligation.realizedAuthoredField(),
+                        chunk)) {
                     throw new IllegalStateException(
                             "AUTH-0030-positive composed cave chunk has no exact owner-solid terrain: "
                                     + volumeId.path() + "/" + chunk.getPos());
@@ -167,7 +176,7 @@ final class SkyforgeComposedCaveStage {
                         noiseGenerator,
                         populationPlan.biomeResolver(),
                         volume,
-                        obligation.plan().authoredField(),
+                        obligation.realizedAuthoredField(),
                         chunk,
                         biomeSample,
                         ownerSpan.minimumY(),
@@ -309,12 +318,18 @@ final class SkyforgeComposedCaveStage {
             }
             binding.obligations().put(
                     key,
-                    new Obligation(current.plan(), State.COMPLETED, completion));
+                    new Obligation(
+                            current.plan(),
+                            current.columns(),
+                            current.realizedAuthoredField(),
+                            State.COMPLETED,
+                            completion));
         }
     }
 
     private static OwnerSpan widestOwnerSpan(
             SkyIslandWorldVolume volume,
+            SkyIslandCompiledVolumeColumnField columns,
             LevelChunk chunk) {
         int minimumY = Math.max(
                 chunk.getMinBuildHeight(),
@@ -326,25 +341,39 @@ final class SkyforgeComposedCaveStage {
             return null;
         }
 
+        var descriptor = volume.compiledVolume().descriptor();
         OwnerSpan best = null;
         for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
             for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
-                int first = Integer.MAX_VALUE;
-                int last = Integer.MIN_VALUE;
-                for (int y = minimumY; y <= maximumY; y++) {
-                    boolean ownerSolid = SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(
-                                    volume.id(), x, y, z)
-                            .orElseThrow(() -> new IllegalStateException(
-                                    "Skyforge terrain binding disappeared during composed cave planning"));
-                    if (!ownerSolid) {
-                        continue;
-                    }
-                    if (first == Integer.MAX_VALUE) {
-                        first = y;
-                    }
-                    last = y;
+                SkyIslandLocalPosition local = new SkyIslandLocalPosition(
+                        x - descriptor.centerX(),
+                        z - descriptor.centerZ());
+                var column = columns.columnAt(local);
+                if (column.isEmpty()) {
+                    continue;
                 }
-                if (first == Integer.MAX_VALUE) {
+
+                var present = column.orElseThrow();
+                int first = Math.max(
+                        minimumY,
+                        Math.addExact(floorToInt(present.undersideY()), 1));
+                int last = Math.min(
+                        maximumY,
+                        Math.subtractExact(ceilToInt(present.upperY()), 1));
+                if (last < first) {
+                    continue;
+                }
+
+                // The compiled column gives the authoritative broad vertical envelope. Verify the
+                // discrete endpoints through the exact ownership seam so any future density
+                // refinement remains fail-closed without restoring a full per-Y scan.
+                while (first <= last && !ownerSolid(volume.id(), x, first, z)) {
+                    first++;
+                }
+                while (last >= first && !ownerSolid(volume.id(), x, last, z)) {
+                    last--;
+                }
+                if (last < first) {
                     continue;
                 }
 
@@ -361,13 +390,10 @@ final class SkyforgeComposedCaveStage {
 
     private static boolean containsAuthoredPositive(
             SkyIslandWorldVolume volume,
-            SkyIslandExteriorConnectedCaveVolumeField authoredField,
+            SkyIslandCompiledVolumeColumnField columns,
+            SkyIslandRealizedExteriorConnectedCaveVolumeField realized,
             LevelChunk chunk) {
-        var compiled = volume.compiledVolume();
-        var descriptor = compiled.descriptor();
-        var realized = new SkyIslandRealizedExteriorConnectedCaveVolumeField(
-                authoredField,
-                new SkyIslandCompiledVolumeColumnField(compiled));
+        var descriptor = volume.compiledVolume().descriptor();
 
         int minimumY = Math.max(
                 chunk.getMinBuildHeight(),
@@ -384,7 +410,18 @@ final class SkyforgeComposedCaveStage {
                 SkyIslandLocalPosition local = new SkyIslandLocalPosition(
                         x - descriptor.centerX(),
                         z - descriptor.centerZ());
-                for (int y = minimumY; y <= maximumY; y++) {
+                var column = columns.columnAt(local);
+                if (column.isEmpty()) {
+                    continue;
+                }
+
+                var present = column.orElseThrow();
+                // AUTH-0030's physical transform includes the two continuous surfaces. Use the
+                // inclusive integer envelope here so a cave-positive surface cell with no
+                // representable owner-solid voxel is still detected and rejected.
+                int first = Math.max(minimumY, ceilToInt(present.undersideY()));
+                int last = Math.min(maximumY, floorToInt(present.upperY()));
+                for (int y = first; y <= last; y++) {
                     if (realized.sample(new SkyIslandRealizedSubsurfacePosition(local, y)).inside()) {
                         return true;
                     }
@@ -392,6 +429,20 @@ final class SkyforgeComposedCaveStage {
             }
         }
         return false;
+    }
+
+    private static boolean ownerSolid(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        return SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(
+                        volumeId,
+                        worldX,
+                        worldY,
+                        worldZ)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Skyforge terrain binding disappeared during composed cave planning"));
     }
 
     private static int floorToInt(double value) {
@@ -477,10 +528,14 @@ final class SkyforgeComposedCaveStage {
 
     private record Obligation(
             SkyforgeComposedCavePlan plan,
+            SkyIslandCompiledVolumeColumnField columns,
+            SkyIslandRealizedExteriorConnectedCaveVolumeField realizedAuthoredField,
             State state,
             Completion completion) {
         private Obligation {
             Objects.requireNonNull(plan, "plan");
+            Objects.requireNonNull(columns, "columns");
+            Objects.requireNonNull(realizedAuthoredField, "realizedAuthoredField");
             Objects.requireNonNull(state, "state");
             if ((state == State.PENDING) != (completion == null)) {
                 throw new IllegalArgumentException("composed cave obligation state/evidence mismatch");
