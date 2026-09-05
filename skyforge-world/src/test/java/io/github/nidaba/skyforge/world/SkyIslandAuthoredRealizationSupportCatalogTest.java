@@ -79,17 +79,32 @@ class SkyIslandAuthoredRealizationSupportCatalogTest {
             SkyIslandCompiledVolumeColumnField columns =
                     new SkyIslandCompiledVolumeColumnField(
                             association.realizedVolume().compiledVolume());
-            double radius = certificate.envelope().maximumHorizontalRadius();
+            double certifiedRadius =
+                    certificate.envelope().maximumHorizontalRadius();
+            var descriptor =
+                    association.realizedVolume().compiledVolume().descriptor();
+            WorldBounds query = association.realizedVolume().bounds();
+            double scanRadius =
+                    Math.max(
+                            Math.max(
+                                    descriptor.centerX() - query.minimumX(),
+                                    query.maximumX() - descriptor.centerX()),
+                            Math.max(
+                                    descriptor.centerZ() - query.minimumZ(),
+                                    query.maximumZ() - descriptor.centerZ()));
 
-            for (int iz = 0; iz < 45; iz++) {
-                double z = -radius + iz * (2.0 * radius / 44.0);
-                for (int ix = 0; ix < 45; ix++) {
-                    double x = -radius + ix * (2.0 * radius / 44.0);
+            for (int iz = 0; iz < 55; iz++) {
+                double z = -scanRadius + iz * (2.0 * scanRadius / 54.0);
+                for (int ix = 0; ix < 55; ix++) {
+                    double x = -scanRadius + ix * (2.0 * scanRadius / 54.0);
                     var column = columns.columnAt(new SkyIslandLocalPosition(x, z));
                     if (column.isEmpty()) {
                         continue;
                     }
                     sampledColumns++;
+                    assertTrue(
+                            Math.hypot(x, z) <= certifiedRadius + 1.0e-9,
+                            "compiled horizontal support exceeded AUTH-0051 certificate");
                     assertTrue(column.orElseThrow().upperY() <= support.maximumY() + 1.0e-9);
                     assertTrue(column.orElseThrow().undersideY() >= support.minimumY() - 1.0e-9);
                 }
