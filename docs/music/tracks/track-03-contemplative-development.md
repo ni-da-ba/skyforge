@@ -1,6 +1,6 @@
 # Track 03 — Count the Leagues
 
-**Status:** 72-bar form accepted; title and thematic identity locked  
+**Status:** Frozen / complete  
 **Role:** lonely / ponderous / thoughtful exploration state  
 **Title:** **Count the Leagues**  
 **Current method:** develop the locked Theme 07 refrain through context, dialogue, augmentation, fragmentation, stripping, inheritance, and return  
@@ -1340,4 +1340,15 @@ GAME: no broadband compression; about -19.6 LUFS, 13.8 LU LRA, -1.8 dBTP.
 
 OST: gentle 1.22:1 compression, max gain reduction about 2 dB; about -17.7 LUFS, 12.7 LU LRA, -1.0 dBTP.
 
-Full 175-second render and tail preserved. Final freeze depends on listening acceptance of these masters.
+Full 175-second render and tail preserved.
+
+### Final freeze
+
+The user accepted the mastered cue and the final evaluation.
+
+Final evaluation:
+
+- overall composition: **8.7 / 10**;
+- overall for intended role: **9.1 / 10**.
+
+The 72-bar Second Horizon form, title **Count the Leagues**, and locked clarinet refrain are frozen. Future appearances of this material should be treated as leitmotivic reuse or transformation in other cues, not as revisions to Track 03.
