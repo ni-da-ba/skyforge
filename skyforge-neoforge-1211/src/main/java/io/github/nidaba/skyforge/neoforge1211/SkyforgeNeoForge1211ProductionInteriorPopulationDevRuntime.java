@@ -7,6 +7,7 @@ import java.util.EnumMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biomes;
