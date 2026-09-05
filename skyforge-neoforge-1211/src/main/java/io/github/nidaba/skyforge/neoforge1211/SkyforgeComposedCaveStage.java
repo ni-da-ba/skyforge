@@ -163,6 +163,7 @@ final class SkyforgeComposedCaveStage {
                         volume,
                         obligation.columns(),
                         obligation.realizedAuthoredField(),
+                        obligation.spatialIndex(),
                         chunk)) {
                     throw new IllegalStateException(
                             "AUTH-0030-positive composed cave chunk has no exact owner-solid terrain: "
@@ -401,6 +402,7 @@ final class SkyforgeComposedCaveStage {
             SkyIslandWorldVolume volume,
             SkyIslandCompiledVolumeColumnField columns,
             SkyIslandRealizedExteriorConnectedCaveVolumeField realized,
+            SkyforgeExteriorConnectedCaveSpatialIndex spatialIndex,
             LevelChunk chunk) {
         var descriptor = volume.compiledVolume().descriptor();
 
@@ -411,6 +413,19 @@ final class SkyforgeComposedCaveStage {
                 chunk.getMaxBuildHeight() - 1,
                 ceilToInt(volume.bounds().maximumY()));
         if (maximumY < minimumY) {
+            return false;
+        }
+
+        double localMinimumX = chunk.getPos().getMinBlockX() - descriptor.centerX();
+        double localMaximumX = chunk.getPos().getMaxBlockX() - descriptor.centerX();
+        double localMinimumZ = chunk.getPos().getMinBlockZ() - descriptor.centerZ();
+        double localMaximumZ = chunk.getPos().getMaxBlockZ() - descriptor.centerZ();
+        var spatialSlice = spatialIndex.slice(
+                localMinimumX,
+                localMaximumX,
+                localMinimumZ,
+                localMaximumZ);
+        if (spatialSlice.candidatePrimitiveBounds() == 0) {
             return false;
         }
 
@@ -425,13 +440,20 @@ final class SkyforgeComposedCaveStage {
                 }
 
                 var present = column.orElseThrow();
-                // AUTH-0030's physical transform includes the two continuous surfaces. Use the
-                // inclusive integer envelope here so a cave-positive surface cell with no
-                // representable owner-solid voxel is still detected and rejected.
                 int first = Math.max(minimumY, ceilToInt(present.undersideY()));
                 int last = Math.min(maximumY, floorToInt(present.upperY()));
                 for (int y = first; y <= last; y++) {
-                    if (realized.sample(new SkyIslandRealizedSubsurfacePosition(local, y)).inside()) {
+                    var depth = present.depthFractionAt(y);
+                    if (depth.isEmpty()) {
+                        continue;
+                    }
+                    var semantic = new io.github.nidaba.skyforge.world.SkyIslandSubsurfacePosition(
+                            local,
+                            depth.orElseThrow());
+                    if (!spatialSlice.mayContainPositive(semantic)) {
+                        continue;
+                    }
+                    if (realized.semanticField().sample(semantic).inside()) {
                         return true;
                     }
                 }
