@@ -3,7 +3,7 @@
 **Status:** Active development  
 **Role:** lonely / ponderous / thoughtful exploration state  
 **Current method:** first-principles melody gate before further development  
-**Current boundary:** First-Principles Theme 01
+**Current boundary:** First-Principles Theme 02 — phrase chain
 
 ## Emotional target
 
@@ -311,7 +311,7 @@ The user therefore requested a full return to first principles rather than anoth
 
 > A theme is not memorable because it contains the ingredients associated with memorable themes. The whole melodic sentence has to feel singable, inevitable, and emotionally specific.
 
-## First-Principles Theme 01 — current boundary
+## First-Principles Theme 01 — accepted sound / prior boundary
 
 This pass deliberately abandons:
 
@@ -355,6 +355,79 @@ A melody-only diagnostic is also persisted:
 `assets/music/source/track-03-first-principles-theme-01-melody-only.mid.gz`
 
 The melody-only version is the actual acceptance gate. If it does not remain recognizable without the piano, this pass is rejected regardless of harmony or later orchestration.
+
+
+## First-Principles Theme 02 — phrase-chain pass
+
+The user accepted the **sound** of First-Principles Theme 01 and identified the next problem more precisely: the melody should break into phrases that feel as though they inevitably lead into one another.
+
+Theme 02 therefore preserves:
+
+- 76 BPM;
+- 3/4;
+- B-flat-major-centered harmony;
+- restrained piano + cello reduction;
+- the opening melodic face from Theme 01.
+
+The rewrite changes phrase architecture rather than replacing the theme.
+
+### Phrase-chain design
+
+**Phrase 1 — notice (bars 1-4)**
+
+The recognizable opening face remains centered on:
+
+`F -> G -> Bb -> D -> C -> Bb`
+
+The phrase ends on D5 rather than making a full cadence.
+
+**Hinge 1 — late bar 4**
+
+D5 steps to C5, and that C is treated as the beginning of Phrase 2 rather than a detached afterthought.
+
+**Phrase 2 — turn inward (bars 5-8)**
+
+The line descends and contracts, eventually settling on a long G4.
+
+**Hinge 2 — late bar 8**
+
+The held G is reinterpreted as the floor from which Phrase 3 rises. The new phrase grows out of the prior phrase's last important pitch instead of restarting after a cadence.
+
+**Phrase 3 — look outward (bars 9-12)**
+
+The line broadens through C-D-F shapes, then descends to F4.
+
+**Hinge 3 — late bar 12**
+
+The F4 is not treated as closure. It becomes the first pitch of the returning opening identity:
+
+`F -> G -> Bb -> D`
+
+**Phrase 4 — return changed (bars 13-16)**
+
+The opening face returns recognizably, but because it grows directly from Phrase 3's descent, the reprise functions as continuation rather than reset. The final answer is quieter and more open.
+
+### Retained rule
+
+> A phrase should not merely end so that another phrase can begin. Its final important note or motion should create the pickup, hinge, or directional tension that makes the next phrase feel necessary.
+
+Uncompressed full piano/cello MIDI SHA-256:
+
+`82cacf289aa028e3720d2218204b6067ae9fa6bb32a36cfd8958fb139c25ed83`
+
+Repository source:
+
+`assets/music/source/track-03-first-principles-theme-02-phrase-chain.mid.gz`
+
+Uncompressed melody-only MIDI SHA-256:
+
+`6c443363afc33d866d4c65bcf78b915ea737865f3fdc151205ed2a6f38fcaca8`
+
+Repository source:
+
+`assets/music/source/track-03-first-principles-theme-02-phrase-chain-melody-only.mid.gz`
+
+The primary acceptance question is now not merely whether the opening is memorable, but whether the complete 16-bar melody feels like **one thought unfolding through linked sentences**.
 
 ## Current acceptance gate
 
