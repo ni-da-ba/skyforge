@@ -9,7 +9,6 @@ import io.github.nidaba.skyforge.recipes.skyisland.SemanticSkyIslandVolumeRecipe
 import io.github.nidaba.skyforge.world.SkyIslandAuthoredRealizationAssociation;
 import io.github.nidaba.skyforge.world.SkyIslandCompiledVolumeColumnField;
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
-import io.github.nidaba.skyforge.world.SkyIslandMaterialBindingApplication;
 import io.github.nidaba.skyforge.world.SkyIslandMaterialBindingRequest;
 import io.github.nidaba.skyforge.world.SkyIslandMaterialBindingRequestField;
 import io.github.nidaba.skyforge.world.SkyIslandMaterialBindingRequestSelection;
