@@ -16,7 +16,9 @@ import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
 import io.github.nidaba.skyforge.world.TerrainBoxObservation;
 import io.github.nidaba.skyforge.world.TerrainBoxObservationRequirements;
 import io.github.nidaba.skyforge.world.WorldBounds;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -37,6 +39,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     private final SkyIslandWorldCatalog catalog;
     private final SkyIslandTerrainProfile terrainProfile;
     private final SkyforgeMinecraftBlockPalette palette;
+    private final Map<SkyIslandWorldVolumeId, SkyIslandTerrainInterpreter> interpretersByVolumeId;
 
     public SkyforgeNeoForge1211ChunkAdapter(
             SkyIslandWorldCatalog catalog,
@@ -45,6 +48,18 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         this.catalog = Objects.requireNonNull(catalog, "catalog");
         this.terrainProfile = Objects.requireNonNull(terrainProfile, "terrainProfile");
         this.palette = Objects.requireNonNull(palette, "palette");
+
+        var cachedInterpreters = new LinkedHashMap<SkyIslandWorldVolumeId, SkyIslandTerrainInterpreter>();
+        for (var volume : catalog.volumes()) {
+            SkyIslandTerrainInterpreter previous = cachedInterpreters.put(
+                    volume.id(),
+                    new SkyIslandTerrainInterpreter(volume.compiledVolume(), terrainProfile));
+            if (previous != null) {
+                throw new IllegalArgumentException(
+                        "world catalog contains duplicate exact volume id: " + volume.id().path());
+            }
+        }
+        this.interpretersByVolumeId = Map.copyOf(cachedInterpreters);
     }
 
     /** Materializes one Minecraft chunk's composite Skyforge contribution for the supplied span. */
@@ -52,7 +67,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(chunkPos, minimumY, height);
         var candidates = catalog.query(chunkBounds.worldBounds());
         List<SkyIslandTerrainInterpreter> interpreters = candidates.stream()
-                .map(candidate -> new SkyIslandTerrainInterpreter(candidate.compiledVolume(), terrainProfile))
+                .map(candidate -> requireInterpreter(candidate.id()))
                 .toList();
         return materialize(chunkPos, minimumY, height, interpreters, candidates.size());
     }
@@ -70,13 +85,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             int minimumY,
             int height) {
         Objects.requireNonNull(volumeId, "volumeId");
-        var volume = catalog.volumes().stream()
-                .filter(candidate -> candidate.id().equals(volumeId))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("unknown Skyforge world volume: " + volumeId.path()));
-        SkyIslandTerrainInterpreter interpreter =
-                new SkyIslandTerrainInterpreter(volume.compiledVolume(), terrainProfile);
-        return materialize(chunkPos, minimumY, height, List.of(interpreter), 1);
+        return materialize(chunkPos, minimumY, height, List.of(requireInterpreter(volumeId)), 1);
     }
 
     private MinecraftChunkMaterialization materialize(
@@ -140,7 +149,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     List<SkyIslandWorldVolumeId> claimingVolumeIds(int worldX, int worldY, int worldZ) {
         WorldBounds pointBounds = pointBounds(worldX, worldY, worldZ);
         return catalog.query(pointBounds).stream()
-                .filter(candidate -> new SkyIslandTerrainInterpreter(candidate.compiledVolume(), terrainProfile)
+                .filter(candidate -> requireInterpreter(candidate.id())
                         .classify(worldX, worldY, worldZ)
                         .isSolid())
                 .map(candidate -> candidate.id())
@@ -154,13 +163,26 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             int worldY,
             int worldZ) {
         Objects.requireNonNull(volumeId, "volumeId");
+        SkyIslandTerrainInterpreter interpreter = interpretersByVolumeId.get(volumeId);
+        return interpreter != null
+                && interpreter.classify(worldX, worldY, worldZ).isSolid();
+    }
+
+    /** Returns whether any different exact compiled volume owns this solid sample. */
+    boolean isSolidOwnedByOtherVolume(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        if (interpretersByVolumeId.size() <= 1) {
+            return false;
+        }
         return catalog.query(pointBounds(worldX, worldY, worldZ)).stream()
-                .filter(candidate -> candidate.id().equals(volumeId))
-                .findFirst()
-                .map(candidate -> new SkyIslandTerrainInterpreter(candidate.compiledVolume(), terrainProfile)
+                .filter(candidate -> !candidate.id().equals(volumeId))
+                .anyMatch(candidate -> requireInterpreter(candidate.id())
                         .classify(worldX, worldY, worldZ)
-                        .isSolid())
-                .orElse(false);
+                        .isSolid());
     }
 
     /**
@@ -179,12 +201,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         if (height <= 0) {
             throw new IllegalArgumentException("height must be positive");
         }
-        var volume = catalog.volumes().stream()
-                .filter(candidate -> candidate.id().equals(volumeId))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("unknown Skyforge world volume: " + volumeId.path()));
-        SkyIslandTerrainInterpreter interpreter =
-                new SkyIslandTerrainInterpreter(volume.compiledVolume(), terrainProfile);
+        SkyIslandTerrainInterpreter interpreter = requireInterpreter(volumeId);
         int maximumYExclusive = Math.addExact(minimumY, height);
         for (int worldY = maximumYExclusive - 1; worldY >= minimumY; worldY--) {
             if (interpreter.classify(worldX, worldY, worldZ).isSolid()) {
@@ -192,6 +209,14 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             }
         }
         return OptionalInt.empty();
+    }
+
+    private SkyIslandTerrainInterpreter requireInterpreter(SkyIslandWorldVolumeId volumeId) {
+        SkyIslandTerrainInterpreter interpreter = interpretersByVolumeId.get(volumeId);
+        if (interpreter == null) {
+            throw new IllegalArgumentException("unknown Skyforge world volume: " + volumeId.path());
+        }
+        return interpreter;
     }
 
     /** Delegates structure-sized support assessment to the accepted backend-neutral evaluator. */

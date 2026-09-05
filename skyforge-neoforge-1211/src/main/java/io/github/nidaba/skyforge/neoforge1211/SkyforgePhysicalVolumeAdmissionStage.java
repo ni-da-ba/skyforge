@@ -4,6 +4,8 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -173,6 +175,32 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         return binding.ledger().snapshot(volumeId);
     }
 
+    /** Exact finite chunk footprint already owned by the physical-admission ledger. */
+    static Set<Long> requiredChunkKeys(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            throw new IllegalStateException("no physical Skyforge volume-admission stage is installed");
+        }
+        return binding.ledger().requiredChunkKeys(volumeId);
+    }
+
+    /** Whether one exact admitted volume/chunk still owes deferred terrain realization. */
+    static boolean hasPendingCatchup(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos chunkPos) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return false;
+        }
+        synchronized (binding) {
+            Map<Long, PendingRealization> byChunk = binding.pendingByVolume().get(volumeId);
+            return byChunk != null && byChunk.containsKey(chunkPos.toLong());
+        }
+    }
+
     /** Eligible deferred writes for one already-available chunk. Returned records remain pending. */
     static List<PendingRealization> eligibleCatchup(ChunkPos chunkPos) {
         Objects.requireNonNull(chunkPos, "chunkPos");
@@ -210,7 +238,7 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                 }
             }
         }
-        return Set.copyOf(keys);
+        return orderedChunkKeys(keys);
     }
 
     /** All loaded-on-demand chunk keys that still owe persistent exact-volume biome presentation. */
@@ -227,7 +255,27 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                 }
             }
         }
-        return Set.copyOf(keys);
+        return orderedChunkKeys(keys);
+    }
+
+    /**
+     * Canonical chunk scheduling order for deferred production work.
+     *
+     * <p>Admission evidence can arrive through HashMap-backed ledgers and Minecraft chunk callbacks
+     * in different orders across otherwise identical JVM runs. Production mutation order must not
+     * inherit that incidental ordering because native population/carvers can observe already-written
+     * neighboring state. Sort by chunk X/Z before exposing any bounded catch-up iteration.
+     */
+    static Set<Long> orderedChunkKeys(Iterable<Long> chunkKeys) {
+        Objects.requireNonNull(chunkKeys, "chunkKeys");
+        List<Long> ordered = new ArrayList<>();
+        for (Long key : chunkKeys) {
+            ordered.add(Objects.requireNonNull(key, "chunk key"));
+        }
+        ordered.sort(Comparator
+                .comparingInt((Long key) -> ChunkPos.getX(key))
+                .thenComparingInt(key -> ChunkPos.getZ(key)));
+        return Collections.unmodifiableSet(new LinkedHashSet<>(ordered));
     }
 
     /** Exact admitted volumes that still owe biome presentation in one already-available chunk. */

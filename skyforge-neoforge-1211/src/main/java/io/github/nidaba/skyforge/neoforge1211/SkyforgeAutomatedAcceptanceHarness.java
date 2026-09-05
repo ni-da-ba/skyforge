@@ -5,12 +5,15 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -46,6 +49,10 @@ final class SkyforgeAutomatedAcceptanceHarness {
     private static final String MODE_SERVER = "server";
     private static final String MODE_CLIENT = "client";
     private static final int DEFAULT_RADIUS = 2;
+    private static final int ACCEPTANCE_TICKET_DISTANCE = 3;
+    private static final TicketType<ChunkPos> ACCEPTANCE_TICKET = TicketType.create(
+            "skyforge_acceptance",
+            Comparator.comparingLong(ChunkPos::toLong));
     private static final long DEFAULT_TIMEOUT_SECONDS = 180L;
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeAutomatedAcceptanceHarness.class.getName());
@@ -78,10 +85,6 @@ final class SkyforgeAutomatedAcceptanceHarness {
         if (!enabled() || completionRequested) {
             return;
         }
-        if (firstServerTickNanos == Long.MIN_VALUE) {
-            firstServerTickNanos = System.nanoTime();
-        }
-
         for (ServerLevel level : event.getServer().getAllLevels()) {
             if (!level.dimension().equals(Level.OVERWORLD)) {
                 continue;
@@ -93,8 +96,15 @@ final class SkyforgeAutomatedAcceptanceHarness {
                         System.Logger.Level.INFO,
                         "SKYFORGE AUTOMATED ACCEPTANCE WARMUP: case=" + caseId()
                                 + ", radiusChunks=" + radius()
-                                + ". Development harness synchronously loaded the finite proof footprint.");
+                                + ". Development harness synchronously loaded and ticketed the finite proof footprint.");
             }
+        }
+
+        // Synchronous proof-footprint warmup is test setup, not proof execution. Large finite
+        // fixtures can legitimately spend substantial wall time generating their bounded chunk
+        // corpus, so begin the bounded PASS deadline only after that setup has completed.
+        if (warmupComplete && firstServerTickNanos == Long.MIN_VALUE) {
+            firstServerTickNanos = System.nanoTime();
         }
 
         long elapsedSeconds = Math.max(
@@ -170,8 +180,19 @@ final class SkyforgeAutomatedAcceptanceHarness {
 
     private static void warmOriginFootprint(ServerLevel level) {
         int radius = radius();
+        var chunkSource = level.getChunkSource();
         for (int chunkX = -radius; chunkX <= radius; chunkX++) {
             for (int chunkZ = -radius; chunkZ <= radius; chunkZ++) {
+                ChunkPos pos = new ChunkPos(chunkX, chunkZ);
+                // The harness itself is the independent load reason for this finite proof corpus.
+                // A non-persistent development-only region ticket keeps each target stable between
+                // resumable production quanta without repeatedly synchronously loading hundreds of
+                // chunks on every server tick. Production code remains strictly getChunkNow-only.
+                chunkSource.addRegionTicket(
+                        ACCEPTANCE_TICKET,
+                        pos,
+                        ACCEPTANCE_TICKET_DISTANCE,
+                        pos);
                 level.getChunk(chunkX, chunkZ);
             }
         }
@@ -179,8 +200,8 @@ final class SkyforgeAutomatedAcceptanceHarness {
 
     private static int radius() {
         int value = Integer.getInteger(RADIUS_PROPERTY, DEFAULT_RADIUS);
-        if (value < 0 || value > 8) {
-            throw new IllegalArgumentException("acceptance radius must be in [0,8], found " + value);
+        if (value < 0 || value > 12) {
+            throw new IllegalArgumentException("acceptance radius must be in [0,12], found " + value);
         }
         return value;
     }
