@@ -129,6 +129,17 @@ public final class SkyIslandWorldCatalogCompiler {
     }
 
     /**
+     * Executes one complete AUTH-0055 candidate exactly once and reports AUTH-0056 convergence.
+     *
+     * <p>This method does not retry, adjust margins, or compile world volumes.
+     */
+    public SkyIslandSupportConvergenceReport executeSupportAwareReplanOnce(
+            SkyIslandSupportReplanProposal proposal,
+            SkyIslandMorphologyProviderRegistry registry) {
+        return new SkyIslandSupportConvergenceExecutor().executeOnce(proposal, registry);
+    }
+
+    /**
      * Builds an AUTH-0055 immutable re-plan proposal from matching original intent, exact plan,
      * AUTH-0054 synthesis, current vertical reservation, and explicit author margin.
      *
