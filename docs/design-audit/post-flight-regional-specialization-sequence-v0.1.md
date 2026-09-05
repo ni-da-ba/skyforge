@@ -361,10 +361,10 @@ Potential input geography includes:
 - Brass;
 - redstone;
 - gold;
-- silver/electrum only if the final selected stack supplies a coherent Silver path;
+- Electrum only if high-current electrical testing proves it useful;
 - manufactured electrical components.
 
-Do not add a Skyforge Silver resource merely because the current Modular Accumulator recipe references electrum. Resolve the final tag/recipe ecology first.
+Silver is not a Skyforge raw resource. If Electrum remains, provide a minimal manufactured/byproduct path rather than adding Silver geology. If Gold-level throughput is adequate, simplify Electrum-only recipes instead.
 
 This should emerge after the player already understands mechanical Create and aviation.
 
@@ -372,21 +372,42 @@ Design goal:
 
 > Mechanical systems move the world; electrical systems help the player measure, coordinate, and automate it.
 
-## R3/R4 — metallurgy
+## R3/R4 — heavy industry and artillery
 
-Create: Metallurgy should remain processing depth rather than worldgen authority.
+Create: Big Cannons is now the leading heavy-industry material spine.
 
-Nether-native Wolframite can remain dimension-native for now.
+~~~text
+Iron + Coal
+    -> Cast Iron / Steel
 
-Advanced metallurgy should reward:
+Copper + Zinc + Cinder Flour
+    -> Bronze
 
-- wider exploration;
-- better processing;
-- specialized industrial sites;
+Netherite Scrap
++ Cast Iron or Steel
++ SUPERHEATED
+    -> Nethersteel
+~~~
 
-without forcing every ordinary aircraft upgrade through exceptional loot.
+These materials create distinct cannon/autocannon choices rather than arbitrary recipe tiers.
 
-## Later dimensional aviation — End Levitite
+The resulting industrial progression can reward:
+
+- larger metal throughput;
+- foundries/casting yards;
+- boring and built-up gun manufacture;
+- ammunition plants;
+- fortress/settlement batteries;
+- aircraft/airship armament;
+- Nether operations for superheat and Netherite.
+
+Create: Metallurgy is now optional process depth.
+
+Its foundry should be retained only if CBC/general metal production becomes materially more useful or enjoyable with bulk melting, multi-fluid crucibles, molds, and foundry logistics.
+
+Wolframite/Tungsten/Obdurium are not current progression resources.
+
+## Later dimensional aviation — End Levitite## Later dimensional aviation — End Levitite
 
 Current Aeronautics gives the End a direct capability reward rather than merely rare loot.
 
