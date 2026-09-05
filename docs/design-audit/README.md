@@ -35,7 +35,8 @@ Core principle:
 
 - Distant Horizons is treated as a major presentation dependency for the Minecraft experience.
 - Create + Create Aeronautics + Sable are the core aviation/physics substrate.
-- A cheap early glider is preserved as starter-group personal traversal, not as a replacement for powered flight logistics; Reliable Gliders is the leading prototype pending recipe/updraft override and gameplay validation.
+- A cheap early glider is preserved as personal soaring mobility, not as a replacement for powered flight logistics; Reliable Gliders is the leading prototype pending recipe override and gameplay validation.
+- Thermals/updrafts are treated as a shared world language for gliders and soaring fauna: natural lift, terrain lift, and limited anthropogenic heat can all participate without turning gliding into freight logistics.
 - Aerodynamics4MC is the leading authoritative wind/atmosphere prototype; not yet locked.
 - Naturalist + Fowl Play + Critters & Companions + Sky Whales form the leading ecology stack.
 - Ecology is niche-first: Skyforge derives feasible ecological roles, then maps them to available species.
