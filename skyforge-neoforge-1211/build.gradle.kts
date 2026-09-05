@@ -2486,9 +2486,9 @@ fun requireSfImp0068AcceptancePass(resultName: String) {
     val properties = Properties()
     file.inputStream().use(properties::load)
     check(properties.getProperty("status") == "PASS") {
-        val failure = properties.getProperty("failure")
-        "SF-IMP-0068 acceptance case $resultName did not PASS: "
-            + (failure ?: "status=${properties.getProperty("status")}")
+        val detail = properties.getProperty("failure")
+            ?: "status=${properties.getProperty("status")}"
+        "SF-IMP-0068 acceptance case $resultName did not PASS: $detail"
     }
 }
 
