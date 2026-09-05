@@ -1251,3 +1251,46 @@ Performance Pass 01 MIDI SHA-256:
 `7b6d5b2e748e4f65088143994991b3c436f6a737cb4d8e671c740e32ced80b9e`
 
 The downloadable working package is the current audition artifact. Repository persistence of the binary source should retain this exact hash.
+
+
+## Full Draft 02 — Second Horizon
+
+The user approved adding a second return of the cue's "large world" sonority **after** the stripped recollection rather than extending the first widening.
+
+The cue is therefore expanded from **64 bars to 72 bars**.
+
+### Revised late form
+
+- bars 41-48 — stripped recollection (preserved);
+- bars 49-56 — reassembly (preserved);
+- bars 57-64 — **Second Horizon / world seen again**;
+- bars 65-66 — exhale;
+- bars 67-72 — final coda.
+
+### Dramatic distinction
+
+The two wide sections now have different meanings:
+
+- **bars 33-40:** realization — *the world really is this enormous*;
+- **bars 57-64:** acceptance — *yes, it is still enormous, and I can live with that*.
+
+The second widening deliberately does **not** repeat the first one literally. It retains clarinet ownership of the canonical motif, uses steadier broad strings, warmer/distant horn support, and a lower dynamic ceiling. Cello does not inherit the motif again.
+
+Bars 61-62 use a more settled adjacent version of the refrain: the characteristic head remains recognizable, but the E-natural catch is omitted so the second horizon feels calmer and less unsettled than the first realization.
+
+The former full canonical return at the start of the old coda is removed to avoid overexposure. After the second horizon, the ending proceeds through an exhale, cello answer, partial refrain, low B-flat, and final afterimage.
+
+### Source
+
+Repository MIDI sources:
+
+- `assets/music/source/track-03-count-the-leagues-full-draft-02-second-horizon-72bar.mid.gz`
+- `assets/music/source/track-03-count-the-leagues-full-draft-02-bars-49-72-focus.mid.gz`
+
+Uncompressed full MIDI SHA-256:
+
+`7e1e968af4e92a4b1937b23f2e7a0e2e04bda2873c46930d0b7cc1f4e0faaec1`
+
+### Current acceptance question
+
+> Does the second large-world statement feel like the same vista understood differently, and does it make the final coda feel earned rather than merely extending the cue?
