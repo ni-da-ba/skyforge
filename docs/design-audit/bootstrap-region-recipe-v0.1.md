@@ -65,7 +65,8 @@ needs:
   food/water
   stone
   iron-class metal
-  copper/zinc-class engineering closure
+  andesite / early mechanical-material closure
+  selected local-traversal closure
   one manageable first crossing
   one useful cave/resource-learning opportunity
   first-flight material closure
@@ -110,6 +111,46 @@ Possible means:
 
 Do not require a long blind void crossing as the first progression step.
 
+### Selected early-glider path
+
+If the pack includes the selected early glider prototype, Skyforge may use it as one realization of the first local traversal capability.
+
+The world recipe should still express the semantic requirement rather than a concrete item:
+
+~~~text
+LOCAL_PERSONAL_CROSSING
+~~~
+
+Possible realizations remain:
+
+- bridge;
+- connected/climbable terrain;
+- rope/lift;
+- glider;
+- another deliberately selected low-tier traversal tool.
+
+When a starter layout **requires** gliding, the glider recipe closure must be satisfied before the first required glide edge. Rare hostile loot is not an acceptable hidden prerequisite.
+
+Glider-enabled planning should use a directed edge model such as:
+
+~~~text
+GLIDE_EDGE {
+    launchElevation
+    arrivalElevation
+    horizontalGap
+    verticalDrop
+    approachClearance
+    landingMargin
+    fallbackRoute
+}
+~~~
+
+A high-to-low crossing does not imply that the same route is possible in reverse.
+
+Progression-critical glide edges therefore require a proven return/recovery path.
+
+See [Early Glider Mobility Contract v0.1](early-glider-mobility-contract-v0.1.md).
+
 ## Starting-group requirements
 
 The local group should teach that islands differ.
@@ -120,7 +161,8 @@ Desired guarantees may include:
 - a foundational metal/resource site distinct from the spawn island;
 - one ecological difference;
 - one cave/mineral opportunity;
-- one modest structure or historical trace when compatible.
+- one modest structure or historical trace when compatible;
+- when gliding is selected, at least one layout where the cheap glider is genuinely useful for local movement without becoming mandatory in every seed.
 
 The point is not to showcase every Skyforge system immediately.
 
@@ -135,8 +177,9 @@ The starting cluster should prove the complete transitive material/functional cl
 ~~~text
 ordinary survival
 -> iron-level tools
+-> local crossing capability
 -> basic Create
--> first practical crossing tools
+-> first practical powered-aircraft closure
 -> first reliable flight
 -> basic repair
 -> basic storage
@@ -330,7 +373,7 @@ A likely experiential sequence:
 ~~~text
 1. survive on starting island
 2. inspect nearby horizon
-3. cross to second island
+3. cross to second island by a valid local method, potentially the cheap glider
 4. find first meaningful resource difference
 5. begin Create/mechanical processing
 6. encounter simple civilization/ruin infrastructure
@@ -395,7 +438,9 @@ Future bootstrap evidence should include:
 - spawn island morphology;
 - requirement satisfaction by scope;
 - exact resource closure;
-- traversal graph before first flight;
+- directed traversal graph before first flight;
+- capability label for each required edge (walk/climb/bridge/glide/other);
+- launch/arrival geometry and recovery proof for required glide edges;
 - distance/cost to each required material;
 - optional civilization/teaching sites;
 - first-flight closure proof.
@@ -419,6 +464,12 @@ Bootstrap closure survives removal of non-guaranteed random loot.
 ### Traversal proof
 
 Every required pre-flight destination has at least one plausible route using already-available capabilities.
+
+If a required route uses gliding, the proof is directional and includes a return/recovery path rather than assuming reciprocal reach.
+
+### Glider / aircraft separation
+
+When a glider is selected, representative starter-group crossings may be glider-reachable, but the first powered aircraft must materially expand route reach, reversibility, and cargo capability.
 
 ### Regional reveal
 
