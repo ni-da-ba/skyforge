@@ -8,6 +8,7 @@ import io.github.nidaba.skyforge.world.SkyIslandRealizedSubsurfacePosition;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -200,7 +201,9 @@ final class SkyforgeComposedCaveStage {
                 }
             }
         }
-        return Set.copyOf(keys);
+        // Preserve installation order so the stable-chunk catch-up service can apply a bounded
+        // per-tick budget without introducing hash-order-dependent scheduling.
+        return Collections.unmodifiableSet(keys);
     }
 
     static Snapshot snapshot() {
