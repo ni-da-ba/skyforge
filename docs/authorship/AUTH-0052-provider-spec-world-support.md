@@ -438,16 +438,23 @@ The next useful authorship boundary is to move that knowledge earlier.
 
 A likely AUTH-0053 direction is:
 
-**provider-support reservation preflight / planning admission**
+**seed-aware provider-support reservation preflight / planning admission**
 
-It should evaluate certifiable morphology specs before group/archipelago placement and report:
+The preflight must run at the earliest deterministic planning stage where the exact descriptor inputs required by the provider certificate are known.
 
-- minimum required horizontal reservation;
+For the current group planner, member geometry seeds are derived from the group root seed and member ordinal. A general provider certificate may therefore depend on values that do not exist on the reusable uninstantiated group template.
+
+AUTH-0053 should not assume seed-independence merely because the current built-in certificate happens to use a seed-independent worst-case bound.
+
+It should report:
+
+- minimum required horizontal reservation for each exact planned member;
 - minimum required below-suspension reservation;
 - minimum required above-suspension reservation;
 - uncertified member/spec identities;
-- whether a proposed group template and world vertical reservation can produce a fully proof-backed catalog.
+- whether the current planned reservations can produce a fully proof-backed catalog;
+- whether any higher-level reservation was already consumed before exact support became knowable.
 
-It must not silently enlarge already planned spacing.
+It must not silently enlarge already planned spacing or rewrite an archipelago placement whose reservation assumptions were too small.
 
 True non-endpoint hybrid certification should remain a separate analytical milestone unless a proof-grade structural-coordinate envelope is established.
