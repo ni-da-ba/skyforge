@@ -154,6 +154,10 @@ public final class SkyIslandWorldCatalogCompiler {
     /**
      * Compiles a fully proof-backed world catalog only after AUTH-0053 accepts every exact member
      * and consumed reservation assumption.
+     *
+     * <p>Preflight runs before primary/full-volume compilation. Provider support certification may
+     * still construct a secondary-factor contribution in order to consume its declared analytical
+     * envelope.
      */
     public SkyIslandWorldCatalogSupportBundle compileProofBacked(
             SkyIslandArchipelagoPlan plan,
