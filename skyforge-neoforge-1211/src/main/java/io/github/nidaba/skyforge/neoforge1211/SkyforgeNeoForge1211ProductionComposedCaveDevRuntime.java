@@ -279,12 +279,12 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         // completed chunk and require no result and no ledger change.
         SkyforgeComposedCaveStage.Snapshot beforeReplay = SkyforgeComposedCaveStage.snapshot();
         LevelChunk replayChunk = chunks.getFirst();
-        List<SkyforgeComposedCaveStage.Completion> replay = SkyforgeComposedCaveStage.service(
+        SkyforgeComposedCaveStage.ServiceResult replay = SkyforgeComposedCaveStage.service(
                 level,
                 replayChunk,
                 level.getChunkSource().getGenerator());
         SkyforgeComposedCaveStage.Snapshot afterReplay = SkyforgeComposedCaveStage.snapshot();
-        if (!replay.isEmpty() || !beforeReplay.equals(afterReplay)) {
+        if (replay.worked() || !replay.completions().isEmpty() || !beforeReplay.equals(afterReplay)) {
             throw new IllegalStateException(
                     "SF-IMP-0068 completed production obligation replayed: before="
                             + beforeReplay + ", after=" + afterReplay + ", replay=" + replay);
