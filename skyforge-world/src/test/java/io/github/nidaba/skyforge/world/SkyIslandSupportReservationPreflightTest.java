@@ -191,8 +191,12 @@ final class SkyIslandSupportReservationPreflightTest {
 
         assertEquals(firstSeed, first.memberChecks().get(0).descriptorSeed());
         assertEquals(secondSeed, second.memberChecks().get(0).descriptorSeed());
-        assertEquals(300.0, first.memberChecks().get(0).requiredHorizontalRadius());
-        assertEquals(120.0, second.memberChecks().get(0).requiredHorizontalRadius());
+        assertEquals(
+                Math.nextUp(300.0),
+                first.memberChecks().get(0).requiredHorizontalRadius());
+        assertEquals(
+                Math.nextUp(120.0),
+                second.memberChecks().get(0).requiredHorizontalRadius());
         assertFalse(first.admitted());
         assertTrue(second.admitted());
     }
