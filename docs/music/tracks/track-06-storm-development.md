@@ -347,3 +347,25 @@ Required Track 06 routing:
 BBCSO Discover does not provide one generic "Tuned Percussion" instrument representing all tuned percussion. Timpani, marimba, xylophone, glockenspiel, tubular bells, etc. are distinct instrument patches. Track 06's TP notes are high-register lightning punctuation and should currently be realized with Glockenspiel rather than Timpani.
 
 If PERC remains silent while routed to Untuned Percussion, inspect the Sonar MIDI track Output and BBCSO plugin instance before changing MIDI notes again.
+
+
+## Draft 02.2 — absolute percussion-note correction
+
+The user confirmed TP/Glockenspiel was audible but PERC remained completely silent after Draft 02.1.
+
+Root cause: the earlier BBCSO percussion correction used the correct Spitfire pitch **names** but converted them to the wrong absolute MIDI note numbers. Spitfire's Discover convention places MIDI note 0 at C-2, so documented C2 is MIDI 48 rather than MIDI 36.
+
+All Track 06 PERC notes were therefore shifted +12 semitones:
+
+- 36 -> 48 — Bass Drum;
+- 38 -> 50 — Tenor Drum;
+- 40 -> 52 — Snare Drum;
+- 41 -> 53 — Suspended Cymbal.
+
+TP was left unchanged because the user directly confirmed Glockenspiel playback.
+
+No rhythm, timing, velocity, form, or orchestration was changed.
+
+Current MIDI SHA-256:
+
+`921e8a640f53d7f857e65474710e3f266c96346862120ff455aac27d0e245169`
