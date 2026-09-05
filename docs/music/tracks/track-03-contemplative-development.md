@@ -2,8 +2,8 @@
 
 **Status:** Active development  
 **Role:** lonely / ponderous / thoughtful exploration state  
-**Current method:** preserve cadential audit while adding a composite melodic fingerprint  
-**Current boundary:** First-Principles Theme 04 — afterimage hook
+**Current method:** preserve Theme 04's fingerprint while auditing note economy and structural duration  
+**Current boundary:** Melodic Design Audit 02 — note economy, holds, and structural duration
 
 ## Emotional target
 
@@ -670,9 +670,51 @@ Its uncompressed MIDI SHA-256 is:
 
 `5253c48618b82e9f588a57f2a07492d9b2d4782c6de87598a0e6fcabdb60cbe2`
 
+### Theme 04 audit result
+
+The user judged Theme 04 the **first Track 03 pass with clear promise**, but identified a new defect: the melody frequently adds short connective notes where the ear wants an arrival to be held.
+
+A MIDI-level audit confirmed that this is not merely a subjective impression.
+
+Theme 04 contains **80 cello attacks** across 20 bars / 60 quarter-note beats:
+
+- 22 notes shorter than 0.4 beat;
+- 48 notes from 0.4 to <0.75 beat;
+- 8 notes from 0.75 to <1.25 beats;
+- 0 notes from 1.25 to <2 beats;
+- only 2 notes at 2 beats or longer.
+
+Thus **87.5%** of cello notes are shorter than 0.75 beat, and outside the final B-flat cadences in bars 8 and 20 the cello contains no note longer than 1.25 beats.
+
+Theme 03 had 68 cello attacks. Theme 04 increased that to 80, while very short notes (<0.4 beat) increased from 3 to 22.
+
+The character pass therefore succeeded in creating identity but over-articulated the surface.
+
+The detailed audit is persisted at:
+
+`docs/music/melodic-design-audit-02-note-economy-and-duration.md`
+
+### Governing correction
+
+> Character should come from which notes we choose, not from refusing to stop choosing notes.
+
+The next pass should:
+
+- preserve the `D-D-F-Bb` head;
+- preserve the E-natural catch;
+- preserve the piano afterimage;
+- delete connective notes around structural arrivals;
+- restore long C4 open-cadence arrivals at bars 4, 12, and 16;
+- lengthen principal local apexes;
+- make the global F5 apex one of the longest emotionally active notes in the theme;
+- reduce cello attacks toward roughly 58–65 across the same 20 bars;
+- reserve higher note density primarily for the developmental approach.
+
+No new melodic material should be added merely to increase character. The next rewrite begins with **subtraction and duration hierarchy**.
+
 ### Current acceptance question
 
-> Does the listener remember the `D-D-F-Bb` call and the little piano afterimage as belonging specifically to this piece, while the low/open and low/closed phrase endings still feel natural?
+> Can Theme 04 keep its new fingerprint while allowing important notes to become places the listener can actually inhabit?
 
 ## Current acceptance gate
 
