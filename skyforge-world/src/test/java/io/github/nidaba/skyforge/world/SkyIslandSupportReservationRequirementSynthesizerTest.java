@@ -273,8 +273,8 @@ final class SkyIslandSupportReservationRequirementSynthesizerTest {
                         .orElseThrow();
 
         assertNotEquals(
-                original.groups().get(0).groupPlan().members().get(1).descriptor().centerX(),
-                fresh.groups().get(0).groupPlan().members().get(1).descriptor().centerX());
+                original.groups().get(0).groupPlan().minimumObservedCenterSpacing(),
+                fresh.groups().get(0).groupPlan().minimumObservedCenterSpacing());
         assertNotEquals(originalExactGroup, freshExactGroup);
     }
 
