@@ -45,6 +45,7 @@ Core principle:
 - Illagers are modeled as a hostile civilization, not generic dark-area monsters.
 - Friends & Foes, It Takes a Pillage Continuation, Illager Structures, Mowzie's Mobs, and Bosses of Mass Destruction form the leading hostile/structure content set.
 - Structure realization is divided into surface-supported, settlement/network, subsurface-embedded, cliff/underside-attached, detached, and structure-seeded terrain modes.
+- Structure-seeded terrain is morphology-agnostic by default: structures constrain admissible scale/support/interior/access conditions rather than prescribing visible island shape.
 - Progression-critical vanilla structures such as Strongholds must be guaranteed. If no suitable island exists, Skyforge may author terrain around the required structure.
 - Ancient Cities should support both buried and rare exposed/structure-seeded realizations.
 - Ordinary cluster authoring should preserve **layering without roofing**: vertical composition without routinely placing large islands directly over habitable lower surfaces.
@@ -74,4 +75,5 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Structure realization contract v0.1](structure-realization-contract-v0.1.md)
 - [Representative structure realization matrix v0.1](representative-structure-realization-matrix-v0.1.md)
 - [Structure reservation and relocation policy v0.1](structure-reservation-and-relocation-policy-v0.1.md)
+- [Structure-to-terrain compatibility contract v0.1](structure-terrain-compatibility-contract-v0.1.md)
 - [Working mod and to-build ledger](mod-and-build-ledger.md)
