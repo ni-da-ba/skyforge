@@ -201,15 +201,17 @@ Third-party sample content and copyrighted reference works must never be committ
 
 BBCSO Discover's Untuned Percussion patch must not be authored from General MIDI drum-number assumptions.
 
-Relevant confirmed white-key mapping used by Skyforge includes:
+Relevant confirmed Spitfire pitch mapping used by Skyforge includes:
 
-- C2 / MIDI 36 — Bass Drum;
-- D2 / MIDI 38 — Tenor Drum;
-- E2 / MIDI 40 — Snare Drum;
-- F2 / MIDI 41 — Suspended Cymbal;
-- G2 / MIDI 43 — Suspended Cymbal Roll;
-- B2 / MIDI 47 — Tam Tam;
-- B3 / MIDI 59 — Piatti.
+- C2 — Bass Drum;
+- D2 — Tenor Drum;
+- E2 — Snare Drum;
+- F2 — Suspended Cymbal;
+- G2 — Suspended Cymbal Roll;
+- B2 — Tam Tam;
+- B3 — Piatti.
+
+**Absolute-note warning:** Spitfire's BBCSO octave convention uses MIDI note 0 as C-2. Therefore the corresponding absolute MIDI numbers are C2=48, D2=50, E2=52, F2=53, G2=55, B2=59, B3=71. Do not convert the pitch labels using Cakewalk's default displayed-octave convention.
 
 Track 06 Draft 02 exposed this defect when GM-style notes 42 and 49 failed to realize the intended hits. Future percussion authoring must use the BBCSO map explicitly and should receive a percussion-only audition before orchestral acceptance.
 
@@ -244,3 +246,21 @@ Current Track 06 requirement:
 - 13 TP | Tuned Percussion -> **Glockenspiel**.
 
 The reusable base template may keep a chosen default, but every cue using these polymorphic lanes must record and verify its intended preset before BBCSO audition.
+
+
+### BBCSO octave-numbering guardrail
+
+Track 06 Draft 02.2 exposed an octave-numbering defect in the earlier percussion correction.
+
+Spitfire documentation names Untuned Percussion pitches using its own convention, where the Discover low C / MIDI note 0 is C-2. Cakewalk can display the same absolute MIDI notes with different octave labels depending on its Base Octave for Pitches setting.
+
+For BBCSO percussion authoring, use **absolute MIDI note numbers**, not DAW-displayed octave names.
+
+Track 06 corrected PERC mapping:
+
+- MIDI 48 — Bass Drum;
+- MIDI 50 — Tenor Drum;
+- MIDI 52 — Snare Drum;
+- MIDI 53 — Suspended Cymbal.
+
+The previous 36/38/40/41 mapping was one octave too low and could produce complete silence on the Untuned Percussion preset.
