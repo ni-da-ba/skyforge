@@ -240,6 +240,14 @@ jobs:
           test -f skyforge-reference/build/evidence/authorship-published-world-view-v1/query.csv
           test -f skyforge-reference/build/evidence/authorship-published-world-view-v1/replacement.csv
           test -f skyforge-reference/build/evidence/authorship-published-world-view-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/binding.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/activation.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/replacement.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/version.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/failures.csv
 
       - name: Publish compact evidence review bundle
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -433,6 +441,9 @@ jobs:
             skyforge-reference/build/evidence/authorship-published-world-view-v1/**/*.png
             skyforge-reference/build/evidence/authorship-published-world-view-v1/**/*.html
             skyforge-reference/build/evidence/authorship-published-world-view-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/**/*.csv
           if-no-files-found: error
           retention-days: 7
           compression-level: 9
