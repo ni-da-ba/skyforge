@@ -1,35 +1,67 @@
 package io.github.nidaba.skyforge.world;
 
+import java.util.Objects;
+import java.util.OptionalDouble;
+
 /** AUTH-0055 provenance-rich scalar proposal value. */
 public record SkyIslandSupportReplanValue(
         double originalValue,
-        double proofMinimum,
+        OptionalDouble proofMinimum,
         double authorMargin,
         double proposedValue) {
 
     public SkyIslandSupportReplanValue {
         requireNonNegative("originalValue", originalValue);
-        requireNonNegative("proofMinimum", proofMinimum);
+        proofMinimum = Objects.requireNonNull(proofMinimum, "proofMinimum");
+        proofMinimum.ifPresent(value -> requireNonNegative("proofMinimum", value));
         requireNonNegative("authorMargin", authorMargin);
         requireNonNegative("proposedValue", proposedValue);
-        double required = Math.nextUp(proofMinimum + authorMargin);
-        if (proposedValue < originalValue || proposedValue < required) {
+
+        double baseline =
+                proofMinimum.isPresent()
+                        ? Math.max(originalValue, proofMinimum.orElseThrow())
+                        : originalValue;
+        double minimumProposed =
+                authorMargin == 0.0
+                        ? baseline
+                        : Math.nextUp(baseline + authorMargin);
+        if (proposedValue < minimumProposed) {
             throw new IllegalArgumentException(
-                    "proposedValue must preserve original value and include proof minimum plus margin");
+                    "proposedValue must preserve original/proof baseline and include author margin");
         }
     }
 
     public static SkyIslandSupportReplanValue propose(
-            double originalValue, double proofMinimum, double authorMargin) {
+            double originalValue,
+            OptionalDouble proofMinimum,
+            double authorMargin) {
         requireNonNegative("originalValue", originalValue);
-        requireNonNegative("proofMinimum", proofMinimum);
+        Objects.requireNonNull(proofMinimum, "proofMinimum");
+        proofMinimum.ifPresent(value -> requireNonNegative("proofMinimum", value));
         requireNonNegative("authorMargin", authorMargin);
-        double proofWithMargin = Math.nextUp(proofMinimum + authorMargin);
+
+        double baseline =
+                proofMinimum.isPresent()
+                        ? Math.max(originalValue, proofMinimum.orElseThrow())
+                        : originalValue;
+        double proposed =
+                authorMargin == 0.0
+                        ? baseline
+                        : Math.nextUp(baseline + authorMargin);
         return new SkyIslandSupportReplanValue(
-                originalValue,
-                proofMinimum,
-                authorMargin,
-                Math.max(originalValue, proofWithMargin));
+                originalValue, proofMinimum, authorMargin, proposed);
+    }
+
+    public boolean proofAvailable() {
+        return proofMinimum.isPresent();
+    }
+
+    public boolean raisedByProof() {
+        return proofMinimum.isPresent() && proofMinimum.orElseThrow() > originalValue;
+    }
+
+    public boolean raisedByAuthorMargin() {
+        return authorMargin > 0.0;
     }
 
     public boolean raisedByProofOrMargin() {
@@ -37,7 +69,9 @@ public record SkyIslandSupportReplanValue(
     }
 
     public double proofDrivenIncreaseBeforeMargin() {
-        return Math.max(0.0, proofMinimum - originalValue);
+        return proofMinimum.isPresent()
+                ? Math.max(0.0, proofMinimum.orElseThrow() - originalValue)
+                : Double.NaN;
     }
 
     private static void requireNonNegative(String property, double value) {
