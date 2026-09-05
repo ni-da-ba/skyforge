@@ -61,7 +61,11 @@ DIMENSION
 | Emerald ore | S | No | regional geology | villager economy | trade | Ore need not supply most currency circulation |
 | Quartz | DIMENSION | No | Nether | trade/structure optional | advanced recipes | Keep Nether identity unless later design says otherwise |
 | Blaze products | DIMENSION | No | Nether | trade only if intentionally limited | progression | Preserve normal dimension progression |
-| End materials | DIMENSION/E | No | End | exceptional trade only | late progression | Preserve End identity |
+| End Stone | DIMENSION, abundant | No | End terrain | import only after End access | End aviation feedstock | Current Aeronautics crushing path produces End Stone Powder; raw abundance can be balanced through processing rather than scarcity |
+| End Stone Powder (Aeronautics) | manufactured from End Stone | No | crushing | none needed | levitation precursor | Carries Aeronautics levitating item component; input to Levitite Blend |
+| Levitite Blend (Aeronautics) | manufactured | No | End Stone Powder + zinc + water + heated mixing | trade/salvage only if deliberately added | advanced aviation industry | Current recipe: 4 powder + 2 zinc nuggets + 500 mB water -> 500 mB blend |
+| Levitite / Pearlescent Levitite | manufactured, late | No | blend crystallization | structure/trade only if intentionally added | End-adapted aircraft / heavy lift support | Levitite keeps contraptions afloat but does not provide climb by itself; handling tradeoff requires testing |
+| Other End materials | DIMENSION/E | No | End | exceptional trade only | late progression | Preserve End identity and audit individually |
 | Crude petroleum | N | No | subsurface geology | trade/salvage limited | oilfields/refineries | Strong logistics resource; not first-flight gate |
 | Refined diesel/fuels | S/N | No | processing/logistics | trade/salvage | airfields/industry | Regional network commodity |
 | Electrical storage/components | S by production | No | industry/recipes | trade/salvage | hubs/weather/nav | Worldgen quantity in active sites should be budgeted |
@@ -170,6 +174,32 @@ few suitable geological districts:
 This makes fuel geography visible.
 
 However the player must always retain at least one non-petroleum route to practical early air mobility.
+
+## End Aeronautics material policy
+
+Current Aeronautics creates a direct cross-dimensional production chain:
+
+~~~text
+Overworld zinc economy
+    +
+End Stone extraction
+    +
+water / heat / Create processing
+    -> Levitite
+~~~
+
+This is desirable because the End does not become an isolated loot tree.
+
+Current direction:
+
+- keep End Stone broadly available unless gameplay proves raw abundance problematic;
+- let processing, zinc input, crystallization, and vehicle-scale demand create economic value;
+- do not make Levitite a first-flight or pre-End requirement;
+- test whether pre-Dragon Levitite access changes Dragon progression before adding any artificial gate;
+- preserve Levitite as lift support rather than treating it as self-contained propulsion;
+- reopen End resource placement if Skyforge begins authoring outer-End terrain.
+
+See [End Aeronautics Progression Contract v0.1](end-aeronautics-progression-contract-v0.1.md).
 
 ## Electricity-material policy
 
