@@ -45,12 +45,16 @@ DIMENSION
 | Food | U | Yes | ecology/agriculture | trade | farms/markets | Not every island needs food production |
 | Water | U/C | Yes | hydrology | trade/storage only as backup | settlement/agriculture | Starting region requires viable water access |
 | Stone / aggregate | U | Yes | island geology | trade | quarry/building | Ordinary island mass supplies baseline |
-| Charcoal / biomass fuel | U/C | Yes | ecology | trade | farms/frontier | Important bootstrap alternative to strategic fuels |
+| Andesite / early Create stone family | U/C, locally guaranteed | Yes | island lithology | trade/salvage | workshop/quarry | Audited Andesite Alloy path can use iron nuggets; no zinc requirement |
+| Wool / fiber / sail material | U/C, locally guaranteed | Yes | ecology/agriculture | trade | farms/textiles | Required by leading early aerodynamic-surface path |
+| Adhesive-path inputs | U/C, selected-path guarantee | Yes | ecology/resource path | trade/salvage | workshop supply | Physics Assembler closure requires Super Glue or Honey Glue path |
+| Charcoal / biomass fuel | U/C | Yes | ecology | trade | farms/frontier | Portable Engine can use ordinary fuel; petroleum not required |
 | Coal | C/S | No | geology | trade | mines/industry | Large coal districts can be strategic without making coal mandatory |
-| Iron | C, locally guaranteed | Yes | mineral geology | trade/salvage | mining/industry | Bootstrap completeness requires reasonable access |
-| Copper | C, locally reliable | Likely | mineral geology | trade/salvage | electrical/industry | Likely foundational across Create/electrical stack |
-| Zinc (Create) | C | Likely | mineral geology | trade/salvage | Create industry/mining | Must not become ultra-rare if recipes depend on it early |
-| Redstone | C/S | No, but early-mid | deep mineral geology | trade/structure | automation/electrical | Reliable regional access before advanced controls |
+| Iron | C, locally guaranteed | Yes | mineral geology | trade/salvage | mining/industry | Major early workshop/aircraft cost; bootstrap completeness requires reasonable access |
+| Copper | C | No | mineral geology | trade/salvage | fluid/electrical/industry | Preferred early-R2 regional engineering metal; not current first-flight closure |
+| Zinc (Create) | C | No | mineral geology | trade/salvage | Create industry/mining | Preferred early-R2 regional engineering metal; native worldgen redirected through Skyforge |
+| Brass (Create) | manufactured from C+Z | No | heated processing | trade/salvage limited | advanced Create industry | Natural immediate post-flight reward; current Create recipe is heated copper + zinc mixing |
+| Redstone | C/S | No, early-mid | deep mineral geology | trade/structure | automation/electrical | Reliable regional access before advanced controls |
 | Gold | S | No | mineral geology | trade/structure | electrical/trade | Stronger regional identity acceptable |
 | Lapis | C/S | No | mineral geology | trade | vanilla enchanting | No need to elevate to strategic status |
 | Diamond | S | No | deep mature geology | trade/structure limited | high-value mining | Direct mining remains valid; favor large deep islands |
@@ -68,19 +72,27 @@ DIMENSION
 
 ## Bootstrap completeness set
 
-The first concrete recipe audit should identify the **minimum material closure** for:
+The current recipe audit has already narrowed the leading **powered first-flight** material closure.
+
+A normal starting region should currently prove access to:
 
 ~~~text
 survival
 -> iron-class tools
--> basic Create
--> first practical crossing
--> first reliable flight
+-> basic Create workshop
+-> iron + andesite / Andesite Alloy
+-> wool/fiber aerodynamic material
+-> ordinary fuel
+-> adhesive path
+-> local crossing / recovery capability
+-> first powered Aeronautics aircraft
 -> basic repair
 -> basic navigation
 ~~~
 
-Every normal starting-region world plan should prove that closure.
+Copper, zinc, Brass, petroleum, electricity, gold, diamond, and Nether materials are **not currently demonstrated as mandatory** for the leading first-flight prototype.
+
+Every normal starting-region world plan should prove the tested closure once the manual aircraft run is complete.
 
 The closure may include trade/salvage only when those alternatives are reliably present rather than probabilistic lucky finds.
 
@@ -130,7 +142,9 @@ component A needs zinc
 zinc therefore participates in first-flight closure
 ~~~
 
-The audit must follow recipes transitively rather than classify only final blocks.
+However, the current audit found that the leading first aircraft can avoid this zinc path.
+
+The audit must continue to follow recipes transitively rather than classify materials from Create familiarity or intuition.
 
 ## Strategic petroleum policy
 
