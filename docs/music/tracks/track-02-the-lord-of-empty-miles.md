@@ -197,3 +197,20 @@ Its main value is twofold:
 2. it proves that Skyforge’s musical identity can survive substantial movement into menace, panic, percussion, and low-brass mass.
 
 Adaptive decomposition remains deferred until runtime encounter states and transition semantics are concrete enough to justify loop/stem boundaries.
+
+
+## Post-freeze percussion-map audit
+
+A later Track 06 percussion-mapping defect prompted an audit of the frozen Track 02 MIDI.
+
+The canonical Track 02 Untuned Percussion track contains:
+
+- MIDI 36: 97 attacks — BBCSO Bass Drum, valid;
+- MIDI 41: 26 attacks — BBCSO Suspended Cymbal, valid;
+- MIDI 49: 14 attacks — not part of the intended BBCSO Discover Untuned Percussion white-key map and consistent with an earlier GM-style crash-cymbal assumption.
+
+The MIDI-49 events occur at bars 27, 28, 37, 41, 44, 53, 57, 60, 61, 65, 68, 77, 81, and 84.
+
+This is a latent implementation defect in the authored percussion layer, not a discovered failure of the accepted composition. The frozen BBCSO render/master was reviewed and accepted with those events effectively absent or nonfunctional.
+
+Do not silently alter the frozen Track 02 master. If Track 02 is remastered or re-rendered in the future, create an explicit A/B correction candidate for these 14 accents and judge whether restoring them improves the cue before replacing the canonical source.
