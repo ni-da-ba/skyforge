@@ -88,4 +88,6 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Resource and progression geography v0.1](resource-and-progression-geography-v0.1.md)
 - [Resource role matrix v0.1](resource-role-matrix-v0.1.md)
 - [Engineering and mobility progression ladder v0.1](engineering-and-mobility-progression-ladder-v0.1.md)
+- [Bootstrap region recipe v0.1](bootstrap-region-recipe-v0.1.md)
+- [Onboarding, guidance, and quest layer v0.1](onboarding-guidance-and-quest-layer-v0.1.md)
 - [Working mod and to-build ledger](mod-and-build-ledger.md)
