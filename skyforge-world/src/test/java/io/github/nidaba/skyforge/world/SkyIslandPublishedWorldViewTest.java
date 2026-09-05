@@ -26,7 +26,7 @@ final class SkyIslandPublishedWorldViewTest {
     @Test
     void admitsSeparatedPublicationsInCanonicalRegionalOrder() {
         SkyIslandCompiledWorldPublication high =
-                publication(59002L, 1L, 1_500.0);
+                publication(-1L, 1L, 1_500.0);
         SkyIslandCompiledWorldPublication low =
                 publication(59001L, 1L, -1_500.0);
 
