@@ -16,6 +16,11 @@ Define a backend-neutral structure intent and terrain-envelope model that can su
 
 The contract should reuse accepted generic structure-support machinery without teaching `skyforge-world` what a Stronghold, Trial Chamber, Ancient City, mansion, or third-party dungeon is.
 
+
+## Terrain compatibility interpretation
+
+The terrain envelope constrains **what terrain can host the structure**; it does not ordinarily prescribe the host island's morphology family or visible shape. Structure-seeded terrain should normally condition ordinary Skyforge descriptor/morphology sampling on those requirements. See [Structure-to-Terrain Compatibility Contract v0.1](structure-terrain-compatibility-contract-v0.1.md).
+
 ## Design boundary
 
 Skyforge owns:
