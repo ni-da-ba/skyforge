@@ -16,6 +16,7 @@ public record SkyIslandSupportReplanGroupProposal(
         SkyIslandGroupTemplate proposedTemplate,
         SkyIslandSupportReplanValue memberHorizontal,
         SkyIslandSupportReplanValue layoutMinimumCenterSpacing,
+        double dependentCurrentLayoutGroupFloor,
         SkyIslandSupportReplanValue provisionalGroupRadius,
         boolean freshPlacementValidationRequired) {
 
@@ -31,6 +32,11 @@ public record SkyIslandSupportReplanGroupProposal(
                 Objects.requireNonNull(layoutMinimumCenterSpacing, "layoutMinimumCenterSpacing");
         provisionalGroupRadius =
                 Objects.requireNonNull(provisionalGroupRadius, "provisionalGroupRadius");
+        if (!Double.isFinite(dependentCurrentLayoutGroupFloor)
+                || dependentCurrentLayoutGroupFloor <= 0.0) {
+            throw new IllegalArgumentException(
+                    "dependentCurrentLayoutGroupFloor must be finite and positive");
+        }
 
         if (!originalTemplate.identifier().equals(groupIdentifier)
                 || !proposedTemplate.identifier().equals(groupIdentifier)) {
@@ -48,6 +54,14 @@ public record SkyIslandSupportReplanGroupProposal(
         if (proposedTemplate.reservedGroupRadius() != provisionalGroupRadius.proposedValue()) {
             throw new IllegalArgumentException(
                     "proposed template group reservation does not match proposal value");
+        }
+        if (provisionalGroupRadius.proposedValue() < dependentCurrentLayoutGroupFloor) {
+            throw new IllegalArgumentException(
+                    "provisional group radius must include current-layout dependent floor");
+        }
+        if (freshPlacementValidationRequired != changesPlanningGeometry()) {
+            throw new IllegalArgumentException(
+                    "freshPlacementValidationRequired must match planning-geometry changes");
         }
     }
 
