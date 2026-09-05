@@ -298,6 +298,9 @@ Bulk / Fluid / Entity / Contraption Freight Acceptance
 Post-Flight Regional Specialization Sequence
 Post-Flight Capability Payoff Audit
 Material and Process Retention Audit
+Unified Industrial Production Graph
+Recipe and Material Normalization Backlog
+Canonical Shared-Material Tag/Recipe Audit
 Create Big Cannons Industrial Integration Audit
 Copper / Zinc First-Route Placement Contract
 Copper Fluid/Electrical Payoff Acceptance
@@ -401,3 +404,7 @@ non-omniscient sensor access to Skyforge truth
 52. If Create: Metallurgy survives A/B testing, bridge its molten Steel/other shared metals into CBC common fluid tags and normalize duplicate Steel recipes rather than maintaining parallel metal silos.
 53. CBC on Sable/Aeronautics craft requires explicit manual acceptance for recoil, moving-fire behavior, reload/fuze automation, HE destruction, save/reload, and crash recovery before showcase.
 54. Prefer CBC's existing mass/recoil/ammunition/stability costs for aircraft artillery balance before adding bespoke airborne-weapon penalties.
+55. Skyforge owns the canonical material/process vocabulary: retained mods are producers and consumers of one economy, not independent progression trees.
+56. Prefer manufactured complexity over new geology; rejected Silver/Tin/Platinum/Wolframite/Tungsten/Obdurium may not silently return as required dependencies.
+57. Recipe integration should proceed in order: common tags -> datapack recipes -> configs/worldgen overrides -> presentation cleanup -> thin adapters -> Java only when a real behavioral incompatibility remains.
+58. Build a machine-readable capability-closure verifier after the integrated pack prototype so upstream mod updates cannot silently break first flight, CBC metals, superheat, electrical storage, petroleum, or Levitite closure.
