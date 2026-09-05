@@ -223,3 +223,24 @@ BBCSO Discover exposes tuned percussion as separate instruments (for example Tim
 For Track 06, the high-register lightning punctuation currently belongs on **Glockenspiel**.
 
 A silent TP lane should first be treated as a patch/routing mismatch, especially if the MIDI pitches lie outside the loaded instrument's playable range.
+
+
+### MIDI track identity does not load a BBCSO preset
+
+The canonical MIDI track names and ordering do not themselves select a BBCSO preset inside the Spitfire plugin.
+
+The Sonar template/project owns plugin-instance state such as:
+
+- Percussion -> Timpani Hits versus Untuned Percussion;
+- Tuned Percussion -> Tubular Bells, Marimba, Xylophone, or Glockenspiel.
+
+Standard MIDI note/CC data can drive the already-loaded preset and switch techniques/articulations within a compatible patch, but it is not relied upon to load a different BBCSO instrument preset. Spitfire's documented keyswitch/UACC/program-change mechanisms concern techniques/articulations, not portable host-independent preset loading.
+
+Therefore the canonical 19-track schema is only unambiguous for families with one fixed preset per lane. PERC and TP require an explicit cue-level preset manifest.
+
+Current Track 06 requirement:
+
+- 12 PERC | Percussion -> **Untuned Percussion**;
+- 13 TP | Tuned Percussion -> **Glockenspiel**.
+
+The reusable base template may keep a chosen default, but every cue using these polymorphic lanes must record and verify its intended preset before BBCSO audition.
