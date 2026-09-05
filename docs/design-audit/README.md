@@ -38,7 +38,8 @@ Core principle:
 - A cheap early glider is preserved as personal soaring mobility, not as a replacement for powered flight logistics; Reliable Gliders is the leading prototype pending recipe override and gameplay validation.
 - Thermals/updrafts are treated as a shared world language for gliders and soaring fauna: natural lift, terrain lift, and limited anthropogenic heat can all participate without turning gliding into freight logistics.
 - Vanilla-style Elytra firework boosting is considered a mobility bypass and should be suppressed while preserving ordinary fireworks; optional blast/instability feedback may make the rule diegetic.
-- Nether/portal distance compression is now an explicit audit item because dimension identity may be preserved without allowing portal transit to erase province-scale aviation; a 1:1 Nether coordinate-scale datapack is the leading low-bespoke prototype.
+- Nether/portal distance compression is now an explicit audit item because dimension identity may be preserved without allowing portal transit to erase province-scale aviation; a 1:1 Nether coordinate-scale datapack is the leading low-bespoke interim prototype.
+- Nether and End generation are **current vanilla-authority implementation domains, not permanent exceptions**. Skyforge authorship should eventually be explored for both: outer End first as the low-risk cross-dimension pilot, then a solid-dominant Nether cavern province as the architecture stress test.
 - Portable storage is governed separately from freight: vanilla inventory/Shulkers remain provisionally intact, while early warehouse-scale backpacks are disfavored and aircraft should win on bulk throughput, fluids, entities, contraptions, and automation.
 - Copper/zinc/Brass now form the leading **first post-flight regional engineering loop**; petroleum remains a later strategic-node resource, so first flight turns regional specialization on rather than depending on it.
 - Aerodynamics4MC is the leading authoritative wind/atmosphere prototype; not yet locked.
@@ -98,6 +99,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Vanilla mobility bypass governance v0.1](vanilla-mobility-bypass-governance-v0.1.md)
 - [Portable storage and freight integrity v0.1](portable-storage-and-freight-integrity-v0.1.md)
 - [Post-flight regional specialization sequence v0.1](post-flight-regional-specialization-sequence-v0.1.md)
+- [Cross-dimension Skyforge authorship strategy v0.1](cross-dimension-skyforge-authorship-strategy-v0.1.md)
 - [Bootstrap region recipe v0.1](bootstrap-region-recipe-v0.1.md)
 - [Onboarding, guidance, and quest layer v0.1](onboarding-guidance-and-quest-layer-v0.1.md)
 - [First-flight recipe closure audit v0.1](first-flight-recipe-closure-audit-v0.1.md)
