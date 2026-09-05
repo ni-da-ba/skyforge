@@ -7,6 +7,23 @@
 
 Convert the first-flight recipe closure into a quantity model without selecting one exact aircraft.
 
+This document models the first **powered Aeronautics aircraft**. A selected cheap glider is a separate local-traversal capability and does not satisfy the first-flight milestone.
+
+If a particular bootstrap layout requires the glider, its recipe cost must be added to the pre-flight regional closure separately:
+
+~~~text
+TOTAL_BOOTSTRAP_INPUT
+  = local survival / tools
+  + optional required glider closure
+  + workshop
+  + powered first-aircraft BOM
+  + recovery / retry margin
+~~~
+
+Do not silently spend the aircraft retry margin on a mandatory glider.
+
+See [Early Glider Mobility Contract v0.1](early-glider-mobility-contract-v0.1.md).
+
 Leading prototype:
 
 ~~~text
@@ -170,6 +187,8 @@ Therefore a first bootstrap test band around:
 is reasonable.
 
 These are **engineering estimates only**. They must not become accepted worldgen constants until a real craft is tested.
+
+If a selected starter layout makes the glider progression-critical, its proven recipe cost is additive to these bands until resource testing shows that the same safety margin already covers it.
 
 ## Renewable guarantees
 
