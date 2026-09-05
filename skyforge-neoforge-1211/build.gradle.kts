@@ -817,6 +817,47 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        create("productionInteriorPopulationAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0069-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionInteriorPopulationReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0069-production-interior-reload")
+            systemProperty(
+                "skyforge.dev.productionInteriorPopulationExpectedResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0069/production-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0069/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionInteriorPopulationAcceptanceStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0069-auto-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionInteriorPopulationStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0069-production-interior-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "1200")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0069/stacked.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -2816,6 +2857,7 @@ fun requireSfImp0069AcceptancePass(resultName: String) {
 listOf(
     Triple("runProductionInteriorPopulationAcceptanceA", "run-sf-imp-0069-auto-a", "production-a"),
     Triple("runProductionInteriorPopulationAcceptanceB", "run-sf-imp-0069-auto-b", "production-b"),
+    Triple("runProductionInteriorPopulationAcceptanceStacked", "run-sf-imp-0069-auto-stacked", "stacked"),
 ).forEach { (taskName, relativePath, resultName) ->
     tasks.named(taskName).configure {
         doFirst {
@@ -2835,6 +2877,22 @@ tasks.named("runProductionInteriorPopulationAcceptanceA").configure {
 tasks.named("runProductionInteriorPopulationAcceptanceB").configure {
     mustRunAfter("runProductionInteriorPopulationAcceptanceA")
 }
+tasks.named("runProductionInteriorPopulationAcceptanceReloadClient").configure {
+    mustRunAfter("runProductionInteriorPopulationAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-sf-imp-0069-auto-b").asFile
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+    doLast {
+        requireSfImp0069AcceptancePass("reload")
+    }
+}
+tasks.named("runProductionInteriorPopulationAcceptanceStacked").configure {
+    mustRunAfter("runProductionInteriorPopulationAcceptanceReloadClient")
+}
 
 tasks.register("sfImp0069AcceptanceVerify") {
     group = "verification"
@@ -2848,7 +2906,14 @@ tasks.register("sfImp0069AcceptanceVerify") {
 
         val first = load0069("production-a")
         val second = load0069("production-b")
-        for ((name, result) in listOf("production-a" to first, "production-b" to second)) {
+        val reload = load0069("reload")
+        val stacked = load0069("stacked")
+        for ((name, result) in listOf(
+            "production-a" to first,
+            "production-b" to second,
+            "reload" to reload,
+            "stacked" to stacked,
+        )) {
             check(result.getProperty("status") == "PASS") { "$name did not report PASS: $result" }
         }
 
@@ -2873,6 +2938,12 @@ tasks.register("sfImp0069AcceptanceVerify") {
             "decorationSuccessful",
             "springsAttempted",
             "springsSuccessful",
+            "trackedFluids",
+            "fluidDigest",
+            "sampleFluidPos",
+            "sampleFluidState",
+            "scheduledOutsideOwner",
+            "rejectedBoundaryWrites",
             "successfulFeatureKeys",
         )) {
             check(first.getProperty(key) == second.getProperty(key)) {
@@ -2905,9 +2976,45 @@ tasks.register("sfImp0069AcceptanceVerify") {
                 && first.getProperty("decorationSuccessful").toInt() > 0
                 && first.getProperty("springsAttempted").toInt() > 0
                 && first.getProperty("springsSuccessful").toInt() > 0
+                && first.getProperty("trackedFluids").toInt() > 0
                 && first.getProperty("scheduledOutsideOwner") == "0"
                 && first.getProperty("rejectedBoundaryWrites") == "0") {
             "SF-IMP-0069 production interior evidence incomplete: $first"
+        }
+
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("mutationBindingsAbsent") == "true"
+                && reload.getProperty("persistedFluidPos") == second.getProperty("sampleFluidPos")
+                && reload.getProperty("persistedInitialFluidState") == second.getProperty("sampleFluidState")
+                && reload.getProperty("clientFluidPos") == reload.getProperty("persistedFluidPos")
+                && reload.getProperty("clientFluidState") == reload.getProperty("persistedFluidState")
+                && reload.getProperty("persistedTrackedPositions").toInt() > 0
+                && reload.getProperty("reloadPropagationTicks").toInt() > 0
+                && reload.getProperty("scheduledOutsideOwner") == "0"
+                && reload.getProperty("rejectedBoundaryWrites") == "0") {
+            "SF-IMP-0069 reload/client evidence incomplete: $reload"
+        }
+
+        check(stacked.getProperty("lowerRequired").toInt() > 0
+                && stacked.getProperty("upperRequired").toInt() > 0
+                && stacked.getProperty("lowerCompleted") == stacked.getProperty("lowerRequired")
+                && stacked.getProperty("upperCompleted") == stacked.getProperty("upperRequired")
+                && stacked.getProperty("lowerResultChunks").toInt() > 0
+                && stacked.getProperty("upperResultChunks").toInt() > 0
+                && stacked.getProperty("lowerSuccessful").toInt() > 0
+                && stacked.getProperty("upperSuccessful").toInt() > 0
+                && stacked.getProperty("lowerTrackedFluids").toInt() > 0
+                && stacked.getProperty("upperTrackedFluids").toInt() > 0
+                && stacked.getProperty("lowerSampleY") != stacked.getProperty("upperSampleY")
+                && stacked.getProperty("lowerFinalPending") == "0"
+                && stacked.getProperty("upperFinalPending") == "0"
+                && stacked.getProperty("independentLedgers") == "true"
+                && stacked.getProperty("foreignFluidRejected") == "true"
+                && stacked.getProperty("cavesCompleteBeforeInterior") == "true"
+                && stacked.getProperty("monotonicPending") == "true"
+                && stacked.getProperty("noReplay") == "true") {
+            "SF-IMP-0069 stacked production evidence incomplete: $stacked"
         }
 
         println(
