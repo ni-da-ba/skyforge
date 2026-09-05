@@ -139,9 +139,9 @@ replaces netherrack
 
 ### Decision direction
 
-Skyforge's present world-authoring authority is the Overworld island system.
+Skyforge's **current Minecraft implementation authority** is the Overworld island system.
 
-Therefore:
+Therefore, for the current implementation:
 
 ~~~text
 METALLURGY WOLFRAMITE
@@ -149,7 +149,9 @@ Nether native worldgen -> ALLOW_DIMENSION_NATIVE
 processing/alloys -> KEEP
 ~~~
 
-If Skyforge later authors the Nether, reopen this decision.
+This is explicitly provisional.
+
+The cross-dimension authorship strategy now treats the Nether as a future Skyforge domain candidate. If/when the Nether cavern-world pilot begins, reopen Wolframite and every other Nether resource so authored geology—not legacy dimension-native distribution—can become the authority where appropriate.
 
 ## Create Crafts & Additions
 
@@ -199,7 +201,8 @@ Chunk-column mechanics are acceptable only where the semantic design intentional
 ### Later
 
 4. Audit every additional selected mod for configured features, biome modifiers, saved-data resources, plants, or deposits.
-5. Reopen Nether resources only if Skyforge expands authoring authority there.
+5. Reopen Nether resources when the planned Nether Skyforge-authorship pilot reaches geology/resource scope.
+6. Perform the same resource-authority audit for End resources before any Skyforge End material system is locked.
 
 ## Acceptance principle
 
