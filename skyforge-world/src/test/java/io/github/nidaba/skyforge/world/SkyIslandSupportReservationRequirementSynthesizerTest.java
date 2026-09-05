@@ -175,7 +175,7 @@ final class SkyIslandSupportReservationRequirementSynthesizerTest {
     }
 
     @Test
-    void synthesisDoesNotCompileProviderGraphs() {
+    void synthesisDoesNotCompileProviderPrimaryMorphology() {
         MorphologyProviderId id = new MorphologyProviderId("test", "auth54-no-graph");
         SkyIslandMorphologyProvider provider =
                 new SkyIslandMorphologyProvider() {
@@ -188,7 +188,7 @@ final class SkyIslandSupportReservationRequirementSynthesizerTest {
                     public PrimaryMorphologyContribution compilePrimary(
                             SkyIslandVolumeDescriptor descriptor) {
                         throw new AssertionError(
-                                "AUTH-0054 synthesis must not compile procedural graphs");
+                                "AUTH-0054 synthesis must not compile primary morphology");
                     }
 
                     @Override
@@ -307,7 +307,7 @@ final class SkyIslandSupportReservationRequirementSynthesizerTest {
             @Override
             public PrimaryMorphologyContribution compilePrimary(
                     SkyIslandVolumeDescriptor descriptor) {
-                throw new AssertionError("AUTH-0054 must not compile graphs");
+                throw new AssertionError("AUTH-0054 must not compile primary morphology");
             }
 
             @Override
