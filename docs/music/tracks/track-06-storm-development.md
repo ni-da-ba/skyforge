@@ -278,3 +278,46 @@ The main unknown is not form. It is percussion realization:
 - whether the delayed flash-to-boom rhetoric survives the library's attack and release behavior.
 
 Do not remove Thunderbreak merely because the first BBCSO percussion map is imperfect. Remap instruments or pitches first.
+
+
+## Draft 02.1 — BBCSO percussion-map correction
+
+A concrete implementation defect was found in the untuned-percussion MIDI.
+
+The Draft 02 percussion track had partially used General-MIDI-style assumptions, but BBCSO Discover uses a dedicated white-key untuned-percussion map.
+
+Relevant BBCSO Discover mapping:
+
+- MIDI 36 / C2 = Bass Drum;
+- MIDI 38 / D2 = Tenor Drum;
+- MIDI 40 / E2 = Snare Drum;
+- MIDI 41 / F2 = Suspended Cymbal;
+- MIDI 43 / G2 = Suspended Cymbal Roll;
+- MIDI 45 / A2 = Anvil;
+- MIDI 47 / B2 = Tam Tam;
+- MIDI 48 / C3 = Tambourine;
+- MIDI 50 / D3 = Tenor Drum (Snares Off);
+- MIDI 52 / E3 = Triangle;
+- MIDI 53 / F3 = Castanets;
+- MIDI 55 / G3 = Cowbell;
+- MIDI 57 / A3 = Stopped Cymbal;
+- MIDI 59 / B3 = Piatti.
+
+Draft 02 had used MIDI 49 as a GM-style crash assumption and MIDI 42 as a generic high/busy hit. Those notes sit between BBCSO's mapped white-key percussion slots and therefore did not produce the intended sounds.
+
+Correction:
+
+- MIDI 49 -> 41 = Suspended Cymbal;
+- MIDI 42 -> 40 = Snare Drum;
+- MIDI 36 Bass Drum retained;
+- MIDI 38 Tenor Drum retained.
+
+This explains why the authored crash/cymbal layer was effectively inaudible in the user's BBCSO MIDI audition.
+
+No form or compositional changes were made.
+
+Corrected full MIDI SHA-256:
+
+`eae3d8696ab1181a8bb21b93ff00f8120b0ff3fe3a44cbf3ed0075f6957176c2`
+
+The tuned-percussion track was not remapped in this correction; its patch realization should be checked separately if the lightning glints do not behave as expected.
