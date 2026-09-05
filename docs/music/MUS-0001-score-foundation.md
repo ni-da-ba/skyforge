@@ -40,6 +40,8 @@ MUS-0001 preserves the following project expectations:
 
 The milestone adds:
 
+- the active Track 03 Sketch 5 MIDI source under `assets/music/source/`;
+
 - a soundtrack-lane index and status table;
 - the canonical 19-track BBCSO authoring schema;
 - the current composition/orchestration/render/master workflow;
@@ -85,7 +87,9 @@ The next musical decision is whether Sketch 5’s phrase-scale string melody is 
 
 ## Deferred work
 
-MUS-0001 does not yet:
+MUS-0001 checksum-pins but does not yet import the frozen Track 00–02 MIDI sources. Their identities are preserved above so a later source-ingest pass can verify exact bytes.
+
+MUS-0001 also does not yet:
 
 - commit large WAV masters;
 - define a soundtrack packaging/release format;
