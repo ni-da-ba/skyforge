@@ -21,6 +21,13 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  */
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgePhysicalVolumeCatchupService {
+    /**
+     * Native composed-cave realization is materially more expensive than ordinary ledger scans.
+     * Bound stable-chunk catch-up so a burst of independently loaded chunks cannot monopolize one
+     * server tick for an entire exact volume.
+     */
+    private static final int MAX_COMPOSED_CAVE_CHUNKS_PER_LEVEL_TICK = 1;
+
     private SkyforgePhysicalVolumeCatchupService() {}
 
     @SubscribeEvent
@@ -53,15 +60,23 @@ final class SkyforgePhysicalVolumeCatchupService {
 
             // Composed caves are a post-terrain exact-volume obligation. The stage itself gates on
             // whole-volume admission and on the absence of deferred terrain for the same
-            // volume/chunk. getChunkNow preserves the no-ticket lifecycle contract.
+            // volume/chunk. getChunkNow preserves the no-ticket lifecycle contract. Unlike the
+            // inexpensive ledger scan, actual composed realization is explicitly bounded per tick:
+            // a mass chunk-load event must not drain a whole island's cave work in one server tick.
+            int servicedComposedCaveChunks = 0;
             for (long chunkKey : SkyforgeComposedCaveStage.pendingChunkKeys()) {
+                if (servicedComposedCaveChunks >= MAX_COMPOSED_CAVE_CHUNKS_PER_LEVEL_TICK) {
+                    break;
+                }
                 int chunkX = ChunkPos.getX(chunkKey);
                 int chunkZ = ChunkPos.getZ(chunkKey);
                 LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
                 if (chunk == null) {
                     continue;
                 }
-                SkyforgeComposedCaveStage.service(level, chunk, generator);
+                if (!SkyforgeComposedCaveStage.service(level, chunk, generator).isEmpty()) {
+                    servicedComposedCaveChunks++;
+                }
             }
 
             // Biome identity is committed only after admission and only on stable chunks Minecraft
