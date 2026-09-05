@@ -46,10 +46,11 @@ A glider provides a **movement envelope**:
 - one player;
 - carried inventory only;
 - no attached freight platform;
-- no powered sustained climb;
-- range determined primarily by launch height, gap geometry, and tuning;
-- strongly terrain-dependent departure and arrival;
-- useful for local scouting, descent, emergency recovery, and short crossings.
+- no self-contained powered climb;
+- able to exploit natural or constructed thermal/updraft sources;
+- range determined by launch height, lift availability, gap geometry, weather, and tuning;
+- strongly terrain/infrastructure-dependent departure and arrival;
+- useful for local scouting, descent, emergency recovery, soaring, and short-to-moderate personal crossings.
 
 A powered aircraft provides a **logistics envelope**:
 
@@ -67,13 +68,13 @@ The first aircraft therefore remains the moment at which Skyforge is allowed to 
 
 A bootstrap glider is acceptable only while all of these remain true:
 
-1. It cannot provide sustained powered climb by itself.
-2. Ordinary player-built blocks cannot be chained into a cheap infinite-range updraft highway.
+1. It cannot create lift from nothing; sustained soaring requires environmental or constructed lift sources.
+2. Player-built thermal infrastructure may extend personal glider range, but doing so should require route preparation and remain low-throughput.
 3. It cannot carry contraption-scale or container-scale freight.
-4. Normal starter-group crossings may be glider-feasible, but ordinary inter-cluster routes must not be reliably solved by the same low-risk technique.
-5. Its effectiveness should remain sensitive to launch geometry and, if later integrated, wind/weather.
-6. Powered aircraft must materially improve reach, route reversibility, cargo capacity, and operational independence.
-7. The glider may remain useful after P2 without becoming the dominant transport solution.
+4. Unprepared starter-group crossings may be glider-feasible; longer routes may become glider-feasible through thermals, terrain, weather knowledge, or prepared lift infrastructure.
+5. Its effectiveness should remain sensitive to launch geometry, thermal availability, wind/weather, and pilot route choice.
+6. Powered aircraft must materially improve cargo capacity, route flexibility, schedule independence, takeoff freedom, and operational convenience.
+7. The glider may remain useful after P2—including for long personal soaring trips—without becoming the dominant logistics solution.
 
 The design goal is complementarity, not forced obsolescence.
 
@@ -207,7 +208,7 @@ possibly a small ordinary metal cost
 
 Do not add a rare-hostile-loot requirement merely to preserve the upstream recipe.
 
-### Stock updraft conflict
+### Stock updraft behavior — useful prototype, not a defect
 
 The audited default updraft tag includes:
 
@@ -218,26 +219,43 @@ The audited default updraft tag includes:
 
 The source scans downward for an updraft block and applies upward velocity while gliding.
 
-That creates a direct substitution risk:
+That maps surprisingly well onto Skyforge's existing thermal-soaring ecology concept.
+
+A useful early behavior loop is therefore allowed:
 
 ~~~text
-cheap player-built heat source
-    -> climb
+heat source / natural thermal
+    -> local climb
     -> glide
-    -> next heat source
-    -> climb
-    -> repeat
+    -> search for next lift source
+    -> continue soaring
 ~~~
 
-For Skyforge bootstrap this should be disabled or subordinated.
+Player-built heat sources are not inherently a problem. A prepared chain of campfires or other thermal sources can become a legitimate **personal glider route**: low-cost, low-throughput infrastructure analogous to a footpath or rope route in the sky.
+
+The real guardrail is not "prevent long-distance gliding." It is:
+
+> Do not let low-throughput soaring erase the economic value of powered freight, flexible routing, schedule independence, and industrial aviation.
 
 Preferred first prototype:
 
-1. replace the updraft-block tag so ordinary player-built heat sources do not provide sustained lift;
-2. leave the glider otherwise near-stock;
-3. tune horizontal speed only if playtesting proves necessary.
+1. retain the existing heat-source updraft behavior;
+2. test stock strength/height before changing it;
+3. tune `updraft_strength`, `updraft_height`, or eligible source tags only if gameplay shows trivial lift chaining;
+4. keep the glider otherwise near-stock;
+5. later integrate natural thermals/ridge lift through the authoritative atmosphere seam.
 
-If natural thermals are later desirable, they should come from the selected authoritative atmosphere/wind system or a thin Skyforge semantic adapter, not from an independent campfire-elevator rule.
+Long-term, natural and anthropogenic thermal sources should participate in one conceptual lift model:
+
+~~~text
+THERMAL / UPDRAFT AVAILABILITY
+    = atmospheric convection
+    + terrain / ridge effects
+    + weather
+    + local heat sources
+~~~
+
+The stock block-tag mechanic is an acceptable bootstrap proxy for the local-heat term even before full atmosphere integration exists.
 
 ## Alternative candidates
 
@@ -276,13 +294,15 @@ If authoritative wind is selected, a mature design may allow:
 
 - headwind/tailwind influence;
 - turbulence risk;
-- terrain-induced lift;
+- terrain-induced/ridge lift;
 - authored natural thermals;
-- weather advisories.
+- local anthropogenic heat lift;
+- weather advisories;
+- soaring-fauna response to the same lift field.
 
-But these must remain consequences of the one authoritative atmosphere model.
+But wind and natural-atmosphere state must remain consequences of the one authoritative atmosphere model.
 
-Do not let the glider mod become a second wind authority.
+A block heat source may contribute a local thermal forcing term without making the glider mod a second wind authority.
 
 ## Interaction with starter aircraft
 
@@ -327,15 +347,27 @@ All progression-critical pre-flight resources remain obtainable without rare hos
 
 Every progression-critical glider edge has a proven return/recovery path. No normal player is stranded by following the intended bootstrap route.
 
-### G4 — no cheap lift network
+### G4 — thermal-route legitimacy
 
-A player cannot turn ordinary campfires, fire, lava, or magma into a repeatable low-cost climb/glide network that substitutes for powered aviation.
+Natural and player-built updrafts can support deliberate soaring routes.
 
-### G5 — range separation
+A route made from campfires, fire, lava, magma, or later thermal infrastructure is acceptable if it remains:
 
-Representative starter-group gaps can be glider-reachable while representative ordinary inter-cluster routes are not reliably solved by the same glider technique.
+- personal-scale;
+- route-prepared;
+- low-throughput;
+- weather/geometry sensitive;
+- materially less convenient for bulk logistics than powered aircraft.
 
-Exact distances are empirical tuning values, not architecture constants.
+### G5 — logistics separation
+
+Representative starter-group gaps should be comfortably glider-reachable.
+
+Longer routes may also be reachable by a skilled player using thermals or prepared lift infrastructure; this is not itself a failure.
+
+The failure condition is economic substitution: if the glider makes powered aircraft unnecessary for freight, flexible two-way routing, industrial travel, or routine network operation, tuning has failed.
+
+Exact ranges are empirical tuning values, not architecture constants.
 
 ### G6 — cargo separation
 
@@ -364,9 +396,12 @@ The glider dependency should remain a strong prototype until an in-game comparis
 - durability burden;
 - starter-group crossings;
 - attempted inter-cluster crossings;
+- natural-thermal and heat-source soaring;
+- player-built thermal route feasibility;
+- observed use of the same lift features by soaring fauna where available;
 - recovery use;
 - side-by-side utility against the first powered aircraft.
 
 ## Acceptance principle
 
-> Let the player learn to cross the sky cheaply before asking them to industrialize it, but reserve routine distance, freight, and network operation for powered flight.
+> Let the player learn to read and ride the air cheaply before asking them to industrialize it. Soaring may travel far; logistics still belongs to powered flight.
