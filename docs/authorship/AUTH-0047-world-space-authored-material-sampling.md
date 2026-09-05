@@ -225,7 +225,7 @@ Instead:
 - the world center is not mixed into authored seeds, binding identity, or material-selection policy;
 - translation contributes no semantic effect beyond the recovered coordinate itself.
 
-For corpus round trips, horizontal error is measured against a tolerance derived from the ULPs of the world coordinate and realized center. Semantic-depth round-trip error remains bounded independently.
+For corpus round trips, horizontal error is measured against a tolerance derived from the ULPs of the world coordinate and realized center. The compact acceptance corpus additionally requires both horizontal drift and the resulting recomputed column-relative depth drift to remain at or below `1.0e-9`, while material winner/application equivalence at the recovered semantic point remains exact.
 
 This is placement, not a new authorship source.
 
