@@ -269,6 +269,115 @@ CBC adds:
 
 These consume material and Create machinery rather than bypassing the industrial system.
 
+# Production practicality / fun audit
+
+The native CBC chain has enough physical process structure to justify playtesting as a factory rather than replacing it with simplified recipes.
+
+## Casting cadence
+
+Current 5.11.7 data assigns material casting times:
+
+~~~text
+Cast Iron   2400 ticks = 120 s
+Bronze      2400 ticks = 120 s
+Steel       3600 ticks = 180 s
+Nethersteel 6000 ticks = 300 s
+~~~
+
+Current source applies the casting-time value at the connected cast controller, then finishes each segment in the connected cast structure when the timer completes.
+
+This appears to make a multi-segment cast a **batch operation**, which helps turn the long cooldown into factory planning rather than repeated per-block waiting.
+
+There is a documentation/source discrepancy worth manual verification: current Ponder text says solidification time varies with cast size, while the audited controller code currently selects the timer from the molten fluid's casting-time data. Do not balance around either interpretation until runtime proof.
+
+### Design judgment
+
+The stock 2–5 minute cadence is plausible for large capital artillery if:
+
+- multiple sections can be cast together;
+- the player can do other factory work during cooling;
+- the result is expensive enough to feel significant;
+- automated metal supply is useful.
+
+It becomes bad friction if the player repeatedly watches one small cast finish.
+
+Casting time is data-driven, so this is a **low-cost datapack tuning axis**, not a reason for bespoke code.
+
+## Boring
+
+Current Cannon Drill behavior is more industrially interesting than a generic crafting step:
+
+- requires rotational machinery;
+- requires water/lubrication;
+- drill speed must meet the target lathe's speed;
+- water use increases with rotational speed;
+- bore movement slows inversely with cannon-material weight;
+- the active material adds stress impact to the machine.
+
+This is a useful physical tradeoff.
+
+Heavier Steel/Nethersteel are therefore not merely more expensive at the recipe level: they are more demanding to machine.
+
+### Design judgment
+
+Keep this behavior unless integrated play proves the lathe setup too tedious.
+
+The desired player experience is:
+
+~~~text
+large casting
+    -> cooling while factory continues
+    -> mount on lathe
+    -> supply water + power
+    -> bore
+    -> assemble / weld / build-up
+~~~
+
+not:
+
+~~~text
+stand still
+    -> wait
+    -> repeat identical operation
+~~~
+
+## Built-up guns and welding
+
+CBC's high-end cannon path also adds process variety:
+
+- concentric Steel/Nethersteel layers;
+- Cannon Builder assembly;
+- blasting to finish built-up cannon blocks;
+- welding as a material-dependent assembly/repair operation.
+
+Nethersteel's inability to weld is particularly valuable because it turns the top material into a design/maintenance tradeoff rather than a universal upgrade.
+
+## Practicality acceptance
+
+Record for representative guns:
+
+- active player-attention time;
+- passive cooling time;
+- number of distinct machines used;
+- metal throughput;
+- water/lubricant demand;
+- rebuild/repair burden;
+- whether batching/automation removes repetitive work;
+- whether a second gun feels easier because infrastructure now exists.
+
+The last point is crucial.
+
+A good industry loop should make the first factory expensive and later production **systematically easier**, rewarding infrastructure.
+
+## Tuning hierarchy
+
+If CBC manufacturing is too slow or tedious:
+
+1. first tune data-driven casting times/material properties;
+2. then adjust recipes/yields;
+3. then adjust automation/access;
+4. only write bespoke code if a specific hard limitation remains.
+
 # Ammunition industry
 
 CBC's ammunition chain also fits Skyforge unusually well.
