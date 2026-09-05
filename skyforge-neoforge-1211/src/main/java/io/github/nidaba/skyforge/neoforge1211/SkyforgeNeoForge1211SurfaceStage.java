@@ -304,8 +304,11 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         RuntimeBinding binding = ACTIVE.get();
         return binding == null
                 ? Optional.empty()
-                : Optional.of(binding.adapter().claimingVolumeIds(worldX, worldY, worldZ).stream()
-                        .anyMatch(candidate -> !candidate.equals(volumeId)));
+                : Optional.of(binding.adapter().isSolidOwnedByOtherVolume(
+                        volumeId,
+                        worldX,
+                        worldY,
+                        worldZ));
     }
 
     static AutoCloseable install(
