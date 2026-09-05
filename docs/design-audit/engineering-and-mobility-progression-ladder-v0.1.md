@@ -52,9 +52,9 @@ This is a semantic planning tier, not necessarily a player-facing progression la
 Player capabilities may include:
 
 - a cheap personal glider if selected for the pack;
-- short launch-height-dependent crossings;
+- launch-height- and thermal-dependent crossings;
 - safer descent and emergency recovery;
-- local scouting within a tightly composed island group.
+- local scouting and potentially longer personal soaring where lift permits.
 
 The glider supplies a **movement envelope**, not a logistics envelope.
 
@@ -62,9 +62,9 @@ It should remain:
 
 - personal-scale;
 - negligible-freight;
-- terrain/launch dependent;
-- unable to sustain powered climb by itself;
-- unsuitable as the routine answer to ordinary inter-cluster travel.
+- terrain/launch/thermal dependent;
+- unable to create powered climb by itself;
+- unsuitable as the routine answer to ordinary inter-cluster **logistics**, even if skilled soaring can sometimes cross those distances.
 
 Starting-group authoring may deliberately include glider-feasible directed edges, but progression-critical edges must also have a proven return/recovery path.
 
@@ -72,7 +72,7 @@ See [Early Glider Mobility Contract v0.1](early-glider-mobility-contract-v0.1.md
 
 Design goal:
 
-> Let the player learn to cross a local piece of the sky without giving them regional logistics for free.
+> Let the player learn to read and ride the air without giving them regional logistics for free.
 
 ## Stage P1 — mechanical bootstrap
 
