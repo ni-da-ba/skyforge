@@ -1202,3 +1202,52 @@ Dedicated record:
 ### Current acceptance question
 
 > Does the locked refrain survive a complete dramatic arc in which each transformation has a clear emotional job, while the cue remains contemplative rather than becoming either static or over-orchestrated?
+
+
+## BBCSO Performance Pass 01 — real-render correction
+
+The first real BBCSO render of **Count the Leagues** confirmed that the 64-bar form and locked refrain survive orchestral realization. The next pass therefore protects the composition and corrects performance continuity rather than reopening thematic authorship.
+
+### Real-render findings
+
+The uploaded render runs approximately 2:35 including tail.
+
+Section-level RMS analysis showed the intended large-scale contour clearly, but also exposed an overly abrupt mass change around the central widening:
+
+- development, bars 25-32: approximately -45.3 dBFS RMS;
+- widening, bars 33-40: approximately -40.1 dBFS RMS;
+- stripped recollection, bars 41-48: approximately -51.4 dBFS RMS;
+- reassembly, bars 49-56: approximately -46.8 dBFS RMS.
+
+The largest local level discontinuity occurs around bars 38-39 as the widened strings/horn disappear and the clarinet returns.
+
+### Pass 01 design
+
+The pass preserves all 397 note onsets and every onset pitch.
+
+No new melodic notes are introduced.
+
+Changes are limited to:
+
+- phrase-shaped CC1/CC11 envelopes for clarinet and cello;
+- narrower continuity shaping for piano;
+- progressive upper-string/horn bloom and decrescendo through the widening;
+- modestly less detached cello apex;
+- a slightly stronger stripped-recollection floor so it reads as exposed intimacy rather than an accidental level collapse;
+- extension of three already-existing bar-38 support-note releases (V1 A4, V2 F4, horn C4) into early bar 39 so the widened world dissolves behind the returning clarinet rather than switching off.
+
+### Acceptance gate
+
+The next real BBCSO render should answer five questions:
+
+1. Do bars 25-32 feel like thought deepening rather than a formal development exercise?
+2. Does bars 33-40 grow in scale without turning heroic?
+3. Does bars 38-41 dissolve naturally into exposure rather than dropping out?
+4. Do bars 41-48 feel intimate and lonely rather than under-rendered?
+5. Do bars 49-64 return at a lower emotional temperature than the central apex?
+
+Performance Pass 01 MIDI SHA-256:
+
+`7b6d5b2e748e4f65088143994991b3c436f6a737cb4d8e671c740e32ced80b9e`
+
+The downloadable working package is the current audition artifact. Repository persistence of the binary source should retain this exact hash.
