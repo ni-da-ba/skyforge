@@ -35,6 +35,19 @@ public record WorldBounds(
                 && minimumZ <= other.maximumZ;
     }
 
+    /** Returns true when the supplied closed bounds are fully contained by these bounds. */
+    public boolean contains(WorldBounds other) {
+        if (other == null) {
+            throw new NullPointerException("other");
+        }
+        return other.minimumX >= minimumX
+                && other.maximumX <= maximumX
+                && other.minimumY >= minimumY
+                && other.maximumY <= maximumY
+                && other.minimumZ >= minimumZ
+                && other.maximumZ <= maximumZ;
+    }
+
     /** Returns true when the supplied point lies inside or on these closed bounds. */
     public boolean contains(double x, double y, double z) {
         return x >= minimumX && x <= maximumX
