@@ -105,7 +105,8 @@ public final class AuthorshipAuthoredRealizationAssociationCorpusCli {
 
         StringBuilder manifest =
                 new StringBuilder(
-                        "role,islandKey,authoredMorphology,authoredRadius,"
+                        "role,islandKey,authoredWorld,provinceKey,clusterKey,"
+                                + "authoredMorphology,authoredRadius,"
                                 + "realizationRoot,groupOrdinal,memberOrdinal,geometrySeed,"
                                 + "worldCenterX,worldCenterZ,realizedMorphology,realizedRadius,"
                                 + "authoredOwnedSamples,realizedColumnSamples,overlapSamples,"
@@ -149,6 +150,9 @@ public final class AuthorshipAuthoredRealizationAssociationCorpusCli {
 
             manifest.append(fixture.selection().role()).append(',')
                     .append(fixture.selection().key()).append(',')
+                    .append(Long.toUnsignedString(authored.identity().worldSeed())).append(',')
+                    .append(Long.toUnsignedString(authored.identity().provinceKey())).append(',')
+                    .append(Long.toUnsignedString(authored.identity().clusterKey())).append(',')
                     .append(authored.morphologyFamily().identifier()).append(',')
                     .append(format(authored.nominalRadius())).append(',')
                     .append(Long.toUnsignedString(volumeId.archipelagoRootSeed())).append(',')
