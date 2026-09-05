@@ -850,7 +850,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0069-production-interior-stacked")
             systemProperty("skyforge.dev.acceptanceRadius", "7")
-            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "1200")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0069/stacked.properties").get().asFile.absolutePath,
