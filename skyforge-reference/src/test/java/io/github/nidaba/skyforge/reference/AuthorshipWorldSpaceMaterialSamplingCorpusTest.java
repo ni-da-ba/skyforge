@@ -29,7 +29,8 @@ class AuthorshipWorldSpaceMaterialSamplingCorpusTest {
                         + "mappableSamples,ownedSamples,authoredVoidSamples,"
                         + "materialSamples,applicationSamples,conditionedSamples,"
                         + "winnerMismatches,applicationKeyMismatches,"
-                        + "localFrameMismatches,maxDepthError,uniqueApplicationKeys",
+                        + "localFrameMismatches,maxHorizontalError,maxDepthError,"
+                        + "uniqueApplicationKeys",
                 manifest.lines().findFirst().orElseThrow());
 
         int totalVoid = 0;
@@ -37,7 +38,7 @@ class AuthorshipWorldSpaceMaterialSamplingCorpusTest {
         int totalUniqueKeys = 0;
         for (String line : manifest.lines().skip(1).toList()) {
             String[] columns = line.split(",", -1);
-            assertEquals(16, columns.length);
+            assertEquals(17, columns.length);
 
             int mappable = Integer.parseInt(columns[5]);
             int material = Integer.parseInt(columns[8]);
@@ -48,12 +49,13 @@ class AuthorshipWorldSpaceMaterialSamplingCorpusTest {
             assertEquals("0", columns[11]);
             assertEquals("0", columns[12]);
             assertEquals("0", columns[13]);
-            assertTrue(Double.parseDouble(columns[14]) <= 1.0e-12);
-            assertTrue(Integer.parseInt(columns[15]) > 0);
+            assertTrue(Double.parseDouble(columns[14]) <= 1.0e-9);
+            assertTrue(Double.parseDouble(columns[15]) <= 1.0e-12);
+            assertTrue(Integer.parseInt(columns[16]) > 0);
 
             totalVoid += Integer.parseInt(columns[7]);
             totalConditioned += conditioned;
-            totalUniqueKeys += Integer.parseInt(columns[15]);
+            totalUniqueKeys += Integer.parseInt(columns[16]);
         }
 
         assertTrue(totalVoid > 0);
