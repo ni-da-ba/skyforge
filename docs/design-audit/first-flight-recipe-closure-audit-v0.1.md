@@ -20,6 +20,24 @@ This document distinguishes:
 2. candidate craft architecture;
 3. remaining playtest/mechanical uncertainties.
 
+## Scope boundary: gliding is not first flight
+
+Skyforge may preserve a cheap early personal glider for local starter-group crossings.
+
+That tool does **not** close this milestone.
+
+For this audit, "first flight" means a powered reusable Aeronautics/Simulated craft that demonstrates a real logistics-enabling capability increase:
+
+- powered altitude recovery;
+- repeatable route operation;
+- ordinary inter-cluster reach;
+- modest freight;
+- controllable landing/relaunch.
+
+The glider's recipe and traversal closure are tracked separately in [Early Glider Mobility Contract v0.1](early-glider-mobility-contract-v0.1.md).
+
+This distinction prevents local movement convenience from weakening the requirement that powered flight unlock regional economic geography.
+
 ## Upstream facts
 
 ### Physics Assembler
