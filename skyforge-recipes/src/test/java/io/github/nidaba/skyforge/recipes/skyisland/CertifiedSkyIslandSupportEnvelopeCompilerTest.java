@@ -46,28 +46,35 @@ class CertifiedSkyIslandSupportEnvelopeCompilerTest {
             SkyIslandMorphologyProvider provider =
                     SkyIslandMorphologyProviders.builtIn(family);
             double detailMaximum =
-                    1.0
-                            + SeededSkyIslandVolumeRecipe.MAXIMUM_RELATIVE_DISPLACEMENT
-                                    * descriptor.detailAmplitude();
+                    Math.nextUp(
+                            1.0
+                                    + SeededSkyIslandVolumeRecipe.MAXIMUM_RELATIVE_DISPLACEMENT
+                                            * descriptor.detailAmplitude());
             double secondaryMaximum =
-                    provider.compileSecondaryMorphology(
-                                    descriptor,
-                                    descriptor.secondaryMorphologyAmplitude())
-                            .orElseThrow()
-                            .maximumFactor();
+                    Math.nextUp(
+                            provider.compileSecondaryMorphology(
+                                            descriptor,
+                                            descriptor.secondaryMorphologyAmplitude())
+                                    .orElseThrow()
+                                    .maximumFactor());
+            double primaryUpper = Math.nextUp(descriptor.upperElevation());
+            double primaryUnderside =
+                    Math.nextUp(2.0 * descriptor.undersideDepth());
 
             assertEquals(
-                    1.65 * descriptor.nominalRadius(),
+                    Math.nextUp(1.65 * descriptor.nominalRadius()),
                     envelope.maximumHorizontalRadius(),
                     0.0);
             assertEquals(
-                    descriptor.upperElevation() * detailMaximum * secondaryMaximum,
+                    outwardMultiply(
+                            outwardMultiply(primaryUpper, detailMaximum),
+                            secondaryMaximum),
                     envelope.maximumUpperOffset(),
-                    1.0e-12);
+                    0.0);
             assertEquals(
-                    2.0 * descriptor.undersideDepth() * detailMaximum,
+                    outwardMultiply(primaryUnderside, detailMaximum),
                     envelope.maximumUndersideDepth(),
-                    1.0e-12);
+                    0.0);
             assertEquals(
                     "semantic-built-in-v1:" + family.identifier(),
                     envelope.certificateKind());
@@ -205,9 +212,13 @@ class CertifiedSkyIslandSupportEnvelopeCompilerTest {
                     SkyIslandMorphologyProviders.builtIn(family)
                             .certifiedPrimarySupportEnvelope(descriptor)
                             .orElseThrow();
-            assertEquals(165.0, envelope.maximumHorizontalRadius(), 0.0);
-            assertEquals(40.0, envelope.maximumUpperOffset(), 0.0);
-            assertEquals(112.0, envelope.maximumUndersideDepth(), 0.0);
+            assertEquals(Math.nextUp(165.0), envelope.maximumHorizontalRadius(), 0.0);
+            assertEquals(Math.nextUp(40.0), envelope.maximumUpperOffset(), 0.0);
+            assertEquals(Math.nextUp(112.0), envelope.maximumUndersideDepth(), 0.0);
         }
+    }
+
+    private static double outwardMultiply(double first, double second) {
+        return Math.nextUp(first * second);
     }
 }
