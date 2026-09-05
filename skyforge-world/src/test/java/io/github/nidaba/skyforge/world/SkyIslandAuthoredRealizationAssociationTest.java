@@ -10,6 +10,7 @@ import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandMorphologyFamily;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
 import io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume;
+import io.github.nidaba.skyforge.recipes.skyisland.SeededSkyIslandVolumeRecipe;
 import io.github.nidaba.skyforge.recipes.skyisland.SemanticSkyIslandVolumeRecipe;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -303,7 +304,9 @@ class SkyIslandAuthoredRealizationAssociationTest {
                                 0.22,
                                 38.0);
         CompiledSkyIslandVolume compiled =
-                new SemanticSkyIslandVolumeRecipe().compile(physical);
+                schema2
+                        ? new SemanticSkyIslandVolumeRecipe().compile(physical)
+                        : new SeededSkyIslandVolumeRecipe().compile(physical);
         SkyIslandWorldVolumeId id =
                 new SkyIslandWorldVolumeId(
                         REALIZATION_ROOT,
