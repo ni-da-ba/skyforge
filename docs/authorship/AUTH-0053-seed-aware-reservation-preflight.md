@@ -53,6 +53,19 @@ A member is admitted only when all three existing reservation dimensions contain
 
 Uncertified members remain explicitly uncertified and are not assigned invented requirements.
 
+## Exact world-space arithmetic
+
+AUTH-0053 uses the same outward binary64 support-bound convention as AUTH-0052.
+
+A relative requirement that is numerically equal to a reservation is not automatically sufficient, because AUTH-0052 expands world-space support minima/maxima outward with Math.nextDown/Math.nextUp.
+
+Member adequacy is therefore evaluated in the exact descriptor world frame:
+
+- horizontal X/Z support minima/maxima versus the existing square query reservation;
+- suspension-relative underside/upper support after the same outward world-space rounding.
+
+This prevents preflight from admitting a plan that AUTH-0052 would later reject by one ulp.
+
 ## Group check
 
 AUTH-0053 also verifies that higher-level group reservation assumptions remain valid.
