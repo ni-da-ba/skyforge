@@ -22,47 +22,46 @@ public record SkyIslandMaterialExpressionSample(
                 throw new IllegalArgumentException(
                         "non-material samples cannot contain material-expression allocations");
             }
-            return;
-        }
-
-        if (allocations.size() != source.uses().size()) {
-            throw new IllegalArgumentException(
-                    "material-expression sample must allocate every AUTH-0039 request use exactly once");
-        }
-
-        EnumSet<SkyIslandSemanticMaterialPaletteRole> roles =
-                EnumSet.noneOf(SkyIslandSemanticMaterialPaletteRole.class);
-        double matrixShare = 0.0;
-        int primary = 0;
-
-        for (SkyIslandMaterialExpressionAllocation allocation : allocations) {
-            if (!roles.add(allocation.role())) {
+        } else {
+            if (allocations.size() != source.uses().size()) {
                 throw new IllegalArgumentException(
-                        "material-expression roles must be unique per sample");
+                        "material-expression sample must allocate every AUTH-0039 request use exactly once");
             }
-            SkyIslandMaterialBindingRequestUse expected =
-                    source.use(allocation.role()).orElseThrow();
-            if (!expected.equals(allocation.use())) {
-                throw new IllegalArgumentException(
-                        "material-expression allocation must preserve local AUTH-0039 use");
-            }
-            if (allocation.mode()
-                    == SkyIslandMaterialExpressionMode.STRUCTURAL_MATRIX_SHARE) {
-                matrixShare += allocation.targetExpression();
-            }
-            if (allocation.role()
-                    == SkyIslandSemanticMaterialPaletteRole.PRIMARY_MATRIX) {
-                primary++;
-            }
-        }
 
-        if (primary != 1) {
-            throw new IllegalArgumentException(
-                    "material-expression sample requires exactly one PRIMARY_MATRIX allocation");
-        }
-        if (Math.abs(matrixShare - 1.0) > 1.0e-12) {
-            throw new IllegalArgumentException(
-                    "structural matrix expression shares must sum exactly to 1");
+            EnumSet<SkyIslandSemanticMaterialPaletteRole> roles =
+                    EnumSet.noneOf(SkyIslandSemanticMaterialPaletteRole.class);
+            double matrixShare = 0.0;
+            int primary = 0;
+
+            for (SkyIslandMaterialExpressionAllocation allocation : allocations) {
+                if (!roles.add(allocation.role())) {
+                    throw new IllegalArgumentException(
+                            "material-expression roles must be unique per sample");
+                }
+                SkyIslandMaterialBindingRequestUse expected =
+                        source.use(allocation.role()).orElseThrow();
+                if (!expected.equals(allocation.use())) {
+                    throw new IllegalArgumentException(
+                            "material-expression allocation must preserve local AUTH-0039 use");
+                }
+                if (allocation.mode()
+                        == SkyIslandMaterialExpressionMode.STRUCTURAL_MATRIX_SHARE) {
+                    matrixShare += allocation.targetExpression();
+                }
+                if (allocation.role()
+                        == SkyIslandSemanticMaterialPaletteRole.PRIMARY_MATRIX) {
+                    primary++;
+                }
+            }
+
+            if (primary != 1) {
+                throw new IllegalArgumentException(
+                        "material-expression sample requires exactly one PRIMARY_MATRIX allocation");
+            }
+            if (Math.abs(matrixShare - 1.0) > 1.0e-12) {
+                throw new IllegalArgumentException(
+                        "structural matrix expression shares must sum exactly to 1");
+            }
         }
     }
 
