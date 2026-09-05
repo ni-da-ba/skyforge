@@ -46,7 +46,7 @@ This document consolidates the current candidate stack from the content-integrat
 - Create: Metallurgy strong processing-depth candidate; Skyforge remains ore/geology authority
 - Create Crafts & Additions currently leads the single-electricity-ecosystem slot; avoid redundant power stacks initially
 - late-game logistics automation candidate
-- Sophisticated Storage/Backpacks only if freight gameplay remains meaningful
+- Sophisticated Storage/Backpacks only if freight gameplay remains meaningful; reject warehouse-scale early backpack configurations, recursive portable storage, or early fluid capacity that erases freight roles
 
 ### Ordinary life/building
 - Supplementaries strong candidate
@@ -235,7 +235,12 @@ Elytra Firework-Boost Suppression
 Optional Hazardous Rocket-Use Feedback
 Riptide-to-Glider Acceptance
 Nether Portal Distance-Compression Audit
+1:1 Nether Dimension-Type Datapack Prototype
 Teleport / Waystone Dependency Audit
+Portable Storage / Freight Integrity Contract
+Backpack Capacity / Nesting Audit
+Shulker / Ender-Chest Late-Courier Acceptance
+Bulk / Fluid / Entity / Contraption Freight Acceptance
 ~~~
 
 ### Onboarding / guidance
@@ -290,3 +295,6 @@ non-omniscient sensor access to Skyforge truth
 13. Vanilla firework rockets should not provide safe sustained propulsion while fall-flying; preserve ordinary fireworks and prefer an existing server-side control before bespoke behavior.
 14. Dimension identity and dimension transport are separate concerns: Nether/End content may remain intact while portal distance compression is altered if it would erase aviation geography.
 15. General-purpose teleport convenience must not silently bypass authored distance and logistics.
+16. Do not reduce vanilla inventory merely to manufacture aircraft demand; preserve freight value through throughput and payload classes.
+17. Vanilla Shulker Boxes remain provisionally acceptable as late manual-courier storage; large early backpack capacity and recursive portable-container nesting do not.
+18. Prefer a datapack-level Nether `coordinate_scale = 1.0` prototype before any bespoke portal implementation.
