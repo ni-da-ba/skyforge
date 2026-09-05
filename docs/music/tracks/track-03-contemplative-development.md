@@ -2,8 +2,8 @@
 
 **Status:** Active development  
 **Role:** lonely / ponderous / thoughtful exploration state  
-**Current method:** first-principles melody gate before further development  
-**Current boundary:** First-Principles Theme 02 — phrase chain
+**Current method:** literature-backed melodic design audit before further theme generation  
+**Current boundary:** Melodic Design Audit 01 — phrase closure and expectation
 
 ## Emotional target
 
@@ -428,6 +428,39 @@ Repository source:
 `assets/music/source/track-03-first-principles-theme-02-phrase-chain-melody-only.mid.gz`
 
 The primary acceptance question is now not merely whether the opening is memorable, but whether the complete 16-bar melody feels like **one thought unfolding through linked sentences**.
+
+### Theme 02 audit result
+
+The user judged the pass generally improved, but identified a recurring phrase-design defect: the melody too often forced phrase endings upward or left them near local highs where the ear expected a lower settling gesture.
+
+This exposed a deeper design bias:
+
+- continuity had been over-identified with registral suspension;
+- high notes were being used as phrase-link devices;
+- literal shared-pitch hinges were sometimes preferred over rhetorically natural closure;
+- local apex and phrase ending were too often conflated.
+
+The correction is documented in:
+
+`docs/music/melodic-design-audit-01-phrase-closure-and-expectation.md`
+
+The new governing rule is:
+
+> A phrase may descend and still remain open. Continuation pressure should normally come from harmony, motivic incompletion, rhythm, or larger-scale direction rather than from ending high by default.
+
+Additional adopted constraints:
+
+- separate phrase apex from phrase endpoint;
+- after a large upward leap, normally allow a smaller downward reversal before closure;
+- favor lower/middle-register phrase endings for this contemplative cue unless a high ending has explicit expressive purpose;
+- use half-cadential or otherwise unstable harmony to create openness without registral suspension;
+- allow accompaniment or motivic memory to connect phrases instead of requiring literal note-to-note hinges.
+
+**Retained lesson:**
+
+> Continuity is not the same as inevitability. A satisfying low arrival can create a stronger need for the next phrase than an unresolved high note.
+
+No new theme pass should be written until the audit constraints are treated as the design basis.
 
 ## Current acceptance gate
 
