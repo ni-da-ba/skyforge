@@ -113,6 +113,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Post-flight capability payoff audit v0.1](post-flight-capability-payoff-audit-v0.1.md)
 - [Material and process retention audit v0.1](material-and-process-retention-audit-v0.1.md)
 - [Create: Big Cannons industrial integration audit v0.1](create-big-cannons-industrial-integration-audit-v0.1.md)
+- [Create: Big Cannons material access closure v0.1](create-big-cannons-material-access-closure-v0.1.md)
 - [Overworld realization audit v0.1](overworld-realization-audit-v0.1.md)
 - [Nether realization audit v0.1](nether-realization-audit-v0.1.md)
 - [End realization audit v0.1](end-realization-audit-v0.1.md)
