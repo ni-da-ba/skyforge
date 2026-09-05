@@ -237,6 +237,7 @@ Riptide-to-Glider Acceptance
 Nether Portal Distance-Compression Audit
 1:1 Nether Dimension-Type Datapack Prototype
 Cross-Dimension Skyforge Authorship Strategy
+Dimension World-Grammar Matrix
 Dimension-Domain Authority Boundary
 Outer-End Skyforge Pilot
 End Gateway / End City Compatibility Contract
