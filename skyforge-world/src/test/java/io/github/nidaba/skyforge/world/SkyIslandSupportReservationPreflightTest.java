@@ -202,7 +202,7 @@ final class SkyIslandSupportReservationPreflightTest {
     }
 
     @Test
-    void proofBackedCompileRejectsBeforeCallingUncertifiedProviderGraphCompiler() {
+    void proofBackedCompileRejectsBeforeCallingUncertifiedProviderPrimaryCompiler() {
         MorphologyProviderId providerId =
                 new MorphologyProviderId("test", "no-support");
         SkyIslandMorphologyProvider provider =
@@ -216,7 +216,7 @@ final class SkyIslandSupportReservationPreflightTest {
                     public PrimaryMorphologyContribution compilePrimary(
                             SkyIslandVolumeDescriptor descriptor) {
                         throw new AssertionError(
-                                "AUTH-0053 must reject before procedural graph compilation");
+                                "AUTH-0053 must reject before primary/full-volume compilation");
                     }
                 };
         SkyIslandMorphologyProviderRegistry registry =
@@ -309,7 +309,7 @@ final class SkyIslandSupportReservationPreflightTest {
             @Override
             public PrimaryMorphologyContribution compilePrimary(
                     SkyIslandVolumeDescriptor descriptor) {
-                throw new AssertionError("preflight must not compile procedural graphs");
+                throw new AssertionError("preflight must not compile primary morphology");
             }
 
             @Override

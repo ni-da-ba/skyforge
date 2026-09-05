@@ -128,6 +128,19 @@ public final class SkyIslandWorldCatalogCompiler {
     }
 
     /**
+     * Synthesizes AUTH-0054 admission-safe reservation minima for the exact deterministic plan.
+     *
+     * <p>The result is advisory and immutable. Applying larger horizontal/group reservations
+     * requires constructing a fresh planning request and re-running deterministic placement.
+     */
+    public SkyIslandSupportReservationRequirementSynthesis synthesizeSupportReservationRequirements(
+            SkyIslandArchipelagoPlan plan,
+            SkyIslandMorphologyProviderRegistry registry) {
+        return new SkyIslandSupportReservationRequirementSynthesizer()
+                .synthesize(plan, registry);
+    }
+
+    /**
      * Evaluates AUTH-0053 support/reservation admission without compiling procedural graphs.
      */
     public SkyIslandSupportReservationPreflightReport preflightSupportReservations(
@@ -141,6 +154,10 @@ public final class SkyIslandWorldCatalogCompiler {
     /**
      * Compiles a fully proof-backed world catalog only after AUTH-0053 accepts every exact member
      * and consumed reservation assumption.
+     *
+     * <p>Preflight runs before primary/full-volume compilation. Provider support certification may
+     * still construct a secondary-factor contribution in order to consume its declared analytical
+     * envelope.
      */
     public SkyIslandWorldCatalogSupportBundle compileProofBacked(
             SkyIslandArchipelagoPlan plan,
