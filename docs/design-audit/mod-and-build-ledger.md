@@ -29,6 +29,14 @@ This document consolidates the current candidate stack from the content-integrat
 
 ### Hostiles / structures
 - vanilla hostile and structure mechanics
+- Eternal Nether — strong 1.21.1 NeoForge Nether structure/threat prototype; MIT; selected Piglin/Wither/corrupted-Enderman structures and mobs are especially relevant if native placement can be subordinated
+- BetterNether: New Dawn — strong broad Nether-content R&D candidate; MIT; 1.21.1 NeoForge; current releases expose configuration for biomes/structures and provide mobs, plants, materials, farmables, dungeons/cities; high dependency/worldgen surface requires A/B
+- Jaden's Nether Expansion — strong alternative single broad Nether-content substrate; actively targeting 1.21.1 NeoForge; broad mobs/mechanics/biomes; restrictive license means external-dependency use only and worldgen authority must remain with Skyforge
+- Unusual End — leading broad End behavior/content prototype; 1.21.1 NeoForge; configurable generation changes, Create compatibility, behavior-rich mobs, mapped structures, flying ships/stations; native density/placement requires governance
+- MES / Moog's End Structures — strong narrow End structure-vocabulary candidate; 1.21.1 NeoForge and server-side capable; use only if broader End content does not provide enough structure roles
+- Enderman Overhaul — strong End creature/reward A/B candidate; 1.21.1 NeoForge; special pearl effects create mobility/entity-transport audit obligations
+- End's Delight — optional 1.21.1 NeoForge expedition-base sustenance layer if the End needs more local-life depth
+- vanilla hostile and structure mechanics
 - Friends & Foes
 - It Takes a Pillage Continuation
 - Illager Structures
@@ -239,6 +247,11 @@ Nether Portal Distance-Compression Audit
 1:1 Nether Dimension-Type Datapack Prototype
 Dimension Gameplay Requirements
 Dimension Realization Value Audit
+Dimension Exploration Enrichment Audit
+Third-Party Dimension Content Authority Decomposition
+Broad-Substrate A/B Selection (one per dimension)
+Nether Exploration Variation Acceptance
+End Exploration Variation Acceptance
 Overworld Realization Audit
 Nether Realization Audit
 End Realization Audit
@@ -353,3 +366,7 @@ non-omniscient sensor access to Skyforge truth
 36. Dimension value may take different forms: Overworld breadth/network permanence, Nether hostile operational depth, End expeditionary/specialist engineering depth.
 37. Treat capital-unlock resources separately from recurring economic resources: current Tungsten/Obdurium demand and Levitite demand must be measured before using them as freight assumptions.
 38. Do not claim Create Propulsion ion thrust as End-gated under current source; its present recipe lacks an End-specific input.
+39. Exploration variation is a separate requirement from economic worth: difficult traversal must lead to behaviorally/structurally/resource-distinct discoveries.
+40. Prefer at most one broad content-overhaul dependency per dimension in the first integrated prototype; add narrow structure/boss/ecology layers only when they fill non-overlapping roles.
+41. Third-party dimension mods are content libraries, not semantic authorities: decompose mobs, structures, biomes, resources, loot, and global mechanics and assign KEEP/GOVERN/DISABLE/REDIRECT decisions.
+42. Preserve local sparsity even with a large installed catalogue; End especially should gain contrast through rare high-value phenomena rather than dense biome/structure coverage.
