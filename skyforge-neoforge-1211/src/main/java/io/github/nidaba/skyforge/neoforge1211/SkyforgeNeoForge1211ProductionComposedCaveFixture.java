@@ -14,15 +14,16 @@ import java.util.List;
 /**
  * Compact accepted AUTH-0030 physical fixtures used only by SF-IMP-0068 production acceptance.
  *
- * <p>Key 3670 is one of the two AUTH-0030 canonical representatives with an accepted exposure
- * connection. Unlike the large key-653 implementation specimen, its nominal radius is small enough
- * to exercise the complete physical-admission/cave obligation footprint in bounded CI.
+ * <p>Key 1471 is a deterministic compact AUTH-0030-connected acceptance specimen selected through
+ * the accepted backend-neutral authorship pipeline. It retains exactly one authored exterior
+ * connection while its near-minimum nominal radius keeps the complete physical-admission and cave
+ * obligation footprint bounded enough to exercise the production lifecycle in CI.
  */
 final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
     private static final long WORLD_SEED = 0x534B59464F524745L;
     private static final long PROVINCE_KEY = 8L;
     private static final long CLUSTER_KEY = 81L;
-    private static final long ISLAND_KEY = 3670L;
+    private static final long ISLAND_KEY = 1471L;
     private static final long SINGLE_PHYSICAL_SEED = 680068L;
     private static final long LOWER_PHYSICAL_SEED = 680168L;
     private static final long UPPER_PHYSICAL_SEED = 680268L;
@@ -51,7 +52,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
     private static Single singleFixture() {
         if (FIELD.exposureGeometry().connectionCount() != 1) {
             throw new IllegalStateException(
-                    "SF-IMP-0068 canonical key 3670 must retain one accepted AUTH-0030 connection");
+                    "SF-IMP-0068 compact key 1471 must retain one accepted AUTH-0030 connection");
         }
         double radius = DESCRIPTOR.nominalRadius();
         SkyIslandWorldVolume volume = volume(
