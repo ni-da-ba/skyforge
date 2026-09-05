@@ -464,6 +464,29 @@ when this emerges naturally from selected mods.
 
 Avoid contrived three-dimension recipe chains whose only purpose is forcing travel.
 
+## Route grammar converts value into play
+
+A dimension may contain valuable resources and sites but still fail if travel between them has no meaningful capability structure.
+
+The route layer therefore connects:
+
+~~~text
+destination value
+    -> movement capability
+    -> payload
+    -> reliability
+    -> recovery
+    -> infrastructure
+~~~
+
+See [Cross-Dimension Route and Infrastructure Grammar v0.1](cross-dimension-route-and-infrastructure-grammar-v0.1.md).
+
+This is particularly important because:
+
+- Overworld value should mature into productive regional routes;
+- Nether difficulty should mature into protected mixed-mode corridors;
+- End distance should mature into staging/navigation/rescue networks.
+
 ## Infrastructure is the real late-game reward
 
 The player's long-term progression should increasingly become:
