@@ -44,23 +44,33 @@ public final class CertifiedSkyIslandSupportEnvelopeCompiler {
         }
 
         double detailMaximumFactor =
-                1.0
-                        + SeededSkyIslandVolumeRecipe.MAXIMUM_RELATIVE_DISPLACEMENT
-                                * descriptor.detailAmplitude();
+                Math.nextUp(
+                        1.0
+                                + SeededSkyIslandVolumeRecipe.MAXIMUM_RELATIVE_DISPLACEMENT
+                                        * descriptor.detailAmplitude());
         Optional<SecondaryMorphologyContribution> secondary =
                 provider.compileSecondaryMorphology(
                         descriptor, descriptor.secondaryMorphologyAmplitude());
         double secondaryMaximumFactor =
-                secondary.map(SecondaryMorphologyContribution::maximumFactor).orElse(1.0);
+                Math.nextUp(
+                        secondary.map(SecondaryMorphologyContribution::maximumFactor).orElse(1.0));
 
         PrimaryMorphologySupportEnvelope base = primary.orElseThrow();
         return Optional.of(
                 new CertifiedSkyIslandSupportEnvelope(
                         base.maximumHorizontalRadius(),
-                        base.maximumUpperOffset()
-                                * detailMaximumFactor
-                                * secondaryMaximumFactor,
-                        base.maximumUndersideDepth() * detailMaximumFactor,
+                        outwardMultiply(
+                                outwardMultiply(
+                                        base.maximumUpperOffset(),
+                                        detailMaximumFactor),
+                                secondaryMaximumFactor),
+                        outwardMultiply(
+                                base.maximumUndersideDepth(),
+                                detailMaximumFactor),
                         "semantic-built-in-v1:" + family.identifier()));
+    }
+
+    private static double outwardMultiply(double first, double second) {
+        return Math.nextUp(first * second);
     }
 }
