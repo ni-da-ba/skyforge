@@ -74,10 +74,18 @@ P2 FIRST POWERED FLIGHT
     |       +--> heavy aviation / industrial power
     |
     +--> electrical / advanced processing
+    |       |
+    |       +--> instrumentation
+    |       +--> CC / radar integration
+    |       +--> mature distributed industry
+    |
+    +--> END / DIMENSIONAL AVIATION
             |
-            +--> instrumentation
-            +--> CC / radar integration
-            +--> mature distributed industry
+            +--> End Stone -> End Stone Powder
+            +--> zinc + water + heat -> Levitite Blend
+            +--> crystallized Levitite
+            +--> passive lift-support aircraft
+            +--> later low-pressure propulsion if selected
 ~~~
 
 This is a capability sequence, not a rigid linear tech tree.
@@ -348,6 +356,49 @@ Advanced metallurgy should reward:
 - specialized industrial sites;
 
 without forcing every ordinary aircraft upgrade through exceptional loot.
+
+## Later dimensional aviation — End Levitite
+
+Current Aeronautics gives the End a direct capability reward rather than merely rare loot.
+
+Source-backed chain:
+
+~~~text
+End Stone
+-> End Stone Powder
++ zinc + water + heated mixing
+-> Levitite Blend
+-> crystallization
+-> Levitite
+~~~
+
+Aeronautics' own Ponder behavior gives Levitite a useful progression identity:
+
+- enough Levitite can keep a contraption afloat;
+- Levitite alone cannot make it climb;
+- additional force remains necessary;
+- low-speed resistance creates a handling cost.
+
+This means the mature Overworld zinc economy remains relevant when the player reaches the End.
+
+The End can therefore broaden aviation from:
+
+~~~text
+aerodynamic lift + engines
+~~~
+
+toward:
+
+~~~text
+aerodynamic lift
++ passive levitation support
++ propulsion
++ later low-pressure-specialized propulsion
+~~~
+
+without invalidating first flight or the regional R2/R3 economy.
+
+See [End Aeronautics Progression Contract v0.1](end-aeronautics-progression-contract-v0.1.md).
 
 ## Province-level specialization examples
 
