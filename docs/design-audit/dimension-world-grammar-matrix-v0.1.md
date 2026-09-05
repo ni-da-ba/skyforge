@@ -7,6 +7,20 @@
 
 Identify which Skyforge concepts should plausibly be shared across Overworld, Nether, and End, and which concepts require dimension-specific semantics.
 
+This matrix does **not** select terrain.
+
+The dimension gameplay requirements are upstream:
+
+~~~text
+gameplay role
+    -> capability / traversal requirements
+    -> environment and topology requirements
+    -> terrain grammar
+    -> shared/specialized implementation
+~~~
+
+See [Dimension Gameplay Requirements v0.1](dimension-gameplay-requirements-v0.1.md).
+
 The goal is not to design all three dimensions now.
 
 The goal is to prevent two opposite architecture failures:
@@ -55,9 +69,9 @@ N/A
 | Sky exposure | Major | Mostly irrelevant except huge vaults | Major | PROFILED |
 | Ecology | Terrestrial/aerial/aquatic | Fungal/thermal/infernal | Sparse alien | PROFILED |
 | Civilization | Villages/routes/industry | Piglin/fortress/bastion networks | Ruins/End cities/exceptional sites | PROFILED |
-| Atmosphere | Wind/weather/thermals | Enclosed convection/heat/turbulence | Sparse/anomalous domain behavior | PROFILED |
+| Atmosphere / physics | Wind/weather/thermals | Sable pressure decay + possible enclosed convection/heat | Sable thin-air pressure curve + future anomalous flow | PROFILED |
 | Navigation | Horizon + beacons + weather | Corridors + landmarks + maps | Void landmarks + gateways | PROFILED |
-| Aviation | Foundational logistics | Constrained chamber/corridor aviation | Long void crossing / late expedition | PROFILED |
+| Aviation | Foundational logistics | Specialized enclosed-route tool; exact niche after testing | Late expedition / thin-air engineering candidate | PROFILED |
 | Resource geography | Metals/agriculture/fuel | Quartz/Wolframite/heat/blaze/etc. | Chorus/shulker/End loot/etc. | PROFILED |
 | Native critical sites | Stronghold etc. | Fortress/bastion/portal | Dragon arena/gateways/End cities | SPECIALIZED |
 | Structure admission | Semantic + geometry | Semantic + enclosure geometry | Semantic + landmass geometry | SHARED framework |
