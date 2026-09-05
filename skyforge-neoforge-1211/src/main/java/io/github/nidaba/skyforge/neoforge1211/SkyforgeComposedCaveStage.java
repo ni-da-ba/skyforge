@@ -65,6 +65,7 @@ final class SkyforgeComposedCaveStage {
             var realizedAuthoredField = new SkyIslandRealizedExteriorConnectedCaveVolumeField(
                     plan.authoredField(),
                     columns);
+            var spatialIndex = SkyforgeExteriorConnectedCaveSpatialIndex.create(plan.authoredField());
 
             List<Long> chunkKeys = new ArrayList<>(
                     SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(volumeId));
@@ -75,7 +76,13 @@ final class SkyforgeComposedCaveStage {
                 ObligationKey key = new ObligationKey(volumeId, chunkKey);
                 Obligation previous = obligations.put(
                         key,
-                        new Obligation(plan, columns, realizedAuthoredField, State.PENDING, null));
+                        new Obligation(
+                                plan,
+                                columns,
+                                realizedAuthoredField,
+                                spatialIndex,
+                                State.PENDING,
+                                null));
                 if (previous != null) {
                     throw new IllegalStateException(
                             "duplicate composed cave obligation " + volumeId.path() + "/" + chunkPos(chunkKey));
@@ -177,6 +184,7 @@ final class SkyforgeComposedCaveStage {
                         populationPlan.biomeResolver(),
                         volume,
                         obligation.realizedAuthoredField(),
+                        obligation.spatialIndex(),
                         chunk,
                         biomeSample,
                         ownerSpan.minimumY(),
@@ -322,6 +330,7 @@ final class SkyforgeComposedCaveStage {
                             current.plan(),
                             current.columns(),
                             current.realizedAuthoredField(),
+                            current.spatialIndex(),
                             State.COMPLETED,
                             completion));
         }
@@ -530,12 +539,14 @@ final class SkyforgeComposedCaveStage {
             SkyforgeComposedCavePlan plan,
             SkyIslandCompiledVolumeColumnField columns,
             SkyIslandRealizedExteriorConnectedCaveVolumeField realizedAuthoredField,
+            SkyforgeExteriorConnectedCaveSpatialIndex spatialIndex,
             State state,
             Completion completion) {
         private Obligation {
             Objects.requireNonNull(plan, "plan");
             Objects.requireNonNull(columns, "columns");
             Objects.requireNonNull(realizedAuthoredField, "realizedAuthoredField");
+            Objects.requireNonNull(spatialIndex, "spatialIndex");
             Objects.requireNonNull(state, "state");
             if ((state == State.PENDING) != (completion == null)) {
                 throw new IllegalArgumentException("composed cave obligation state/evidence mismatch");
