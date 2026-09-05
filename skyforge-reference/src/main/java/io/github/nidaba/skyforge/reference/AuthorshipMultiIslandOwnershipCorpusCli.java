@@ -33,10 +33,10 @@ public final class AuthorshipMultiIslandOwnershipCorpusCli {
     private static final long AUTHORED_WORLD = 0x4155544830303438L;
     private static final long REALIZATION_ROOT = 0x5245414C30303438L;
     private static final double RADIUS = 120.0;
-    private static final int SAMPLE_X = 190;
+    private static final int SAMPLE_Z = 190;
     private static final int SAMPLE_Y = 120;
     private static final int SCALE = 2;
-    private static final int PANEL_WIDTH = SAMPLE_X * SCALE;
+    private static final int PANEL_WIDTH = SAMPLE_Z * SCALE;
     private static final int PANEL_HEIGHT = SAMPLE_Y * SCALE;
     private static final int HEADER = 92;
     private static final int PANELS = 4;
@@ -95,7 +95,7 @@ public final class AuthorshipMultiIslandOwnershipCorpusCli {
                 "<!doctype html><meta charset=\"utf-8\">"
                         + "<title>AUTH-0048</title>"
                         + "<h1>Multi-island authored-realization ownership</h1>"
-                        + "<p>This X/Y slice uses Z=0. The left fixture contains two same-X/Z "
+                        + "<p>This Z/Y slice uses X=0. The left fixture contains two same-X/Z "
                         + "vertically stacked associations with deliberately overlapping conservative "
                         + "bounds. The right fixture contains two co-located physical realizations "
                         + "(MASSIF and SPINE), producing both true native ambiguity in their shared "
@@ -112,7 +112,7 @@ public final class AuthorshipMultiIslandOwnershipCorpusCli {
 
     private static Grid sample(Fixture fixture) {
         SkyIslandAuthoredRealizationOwnershipSelection[][] selections =
-                new SkyIslandAuthoredRealizationOwnershipSelection[SAMPLE_Y][SAMPLE_X];
+                new SkyIslandAuthoredRealizationOwnershipSelection[SAMPLE_Y][SAMPLE_Z];
 
         int sampled = 0;
         int multiConservative = 0;
@@ -128,9 +128,9 @@ public final class AuthorshipMultiIslandOwnershipCorpusCli {
 
         for (int iy = 0; iy < SAMPLE_Y; iy++) {
             double y = 35.0 + iy * (420.0 - 35.0) / (SAMPLE_Y - 1.0);
-            for (int ix = 0; ix < SAMPLE_X; ix++) {
-                double x = -370.0 + ix * (770.0 / (SAMPLE_X - 1.0));
-                Coordinate3 point = new Coordinate3(x, y, 0.0);
+            for (int iz = 0; iz < SAMPLE_Z; iz++) {
+                double z = -370.0 + iz * (770.0 / (SAMPLE_Z - 1.0));
+                Coordinate3 point = new Coordinate3(0.0, y, z);
                 SkyIslandAuthoredRealizationOwnershipSelection selection =
                         fixture.forward().resolve(point);
                 SkyIslandAuthoredRealizationOwnershipSelection reverse =
@@ -247,7 +247,7 @@ public final class AuthorshipMultiIslandOwnershipCorpusCli {
         graphics.setColor(Color.BLACK);
         graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 15));
         graphics.drawString(
-                "AUTH-0048 exact multi-island ownership — X/Y slice at Z=0",
+                "AUTH-0048 exact multi-island ownership — Z/Y slice at X=0",
                 8,
                 19);
         graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
@@ -297,7 +297,7 @@ public final class AuthorshipMultiIslandOwnershipCorpusCli {
             Grid grid,
             int panel) {
         for (int iy = 0; iy < SAMPLE_Y; iy++) {
-            for (int ix = 0; ix < SAMPLE_X; ix++) {
+            for (int ix = 0; ix < SAMPLE_Z; ix++) {
                 SkyIslandAuthoredRealizationOwnershipSelection selection =
                         grid.selections()[iy][ix];
                 Color color =
@@ -426,7 +426,7 @@ public final class AuthorshipMultiIslandOwnershipCorpusCli {
 
     private static SkyIslandAuthoredRealizationAssociation association(
             SkyIslandDescriptor authored,
-            double centerX,
+            double centerZ,
             double suspension,
             long geometrySeed,
             String group,
@@ -435,8 +435,8 @@ public final class AuthorshipMultiIslandOwnershipCorpusCli {
         SkyIslandVolumeDescriptor physical =
                 SkyIslandVolumeDescriptor.schema2(
                         geometrySeed,
-                        centerX,
                         0.0,
+                        centerZ,
                         suspension,
                         authored.nominalRadius(),
                         32.0,
@@ -460,12 +460,12 @@ public final class AuthorshipMultiIslandOwnershipCorpusCli {
                                 memberOrdinal,
                                 geometrySeed),
                         new WorldBounds(
-                                centerX - 1.35 * RADIUS,
-                                centerX + 1.35 * RADIUS,
+                                -1.35 * RADIUS,
+                                1.35 * RADIUS,
                                 suspension - 180.0,
                                 suspension + 180.0,
-                                -1.35 * RADIUS,
-                                1.35 * RADIUS),
+                                centerZ - 1.35 * RADIUS,
+                                centerZ + 1.35 * RADIUS),
                         compiled);
         return SkyIslandAuthoredRealizationAssociation.of(authored, volume);
     }
