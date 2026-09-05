@@ -246,6 +246,10 @@ LICENSE/MAINTENANCE      STRONG
 
 **Leading use:** selected hostile/civilization structures and associated mobs.
 
+Source inspection of the maintained 1.21.1 branch is encouraging: Piglin Manor, Citadel, and Catacomb content is represented through data-driven `worldgen/structure`, `structure_set`, and `template_pool` resources, with associated mob features in configured-feature data.
+
+That does not by itself prove zero-code Skyforge relocation, but it gives this candidate a **strong integration seam** compared with a hardcoded monolithic generator.
+
 Skyforge requirement:
 
 > Native structure placement must not become independent authority.
@@ -259,6 +263,16 @@ Eternal Nether asset / mob / encounter
 ~~~
 
 If native placement cannot be cleanly disabled/redirected, lower its role.
+
+A direct prototype should attempt:
+
+~~~text
+disable / bypass Eternal Nether structure sets
+    -> retain template pools / NBT / mob content
+    -> admit selected structure through Skyforge semantic site planning
+~~~
+
+before any bespoke recreation of those structures.
 
 ### BetterNether: New Dawn — **STRONG BROAD-CONTENT R&D CANDIDATE**
 
