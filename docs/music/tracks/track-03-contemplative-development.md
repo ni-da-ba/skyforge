@@ -2,8 +2,8 @@
 
 **Status:** Active development  
 **Role:** lonely / ponderous / thoughtful exploration state  
-**Current method:** thematic audition gate before further development  
-**Current boundary:** Theme Lab 02
+**Current method:** first-principles melody gate before further development  
+**Current boundary:** First-Principles Theme 01
 
 ## Emotional target
 
@@ -247,7 +247,7 @@ Uncompressed MIDI SHA-256:
 
 Repository source:
 
-`assets/music/source/experiments/track-03-theme-lab-02/E-glass-horizon.mid`
+`assets/music/source/experiments/track-03-theme-lab-02/E-glass-horizon.mid.gz`
 
 ### Candidate F — Old Thought II
 
@@ -263,7 +263,7 @@ Uncompressed MIDI SHA-256:
 
 Repository source:
 
-`assets/music/source/experiments/track-03-theme-lab-02/F-old-thought-II.mid`
+`assets/music/source/experiments/track-03-theme-lab-02/F-old-thought-II.mid.gz`
 
 ### Candidate G — Lantern Below
 
@@ -279,7 +279,7 @@ Uncompressed MIDI SHA-256:
 
 Repository source:
 
-`assets/music/source/experiments/track-03-theme-lab-02/G-lantern-below.mid`
+`assets/music/source/experiments/track-03-theme-lab-02/G-lantern-below.mid.gz`
 
 ### Candidate H — Still Between
 
@@ -296,7 +296,65 @@ Uncompressed MIDI SHA-256:
 
 Repository source:
 
-`assets/music/source/experiments/track-03-theme-lab-02/H-still-between.mid`
+`assets/music/source/experiments/track-03-theme-lab-02/H-still-between.mid.gz`
+
+
+## Theme Lab 02 result
+
+Theme Lab 02 was also rejected as a thematic direction rather than promoted into development.
+
+The important conclusion is that the lab process itself had begun to overfit local traits from earlier weak candidates. Neighbor turns, exposed leaps, asymmetry, and interval fingerprints were being treated as construction rules. That produced melodies with describable features, but not a melody the listener cared about.
+
+The user therefore requested a full return to first principles rather than another derivative candidate set.
+
+**Retained lesson:**
+
+> A theme is not memorable because it contains the ingredients associated with memorable themes. The whole melodic sentence has to feel singable, inevitable, and emotionally specific.
+
+## First-Principles Theme 01 — current boundary
+
+This pass deliberately abandons:
+
+- Theme Lab 01 material;
+- Theme Lab 02 material;
+- the inherited F-major piano bed;
+- the requirement to preserve C/D-derived traits;
+- 4/4 as the default phrase grid.
+
+Fresh setting:
+
+- 76 BPM;
+- 3/4;
+- B-flat-major-centered with G-minor shading;
+- cello + piano as the primary test;
+- no atmospheric or orchestral rescue layer.
+
+The main melodic face is:
+
+`F -> G -> Bb -> D -> C -> Bb`
+
+The intent is not to prove interval cleverness. The opening is designed to be singable and anticipated after one hearing.
+
+Form:
+
+- bars 1-4: complete statement;
+- bars 5-8: inward answer and close;
+- bars 9-12: genuinely contrasting continuation in a higher register;
+- bars 13-16: recognizable return with a changed cadence.
+
+Uncompressed full piano/cello MIDI SHA-256:
+
+`12351f11b6c4a351eb5a09490aa2ec1d783363ee7ca4aa6e527677402beeedef`
+
+Repository source:
+
+`assets/music/source/track-03-first-principles-theme-01.mid.gz`
+
+A melody-only diagnostic is also persisted:
+
+`assets/music/source/track-03-first-principles-theme-01-melody-only.mid.gz`
+
+The melody-only version is the actual acceptance gate. If it does not remain recognizable without the piano, this pass is rejected regardless of harmony or later orchestration.
 
 ## Current acceptance gate
 
