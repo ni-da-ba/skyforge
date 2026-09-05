@@ -175,6 +175,8 @@ Civilization History Grammar
 Regional Hub / Route Graph
 Successor-Use / Repurposing State
 Data-Driven Active / Declining / Abandoned / Occupied Variants
+Asset-Role Indirection / Fallback Mapping
+Functional Civilization Loot Tables
 ~~~
 
 ### World composition
