@@ -90,6 +90,7 @@ copy its plan, catalog, or certificate set into loosely related parallel state.
 
 The publication exposes derived exact views:
 
+    acceptedConvergence()
     acceptedPlan()
     catalog()
     supportCertificates()
@@ -98,7 +99,10 @@ The publication exposes derived exact views:
 
 ### Accepted convergence identity
 
-`acceptedPlan()` is the exact AUTH-0056 fresh plan already bound by AUTH-0057.
+`acceptedConvergence()` is the exact AUTH-0056 terminal report already carried by AUTH-0057.
+
+`acceptedPlan()` is that report's exact fresh plan. The publication therefore retains both the
+terminal convergence artifact and the precise planned hierarchy it accepted.
 
 No re-plan or semantic reconstruction occurs during publication.
 
