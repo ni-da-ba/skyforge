@@ -2,8 +2,8 @@
 
 **Status:** Active development  
 **Role:** lonely / ponderous / thoughtful exploration state  
-**Current method:** preserve Theme 04's fingerprint while auditing note economy and structural duration  
-**Current boundary:** Melodic Design Audit 02 — note economy, holds, and structural duration
+**Current method:** preserve Theme 04's fingerprint while reducing note density and strengthening structural holds  
+**Current boundary:** First-Principles Theme 05 — held thought
 
 ## Emotional target
 
@@ -715,6 +715,77 @@ No new melodic material should be added merely to increase character. The next r
 ### Current acceptance question
 
 > Can Theme 04 keep its new fingerprint while allowing important notes to become places the listener can actually inhabit?
+
+## First-Principles Theme 05 — held thought / note-economy pass
+
+Theme 05 is the direct implementation of Melodic Design Audit 02.
+
+It preserves:
+
+- the `D-D-F-Bb` signature head;
+- the E-natural catch;
+- the piano `E-F` afterimage;
+- low/open versus low/closed cadential grammar;
+- the internal global apex;
+- 76 BPM, 3/4, B-flat-centered sound.
+
+The rewrite changes **duration hierarchy**, not thematic identity.
+
+### Quantitative change
+
+Theme 04:
+- 80 cello attacks;
+- 70/80 attacks shorter than 0.75 beat;
+- only 2 notes at 2 beats or longer;
+- no notes between 1.25 and 2 beats.
+
+Theme 05:
+- **66 cello attacks**;
+- **11 structural holds at or above 1.25 beats**;
+- higher density reserved primarily for the developmental approach.
+
+### Deliberate holds
+
+Theme 05 now gives meaningful duration to:
+
+- the opening B-flat after the signature leap;
+- the phrase-1 C5 apex;
+- the phrase-1 low C4 open cadence;
+- the phrase-2 D5 apex;
+- the phrase-3 opening B-flat;
+- the phrase-3 low C4 open cadence;
+- the global F5 apex;
+- the phrase-4 low C4 open cadence;
+- the final pre-cadential C4;
+- the final low B-flat close.
+
+The global F5 apex is now approximately 1.4 beats rather than functioning as another passing event.
+
+### Governing principle
+
+> When the melody reaches a note the listener wants to hear, let them hear it.
+
+The pass is specifically testing whether Theme 04's new character survives when ornamental traffic is removed.
+
+Uncompressed full MIDI SHA-256:
+
+`25593eba0ab28e52debf49de2d673c90d3a1fb365a65b1ec01e6ce102ff01109`
+
+Repository source:
+
+`assets/music/source/track-03-first-principles-theme-05-held-thought.mid.gz`
+
+Uncompressed melody-only MIDI SHA-256:
+
+`5046202a44e6a53432e6eac801767fce9ce7ee429f12b3cf8e36bb729172ced1`
+
+Repository source:
+
+`assets/music/source/track-03-first-principles-theme-05-held-thought-melody-only.mid.gz`
+
+### Current acceptance question
+
+> Does the theme now have enough space for its signature notes and arrivals to become memorable, without losing the character first established in Theme 04?
 
 ## Current acceptance gate
 
