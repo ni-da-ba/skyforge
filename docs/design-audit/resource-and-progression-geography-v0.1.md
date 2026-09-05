@@ -32,15 +32,29 @@ Not every individual island needs all of these.
 
 The local cluster/nearby reachable area should.
 
-### R1 — first engineering / first flight
+### R1 — first engineering / powered first flight
 
 The player's initial region should contain enough material to reach:
 
 - basic Create machinery;
-- first practical Skyforge crossing method;
+- selected cheap local crossing method;
 - simple storage and repair;
 - basic navigation;
-- a reliable first aircraft/airship/glider path once recipes are finalized.
+- a reliable first powered Aeronautics aircraft path once recipes are finalized.
+
+The current source-backed leading closure is **pre-brass and pre-petroleum**.
+
+Its important material families are presently:
+
+- iron;
+- andesite / Andesite Alloy;
+- wood;
+- stone/basic workshop materials;
+- wool/fiber/sail material;
+- ordinary fuel;
+- an adhesive path compatible with the Physics Assembler.
+
+Copper and zinc are no longer assumed R1 simply because they are prominent Create materials.
 
 Critical rule:
 
@@ -55,21 +69,39 @@ This may be satisfied through:
 - village trade;
 - modest salvage.
 
-### R2 — regional mobility and specialization
+### R2 — first post-flight regional specialization
 
-Once practical flight exists, regional geography can matter strongly.
+Once practical powered flight exists, regional geography can matter strongly.
 
-Candidate resource roles:
+The leading first specialization package is:
 
-- Create zinc and other engineering metals;
-- better fuel sources;
-- redstone/electrical materials;
-- larger iron/copper deposits;
-- specialized agriculture;
-- industrial feedstocks;
-- uncommon building/material palettes.
+- copper;
+- zinc;
+- brass production;
+- redstone;
+- larger/richer iron deposits;
+- specialized agriculture and building materials;
+- better fuels without yet requiring petroleum.
 
-This is where the player first has a strong reason to establish routes.
+This is where the player first has a strong reason to establish repeatable routes.
+
+A particularly natural first loop is:
+
+~~~text
+starter cluster
+    -> first powered aircraft
+    -> copper / zinc district
+    -> return with engineering metals
+    -> brass-capable Create expansion
+    -> improved controls / handling / automation
+    -> broader regional network
+~~~
+
+Current Create 1.21.1 source makes Brass by **heated mixing copper + zinc**.
+
+Because the bootstrap aircraft does not require Brass, Skyforge can let Brass become an immediate post-flight reward rather than an obstacle to first flight.
+
+The exact heat-source/dimension requirement should remain a pack recipe audit item; do not silently turn Brass back into a bootstrap gate.
 
 ### R3 — mature industry
 
@@ -179,9 +211,16 @@ Large deposits may still create meaningful mining centers.
 
 ### Copper
 
-Also foundational for the likely engineering/electrical stack.
+Important for the engineering/electrical stack, but **not currently first-flight critical**.
 
-Should be common regionally and allowed to form locally significant deposits.
+Preferred role:
+
+- COMMON_REGIONAL / early R2;
+- reliably findable after first powered flight;
+- capable of forming larger industrial districts;
+- important for fluid handling, Brass, and later electrical systems.
+
+A tiny bootstrap copper occurrence may exist naturally, but the starting-region guarantee should not require it unless a later tested recipe introduces a real dependency.
 
 ### Coal
 
@@ -225,16 +264,19 @@ Because villagers already use emerald currency, direct ore geography need not su
 
 ## Create zinc
 
-Create zinc is likely a foundational engineering material.
+Create zinc is an important **post-flight engineering material**, not a current bootstrap requirement.
 
 Therefore:
 
 - it should not be an ultra-rare strategic resource;
 - it should be represented in Skyforge mineral geology rather than independent Create ore placement;
-- ordinary regions should provide a realistic route to zinc before mature Create progression depends on it;
-- large zinc-bearing districts can still support dedicated mining settlements.
+- ordinary regions should provide a realistic R2 route to zinc after powered flight;
+- large zinc-bearing districts can still support dedicated mining settlements;
+- the starter-region guarantee does not need zinc merely for Andesite Alloy because the audited Create path supports iron nuggets instead.
 
-The exact recipe dependency audit should determine whether zinc belongs to R1 or early R2.
+Current preferred classification: **COMMON_REGIONAL / early R2**.
+
+If a later playable aircraft proof discovers a hidden zinc dependency, reopen the classification rather than preemptively overpopulating the starter region.
 
 ## Petroleum and liquid fuel
 
@@ -571,16 +613,21 @@ Storage convenience must not erase geography.
 
 Backpacks and compact storage are acceptable only if they do not make bulk freight meaningless.
 
-Possible balancing levers later:
+Do not reduce ordinary vanilla inventory merely to manufacture vehicle demand.
 
-- capacity;
-- item classes;
+Prefer to make freight valuable through:
+
 - bulk resource volume;
+- fluids/fuel;
+- entities;
+- contraption-scale machinery;
 - vehicle cargo efficiency;
-- fuel costs;
-- automation convenience.
+- trip-count reduction;
+- scheduled/automated throughput.
 
-Do not solve this prematurely, but audit every storage dependency against the logistics fantasy.
+Vanilla Shulker Boxes remain provisionally acceptable as mature manual-courier storage.
+
+See [Portable Storage and Freight Integrity v0.1](portable-storage-and-freight-integrity-v0.1.md).
 
 ## Progression should broaden transportation, not merely increase speed
 
