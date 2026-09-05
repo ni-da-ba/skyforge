@@ -85,6 +85,11 @@ public final class SkyIslandWorldCatalogSupportBundle {
         return catalog.volumeCount() - certificates.size();
     }
 
+    /** Whether every world-catalog volume carries proof-grade support metadata. */
+    public boolean fullyCertified() {
+        return certificates.size() == catalog.volumeCount();
+    }
+
     public List<SkyIslandWorldVolumeSupportCertificate> certificates() {
         ArrayList<SkyIslandWorldVolumeSupportCertificate> ordered = new ArrayList<>();
         for (SkyIslandWorldVolume volume : catalog.volumes()) {
