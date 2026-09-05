@@ -119,10 +119,10 @@ Likely roles include:
 - Blaze progression;
 - Nether Wart / brewing;
 - Quartz;
-- Netherite/Ancient Debris if retained in normal progression;
-- Create: Metallurgy Wolframite while dimension-native;
+- Netherite/Ancient Debris and CBC Nethersteel industry;
 - fortress/bastion loot;
-- later heat/process capability;
+- later heat/superheat and heavy-artillery capability;
+- optional general foundry depth only if Create: Metallurgy survives A/B testing;
 - specialist fuels/materials where the selected pack supports them.
 
 The exact reward set should be audited against the final pack.
