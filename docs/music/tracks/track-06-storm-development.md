@@ -230,3 +230,51 @@ The crash / low-drum MIDI pitches use a first-pass percussion mapping. BBCSO Dis
 3. Does the inserted section preserve the excitement of Draft 01 rather than overloading the cue?
 4. Does the false-clearing -> Thunderbreak -> eyewall sequence feel like escalation rather than two unrelated climaxes?
 5. Is the storm now fun to survive as well as dangerous?
+
+
+## Draft 02 — Thunderbreak user result
+
+The user explicitly judged the inserted Thunderbreak / crashing-core section as beneficial to the song.
+
+### Accepted structural change
+
+The cue should retain:
+
+- the full Track 02 dragon-motif cameo at the beginning;
+- the full Track 02 dragon-motif cameo at the ending;
+- the inserted bars 41-48 Thunderbreak section;
+- the original charged-eye material before it;
+- the original eyewall material after it.
+
+The added crash-and-boom section is therefore no longer a speculative expansion. It is part of the preferred Track 06 form.
+
+### Why it works
+
+Thunderbreak separates two storm functions that Draft 01 had asked the same section to carry:
+
+- **discrete violent events** — lightning cracks, crashes, booms, pressure shocks;
+- **sustained violent weather** — eyewall motion, gust motor, continuous danger.
+
+This creates a stronger escalation:
+
+```text
+false clearing
+    ->
+individual lightning/thunder impacts
+    ->
+sustained eyewall violence
+```
+
+The distinction should be preserved in future orchestration and BBCSO correction passes.
+
+### Next production boundary
+
+Proceed to a real BBCSO render before making further compositional changes.
+
+The main unknown is not form. It is percussion realization:
+
+- whether the current authored MIDI pitches map to the intended BBCSO crash / low-drum colors;
+- whether low brass and piano reinforce thunder without muddying the mix;
+- whether the delayed flash-to-boom rhetoric survives the library's attack and release behavior.
+
+Do not remove Thunderbreak merely because the first BBCSO percussion map is imperfect. Remap instruments or pitches first.
