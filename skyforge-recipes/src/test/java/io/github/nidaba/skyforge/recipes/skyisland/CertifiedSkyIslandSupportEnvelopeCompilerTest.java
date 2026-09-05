@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandMorphologyFamily;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -99,6 +100,44 @@ class CertifiedSkyIslandSupportEnvelopeCompilerTest {
         assertTrue(
                 new CertifiedSkyIslandSupportEnvelopeCompiler()
                         .certify(primary)
+                        .isEmpty());
+    }
+
+    @Test
+    void semanticRecipeVersionWithoutSemanticProvenanceRemainsUncertified() {
+        SkyIslandVolumeDescriptor descriptor =
+                SkyIslandVolumeDescriptor.schema2(
+                        51005L,
+                        0.0,
+                        0.0,
+                        220.0,
+                        100.0,
+                        40.0,
+                        56.0,
+                        24.0,
+                        0.0,
+                        0.55,
+                        0.60,
+                        0.10,
+                        SkyIslandMorphologyFamily.MASSIF,
+                        0.25,
+                        32.0,
+                        0.30);
+        CompiledSkyIslandVolume accepted =
+                new SemanticSkyIslandVolumeRecipe().compile(descriptor);
+        CompiledSkyIslandVolume forgedProvenance =
+                new CompiledSkyIslandVolume(
+                        descriptor,
+                        SemanticSkyIslandVolumeRecipe.RECIPE_VERSION,
+                        accepted.graphSchemaVersion(),
+                        accepted.upperSurfaceGraph(),
+                        accepted.undersideSurfaceGraph(),
+                        accepted.densityGraph(),
+                        Map.of());
+
+        assertTrue(
+                new CertifiedSkyIslandSupportEnvelopeCompiler()
+                        .certify(forgedProvenance)
                         .isEmpty());
     }
 
