@@ -52,11 +52,24 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         }
 
         long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
+        if (!binding.adapter().hasCandidateVolume(
+                chunk.getPos(),
+                chunk.getMinBuildHeight(),
+                chunk.getHeight())) {
+            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realizeNoCandidate", performanceStart);
+            return Optional.of(new MinecraftChunkWriteResult(0, 0, 0));
+        }
 
         // Physical admission is deliberately observed here, above the concrete writer and after
         // BASE_WORLD has completed. A deferred exact-volume write can therefore reuse the writer
         // without accidentally resurveying already-mutated terrain.
         SkyforgePhysicalVolumeAdmissionStage.observeBeforeRealization(chunk, nativeSurfaceSnapshot);
+        if (!SkyforgePhysicalVolumeAdmissionStage.allowsDirectRealization(chunk)) {
+            SkyforgeRuntimePerformanceMetrics.recordSince(
+                    "terrain.plannedDirectProjectionSkipped",
+                    performanceStart);
+            return Optional.of(new MinecraftChunkWriteResult(0, 0, 0));
+        }
 
         SkyforgeNeoForge1211IsolationDevRuntime.Proof isolationProof =
                 SkyforgeNeoForge1211IsolationDevRuntime.captureBeforeSkyforge(chunk);
@@ -138,11 +151,22 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             ChunkAccess chunk,
             SkyforgePhysicalVolumeAdmissionStage.PendingRealization pending) {
         long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
+        WorldBounds volumeBounds = binding.adapter().volumeBounds(pending.volumeId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "deferred realization requires exact bound volume " + pending.volumeId().path()));
+        VerticalRange range = boundedVerticalRange(chunk, volumeBounds);
+        if (range.height() <= 0) {
+            throw new IllegalStateException(
+                    "deferred exact-volume realization has no vertical overlap with target chunk");
+        }
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.deferredVerticalSamples",
+                range.height());
         MinecraftChunkMaterialization materialization = binding.adapter().materialize(
                 pending.volumeId(),
                 chunk.getPos(),
-                chunk.getMinBuildHeight(),
-                chunk.getHeight());
+                range.minimumY(),
+                range.height());
         if (binding.nativeSurfaceTopAdapter().isPresent()) {
             MinecraftNativeSurfaceSnapshot snapshot = pending.nativeSurfaceSnapshot()
                     .orElseThrow(() -> new IllegalStateException(
@@ -350,6 +374,69 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     static boolean hasNativeSurfaceAdaptation() {
         RuntimeBinding binding = ACTIVE.get();
         return binding != null && binding.nativeSurfaceTopAdapter().isPresent();
+    }
+
+    /** Cheap catalog prefilter used before snapshot capture or full terrain projection. */
+    static boolean hasCandidateVolume(ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return false;
+        }
+        long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
+        boolean candidate = binding.adapter().hasCandidateVolume(
+                chunk.getPos(),
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+        if (!candidate) {
+            SkyforgeRuntimePerformanceMetrics.recordSince(
+                    "terrain.noCandidatePrefilter",
+                    performanceStart);
+        }
+        return candidate;
+    }
+
+    /**
+     * Intersects Minecraft's half-open build interval with Skyforge's conservative closed volume
+     * bounds. The +1 conversion on the maximum Y retains the closed upper support sample exactly.
+     */
+    static VerticalRange boundedVerticalRange(ChunkAccess chunk, WorldBounds volumeBounds) {
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(volumeBounds, "volumeBounds");
+
+        int chunkMinimumY = chunk.getMinBuildHeight();
+        int chunkMaximumYExclusive = chunk.getMaxBuildHeight();
+        int boundedMinimumY = Math.min(
+                chunkMaximumYExclusive,
+                Math.max(chunkMinimumY, floorToInt(volumeBounds.minimumY())));
+        long volumeMaximumYExclusive = Math.addExact((long) floorToInt(volumeBounds.maximumY()), 1L);
+        int boundedMaximumYExclusive = Math.max(
+                chunkMinimumY,
+                (int) Math.min((long) chunkMaximumYExclusive, volumeMaximumYExclusive));
+        if (boundedMaximumYExclusive < boundedMinimumY) {
+            boundedMaximumYExclusive = boundedMinimumY;
+        }
+        return new VerticalRange(boundedMinimumY, boundedMaximumYExclusive);
+    }
+
+    private static int floorToInt(double value) {
+        double floored = Math.floor(value);
+        if (floored < Integer.MIN_VALUE || floored > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("world bound exceeds Minecraft integer coordinates: " + value);
+        }
+        return (int) floored;
+    }
+
+    record VerticalRange(int minimumY, int maximumYExclusive) {
+        VerticalRange {
+            if (maximumYExclusive < minimumY) {
+                throw new IllegalArgumentException("vertical range maximum must not precede minimum");
+            }
+        }
+
+        int height() {
+            return maximumYExclusive - minimumY;
+        }
     }
 
     private static MinecraftChunkMaterialization materialize(RuntimeBinding binding, ChunkAccess chunk) {

@@ -62,6 +62,16 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         this.interpretersByVolumeId = Map.copyOf(cachedInterpreters);
     }
 
+    /** Returns whether the supplied Minecraft chunk interval intersects any planned Skyforge volume. */
+    boolean hasCandidateVolume(ChunkPos chunkPos, int minimumY, int height) {
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+        MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(chunkPos, minimumY, height);
+        return !catalog.query(chunkBounds.worldBounds()).isEmpty();
+    }
+
     /** Materializes one Minecraft chunk's composite Skyforge contribution for the supplied span. */
     public MinecraftChunkMaterialization materialize(ChunkPos chunkPos, int minimumY, int height) {
         MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(chunkPos, minimumY, height);
