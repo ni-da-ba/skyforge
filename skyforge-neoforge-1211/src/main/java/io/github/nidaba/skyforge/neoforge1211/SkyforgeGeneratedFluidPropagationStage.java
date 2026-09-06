@@ -35,10 +35,11 @@ import net.minecraft.world.level.saveddata.SavedData;
  * propagation-only ownership scope.
  *
  * <p>Ordinary Minecraft fluids carry no provenance and are therefore untouched. Native Skyforge
- * fluids are additionally kept one compiled-owner voxel inside the exact-volume shell. Carved cave
- * AIR remains traversable in the interior, while the outer shell is intentionally impermeable so a
- * vanilla spring cannot become an accidental floating-island waterfall. Authored hydrology will use
- * an explicit outlet policy rather than this native-spring domain.
+ * spring fluids are additionally kept one compiled-owner voxel inside the exact-volume shell.
+ * Admitted native lakes retain the historical exact-owner boundary. Carved cave AIR therefore
+ * remains traversable for both, while only spring provenance treats the outer shell as impermeable
+ * so a vanilla spring cannot become an accidental floating-island waterfall. Authored hydrology
+ * will use an explicit outlet policy rather than the native-spring domain.
  */
 public final class SkyforgeGeneratedFluidPropagationStage {
     private static final String DATA_NAME = "skyforge_generated_fluid_provenance";
@@ -73,7 +74,15 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             throw new IllegalStateException("nested Skyforge generated-fluid scopes are not supported");
         }
         ServerLevel serverLevel = serverLevel(level);
-        Context context = new Context(serverLevel, operation.volumeId(), Mode.CAPTURE);
+        BoundaryPolicy boundaryPolicy = generationStep
+                        == net.minecraft.world.level.levelgen.GenerationStep.Decoration.FLUID_SPRINGS.ordinal()
+                ? BoundaryPolicy.INTERIOR_SHELL
+                : BoundaryPolicy.OWNER_DOMAIN;
+        Context context = new Context(
+                serverLevel,
+                operation.volumeId(),
+                Mode.CAPTURE,
+                boundaryPolicy);
         ACTIVE.set(context);
         return new Scope(context);
     }
@@ -120,13 +129,19 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             data.remove(position.asLong());
             return;
         }
-        if (!SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
-                provenance.volumeId(), position)) {
+        if (!allows(
+                provenance.boundaryPolicy(),
+                provenance.volumeId(),
+                position)) {
             data.remove(position.asLong());
             return;
         }
         counters(serverLevel, provenance.volumeId()).propagationTicks++;
-        ACTIVE.set(new Context(serverLevel, provenance.volumeId(), Mode.PROPAGATION));
+        ACTIVE.set(new Context(
+                serverLevel,
+                provenance.volumeId(),
+                Mode.PROPAGATION,
+                provenance.boundaryPolicy()));
     }
 
     /** Closes the propagation scope opened at the start of one generated FlowingFluid tick. */
@@ -171,10 +186,10 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         if (context == null || context.mode() != Mode.PROPAGATION) {
             return true;
         }
-        boolean owner = ownerSolid(context.volumeId(), position);
-        boolean visible = owner
-                && SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
-                        context.volumeId(), position);
+        boolean visible = allows(
+                context.boundaryPolicy(),
+                context.volumeId(),
+                position);
         if (!visible) {
             counters(context.serverLevel(), context.volumeId()).hiddenBoundaryReads++;
         }
@@ -188,13 +203,14 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         if (context == null || context.mode() != Mode.PROPAGATION) {
             return true;
         }
-        boolean owner = ownerSolid(context.volumeId(), position);
-        if (!owner) {
+        boolean accepted = allows(
+                context.boundaryPolicy(),
+                context.volumeId(),
+                position);
+        if (!accepted) {
             counters(context.serverLevel(), context.volumeId()).rejectedBoundaryWrites++;
-            return false;
         }
-        return SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
-                context.volumeId(), position);
+        return accepted;
     }
 
     /**
@@ -215,12 +231,16 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             counters.scheduledOutsideOwner++;
             return;
         }
-        if (!SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
-                context.volumeId(), position)) {
+        if (!allows(context.boundaryPolicy(), context.volumeId(), position)) {
             return;
         }
         counters.capturedSchedules++;
-        track(context.serverLevel(), context.volumeId(), position, fluid);
+        track(
+                context.serverLevel(),
+                context.volumeId(),
+                position,
+                fluid,
+                context.boundaryPolicy());
     }
 
     /**
@@ -243,10 +263,14 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         Context context = ACTIVE.get();
         FluidState fluidState = state.getFluidState();
         if (context != null && context.serverLevel() == serverLevel) {
-            if (SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
-                    context.volumeId(), position)) {
+            if (allows(context.boundaryPolicy(), context.volumeId(), position)) {
                 if (!fluidState.isEmpty()) {
-                    track(serverLevel, context.volumeId(), position, fluidState.getType());
+                    track(
+                            serverLevel,
+                            context.volumeId(),
+                            position,
+                            fluidState.getType(),
+                            context.boundaryPolicy());
                 } else {
                     GeneratedFluidData activeData = dataIfPresent(serverLevel);
                     if (activeData != null) {
@@ -295,6 +319,7 @@ public final class SkyforgeGeneratedFluidPropagationStage {
                 count++;
                 digest = mix(digest, entry.getKey());
                 digest = mix(digest, entry.getValue().fluidKey().toString().hashCode());
+                digest = mix(digest, entry.getValue().boundaryPolicy().ordinal());
             }
         }
         Counters counters = counters(level, volumeId);
@@ -321,7 +346,10 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         List<TrackedFluid> result = new ArrayList<>();
         for (var entry : data.entries.entrySet()) {
             if (entry.getValue().volumeId().equals(volumeId)) {
-                result.add(new TrackedFluid(entry.getKey(), entry.getValue().fluidKey()));
+                result.add(new TrackedFluid(
+                        entry.getKey(),
+                        entry.getValue().fluidKey(),
+                        entry.getValue().boundaryPolicy()));
             }
         }
         result.sort(Comparator.comparingLong(TrackedFluid::position));
@@ -332,14 +360,26 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             ServerLevel level,
             SkyIslandWorldVolumeId volumeId,
             BlockPos position,
-            Fluid fluid) {
+            Fluid fluid,
+            BoundaryPolicy boundaryPolicy) {
         ResourceLocation fluidKey = BuiltInRegistries.FLUID.getKey(fluid);
         if (fluidKey == null) {
             throw new IllegalStateException("generated Skyforge fluid is absent from the built-in registry");
         }
         data(level).put(
                 position.asLong(),
-                new Provenance(volumeId, fluidKey));
+                new Provenance(volumeId, fluidKey, boundaryPolicy));
+    }
+
+    private static boolean allows(
+            BoundaryPolicy boundaryPolicy,
+            SkyIslandWorldVolumeId volumeId,
+            BlockPos position) {
+        if (!ownerSolid(volumeId, position)) {
+            return false;
+        }
+        return boundaryPolicy == BoundaryPolicy.OWNER_DOMAIN
+                || SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(volumeId, position);
     }
 
     private static boolean ownerSolid(
@@ -417,23 +457,44 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         PROPAGATION
     }
 
+    enum BoundaryPolicy {
+        OWNER_DOMAIN,
+        INTERIOR_SHELL;
+
+        static BoundaryPolicy decode(String value) {
+            if (value == null || value.isBlank()) {
+                // Provenance created before SF-IMP-0078 used the historical exact-owner fence.
+                return OWNER_DOMAIN;
+            }
+            try {
+                return valueOf(value);
+            } catch (IllegalArgumentException ignored) {
+                return OWNER_DOMAIN;
+            }
+        }
+    }
+
     private record Context(
             ServerLevel serverLevel,
             SkyIslandWorldVolumeId volumeId,
-            Mode mode) {
+            Mode mode,
+            BoundaryPolicy boundaryPolicy) {
         private Context {
             Objects.requireNonNull(serverLevel, "serverLevel");
             Objects.requireNonNull(volumeId, "volumeId");
             Objects.requireNonNull(mode, "mode");
+            Objects.requireNonNull(boundaryPolicy, "boundaryPolicy");
         }
     }
 
     record Provenance(
             SkyIslandWorldVolumeId volumeId,
-            ResourceLocation fluidKey) {
+            ResourceLocation fluidKey,
+            BoundaryPolicy boundaryPolicy) {
         Provenance {
             Objects.requireNonNull(volumeId, "volumeId");
             Objects.requireNonNull(fluidKey, "fluidKey");
+            Objects.requireNonNull(boundaryPolicy, "boundaryPolicy");
         }
     }
 
@@ -446,9 +507,13 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             long hiddenBoundaryReads,
             long rejectedBoundaryWrites) {}
 
-    record TrackedFluid(long position, ResourceLocation fluidKey) {
+    record TrackedFluid(
+            long position,
+            ResourceLocation fluidKey,
+            BoundaryPolicy boundaryPolicy) {
         TrackedFluid {
             Objects.requireNonNull(fluidKey, "fluidKey");
+            Objects.requireNonNull(boundaryPolicy, "boundaryPolicy");
         }
     }
 
@@ -527,9 +592,11 @@ public final class SkyforgeGeneratedFluidPropagationStage {
                         entry.getInt("groupOrdinal"),
                         entry.getInt("memberOrdinal"),
                         entry.getLong("geometrySeed"));
+                BoundaryPolicy boundaryPolicy =
+                        BoundaryPolicy.decode(entry.getString("boundaryPolicy"));
                 data.entries.put(
                         entry.getLong("position"),
-                        new Provenance(volumeId, fluidKey));
+                        new Provenance(volumeId, fluidKey, boundaryPolicy));
             }
             return data;
         }
@@ -576,6 +643,7 @@ public final class SkyforgeGeneratedFluidPropagationStage {
                         encoded.putInt("memberOrdinal", volumeId.memberOrdinal());
                         encoded.putLong("geometrySeed", volumeId.geometrySeed());
                         encoded.putString("fluid", provenance.fluidKey().toString());
+                        encoded.putString("boundaryPolicy", provenance.boundaryPolicy().name());
                         list.add(encoded);
                     });
             tag.put("entries", list);
