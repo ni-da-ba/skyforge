@@ -9,6 +9,7 @@ public final class SkyforgeNeoForge1211Mod {
     public static final String MOD_ID = "skyforge";
 
     public SkyforgeNeoForge1211Mod(IEventBus modEventBus) {
+        SkyforgeRuntimePerformanceMetrics.initialize();
         // Register supported worldgen codecs without changing any ordinary world. A world/datapack
         // must select the Skyforge generator or placement behavior explicitly, and both remain inert
         // without the appropriate compiled runtime scope.

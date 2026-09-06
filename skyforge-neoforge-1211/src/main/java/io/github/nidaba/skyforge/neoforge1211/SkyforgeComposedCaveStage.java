@@ -209,10 +209,14 @@ final class SkyforgeComposedCaveStage {
                 }
             }
 
+            long authoredPreflightStart = SkyforgeRuntimePerformanceMetrics.start();
             var advance = preparation.advance(
                     MAX_PREPARE_COLUMNS_PER_SERVICE,
                     MAX_PREPARE_VOXELS_PER_SERVICE,
                     MAX_PREPARE_CANONICAL_SAMPLES_PER_SERVICE);
+            SkyforgeRuntimePerformanceMetrics.recordSince(
+                    "caves.authoredPreflight",
+                    authoredPreflightStart);
             if (!advance.complete()) {
                 return advance.worked() ? ServiceResult.progressed() : ServiceResult.idle();
             }
@@ -269,9 +273,13 @@ final class SkyforgeComposedCaveStage {
                 }
             }
 
+            long nativeCarverStart = SkyforgeRuntimePerformanceMetrics.start();
             var nativeAdvance = nativeCursor.advance(
                     chunk,
                     MAX_NATIVE_CARVER_START_CHECKS_PER_SERVICE);
+            SkyforgeRuntimePerformanceMetrics.recordSince(
+                    "caves.nativeCarver",
+                    nativeCarverStart);
             if (!nativeAdvance.complete()) {
                 return nativeAdvance.worked() ? ServiceResult.progressed() : ServiceResult.idle();
             }
@@ -289,10 +297,14 @@ final class SkyforgeComposedCaveStage {
                 }
             }
 
+            long authoredCommitStart = SkyforgeRuntimePerformanceMetrics.start();
             var authoredAdvance = authoredCommit.advance(
                     level,
                     chunk,
                     MAX_AUTHORED_COMMIT_WRITES_PER_SERVICE);
+            SkyforgeRuntimePerformanceMetrics.recordSince(
+                    "caves.authoredCommit",
+                    authoredCommitStart);
             if (!authoredAdvance.complete()) {
                 return authoredAdvance.worked() ? ServiceResult.progressed() : ServiceResult.idle();
             }
