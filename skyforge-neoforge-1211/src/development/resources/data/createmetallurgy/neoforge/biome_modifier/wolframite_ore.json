@@ -1,6 +1,3 @@
 {
-  "type": "neoforge:add_features",
-  "biomes": "#skyforge:integration_disabled",
-  "features": "createmetallurgy:wolframite_ore",
-  "step": "underground_ores"
+  "type": "neoforge:none"
 }
