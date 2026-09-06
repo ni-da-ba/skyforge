@@ -3579,6 +3579,7 @@ tasks.register("sfImp0070PerformanceVerify") {
             "perf.catchup.composedCavePump.totalNanos",
             "perf.admission.nativeOccupancySurvey.totalNanos",
             "perf.terrain.realize.totalNanos",
+            "perf.terrain.noCandidatePrefilter.totalNanos",
             "perf.terrain.realizeDeferred.totalNanos",
             "perf.surfacePopulation.coordinator.totalNanos",
             "perf.caves.authoredPreflight.totalNanos",
@@ -3606,6 +3607,12 @@ tasks.register("sfImp0070PerformanceVerify") {
             "SF-IMP-0070 timing run lost SF-IMP-0069 correctness evidence: $properties"
         }
 
+        val terrainRealizeCalls = properties.getProperty("perf.terrain.realize.calls").toLong()
+        check(terrainRealizeCalls in 1L..<300L) {
+            "SF-IMP-0072 non-candidate terrain prefilter did not reduce direct realization calls: " +
+                "terrainRealizeCalls=$terrainRealizeCalls"
+        }
+
         val cavePreflightCalls = properties.getProperty("perf.caves.authoredPreflight.calls").toLong()
         val cavePumpCalls = properties.getProperty("perf.catchup.composedCavePump.calls").toLong()
         check(cavePumpCalls > 0L && cavePreflightCalls >= cavePumpCalls * 4L) {
@@ -3617,6 +3624,7 @@ tasks.register("sfImp0070PerformanceVerify") {
         val warmupMs = properties.getProperty("perf.acceptance.warmOriginFootprint.totalNanos").toLong() / 1_000_000.0
         println(
             "SF-IMP-0070 PERFORMANCE CHARACTERIZATION PASS: processMs=$elapsedMs, warmupMs=$warmupMs, " +
+                "terrainRealizeCalls=$terrainRealizeCalls, " +
                 "cavePreflightCalls=$cavePreflightCalls, cavePumpCalls=$cavePumpCalls, " +
                 "metrics=" + requiredMetrics.size,
         )
