@@ -208,7 +208,7 @@ public final class AuthorshipPublishedWorldCommitAcknowledgementCheckpointConsum
 
     private static Fixture fixture() {
         var set =
-                SkyIslandPublishedWorldCommitAcknowledgementCheckpointConsumptionAcknowledgementSet
+                SkyIslandPublishedWorldCommitAcknowledgementCheckpointConsumptionOutcomeCheckpointConsumptionAcknowledgementSet
                         .empty();
         var firstCheckpoint =
                 SkyIslandPublishedWorldCommitAcknowledgementCheckpointConsumptionOutcomeCheckpointConsumptionOutcomeCheckpoint
