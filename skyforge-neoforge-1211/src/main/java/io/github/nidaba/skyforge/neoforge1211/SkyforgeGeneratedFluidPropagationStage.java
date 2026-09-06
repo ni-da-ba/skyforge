@@ -34,10 +34,11 @@ import net.minecraft.world.level.saveddata.SavedData;
  * originating exact Skyforge volume from per-level SavedData and temporarily reinstate a
  * propagation-only ownership scope.
  *
- * <p>Ordinary Minecraft fluids carry no provenance and are therefore untouched. The propagation
- * scope treats positions outside the original compiled owner as an impermeable boundary and rejects
- * writes there. Carved cave AIR remains traversable because those positions are still compiled
- * owner-solid coordinates even though their live Minecraft block state is air.
+ * <p>Ordinary Minecraft fluids carry no provenance and are therefore untouched. Native Skyforge
+ * fluids are additionally kept one compiled-owner voxel inside the exact-volume shell. Carved cave
+ * AIR remains traversable in the interior, while the outer shell is intentionally impermeable so a
+ * vanilla spring cannot become an accidental floating-island waterfall. Authored hydrology will use
+ * an explicit outlet policy rather than this native-spring domain.
  */
 public final class SkyforgeGeneratedFluidPropagationStage {
     private static final String DATA_NAME = "skyforge_generated_fluid_provenance";
@@ -119,7 +120,8 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             data.remove(position.asLong());
             return;
         }
-        if (!ownerSolid(provenance.volumeId(), position)) {
+        if (!SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
+                provenance.volumeId(), position)) {
             data.remove(position.asLong());
             return;
         }
@@ -169,7 +171,10 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         if (context == null || context.mode() != Mode.PROPAGATION) {
             return true;
         }
-        boolean visible = ownerSolid(context.volumeId(), position);
+        boolean owner = ownerSolid(context.volumeId(), position);
+        boolean visible = owner
+                && SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
+                        context.volumeId(), position);
         if (!visible) {
             counters(context.serverLevel(), context.volumeId()).hiddenBoundaryReads++;
         }
@@ -183,11 +188,13 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         if (context == null || context.mode() != Mode.PROPAGATION) {
             return true;
         }
-        boolean accepted = ownerSolid(context.volumeId(), position);
-        if (!accepted) {
+        boolean owner = ownerSolid(context.volumeId(), position);
+        if (!owner) {
             counters(context.serverLevel(), context.volumeId()).rejectedBoundaryWrites++;
+            return false;
         }
-        return accepted;
+        return SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
+                context.volumeId(), position);
     }
 
     /**
@@ -206,6 +213,10 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         Counters counters = counters(context.serverLevel(), context.volumeId());
         if (!ownerSolid(context.volumeId(), position)) {
             counters.scheduledOutsideOwner++;
+            return;
+        }
+        if (!SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
+                context.volumeId(), position)) {
             return;
         }
         counters.capturedSchedules++;
@@ -232,7 +243,8 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         Context context = ACTIVE.get();
         FluidState fluidState = state.getFluidState();
         if (context != null && context.serverLevel() == serverLevel) {
-            if (ownerSolid(context.volumeId(), position)) {
+            if (SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
+                    context.volumeId(), position)) {
                 if (!fluidState.isEmpty()) {
                     track(serverLevel, context.volumeId(), position, fluidState.getType());
                 } else {
