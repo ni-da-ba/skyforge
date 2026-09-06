@@ -161,6 +161,10 @@ final class SkyforgePopulationExecutionStage {
             return ownerSolid.test(position) || attachmentEnvelope.ownsAttachment(position);
         }
 
+        BlockState hiddenExteriorBlockState() {
+            return SkyforgeNativeInteriorPlacementPolicy.hiddenExteriorBlockState(operation);
+        }
+
         boolean canWrite(BlockPos position) {
             Objects.requireNonNull(position, "position");
             return SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)
