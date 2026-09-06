@@ -14,10 +14,10 @@ import net.minecraft.world.level.levelgen.GenerationStep;
  * Phase-aware plausibility policy for native post-cave population in floating exact volumes.
  *
  * <p>Minecraft's underground features normally run inside a world with effectively unbounded
- * surrounding terrain. A floating island has an exterior shell instead. UNDERGROUND_DECORATION and
- * FLUID_SPRINGS therefore remain native inside the compiled body but may not occupy the outermost
- * exact-owner shell. Surface ecology, ores, local modifications and admitted lakes retain their
- * existing policies.
+ * surrounding terrain. A floating island has an exterior instead. UNDERGROUND_DECORATION and
+ * FLUID_SPRINGS therefore see hidden exterior positions as an inert solid read barrier instead of
+ * AIR. Native springs additionally may not occupy the outermost exact-owner shell. Surface ecology,
+ * ores, local modifications and admitted lakes retain their existing policies.
  */
 final class SkyforgeNativeInteriorPlacementPolicy {
     private SkyforgeNativeInteriorPlacementPolicy() {}
@@ -96,9 +96,20 @@ final class SkyforgeNativeInteriorPlacementPolicy {
         return true;
     }
 
-    private static boolean requiresInteriorCell(SkyforgePopulationOperation operation) {
+    static BlockState hiddenExteriorBlockState(SkyforgePopulationOperation operation) {
+        Objects.requireNonNull(operation, "operation");
         int generationStep = operation.generationStep();
-        return generationStep == GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal()
-                || generationStep == GenerationStep.Decoration.FLUID_SPRINGS.ordinal();
+        if (generationStep == GenerationStep.Decoration.UNDERGROUND_DECORATION.ordinal()
+                || generationStep == GenerationStep.Decoration.FLUID_SPRINGS.ordinal()) {
+            // Underground-native features assume their search domain is embedded in surrounding
+            // terrain. Present the floating-island exterior as an inert solid read barrier rather
+            // than AIR so the sky is not mistaken for cave space. This is read-only virtualization.
+            return Blocks.BEDROCK.defaultBlockState();
+        }
+        return Blocks.AIR.defaultBlockState();
+    }
+
+    private static boolean requiresInteriorCell(SkyforgePopulationOperation operation) {
+        return operation.generationStep() == GenerationStep.Decoration.FLUID_SPRINGS.ordinal();
     }
 }
