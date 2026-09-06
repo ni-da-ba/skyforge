@@ -448,3 +448,56 @@ Most successful elements:
 - the percussion is audible and useful after the mapping/level repairs.
 
 Potential later refinements should be surgical rather than structural. Do not rewrite the accepted form before a user-directed issue appears.
+
+
+## Next motif-power pass
+
+The real BBCSO render established that the cue's form, Thunderbreak, territorial dragon-language bookends, and storm-vs-eyewall macro-dynamics are working. The remaining compositional opportunity is not a wholesale melody rewrite; it is to strengthen recognition of the existing storm motif:
+
+`D-F-A-Eb | C-Bb-G-A`
+
+### Diagnosis
+
+The storm motif is less immediately memorable than the Track 02 dragon motif or Track 03 Count the Leagues refrain because:
+
+- its opening `D-F-A` is a familiar triadic rise;
+- its most distinctive event, `A->Eb`, occurs only after that generic setup;
+- the cue begins transforming/compressing the motif relatively quickly;
+- the continuous storm motor can compete with the motif's silhouette;
+- its timbral fingerprint is less singular than Track 02's horn phrase or Track 03's clarinet refrain.
+
+### Preferred conservative strengthening
+
+Before changing pitches, test:
+
+1. **Teach the canonical statement more literally.**
+   Repeat the canonical storm phrase at least twice before major compression or tail mutation.
+
+2. **Make A->Eb the physical signature.**
+   Preserve the tritone as the cue's lightning fracture and coordinate it with a consistent orchestral accent/color.
+
+3. **Create a motif window.**
+   Slightly reduce motor/percussion density during the first clear statement so the listener can learn the phrase before the weather closes around it again.
+
+4. **Fuse rhythm + contour + timbre.**
+   Keep V1 as canonical owner, with a repeatable accent/orchestration behavior at the tritone rather than changing ownership constantly.
+
+5. **Let the tail vary more than the head.**
+   Treat `D-F-A-Eb` as the main four-note storm seed; allow `C-Bb-G-A` to carry contextual variation.
+
+6. **Use full-theme returns at structural landmarks.**
+   Strong candidates are first gust wall, Thunderbreak, and one late escape/receding statement.
+
+Do not rewrite the motif merely to chase maximum singability. The cue's identity is legitimately distributed across motif, gust motor, pressure changes, false clearing, Thunderbreak, and territorial bookends.
+
+### Naming direction under consideration
+
+Strong naming families:
+
+- weather as territory / sovereignty;
+- weather as geography / border;
+- navigation under hostile conditions;
+- sky-as-sea exposure;
+- old-fashioned travel/weather vernacular.
+
+Current leading candidates remain **A Province of Thunder**, **No Harbor in the Air**, and **Where Thunder Keeps Its Court**, but no title is locked.
