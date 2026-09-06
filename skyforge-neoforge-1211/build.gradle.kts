@@ -30,6 +30,9 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    // Static development-resource guards must resolve module-local fixtures independently of
+    // whichever repository directory a CI workflow chooses as the Test task working directory.
+    systemProperty("skyforge.test.projectDirectory", layout.projectDirectory.asFile.absolutePath)
     // FML initializes the tested mod before JUnit can report individual tests. Keep bootstrap
     // diagnostics visible so a required worldgen mixin failure is actionable in CI rather than
     // collapsing into Gradle's outer InvocationTargetException.

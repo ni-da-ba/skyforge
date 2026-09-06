@@ -11,12 +11,16 @@ import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 final class WaveC2DevelopmentResourceTest {
+    private static final Path PROJECT_DIRECTORY =
+            Path.of(System.getProperty("skyforge.test.projectDirectory", "."))
+                    .toAbsolutePath()
+                    .normalize();
     private static final Path DEVELOPMENT_RESOURCES =
-            Path.of("src", "development", "resources");
+            PROJECT_DIRECTORY.resolve(Path.of("src", "development", "resources"));
     private static final Path MOBILITY_DATAPACK =
-            Path.of("src", "development", "wave-c2-mobility-datapack");
+            PROJECT_DIRECTORY.resolve(Path.of("src", "development", "wave-c2-mobility-datapack"));
     private static final Path NETHER_SCALE_DATAPACK =
-            Path.of("src", "development", "wave-c2-nether-scale-datapack");
+            PROJECT_DIRECTORY.resolve(Path.of("src", "development", "wave-c2-nether-scale-datapack"));
 
     @Test
     void earlyGliderPrototypeRemovesPhantomDependencyWithoutChangingUpdraftData() throws IOException {
@@ -80,7 +84,7 @@ final class WaveC2DevelopmentResourceTest {
     @Test
     void runtimeSpecimenPinsAreExactAndReviewable() throws IOException {
         Properties pins = new Properties();
-        try (var input = Files.newInputStream(Path.of("wave-c2-mods.properties"))) {
+        try (var input = Files.newInputStream(PROJECT_DIRECTORY.resolve("wave-c2-mods.properties"))) {
             pins.load(input);
         }
 
