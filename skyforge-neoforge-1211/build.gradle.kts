@@ -3580,6 +3580,7 @@ tasks.register("sfImp0070PerformanceVerify") {
             "perf.admission.nativeOccupancySurvey.totalNanos",
             "perf.terrain.realize.totalNanos",
             "perf.terrain.noCandidatePrefilter.totalNanos",
+            "perf.terrain.plannedDirectProjectionSkipped.totalNanos",
             "perf.terrain.realizeDeferred.totalNanos",
             "perf.surfacePopulation.coordinator.totalNanos",
             "perf.caves.authoredPreflight.totalNanos",
@@ -3621,9 +3622,11 @@ tasks.register("sfImp0070PerformanceVerify") {
         }
 
         val terrainRealizeCalls = properties.getProperty("perf.terrain.realize.calls").toLong()
-        check(terrainRealizeCalls in 1L..<300L) {
-            "SF-IMP-0072 non-candidate terrain prefilter did not reduce direct realization calls: " +
-                "terrainRealizeCalls=$terrainRealizeCalls"
+        val plannedProjectionSkips =
+            properties.getProperty("perf.terrain.plannedDirectProjectionSkipped.calls").toLong()
+        check(terrainRealizeCalls == 1L && plannedProjectionSkips == 195L) {
+            "SF-IMP-0074 planned candidate projection gate changed: " +
+                "terrainRealizeCalls=$terrainRealizeCalls, plannedProjectionSkips=$plannedProjectionSkips"
         }
 
         val cavePreflightCalls = properties.getProperty("perf.caves.authoredPreflight.calls").toLong()
@@ -3637,7 +3640,7 @@ tasks.register("sfImp0070PerformanceVerify") {
         val warmupMs = properties.getProperty("perf.acceptance.warmOriginFootprint.totalNanos").toLong() / 1_000_000.0
         println(
             "SF-IMP-0070 PERFORMANCE CHARACTERIZATION PASS: processMs=$elapsedMs, warmupMs=$warmupMs, " +
-                "terrainRealizeCalls=$terrainRealizeCalls, " +
+                "terrainRealizeCalls=$terrainRealizeCalls, plannedProjectionSkips=$plannedProjectionSkips, " +
                 "admissionYTotal=$admissionVerticalTotal, admissionYMax=$admissionVerticalMax, " +
                 "cavePreflightCalls=$cavePreflightCalls, cavePumpCalls=$cavePumpCalls, " +
                 "metrics=" + requiredMetrics.size,
