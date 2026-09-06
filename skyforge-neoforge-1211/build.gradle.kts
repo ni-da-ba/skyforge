@@ -3733,6 +3733,19 @@ tasks.register("sfImp0070PerformanceVerify") {
                 "samples=$admissionVerticalSamples, total=$admissionVerticalTotal, max=$admissionVerticalMax"
         }
 
+        val deferredVerticalSamples =
+            properties.getProperty("perf.terrain.deferredVerticalSamples.samples").toLong()
+        val deferredVerticalTotal =
+            properties.getProperty("perf.terrain.deferredVerticalSamples.total").toLong()
+        val deferredVerticalMax =
+            properties.getProperty("perf.terrain.deferredVerticalSamples.max").toLong()
+        check(deferredVerticalSamples == 390L
+                && deferredVerticalTotal == 39_390L
+                && deferredVerticalMax == 101L) {
+            "SF-IMP-0075 deferred exact-volume Y clamp evidence changed: " +
+                "samples=$deferredVerticalSamples, total=$deferredVerticalTotal, max=$deferredVerticalMax"
+        }
+
         val terrainRealizeCalls = properties.getProperty("perf.terrain.realize.calls").toLong()
         val plannedProjectionSkips =
             properties.getProperty("perf.terrain.plannedDirectProjectionSkipped.calls").toLong()
@@ -3754,6 +3767,7 @@ tasks.register("sfImp0070PerformanceVerify") {
             "SF-IMP-0070 PERFORMANCE CHARACTERIZATION PASS: processMs=$elapsedMs, warmupMs=$warmupMs, " +
                 "terrainRealizeCalls=$terrainRealizeCalls, plannedProjectionSkips=$plannedProjectionSkips, " +
                 "admissionYTotal=$admissionVerticalTotal, admissionYMax=$admissionVerticalMax, " +
+                "deferredYTotal=$deferredVerticalTotal, deferredYMax=$deferredVerticalMax, " +
                 "cavePreflightCalls=$cavePreflightCalls, cavePumpCalls=$cavePumpCalls, " +
                 "metrics=" + requiredMetrics.size,
         )
