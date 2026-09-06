@@ -49,6 +49,18 @@ tasks.withType<Test>().configureEach {
 // keeping temporary world presets and UI tags out of distributable Skyforge artifacts.
 val development = sourceSets.create("development")
 
+
+// External NeoForge mods must live on a run source set's runtime classpath to be discovered as mods.
+// AdditionalRuntimeClasspath is the legacy *library* classpath and is therefore insufficient for
+// Fowl Play/A4MC runtime acceptance on Minecraft 1.21.1.
+val waveC5Runtime = sourceSets.create("waveC5Runtime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
 // immutable Modrinth version IDs live in one small lock manifest so the development specimen can
 // be reproduced without making these R&D candidates production dependencies.
@@ -1386,9 +1398,34 @@ neoForge {
         // on the dedicated server before any thermal-soaring compatibility code is admitted.
         create("waveC5SoaringFaunaServer") {
             server()
+            sourceSet.set(waveC5Runtime)
             gameDirectory = layout.projectDirectory.dir("run-wave-c5-soaring-fauna-server").asFile
             programArgument("--nogui")
             systemProperty("skyforge.dev.waveC5Profile", "soaring-fauna")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // Wave C6 exercises the actual optional hawk/A4MC compatibility controller. The same
+        // retained bird stack is used; the system property activates Skyforge's otherwise inert
+        // reflection bridge and event hooks.
+        create("waveC6HawkThermalServer") {
+            server()
+            sourceSet.set(waveC5Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC6SoaringFauna", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        create("waveC6HawkThermalAcceptanceServer") {
+            server()
+            sourceSet.set(waveC5Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-acceptance-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC6SoaringFauna", "true")
+            systemProperty("skyforge.dev.waveC6Acceptance", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -1450,6 +1487,28 @@ val waveC5SmokeServerProperties = """
 tasks.named("runWaveC5SoaringFaunaServer").configure {
     doFirst {
         val directory = layout.projectDirectory.dir("run-wave-c5-soaring-fauna-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC5SmokeServerProperties)
+    }
+}
+
+
+tasks.named("runWaveC6HawkThermalServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC5SmokeServerProperties)
+    }
+}
+
+
+tasks.named("runWaveC6HawkThermalAcceptanceServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-acceptance-server").asFile
         delete(directory)
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
@@ -3304,8 +3363,7 @@ tasks.register("waveC5ResolvePinnedMods") {
     inputs.file(waveC3PinFile)
 
     doLast {
-        val files = configurations.getByName("waveC5SoaringFaunaServerLegacyClasspath")
-            .files
+        val files = waveC5Runtime.runtimeClasspath.files
             .map { it.name }
             .sorted()
 
@@ -3328,6 +3386,41 @@ tasks.register("waveC5ResolvePinnedMods") {
         }
 
         println("Wave C5 soaring-fauna classpath")
+        files.forEach { println("  resolved=$it") }
+    }
+}
+
+
+tasks.register("waveC6ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve and assert the exact Wave C6 hawk-thermal run classpath."
+    inputs.file(waveC5PinFile)
+    inputs.file(waveC3PinFile)
+
+    doLast {
+        val files = waveC5Runtime.runtimeClasspath.files
+            .map { it.name }
+            .sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return "${parts[1]}-${parts[2]}"
+        }
+
+        val requiredTokens = mapOf(
+            "Fowl Play" to artifactToken(waveC5Pin("fowlplay", "coordinate")),
+            "SmartBrainLib" to artifactToken(waveC5Pin("smartbrainlib", "coordinate")),
+            "YACL" to artifactToken(waveC5Pin("yacl", "coordinate")),
+            "Aerodynamics4MC core" to artifactToken(waveC3Pin("aerodynamics4mcCore", "coordinate")),
+        )
+        requiredTokens.forEach { (label, token) ->
+            check(files.any { it.contains(token) }) {
+                "Wave C6 missing $label artifact token '$token': $files"
+            }
+        }
+
+        println("Wave C6 hawk-thermal classpath")
         files.forEach { println("  resolved=$it") }
     }
 }
@@ -3423,15 +3516,16 @@ dependencies {
     }
 
 
-    // C5 reuses A4MC core as the accepted atmosphere source and adds only the bird/AI substrate.
+    // C5/C6 external mods belong on the isolated run source set's runtime classpath so FML
+    // discovers them as NeoForge mods rather than treating them as legacy Java libraries.
     waveC5BirdStackMods.forEach { mod ->
         add(
-            "waveC5SoaringFaunaServerAdditionalRuntimeClasspath",
+            waveC5Runtime.runtimeOnlyConfigurationName,
             waveC5Pin(mod, "coordinate"),
         )
     }
     add(
-        "waveC5SoaringFaunaServerAdditionalRuntimeClasspath",
+        waveC5Runtime.runtimeOnlyConfigurationName,
         files(waveC3AeroCoreArtifact),
     )
 
