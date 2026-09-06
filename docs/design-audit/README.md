@@ -116,6 +116,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Unified industrial production graph v0.1](unified-industrial-production-graph-v0.1.md)
 - [Recipe and material normalization backlog v0.1](recipe-and-material-normalization-backlog-v0.1.md)
 - [Exact recipe/worldgen collision manifest v0.1](exact-recipe-worldgen-collision-manifest-v0.1.md)
+- [Wave C1 integrated engineering prototype acceptance v0.1](wave-c1-integrated-engineering-prototype-acceptance-v0.1.md)
 - [Create: Big Cannons industrial integration audit v0.1](create-big-cannons-industrial-integration-audit-v0.1.md)
 - [Create: Big Cannons material access closure v0.1](create-big-cannons-material-access-closure-v0.1.md)
 - [Overworld realization audit v0.1](overworld-realization-audit-v0.1.md)
