@@ -132,6 +132,15 @@ tasks.register<JavaExec>("enrichedProviderMorphologySuspendedVolumeCorpus") {
     args(layout.buildDirectory.dir("evidence/enriched-provider-morphology-suspended-volume-v1").get().asFile.absolutePath)
 }
 
+tasks.register<JavaExec>("productionMorphologyVisualReviewCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0083 41-member production morphology visual-quality atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.ProductionMorphologyVisualReviewCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/production-morphology-visual-review-v1").get().asFile.absolutePath)
+}
+
 tasks.register<JavaExec>("multiIslandGroupCorpus") {
     group = "verification"
     description = "Generates the SF-IMP-0026 mixed-provider chain and cluster group-scale atlas."
