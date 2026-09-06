@@ -10,10 +10,14 @@ import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 final class WaveC1DevelopmentResourceTest {
+    private static final Path PROJECT_DIRECTORY =
+            Path.of(System.getProperty("skyforge.test.projectDirectory", "."))
+                    .toAbsolutePath()
+                    .normalize();
     private static final Path DEVELOPMENT_RESOURCES =
-            Path.of("src", "development", "resources");
+            PROJECT_DIRECTORY.resolve(Path.of("src", "development", "resources"));
     private static final Path STANDALONE_DATAPACK =
-            Path.of("src", "development", "wave-c1-datapack");
+            PROJECT_DIRECTORY.resolve(Path.of("src", "development", "wave-c1-datapack"));
 
     @Test
     void accumulatorPrototypeUsesExistingGoldOrElectrumWireTag() throws IOException {
@@ -131,7 +135,7 @@ final class WaveC1DevelopmentResourceTest {
     @Test
     void runtimeSpecimenPinsAreExactAndReviewable() throws IOException {
         Properties pins = new Properties();
-        try (var input = Files.newInputStream(Path.of("wave-c1-mods.properties"))) {
+        try (var input = Files.newInputStream(PROJECT_DIRECTORY.resolve("wave-c1-mods.properties"))) {
             pins.load(input);
         }
 
