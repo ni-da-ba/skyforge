@@ -46,9 +46,11 @@ final class SkyforgeNativeInteriorPlacementPolicy {
         }
 
         if (state.is(Blocks.GLOW_LICHEN)) {
-            // Native multiface decoration is useful inside caves, but it must have real support in
-            // the final post-cave Minecraft topology at the moment it is written.
-            return state.canSurvive(level, position);
+            // Glow lichen remains native cave decoration, but the outer compiled shell is not a
+            // cave wall: it is the floating island's exterior. Require both interior-shell
+            // separation and Minecraft's final-world support predicate.
+            return isInteriorOwnerCell(position, ownerSolid)
+                    && state.canSurvive(level, position);
         }
 
         if (operation.generationStep() == GenerationStep.Decoration.FLUID_SPRINGS.ordinal()
