@@ -410,3 +410,8 @@ non-omniscient sensor access to Skyforge truth
 56. Prefer manufactured complexity over new geology; rejected Silver/Tin/Platinum/Wolframite/Tungsten/Obdurium may not silently return as required dependencies.
 57. Recipe integration should proceed in order: common tags -> datapack recipes -> configs/worldgen overrides -> presentation cleanup -> thin adapters -> Java only when a real behavioral incompatibility remains.
 58. Build a machine-readable capability-closure verifier after the integrated pack prototype so upstream mod updates cannot silently break first flight, CBC metals, superheat, electrical storage, petroleum, or Levitite closure.
+59. Reliable Gliders atmosphere integration should use NeoForge EntityTickEvent.Post rather than PlayerTickEvent.Post: the former observes the completed Player.tick after Reliable Gliders' tail velocity mutation.
+60. Treat A4MC updraft as a physical vertical-air velocity in m/s. The first glider mapping is `updraft / 20 - 0.05 blocks/tick`, preserving Reliable Gliders' ~1 m/s baseline sink and naturally aligning the A4MC cap with the stock block-updraft scale.
+61. In the first shared-lift prototype, atmospheric lift may raise the final Reliable-Gliders vertical result but must not blindly add to an already stronger block-heat updraft.
+62. Atmospheric truth and ecology ownership remain separate: thermals may influence soaring behavior but may not independently spawn soaring fauna.
+63. Human-eye review is not a correctness gate for atmosphere/glider integration; ordering, authority, unit conversion, composition, and shared-consumer provenance require automated evidence. Human play is reserved for perceptual tuning.
