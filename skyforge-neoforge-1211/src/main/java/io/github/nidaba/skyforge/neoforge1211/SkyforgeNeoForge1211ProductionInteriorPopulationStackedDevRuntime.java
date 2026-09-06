@@ -301,6 +301,24 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                         java.util.Map.entry("interiorShellPlausibility", true)));
     }
 
+    private static FeatureEvidence surfaceGlowLichenFeatureEvidence(
+            SkyIslandWorldVolumeId volumeId) {
+        int attempts = 0;
+        int successes = 0;
+        for (var result : SkyforgeNativeSurfacePopulationStage.completedNativeResults(volumeId)) {
+            for (var feature : result.featureResults()) {
+                if (!feature.featureKey().getPath().contains("glow_lichen")) {
+                    continue;
+                }
+                attempts++;
+                if (feature.placed()) {
+                    successes++;
+                }
+            }
+        }
+        return new FeatureEvidence(attempts, successes);
+    }
+
     private static FeatureEvidence glowLichenFeatureEvidence(
             SkyIslandWorldVolumeId volumeId) {
         int attempts = 0;
