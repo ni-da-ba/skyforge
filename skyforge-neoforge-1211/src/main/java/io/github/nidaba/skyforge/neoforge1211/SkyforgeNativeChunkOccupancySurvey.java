@@ -25,6 +25,9 @@ final class SkyforgeNativeChunkOccupancySurvey {
                 .orElseThrow(() -> new IllegalStateException(
                         "native occupancy survey requires exact bound volume " + volumeId.path()));
         VerticalRange range = boundedVerticalRange(chunk, volumeBounds);
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "admission.occupancySurveyVerticalSamples",
+                range.height());
         return surveyRange(volumeId, chunk, range.minimumY(), range.maximumYExclusive());
     }
 
