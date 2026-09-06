@@ -1,24 +1,44 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.material.FluidState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
  * Presentation-only navigation for the persisted current-capability showcase world.
  *
- * <p>This class installs no terrain, admission, biome, cave, population, material, or fluid
- * binding. It exists only in a ModDev run after the accepted production world has been generated
- * and saved. Its commands therefore cannot manufacture or repair showcase content.
+ * <p>The viewer restores only the deterministic compiled terrain-ownership catalog required by
+ * persisted generated-fluid provenance. Admission, biome/surface population, cave realization,
+ * interior population, material realization, and all other mutation lifecycles remain inert.
+ * Navigation therefore cannot manufacture or repair showcase content.
  */
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgeNeoForge1211ShowcaseViewer {
     static final String ENABLE_PROPERTY = "skyforge.dev.showcaseViewer";
+
+    private static final System.Logger LOGGER =
+            System.getLogger(SkyforgeNeoForge1211ShowcaseViewer.class.getName());
+    private static final SkyforgeNeoForge1211ProductionComposedCaveFixture.Stacked FIXTURE =
+            SkyforgeNeoForge1211ProductionComposedCaveFixture.stacked();
+
+    private static AutoCloseable persistentTerrainOwnershipBinding;
+    private static TrackedSample acceptanceSample;
+    private static long acceptanceStartingPropagationTicks;
+    private static volatile boolean acceptanceServerProofComplete;
+    private static volatile String acceptanceSampleDescription = "pending";
 
     private static final Stop PANORAMA = new Stop(
             "panorama",
@@ -90,6 +110,32 @@ final class SkyforgeNeoForge1211ShowcaseViewer {
         return Boolean.getBoolean(ENABLE_PROPERTY);
     }
 
+    static synchronized void installFromSystemProperty() {
+        if (!enabled() || persistentTerrainOwnershipBinding != null) {
+            return;
+        }
+        if (SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()
+                || SkyforgePhysicalVolumeAdmissionStage.active()
+                || SkyforgeNativeSurfacePopulationStage.hasActiveBinding()
+                || SkyforgeComposedCaveStage.active()
+                || SkyforgeNativeInteriorPopulationStage.active()) {
+            throw new IllegalStateException(
+                    "showcase viewer must begin without a live Skyforge mutation lifecycle binding");
+        }
+
+        persistentTerrainOwnershipBinding = SkyforgeNeoForge1211SurfaceStage.install(
+                new SkyforgeNeoForge1211ChunkAdapter(
+                        FIXTURE.catalog(),
+                        SkyIslandTerrainProfile.reference(),
+                        new SkyforgeMinecraftBlockPalette()),
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
+
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "Skyforge showcase viewer restored deterministic compiled terrain ownership only. "
+                        + "Admission, surface population, cave realization, and interior population remain inert.");
+    }
+
     @SubscribeEvent
     static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (!enabled() || !(event.getEntity() instanceof ServerPlayer player)) {
@@ -97,7 +143,8 @@ final class SkyforgeNeoForge1211ShowcaseViewer {
         }
         move(player, PANORAMA);
         player.sendSystemMessage(Component.literal(
-                "[Skyforge Showcase] Persisted production world loaded. Generation bindings are intentionally inert."));
+                "[Skyforge Showcase] Persisted production world loaded. Mutation bindings are inert; "
+                        + "compiled terrain ownership is restored only for safe persisted fluid ticks."));
         player.sendSystemMessage(Component.literal(
                 "[Skyforge Showcase] Use /skyforge_showcase for the guided stops."));
         player.sendSystemMessage(Component.literal(
@@ -128,6 +175,103 @@ final class SkyforgeNeoForge1211ShowcaseViewer {
                                 .executes(context -> move(context.getSource().getPlayerOrException(), EAST_BIOME))));
     }
 
+    @SubscribeEvent
+    static void onServerTick(ServerTickEvent.Post event) {
+        if (!enabled()
+                || !SkyforgeAutomatedAcceptanceHarness.clientMode()
+                || acceptanceServerProofComplete) {
+            return;
+        }
+        for (ServerLevel level : event.getServer().getAllLevels()) {
+            if (!level.dimension().equals(Level.OVERWORLD) || level.players().isEmpty()) {
+                continue;
+            }
+            provePersistedFluidReopen(level, event);
+        }
+    }
+
+    private static synchronized void provePersistedFluidReopen(
+            ServerLevel level,
+            ServerTickEvent.Post event) {
+        if (acceptanceServerProofComplete) {
+            return;
+        }
+        if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()
+                || SkyforgePhysicalVolumeAdmissionStage.active()
+                || SkyforgeNativeSurfacePopulationStage.hasActiveBinding()
+                || SkyforgeComposedCaveStage.active()
+                || SkyforgeNativeInteriorPopulationStage.active()) {
+            SkyforgeAutomatedAcceptanceHarness.fail(
+                    event.getServer(),
+                    "showcase viewer did not preserve ownership-only runtime isolation");
+            return;
+        }
+
+        if (acceptanceSample == null) {
+            acceptanceSample = firstLiveTrackedSample(level);
+            if (acceptanceSample == null) {
+                return;
+            }
+            var before = SkyforgeGeneratedFluidPropagationStage.snapshot(
+                    level,
+                    acceptanceSample.volumeId());
+            acceptanceStartingPropagationTicks = before.propagationTicks();
+            level.scheduleTick(
+                    acceptanceSample.position(),
+                    acceptanceSample.state().getType(),
+                    1);
+            return;
+        }
+
+        var after = SkyforgeGeneratedFluidPropagationStage.snapshot(
+                level,
+                acceptanceSample.volumeId());
+        if (after.propagationTicks() <= acceptanceStartingPropagationTicks) {
+            return;
+        }
+
+        acceptanceSampleDescription =
+                acceptanceSample.volumeId().path() + "@" + acceptanceSample.position().toShortString();
+        acceptanceServerProofComplete = true;
+        SkyforgeAutomatedAcceptanceHarness.record(
+                java.util.Map.ofEntries(
+                        java.util.Map.entry("viewerTerrainOwnershipRestored", true),
+                        java.util.Map.entry("viewerMutationBindingsInert", true),
+                        java.util.Map.entry("viewerGeneratedFluidPropagation", true),
+                        java.util.Map.entry("viewerFluidSample", acceptanceSampleDescription),
+                        java.util.Map.entry("viewerPropagationTicks", after.propagationTicks())));
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "SKYFORGE SHOWCASE VIEWER SERVER PASS: persisted generated-fluid provenance ticked "
+                        + "under restored compiled ownership without reinstalling mutation bindings; sample="
+                        + acceptanceSampleDescription + ".");
+    }
+
+    private static TrackedSample firstLiveTrackedSample(ServerLevel level) {
+        for (var volume : java.util.List.of(FIXTURE.lower(), FIXTURE.upper())) {
+            for (var tracked : SkyforgeGeneratedFluidPropagationStage.trackedFluids(level, volume.id())) {
+                BlockPos position = BlockPos.of(tracked.position());
+                FluidState state = level.getFluidState(position);
+                if (state.isEmpty()) {
+                    continue;
+                }
+                var actualKey = BuiltInRegistries.FLUID.getKey(state.getType());
+                if (tracked.fluidKey().equals(actualKey)) {
+                    return new TrackedSample(volume.id(), position, state);
+                }
+            }
+        }
+        return null;
+    }
+
+    static boolean acceptanceServerProofComplete() {
+        return acceptanceServerProofComplete;
+    }
+
+    static String acceptanceSampleDescription() {
+        return acceptanceSampleDescription;
+    }
+
     private static int showHelp(ServerPlayer player) {
         player.sendSystemMessage(Component.literal("[Skyforge Showcase] Guided stops:"));
         player.sendSystemMessage(Component.literal(
@@ -156,6 +300,11 @@ final class SkyforgeNeoForge1211ShowcaseViewer {
                 "[Skyforge Showcase] " + stop.name() + ": " + stop.description()));
         return 1;
     }
+
+    private record TrackedSample(
+            SkyIslandWorldVolumeId volumeId,
+            BlockPos position,
+            FluidState state) {}
 
     private record Stop(
             String name,
