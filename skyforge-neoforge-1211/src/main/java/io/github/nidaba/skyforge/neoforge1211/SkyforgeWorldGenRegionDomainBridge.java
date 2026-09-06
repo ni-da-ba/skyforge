@@ -6,6 +6,7 @@ import java.util.OptionalInt;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 /** Narrow public bridge used only by the isolated worldgen mixin package. */
@@ -53,6 +54,23 @@ public final class SkyforgeWorldGenRegionDomainBridge {
         }
         var active = execution.orElseThrow();
         boolean accepted = active.acceptWrite(position);
+        SkyforgeUndergroundPlacementProbe.observeWriteDecision(
+                active.operation(),
+                position,
+                accepted);
+        return accepted;
+    }
+
+    /** State-aware write admission for high-level native feature writes. */
+    public static boolean acceptWrite(BlockPos position, BlockState state) {
+        Objects.requireNonNull(position, "position");
+        Objects.requireNonNull(state, "state");
+        var execution = SkyforgePopulationExecutionStage.activeExecution();
+        if (execution.isEmpty()) {
+            return true;
+        }
+        var active = execution.orElseThrow();
+        boolean accepted = active.acceptWrite(position, state);
         SkyforgeUndergroundPlacementProbe.observeWriteDecision(
                 active.operation(),
                 position,
