@@ -396,6 +396,10 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return candidate;
     }
 
+    /**
+     * Intersects Minecraft's half-open build interval with Skyforge's conservative closed volume
+     * bounds. The +1 conversion on the maximum Y retains the closed upper support sample exactly.
+     */
     static VerticalRange boundedVerticalRange(ChunkAccess chunk, WorldBounds volumeBounds) {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(volumeBounds, "volumeBounds");
