@@ -85,6 +85,15 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
         return completed.size();
     }
 
+    synchronized List<SkyforgeNativeBiomePopulationRunner.Result> completedNativeResults(
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return completed.entrySet().stream()
+                .filter(entry -> entry.getKey().volumeId().equals(volumeId))
+                .map(entry -> entry.getValue().result())
+                .toList();
+    }
+
     static Optional<SurfaceSample> findSurface(
             WorldGenLevel level,
             SkyIslandWorldVolumeId volumeId,
