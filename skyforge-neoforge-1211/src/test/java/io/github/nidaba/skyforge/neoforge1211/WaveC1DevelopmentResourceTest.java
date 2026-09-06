@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 final class WaveC1DevelopmentResourceTest {
     private static final Path DEVELOPMENT_RESOURCES =
             Path.of("src", "development", "resources");
+    private static final Path STANDALONE_DATAPACK =
+            Path.of("src", "development", "wave-c1-datapack");
 
     @Test
     void accumulatorPrototypeUsesExistingGoldOrElectrumWireTag() throws IOException {
@@ -55,8 +57,53 @@ final class WaveC1DevelopmentResourceTest {
                 "Metallurgy A/B must not inject Wolframite into Nether geography");
     }
 
+    @Test
+    void standaloneDatapackUsesMinecraft1211FormatAndMirrorsCoreOverrides() throws IOException {
+        String packMetadata = readFrom(STANDALONE_DATAPACK, "pack.mcmeta");
+        assertTrue(
+                packMetadata.contains("\"pack_format\": 48"),
+                "Wave C1 standalone datapack must target Minecraft 1.21.1 data pack format 48");
+
+        String accumulator = readFrom(
+                STANDALONE_DATAPACK,
+                "data",
+                "createaddition",
+                "recipe",
+                "crafting",
+                "modular_accumulator.json");
+        assertTrue(
+                accumulator.contains("\"tag\": \"createaddition:modular_accumulator_usable_wires\""),
+                "standalone Wave C1 datapack must preserve the Silver-free accumulator route");
+
+        String platinum = readFrom(
+                STANDALONE_DATAPACK,
+                "data",
+                "createpropulsion",
+                "neoforge",
+                "biome_modifier",
+                "add_ore_platinum.json");
+        assertTrue(
+                platinum.contains("\"type\": \"neoforge:none\""),
+                "standalone Wave C1 datapack must disable Platinum biome injection");
+
+        String wolframite = readFrom(
+                STANDALONE_DATAPACK,
+                "data",
+                "createmetallurgy",
+                "neoforge",
+                "biome_modifier",
+                "wolframite_ore.json");
+        assertTrue(
+                wolframite.contains("\"type\": \"neoforge:none\""),
+                "standalone Wave C1 datapack must disable Wolframite biome injection");
+    }
+
     private static String read(String... relativePath) throws IOException {
-        Path path = DEVELOPMENT_RESOURCES;
+        return readFrom(DEVELOPMENT_RESOURCES, relativePath);
+    }
+
+    private static String readFrom(Path root, String... relativePath) throws IOException {
+        Path path = root;
         for (String element : relativePath) {
             path = path.resolve(element);
         }
