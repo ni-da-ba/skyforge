@@ -37,7 +37,9 @@ final class SkyforgeNativeSurfacePopulationStage {
             if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(plan.volumeId())) {
                 continue;
             }
-            results.add(binding.coordinator().populate(level, generator, plan, chunk.getPos()));
+            results.add(SkyforgeRuntimePerformanceMetrics.measure(
+                    "surfacePopulation.coordinator",
+                    () -> binding.coordinator().populate(level, generator, plan, chunk.getPos())));
         }
         return List.copyOf(results);
     }
