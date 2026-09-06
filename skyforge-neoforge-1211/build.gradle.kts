@@ -73,6 +73,34 @@ val waveC7Runtime = sourceSets.create("waveC7Runtime") {
         development.output
 }
 
+
+// Wave C9 isolates the computing/avionics specimen from production and from other content waves.
+// These jars must be discovered as NeoForge mods, not ordinary legacy libraries.
+val waveC9Runtime = sourceSets.create("waveC9Runtime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
+val waveC9PinFile = layout.projectDirectory.file("wave-c9-mods.properties")
+val waveC9Pins = Properties().apply {
+    waveC9PinFile.asFile.inputStream().use(::load)
+}
+
+fun waveC9Pin(mod: String, field: String): String =
+    requireNotNull(waveC9Pins.getProperty("$mod.$field")) {
+        "missing Wave C9 pin: $mod.$field in " + waveC9PinFile.asFile
+    }
+
+check(waveC9Pin("minecraft", "version") == "1.21.1") {
+    "Wave C9 is defined only for Minecraft 1.21.1"
+}
+check(waveC9Pin("neoforge", "version") == "21.1.249") {
+    "Wave C9 NeoForge pin must match the adapter runtime"
+}
+
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
 // immutable Modrinth version IDs live in one small lock manifest so the development specimen can
 // be reproduced without making these R&D candidates production dependencies.
@@ -1463,6 +1491,17 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
+        // Wave C9 asks only whether the retained flight substrate and an existing CC:Tweaked
+        // avionics integration form a viable computing foundation. No Skyforge peripheral exists.
+        create("waveC9ComputingAvionicsServer") {
+            server()
+            sourceSet.set(waveC9Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c9-computing-avionics-server").asFile
+            programArgument("--nogui")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
     }
 
     unitTest {
@@ -1576,6 +1615,30 @@ mapOf(
             directory.resolve("eula.txt").writeText("eula=true\n")
             directory.resolve("server.properties").writeText(waveC7SmokeServerProperties)
         }
+    }
+}
+
+
+val waveC9SmokeServerProperties = """
+    level-name=wave-c9-smoke
+    level-seed=600900
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC9ComputingAvionicsServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c9-computing-avionics-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC9SmokeServerProperties)
     }
 }
 
@@ -3522,6 +3585,42 @@ tasks.register("waveC7ResolvePinnedMods") {
 }
 
 
+tasks.register("waveC9ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve and assert the exact Wave C9 CC:Tweaked + Create: Avionics runtime."
+    inputs.file(waveC1PinFile)
+    inputs.file(waveC9PinFile)
+
+    doLast {
+        val files = waveC9Runtime.runtimeClasspath.files
+            .map { it.name }
+            .sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return "${parts[1]}-${parts[2]}"
+        }
+
+        val requiredTokens = mapOf(
+            "Create" to artifactToken(waveC1Pin("create", "coordinate")),
+            "Sable" to artifactToken(waveC1Pin("sable", "coordinate")),
+            "Create Aeronautics" to artifactToken(waveC1Pin("aeronautics", "coordinate")),
+            "CC:Tweaked" to artifactToken(waveC9Pin("cctweaked", "coordinate")),
+            "Create: Avionics" to artifactToken(waveC9Pin("createavionics", "coordinate")),
+        )
+        requiredTokens.forEach { (label, token) ->
+            check(files.any { it.contains(token) }) {
+                "Wave C9 missing $label artifact token '$token': $files"
+            }
+        }
+
+        println("Wave C9 computing/avionics classpath")
+        files.forEach { println("  resolved=$it") }
+    }
+}
+
+
 dependencies {
     api(project(":skyforge-world"))
 
@@ -3635,6 +3734,24 @@ dependencies {
     add(
         waveC7Runtime.runtimeOnlyConfigurationName,
         files(waveC3AeroCoreArtifact),
+    )
+
+
+    // Computing substrate: reuse the minimum retained flight stack plus CC:Tweaked and the existing
+    // Create: Avionics integration. Aeronautics' bundled distribution supplies Simulated.
+    listOf("create", "sable", "aeronautics").forEach { mod ->
+        add(
+            waveC9Runtime.runtimeOnlyConfigurationName,
+            waveC1Pin(mod, "coordinate"),
+        )
+    }
+    add(
+        waveC9Runtime.runtimeOnlyConfigurationName,
+        waveC9Pin("cctweaked", "coordinate"),
+    )
+    add(
+        waveC9Runtime.runtimeOnlyConfigurationName,
+        waveC9Pin("createavionics", "coordinate"),
     )
 
     testImplementation(project(":skyforge-recipes"))
