@@ -52,5 +52,6 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211CarverStackedDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211LocalModificationsStackedDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211UndergroundStackedDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211ShowcaseViewer.installFromSystemProperty();
     }
 }
