@@ -18,7 +18,7 @@ concurrency:
 jobs:
   acceptance:
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    timeout-minutes: 60
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -45,6 +45,12 @@ jobs:
         timeout-minutes: 35
         run: ./gradlew :skyforge-neoforge-1211:showcasePrepareVerify --stacktrace --no-configuration-cache
 
+      - name: Reopen persisted world in actual showcase client
+        timeout-minutes: 10
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a ./gradlew :skyforge-neoforge-1211:showcaseViewerVerify --stacktrace --no-configuration-cache
+
       - name: Publish showcase preparation evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -55,3 +61,4 @@ jobs:
           path: |
             skyforge-neoforge-1211/build/acceptance/showcase/*.properties
             skyforge-neoforge-1211/run-skyforge-showcase/logs/*.log
+            skyforge-neoforge-1211/run-skyforge-showcase/crash-reports/*.txt

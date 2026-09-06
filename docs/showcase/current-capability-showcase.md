@@ -21,7 +21,7 @@ From a clean checkout at the repository root:
 The task performs two ordered phases:
 
 1. **Prepare** — creates a fresh `run-skyforge-showcase/saves/showcase` world using the accepted SF-IMP-0069 stacked production runtime and waits for its self-checking proof to PASS.
-2. **View** — launches Minecraft directly into the saved world with all generation bindings inert and only the presentation-only showcase navigator enabled.
+2. **View** — launches Minecraft directly into the saved world with every mutation lifecycle inert. The viewer restores only the deterministic compiled terrain-ownership catalog required to fence persisted generated-fluid ticks, plus the presentation-only navigator.
 
 The preparation phase is intentionally destructive to the previous showcase directory so every `launchShowcase` starts from the same deterministic state.
 
@@ -85,7 +85,7 @@ The preparation proof also requires:
 - whole-volume cave completion before interior population;
 - monotonic obligation completion and no replay.
 
-The viewer run does **not** reinstall any of those mutation bindings. It only opens the saved chunks and registers navigation commands.
+The viewer run does **not** reinstall admission, biome/surface population, cave, interior-population, material, or other mutation bindings. It restores only the same immutable compiled stacked-volume ownership catalog used by the accepted reload proofs, because persisted generated-fluid ticks must still know their exact-volume boundary after a full stop/reload. It then opens the saved chunks and registers navigation commands.
 
 ## Intentionally not fabricated into the integrated world
 
@@ -118,6 +118,7 @@ This world is for visual comprehension. Acceptance remains machine-discriminatin
 - SF-IMP-0068 composed-cave acceptance;
 - SF-IMP-0069 production interior acceptance;
 - showcase preparation verification;
+- actual quick-play showcase viewer reopen verification, including a persisted generated-fluid tick under ownership-only fencing;
 - normal repository CI.
 
 If the showcase ever disagrees with those gates, the automated acceptance results win.
