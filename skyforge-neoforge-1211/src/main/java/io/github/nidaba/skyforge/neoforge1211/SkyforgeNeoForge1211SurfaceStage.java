@@ -162,26 +162,47 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         SkyforgeRuntimePerformanceMetrics.recordSample(
                 "terrain.deferredVerticalSamples",
                 range.height());
+        long materializeStart = SkyforgeRuntimePerformanceMetrics.start();
         MinecraftChunkMaterialization materialization = binding.adapter().materialize(
                 pending.volumeId(),
                 chunk.getPos(),
                 range.minimumY(),
                 range.height());
+        SkyforgeRuntimePerformanceMetrics.recordSince(
+                "terrain.deferred.materialize",
+                materializeStart);
         if (binding.nativeSurfaceTopAdapter().isPresent()) {
             MinecraftNativeSurfaceSnapshot snapshot = pending.nativeSurfaceSnapshot()
                     .orElseThrow(() -> new IllegalStateException(
                             "native-surface-adapted deferred realization lost its pre-decoration snapshot"));
+            long adaptStart = SkyforgeRuntimePerformanceMetrics.start();
             materialization = binding.nativeSurfaceTopAdapter().orElseThrow().adapt(snapshot, materialization);
+            SkyforgeRuntimePerformanceMetrics.recordSince(
+                    "terrain.deferred.adaptSurface",
+                    adaptStart);
         }
 
+        long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
         int expectedSolidBlocks = materialization.solidBlockCount();
+        SkyforgeRuntimePerformanceMetrics.recordSince(
+                "terrain.deferred.solidCount",
+                solidCountStart);
+
+        long writeStart = SkyforgeRuntimePerformanceMetrics.start();
         MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
+        SkyforgeRuntimePerformanceMetrics.recordSince(
+                "terrain.deferred.write",
+                writeStart);
         if (result.solidBlockCount() != expectedSolidBlocks) {
             // Another exact volume still owns at least one blocked coordinate. Keep the record
             // pending until all owners have terminal admission decisions.
             return false;
         }
+        long completeStart = SkyforgeRuntimePerformanceMetrics.start();
         SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+        SkyforgeRuntimePerformanceMetrics.recordSince(
+                "terrain.deferred.completeCatchup",
+                completeStart);
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realizeDeferred", performanceStart);
         return true;
     }
