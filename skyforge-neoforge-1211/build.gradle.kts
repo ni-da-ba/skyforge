@@ -860,8 +860,8 @@ neoForge {
 
         // Current-capability developer showcase. Preparation deliberately reuses the accepted
         // SF-IMP-0069 stacked production runtime unchanged, but writes into a stable presentation
-        // world. The viewer run then opens the persisted world with no generation binding installed;
-        // SkyforgeShowcaseViewer contributes navigation only and cannot manufacture terrain.
+        // world. The viewer restores only deterministic compiled terrain ownership for persisted
+        // fluid fencing; all mutation lifecycle bindings remain inert.
         create("showcasePrepare") {
             server()
             gameDirectory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
