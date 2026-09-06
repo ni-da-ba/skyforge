@@ -11,6 +11,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 /**
@@ -49,6 +50,23 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
             return;
         }
 
+        // Fowl Play's FPActivities entries are DeferredHolders and are not yet bound while mod
+        // constructors execute. Register inert hooks now, then resolve the optional APIs only after
+        // NeoForge reports the server started and registries are fully available.
+        NeoForge.EVENT_BUS.addListener(SkyforgeWaveC6SoaringFaunaDevRuntime::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(SkyforgeWaveC6SoaringFaunaDevRuntime::onEntityJoin);
+        NeoForge.EVENT_BUS.addListener(SkyforgeWaveC6SoaringFaunaDevRuntime::onEntityTickPost);
+        installed = true;
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "Skyforge Wave C6 soaring-fauna hooks armed; optional API binding deferred until server start.");
+    }
+
+    private static synchronized void onServerStarted(ServerStartedEvent event) {
+        if (atmosphere != null && birds != null) {
+            return;
+        }
+
         try {
             atmosphere = SkyforgeA4mcLiftBridge.create();
             birds = SkyforgeFowlPlayHawkBridge.create();
@@ -57,9 +75,6 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
                     "Wave C6 optional API surface no longer matches pinned Fowl Play/A4MC stack", failure);
         }
 
-        NeoForge.EVENT_BUS.addListener(SkyforgeWaveC6SoaringFaunaDevRuntime::onEntityJoin);
-        NeoForge.EVENT_BUS.addListener(SkyforgeWaveC6SoaringFaunaDevRuntime::onEntityTickPost);
-        installed = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "Skyforge Wave C6 Fowl Play/A4MC soaring-fauna compatibility enabled.");
@@ -114,6 +129,10 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
     }
 
     private static HawkState ensureState(Mob mob) {
+        if (birds == null || atmosphere == null) {
+            return null;
+        }
+
         HawkState existing = HAWKS.get(mob);
         if (existing != null) {
             return existing.disabled ? null : existing;
