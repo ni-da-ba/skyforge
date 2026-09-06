@@ -3691,6 +3691,8 @@ tasks.register("sfImp0070PerformanceVerify") {
             "perf.catchup.composedCavePump.totalNanos",
             "perf.admission.nativeOccupancySurvey.totalNanos",
             "perf.terrain.realize.totalNanos",
+            "perf.terrain.noCandidatePrefilter.totalNanos",
+            "perf.terrain.plannedDirectProjectionSkipped.totalNanos",
             "perf.terrain.realizeDeferred.totalNanos",
             "perf.surfacePopulation.coordinator.totalNanos",
             "perf.caves.authoredPreflight.totalNanos",
@@ -3718,6 +3720,27 @@ tasks.register("sfImp0070PerformanceVerify") {
             "SF-IMP-0070 timing run lost SF-IMP-0069 correctness evidence: $properties"
         }
 
+        val admissionVerticalSamples =
+            properties.getProperty("perf.admission.occupancySurveyVerticalSamples.samples").toLong()
+        val admissionVerticalTotal =
+            properties.getProperty("perf.admission.occupancySurveyVerticalSamples.total").toLong()
+        val admissionVerticalMax =
+            properties.getProperty("perf.admission.occupancySurveyVerticalSamples.max").toLong()
+        check(admissionVerticalSamples == 392L
+                && admissionVerticalTotal == 39_592L
+                && admissionVerticalMax == 101L) {
+            "SF-IMP-0073 admission survey Y clamp evidence changed: " +
+                "samples=$admissionVerticalSamples, total=$admissionVerticalTotal, max=$admissionVerticalMax"
+        }
+
+        val terrainRealizeCalls = properties.getProperty("perf.terrain.realize.calls").toLong()
+        val plannedProjectionSkips =
+            properties.getProperty("perf.terrain.plannedDirectProjectionSkipped.calls").toLong()
+        check(terrainRealizeCalls == 1L && plannedProjectionSkips == 195L) {
+            "SF-IMP-0074 planned candidate projection gate changed: " +
+                "terrainRealizeCalls=$terrainRealizeCalls, plannedProjectionSkips=$plannedProjectionSkips"
+        }
+
         val cavePreflightCalls = properties.getProperty("perf.caves.authoredPreflight.calls").toLong()
         val cavePumpCalls = properties.getProperty("perf.catchup.composedCavePump.calls").toLong()
         check(cavePumpCalls > 0L && cavePreflightCalls >= cavePumpCalls * 4L) {
@@ -3729,6 +3752,8 @@ tasks.register("sfImp0070PerformanceVerify") {
         val warmupMs = properties.getProperty("perf.acceptance.warmOriginFootprint.totalNanos").toLong() / 1_000_000.0
         println(
             "SF-IMP-0070 PERFORMANCE CHARACTERIZATION PASS: processMs=$elapsedMs, warmupMs=$warmupMs, " +
+                "terrainRealizeCalls=$terrainRealizeCalls, plannedProjectionSkips=$plannedProjectionSkips, " +
+                "admissionYTotal=$admissionVerticalTotal, admissionYMax=$admissionVerticalMax, " +
                 "cavePreflightCalls=$cavePreflightCalls, cavePumpCalls=$cavePumpCalls, " +
                 "metrics=" + requiredMetrics.size,
         )
