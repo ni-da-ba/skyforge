@@ -892,6 +892,27 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // Automated reopen proof for the exact human-viewer lifecycle. It uses the prepared world,
+        // restores only immutable compiled terrain ownership, forces a persisted generated-fluid
+        // tick, proves all mutation lifecycles remain inert, and closes the quick-play client.
+        create("showcaseViewerAcceptanceClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("showcase")
+            systemProperty("skyforge.dev.showcaseViewer", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "skyforge-current-capability-showcase-viewer")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "120")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/showcase/viewer.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -3115,7 +3136,25 @@ fun requireSkyforgeShowcasePreparationPass() {
     }
 }
 
+fun requireSkyforgeShowcaseViewerPass() {
+    val file = skyforgeShowcaseResultDirectory.get().file("viewer.properties").asFile
+    check(file.isFile) { "Skyforge showcase viewer result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("viewerTerrainOwnershipRestored") == "true"
+            && properties.getProperty("viewerMutationBindingsInert") == "true"
+            && properties.getProperty("viewerGeneratedFluidPropagation") == "true"
+            && properties.getProperty("viewerClientPass") == "true") {
+        val detail = properties.getProperty("failure") ?: properties.toString()
+        "Skyforge showcase viewer did not PASS: $detail"
+    }
+}
+
 tasks.named("runShowcasePrepare").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask and showcase filesystem orchestration are intentionally runtime-bound.",
+    )
     doFirst {
         delete(skyforgeShowcaseResultDirectory)
         prepareSkyforgeShowcaseDirectory()
@@ -3126,12 +3165,34 @@ tasks.named("runShowcasePrepare").configure {
 }
 
 tasks.named("runShowcaseClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is interactive and intentionally not configuration-cache serialized.",
+    )
     mustRunAfter("runShowcasePrepare")
     doFirst {
         val directory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
         check(directory.resolve("saves/showcase/level.dat").isFile) {
             "Skyforge showcase world is missing; run runShowcasePrepare first or use launchShowcase."
         }
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.named("runShowcaseViewerAcceptanceClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is an actual quick-play client acceptance process.",
+    )
+    mustRunAfter("runShowcasePrepare")
+    doFirst {
+        requireSkyforgeShowcasePreparationPass()
+        val directory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
+        check(directory.resolve("saves/showcase/level.dat").isFile) {
+            "Skyforge showcase world is missing; prepare it before viewer acceptance."
+        }
+        delete(skyforgeShowcaseResultDirectory.get().file("viewer.properties").asFile)
         directory.resolve("options.txt").writeText(
             "onboardAccessibility:false\n"
                 + "narrator:0\n",
@@ -3147,6 +3208,18 @@ tasks.register("showcasePrepareVerify") {
         requireSkyforgeShowcasePreparationPass()
         println(
             "SKYFORGE SHOWCASE PREPARATION PASS: persisted stacked production world is ready for human review.",
+        )
+    }
+}
+
+tasks.register("showcaseViewerVerify") {
+    group = "verification"
+    description = "Reopen the prepared showcase in an actual quick-play client and verify persisted-fluid safety."
+    dependsOn("runShowcaseViewerAcceptanceClient")
+    doLast {
+        requireSkyforgeShowcaseViewerPass()
+        println(
+            "SKYFORGE SHOWCASE VIEWER PASS: persisted world reopened with ownership-only fluid fencing.",
         )
     }
 }
