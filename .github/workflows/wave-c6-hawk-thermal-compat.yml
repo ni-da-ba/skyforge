@@ -1,0 +1,85 @@
+name: Wave C6 Hawk Thermal Compat
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wave-c6-hawk-thermal-compat.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeA4mcLiftBridge.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeFowlPlayHawkBridge.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeThermalSoaringDecision.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC6SoaringFaunaDevRuntime.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeThermalSoaringDecisionTest.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wave-c6-hawk-thermal-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-and-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Compile and unit-test Wave C6 policy
+        run: ./gradlew :skyforge-neoforge-1211:test --tests '*SkyforgeThermalSoaringDecisionTest' --no-configuration-cache
+
+      - name: Resolve retained C5 bird stack
+        run: ./gradlew :skyforge-neoforge-1211:waveC5ResolvePinnedMods --no-configuration-cache
+
+      - name: Headless optional-API smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wave-c6-hawk-thermal.log"
+          setsid ./gradlew :skyforge-neoforge-1211:runWaveC6HawkThermalServer --no-configuration-cache >"${log}" 2>&1 &
+          pid=$!
+          ready=0
+
+          for _ in $(seq 1 120); do
+            if grep -Fq "Done (" "${log}" 2>/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "${pid}" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          if [[ "${ready}" -eq 1 ]] && grep -Fq "Wave C6 Fowl Play/A4MC soaring-fauna compatibility enabled" "${log}"; then
+            echo "PASS Wave C6: optional API bridge initialized and server reached ready state"
+            kill -TERM -- "-${pid}" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-${pid}" 2>/dev/null || true
+            wait "${pid}" 2>/dev/null || true
+            exit 0
+          fi
+
+          echo "FAIL Wave C6: bridge did not initialize cleanly"
+          cat "${log}"
+          kill -TERM -- "-${pid}" 2>/dev/null || true
+          sleep 1
+          kill -KILL -- "-${pid}" 2>/dev/null || true
+          wait "${pid}" 2>/dev/null || true
+          exit 1

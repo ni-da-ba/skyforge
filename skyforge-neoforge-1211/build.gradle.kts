@@ -1392,6 +1392,18 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
+        // Wave C6 exercises the actual optional hawk/A4MC compatibility controller. The same
+        // retained bird stack is used; the system property activates Skyforge's otherwise inert
+        // reflection bridge and event hooks.
+        create("waveC6HawkThermalServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC6SoaringFauna", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
     }
 
     unitTest {
@@ -1450,6 +1462,17 @@ val waveC5SmokeServerProperties = """
 tasks.named("runWaveC5SoaringFaunaServer").configure {
     doFirst {
         val directory = layout.projectDirectory.dir("run-wave-c5-soaring-fauna-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC5SmokeServerProperties)
+    }
+}
+
+
+tasks.named("runWaveC6HawkThermalServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-server").asFile
         delete(directory)
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
@@ -3432,6 +3455,18 @@ dependencies {
     }
     add(
         "waveC5SoaringFaunaServerAdditionalRuntimeClasspath",
+        files(waveC3AeroCoreArtifact),
+    )
+
+
+    waveC5BirdStackMods.forEach { mod ->
+        add(
+            "waveC6HawkThermalServerAdditionalRuntimeClasspath",
+            waveC5Pin(mod, "coordinate"),
+        )
+    }
+    add(
+        "waveC6HawkThermalServerAdditionalRuntimeClasspath",
         files(waveC3AeroCoreArtifact),
     )
 
