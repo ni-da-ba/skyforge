@@ -7,9 +7,9 @@ import net.minecraft.world.level.levelgen.GenerationStep;
 /**
  * Phase-level authorization for production native interior population after final composed caves.
  *
- * <p>Only phases already accepted independently by SF-IMP-0059/0060/0062/0063/0064 are admitted.
- * Feature identity remains registry-native and no structure, authored-material, aquifer, or
- * top-layer policy is introduced here.
+ * <p>Core underground phases remain in Minecraft generation-step order. VEGETAL_DECORATION is
+ * included only for the cave-dependent route split by SF-IMP-0079; ordinary surface vegetation is
+ * still executed by the earlier surface-population lifecycle and is not replayed here.
  */
 final class SkyforgeNativeInteriorPopulationPhasePolicy {
     private static final List<GenerationStep.Decoration> ADMITTED = List.of(
@@ -17,7 +17,8 @@ final class SkyforgeNativeInteriorPopulationPhasePolicy {
             GenerationStep.Decoration.LOCAL_MODIFICATIONS,
             GenerationStep.Decoration.UNDERGROUND_ORES,
             GenerationStep.Decoration.UNDERGROUND_DECORATION,
-            GenerationStep.Decoration.FLUID_SPRINGS);
+            GenerationStep.Decoration.FLUID_SPRINGS,
+            GenerationStep.Decoration.VEGETAL_DECORATION);
 
     static {
         int previous = -1;
