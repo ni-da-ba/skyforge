@@ -5,7 +5,9 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.state.BlockState;
 
 /** Thread-confined execution state for one exact-volume native population attempt. */
 final class SkyforgePopulationExecutionStage {
@@ -14,21 +16,50 @@ final class SkyforgePopulationExecutionStage {
     private SkyforgePopulationExecutionStage() {}
 
     static Scope open(SkyforgePopulationOperation operation, int maximumAttachmentDepth) {
-        return open(operation, Optional.empty(), maximumAttachmentDepth);
+        return open(Optional.empty(), operation, Optional.empty(), maximumAttachmentDepth);
     }
 
     static Scope open(
             SkyforgePopulationOperation operation,
             Holder<Biome> domainBiome,
             int maximumAttachmentDepth) {
-        return open(operation, Optional.of(Objects.requireNonNull(domainBiome, "domainBiome")), maximumAttachmentDepth);
+        return open(
+                Optional.empty(),
+                operation,
+                Optional.of(Objects.requireNonNull(domainBiome, "domainBiome")),
+                maximumAttachmentDepth);
+    }
+
+    static Scope open(
+            WorldGenLevel level,
+            SkyforgePopulationOperation operation,
+            int maximumAttachmentDepth) {
+        return open(
+                Optional.of(Objects.requireNonNull(level, "level")),
+                operation,
+                Optional.empty(),
+                maximumAttachmentDepth);
+    }
+
+    static Scope open(
+            WorldGenLevel level,
+            SkyforgePopulationOperation operation,
+            Holder<Biome> domainBiome,
+            int maximumAttachmentDepth) {
+        return open(
+                Optional.of(Objects.requireNonNull(level, "level")),
+                operation,
+                Optional.of(Objects.requireNonNull(domainBiome, "domainBiome")),
+                maximumAttachmentDepth);
     }
 
     private static Scope open(
+            Optional<WorldGenLevel> level,
             SkyforgePopulationOperation operation,
             Optional<Holder<Biome>> domainBiome,
             int maximumAttachmentDepth) {
         Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(level, "level");
         Objects.requireNonNull(domainBiome, "domainBiome");
         var activeDomain = SkyforgeGenerationDomainStage.activeIslandVolumeId();
         if (activeDomain.isEmpty() || !activeDomain.orElseThrow().equals(operation.volumeId())) {
@@ -47,7 +78,7 @@ final class SkyforgePopulationExecutionStage {
         Predicate<BlockPos> foreignSolid = position -> SkyforgeNeoForge1211SurfaceStage.isSolidOwnedByOtherVolume(
                         operation.volumeId(), position.getX(), position.getY(), position.getZ())
                 .orElseThrow(() -> new IllegalStateException("Skyforge runtime binding disappeared during population"));
-        return open(operation, domainBiome, ownerSolid, foreignSolid, maximumAttachmentDepth);
+        return open(level, operation, domainBiome, ownerSolid, foreignSolid, maximumAttachmentDepth);
     }
 
     static Scope openForTest(
@@ -67,7 +98,7 @@ final class SkyforgePopulationExecutionStage {
         if (activeDomain.isEmpty() || !activeDomain.orElseThrow().equals(operation.volumeId())) {
             throw new IllegalStateException("population execution requires its exact island generation-domain scope");
         }
-        return open(operation, Optional.empty(), ownerSolid, foreignSolid, maximumAttachmentDepth);
+        return open(Optional.empty(), operation, Optional.empty(), ownerSolid, foreignSolid, maximumAttachmentDepth);
     }
 
     static Optional<Execution> activeExecution() {
@@ -75,6 +106,7 @@ final class SkyforgePopulationExecutionStage {
     }
 
     private static Scope open(
+            Optional<WorldGenLevel> level,
             SkyforgePopulationOperation operation,
             Optional<Holder<Biome>> domainBiome,
             Predicate<BlockPos> ownerSolid,
@@ -87,6 +119,7 @@ final class SkyforgePopulationExecutionStage {
             throw new IllegalStateException("nested Skyforge population executions are not supported");
         }
         Execution execution = new Execution(
+                level,
                 operation,
                 domainBiome,
                 ownerSolid,
@@ -96,16 +129,19 @@ final class SkyforgePopulationExecutionStage {
     }
 
     static final class Execution {
+        private final Optional<WorldGenLevel> level;
         private final SkyforgePopulationOperation operation;
         private final Optional<Holder<Biome>> domainBiome;
         private final Predicate<BlockPos> ownerSolid;
         private final SkyforgePopulationAttachmentEnvelope attachmentEnvelope;
 
         private Execution(
+                Optional<WorldGenLevel> level,
                 SkyforgePopulationOperation operation,
                 Optional<Holder<Biome>> domainBiome,
                 Predicate<BlockPos> ownerSolid,
                 SkyforgePopulationAttachmentEnvelope attachmentEnvelope) {
+            this.level = Objects.requireNonNull(level, "level");
             this.operation = Objects.requireNonNull(operation, "operation");
             this.domainBiome = Objects.requireNonNull(domainBiome, "domainBiome");
             this.ownerSolid = Objects.requireNonNull(ownerSolid, "ownerSolid");
@@ -125,12 +161,38 @@ final class SkyforgePopulationExecutionStage {
             return ownerSolid.test(position) || attachmentEnvelope.ownsAttachment(position);
         }
 
+        BlockState hiddenExteriorBlockState() {
+            return SkyforgeNativeInteriorPlacementPolicy.hiddenExteriorBlockState(operation);
+        }
+
         boolean canWrite(BlockPos position) {
-            return attachmentEnvelope.canAcceptWrite(Objects.requireNonNull(position, "position"));
+            Objects.requireNonNull(position, "position");
+            return SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)
+                    && attachmentEnvelope.canAcceptWrite(position);
         }
 
         boolean acceptWrite(BlockPos position) {
-            return attachmentEnvelope.acceptWrite(Objects.requireNonNull(position, "position"));
+            Objects.requireNonNull(position, "position");
+            return SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)
+                    && attachmentEnvelope.acceptWrite(position);
+        }
+
+        boolean acceptWrite(BlockPos position, BlockState state) {
+            Objects.requireNonNull(position, "position");
+            Objects.requireNonNull(state, "state");
+            if (!SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)) {
+                return false;
+            }
+            if (level.isPresent()
+                    && !SkyforgeNativeInteriorPlacementPolicy.canWriteState(
+                            level.orElseThrow(),
+                            operation,
+                            position,
+                            state,
+                            ownerSolid)) {
+                return false;
+            }
+            return attachmentEnvelope.acceptWrite(position);
         }
 
         int attachmentCount() {

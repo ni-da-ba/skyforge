@@ -75,6 +75,7 @@ final class SkyforgeNativePlacedFeatureRunner {
         SurfaceProbe surface = findSurface(level, operation.originChunk(), operation);
         try (var domain = SkyforgeGenerationDomainStage.openIsland(operation.volumeId());
                 var execution = SkyforgePopulationExecutionStage.open(
+                        level,
                         operation,
                         domainBiome,
                         maximumAttachmentDepth)) {
@@ -176,7 +177,7 @@ final class SkyforgeNativePlacedFeatureRunner {
         }
 
         try (var domain = SkyforgeGenerationDomainStage.openIsland(operation.volumeId());
-                var execution = openExecution(operation, domainBiome, maximumAttachmentDepth);
+                var execution = openExecution(level, operation, domainBiome, maximumAttachmentDepth);
                 var verticalFrame = SkyforgeVerticalPlacementFrame.open(level, operation);
                 var generatedFluid = SkyforgeGeneratedFluidPropagationStage.openPopulation(level, operation);
                 var lakeAdmission = SkyforgeNativeLakeAdmissionStage.open(operation)) {
@@ -208,15 +209,20 @@ final class SkyforgeNativePlacedFeatureRunner {
     }
 
     private static SkyforgePopulationExecutionStage.Scope openExecution(
+            WorldGenLevel level,
             SkyforgePopulationOperation operation,
             Optional<Holder<Biome>> domainBiome,
             int maximumAttachmentDepth) {
         return domainBiome.isPresent()
                 ? SkyforgePopulationExecutionStage.open(
+                        level,
                         operation,
                         domainBiome.orElseThrow(),
                         maximumAttachmentDepth)
-                : SkyforgePopulationExecutionStage.open(operation, maximumAttachmentDepth);
+                : SkyforgePopulationExecutionStage.open(
+                        level,
+                        operation,
+                        maximumAttachmentDepth);
     }
 
     private record SurfaceProbe(int x, int z, int firstFreeY) {}
