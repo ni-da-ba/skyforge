@@ -242,9 +242,34 @@ Adds Wind Tunnel 1.1.8 and its source-tested LDLib 2.2.6 floor.
 
 This profile exists to turn qualitative flight claims into controlled measurements.
 
+## 5.1 Headless loader smoke
+
+The C3 workflow also launches three disposable dedicated-server profiles:
+
+```text
+runWaveC3AtmosphereCoreServer
+runWaveC3AircraftWindServer
+runWaveC3WindTunnelServer
+```
+
+Each receives an isolated game directory, EULA, and minimal server properties. CI treats the run as
+accepted only after the server reaches Minecraft's ready state.
+
+This closes several failure classes without human intervention:
+
+- missing required mod IDs;
+- loader/version incompatibilities;
+- missing runtime libraries;
+- server-side classloading mistakes;
+- A4MC native/runtime initialization failures severe enough to prevent startup;
+- incompatibility between A4MC compat and the retained Create/Sable/Aeronautics stack;
+- Wind Tunnel dependency closure failures.
+
+A successful artifact-resolution task is therefore necessary but no longer sufficient.
+
 ---
 
-## 5. Replace human-eye physics gates with numerical cases
+## 6. Replace human-eye physics gates with numerical cases
 
 Human observation is useful for ergonomics and presentation. It should **not** be the primary proof
 that wind physics is correct.
@@ -275,7 +300,7 @@ in the airfoil frame, followed by the aerodynamic model.
 
 ---
 
-## 6. Human-eye role
+## 7. Human-eye role
 
 A human-eye pass is **not required to establish technical correctness** for C3.
 
@@ -303,7 +328,7 @@ Those are tuning questions, not merge blockers for the authority scaffold.
 
 ---
 
-## 7. Shared-lift architecture after authority acceptance
+## 8. Shared-lift architecture after authority acceptance
 
 If A4MC passes the aircraft authority gate, the next thin integration should expose one Skyforge
 atmospheric query facade rather than duplicate physics:
@@ -348,7 +373,7 @@ soar is driven by the same lift field available to the player's glider.
 
 ---
 
-## 8. Authority rejection criteria
+## 9. Authority rejection criteria
 
 Reject A4MC as the core authority if any of these remain after reasonable configuration/integration:
 
@@ -364,7 +389,7 @@ Do **not** reject it merely because default wind strength/turbulence tuning is i
 
 ---
 
-## 9. Deferred work
+## 10. Deferred work
 
 Wave C3 does not yet:
 
