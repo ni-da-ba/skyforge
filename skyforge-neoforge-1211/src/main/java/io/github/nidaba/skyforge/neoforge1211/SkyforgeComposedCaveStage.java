@@ -209,12 +209,14 @@ final class SkyforgeComposedCaveStage {
                 }
             }
 
-            var advance = SkyforgeRuntimePerformanceMetrics.measure(
+            long authoredPreflightStart = SkyforgeRuntimePerformanceMetrics.start();
+            var advance = preparation.advance(
+                    MAX_PREPARE_COLUMNS_PER_SERVICE,
+                    MAX_PREPARE_VOXELS_PER_SERVICE,
+                    MAX_PREPARE_CANONICAL_SAMPLES_PER_SERVICE);
+            SkyforgeRuntimePerformanceMetrics.recordSince(
                     "caves.authoredPreflight",
-                    () -> preparation.advance(
-                            MAX_PREPARE_COLUMNS_PER_SERVICE,
-                            MAX_PREPARE_VOXELS_PER_SERVICE,
-                            MAX_PREPARE_CANONICAL_SAMPLES_PER_SERVICE));
+                    authoredPreflightStart);
             if (!advance.complete()) {
                 return advance.worked() ? ServiceResult.progressed() : ServiceResult.idle();
             }
@@ -271,11 +273,13 @@ final class SkyforgeComposedCaveStage {
                 }
             }
 
-            var nativeAdvance = SkyforgeRuntimePerformanceMetrics.measure(
+            long nativeCarverStart = SkyforgeRuntimePerformanceMetrics.start();
+            var nativeAdvance = nativeCursor.advance(
+                    chunk,
+                    MAX_NATIVE_CARVER_START_CHECKS_PER_SERVICE);
+            SkyforgeRuntimePerformanceMetrics.recordSince(
                     "caves.nativeCarver",
-                    () -> nativeCursor.advance(
-                            chunk,
-                            MAX_NATIVE_CARVER_START_CHECKS_PER_SERVICE));
+                    nativeCarverStart);
             if (!nativeAdvance.complete()) {
                 return nativeAdvance.worked() ? ServiceResult.progressed() : ServiceResult.idle();
             }
@@ -293,12 +297,14 @@ final class SkyforgeComposedCaveStage {
                 }
             }
 
-            var authoredAdvance = SkyforgeRuntimePerformanceMetrics.measure(
+            long authoredCommitStart = SkyforgeRuntimePerformanceMetrics.start();
+            var authoredAdvance = authoredCommit.advance(
+                    level,
+                    chunk,
+                    MAX_AUTHORED_COMMIT_WRITES_PER_SERVICE);
+            SkyforgeRuntimePerformanceMetrics.recordSince(
                     "caves.authoredCommit",
-                    () -> authoredCommit.advance(
-                            level,
-                            chunk,
-                            MAX_AUTHORED_COMMIT_WRITES_PER_SERVICE));
+                    authoredCommitStart);
             if (!authoredAdvance.complete()) {
                 return authoredAdvance.worked() ? ServiceResult.progressed() : ServiceResult.idle();
             }
