@@ -24,7 +24,7 @@ final class SkyforgeNeoForge1211ShowcaseViewer {
             "panorama",
             0.0,
             320.0,
-            165.0,
+            112.0,
             180.0f,
             14.0f,
             GameType.SPECTATOR,
