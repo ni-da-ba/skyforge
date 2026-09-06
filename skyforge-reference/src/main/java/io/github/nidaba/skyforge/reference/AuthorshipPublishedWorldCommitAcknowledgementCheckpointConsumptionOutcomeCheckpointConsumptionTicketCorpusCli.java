@@ -190,6 +190,22 @@ public final class AuthorshipPublishedWorldCommitAcknowledgementCheckpointConsum
                 noOutcomePass);
     }
 
+    private static void panel(Graphics2D g, int x, int y, String title, boolean pass) {
+        g.setColor(pass ? new Color(224, 240, 226) : new Color(244, 218, 218));
+        g.fillRect(x + 7, y + 7, PANEL_W - 14, PANEL_H - 14);
+        g.setColor(new Color(176, 176, 176));
+        g.drawRect(x + 7, y + 7, PANEL_W - 14, PANEL_H - 14);
+        g.setColor(Color.BLACK);
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+        g.drawString(title, x + 18, y + 28);
+    }
+
+    private static void line(Graphics2D g, int x, int y, int offsetY, String value) {
+        g.setColor(Color.BLACK);
+        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 9));
+        g.drawString(value, x + 18, y + offsetY);
+    }
+
     private static Fixture fixture() {
         var set =
                 SkyIslandPublishedWorldCommitAcknowledgementCheckpointConsumptionAcknowledgementSet
