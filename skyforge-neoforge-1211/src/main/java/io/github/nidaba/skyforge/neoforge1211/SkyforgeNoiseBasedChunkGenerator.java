@@ -304,7 +304,8 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             RandomState random,
             ChunkAccess chunk) {
         super.buildSurface(level, structureManager, random, chunk);
-        if (SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()) {
+        if (SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()
+                && SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk)) {
             SkyforgeNativeSurfaceSnapshotStage.capture(chunk);
         }
     }
@@ -318,7 +319,8 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         // block exists in the live chunk. This is the core SF-IMP-0052 isolation invariant.
         super.applyBiomeDecoration(level, chunk, structureManager);
 
-        if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
+        if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()
+                || !SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk)) {
             return;
         }
         if (SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()) {

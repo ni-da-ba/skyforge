@@ -149,6 +149,36 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         return admittedOwner;
     }
 
+    /**
+     * Returns whether direct composite terrain realization can currently produce an authorized write.
+     *
+     * <p>When admission is absent, historical direct-realization behavior is preserved. With
+     * admission active, at least one exact candidate volume intersecting the chunk must already be
+     * ADMITTED. PLANNED candidates have already retained immutable deferred catch-up evidence during
+     * observation, so projecting them immediately would only perform work the writer must reject.
+     * Mixed states remain safe: one ADMITTED candidate keeps the historical composite writer path,
+     * where PLANNED coordinates are still fenced by {@link #allowsWriteAt(int, int, int)}.
+     */
+    static boolean allowsDirectRealization(ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return true;
+        }
+        MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(
+                chunk.getPos(),
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+        synchronized (binding) {
+            for (var volume : binding.catalog().query(chunkBounds.worldBounds())) {
+                if (binding.ledger().admitted(volume.id())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /** Exact-volume population is valid only after physical admission has become terminal ADMITTED. */
     static boolean allowsPopulation(SkyIslandWorldVolumeId volumeId) {
         Objects.requireNonNull(volumeId, "volumeId");
