@@ -95,6 +95,44 @@ val waveC1RunMods = linkedMapOf(
     "waveC1IntegratedClient" to waveC1IntegratedMods,
 )
 
+    
+// Wave C2 is a focused mobility-integrity specimen. It keeps the personal-mobility candidate and
+// the exact server-side Elytra-boost suppression dependency isolated from production Skyforge and
+// from the Wave C1 industrial specimen.
+val waveC2PinFile = layout.projectDirectory.file("wave-c2-mods.properties")
+val waveC2Pins = Properties().apply {
+    waveC2PinFile.asFile.inputStream().use(::load)
+}
+
+fun waveC2Pin(mod: String, field: String): String =
+    requireNotNull(waveC2Pins.getProperty("$mod.$field")) {
+        "missing Wave C2 pin: $mod.$field in " + waveC2PinFile.asFile
+    }
+
+check(waveC2Pin("minecraft", "version") == "1.21.1") {
+    "Wave C2 is defined only for Minecraft 1.21.1"
+}
+check(waveC2Pin("neoforge", "version") == "21.1.249") {
+    "Wave C2 NeoForge pin must match the adapter runtime"
+}
+
+val waveC2PersonalMods = listOf(
+    "reliablegliders",
+    "noelytraboost",
+)
+val waveC2RunMods = linkedMapOf(
+    "waveC2PersonalMobilityClient" to waveC2PersonalMods,
+    "waveC2IntegratedMobilityClient" to waveC2PersonalMods,
+)
+// The integrated profile intentionally reuses Wave C1's already-audited pins for the minimum
+// powered-aircraft comparison substrate rather than duplicating those coordinates in the C2 lock.
+val waveC2IntegratedC1Mods = listOf(
+    "create",
+    "sable",
+    "aeronautics",
+    "jei",
+)
+
 neoForge {
     version = "21.1.249"
 
@@ -1182,6 +1220,26 @@ neoForge {
             client()
             gameDirectory = layout.projectDirectory.dir("run-wave-c1-integrated").asFile
             systemProperty("skyforge.dev.waveC1Profile", "integrated")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // Wave C2 personal-mobility specimen: the early glider plus server-side Elytra rocket
+        // suppression, with no Create/Aeronautics stack present. This isolates personal traversal.
+        create("waveC2PersonalMobilityClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c2-personal-mobility").asFile
+            systemProperty("skyforge.dev.waveC2Profile", "personal")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Wave C2 integrated comparison: the same personal mobility rules plus the minimum
+        // Create/Sable/Aeronautics substrate needed to compare low-throughput soaring against
+        // powered two-way logistics without bringing CBC/Metallurgy/Propulsion into the specimen.
+        create("waveC2IntegratedMobilityClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c2-integrated-mobility").asFile
+            systemProperty("skyforge.dev.waveC2Profile", "integrated")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -2976,6 +3034,33 @@ tasks.register("waveC1ResolvePinnedMods") {
 }
 
 
+tasks.register("waveC2ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve the exact optional-mod artifacts used by the Wave C2 mobility runs through ModDevGradle resolvable legacy classpaths."
+    inputs.file(waveC2PinFile)
+    inputs.file(waveC1PinFile)
+
+    doLast {
+        waveC2RunMods.forEach { (runName, c2Mods) ->
+            val configurationName = "${runName}LegacyClasspath"
+            val requested = if (runName == "waveC2IntegratedMobilityClient") {
+                c2Mods + waveC2IntegratedC1Mods
+            } else {
+                c2Mods
+            }
+            val files = configurations.getByName(configurationName)
+                .resolvedConfiguration
+                .resolvedArtifacts
+                .map { it.file.name }
+                .sorted()
+            println("Wave C2 $runName")
+            println("  requested=" + requested.joinToString(", "))
+            files.forEach { println("  resolved=$it") }
+        }
+    }
+}
+
+
 dependencies {
     api(project(":skyforge-world"))
 
@@ -3003,6 +3088,24 @@ dependencies {
                 waveC1Pin(mod, "coordinate"),
             )
         }
+    }
+
+
+    // Wave C2 optional dependencies remain run-scoped. The integrated comparison reuses only the
+    // minimum C1-pinned Create/Sable/Aeronautics/JEI substrate.
+    waveC2RunMods.forEach { (runName, mods) ->
+        mods.forEach { mod ->
+            add(
+                "${runName}AdditionalRuntimeClasspath",
+                waveC2Pin(mod, "coordinate"),
+            )
+        }
+    }
+    waveC2IntegratedC1Mods.forEach { mod ->
+        add(
+            "waveC2IntegratedMobilityClientAdditionalRuntimeClasspath",
+            waveC1Pin(mod, "coordinate"),
+        )
     }
 
     testImplementation(project(":skyforge-recipes"))
