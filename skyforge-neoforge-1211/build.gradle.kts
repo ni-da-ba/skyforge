@@ -46,6 +46,52 @@ tasks.withType<Test>().configureEach {
 // keeping temporary world presets and UI tags out of distributable Skyforge artifacts.
 val development = sourceSets.create("development")
 
+// Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
+// immutable Modrinth version IDs live in one small lock manifest so the development specimen can
+// be reproduced without making these R&D candidates production dependencies.
+val waveC1PinFile = layout.projectDirectory.file("wave-c1-mods.properties")
+val waveC1Pins = Properties().apply {
+    waveC1PinFile.asFile.inputStream().use(::load)
+}
+
+fun waveC1Pin(mod: String, field: String): String =
+    requireNotNull(waveC1Pins.getProperty("$mod.$field")) {
+        "missing Wave C1 pin: $mod.$field in " + waveC1PinFile.asFile
+    }
+
+check(waveC1Pin("minecraft", "version") == "1.21.1") {
+    "Wave C1 is defined only for Minecraft 1.21.1"
+}
+check(waveC1Pin("neoforge", "version") == "21.1.249") {
+    "Wave C1 NeoForge pin must match the adapter runtime"
+}
+
+val waveC1BaselineMods = listOf(
+    "create",
+    "rpl",
+    "createbigcannons",
+    "createaddition",
+    "jei",
+)
+val waveC1MetallurgyMods = waveC1BaselineMods + "createmetallurgy"
+val waveC1PropulsionMods = waveC1BaselineMods + listOf(
+    "sable",
+    "aeronautics",
+    "createpropulsion",
+)
+val waveC1IntegratedMods = (waveC1MetallurgyMods + listOf(
+    "sable",
+    "aeronautics",
+    "createpropulsion",
+)).distinct()
+
+val waveC1RunMods = linkedMapOf(
+    "waveC1BaselineClient" to waveC1BaselineMods,
+    "waveC1MetallurgyClient" to waveC1MetallurgyMods,
+    "waveC1PropulsionClient" to waveC1PropulsionMods,
+    "waveC1IntegratedClient" to waveC1IntegratedMods,
+)
+
 neoForge {
     version = "21.1.249"
 
@@ -1080,6 +1126,38 @@ neoForge {
             systemProperty("skyforge.dev.undergroundPlacementStacked", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+
+        // Wave C1 content-integration specimens. External engineering mods are attached only to
+        // these runs through ModDevGradle's per-run AdditionalRuntimeClasspath configurations.
+        // This prevents R&D dependencies from leaking into normal Skyforge implementation proofs.
+        create("waveC1BaselineClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c1-baseline").asFile
+            systemProperty("skyforge.dev.waveC1Profile", "baseline")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC1MetallurgyClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c1-metallurgy").asFile
+            systemProperty("skyforge.dev.waveC1Profile", "metallurgy")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC1PropulsionClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c1-propulsion").asFile
+            systemProperty("skyforge.dev.waveC1Profile", "propulsion")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC1IntegratedClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c1-integrated").asFile
+            systemProperty("skyforge.dev.waveC1Profile", "integrated")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
     }
 
     unitTest {
@@ -2849,6 +2927,28 @@ tasks.register("sfImp0068Acceptance") {
     finalizedBy("sfImp0068AcceptanceVerify")
 }
 
+
+tasks.register("waveC1ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve the exact optional-mod artifacts used by the Wave C1 development runs."
+    inputs.file(waveC1PinFile)
+
+    doLast {
+        waveC1RunMods.forEach { (runName, mods) ->
+            val configurationName = "${runName}AdditionalRuntimeClasspath"
+            val files = configurations.getByName(configurationName)
+                .resolvedConfiguration
+                .resolvedArtifacts
+                .map { it.file.name }
+                .sorted()
+            println("Wave C1 $runName")
+            println("  requested=" + mods.joinToString(", "))
+            files.forEach { println("  resolved=$it") }
+        }
+    }
+}
+
+
 dependencies {
     api(project(":skyforge-world"))
 
@@ -2864,6 +2964,19 @@ dependencies {
     add("jarJar", project(":skyforge-model"))
     add("jarJar", project(":skyforge-recipes"))
     add("jarJar", project(":skyforge-world"))
+
+
+    // ModDevGradle creates a per-run <runName>AdditionalRuntimeClasspath configuration. On
+    // Minecraft 1.21.1, mod jars placed there are discovered by FML while remaining isolated from
+    // every other development/acceptance run.
+    waveC1RunMods.forEach { (runName, mods) ->
+        mods.forEach { mod ->
+            add(
+                "${runName}AdditionalRuntimeClasspath",
+                waveC1Pin(mod, "coordinate"),
+            )
+        }
+    }
 
     testImplementation(project(":skyforge-recipes"))
 
