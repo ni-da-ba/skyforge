@@ -3688,6 +3688,7 @@ tasks.register("sfImp0070PerformanceVerify") {
         val requiredMetrics = listOf(
             "perf.processElapsedNanos",
             "perf.acceptance.warmOriginFootprint.totalNanos",
+            "perf.catchup.composedCavePump.totalNanos",
             "perf.admission.nativeOccupancySurvey.totalNanos",
             "perf.terrain.realize.totalNanos",
             "perf.terrain.realizeDeferred.totalNanos",
@@ -3717,10 +3718,18 @@ tasks.register("sfImp0070PerformanceVerify") {
             "SF-IMP-0070 timing run lost SF-IMP-0069 correctness evidence: $properties"
         }
 
+        val cavePreflightCalls = properties.getProperty("perf.caves.authoredPreflight.calls").toLong()
+        val cavePumpCalls = properties.getProperty("perf.catchup.composedCavePump.calls").toLong()
+        check(cavePumpCalls > 0L && cavePreflightCalls >= cavePumpCalls * 4L) {
+            "SF-IMP-0071 cave catch-up did not materially batch micro-steps: " +
+                "preflightCalls=$cavePreflightCalls, pumpCalls=$cavePumpCalls"
+        }
+
         val elapsedMs = properties.getProperty("perf.processElapsedNanos").toLong() / 1_000_000.0
         val warmupMs = properties.getProperty("perf.acceptance.warmOriginFootprint.totalNanos").toLong() / 1_000_000.0
         println(
             "SF-IMP-0070 PERFORMANCE CHARACTERIZATION PASS: processMs=$elapsedMs, warmupMs=$warmupMs, " +
+                "cavePreflightCalls=$cavePreflightCalls, cavePumpCalls=$cavePumpCalls, " +
                 "metrics=" + requiredMetrics.size,
         )
     }

@@ -1,5 +1,8 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.util.Objects;
+import java.util.function.BooleanSupplier;
+import java.util.function.LongSupplier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -22,14 +25,86 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgePhysicalVolumeCatchupService {
     /**
-     * Native composed-cave realization is materially more expensive than ordinary ledger scans.
-     * Bound stable-chunk catch-up so a burst of independently loaded chunks cannot monopolize one
-     * server tick for an entire exact volume.
+     * Composed-cave cursors deliberately expose very small resumable quanta. SF-IMP-0070 measured
+     * those quanta as cheap but numerous, so servicing exactly one per 20-TPS tick introduced
+     * minutes of scheduler latency. Pump multiple deterministic quanta while retaining both a hard
+     * work cap and an elapsed-time guard. A single non-preemptible quantum may overrun the elapsed
+     * guard, but no tick can start more than the hard work cap.
      */
-    private static final int MAX_COMPOSED_CAVE_CHUNKS_PER_LEVEL_TICK = 1;
+    static final int MAX_COMPOSED_CAVE_QUANTA_PER_LEVEL_TICK = 128;
+    static final long COMPOSED_CAVE_TIME_BUDGET_NANOS = 8_000_000L;
     private static final int MAX_NATIVE_INTERIOR_POPULATION_CHUNKS_PER_LEVEL_TICK = 1;
 
     private SkyforgePhysicalVolumeCatchupService() {}
+
+    /**
+     * Services the first canonical pending cave chunk that can make progress without loading it.
+     *
+     * <p>Returning after one worked service call is intentional. The pump then refreshes
+     * {@link SkyforgeComposedCaveStage#pendingChunkKeys()} and restarts from the beginning, exactly
+     * matching the historical ordering across server ticks even when one obligation completes.
+     */
+    private static boolean serviceOneComposedCaveQuantum(ServerLevel level) {
+        var chunkSource = level.getChunkSource();
+        var generator = chunkSource.getGenerator();
+        for (long chunkKey : SkyforgeComposedCaveStage.pendingChunkKeys()) {
+            int chunkX = ChunkPos.getX(chunkKey);
+            int chunkZ = ChunkPos.getZ(chunkKey);
+            LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
+            if (chunk == null) {
+                continue;
+            }
+            if (SkyforgeComposedCaveStage.service(level, chunk, generator).worked()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Pure bounded-pump primitive retained package-visible for deterministic unit tests.
+     *
+     * <p>The first quantum is always allowed so a single slow non-preemptible operation cannot
+     * permanently starve progress. Subsequent quanta require both remaining work capacity and
+     * remaining elapsed-time budget.
+     */
+    static PumpResult pumpComposedCaveQuanta(
+            BooleanSupplier serviceOneQuantum,
+            LongSupplier nanoTime,
+            int maximumQuanta,
+            long timeBudgetNanos) {
+        Objects.requireNonNull(serviceOneQuantum, "serviceOneQuantum");
+        Objects.requireNonNull(nanoTime, "nanoTime");
+        if (maximumQuanta <= 0) {
+            throw new IllegalArgumentException("maximumQuanta must be positive");
+        }
+        if (timeBudgetNanos <= 0L) {
+            throw new IllegalArgumentException("timeBudgetNanos must be positive");
+        }
+
+        long start = nanoTime.getAsLong();
+        int workedQuanta = 0;
+        while (workedQuanta < maximumQuanta) {
+            if (workedQuanta > 0
+                    && Math.max(0L, nanoTime.getAsLong() - start) >= timeBudgetNanos) {
+                break;
+            }
+            if (!serviceOneQuantum.getAsBoolean()) {
+                break;
+            }
+            workedQuanta++;
+        }
+        long elapsedNanos = Math.max(0L, nanoTime.getAsLong() - start);
+        return new PumpResult(workedQuanta, elapsedNanos);
+    }
+
+    record PumpResult(int workedQuanta, long elapsedNanos) {
+        PumpResult {
+            if (workedQuanta < 0 || elapsedNanos < 0L) {
+                throw new IllegalArgumentException("pump result values must be nonnegative");
+            }
+        }
+    }
 
     @SubscribeEvent
     static void onServerTick(ServerTickEvent.Post event) {
@@ -61,23 +136,20 @@ final class SkyforgePhysicalVolumeCatchupService {
 
             // Composed caves are a post-terrain exact-volume obligation. The stage itself gates on
             // whole-volume admission and on the absence of deferred terrain for the same
-            // volume/chunk. getChunkNow preserves the no-ticket lifecycle contract. Unlike the
-            // inexpensive ledger scan, actual composed realization is explicitly bounded per tick:
-            // a mass chunk-load event must not drain a whole island's cave work in one server tick.
-            int servicedComposedCaveChunks = 0;
-            for (long chunkKey : SkyforgeComposedCaveStage.pendingChunkKeys()) {
-                if (servicedComposedCaveChunks >= MAX_COMPOSED_CAVE_CHUNKS_PER_LEVEL_TICK) {
-                    break;
-                }
-                int chunkX = ChunkPos.getX(chunkKey);
-                int chunkZ = ChunkPos.getZ(chunkKey);
-                LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
-                if (chunk == null) {
-                    continue;
-                }
-                if (SkyforgeComposedCaveStage.service(level, chunk, generator).worked()) {
-                    servicedComposedCaveChunks++;
-                }
+            // volume/chunk. getChunkNow preserves the no-ticket lifecycle contract. After each
+            // successful micro-step, restart from the canonical first still-pending chunk. That
+            // preserves the exact mutation order produced by the historical one-quantum-per-tick
+            // policy while allowing multiple cheap cursor advances to share one server tick.
+            long composedPumpStart = SkyforgeRuntimePerformanceMetrics.start();
+            PumpResult composedPump = pumpComposedCaveQuanta(
+                    () -> serviceOneComposedCaveQuantum(level),
+                    System::nanoTime,
+                    MAX_COMPOSED_CAVE_QUANTA_PER_LEVEL_TICK,
+                    COMPOSED_CAVE_TIME_BUDGET_NANOS);
+            if (composedPump.workedQuanta() > 0) {
+                SkyforgeRuntimePerformanceMetrics.recordSince(
+                        "catchup.composedCavePump",
+                        composedPumpStart);
             }
 
             // Native interior population is downstream of the final composed cave topology.
