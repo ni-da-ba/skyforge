@@ -207,7 +207,7 @@ public final class ProductionMorphologyRegionalReviewCorpusCli {
     }
 
     private static String groupSection(String id, String title) {
-        return "<section><h2>" + title + "</h2><div class="grid">"
+        return "<section><h2>" + title + "</h2><div class=\"grid\">"
                 + figure(id, "plan.png", "Planner reservation view")
                 + figure(id, "top-down-union.png", "Realized top-down union")
                 + figure(id, "upper-envelope.png", "Upper elevation envelope")
