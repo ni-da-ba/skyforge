@@ -149,7 +149,7 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
             int flags,
             int recursionLeft,
             CallbackInfoReturnable<Boolean> callback) {
-        if (!SkyforgeWorldGenRegionDomainBridge.acceptWrite(position)) {
+        if (!SkyforgeWorldGenRegionDomainBridge.acceptWrite(position, state)) {
             callback.setReturnValue(false);
         }
     }
