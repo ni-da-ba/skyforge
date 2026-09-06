@@ -3356,6 +3356,42 @@ tasks.register("waveC5ResolvePinnedMods") {
 }
 
 
+tasks.register("waveC6ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve and assert the exact Wave C6 hawk-thermal run classpath."
+    inputs.file(waveC5PinFile)
+    inputs.file(waveC3PinFile)
+
+    doLast {
+        val files = configurations.getByName("waveC6HawkThermalServerLegacyClasspath")
+            .files
+            .map { it.name }
+            .sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return "${parts[1]}-${parts[2]}"
+        }
+
+        val requiredTokens = mapOf(
+            "Fowl Play" to artifactToken(waveC5Pin("fowlplay", "coordinate")),
+            "SmartBrainLib" to artifactToken(waveC5Pin("smartbrainlib", "coordinate")),
+            "YACL" to artifactToken(waveC5Pin("yacl", "coordinate")),
+            "Aerodynamics4MC core" to artifactToken(waveC3Pin("aerodynamics4mcCore", "coordinate")),
+        )
+        requiredTokens.forEach { (label, token) ->
+            check(files.any { it.contains(token) }) {
+                "Wave C6 missing $label artifact token '$token': $files"
+            }
+        }
+
+        println("Wave C6 hawk-thermal classpath")
+        files.forEach { println("  resolved=$it") }
+    }
+}
+
+
 dependencies {
     api(project(":skyforge-world"))
 
