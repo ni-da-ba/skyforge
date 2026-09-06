@@ -56,6 +56,8 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
     private static boolean acceptanceEnteredSoar;
     private static boolean acceptanceExitedSoar;
     private static boolean acceptanceFinished;
+    private static long acceptanceLastEntityTick = Long.MIN_VALUE;
+    private static Vec3 acceptanceLastPosition;
 
     private SkyforgeWaveC6SoaringFaunaDevRuntime() {}
 
@@ -110,6 +112,11 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
             var source = event.getServer().createCommandSourceStack();
             event.getServer().getCommands().performPrefixedCommand(source, "gamerule doMobSpawning false");
             event.getServer().getCommands().performPrefixedCommand(source, "time set 2000");
+            // Dedicated CI has no player to supply an entity-ticking simulation ticket. Keep a
+            // compact 5x5-chunk acceptance arena active so the real hawk can complete the 100-tick
+            // hysteresis cycle after receiving navigation targets.
+            event.getServer().getCommands().performPrefixedCommand(
+                    source, "forceload add -32 -32 47 47");
             // Minecraft 1.21.1's performPrefixedCommand is void. The stronger proof is the
             // subsequent EntityJoinLevelEvent/adaptation evidence, so do not infer summon success
             // from a command return value that does not exist on this runtime.
@@ -147,6 +154,10 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         }
 
         long gameTick = level.getGameTime();
+        if (acceptanceMode && mob == acceptanceHawk) {
+            acceptanceLastEntityTick = gameTick;
+            acceptanceLastPosition = mob.position();
+        }
         if (gameTick < state.nextSampleTick) {
             return;
         }
@@ -321,6 +332,10 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
                             + acceptanceExitedSoar
                             + " steeringCommands="
                             + acceptanceSteeringCommands
+                            + " lastEntityTick="
+                            + acceptanceLastEntityTick
+                            + " lastPosition="
+                            + acceptanceLastPosition
                             + " state="
                             + (state == null ? "missing" : state.decision));
         }
