@@ -3582,6 +3582,11 @@ tasks.register("sfImp0070PerformanceVerify") {
             "perf.terrain.noCandidatePrefilter.totalNanos",
             "perf.terrain.plannedDirectProjectionSkipped.totalNanos",
             "perf.terrain.realizeDeferred.totalNanos",
+            "perf.terrain.deferred.materialize.totalNanos",
+            "perf.terrain.deferred.adaptSurface.totalNanos",
+            "perf.terrain.deferred.solidCount.totalNanos",
+            "perf.terrain.deferred.write.totalNanos",
+            "perf.terrain.deferred.completeCatchup.totalNanos",
             "perf.surfacePopulation.coordinator.totalNanos",
             "perf.surfacePopulation.findSurface.totalNanos",
             "perf.surfacePopulation.phase.VEGETAL_DECORATION.totalNanos",
@@ -3647,6 +3652,20 @@ tasks.register("sfImp0070PerformanceVerify") {
                 && deferredVerticalMax == 101L) {
             "SF-IMP-0075 deferred exact-volume Y clamp evidence changed: " +
                 "samples=$deferredVerticalSamples, total=$deferredVerticalTotal, max=$deferredVerticalMax"
+        }
+
+        val deferredSubphases = listOf(
+            "materialize",
+            "adaptSurface",
+            "solidCount",
+            "write",
+            "completeCatchup",
+        )
+        for (subphase in deferredSubphases) {
+            val calls = properties.getProperty("perf.terrain.deferred.$subphase.calls").toLong()
+            check(calls == 390L) {
+                "SF-IMP-0077 deferred subphase call count changed: subphase=$subphase, calls=$calls"
+            }
         }
 
         val terrainRealizeCalls = properties.getProperty("perf.terrain.realize.calls").toLong()
