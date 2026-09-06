@@ -39,6 +39,16 @@ Aeronautics/Sable/Diesel may remain installed if the local development pack alre
 
 ## Development resources currently prepared
 
+The runtime-authoritative fixture is now a standalone Minecraft 1.21.1 datapack at:
+
+~~~text
+skyforge-neoforge-1211/src/development/wave-c1-datapack
+~~~
+
+It declares data pack format 48 and mirrors the development-resource overrides.
+
+This matters because NeoForge explicitly supports higher-priority datapacks overriding mod biome modifiers at the same resource IDs. The standalone datapack therefore provides the deterministic runtime path if mod-resource ordering alone is insufficient.
+
 ### Silver-free accumulator
 
 Override resource:
