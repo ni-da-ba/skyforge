@@ -259,20 +259,20 @@ public final class ProductionMorphologyVisualReviewCorpusCli {
             String caption) {
         html.append("<figure><figcaption>")
                 .append(caption)
-                .append("</figcaption><img src=\\"")
+                .append("</figcaption><img src=\"")
                 .append(member)
                 .append('/')
                 .append(file)
-                .append("\\" alt=\\"")
+                .append("\" alt=\"")
                 .append(caption)
-                .append("\\"></figure>");
+                .append("\"></figure>");
     }
 
     private static String csvEscape(String value) {
         if (value.indexOf(',') < 0 && value.indexOf('"') < 0 && value.indexOf('\n') < 0) {
             return value;
         }
-        return "\\"" + value.replace("\\"", "\\"\\\"") + "\\"";
+        return "\"" + value.replace("\"", "\"\"") + "\"";
     }
 
     private record MemberResult(
