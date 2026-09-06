@@ -907,6 +907,30 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0070 characterizes the same accepted stacked production path with aggregate,
+        // opt-in stage timers. No production scheduling or mutation policy changes in this run.
+        create("performanceCharacterizationStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0070-performance-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionInteriorPopulationStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0070-performance-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty("skyforge.dev.performanceMetrics", "true")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0070/stacked.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Current-capability developer showcase. Preparation deliberately reuses the accepted
         // SF-IMP-0069 stacked production runtime unchanged, but writes into a stable presentation
         // world. The viewer restores only deterministic compiled terrain ownership for persisted
@@ -3202,6 +3226,75 @@ tasks.register("sfImp0069AcceptanceVerify") {
     }
 }
 
+
+val sfImp0070PerformanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0070")
+
+tasks.named("runPerformanceCharacterizationStacked").configure {
+    doFirst {
+        delete(sfImp0070PerformanceResultDirectory)
+        prepareSfImp0069AcceptanceServerDirectory("run-sf-imp-0070-performance-stacked")
+    }
+    doLast {
+        val file = sfImp0070PerformanceResultDirectory.get().file("stacked.properties").asFile
+        check(file.isFile) { "SF-IMP-0070 performance result missing: $file" }
+        val properties = Properties()
+        file.inputStream().use(properties::load)
+        check(properties.getProperty("status") == "PASS") {
+            val detail = properties.getProperty("failure") ?: properties.toString()
+            "SF-IMP-0070 production fixture did not PASS: $detail"
+        }
+    }
+}
+
+tasks.register("sfImp0070PerformanceVerify") {
+    group = "verification"
+    description = "Verify stage-resolved SF-IMP-0070 production performance evidence."
+    dependsOn("runPerformanceCharacterizationStacked")
+    doLast {
+        val file = sfImp0070PerformanceResultDirectory.get().file("stacked.properties").asFile
+        val properties = Properties()
+        file.inputStream().use(properties::load)
+
+        val requiredMetrics = listOf(
+            "perf.processElapsedNanos",
+            "perf.acceptance.warmOriginFootprint.totalNanos",
+            "perf.admission.nativeOccupancySurvey.totalNanos",
+            "perf.terrain.realize.totalNanos",
+            "perf.terrain.realizeDeferred.totalNanos",
+            "perf.surfacePopulation.coordinator.totalNanos",
+            "perf.caves.authoredPreflight.totalNanos",
+            "perf.caves.nativeCarver.totalNanos",
+            "perf.caves.authoredCommit.totalNanos",
+            "perf.interior.LAKES.totalNanos",
+            "perf.interior.LOCAL_MODIFICATIONS.totalNanos",
+            "perf.interior.UNDERGROUND_ORES.totalNanos",
+            "perf.interior.UNDERGROUND_DECORATION.totalNanos",
+            "perf.interior.FLUID_SPRINGS.totalNanos",
+        )
+        for (key in requiredMetrics) {
+            val value = properties.getProperty(key)?.toLongOrNull()
+            check(value != null && value > 0L) {
+                "SF-IMP-0070 missing/nonpositive performance metric $key: $value"
+            }
+        }
+
+        check(properties.getProperty("lowerCompleted") == properties.getProperty("lowerRequired")
+                && properties.getProperty("upperCompleted") == properties.getProperty("upperRequired")
+                && properties.getProperty("independentLedgers") == "true"
+                && properties.getProperty("foreignFluidRejected") == "true"
+                && properties.getProperty("cavesCompleteBeforeInterior") == "true"
+                && properties.getProperty("noReplay") == "true") {
+            "SF-IMP-0070 timing run lost SF-IMP-0069 correctness evidence: $properties"
+        }
+
+        val elapsedMs = properties.getProperty("perf.processElapsedNanos").toLong() / 1_000_000.0
+        val warmupMs = properties.getProperty("perf.acceptance.warmOriginFootprint.totalNanos").toLong() / 1_000_000.0
+        println(
+            "SF-IMP-0070 PERFORMANCE CHARACTERIZATION PASS: processMs=$elapsedMs, warmupMs=$warmupMs, " +
+                "metrics=" + requiredMetrics.size,
+        )
+    }
+}
 
 val skyforgeShowcaseResultDirectory = layout.buildDirectory.dir("acceptance/showcase")
 val skyforgeShowcaseServerProperties = """
