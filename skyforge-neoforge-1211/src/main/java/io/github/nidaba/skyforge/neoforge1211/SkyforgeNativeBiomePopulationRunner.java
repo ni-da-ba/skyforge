@@ -46,7 +46,8 @@ final class SkyforgeNativeBiomePopulationRunner {
                 originChunk,
                 new BlockPos(originChunk.getMiddleBlockX(), sampleY, originChunk.getMiddleBlockZ()),
                 generationStep,
-                maximumAttachmentDepth);
+                maximumAttachmentDepth,
+                SkyforgeNativeVegetalFeatureRoute.ALL);
     }
 
     static Result populateStep(
@@ -58,6 +59,28 @@ final class SkyforgeNativeBiomePopulationRunner {
             BlockPos biomeSample,
             GenerationStep.Decoration generationStep,
             int maximumAttachmentDepth) {
+        return populateStep(
+                level,
+                generator,
+                biomeResolver,
+                volumeId,
+                originChunk,
+                biomeSample,
+                generationStep,
+                maximumAttachmentDepth,
+                SkyforgeNativeVegetalFeatureRoute.ALL);
+    }
+
+    static Result populateStep(
+            WorldGenLevel level,
+            ChunkGenerator generator,
+            SkyforgeExactVolumeBiomeResolver biomeResolver,
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos originChunk,
+            BlockPos biomeSample,
+            GenerationStep.Decoration generationStep,
+            int maximumAttachmentDepth,
+            SkyforgeNativeVegetalFeatureRoute route) {
         Objects.requireNonNull(level, "level");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(biomeResolver, "biomeResolver");
@@ -65,6 +88,12 @@ final class SkyforgeNativeBiomePopulationRunner {
         Objects.requireNonNull(originChunk, "originChunk");
         Objects.requireNonNull(biomeSample, "biomeSample");
         Objects.requireNonNull(generationStep, "generationStep");
+        Objects.requireNonNull(route, "route");
+        if (generationStep != GenerationStep.Decoration.VEGETAL_DECORATION
+                && route != SkyforgeNativeVegetalFeatureRoute.ALL) {
+            throw new IllegalArgumentException(
+                    "non-vegetal native population requires the ALL feature route");
+        }
 
         ResourceKey<Biome> biomeKey = Objects.requireNonNull(
                 biomeResolver.resolve(
@@ -110,7 +139,13 @@ final class SkyforgeNativeBiomePopulationRunner {
         List<BlockPos> admittedLakeOrigins = new ArrayList<>();
         List<BlockPos> rejectedLakeOrigins = new ArrayList<>();
 
+        int featureOrdinal = 0;
         for (Holder<PlacedFeature> placedFeature : featureSteps.get(stepIndex)) {
+            int occurrenceIndex = featureOrdinal++;
+            if (!route.accepts(generationStep, placedFeature.value())) {
+                continue;
+            }
+
             ResourceLocation featureKey = placedFeature.unwrapKey()
                     .map(key -> key.location())
                     .orElseGet(() -> placedFeatureRegistry.getKey(placedFeature.value()));
@@ -124,7 +159,7 @@ final class SkyforgeNativeBiomePopulationRunner {
                     originChunk,
                     featureKey,
                     stepIndex,
-                    attempted);
+                    occurrenceIndex);
             boolean treeFeature = featureKey.getPath().toLowerCase(Locale.ROOT).contains("tree");
             if (Boolean.getBoolean(BIOME_PROOF_PROPERTY) && treeFeature) {
                 var probe = SkyforgeNativePlacedFeatureRunner.probeTreePrerequisites(
