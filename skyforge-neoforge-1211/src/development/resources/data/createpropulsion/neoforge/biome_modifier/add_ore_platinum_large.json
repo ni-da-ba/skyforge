@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#skyforge:integration_disabled",
+  "features": "createpropulsion:ore_platinum_large",
+  "step": "underground_ores"
+}
