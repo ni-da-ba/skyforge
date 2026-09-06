@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
@@ -142,6 +143,25 @@ final class SkyforgeNeoForge1211ChunkAdapterTest {
         assertEquals(
                 OptionalInt.empty(),
                 adapter.firstFreeHeight(volumeId, 0, 0, 600, 32));
+    }
+
+    @Test
+    void exactVolumeFirstFreeHeightStillRejectsUnknownVolume() {
+        SkyIslandWorldCatalog catalog = catalog();
+        SkyforgeNeoForge1211ChunkAdapter adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        SkyIslandWorldVolumeId unknown = new SkyIslandWorldVolumeId(
+                ROOT_SEED,
+                "unknown-height-query",
+                0,
+                0,
+                ROOT_SEED ^ 0x484549474854L);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> adapter.firstFreeHeight(unknown, 0, 0, -64, 640));
     }
 
     @Test
