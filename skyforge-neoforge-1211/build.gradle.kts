@@ -2988,12 +2988,12 @@ tasks.register("sfImp0068Acceptance") {
 
 tasks.register("waveC1ResolvePinnedMods") {
     group = "verification"
-    description = "Resolve the exact optional-mod artifacts used by the Wave C1 development runs."
+    description = "Resolve the exact optional-mod artifacts used by the Wave C1 development runs through ModDevGradle resolvable legacy classpaths."
     inputs.file(waveC1PinFile)
 
     doLast {
         waveC1RunMods.forEach { (runName, mods) ->
-            val configurationName = "${runName}AdditionalRuntimeClasspath"
+            val configurationName = "${runName}LegacyClasspath"
             val files = configurations.getByName(configurationName)
                 .resolvedConfiguration
                 .resolvedArtifacts
@@ -3009,13 +3009,13 @@ tasks.register("waveC1ResolvePinnedMods") {
 
 tasks.register("waveC2ResolvePinnedMods") {
     group = "verification"
-    description = "Resolve the exact optional-mod artifacts used by the Wave C2 mobility runs."
+    description = "Resolve the exact optional-mod artifacts used by the Wave C2 mobility runs through ModDevGradle resolvable legacy classpaths."
     inputs.file(waveC2PinFile)
     inputs.file(waveC1PinFile)
 
     doLast {
         waveC2RunMods.forEach { (runName, c2Mods) ->
-            val configurationName = "${runName}AdditionalRuntimeClasspath"
+            val configurationName = "${runName}LegacyClasspath"
             val requested = if (runName == "waveC2IntegratedMobilityClient") {
                 c2Mods + waveC2IntegratedC1Mods
             } else {
