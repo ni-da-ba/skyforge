@@ -61,6 +61,18 @@ val waveC5Runtime = sourceSets.create("waveC5Runtime") {
         development.output
 }
 
+
+// Wave C7 keeps Reliable Gliders + A4MC isolated from both production Skyforge and the C5/C6 bird
+// stack. Optional APIs are consumed reflectively, but FML still requires the candidate jars on a
+// real run source-set runtime classpath so they are discovered as NeoForge mods.
+val waveC7Runtime = sourceSets.create("waveC7Runtime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
 // immutable Modrinth version IDs live in one small lock manifest so the development specimen can
 // be reproduced without making these R&D candidates production dependencies.
@@ -1429,6 +1441,28 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
+        // Wave C7 completes the player-facing half of the shared-lift seam: the existing Reliable
+        // Gliders state/physics run first, then Skyforge reads trusted A4MC lift in EntityTickEvent.Post.
+        create("waveC7GliderLiftServer") {
+            server()
+            sourceSet.set(waveC7Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c7-glider-lift-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC7GliderLift", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC7GliderLiftAcceptanceServer") {
+            server()
+            sourceSet.set(waveC7Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c7-glider-lift-acceptance-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC7GliderLift", "true")
+            systemProperty("skyforge.dev.waveC7Acceptance", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
     }
 
     unitTest {
@@ -1513,6 +1547,35 @@ tasks.named("runWaveC6HawkThermalAcceptanceServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(waveC5SmokeServerProperties)
+    }
+}
+
+
+val waveC7SmokeServerProperties = """
+    level-name=wave-c7-smoke
+    level-seed=600700
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+mapOf(
+    "runWaveC7GliderLiftServer" to "run-wave-c7-glider-lift-server",
+    "runWaveC7GliderLiftAcceptanceServer" to "run-wave-c7-glider-lift-acceptance-server",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            val directory = layout.projectDirectory.dir(relativePath).asFile
+            delete(directory)
+            directory.mkdirs()
+            directory.resolve("eula.txt").writeText("eula=true\n")
+            directory.resolve("server.properties").writeText(waveC7SmokeServerProperties)
+        }
     }
 }
 
@@ -3426,6 +3489,39 @@ tasks.register("waveC6ResolvePinnedMods") {
 }
 
 
+tasks.register("waveC7ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve and assert the exact Wave C7 Reliable Gliders + A4MC runtime."
+    inputs.file(waveC2PinFile)
+    inputs.file(waveC3PinFile)
+
+    doLast {
+        val files = waveC7Runtime.runtimeClasspath.files
+            .map { it.name }
+            .sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return "${parts[1]}-${parts[2]}"
+        }
+
+        val requiredTokens = mapOf(
+            "Reliable Gliders" to artifactToken(waveC2Pin("reliablegliders", "coordinate")),
+            "Aerodynamics4MC core" to artifactToken(waveC3Pin("aerodynamics4mcCore", "coordinate")),
+        )
+        requiredTokens.forEach { (label, token) ->
+            check(files.any { it.contains(token) }) {
+                "Wave C7 missing $label artifact token '$token': $files"
+            }
+        }
+
+        println("Wave C7 glider shared-lift classpath")
+        files.forEach { println("  resolved=$it") }
+    }
+}
+
+
 dependencies {
     api(project(":skyforge-world"))
 
@@ -3526,6 +3622,18 @@ dependencies {
     }
     add(
         waveC5Runtime.runtimeOnlyConfigurationName,
+        files(waveC3AeroCoreArtifact),
+    )
+
+
+    // C7's player-mobility specimen contains only Reliable Gliders and the already accepted A4MC
+    // atmosphere core. It deliberately excludes the Fowl Play stack and No More Elytra Boosting.
+    add(
+        waveC7Runtime.runtimeOnlyConfigurationName,
+        waveC2Pin("reliablegliders", "coordinate"),
+    )
+    add(
+        waveC7Runtime.runtimeOnlyConfigurationName,
         files(waveC3AeroCoreArtifact),
     )
 
