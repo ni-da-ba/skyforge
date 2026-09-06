@@ -164,6 +164,15 @@ final class SkyforgeNativeSurfacePopulationStage {
         return binding == null ? 0 : binding.coordinator().completedPhaseCount();
     }
 
+    static List<SkyforgeNativeBiomePopulationRunner.Result> completedNativeResults(
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? List.of()
+                : binding.coordinator().completedNativeResults(volumeId);
+    }
+
     @FunctionalInterface
     interface PlanResolver {
         List<SkyforgeNativeSurfacePopulationPlan> resolve(
