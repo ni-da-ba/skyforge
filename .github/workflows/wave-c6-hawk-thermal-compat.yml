@@ -83,3 +83,45 @@ jobs:
           kill -KILL -- "-${pid}" 2>/dev/null || true
           wait "${pid}" 2>/dev/null || true
           exit 1
+
+
+      - name: Deterministic real-hawk acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wave-c6-hawk-acceptance.log"
+          setsid ./gradlew :skyforge-neoforge-1211:runWaveC6HawkThermalAcceptanceServer --no-configuration-cache >"${log}" 2>&1 &
+          pid=$!
+          outcome=""
+
+          for _ in $(seq 1 120); do
+            if grep -Fq "WAVE_C6_ACCEPTANCE PASS" "${log}" 2>/dev/null; then
+              outcome="pass"
+              break
+            fi
+            if grep -Fq "WAVE_C6_ACCEPTANCE FAIL" "${log}" 2>/dev/null; then
+              outcome="fail"
+              break
+            fi
+            if ! kill -0 "${pid}" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          if [[ "${outcome}" == "pass" ]]; then
+            grep -F "WAVE_C6_ACCEPTANCE PASS" "${log}"
+            kill -TERM -- "-${pid}" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-${pid}" 2>/dev/null || true
+            wait "${pid}" 2>/dev/null || true
+            exit 0
+          fi
+
+          echo "FAIL Wave C6 deterministic hawk acceptance"
+          cat "${log}"
+          kill -TERM -- "-${pid}" 2>/dev/null || true
+          sleep 1
+          kill -KILL -- "-${pid}" 2>/dev/null || true
+          wait "${pid}" 2>/dev/null || true
+          exit 1

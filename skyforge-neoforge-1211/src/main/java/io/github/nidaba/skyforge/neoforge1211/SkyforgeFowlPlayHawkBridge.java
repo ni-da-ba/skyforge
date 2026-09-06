@@ -55,6 +55,10 @@ final class SkyforgeFowlPlayHawkBridge {
             startFlying.invoke(hawk);
             hawk.getNavigation().moveTo(x, y, z, 1.0);
         }
+
+        boolean thermalScheduleActive() {
+            return thermalScheduleActive;
+        }
     }
 
     private final Class<?> smartBrainClass;

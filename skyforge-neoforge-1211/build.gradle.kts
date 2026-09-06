@@ -1418,6 +1418,17 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
+        create("waveC6HawkThermalAcceptanceServer") {
+            server()
+            sourceSet.set(waveC5Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-acceptance-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC6SoaringFauna", "true")
+            systemProperty("skyforge.dev.waveC6Acceptance", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
     }
 
     unitTest {
@@ -1487,6 +1498,17 @@ tasks.named("runWaveC5SoaringFaunaServer").configure {
 tasks.named("runWaveC6HawkThermalServer").configure {
     doFirst {
         val directory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC5SmokeServerProperties)
+    }
+}
+
+
+tasks.named("runWaveC6HawkThermalAcceptanceServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-acceptance-server").asFile
         delete(directory)
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")

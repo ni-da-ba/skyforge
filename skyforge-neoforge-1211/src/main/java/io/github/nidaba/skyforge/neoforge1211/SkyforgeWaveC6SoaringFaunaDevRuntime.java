@@ -13,6 +13,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
  * Development-gated Wave C6 controller that gives Fowl Play's existing red-tailed hawk a truthful
@@ -20,6 +21,8 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
  */
 final class SkyforgeWaveC6SoaringFaunaDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.waveC6SoaringFauna";
+    static final String ACCEPTANCE_PROPERTY = "skyforge.dev.waveC6Acceptance";
+    private static final long ACCEPTANCE_TIMEOUT_TICKS = 320L;
     private static final String FOWL_PLAY_MOD_ID = "fowlplay";
     private static final String A4MC_MOD_ID = "aerodynamics4mc";
     private static final String HAWK_ID = "fowlplay:hawk";
@@ -33,9 +36,26 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
     private static final Map<Mob, HawkState> HAWKS =
             Collections.synchronizedMap(new WeakHashMap<>());
 
+    @FunctionalInterface
+    private interface LiftSampler {
+        SkyforgeA4mcLiftBridge.Sample sample(ServerLevel level, Vec3 position);
+    }
+
     private static boolean installed;
     private static SkyforgeA4mcLiftBridge atmosphere;
     private static SkyforgeFowlPlayHawkBridge birds;
+    private static LiftSampler liftSampler;
+
+    private static boolean acceptanceMode;
+    private static long acceptanceStartTick = Long.MIN_VALUE;
+    private static long acceptanceEnteredTick = Long.MIN_VALUE;
+    private static Mob acceptanceHawk;
+    private static int acceptanceJoinedHawks;
+    private static int acceptanceAdaptations;
+    private static int acceptanceSteeringCommands;
+    private static boolean acceptanceEnteredSoar;
+    private static boolean acceptanceExitedSoar;
+    private static boolean acceptanceFinished;
 
     private SkyforgeWaveC6SoaringFaunaDevRuntime() {}
 
@@ -56,6 +76,8 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         NeoForge.EVENT_BUS.addListener(SkyforgeWaveC6SoaringFaunaDevRuntime::onServerStarted);
         NeoForge.EVENT_BUS.addListener(SkyforgeWaveC6SoaringFaunaDevRuntime::onEntityJoin);
         NeoForge.EVENT_BUS.addListener(SkyforgeWaveC6SoaringFaunaDevRuntime::onEntityTickPost);
+        NeoForge.EVENT_BUS.addListener(SkyforgeWaveC6SoaringFaunaDevRuntime::onServerTickPost);
+        acceptanceMode = Boolean.getBoolean(ACCEPTANCE_PROPERTY);
         installed = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
@@ -75,14 +97,37 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
                     "Wave C6 optional API surface no longer matches pinned Fowl Play/A4MC stack", failure);
         }
 
+        liftSampler = atmosphere::sample;
+
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "Skyforge Wave C6 Fowl Play/A4MC soaring-fauna compatibility enabled.");
+
+        if (acceptanceMode) {
+            acceptanceStartTick = event.getServer().overworld().getGameTime();
+            liftSampler = SkyforgeWaveC6SoaringFaunaDevRuntime::sampleAcceptanceLift;
+
+            var source = event.getServer().createCommandSourceStack();
+            event.getServer().getCommands().performPrefixedCommand(source, "gamerule doMobSpawning false");
+            event.getServer().getCommands().performPrefixedCommand(source, "time set 2000");
+            int result = event.getServer().getCommands().performPrefixedCommand(
+                    source, "summon fowlplay:hawk 0 120 0");
+
+            if (result <= 0) {
+                failAcceptance("summon command did not create fowlplay:hawk");
+            }
+        }
     }
 
     private static void onEntityJoin(EntityJoinLevelEvent event) {
         if (!(event.getLevel() instanceof ServerLevel) || !(event.getEntity() instanceof Mob mob) || !isHawk(mob)) {
             return;
+        }
+        if (acceptanceMode) {
+            acceptanceJoinedHawks++;
+            if (acceptanceHawk == null) {
+                acceptanceHawk = mob;
+            }
         }
         ensureState(mob);
     }
@@ -104,7 +149,7 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         }
         state.nextSampleTick = gameTick + SAMPLE_PERIOD_TICKS;
 
-        SkyforgeA4mcLiftBridge.Sample sample = atmosphere.sample(level, mob.position());
+        SkyforgeA4mcLiftBridge.Sample sample = sampleLift(level, mob.position());
         SkyforgeThermalSoaringDecision.State next = SkyforgeThermalSoaringDecision.update(
                 state.decision, sample.trusted(), sample.updraftMetersPerSecond(), gameTick);
 
@@ -114,6 +159,16 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
             } catch (ReflectiveOperationException failure) {
                 disableHawk(state, failure);
                 return;
+            }
+
+            state.transitionCount++;
+            if (acceptanceMode && mob == acceptanceHawk) {
+                if (next.soaring()) {
+                    acceptanceEnteredSoar = true;
+                    acceptanceEnteredTick = gameTick;
+                } else if (acceptanceEnteredSoar) {
+                    acceptanceExitedSoar = true;
+                }
             }
         }
         state.decision = next;
@@ -141,6 +196,9 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         try {
             HawkState created = new HawkState(birds.adapt(mob));
             HAWKS.put(mob, created);
+            if (acceptanceMode && mob == acceptanceHawk) {
+                acceptanceAdaptations++;
+            }
             return created;
         } catch (ReflectiveOperationException failure) {
             LOGGER.log(
@@ -186,9 +244,85 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
 
         try {
             state.handle.flyToward(x, y, z);
+            state.steeringCommands++;
+            if (acceptanceMode && hawk == acceptanceHawk) {
+                acceptanceSteeringCommands++;
+            }
         } catch (ReflectiveOperationException failure) {
             disableHawk(state, failure);
         }
+    }
+
+    private static SkyforgeA4mcLiftBridge.Sample sampleLift(ServerLevel level, Vec3 position) {
+        LiftSampler sampler = liftSampler;
+        return sampler == null ? SkyforgeA4mcLiftBridge.Sample.unavailable() : sampler.sample(level, position);
+    }
+
+    private static SkyforgeA4mcLiftBridge.Sample sampleAcceptanceLift(ServerLevel level, Vec3 position) {
+        if (acceptanceEnteredTick != Long.MIN_VALUE
+                && level.getGameTime() - acceptanceEnteredTick >= SkyforgeThermalSoaringDecision.MIN_HOLD_TICKS) {
+            return new SkyforgeA4mcLiftBridge.Sample(true, 0.50);
+        }
+
+        return new SkyforgeA4mcLiftBridge.Sample(true, 2.00);
+    }
+
+    private static void onServerTickPost(ServerTickEvent.Post event) {
+        if (!acceptanceMode || acceptanceFinished || acceptanceStartTick == Long.MIN_VALUE) {
+            return;
+        }
+
+        long elapsed = event.getServer().overworld().getGameTime() - acceptanceStartTick;
+        HawkState state = acceptanceHawk == null ? null : HAWKS.get(acceptanceHawk);
+
+        if (state != null
+                && !state.disabled
+                && acceptanceJoinedHawks == 1
+                && acceptanceAdaptations == 1
+                && acceptanceEnteredSoar
+                && acceptanceExitedSoar
+                && acceptanceSteeringCommands > 0
+                && !state.decision.soaring()
+                && !state.handle.thermalScheduleActive()
+                && state.transitionCount == 2) {
+            acceptanceFinished = true;
+            LOGGER.log(
+                    System.Logger.Level.INFO,
+                    "WAVE_C6_ACCEPTANCE PASS joinedHawks="
+                            + acceptanceJoinedHawks
+                            + " adaptations="
+                            + acceptanceAdaptations
+                            + " transitions="
+                            + state.transitionCount
+                            + " steeringCommands="
+                            + acceptanceSteeringCommands);
+            return;
+        }
+
+        if (elapsed >= ACCEPTANCE_TIMEOUT_TICKS) {
+            failAcceptance(
+                    "timeout joinedHawks="
+                            + acceptanceJoinedHawks
+                            + " adaptations="
+                            + acceptanceAdaptations
+                            + " entered="
+                            + acceptanceEnteredSoar
+                            + " exited="
+                            + acceptanceExitedSoar
+                            + " steeringCommands="
+                            + acceptanceSteeringCommands
+                            + " state="
+                            + (state == null ? "missing" : state.decision));
+        }
+    }
+
+    private static void failAcceptance(String reason) {
+        if (acceptanceFinished) {
+            return;
+        }
+
+        acceptanceFinished = true;
+        LOGGER.log(System.Logger.Level.ERROR, "WAVE_C6_ACCEPTANCE FAIL " + reason);
     }
 
     private static void disableHawk(HawkState state, ReflectiveOperationException failure) {
@@ -213,6 +347,8 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         SkyforgeThermalSoaringDecision.State decision = SkyforgeThermalSoaringDecision.State.inactive();
         long nextSampleTick;
         long nextTargetTick;
+        int transitionCount;
+        int steeringCommands;
         boolean disabled;
 
         HawkState(SkyforgeFowlPlayHawkBridge.HawkHandle handle) {

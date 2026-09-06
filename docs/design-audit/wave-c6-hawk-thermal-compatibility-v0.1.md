@@ -95,8 +95,33 @@ The Wave C6 CI profile must:
 4. prove the reflection bridge initialized against those exact runtime APIs;
 5. reach Minecraft server-ready state.
 
-The next acceptance increment after this loader/API proof is a self-spawned hawk specimen that
-records successful brain adaptation and schedule transitions under injected test lift samples.
+## Deterministic real-hawk acceptance
+
+Wave C6 now includes a separate acceptance server that:
+
+1. disables natural mob spawning;
+2. sets daytime to tick 2000, inside the stock first raptor HUNT window;
+3. summons exactly one real `fowlplay:hawk`;
+4. installs the optional SmartBrain adapter through the normal `EntityJoinLevelEvent` path;
+5. substitutes a trusted 2.0 m/s test lift sample until SOAR is entered;
+6. keeps that lift through the 100-tick hold;
+7. drops the test lift to 0.5 m/s;
+8. requires the controller to restore the stock schedule;
+9. requires at least one successful flight-navigation target while soaring;
+10. rejects any second hawk/adaptation or extra schedule transition.
+
+The test sampler replaces only the atmosphere query value under
+`skyforge.dev.waveC6Acceptance=true`. The real A4MC bridge must still initialize successfully
+against the pinned runtime before the acceptance begins.
+
+Pass evidence is a single machine-readable log line:
+
+```text
+WAVE_C6_ACCEPTANCE PASS joinedHawks=1 adaptations=1 transitions=2 steeringCommands=N
+```
+
+This closes brain adaptation, idempotence, schedule entry/exit and route-command wiring without
+depending on stochastic weather.
 
 ## Non-decisions
 
