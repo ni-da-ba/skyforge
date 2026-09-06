@@ -74,8 +74,12 @@ final class SkyforgeNeoForge1211ChunkAdapterTest {
                 SkyIslandTerrainProfile.reference(),
                 new SkyforgeMinecraftBlockPalette());
 
+        ChunkPos distantPos = new ChunkPos(100, 100);
+        assertFalse(adapter.hasCandidateVolume(distantPos, MINIMUM_Y, 32));
+        assertTrue(adapter.hasCandidateVolume(new ChunkPos(0, 0), MINIMUM_Y, HEIGHT));
+
         MinecraftChunkMaterialization distant =
-                adapter.materialize(new ChunkPos(100, 100), MINIMUM_Y, 32);
+                adapter.materialize(distantPos, MINIMUM_Y, 32);
 
         assertEquals(0, distant.candidateVolumeReferences());
         assertEquals(0, distant.solidBlockCount());
