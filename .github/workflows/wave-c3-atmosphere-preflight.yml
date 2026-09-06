@@ -50,18 +50,40 @@ jobs:
           run_smoke() {
             local task="$1"
             local log="$2"
-            set +e
-            timeout --signal=TERM 150s ./gradlew ":skyforge-neoforge-1211:${task}" --no-configuration-cache >"${log}" 2>&1
-            local rc=$?
-            set -e
+            local pid
+            local ready=0
 
-            if grep -Fq "Done (" "${log}"; then
+            # Give each Gradle/game process its own process group so the server can be stopped
+            # immediately after readiness without leaving a child JVM behind.
+            setsid ./gradlew ":skyforge-neoforge-1211:${task}" --no-configuration-cache >"${log}" 2>&1 &
+            pid=$!
+
+            for _ in $(seq 1 120); do
+              if grep -Fq "Done (" "${log}" 2>/dev/null; then
+                ready=1
+                break
+              fi
+              if ! kill -0 "${pid}" 2>/dev/null; then
+                break
+              fi
+              sleep 1
+            done
+
+            if [[ "${ready}" -eq 1 ]]; then
               echo "PASS ${task}: dedicated server reached ready state"
+              kill -TERM -- "-${pid}" 2>/dev/null || true
+              sleep 2
+              kill -KILL -- "-${pid}" 2>/dev/null || true
+              wait "${pid}" 2>/dev/null || true
               return 0
             fi
 
-            echo "FAIL ${task}: server never reached ready state (exit ${rc})"
+            echo "FAIL ${task}: server never reached ready state"
             cat "${log}"
+            kill -TERM -- "-${pid}" 2>/dev/null || true
+            sleep 1
+            kill -KILL -- "-${pid}" 2>/dev/null || true
+            wait "${pid}" 2>/dev/null || true
             return 1
           }
 
