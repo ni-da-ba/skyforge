@@ -3309,11 +3309,17 @@ tasks.register("waveC5ResolvePinnedMods") {
             .map { it.name }
             .sorted()
 
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return "${parts[1]}-${parts[2]}"
+        }
+
         val requiredTokens = mapOf(
-            "Fowl Play" to waveC5Pin("fowlplay", "artifactToken"),
-            "SmartBrainLib" to waveC5Pin("smartbrainlib", "artifactToken"),
-            "YACL" to waveC5Pin("yacl", "artifactToken"),
-            "Aerodynamics4MC core" to waveC3Pin("aerodynamics4mcCore", "artifactToken"),
+            "Fowl Play" to artifactToken(waveC5Pin("fowlplay", "coordinate")),
+            "SmartBrainLib" to artifactToken(waveC5Pin("smartbrainlib", "coordinate")),
+            "YACL" to artifactToken(waveC5Pin("yacl", "coordinate")),
+            "Aerodynamics4MC core" to artifactToken(waveC3Pin("aerodynamics4mcCore", "coordinate")),
         )
         requiredTokens.forEach { (label, token) ->
             check(files.any { it.contains(token) }) {

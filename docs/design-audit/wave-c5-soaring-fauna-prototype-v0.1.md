@@ -134,8 +134,37 @@ install one Skyforge SOAR activity if not already installed
 retain stock raptor schedule until useful lift exists
 ```
 
-The exact entity-lifecycle event can be chosen by implementation based on the earliest point at which
-the brain is guaranteed initialized.
+### Lifecycle placement
+
+NeoForge documents the mob-spawn sequence as:
+
+```text
+spawn placement checks
+    ↓
+position check
+    ↓
+FinalizeSpawn
+    ↓
+EntityJoinLevelEvent
+```
+
+Therefore `EntityJoinLevelEvent` is the leading first installation hook for newly admitted/loaded
+hawks.
+
+The compatibility setup should still be **idempotent and lazy**:
+
+```text
+EntityJoinLevelEvent
+    -> attempt install
+
+first eligible server tick
+    -> verify installed
+    -> retry only if the expected SmartBrain was not yet observable
+```
+
+Idempotence should be proven by scanning for the Skyforge SOAR behavior (or an equivalent
+Skyforge-owned marker) before adding it, not by assuming a join event fires exactly once over an
+entity's entire lifetime.
 
 ---
 
