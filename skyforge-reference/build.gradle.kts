@@ -141,6 +141,15 @@ tasks.register<JavaExec>("productionMorphologyVisualReviewCorpus") {
     args(layout.buildDirectory.dir("evidence/production-morphology-visual-review-v1").get().asFile.absolutePath)
 }
 
+tasks.register<JavaExec>("productionMorphologyRegionalReviewCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0084 sparse/chain/cluster/Hub/Arc regional morphology atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.ProductionMorphologyRegionalReviewCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/production-morphology-regional-review-v1").get().asFile.absolutePath)
+}
+
 tasks.register<JavaExec>("multiIslandGroupCorpus") {
     group = "verification"
     description = "Generates the SF-IMP-0026 mixed-provider chain and cluster group-scale atlas."
