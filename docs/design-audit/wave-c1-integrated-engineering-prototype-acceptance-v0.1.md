@@ -44,6 +44,7 @@ The exact development stack is now pinned and launchable through:
 
 ~~~text
 docs/design-audit/wave-c1-runtime-specimen-v0.1.md
+docs/design-audit/wave-c1-loader-dependency-closure-v0.1.md
 skyforge-neoforge-1211/wave-c1-mods.properties
 ~~~
 

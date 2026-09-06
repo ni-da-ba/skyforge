@@ -210,6 +210,15 @@ Static recipe closure evidence that narrows those questions is recorded at:
 docs/design-audit/wave-c1-static-recipe-closure-audit-v0.1.md
 ~~~
 
+
+Loader dependency closure is recorded separately at:
+
+~~~text
+docs/design-audit/wave-c1-loader-dependency-closure-v0.1.md
+~~~
+
+That audit deliberately distinguishes direct pins from upstream Jar-in-Jar/bundled content so Modrinth Maven's lack of transitive POM metadata does not cause duplicate loose libraries.
+
 In particular, the development specimen now includes a retained-material Industrial Crucible override, while Propulsion Platinum recipe rebasing remains intentionally deferred because stock Propulsion provides a rare Platinum-byproduct route from washed Crushed Raw Gold.
 
 ## Acceptance principle
