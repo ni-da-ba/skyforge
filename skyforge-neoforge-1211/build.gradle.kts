@@ -3668,6 +3668,11 @@ tasks.register("sfImp0070PerformanceVerify") {
             }
         }
 
+        val deferredSubphaseSummary = deferredSubphases.joinToString(",") { subphase ->
+            val totalNanos = properties.getProperty("perf.terrain.deferred.$subphase.totalNanos").toLong()
+            "$subphase=" + (totalNanos / 1_000_000.0) + "ms"
+        }
+
         val terrainRealizeCalls = properties.getProperty("perf.terrain.realize.calls").toLong()
         val plannedProjectionSkips =
             properties.getProperty("perf.terrain.plannedDirectProjectionSkipped.calls").toLong()
@@ -3691,6 +3696,7 @@ tasks.register("sfImp0070PerformanceVerify") {
                 "admissionYTotal=$admissionVerticalTotal, admissionYMax=$admissionVerticalMax, " +
                 "deferredYTotal=$deferredVerticalTotal, deferredYMax=$deferredVerticalMax, " +
                 "heightQueryYTotal=$heightQueryVerticalTotal, heightQueryYMax=$heightQueryVerticalMax, " +
+                "deferredSubphases=[$deferredSubphaseSummary], " +
                 "cavePreflightCalls=$cavePreflightCalls, cavePumpCalls=$cavePumpCalls, " +
                 "metrics=" + requiredMetrics.size,
         )
