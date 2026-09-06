@@ -52,6 +52,13 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         }
 
         long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
+        if (!binding.adapter().hasCandidateVolume(
+                chunk.getPos(),
+                chunk.getMinBuildHeight(),
+                chunk.getHeight())) {
+            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realizeNoCandidate", performanceStart);
+            return Optional.of(new MinecraftChunkWriteResult(0, 0, 0));
+        }
 
         // Physical admission is deliberately observed here, above the concrete writer and after
         // BASE_WORLD has completed. A deferred exact-volume write can therefore reuse the writer
@@ -350,6 +357,17 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     static boolean hasNativeSurfaceAdaptation() {
         RuntimeBinding binding = ACTIVE.get();
         return binding != null && binding.nativeSurfaceTopAdapter().isPresent();
+    }
+
+    /** Cheap catalog prefilter used before snapshot capture or full terrain projection. */
+    static boolean hasCandidateVolume(ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding != null
+                && binding.adapter().hasCandidateVolume(
+                        chunk.getPos(),
+                        chunk.getMinBuildHeight(),
+                        chunk.getHeight());
     }
 
     private static MinecraftChunkMaterialization materialize(RuntimeBinding binding, ChunkAccess chunk) {
