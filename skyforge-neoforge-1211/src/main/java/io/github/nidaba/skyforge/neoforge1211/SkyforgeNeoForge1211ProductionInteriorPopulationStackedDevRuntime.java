@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -213,6 +214,23 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                             + lowerFluidSnapshot + ", upper=" + upperFluidSnapshot);
         }
 
+        Plausibility lowerPlausibility = scanPlausibility(
+                level,
+                lower,
+                SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(lower.id()));
+        Plausibility upperPlausibility = scanPlausibility(
+                level,
+                upper,
+                SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(upper.id()));
+        if (lowerPlausibility == null || upperPlausibility == null) {
+            return;
+        }
+        if (!lowerPlausibility.valid() || !upperPlausibility.valid()) {
+            throw new IllegalStateException(
+                    "SF-IMP-0078 native interior plausibility failed: lower="
+                            + lowerPlausibility + ", upper=" + upperPlausibility);
+        }
+
         proofComplete = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
@@ -225,6 +243,11 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                         + ", upperTrackedFluids=" + upperFluidSnapshot.trackedPositions()
                         + ", lowerSampleY=" + lowerFluid.position().getY()
                         + ", upperSampleY=" + upperFluid.position().getY()
+                        + ", lowerGlowLichen=" + lowerPlausibility.glowLichen()
+                        + ", upperGlowLichen=" + upperPlausibility.glowLichen()
+                        + ", lowerMaxGlowLichenPerChunk=" + lowerPlausibility.maximumGlowLichenPerChunk()
+                        + ", upperMaxGlowLichenPerChunk=" + upperPlausibility.maximumGlowLichenPerChunk()
+                        + ", interiorShellPlausibility=true"
                         + ", independentLedgers=true, foreignFluidRejected=true, noReplay=true.");
 
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(
@@ -248,7 +271,88 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                         java.util.Map.entry("foreignFluidRejected", true),
                         java.util.Map.entry("cavesCompleteBeforeInterior", true),
                         java.util.Map.entry("monotonicPending", true),
-                        java.util.Map.entry("noReplay", true)));
+                        java.util.Map.entry("noReplay", true),
+                        java.util.Map.entry("lowerGlowLichen", lowerPlausibility.glowLichen()),
+                        java.util.Map.entry("upperGlowLichen", upperPlausibility.glowLichen()),
+                        java.util.Map.entry("lowerUnsupportedGlowLichen", lowerPlausibility.unsupportedGlowLichen()),
+                        java.util.Map.entry("upperUnsupportedGlowLichen", upperPlausibility.unsupportedGlowLichen()),
+                        java.util.Map.entry("lowerBoundaryGlowLichen", lowerPlausibility.boundaryGlowLichen()),
+                        java.util.Map.entry("upperBoundaryGlowLichen", upperPlausibility.boundaryGlowLichen()),
+                        java.util.Map.entry("lowerBoundaryTrackedFluids", lowerPlausibility.boundaryTrackedFluids()),
+                        java.util.Map.entry("upperBoundaryTrackedFluids", upperPlausibility.boundaryTrackedFluids()),
+                        java.util.Map.entry("lowerMaxGlowLichenPerChunk", lowerPlausibility.maximumGlowLichenPerChunk()),
+                        java.util.Map.entry("upperMaxGlowLichenPerChunk", upperPlausibility.maximumGlowLichenPerChunk()),
+                        java.util.Map.entry("interiorShellPlausibility", true)));
+    }
+
+    private static Plausibility scanPlausibility(
+            ServerLevel level,
+            SkyIslandWorldVolume volume,
+            Set<Long> requiredChunks) {
+        int minimumY = Math.max(
+                level.getMinBuildHeight(),
+                (int) Math.floor(volume.bounds().minimumY()));
+        int maximumY = Math.min(
+                level.getMaxBuildHeight() - 1,
+                (int) Math.ceil(volume.bounds().maximumY()));
+        int glowLichen = 0;
+        int unsupportedGlowLichen = 0;
+        int boundaryGlowLichen = 0;
+        int maximumGlowLichenPerChunk = 0;
+        BlockPos.MutableBlockPos position = new BlockPos.MutableBlockPos();
+
+        for (long chunkKey : requiredChunks) {
+            LevelChunk chunk = level.getChunkSource().getChunkNow(
+                    ChunkPos.getX(chunkKey),
+                    ChunkPos.getZ(chunkKey));
+            if (chunk == null) {
+                return null;
+            }
+            int chunkGlowLichen = 0;
+            for (int y = minimumY; y <= maximumY; y++) {
+                for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
+                    for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
+                        position.set(x, y, z);
+                        var state = chunk.getBlockState(position);
+                        if (!state.is(Blocks.GLOW_LICHEN)) {
+                            continue;
+                        }
+                        glowLichen++;
+                        chunkGlowLichen++;
+                        BlockPos immutable = position.immutable();
+                        if (!state.canSurvive(level, immutable)) {
+                            unsupportedGlowLichen++;
+                        }
+                        if (!SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
+                                volume.id(), immutable)) {
+                            boundaryGlowLichen++;
+                        }
+                    }
+                }
+            }
+            maximumGlowLichenPerChunk = Math.max(maximumGlowLichenPerChunk, chunkGlowLichen);
+        }
+
+        int liveTrackedFluids = 0;
+        int boundaryTrackedFluids = 0;
+        for (var tracked : SkyforgeGeneratedFluidPropagationStage.trackedFluids(level, volume.id())) {
+            BlockPos trackedPosition = BlockPos.of(tracked.position());
+            if (level.getFluidState(trackedPosition).isEmpty()) {
+                continue;
+            }
+            liveTrackedFluids++;
+            if (!SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
+                    volume.id(), trackedPosition)) {
+                boundaryTrackedFluids++;
+            }
+        }
+        return new Plausibility(
+                glowLichen,
+                unsupportedGlowLichen,
+                boundaryGlowLichen,
+                maximumGlowLichenPerChunk,
+                liveTrackedFluids,
+                boundaryTrackedFluids);
     }
 
     private static Aggregate aggregate(SkyIslandWorldVolumeId volumeId) {
@@ -341,6 +445,22 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
     }
 
     private record TrackedSample(BlockPos position, net.minecraft.world.level.material.FluidState state) {}
+
+    private record Plausibility(
+            int glowLichen,
+            int unsupportedGlowLichen,
+            int boundaryGlowLichen,
+            int maximumGlowLichenPerChunk,
+            int liveTrackedFluids,
+            int boundaryTrackedFluids) {
+        private boolean valid() {
+            return glowLichen > 0
+                    && unsupportedGlowLichen == 0
+                    && boundaryGlowLichen == 0
+                    && liveTrackedFluids > 0
+                    && boundaryTrackedFluids == 0;
+        }
+    }
 
     private record Aggregate(
             int resultChunks,
