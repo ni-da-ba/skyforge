@@ -44,8 +44,8 @@ jobs:
       - name: Compile and unit-test Wave C6 policy
         run: ./gradlew :skyforge-neoforge-1211:test --tests '*SkyforgeThermalSoaringDecisionTest' --no-configuration-cache
 
-      - name: Resolve retained C5 bird stack
-        run: ./gradlew :skyforge-neoforge-1211:waveC5ResolvePinnedMods --no-configuration-cache
+      - name: Resolve exact C6 run classpath
+        run: ./gradlew :skyforge-neoforge-1211:waveC6ResolvePinnedMods --no-configuration-cache
 
       - name: Headless optional-API smoke
         shell: bash
