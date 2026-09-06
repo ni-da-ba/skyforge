@@ -3583,6 +3583,8 @@ tasks.register("sfImp0070PerformanceVerify") {
             "perf.terrain.plannedDirectProjectionSkipped.totalNanos",
             "perf.terrain.realizeDeferred.totalNanos",
             "perf.surfacePopulation.coordinator.totalNanos",
+            "perf.surfacePopulation.findSurface.totalNanos",
+            "perf.surfacePopulation.phase.VEGETAL_DECORATION.totalNanos",
             "perf.caves.authoredPreflight.totalNanos",
             "perf.caves.nativeCarver.totalNanos",
             "perf.caves.authoredCommit.totalNanos",
@@ -3621,6 +3623,19 @@ tasks.register("sfImp0070PerformanceVerify") {
                 "samples=$admissionVerticalSamples, total=$admissionVerticalTotal, max=$admissionVerticalMax"
         }
 
+        val heightQueryVerticalSamples =
+            properties.getProperty("perf.terrain.firstFreeHeightVerticalSamples.samples").toLong()
+        val heightQueryVerticalTotal =
+            properties.getProperty("perf.terrain.firstFreeHeightVerticalSamples.total").toLong()
+        val heightQueryVerticalMax =
+            properties.getProperty("perf.terrain.firstFreeHeightVerticalSamples.max").toLong()
+        check(heightQueryVerticalSamples >= 100_352L
+                && heightQueryVerticalTotal > 0L
+                && heightQueryVerticalMax <= 101L) {
+            "SF-IMP-0076 bounded height-query evidence changed: " +
+                "samples=$heightQueryVerticalSamples, total=$heightQueryVerticalTotal, max=$heightQueryVerticalMax"
+        }
+
         val deferredVerticalSamples =
             properties.getProperty("perf.terrain.deferredVerticalSamples.samples").toLong()
         val deferredVerticalTotal =
@@ -3656,6 +3671,7 @@ tasks.register("sfImp0070PerformanceVerify") {
                 "terrainRealizeCalls=$terrainRealizeCalls, plannedProjectionSkips=$plannedProjectionSkips, " +
                 "admissionYTotal=$admissionVerticalTotal, admissionYMax=$admissionVerticalMax, " +
                 "deferredYTotal=$deferredVerticalTotal, deferredYMax=$deferredVerticalMax, " +
+                "heightQueryYTotal=$heightQueryVerticalTotal, heightQueryYMax=$heightQueryVerticalMax, " +
                 "cavePreflightCalls=$cavePreflightCalls, cavePumpCalls=$cavePumpCalls, " +
                 "metrics=" + requiredMetrics.size,
         )
