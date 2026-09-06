@@ -133,6 +133,54 @@ val waveC2IntegratedC1Mods = listOf(
     "jei",
 )
 
+
+//
+// Wave C3 isolates atmosphere authority from presentation content. Aerodynamics4MC publishes its
+// core runtime and Create Aeronautics compatibility addon as separate files under one Modrinth
+// project, so each is resolved in its own configuration and then attached as a file collection.
+// This prevents Gradle's normal module conflict resolution from collapsing the two version IDs.
+val waveC3PinFile = layout.projectDirectory.file("wave-c3-mods.properties")
+val waveC3Pins = Properties().apply {
+    waveC3PinFile.asFile.inputStream().use(::load)
+}
+
+fun waveC3Pin(component: String, field: String): String =
+    requireNotNull(waveC3Pins.getProperty("$component.$field")) {
+        "missing Wave C3 pin: $component.$field in " + waveC3PinFile.asFile
+    }
+
+check(waveC3Pin("minecraft", "version") == "1.21.1") {
+    "Wave C3 is defined only for Minecraft 1.21.1"
+}
+check(waveC3Pin("neoforge", "version") == "21.1.249") {
+    "Wave C3 NeoForge pin must match the adapter runtime"
+}
+
+val waveC3AeroCoreArtifact = configurations.create("waveC3AeroCoreArtifact") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+val waveC3AeroCompatArtifact = configurations.create("waveC3AeroCompatArtifact") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
+val waveC3FlightStackMods = listOf(
+    "create",
+    "sable",
+    "aeronautics",
+    "jei",
+)
+val waveC3AtmosphereRuns = listOf(
+    "waveC3AtmosphereCoreClient",
+    "waveC3AircraftWindClient",
+    "waveC3WindTunnelClient",
+)
+val waveC3CompatRuns = listOf(
+    "waveC3AircraftWindClient",
+    "waveC3WindTunnelClient",
+)
+
 neoForge {
     version = "21.1.249"
 
@@ -1216,6 +1264,35 @@ neoForge {
             client()
             gameDirectory = layout.projectDirectory.dir("run-wave-c2-integrated-mobility").asFile
             systemProperty("skyforge.dev.waveC2Profile", "integrated")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // Wave C3 authority-isolation profile. No Create/Aeronautics or official A4MC content addon:
+        // this run answers only whether the server-authoritative atmosphere runtime is viable.
+        create("waveC3AtmosphereCoreClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-atmosphere-core").asFile
+            systemProperty("skyforge.dev.waveC3Profile", "atmosphere-core")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // A4MC core + its dedicated Create Aeronautics compatibility jar over Skyforge's already
+        // pinned minimum flight substrate. This is the actual relative-airflow candidate.
+        create("waveC3AircraftWindClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-aircraft-wind").asFile
+            systemProperty("skyforge.dev.waveC3Profile", "aircraft-wind")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Development measurement profile. Wind Tunnel is not atmosphere authority and is not a
+        // production dependency candidate here; it supplies controlled airflow and force readback
+        // so headwind/crosswind/updraft cases can become numerical acceptance rather than eyeballing.
+        create("waveC3WindTunnelClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-wind-tunnel").asFile
+            systemProperty("skyforge.dev.waveC3Profile", "wind-tunnel")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -3037,6 +3114,36 @@ tasks.register("waveC2ResolvePinnedMods") {
 }
 
 
+tasks.register("waveC3ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve the exact Wave C3 atmosphere-authority artifacts and isolated run classpaths."
+    inputs.file(waveC3PinFile)
+    inputs.file(waveC1PinFile)
+
+    doLast {
+        val coreFiles = waveC3AeroCoreArtifact.files.map { it.name }.sorted()
+        val compatFiles = waveC3AeroCompatArtifact.files.map { it.name }.sorted()
+        check(coreFiles.isNotEmpty()) { "Wave C3 Aerodynamics4MC core artifact did not resolve" }
+        check(compatFiles.isNotEmpty()) { "Wave C3 Aerodynamics4MC compat artifact did not resolve" }
+        check(coreFiles.toSet().intersect(compatFiles.toSet()).isEmpty()) {
+            "Wave C3 core/compat artifact resolution collapsed onto the same file: core=$coreFiles compat=$compatFiles"
+        }
+        println("Wave C3 isolated Aerodynamics4MC artifacts")
+        coreFiles.forEach { println("  core=$it") }
+        compatFiles.forEach { println("  compat=$it") }
+
+        waveC3AtmosphereRuns.forEach { runName ->
+            val files = configurations.getByName("${runName}LegacyClasspath")
+                .files
+                .map { it.name }
+                .sorted()
+            println("Wave C3 $runName")
+            files.forEach { println("  resolved=$it") }
+        }
+    }
+}
+
+
 dependencies {
     api(project(":skyforge-world"))
 
@@ -3083,6 +3190,46 @@ dependencies {
             waveC1Pin(mod, "coordinate"),
         )
     }
+
+
+    // Resolve A4MC core and Create Aeronautics compatibility files independently because Modrinth
+    // exposes both under the same project/module identity but different version IDs.
+    add("waveC3AeroCoreArtifact", waveC3Pin("aerodynamics4mcCore", "coordinate"))
+    add("waveC3AeroCompatArtifact", waveC3Pin("aerodynamics4mcCompat", "coordinate"))
+
+    // Every C3 profile receives the core atmosphere authority.
+    waveC3AtmosphereRuns.forEach { runName ->
+        add(
+            "${runName}AdditionalRuntimeClasspath",
+            files(waveC3AeroCoreArtifact),
+        )
+    }
+
+    // Aircraft profiles reuse the current C1-pinned flight substrate; the compat addon is kept
+    // separate from A4MC core so both jars reach FML.
+    waveC3CompatRuns.forEach { runName ->
+        waveC3FlightStackMods.forEach { mod ->
+            add(
+                "${runName}AdditionalRuntimeClasspath",
+                waveC1Pin(mod, "coordinate"),
+            )
+        }
+        add(
+            "${runName}AdditionalRuntimeClasspath",
+            files(waveC3AeroCompatArtifact),
+        )
+    }
+
+    // Wind Tunnel is a test instrument only. Its source-built LDLib floor is pinned explicitly
+    // because Modrinth Maven does not carry transitive dependency metadata.
+    add(
+        "waveC3WindTunnelClientAdditionalRuntimeClasspath",
+        waveC3Pin("windTunnel", "coordinate"),
+    )
+    add(
+        "waveC3WindTunnelClientAdditionalRuntimeClasspath",
+        waveC3Pin("ldlib", "coordinate"),
+    )
 
     testImplementation(project(":skyforge-recipes"))
 
