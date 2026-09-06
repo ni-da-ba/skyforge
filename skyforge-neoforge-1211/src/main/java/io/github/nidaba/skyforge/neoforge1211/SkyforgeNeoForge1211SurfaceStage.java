@@ -363,11 +363,20 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     static boolean hasCandidateVolume(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
         RuntimeBinding binding = ACTIVE.get();
-        return binding != null
-                && binding.adapter().hasCandidateVolume(
-                        chunk.getPos(),
-                        chunk.getMinBuildHeight(),
-                        chunk.getHeight());
+        if (binding == null) {
+            return false;
+        }
+        long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
+        boolean candidate = binding.adapter().hasCandidateVolume(
+                chunk.getPos(),
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+        if (!candidate) {
+            SkyforgeRuntimePerformanceMetrics.recordSince(
+                    "terrain.noCandidatePrefilter",
+                    performanceStart);
+        }
+        return candidate;
     }
 
     private static MinecraftChunkMaterialization materialize(RuntimeBinding binding, ChunkAccess chunk) {
