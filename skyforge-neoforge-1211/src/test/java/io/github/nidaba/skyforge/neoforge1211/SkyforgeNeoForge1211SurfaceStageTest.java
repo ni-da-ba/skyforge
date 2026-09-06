@@ -169,6 +169,7 @@ final class SkyforgeNeoForge1211SurfaceStageTest {
         try (AutoCloseable activeBinding = SkyforgeNeoForge1211SurfaceStage.install(
                 adapter,
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(activeBinding);
             assertFalse(SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk));
             result = SkyforgeNeoForge1211SurfaceStage.realize(chunk);
         }
