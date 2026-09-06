@@ -58,6 +58,9 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
                 continue;
             }
 
+            var route = phase == GenerationStep.Decoration.VEGETAL_DECORATION
+                    ? SkyforgeNativeVegetalFeatureRoute.SURFACE_ECOLOGY
+                    : SkyforgeNativeVegetalFeatureRoute.ALL;
             var nativeResult = SkyforgeRuntimePerformanceMetrics.measure(
                     "surfacePopulation.phase." + phase.name(),
                     () -> SkyforgeNativeBiomePopulationRunner.populateStep(
@@ -68,7 +71,8 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
                             chunkPos,
                             new BlockPos(sample.x(), sample.firstFreeY(), sample.z()),
                             phase,
-                            plan.maximumAttachmentDepth()));
+                            plan.maximumAttachmentDepth(),
+                            route));
             CachedPhase created = new CachedPhase(
                     sample,
                     plan.maximumAttachmentDepth(),
