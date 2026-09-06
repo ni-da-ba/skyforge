@@ -3896,6 +3896,11 @@ tasks.register("sfImp0070PerformanceVerify") {
             "perf.terrain.noCandidatePrefilter.totalNanos",
             "perf.terrain.plannedDirectProjectionSkipped.totalNanos",
             "perf.terrain.realizeDeferred.totalNanos",
+            "perf.terrain.deferred.materialize.totalNanos",
+            "perf.terrain.deferred.adaptSurface.totalNanos",
+            "perf.terrain.deferred.solidCount.totalNanos",
+            "perf.terrain.deferred.write.totalNanos",
+            "perf.terrain.deferred.completeCatchup.totalNanos",
             "perf.surfacePopulation.coordinator.totalNanos",
             "perf.surfacePopulation.findSurface.totalNanos",
             "perf.surfacePopulation.phase.VEGETAL_DECORATION.totalNanos",
@@ -3963,6 +3968,25 @@ tasks.register("sfImp0070PerformanceVerify") {
                 "samples=$deferredVerticalSamples, total=$deferredVerticalTotal, max=$deferredVerticalMax"
         }
 
+        val deferredSubphases = listOf(
+            "materialize",
+            "adaptSurface",
+            "solidCount",
+            "write",
+            "completeCatchup",
+        )
+        for (subphase in deferredSubphases) {
+            val calls = properties.getProperty("perf.terrain.deferred.$subphase.calls").toLong()
+            check(calls == 390L) {
+                "SF-IMP-0077 deferred subphase call count changed: subphase=$subphase, calls=$calls"
+            }
+        }
+
+        val deferredSubphaseSummary = deferredSubphases.joinToString(",") { subphase ->
+            val totalNanos = properties.getProperty("perf.terrain.deferred.$subphase.totalNanos").toLong()
+            "$subphase=" + (totalNanos / 1_000_000.0) + "ms"
+        }
+
         val terrainRealizeCalls = properties.getProperty("perf.terrain.realize.calls").toLong()
         val plannedProjectionSkips =
             properties.getProperty("perf.terrain.plannedDirectProjectionSkipped.calls").toLong()
@@ -3986,6 +4010,7 @@ tasks.register("sfImp0070PerformanceVerify") {
                 "admissionYTotal=$admissionVerticalTotal, admissionYMax=$admissionVerticalMax, " +
                 "deferredYTotal=$deferredVerticalTotal, deferredYMax=$deferredVerticalMax, " +
                 "heightQueryYTotal=$heightQueryVerticalTotal, heightQueryYMax=$heightQueryVerticalMax, " +
+                "deferredSubphases=[$deferredSubphaseSummary], " +
                 "cavePreflightCalls=$cavePreflightCalls, cavePumpCalls=$cavePumpCalls, " +
                 "metrics=" + requiredMetrics.size,
         )
