@@ -1,7 +1,7 @@
 # Wave C2 Mobility Integrity Prototype v0.1
 
 **Snapshot:** 2026-09-05  
-**Status:** Development scaffold; runtime/human-eye acceptance pending.
+**Status:** Development scaffold; machine recipe/maintenance closure; runtime/human-eye handling acceptance pending.
 
 ## Purpose
 
@@ -105,6 +105,35 @@ cloth / sail
 
 The recipe is conditioned on `reliable_gliders` being loaded so the development resource is inert
 in ordinary Skyforge runs.
+
+### Maintenance closure
+
+The audited upstream repair tag accepts only `minecraft:phantom_membrane`. That would undo the
+bootstrap recipe fix after the first durability cycle:
+
+```text
+cheap ordinary-material glider
+    -> normal use
+    -> Phantom hunting required for maintenance
+```
+
+Wave C8 therefore extends the existing C2 data override rather than creating a new mechanic.
+
+Both the embedded development resources and standalone mobility datapack replace
+`reliable_gliders:glider_repair_items` with:
+
+```text
+minecraft:leather
+#minecraft:wool
+```
+
+This keeps glider ownership and maintenance inside ordinary survival-material families. It does not
+change durability, repair amount, handling, or the upstream anvil interaction.
+
+The exact generosity of wool/leather repair remains a play-balance value. The invariant being
+machine-locked here is narrower:
+
+> A starter mobility tool may not secretly require delayed hostile loot for routine upkeep.
 
 ### What is intentionally unchanged
 

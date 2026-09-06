@@ -45,6 +45,26 @@ final class WaveC2DevelopmentResourceTest {
             assertFalse(
                     recipe.contains("phantom_membrane"),
                     "Phantom hunting must not gate starter-group personal mobility");
+
+            String repairTag = readFrom(
+                    root,
+                    "data",
+                    "reliable_gliders",
+                    "tags",
+                    "item",
+                    "glider_repair_items.json");
+            assertTrue(
+                    repairTag.contains("\"replace\": true"),
+                    "Skyforge must replace the upstream Phantom-only glider repair tag");
+            assertTrue(
+                    repairTag.contains("\"minecraft:leather\""),
+                    "ordinary leather should remain a valid early glider repair material");
+            assertTrue(
+                    repairTag.contains("\"#minecraft:wool\""),
+                    "ordinary wool should remain a valid early glider repair material");
+            assertFalse(
+                    repairTag.contains("phantom_membrane"),
+                    "glider maintenance must not reintroduce Phantom hunting after bootstrap");
         }
 
         assertTrue(

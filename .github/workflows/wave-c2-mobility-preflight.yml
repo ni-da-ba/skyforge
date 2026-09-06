@@ -41,5 +41,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
+      - name: Test Wave C2 mobility resources
+        run: ./gradlew :skyforge-neoforge-1211:test --tests '*WaveC2DevelopmentResourceTest' --no-configuration-cache
+
       - name: Resolve immutable Wave C2 artifacts
         run: ./gradlew :skyforge-neoforge-1211:waveC2ResolvePinnedMods --no-configuration-cache
