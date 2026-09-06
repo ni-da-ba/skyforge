@@ -858,6 +858,40 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // Current-capability developer showcase. Preparation deliberately reuses the accepted
+        // SF-IMP-0069 stacked production runtime unchanged, but writes into a stable presentation
+        // world. The viewer run then opens the persisted world with no generation binding installed;
+        // SkyforgeShowcaseViewer contributes navigation only and cannot manufacture terrain.
+        create("showcasePrepare") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("showcase")
+            systemProperty("skyforge.dev.productionInteriorPopulationStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "skyforge-current-capability-showcase")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/showcase/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("showcaseClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("showcase")
+            systemProperty("skyforge.dev.showcaseViewer", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -3027,4 +3061,96 @@ tasks.register("sfImp0069AcceptanceVerify") {
                 ", springs=" + first.getProperty("springsSuccessful"),
         )
     }
+}
+
+
+val skyforgeShowcaseResultDirectory = layout.buildDirectory.dir("acceptance/showcase")
+val skyforgeShowcaseServerProperties = """
+    level-name=showcase
+    level-seed=600068
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    allow-flight=true
+    view-distance=7
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSkyforgeShowcaseDirectory() {
+    val directory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(skyforgeShowcaseServerProperties)
+}
+
+fun requireSkyforgeShowcasePreparationPass() {
+    val file = skyforgeShowcaseResultDirectory.get().file("prepare.properties").asFile
+    check(file.isFile) { "Skyforge showcase preparation result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS") {
+        val detail = properties.getProperty("failure") ?: "status=" + properties.getProperty("status")
+        "Skyforge showcase preparation did not PASS: $detail"
+    }
+    check(properties.getProperty("lowerCompleted") == properties.getProperty("lowerRequired")
+            && properties.getProperty("upperCompleted") == properties.getProperty("upperRequired")
+            && properties.getProperty("lowerResultChunks").toInt() > 0
+            && properties.getProperty("upperResultChunks").toInt() > 0
+            && properties.getProperty("lowerSuccessful").toInt() > 0
+            && properties.getProperty("upperSuccessful").toInt() > 0
+            && properties.getProperty("lowerTrackedFluids").toInt() > 0
+            && properties.getProperty("upperTrackedFluids").toInt() > 0
+            && properties.getProperty("independentLedgers") == "true"
+            && properties.getProperty("foreignFluidRejected") == "true"
+            && properties.getProperty("cavesCompleteBeforeInterior") == "true"
+            && properties.getProperty("noReplay") == "true") {
+        "Skyforge showcase preparation evidence is incomplete: $properties"
+    }
+}
+
+tasks.named("runShowcasePrepare").configure {
+    doFirst {
+        delete(skyforgeShowcaseResultDirectory)
+        prepareSkyforgeShowcaseDirectory()
+    }
+    doLast {
+        requireSkyforgeShowcasePreparationPass()
+    }
+}
+
+tasks.named("runShowcaseClient").configure {
+    mustRunAfter("runShowcasePrepare")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
+        check(directory.resolve("saves/showcase/level.dat").isFile) {
+            "Skyforge showcase world is missing; run runShowcasePrepare first or use launchShowcase."
+        }
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.register("showcasePrepareVerify") {
+    group = "verification"
+    description = "Verify that the deterministic current-capability showcase world prepared successfully."
+    dependsOn("runShowcasePrepare")
+    doLast {
+        requireSkyforgeShowcasePreparationPass()
+        println(
+            "SKYFORGE SHOWCASE PREPARATION PASS: persisted stacked production world is ready for human review.",
+        )
+    }
+}
+
+tasks.register("launchShowcase") {
+    group = "application"
+    description = "Rebuild the deterministic Skyforge showcase world, then launch Minecraft directly into it."
+    dependsOn("runShowcasePrepare", "runShowcaseClient")
 }
