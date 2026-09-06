@@ -126,13 +126,12 @@ final class SkyforgeWaveC11FirstFlightRecipeAcceptance {
     }
 
     private static boolean isDirectlyBootstrapSafe(RecipeHolder<?> holder) {
-        for (Ingredient ingredient : holder.value().getIngredients()) {
-            // Shaped recipes expose blank pattern cells as Ingredient.EMPTY. They are geometry,
-            // not material requirements, and must not be treated as unknown/advanced inputs.
-            if (ingredient.isEmpty()) {
-                continue;
-            }
+        List<Ingredient> ingredients = effectiveIngredients(holder);
+        if (ingredients.isEmpty()) {
+            return false;
+        }
 
+        for (Ingredient ingredient : ingredients) {
             ItemStack[] variants = ingredient.getItems();
             if (variants.length == 0) {
                 // A non-empty custom ingredient with no enumerable concrete alternatives is not
@@ -155,13 +154,38 @@ final class SkyforgeWaveC11FirstFlightRecipeAcceptance {
         return true;
     }
 
+    private static List<Ingredient> effectiveIngredients(RecipeHolder<?> holder) {
+        List<Ingredient> ordinary = holder.value().getIngredients().stream()
+                .filter(ingredient -> !ingredient.isEmpty())
+                .toList();
+        if (!ordinary.isEmpty()) {
+            return ordinary;
+        }
+
+        // Create's SequencedAssemblyRecipe intentionally does not expose its starting ingredient
+        // through Recipe#getIngredients(), but its public getIngredient() is the authoritative live
+        // runtime field used by the serializer/JEI. Reflect it here so C11 does not vacuously accept
+        // the Engine Assembly recipe.
+        try {
+            var method = holder.value().getClass().getMethod("getIngredient");
+            Object value = method.invoke(holder.value());
+            if (value instanceof Ingredient ingredient && !ingredient.isEmpty()) {
+                return List.of(ingredient);
+            }
+        } catch (ReflectiveOperationException ignored) {
+            // Non-Create recipe without generic ingredients: conservatively return no proof.
+        }
+
+        return List.of();
+    }
+
     private static boolean isForbidden(ResourceLocation id) {
         String path = id.getPath();
         return FORBIDDEN_PATH_TOKENS.stream().anyMatch(path::contains);
     }
 
     private static String describe(RecipeHolder<?> holder) {
-        String ingredients = holder.value().getIngredients().stream()
+        String ingredients = effectiveIngredients(holder).stream()
                 .map(SkyforgeWaveC11FirstFlightRecipeAcceptance::describeIngredient)
                 .collect(Collectors.joining(","));
         return holder.id() + "[" + ingredients + "]";
