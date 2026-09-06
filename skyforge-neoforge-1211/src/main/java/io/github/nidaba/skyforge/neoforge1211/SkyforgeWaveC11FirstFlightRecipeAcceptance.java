@@ -127,9 +127,16 @@ final class SkyforgeWaveC11FirstFlightRecipeAcceptance {
 
     private static boolean isDirectlyBootstrapSafe(RecipeHolder<?> holder) {
         for (Ingredient ingredient : holder.value().getIngredients()) {
+            // Shaped recipes expose blank pattern cells as Ingredient.EMPTY. They are geometry,
+            // not material requirements, and must not be treated as unknown/advanced inputs.
+            if (ingredient.isEmpty()) {
+                continue;
+            }
+
             ItemStack[] variants = ingredient.getItems();
             if (variants.length == 0) {
-                // Empty/custom ingredients are not silently declared bootstrap-safe.
+                // A non-empty custom ingredient with no enumerable concrete alternatives is not
+                // silently declared bootstrap-safe.
                 return false;
             }
 
@@ -161,6 +168,9 @@ final class SkyforgeWaveC11FirstFlightRecipeAcceptance {
     }
 
     private static String describeIngredient(Ingredient ingredient) {
+        if (ingredient.isEmpty()) {
+            return "<empty>";
+        }
         return java.util.Arrays.stream(ingredient.getItems())
                 .map(stack -> BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
                 .sorted()

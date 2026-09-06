@@ -91,8 +91,7 @@ val waveC11Runtime = sourceSets.create("waveC11Runtime") {
     compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
     runtimeClasspath +=
         sourceSets.main.get().output +
-        sourceSets.main.get().runtimeClasspath +
-        development.output
+        sourceSets.main.get().runtimeClasspath
 }
 
 val waveC9PinFile = layout.projectDirectory.file("wave-c9-mods.properties")
