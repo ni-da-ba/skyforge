@@ -110,12 +110,11 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
             var source = event.getServer().createCommandSourceStack();
             event.getServer().getCommands().performPrefixedCommand(source, "gamerule doMobSpawning false");
             event.getServer().getCommands().performPrefixedCommand(source, "time set 2000");
-            int result = event.getServer().getCommands().performPrefixedCommand(
+            // Minecraft 1.21.1's performPrefixedCommand is void. The stronger proof is the
+            // subsequent EntityJoinLevelEvent/adaptation evidence, so do not infer summon success
+            // from a command return value that does not exist on this runtime.
+            event.getServer().getCommands().performPrefixedCommand(
                     source, "summon fowlplay:hawk 0 120 0");
-
-            if (result <= 0) {
-                failAcceptance("summon command did not create fowlplay:hawk");
-            }
         }
     }
 
@@ -212,7 +211,7 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
 
     private static void steerTowardThermal(ServerLevel level, Mob hawk, HawkState state) {
         Vec3 center = hawk.position();
-        SkyforgeA4mcLiftBridge.Sample best = atmosphere.sample(level, center);
+        SkyforgeA4mcLiftBridge.Sample best = sampleLift(level, center);
         Vec3 bestPosition = center;
 
         Vec3[] candidates = {
@@ -223,7 +222,7 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         };
 
         for (Vec3 candidate : candidates) {
-            SkyforgeA4mcLiftBridge.Sample sampled = atmosphere.sample(level, candidate);
+            SkyforgeA4mcLiftBridge.Sample sampled = sampleLift(level, candidate);
             if (sampled.trusted()
                     && (!best.trusted()
                             || sampled.updraftMetersPerSecond() > best.updraftMetersPerSecond())) {
