@@ -64,6 +64,12 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         // BASE_WORLD has completed. A deferred exact-volume write can therefore reuse the writer
         // without accidentally resurveying already-mutated terrain.
         SkyforgePhysicalVolumeAdmissionStage.observeBeforeRealization(chunk, nativeSurfaceSnapshot);
+        if (!SkyforgePhysicalVolumeAdmissionStage.allowsDirectRealization(chunk)) {
+            SkyforgeRuntimePerformanceMetrics.recordSince(
+                    "terrain.plannedDirectProjectionSkipped",
+                    performanceStart);
+            return Optional.of(new MinecraftChunkWriteResult(0, 0, 0));
+        }
 
         SkyforgeNeoForge1211IsolationDevRuntime.Proof isolationProof =
                 SkyforgeNeoForge1211IsolationDevRuntime.captureBeforeSkyforge(chunk);
