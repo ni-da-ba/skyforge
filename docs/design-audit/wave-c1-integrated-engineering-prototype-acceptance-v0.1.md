@@ -37,6 +37,27 @@ Optional test branches:
 
 Aeronautics/Sable/Diesel may remain installed if the local development pack already requires them, but Wave C1 does not require their balance acceptance.
 
+
+### Reproducible runtime specimen
+
+The exact development stack is now pinned and launchable through:
+
+~~~text
+docs/design-audit/wave-c1-runtime-specimen-v0.1.md
+skyforge-neoforge-1211/wave-c1-mods.properties
+~~~
+
+Focused run profiles:
+
+~~~text
+waveC1BaselineClient
+waveC1MetallurgyClient
+waveC1PropulsionClient
+waveC1IntegratedClient
+~~~
+
+The optional jars are isolated to those runs through ModDevGradle per-run runtime classpaths; they are not production Skyforge dependencies.
+
 ## Development resources currently prepared
 
 The runtime-authoritative fixture is now a standalone Minecraft 1.21.1 datapack at:

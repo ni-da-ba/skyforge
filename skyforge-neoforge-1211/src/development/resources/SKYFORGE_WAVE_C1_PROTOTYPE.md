@@ -17,3 +17,24 @@ Current prototype overrides:
 These files are test scaffolding, not final production integration. Runtime
 acceptance must prove resource-pack precedence and confirm that no Platinum or
 Wolframite placements occur when the relevant optional mods are loaded.
+
+
+## Reproducible runtime profiles
+
+Exact external-mod pins live at:
+
+`skyforge-neoforge-1211/wave-c1-mods.properties`
+
+Launch tasks:
+
+- `runWaveC1BaselineClient`
+- `runWaveC1MetallurgyClient`
+- `runWaveC1PropulsionClient`
+- `runWaveC1IntegratedClient`
+
+Preflight artifact resolution:
+
+- `waveC1ResolvePinnedMods`
+
+These dependencies are attached only to their named ModDevGradle runs. They do not become
+production Skyforge dependencies or alter the backend-neutral engine modules.

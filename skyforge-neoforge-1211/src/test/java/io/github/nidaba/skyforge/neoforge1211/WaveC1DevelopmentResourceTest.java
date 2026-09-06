@@ -1,10 +1,12 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 final class WaveC1DevelopmentResourceTest {
@@ -96,6 +98,35 @@ final class WaveC1DevelopmentResourceTest {
         assertTrue(
                 wolframite.contains("\"type\": \"neoforge:none\""),
                 "standalone Wave C1 datapack must disable Wolframite biome injection");
+    }
+
+    @Test
+    void runtimeSpecimenPinsAreExactAndReviewable() throws IOException {
+        Properties pins = new Properties();
+        try (var input = Files.newInputStream(Path.of("wave-c1-mods.properties"))) {
+            pins.load(input);
+        }
+
+        assertEquals("1.21.1", pins.getProperty("minecraft.version"));
+        assertEquals("21.1.249", pins.getProperty("neoforge.version"));
+        assertPinned(pins, "create", "6.0.10+mc1.21.1", "maven.modrinth:LNytGWDc:UjX6dr61");
+        assertPinned(pins, "rpl", "2.1.2", "maven.modrinth:B3pb093D:hZ6B2Z0x");
+        assertPinned(pins, "createbigcannons", "5.11.7", "maven.modrinth:GWp4jCJj:bOiDu0LS");
+        assertPinned(pins, "createaddition", "1.6.0", "maven.modrinth:kU1G12Nn:qPr8V4G2");
+        assertPinned(pins, "createmetallurgy", "1.0.3-1.21.1", "maven.modrinth:Soft45xC:4RhIMmaJ");
+        assertPinned(pins, "sable", "2.0.5+mc1.21.1", "maven.modrinth:T9PomCSv:U678xqle");
+        assertPinned(pins, "aeronautics", "1.3.2+mc1.21.1", "maven.modrinth:oWaK0Q19:44pLdPGg");
+        assertPinned(pins, "createpropulsion", "1.1.5", "maven.modrinth:ApkoHNO9:H13U56dc");
+        assertPinned(pins, "jei", "19.50.0.414", "maven.modrinth:u6dRKJwZ:zKog3N6a");
+    }
+
+    private static void assertPinned(
+            Properties pins, String mod, String version, String coordinate) {
+        assertEquals(version, pins.getProperty(mod + ".version"), mod + " version pin changed");
+        assertEquals(
+                coordinate,
+                pins.getProperty(mod + ".coordinate"),
+                mod + " immutable artifact pin changed");
     }
 
     private static String read(String... relativePath) throws IOException {
