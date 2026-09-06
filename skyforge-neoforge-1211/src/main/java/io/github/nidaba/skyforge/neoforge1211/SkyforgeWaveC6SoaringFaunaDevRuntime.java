@@ -123,6 +123,10 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
             return;
         }
         if (acceptanceMode) {
+            // Command-summoned mobs are allowed to despawn under ordinary mob lifecycle rules.
+            // This specimen must remain tickable long enough to prove the full enter/hold/exit
+            // hysteresis cycle, so persistence is a fixture property rather than production logic.
+            mob.setPersistenceRequired();
             acceptanceJoinedHawks++;
             if (acceptanceHawk == null) {
                 acceptanceHawk = mob;
@@ -272,6 +276,13 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         }
 
         long elapsed = event.getServer().overworld().getGameTime() - acceptanceStartTick;
+        if (acceptanceHawk != null && acceptanceHawk.isRemoved()) {
+            failAcceptance(
+                    "hawk removed before hysteresis cycle completed reason="
+                            + acceptanceHawk.getRemovalReason());
+            return;
+        }
+
         HawkState state = acceptanceHawk == null ? null : HAWKS.get(acceptanceHawk);
 
         if (state != null
