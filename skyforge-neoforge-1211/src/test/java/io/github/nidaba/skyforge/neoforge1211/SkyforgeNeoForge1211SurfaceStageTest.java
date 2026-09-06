@@ -218,6 +218,52 @@ final class SkyforgeNeoForge1211SurfaceStageTest {
         assertEquals(0, result.orElseThrow().candidateVolumeReferences());
     }
 
+    @Test
+    void boundedExactVolumeMaterializationMatchesFullHeightProjection() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
+        var volume = fixture.volume();
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                fixture.catalog(),
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+
+        var range = SkyforgeNeoForge1211SurfaceStage.boundedVerticalRange(chunk, volume.bounds());
+        var full = adapter.materialize(
+                volume.id(),
+                chunkPos,
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+        var bounded = adapter.materialize(
+                volume.id(),
+                chunkPos,
+                range.minimumY(),
+                range.height());
+
+        assertTrue(range.height() > 0);
+        assertTrue(range.height() < chunk.getHeight());
+        for (int worldY = chunk.getMinBuildHeight(); worldY < chunk.getMaxBuildHeight(); worldY++) {
+            for (int localZ = 0; localZ < 16; localZ++) {
+                for (int localX = 0; localX < 16; localX++) {
+                    var fullKey = full.blockKeyAt(localX, worldY, localZ);
+                    if (worldY >= range.minimumY() && worldY < range.maximumYExclusive()) {
+                        assertEquals(
+                                fullKey,
+                                bounded.blockKeyAt(localX, worldY, localZ),
+                                "bounded exact-volume projection must equal historical full-height projection");
+                    } else {
+                        assertEquals(
+                                SkyforgeMinecraftBlockPalette.AIR,
+                                fullKey,
+                                "conservative exact-volume bounds must contain every solid projection");
+                    }
+                }
+            }
+        }
+        assertEquals(full.solidBlockCount(), bounded.solidBlockCount());
+    }
+
     private static MaterializedPosition highestSolid(MinecraftChunkMaterialization materialization) {
         for (int worldY = materialization.minimumY() + materialization.height() - 1;
                 worldY >= materialization.minimumY();
