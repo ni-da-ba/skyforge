@@ -415,3 +415,8 @@ non-omniscient sensor access to Skyforge truth
 61. In the first shared-lift prototype, atmospheric lift may raise the final Reliable-Gliders vertical result but must not blindly add to an already stronger block-heat updraft.
 62. Atmospheric truth and ecology ownership remain separate: thermals may influence soaring behavior but may not independently spawn soaring fauna.
 63. Human-eye review is not a correctness gate for atmosphere/glider integration; ordering, authority, unit conversion, composition, and shared-consumer provenance require automated evidence. Human play is reserved for perceptual tuning.
+64. Fowl Play's existing red-tailed hawk is the leading THERMAL_SOARER realization; do not create a bespoke Skyforge hawk entity unless the external SmartBrain integration seam fails.
+65. SmartBrainLib 1.16.11 supports post-construction activity insertion and schedule replacement, so the leading hawk integration is an optional compat hook rather than a Fowl Play fork or entity replacement.
+66. Thermal soaring should substitute SOAR into the stock raptor HUNT windows only while trusted useful lift exists; preserve stock idle/rest windows and higher-priority avoid/fight/interaction behavior.
+67. Thermal presence may alter movement choice for an already-admitted hawk but may not create population. Ecology remains the sole species/population authority.
+68. Soaring-fauna route selection should reuse a low-frequency shared A4MC lift cache; do not perform independent wide atmosphere scans per bird per tick.
