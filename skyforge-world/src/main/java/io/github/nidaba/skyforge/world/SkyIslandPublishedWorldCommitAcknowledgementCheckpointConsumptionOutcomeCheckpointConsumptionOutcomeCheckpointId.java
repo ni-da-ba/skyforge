@@ -81,7 +81,7 @@ public record SkyIslandPublishedWorldCommitAcknowledgementCheckpointConsumptionO
                 new StringBuilder(
                         String.format(
                                 Locale.ROOT,
-                                "sfackcpoutoutcp:v%d:%016x:%d",
+                                "sfackcpoutcpoutcp:v%d:%016x:%d",
                                 schemaVersion,
                                 checkpointRevision,
                                 acknowledgementIdentity.size()));
