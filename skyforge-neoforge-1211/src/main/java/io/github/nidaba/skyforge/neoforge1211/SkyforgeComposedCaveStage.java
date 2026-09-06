@@ -40,11 +40,11 @@ import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
  * resolver into {@link SkyforgeComposedCaveRealizer}.
  */
 final class SkyforgeComposedCaveStage {
-    // One production service slot is intentionally limited to one chunk per level tick. The
-    // per-chunk cursor quanta must therefore be large enough to make finite-volume progress while
-    // remaining bounded. At eight columns/service, a 400-chunk acceptance footprint required at
-    // least 12,800 service ticks before carving; these quanta preserve resumability while removing
-    // that scheduler-induced starvation bound.
+    // Cursor quanta remain deliberately small and resumable. SF-IMP-0071 allows the stable-chunk
+    // catch-up service to pump several of these quanta within a strict per-tick work/time budget,
+    // so these limits bound each individual operation while the outer service bounds aggregate tick
+    // work. Mutation order remains canonical because the pump restarts from the first pending chunk
+    // after every successful quantum.
     private static final int MAX_PREPARE_COLUMNS_PER_SERVICE = 32;
     private static final int MAX_PREPARE_VOXELS_PER_SERVICE = 8192;
     private static final int MAX_PREPARE_CANONICAL_SAMPLES_PER_SERVICE = 128;
