@@ -9,10 +9,10 @@ Current prototype overrides:
 - Create Crafts & Additions Modular Accumulator accepts the mod's existing
   `createaddition:modular_accumulator_usable_wires` item tag, allowing Gold or
   Electrum instead of hard-requiring Electrum/Silver progression.
-- Create Propulsion: Simulated Platinum biome modifiers are redirected to the
-  empty `#skyforge:integration_disabled` biome tag.
-- Create: Metallurgy Wolframite biome injection is redirected to the same empty
-  tag for the foundry A/B.
+- Create Propulsion: Simulated Platinum biome modifiers are overridden with
+  NeoForge's supported `neoforge:none` no-op modifier.
+- Create: Metallurgy Wolframite biome injection is overridden with the same
+  no-op modifier for the foundry A/B.
 
 These files are test scaffolding, not final production integration. Runtime
 acceptance must prove resource-pack precedence and confirm that no Platinum or
