@@ -37,7 +37,9 @@ final class SkyforgeNativeSurfacePopulationStage {
             if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(plan.volumeId())) {
                 continue;
             }
-            results.add(binding.coordinator().populate(level, generator, plan, chunk.getPos()));
+            results.add(SkyforgeRuntimePerformanceMetrics.measure(
+                    "surfacePopulation.coordinator",
+                    () -> binding.coordinator().populate(level, generator, plan, chunk.getPos())));
         }
         return List.copyOf(results);
     }
@@ -91,7 +93,9 @@ final class SkyforgeNativeSurfacePopulationStage {
         List<SkyforgeNativeSurfacePopulationCoordinator.Result> results = new ArrayList<>(1);
         for (SkyforgeNativeSurfacePopulationPlan plan : resolvePlans(binding, chunk)) {
             if (plan.volumeId().equals(volumeId)) {
-                results.add(binding.coordinator().populate(level, generator, plan, chunk.getPos()));
+                results.add(SkyforgeRuntimePerformanceMetrics.measure(
+                        "surfacePopulation.coordinator",
+                        () -> binding.coordinator().populate(level, generator, plan, chunk.getPos())));
             }
         }
         return List.copyOf(results);

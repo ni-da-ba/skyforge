@@ -51,6 +51,8 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             return Optional.empty();
         }
 
+        long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
+
         // Physical admission is deliberately observed here, above the concrete writer and after
         // BASE_WORLD has completed. A deferred exact-volume write can therefore reuse the writer
         // without accidentally resurveying already-mutated terrain.
@@ -67,6 +69,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         }
         MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
         SkyforgeNeoForge1211IsolationDevRuntime.verifyAfterSkyforge(chunk, isolationProof);
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize", performanceStart);
         return Optional.of(result);
     }
 
@@ -134,6 +137,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             RuntimeBinding binding,
             ChunkAccess chunk,
             SkyforgePhysicalVolumeAdmissionStage.PendingRealization pending) {
+        long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
         MinecraftChunkMaterialization materialization = binding.adapter().materialize(
                 pending.volumeId(),
                 chunk.getPos(),
@@ -154,6 +158,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             return false;
         }
         SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realizeDeferred", performanceStart);
         return true;
     }
 

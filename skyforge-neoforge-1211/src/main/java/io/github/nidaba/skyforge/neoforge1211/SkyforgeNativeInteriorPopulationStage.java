@@ -151,15 +151,17 @@ final class SkyforgeNativeInteriorPopulationStage {
                 var postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(level);
                 try {
                     for (var phase : obligation.plan().phases()) {
-                        phaseResults.add(SkyforgeNativeBiomePopulationRunner.populateStep(
-                                level,
-                                generator,
-                                surfacePlan.biomeResolver(),
-                                volumeId,
-                                chunk.getPos(),
-                                biomeSample,
-                                phase,
-                                obligation.plan().maximumAttachmentDepth()));
+                        phaseResults.add(SkyforgeRuntimePerformanceMetrics.measure(
+                                "interior." + phase.name(),
+                                () -> SkyforgeNativeBiomePopulationRunner.populateStep(
+                                        level,
+                                        generator,
+                                        surfacePlan.biomeResolver(),
+                                        volumeId,
+                                        chunk.getPos(),
+                                        biomeSample,
+                                        phase,
+                                        obligation.plan().maximumAttachmentDepth())));
                     }
                 } finally {
                     postProcessing.close();

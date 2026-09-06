@@ -136,6 +136,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
             return;
         }
         record(values);
+        record(SkyforgeRuntimePerformanceMetrics.evidence());
         complete("PASS");
         completionRequested = true;
         LOGGER.log(
@@ -179,6 +180,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
     }
 
     private static void warmOriginFootprint(ServerLevel level) {
+        long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
         int radius = radius();
         var chunkSource = level.getChunkSource();
         for (int chunkX = -radius; chunkX <= radius; chunkX++) {
@@ -196,6 +198,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
                 level.getChunk(chunkX, chunkZ);
             }
         }
+        SkyforgeRuntimePerformanceMetrics.recordSince("acceptance.warmOriginFootprint", performanceStart);
     }
 
     private static int radius() {
