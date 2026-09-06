@@ -8,6 +8,7 @@ import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import org.junit.jupiter.api.Test;
 
@@ -19,14 +20,17 @@ final class SkyforgeNativeInteriorPlacementPolicyTest {
             ResourceLocation.fromNamespaceAndPath("minecraft", "plausibility_test");
 
     @Test
-    void undergroundDecorationRejectsOuterOwnerShellButAllowsBuriedCell() {
+    void undergroundDecorationUsesSolidExteriorReadBarrierWithoutBlanketShellWriteBan() {
         Predicate<BlockPos> solidCube = cubeOwner(0, 2);
         var operation = operation(GenerationStep.Decoration.UNDERGROUND_DECORATION);
 
         assertTrue(SkyforgeNativeInteriorPlacementPolicy.canWrite(
                 operation, new BlockPos(1, 1, 1), solidCube));
-        assertFalse(SkyforgeNativeInteriorPlacementPolicy.canWrite(
+        assertTrue(SkyforgeNativeInteriorPlacementPolicy.canWrite(
                 operation, new BlockPos(0, 1, 1), solidCube));
+        assertTrue(SkyforgeNativeInteriorPlacementPolicy
+                .hiddenExteriorBlockState(operation)
+                .is(Blocks.BEDROCK));
     }
 
     @Test
@@ -47,6 +51,9 @@ final class SkyforgeNativeInteriorPlacementPolicyTest {
 
         assertTrue(SkyforgeNativeInteriorPlacementPolicy.canWrite(
                 operation, new BlockPos(0, 1, 1), solidCube));
+        assertTrue(SkyforgeNativeInteriorPlacementPolicy
+                .hiddenExteriorBlockState(operation)
+                .is(Blocks.AIR));
     }
 
     @Test
