@@ -278,8 +278,8 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                         java.util.Map.entry("upperUnsupportedGlowLichen", upperPlausibility.unsupportedGlowLichen()),
                         java.util.Map.entry("lowerBoundaryGlowLichen", lowerPlausibility.boundaryGlowLichen()),
                         java.util.Map.entry("upperBoundaryGlowLichen", upperPlausibility.boundaryGlowLichen()),
-                        java.util.Map.entry("lowerBoundarySpringFluids", lowerPlausibility.boundaryTrackedFluids()),
-                        java.util.Map.entry("upperBoundarySpringFluids", upperPlausibility.boundaryTrackedFluids()),
+                        java.util.Map.entry("lowerBoundarySpringFluids", lowerPlausibility.boundarySpringFluids()),
+                        java.util.Map.entry("upperBoundarySpringFluids", upperPlausibility.boundarySpringFluids()),
                         java.util.Map.entry("lowerMaxGlowLichenPerChunk", lowerPlausibility.maximumGlowLichenPerChunk()),
                         java.util.Map.entry("upperMaxGlowLichenPerChunk", upperPlausibility.maximumGlowLichenPerChunk()),
                         java.util.Map.entry("interiorShellPlausibility", true)));
