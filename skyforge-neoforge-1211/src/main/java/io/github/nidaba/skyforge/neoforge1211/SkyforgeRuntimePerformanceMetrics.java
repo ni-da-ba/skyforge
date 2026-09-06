@@ -19,6 +19,7 @@ final class SkyforgeRuntimePerformanceMetrics {
     static final String ENABLE_PROPERTY = "skyforge.dev.performanceMetrics";
 
     private static final ConcurrentHashMap<String, Metric> METRICS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, SampleMetric> SAMPLES = new ConcurrentHashMap<>();
     private static final AtomicLong PROCESS_START_NANOS = new AtomicLong(Long.MIN_VALUE);
 
     private SkyforgeRuntimePerformanceMetrics() {}
@@ -73,6 +74,21 @@ final class SkyforgeRuntimePerformanceMetrics {
         metric.maxNanos.accumulateAndGet(elapsedNanos, Math::max);
     }
 
+    /** Records a non-negative unitless sample alongside, but separately from, nanosecond timers. */
+    static void recordSample(String stage, long value) {
+        if (!enabled()) {
+            return;
+        }
+        Objects.requireNonNull(stage, "stage");
+        if (value < 0L) {
+            throw new IllegalArgumentException("performance sample must be nonnegative");
+        }
+        SampleMetric sample = SAMPLES.computeIfAbsent(stage, ignored -> new SampleMetric());
+        sample.samples.increment();
+        sample.total.add(value);
+        sample.maximum.accumulateAndGet(value, Math::max);
+    }
+
     static Map<String, Object> evidence() {
         if (!enabled()) {
             return Map.of();
@@ -92,6 +108,15 @@ final class SkyforgeRuntimePerformanceMetrics {
                     evidence.put(prefix + ".totalNanos", metric.totalNanos.sum());
                     evidence.put(prefix + ".maxNanos", metric.maxNanos.get());
                 });
+        SAMPLES.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> {
+                    String prefix = "perf." + entry.getKey();
+                    SampleMetric sample = entry.getValue();
+                    evidence.put(prefix + ".samples", sample.samples.sum());
+                    evidence.put(prefix + ".total", sample.total.sum());
+                    evidence.put(prefix + ".max", sample.maximum.get());
+                });
         return Map.copyOf(evidence);
     }
 
@@ -99,5 +124,11 @@ final class SkyforgeRuntimePerformanceMetrics {
         private final LongAdder calls = new LongAdder();
         private final LongAdder totalNanos = new LongAdder();
         private final AtomicLong maxNanos = new AtomicLong();
+    }
+
+    private static final class SampleMetric {
+        private final LongAdder samples = new LongAdder();
+        private final LongAdder total = new LongAdder();
+        private final AtomicLong maximum = new AtomicLong();
     }
 }
