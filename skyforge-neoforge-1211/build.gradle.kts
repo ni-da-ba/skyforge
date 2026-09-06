@@ -49,6 +49,18 @@ tasks.withType<Test>().configureEach {
 // keeping temporary world presets and UI tags out of distributable Skyforge artifacts.
 val development = sourceSets.create("development")
 
+
+// External NeoForge mods must live on a run source set's runtime classpath to be discovered as mods.
+// AdditionalRuntimeClasspath is the legacy *library* classpath and is therefore insufficient for
+// Fowl Play/A4MC runtime acceptance on Minecraft 1.21.1.
+val waveC5Runtime = sourceSets.create("waveC5Runtime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
 // immutable Modrinth version IDs live in one small lock manifest so the development specimen can
 // be reproduced without making these R&D candidates production dependencies.
@@ -1386,6 +1398,7 @@ neoForge {
         // on the dedicated server before any thermal-soaring compatibility code is admitted.
         create("waveC5SoaringFaunaServer") {
             server()
+            sourceSet.set(waveC5Runtime)
             gameDirectory = layout.projectDirectory.dir("run-wave-c5-soaring-fauna-server").asFile
             programArgument("--nogui")
             systemProperty("skyforge.dev.waveC5Profile", "soaring-fauna")
@@ -1398,6 +1411,7 @@ neoForge {
         // reflection bridge and event hooks.
         create("waveC6HawkThermalServer") {
             server()
+            sourceSet.set(waveC5Runtime)
             gameDirectory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-server").asFile
             programArgument("--nogui")
             systemProperty("skyforge.dev.waveC6SoaringFauna", "true")
@@ -3327,8 +3341,7 @@ tasks.register("waveC5ResolvePinnedMods") {
     inputs.file(waveC3PinFile)
 
     doLast {
-        val files = configurations.getByName("waveC5SoaringFaunaServerLegacyClasspath")
-            .files
+        val files = waveC5Runtime.runtimeClasspath.files
             .map { it.name }
             .sorted()
 
@@ -3363,8 +3376,7 @@ tasks.register("waveC6ResolvePinnedMods") {
     inputs.file(waveC3PinFile)
 
     doLast {
-        val files = configurations.getByName("waveC6HawkThermalServerLegacyClasspath")
-            .files
+        val files = waveC5Runtime.runtimeClasspath.files
             .map { it.name }
             .sorted()
 
@@ -3482,27 +3494,16 @@ dependencies {
     }
 
 
-    // C5 reuses A4MC core as the accepted atmosphere source and adds only the bird/AI substrate.
+    // C5/C6 external mods belong on the isolated run source set's runtime classpath so FML
+    // discovers them as NeoForge mods rather than treating them as legacy Java libraries.
     waveC5BirdStackMods.forEach { mod ->
         add(
-            "waveC5SoaringFaunaServerAdditionalRuntimeClasspath",
+            waveC5Runtime.runtimeOnlyConfigurationName,
             waveC5Pin(mod, "coordinate"),
         )
     }
     add(
-        "waveC5SoaringFaunaServerAdditionalRuntimeClasspath",
-        files(waveC3AeroCoreArtifact),
-    )
-
-
-    waveC5BirdStackMods.forEach { mod ->
-        add(
-            "waveC6HawkThermalServerAdditionalRuntimeClasspath",
-            waveC5Pin(mod, "coordinate"),
-        )
-    }
-    add(
-        "waveC6HawkThermalServerAdditionalRuntimeClasspath",
+        waveC5Runtime.runtimeOnlyConfigurationName,
         files(waveC3AeroCoreArtifact),
     )
 
