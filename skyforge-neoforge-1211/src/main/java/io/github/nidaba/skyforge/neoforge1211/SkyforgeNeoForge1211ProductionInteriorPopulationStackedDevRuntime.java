@@ -278,8 +278,8 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                         java.util.Map.entry("upperUnsupportedGlowLichen", upperPlausibility.unsupportedGlowLichen()),
                         java.util.Map.entry("lowerBoundaryGlowLichen", lowerPlausibility.boundaryGlowLichen()),
                         java.util.Map.entry("upperBoundaryGlowLichen", upperPlausibility.boundaryGlowLichen()),
-                        java.util.Map.entry("lowerBoundaryTrackedFluids", lowerPlausibility.boundaryTrackedFluids()),
-                        java.util.Map.entry("upperBoundaryTrackedFluids", upperPlausibility.boundaryTrackedFluids()),
+                        java.util.Map.entry("lowerBoundarySpringFluids", lowerPlausibility.boundaryTrackedFluids()),
+                        java.util.Map.entry("upperBoundarySpringFluids", upperPlausibility.boundaryTrackedFluids()),
                         java.util.Map.entry("lowerMaxGlowLichenPerChunk", lowerPlausibility.maximumGlowLichenPerChunk()),
                         java.util.Map.entry("upperMaxGlowLichenPerChunk", upperPlausibility.maximumGlowLichenPerChunk()),
                         java.util.Map.entry("interiorShellPlausibility", true)));
@@ -334,16 +334,22 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
         }
 
         int liveTrackedFluids = 0;
-        int boundaryTrackedFluids = 0;
+        int liveSpringFluids = 0;
+        int boundarySpringFluids = 0;
         for (var tracked : SkyforgeGeneratedFluidPropagationStage.trackedFluids(level, volume.id())) {
             BlockPos trackedPosition = BlockPos.of(tracked.position());
             if (level.getFluidState(trackedPosition).isEmpty()) {
                 continue;
             }
             liveTrackedFluids++;
+            if (tracked.boundaryPolicy()
+                    != SkyforgeGeneratedFluidPropagationStage.BoundaryPolicy.INTERIOR_SHELL) {
+                continue;
+            }
+            liveSpringFluids++;
             if (!SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
                     volume.id(), trackedPosition)) {
-                boundaryTrackedFluids++;
+                boundarySpringFluids++;
             }
         }
         return new Plausibility(
@@ -352,7 +358,8 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                 boundaryGlowLichen,
                 maximumGlowLichenPerChunk,
                 liveTrackedFluids,
-                boundaryTrackedFluids);
+                liveSpringFluids,
+                boundarySpringFluids);
     }
 
     private static Aggregate aggregate(SkyIslandWorldVolumeId volumeId) {
@@ -452,13 +459,15 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
             int boundaryGlowLichen,
             int maximumGlowLichenPerChunk,
             int liveTrackedFluids,
-            int boundaryTrackedFluids) {
+            int liveSpringFluids,
+            int boundarySpringFluids) {
         private boolean valid() {
             return glowLichen > 0
                     && unsupportedGlowLichen == 0
                     && boundaryGlowLichen == 0
                     && liveTrackedFluids > 0
-                    && boundaryTrackedFluids == 0;
+                    && liveSpringFluids > 0
+                    && boundarySpringFluids == 0;
         }
     }
 
