@@ -16,6 +16,7 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.List;
+import java.util.OptionalInt;
 import net.minecraft.world.level.ChunkPos;
 import org.junit.jupiter.api.Test;
 
@@ -107,6 +108,43 @@ final class SkyforgeNeoForge1211ChunkAdapterTest {
     }
 
     @Test
+    void exactVolumeFirstFreeHeightMatchesHistoricalFullSpanOwnershipScan() {
+        SkyIslandWorldCatalog catalog = catalog();
+        SkyIslandWorldVolumeId volumeId = catalog.volumes().getFirst().id();
+        SkyforgeNeoForge1211ChunkAdapter adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+
+        assertEquals(
+                manualFirstFreeHeight(adapter, volumeId, 0, 0, -64, 640),
+                adapter.firstFreeHeight(volumeId, 0, 0, -64, 640));
+        assertEquals(
+                manualFirstFreeHeight(adapter, volumeId, 40, -24, 250, 120),
+                adapter.firstFreeHeight(volumeId, 40, -24, 250, 120));
+        assertEquals(
+                manualFirstFreeHeight(adapter, volumeId, 255, 255, -64, 640),
+                adapter.firstFreeHeight(volumeId, 255, 255, -64, 640));
+    }
+
+    @Test
+    void exactVolumeFirstFreeHeightReturnsEmptyForDisjointRequestedSpan() {
+        SkyIslandWorldCatalog catalog = catalog();
+        SkyIslandWorldVolumeId volumeId = catalog.volumes().getFirst().id();
+        SkyforgeNeoForge1211ChunkAdapter adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+
+        assertEquals(
+                OptionalInt.empty(),
+                adapter.firstFreeHeight(volumeId, 0, 0, -64, 64));
+        assertEquals(
+                OptionalInt.empty(),
+                adapter.firstFreeHeight(volumeId, 0, 0, 600, 32));
+    }
+
+    @Test
     void exactVolumeRematerializationExcludesOtherStackedVolumeAtSameXZ() {
         long lowerSeed = ROOT_SEED ^ 0x4c4f574552L;
         long upperSeed = ROOT_SEED ^ 0x5550504552L;
@@ -154,6 +192,22 @@ final class SkyforgeNeoForge1211ChunkAdapterTest {
                 lower.blockKeys(),
                 adapter.materialize(lowerId, chunkPos, 176, 256).blockKeys(),
                 "deferred exact-volume rematerialization must be deterministic");
+    }
+
+    private static OptionalInt manualFirstFreeHeight(
+            SkyforgeNeoForge1211ChunkAdapter adapter,
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ,
+            int minimumY,
+            int height) {
+        int maximumYExclusive = Math.addExact(minimumY, height);
+        for (int worldY = maximumYExclusive - 1; worldY >= minimumY; worldY--) {
+            if (adapter.isSolidOwnedBy(volumeId, worldX, worldY, worldZ)) {
+                return OptionalInt.of(worldY + 1);
+            }
+        }
+        return OptionalInt.empty();
     }
 
     private static boolean contains(
