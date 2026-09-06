@@ -98,11 +98,13 @@ final class SkyforgeNativeChunkOccupancySurvey {
 
         int chunkMinimumY = chunk.getMinBuildHeight();
         int chunkMaximumYExclusive = chunk.getMaxBuildHeight();
-        int boundedMinimumY = Math.max(chunkMinimumY, floorToInt(volumeBounds.minimumY()));
+        int boundedMinimumY = Math.min(
+                chunkMaximumYExclusive,
+                Math.max(chunkMinimumY, floorToInt(volumeBounds.minimumY())));
         long volumeMaximumYExclusive = Math.addExact((long) floorToInt(volumeBounds.maximumY()), 1L);
-        int boundedMaximumYExclusive = (int) Math.min(
-                (long) chunkMaximumYExclusive,
-                volumeMaximumYExclusive);
+        int boundedMaximumYExclusive = Math.max(
+                chunkMinimumY,
+                (int) Math.min((long) chunkMaximumYExclusive, volumeMaximumYExclusive));
         if (boundedMaximumYExclusive < boundedMinimumY) {
             boundedMaximumYExclusive = boundedMinimumY;
         }
