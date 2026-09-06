@@ -291,6 +291,26 @@ jobs:
           test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/manifest.csv
           test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/prepared.csv
           test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/ticket.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/acknowledgement.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/set.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/checkpoint.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/failures.csv
 
       - name: Publish compact evidence review bundle
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -511,6 +531,18 @@ jobs:
             skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/**/*.png
             skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/**/*.html
             skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/**/*.csv
           if-no-files-found: error
           retention-days: 7
           compression-level: 9
