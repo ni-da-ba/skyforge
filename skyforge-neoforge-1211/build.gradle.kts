@@ -3607,6 +3607,19 @@ tasks.register("sfImp0070PerformanceVerify") {
             "SF-IMP-0070 timing run lost SF-IMP-0069 correctness evidence: $properties"
         }
 
+        val admissionVerticalSamples =
+            properties.getProperty("perf.admission.occupancySurveyVerticalSamples.samples").toLong()
+        val admissionVerticalTotal =
+            properties.getProperty("perf.admission.occupancySurveyVerticalSamples.total").toLong()
+        val admissionVerticalMax =
+            properties.getProperty("perf.admission.occupancySurveyVerticalSamples.max").toLong()
+        check(admissionVerticalSamples == 392L
+                && admissionVerticalTotal == 39_592L
+                && admissionVerticalMax == 101L) {
+            "SF-IMP-0073 admission survey Y clamp evidence changed: " +
+                "samples=$admissionVerticalSamples, total=$admissionVerticalTotal, max=$admissionVerticalMax"
+        }
+
         val terrainRealizeCalls = properties.getProperty("perf.terrain.realize.calls").toLong()
         check(terrainRealizeCalls in 1L..<300L) {
             "SF-IMP-0072 non-candidate terrain prefilter did not reduce direct realization calls: " +
@@ -3625,6 +3638,7 @@ tasks.register("sfImp0070PerformanceVerify") {
         println(
             "SF-IMP-0070 PERFORMANCE CHARACTERIZATION PASS: processMs=$elapsedMs, warmupMs=$warmupMs, " +
                 "terrainRealizeCalls=$terrainRealizeCalls, " +
+                "admissionYTotal=$admissionVerticalTotal, admissionYMax=$admissionVerticalMax, " +
                 "cavePreflightCalls=$cavePreflightCalls, cavePumpCalls=$cavePumpCalls, " +
                 "metrics=" + requiredMetrics.size,
         )
