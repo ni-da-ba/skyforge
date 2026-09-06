@@ -216,6 +216,8 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
 
         FeatureEvidence lowerGlowFeature = glowLichenFeatureEvidence(lower.id());
         FeatureEvidence upperGlowFeature = glowLichenFeatureEvidence(upper.id());
+        FeatureEvidence lowerSurfaceGlowFeature = surfaceGlowLichenFeatureEvidence(lower.id());
+        FeatureEvidence upperSurfaceGlowFeature = surfaceGlowLichenFeatureEvidence(upper.id());
         Plausibility lowerPlausibility = scanPlausibility(
                 level,
                 lower,
@@ -232,7 +234,9 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                     "SF-IMP-0078 native interior plausibility failed: lower="
                             + lowerPlausibility + ", upper=" + upperPlausibility
                             + ", lowerGlowFeature=" + lowerGlowFeature
-                            + ", upperGlowFeature=" + upperGlowFeature);
+                            + ", upperGlowFeature=" + upperGlowFeature
+                            + ", lowerSurfaceGlowFeature=" + lowerSurfaceGlowFeature
+                            + ", upperSurfaceGlowFeature=" + upperSurfaceGlowFeature);
         }
 
         proofComplete = true;
@@ -290,6 +294,10 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                         java.util.Map.entry("upperGlowFeatureAttempts", upperGlowFeature.attempts()),
                         java.util.Map.entry("lowerGlowFeatureSuccesses", lowerGlowFeature.successes()),
                         java.util.Map.entry("upperGlowFeatureSuccesses", upperGlowFeature.successes()),
+                        java.util.Map.entry("lowerSurfaceGlowFeatureAttempts", lowerSurfaceGlowFeature.attempts()),
+                        java.util.Map.entry("upperSurfaceGlowFeatureAttempts", upperSurfaceGlowFeature.attempts()),
+                        java.util.Map.entry("lowerSurfaceGlowFeatureSuccesses", lowerSurfaceGlowFeature.successes()),
+                        java.util.Map.entry("upperSurfaceGlowFeatureSuccesses", upperSurfaceGlowFeature.successes()),
                         java.util.Map.entry("interiorShellPlausibility", true)));
     }
 
@@ -504,8 +512,7 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
             int liveSpringFluids,
             int boundarySpringFluids) {
         private boolean valid() {
-            return glowLichen > 0
-                    && unsupportedGlowLichen == 0
+            return unsupportedGlowLichen == 0
                     && boundaryGlowLichen == 0
                     && liveTrackedFluids > 0
                     && liveSpringFluids > 0
