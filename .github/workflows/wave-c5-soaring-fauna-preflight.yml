@@ -64,8 +64,12 @@ jobs:
             sleep 1
           done
 
-          if [[ "${ready}" -eq 1 ]]; then
-            echo "PASS Wave C5: Fowl Play + SmartBrainLib + YACL + A4MC reached server-ready state"
+          if [[ "${ready}" -eq 1 ]] \
+             && grep -Fq "(fowlplay)" "${log}" \
+             && grep -Fq "(smartbrainlib)" "${log}" \
+             && grep -Fq "(yet_another_config_lib_v3)" "${log}" \
+             && grep -Fq "(aerodynamics4mc)" "${log}"; then
+            echo "PASS Wave C5: FML discovered Fowl Play + SmartBrainLib + YACL + A4MC and server reached ready state"
             kill -TERM -- "-${pid}" 2>/dev/null || true
             sleep 2
             kill -KILL -- "-${pid}" 2>/dev/null || true
@@ -73,7 +77,7 @@ jobs:
             exit 0
           fi
 
-          echo "FAIL Wave C5: server never reached ready state"
+          echo "FAIL Wave C5: required mods were not FML-discovered or server never reached ready state"
           cat "${log}"
           kill -TERM -- "-${pid}" 2>/dev/null || true
           sleep 1

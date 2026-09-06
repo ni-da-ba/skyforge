@@ -45,8 +45,11 @@ final class WaveC5DevelopmentResourceTest {
     void buildKeepsBirdStackDevelopmentOnlyAndReusesC3AtmosphereAuthority() throws IOException {
         String build = Files.readString(PROJECT_DIRECTORY.resolve("build.gradle.kts"));
 
-        assertTrue(build.contains("waveC5SoaringFaunaServerAdditionalRuntimeClasspath"));
+        assertTrue(build.contains("val waveC5Runtime = sourceSets.create(\"waveC5Runtime\")"));
+        assertTrue(build.contains("sourceSet.set(waveC5Runtime)"));
+        assertTrue(build.contains("waveC5Runtime.runtimeOnlyConfigurationName"));
         assertTrue(build.contains("files(waveC3AeroCoreArtifact)"));
         assertTrue(build.contains("runWaveC5SoaringFaunaServer"));
+        assertTrue(build.contains("runWaveC6HawkThermalServer"));
     }
 }
