@@ -26,18 +26,7 @@ final class WaveC1DevelopmentResourceTest {
     }
 
     @Test
-    void rejectedOreBiomeModifiersTargetEmptySkyforgeTag() throws IOException {
-        String disabledTag = read(
-                "data",
-                "skyforge",
-                "tags",
-                "worldgen",
-                "biome",
-                "integration_disabled.json");
-        assertTrue(
-                disabledTag.contains("\"values\": []"),
-                "integration-disabled biome tag must remain empty");
-
+    void rejectedOreBiomeModifiersAreNoOps() throws IOException {
         for (String modifier : new String[] {
             "add_ore_platinum.json",
             "add_ore_platinum_buried.json",
@@ -51,8 +40,8 @@ final class WaveC1DevelopmentResourceTest {
                     "biome_modifier",
                     modifier);
             assertTrue(
-                    json.contains("\"biomes\": \"#skyforge:integration_disabled\""),
-                    modifier + " must not target real biomes in the Wave C1 prototype");
+                    json.contains("\"type\": \"neoforge:none\""),
+                    modifier + " must be a no-op in the Wave C1 prototype");
         }
 
         String wolframite = read(
@@ -62,7 +51,7 @@ final class WaveC1DevelopmentResourceTest {
                 "biome_modifier",
                 "wolframite_ore.json");
         assertTrue(
-                wolframite.contains("\"biomes\": \"#skyforge:integration_disabled\""),
+                wolframite.contains("\"type\": \"neoforge:none\""),
                 "Metallurgy A/B must not inject Wolframite into Nether geography");
     }
 
