@@ -214,6 +214,8 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                             + lowerFluidSnapshot + ", upper=" + upperFluidSnapshot);
         }
 
+        FeatureEvidence lowerGlowFeature = glowLichenFeatureEvidence(lower.id());
+        FeatureEvidence upperGlowFeature = glowLichenFeatureEvidence(upper.id());
         Plausibility lowerPlausibility = scanPlausibility(
                 level,
                 lower,
@@ -228,7 +230,9 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
         if (!lowerPlausibility.valid() || !upperPlausibility.valid()) {
             throw new IllegalStateException(
                     "SF-IMP-0078 native interior plausibility failed: lower="
-                            + lowerPlausibility + ", upper=" + upperPlausibility);
+                            + lowerPlausibility + ", upper=" + upperPlausibility
+                            + ", lowerGlowFeature=" + lowerGlowFeature
+                            + ", upperGlowFeature=" + upperGlowFeature);
         }
 
         proofComplete = true;
@@ -282,7 +286,37 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                         java.util.Map.entry("upperBoundarySpringFluids", upperPlausibility.boundarySpringFluids()),
                         java.util.Map.entry("lowerMaxGlowLichenPerChunk", lowerPlausibility.maximumGlowLichenPerChunk()),
                         java.util.Map.entry("upperMaxGlowLichenPerChunk", upperPlausibility.maximumGlowLichenPerChunk()),
+                        java.util.Map.entry("lowerGlowFeatureAttempts", lowerGlowFeature.attempts()),
+                        java.util.Map.entry("upperGlowFeatureAttempts", upperGlowFeature.attempts()),
+                        java.util.Map.entry("lowerGlowFeatureSuccesses", lowerGlowFeature.successes()),
+                        java.util.Map.entry("upperGlowFeatureSuccesses", upperGlowFeature.successes()),
                         java.util.Map.entry("interiorShellPlausibility", true)));
+    }
+
+    private static FeatureEvidence glowLichenFeatureEvidence(
+            SkyIslandWorldVolumeId volumeId) {
+        int attempts = 0;
+        int successes = 0;
+        for (var completion : SkyforgeNativeInteriorPopulationStage.completed()) {
+            if (!completion.volumeId().equals(volumeId)) {
+                continue;
+            }
+            for (var result : completion.phaseResults()) {
+                if (result.generationStep() != GenerationStep.Decoration.UNDERGROUND_DECORATION) {
+                    continue;
+                }
+                for (var feature : result.featureResults()) {
+                    if (!feature.featureKey().getPath().contains("glow_lichen")) {
+                        continue;
+                    }
+                    attempts++;
+                    if (feature.placed()) {
+                        successes++;
+                    }
+                }
+            }
+        }
+        return new FeatureEvidence(attempts, successes);
     }
 
     private static Plausibility scanPlausibility(
@@ -452,6 +486,14 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
     }
 
     private record TrackedSample(BlockPos position, net.minecraft.world.level.material.FluidState state) {}
+
+    private record FeatureEvidence(int attempts, int successes) {
+        private FeatureEvidence {
+            if (attempts < 0 || successes < 0 || successes > attempts) {
+                throw new IllegalArgumentException("invalid feature evidence counts");
+            }
+        }
+    }
 
     private record Plausibility(
             int glowLichen,
