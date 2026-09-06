@@ -209,10 +209,12 @@ final class SkyforgeComposedCaveStage {
                 }
             }
 
-            var advance = preparation.advance(
-                    MAX_PREPARE_COLUMNS_PER_SERVICE,
-                    MAX_PREPARE_VOXELS_PER_SERVICE,
-                    MAX_PREPARE_CANONICAL_SAMPLES_PER_SERVICE);
+            var advance = SkyforgeRuntimePerformanceMetrics.measure(
+                    "caves.authoredPreflight",
+                    () -> preparation.advance(
+                            MAX_PREPARE_COLUMNS_PER_SERVICE,
+                            MAX_PREPARE_VOXELS_PER_SERVICE,
+                            MAX_PREPARE_CANONICAL_SAMPLES_PER_SERVICE));
             if (!advance.complete()) {
                 return advance.worked() ? ServiceResult.progressed() : ServiceResult.idle();
             }
@@ -269,9 +271,11 @@ final class SkyforgeComposedCaveStage {
                 }
             }
 
-            var nativeAdvance = nativeCursor.advance(
-                    chunk,
-                    MAX_NATIVE_CARVER_START_CHECKS_PER_SERVICE);
+            var nativeAdvance = SkyforgeRuntimePerformanceMetrics.measure(
+                    "caves.nativeCarver",
+                    () -> nativeCursor.advance(
+                            chunk,
+                            MAX_NATIVE_CARVER_START_CHECKS_PER_SERVICE));
             if (!nativeAdvance.complete()) {
                 return nativeAdvance.worked() ? ServiceResult.progressed() : ServiceResult.idle();
             }
@@ -289,10 +293,12 @@ final class SkyforgeComposedCaveStage {
                 }
             }
 
-            var authoredAdvance = authoredCommit.advance(
-                    level,
-                    chunk,
-                    MAX_AUTHORED_COMMIT_WRITES_PER_SERVICE);
+            var authoredAdvance = SkyforgeRuntimePerformanceMetrics.measure(
+                    "caves.authoredCommit",
+                    () -> authoredCommit.advance(
+                            level,
+                            chunk,
+                            MAX_AUTHORED_COMMIT_WRITES_PER_SERVICE));
             if (!authoredAdvance.complete()) {
                 return authoredAdvance.worked() ? ServiceResult.progressed() : ServiceResult.idle();
             }
