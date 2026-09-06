@@ -55,10 +55,16 @@ jobs:
           setsid ./gradlew :skyforge-neoforge-1211:runWaveC6HawkThermalServer --no-configuration-cache >"${log}" 2>&1 &
           pid=$!
           ready=0
+          bridge=0
 
           for _ in $(seq 1 120); do
             if grep -Fq "Done (" "${log}" 2>/dev/null; then
               ready=1
+            fi
+            if grep -Fq "Wave C6 Fowl Play/A4MC soaring-fauna compatibility enabled" "${log}" 2>/dev/null; then
+              bridge=1
+            fi
+            if [[ "${ready}" -eq 1 && "${bridge}" -eq 1 ]]; then
               break
             fi
             if ! kill -0 "${pid}" 2>/dev/null; then
@@ -67,7 +73,7 @@ jobs:
             sleep 1
           done
 
-          if [[ "${ready}" -eq 1 ]] && grep -Fq "Wave C6 Fowl Play/A4MC soaring-fauna compatibility enabled" "${log}"; then
+          if [[ "${ready}" -eq 1 && "${bridge}" -eq 1 ]]; then
             echo "PASS Wave C6: optional API bridge initialized and server reached ready state"
             kill -TERM -- "-${pid}" 2>/dev/null || true
             sleep 2
