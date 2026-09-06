@@ -1,0 +1,82 @@
+name: Wave C5 Soaring Fauna Preflight
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wave-c5-soaring-fauna-preflight.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c3-mods.properties"
+      - "skyforge-neoforge-1211/wave-c5-mods.properties"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/WaveC5DevelopmentResourceTest.java"
+      - "docs/design-audit/wave-c5-soaring-fauna-prototype-v0.1.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wave-c5-soaring-fauna-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-and-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Resolve immutable Wave C5 artifacts
+        run: ./gradlew :skyforge-neoforge-1211:waveC5ResolvePinnedMods --no-configuration-cache
+
+      - name: Headless Fowl Play + atmosphere smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wave-c5-soaring-fauna.log"
+
+          setsid ./gradlew :skyforge-neoforge-1211:runWaveC5SoaringFaunaServer --no-configuration-cache >"${log}" 2>&1 &
+          pid=$!
+          ready=0
+
+          for _ in $(seq 1 120); do
+            if grep -Fq "Done (" "${log}" 2>/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "${pid}" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          if [[ "${ready}" -eq 1 ]]; then
+            echo "PASS Wave C5: Fowl Play + SmartBrainLib + YACL + A4MC reached server-ready state"
+            kill -TERM -- "-${pid}" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-${pid}" 2>/dev/null || true
+            wait "${pid}" 2>/dev/null || true
+            exit 0
+          fi
+
+          echo "FAIL Wave C5: server never reached ready state"
+          cat "${log}"
+          kill -TERM -- "-${pid}" 2>/dev/null || true
+          sleep 1
+          kill -KILL -- "-${pid}" 2>/dev/null || true
+          wait "${pid}" 2>/dev/null || true
+          exit 1

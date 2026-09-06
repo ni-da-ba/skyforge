@@ -120,6 +120,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Wave C2 mobility integrity prototype v0.1](wave-c2-mobility-integrity-prototype-v0.1.md)
 - [Wave C3 atmosphere authority prototype v0.1](wave-c3-atmosphere-authority-prototype-v0.1.md)
 - [Wave C4 shared lift consumers v0.1](wave-c4-shared-lift-consumers-v0.1.md)
+- [Wave C5 soaring fauna prototype v0.1](wave-c5-soaring-fauna-prototype-v0.1.md)
 - [Create: Big Cannons industrial integration audit v0.1](create-big-cannons-industrial-integration-audit-v0.1.md)
 - [Create: Big Cannons material access closure v0.1](create-big-cannons-material-access-closure-v0.1.md)
 - [Overworld realization audit v0.1](overworld-realization-audit-v0.1.md)
