@@ -13,6 +13,10 @@ Current prototype overrides:
   NeoForge's supported `neoforge:none` no-op modifier.
 - Create: Metallurgy Wolframite biome injection is overridden with the same
   no-op modifier for the foundry A/B.
+- Create: Metallurgy's Industrial Crucible recipe is conditionally rebased from
+  Obdurium/Tungsten onto Refractory Mortar, a Create Sturdy Sheet, and one
+  ingot-equivalent (90 mB) of Metallurgy molten Steel. This makes the larger
+  crucible a retained-material upgrade from the basic foundry.
 
 These files are test scaffolding, not final production integration. Runtime
 acceptance must prove resource-pack precedence and confirm that no Platinum or

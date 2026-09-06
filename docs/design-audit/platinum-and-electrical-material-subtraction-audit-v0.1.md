@@ -46,6 +46,55 @@ Current source registers:
 
 Therefore selecting the mod without intervention would introduce another geological material economy.
 
+
+## Gold-refining byproduct route
+
+A deeper recipe trace found an important distinction between **Platinum geology** and **Platinum acquisition**.
+
+Propulsion overrides Create's:
+
+~~~text
+data/create/recipe/splashing/crushed_raw_gold.json
+~~~
+
+so washed Crushed Raw Gold has a 5% chance to produce one Platinum Nugget in addition to the normal Gold-processing outputs.
+
+Therefore disabling Platinum ore does **not** make Platinum unobtainable.
+
+It can instead exist as a Gold-refining coproduct:
+
+~~~text
+Gold ore / raw Gold
+    -> crushed raw Gold
+    -> washing
+    -> Gold
+    + rare Platinum Nugget
+~~~
+
+At stock probability:
+
+~~~text
+1 Platinum Nugget
+    ≈ 20 washed Crushed Raw Gold expected
+
+1 Platinum Ingot / Sheet
+    = 9 nuggets
+    ≈ 180 washed Crushed Raw Gold expected
+~~~
+
+This weakens the case for an automatic recipe rebase but introduces a new balance question: the stock rarity may be far too severe for repeated vehicle components.
+
+Examples from current recipes:
+
+- Vector Thruster: 20 Platinum Nuggets equivalent -> about 400 washed Crushed Raw Gold expected;
+- Coral Generator: 36 nuggets -> about 720 expected;
+- Platinum Tank/Vessel: 18 nuggets -> about 360 expected;
+- Redstone Converter: 9 nuggets -> about 180 expected.
+
+These are expectation values, not guarantees.
+
+The byproduct route is now part of Wave C1 runtime acceptance.
+
 ## Current substantive Platinum consumers
 
 Audited current recipes use Platinum in:
@@ -121,12 +170,17 @@ That is not enough under the current Skyforge material doctrine.
 PLATINUM WORLDGEN
     REJECT / DISABLE IF PROPULSION IS RETAINED
 
-PLATINUM AS REQUIRED PRIMARY PROGRESSION MATERIAL
+PLATINUM AS MINED PRIMARY PROGRESSION MATERIAL
     REJECT
+
+PLATINUM AS GOLD-REFINING BYPRODUCT
+    PROVISIONAL CANDIDATE
+    RUNTIME ECONOMICS MUST JUSTIFY IT
 
 PROPULSION FEATURES THAT CURRENTLY USE PLATINUM
     RETAIN AS CANDIDATE FEATURES
-    RECIPE-REBASE ONTO RETAINED MATERIALS IF THE MOD IS SELECTED
+    KEEP STOCK RECIPES ONLY IF BYPRODUCT ECONOMICS ARE USEFUL
+    OTHERWISE REBASE ONTO RETAINED MATERIALS
 ```
 
 This does **not** mean Create Propulsion: Simulated is rejected.
@@ -306,11 +360,12 @@ A future material must explain what it adds that this vocabulary cannot.
 | Change | Expected class | Necessity |
 |---|---|---|
 | Disable Platinum worldgen | datapack/config | required |
-| Rebase Cable/Relay recipes | recipe data | likely required |
-| Rebase Redstone Converter | recipe data | likely required |
-| Rebase Coral Generator | recipe data | likely required if retained |
-| Rebase Vector Thruster | recipe data | required if retained |
-| Rebase high-capacity fluid storage | recipe data | required if retained |
+| Evaluate stock Gold-washing Platinum coproduct | runtime balance | required |
+| Rebase Cable/Relay recipes | recipe data | only if byproduct economics fail |
+| Rebase Redstone Converter | recipe data | only if byproduct economics fail |
+| Rebase Coral Generator | recipe data | only if retained and cost fails |
+| Rebase Vector Thruster | recipe data | only if retained and cost fails |
+| Rebase high-capacity fluid storage | recipe data | only if retained and cost fails |
 | Hide obsolete Platinum ore/raw forms | recipe-viewer/resource presentation | desirable |
 | Java/mixin changes | code | no current justification |
 
@@ -363,11 +418,13 @@ ELECTRUM
     optional manufactured high-current material
 
 PLATINUM
-    exclude raw resource / worldgen
+    exclude ore/worldgen
+    provisionally permit rare Gold-refining byproduct
+    reject as a separate mining economy
 
 PROPULSION
     remains R&D candidate
-    rebase useful machines onto retained material vocabulary if selected
+    test stock byproduct economics before rebasing useful machines
 ```
 
 # Acceptance principle

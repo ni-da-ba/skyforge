@@ -203,6 +203,15 @@ This commit does **not** claim:
 
 It removes assembly ambiguity so those questions can now be answered on one exact mod stack.
 
+
+Static recipe closure evidence that narrows those questions is recorded at:
+
+~~~text
+docs/design-audit/wave-c1-static-recipe-closure-audit-v0.1.md
+~~~
+
+In particular, the development specimen now includes a retained-material Industrial Crucible override, while Propulsion Platinum recipe rebasing remains intentionally deferred because stock Propulsion provides a rare Platinum-byproduct route from washed Crushed Raw Gold.
+
 ## Acceptance principle
 
 > Reproduce the specimen exactly, change one variable at a time, and retain only the integrations whose gameplay value survives direct comparison.

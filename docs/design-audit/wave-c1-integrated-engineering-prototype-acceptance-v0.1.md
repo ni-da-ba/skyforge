@@ -132,6 +132,38 @@ also uses:
 }
 ~~~
 
+
+### Industrial Crucible retained-material override
+
+Static closure tracing confirmed that Metallurgy's stock Industrial Crucible requires both an Obdurium plate and molten Tungsten.
+
+Because Factory B explicitly removes Wolframite/Tungsten/Obdurium progression, Wave C1 now overrides:
+
+~~~text
+data/createmetallurgy/recipe/sequenced_assembly/industrial_crucible.json
+~~~
+
+with a conditional retained-material sequence:
+
+~~~text
+Deepslate Bricks
++ Refractory Mortar
++ Create Sturdy Sheet
++ Grinding
++ 90 mB createmetallurgy:molten_steel
+    -> Industrial Crucible
+~~~
+
+The recipe is gated by a NeoForge mod-loaded condition for createmetallurgy.
+
+The 90 mB Steel input is one Metallurgy ingot-equivalent and can be supplied by melting CBC Steel through the shared #c:ingots/steel path.
+
+See:
+
+~~~text
+docs/design-audit/wave-c1-static-recipe-closure-audit-v0.1.md
+~~~
+
 ## Phase C1-A — build/static gate
 
 Current automated checks must prove:
@@ -140,6 +172,7 @@ Current automated checks must prove:
 - accumulator uses the existing usable-wire tag;
 - Platinum modifiers are no-ops;
 - Wolframite modifier is a no-op;
+- Industrial Crucible has no Tungsten/Obdurium ingredient and uses retained Sturdy Sheet + molten Steel;
 - normal Skyforge CI still passes.
 
 This is necessary but not sufficient.
@@ -387,7 +420,7 @@ Removing an optional mod is a valid successful outcome.
 Wave C2 should implement only the normalization demonstrated necessary by C1:
 
 - shared Steel/Bronze tags and fluid bridges;
-- Industrial Crucible re-recipe if Metallurgy wins;
+- promote/refine the development Industrial Crucible retained-material recipe if Metallurgy wins;
 - Platinum-free Propulsion recipes for features that survive;
 - CBC Steel retuning only if material choice collapses;
 - Electrum route only if high-current demand earns it.

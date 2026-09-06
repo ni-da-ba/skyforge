@@ -101,6 +101,34 @@ final class WaveC1DevelopmentResourceTest {
     }
 
     @Test
+    void metallurgyIndustrialCrucibleUsesRetainedFoundryMaterials() throws IOException {
+        for (Path root : new Path[] {DEVELOPMENT_RESOURCES, STANDALONE_DATAPACK}) {
+            String recipe = readFrom(
+                    root,
+                    "data",
+                    "createmetallurgy",
+                    "recipe",
+                    "sequenced_assembly",
+                    "industrial_crucible.json");
+
+            assertTrue(
+                    recipe.contains("\"type\": \"neoforge:mod_loaded\"")
+                            && recipe.contains("\"modid\": \"createmetallurgy\""),
+                    "Industrial Crucible override must be ignored when Metallurgy is absent");
+            assertTrue(
+                    recipe.contains("\"item\": \"create:sturdy_sheet\""),
+                    "Industrial Crucible must use retained reinforced structure");
+            assertTrue(
+                    recipe.contains("\"amount\": 90")
+                            && recipe.contains("\"fluid\": \"createmetallurgy:molten_steel\""),
+                    "Industrial Crucible must become a Steel-fed foundry upgrade");
+            assertTrue(
+                    !recipe.contains("tungsten") && !recipe.contains("obdurium"),
+                    "Wave C1 Industrial Crucible must not require rejected Tungsten/Obdurium");
+        }
+    }
+
+    @Test
     void runtimeSpecimenPinsAreExactAndReviewable() throws IOException {
         Properties pins = new Properties();
         try (var input = Files.newInputStream(Path.of("wave-c1-mods.properties"))) {

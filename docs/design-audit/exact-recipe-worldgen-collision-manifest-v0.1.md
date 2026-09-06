@@ -146,6 +146,34 @@ These may remain inert after worldgen suppression if they do not confuse progres
 
 Do not spend code solely to delete harmless dead recipes.
 
+
+## PROP-02A — Gold-refining Platinum byproduct
+
+Current Propulsion also overrides Create's crushed-gold washing recipe:
+
+~~~text
+data/create/recipe/splashing/crushed_raw_gold.json
+~~~
+
+to add:
+
+~~~text
+5% chance
+    -> createpropulsion:platinum_nugget
+~~~
+
+This is a non-geological acquisition path.
+
+Action:
+
+**TEST-TRIGGERED BALANCE.**
+
+Worldgen suppression no longer implies that every Platinum consumer must immediately be rebased.
+
+First test whether a rare Gold-refining coproduct is a coherent late-game material role.
+
+At stock probability one Platinum Sheet costs approximately 180 washed Crushed Raw Gold in expectation, so multi-sheet machines may still be impractically expensive.
+
 ## PROP-03 — Vector Thruster
 
 Upstream:
@@ -161,9 +189,11 @@ Problem:
 
 Action:
 
-**MANDATORY if Vector Thruster is retained.**
+**TEST-TRIGGERED if Vector Thruster is retained.**
 
-Rebase ingredients by role:
+The Gold-washing Platinum byproduct makes the stock recipe survival-craftable without Platinum ore. Rebase only if runtime economics or material identity fail.
+
+If rebasing is needed, map ingredients by role:
 
 ~~~text
 load-bearing structure
@@ -191,9 +221,9 @@ src/main/resources/data/createpropulsion/recipe/crafting/redstone_converter.json
 
 Action:
 
-**MANDATORY if retained feature requires Platinum.**
+**TEST-TRIGGERED if retained.**
 
-Rebase toward:
+Keep stock only if the Platinum-byproduct cost is useful rather than punitive. Otherwise rebase toward:
 
 - Brass;
 - Redstone;
@@ -210,9 +240,9 @@ src/main/resources/data/createpropulsion/recipe/crafting/cable_relay.json
 
 Action:
 
-**MANDATORY if Platinum-gated and feature retained.**
+**TEST-TRIGGERED if feature retained.**
 
-Use retained conductor vocabulary:
+The byproduct route makes it reachable; use retained conductor vocabulary instead only if the resulting Gold-processing burden is excessive:
 
 - Copper;
 - Gold;
@@ -229,9 +259,9 @@ src/main/resources/data/createpropulsion/recipe/crafting/coral_generator.json
 
 Action:
 
-**MANDATORY if retained and Platinum-gated.**
+**TEST-TRIGGERED if retained.**
 
-Rebase to retained electrical + structural materials.
+The stock four-sheet cost is approximately 720 washed Crushed Raw Gold in expectation. Rebase to retained electrical + structural materials if runtime confirms that this is disproportionate.
 
 The generator capability must justify itself independently of Platinum.
 
@@ -249,9 +279,9 @@ recipe/crafting/platinum_fluid_vessel_compat.json
 
 Action:
 
-**MANDATORY if compact high-capacity fluid storage is retained.**
+**TEST-TRIGGERED if compact high-capacity fluid storage is retained.**
 
-Treat as a reinforced advanced tank capability.
+Two Platinum Sheets imply approximately 360 washed Crushed Raw Gold in expectation. Keep that rare-material compactness only if it earns the cost; otherwise treat the block as a reinforced advanced tank capability.
 
 Candidate recipe vocabulary:
 
@@ -318,15 +348,20 @@ Problem:
 
 Action:
 
-**MANDATORY if Metallurgy foundry is retained.**
+**IMPLEMENTED IN THE WAVE C1 DEVELOPMENT SPECIMEN.**
 
-Replace with a retained-process recipe emphasizing:
+Current prototype replaces the Obdurium/Tungsten gate with:
 
-- refractory construction;
-- Steel;
-- advanced heat-resistant capital components.
+~~~text
+Deepslate Bricks
++ Refractory Mortar
++ Create Sturdy Sheet
++ Grinding
++ 90 mB createmetallurgy:molten_steel
+    -> Industrial Crucible
+~~~
 
-Avoid circularly requiring Nethersteel if the crucible is meant to participate in producing mature Steel.
+This makes the larger crucible a Steel-fed upgrade from the basic foundry. CBC Steel can enter Metallurgy through #c:ingots/steel, avoiding Nethersteel circularity and rejected ores. Runtime craft proof remains pending.
 
 ## MET-03 — Steel alloying overlap
 
@@ -522,8 +557,8 @@ Future work is balance/throughput, not resource subtraction.
 
 1. CC&A Silver-free baseline electrical storage.
 2. Propulsion Platinum worldgen disable **if Propulsion is loaded**.
-3. Propulsion Platinum recipe rebases **only for features selected for prototype**.
-4. Metallurgy Wolframite disable + Crucible re-recipe **only if Metallurgy is loaded for A/B**.
+3. Propulsion Platinum-byproduct economics first; recipe rebases **only if selected features fail the runtime cost test**.
+4. Metallurgy Wolframite disable + retained-material Crucible re-recipe **for the A/B specimen**.
 
 ## Wave C2 — shared-material normalization
 
