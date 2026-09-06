@@ -40,6 +40,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     private final SkyIslandTerrainProfile terrainProfile;
     private final SkyforgeMinecraftBlockPalette palette;
     private final Map<SkyIslandWorldVolumeId, SkyIslandTerrainInterpreter> interpretersByVolumeId;
+    private final Map<SkyIslandWorldVolumeId, WorldBounds> boundsByVolumeId;
 
     public SkyforgeNeoForge1211ChunkAdapter(
             SkyIslandWorldCatalog catalog,
@@ -50,16 +51,19 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         this.palette = Objects.requireNonNull(palette, "palette");
 
         var cachedInterpreters = new LinkedHashMap<SkyIslandWorldVolumeId, SkyIslandTerrainInterpreter>();
+        var cachedBounds = new LinkedHashMap<SkyIslandWorldVolumeId, WorldBounds>();
         for (var volume : catalog.volumes()) {
             SkyIslandTerrainInterpreter previous = cachedInterpreters.put(
                     volume.id(),
                     new SkyIslandTerrainInterpreter(volume.compiledVolume(), terrainProfile));
-            if (previous != null) {
+            WorldBounds previousBounds = cachedBounds.put(volume.id(), volume.bounds());
+            if (previous != null || previousBounds != null) {
                 throw new IllegalArgumentException(
                         "world catalog contains duplicate exact volume id: " + volume.id().path());
             }
         }
         this.interpretersByVolumeId = Map.copyOf(cachedInterpreters);
+        this.boundsByVolumeId = Map.copyOf(cachedBounds);
     }
 
     /** Returns whether the supplied Minecraft chunk interval intersects any planned Skyforge volume. */
@@ -144,10 +148,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     /** Returns the backend-neutral bounds of one exact compiled world volume. */
     Optional<WorldBounds> volumeBounds(SkyIslandWorldVolumeId volumeId) {
         Objects.requireNonNull(volumeId, "volumeId");
-        return catalog.volumes().stream()
-                .filter(candidate -> candidate.id().equals(volumeId))
-                .findFirst()
-                .map(candidate -> candidate.bounds());
+        return Optional.ofNullable(boundsByVolumeId.get(volumeId));
     }
 
     /**
@@ -212,13 +213,43 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             throw new IllegalArgumentException("height must be positive");
         }
         SkyIslandTerrainInterpreter interpreter = requireInterpreter(volumeId);
-        int maximumYExclusive = Math.addExact(minimumY, height);
-        for (int worldY = maximumYExclusive - 1; worldY >= minimumY; worldY--) {
+        WorldBounds volumeBounds = requireBounds(volumeId);
+
+        int requestedMaximumYExclusive = Math.addExact(minimumY, height);
+        int boundedMinimumY = Math.max(minimumY, floorToInt(volumeBounds.minimumY()));
+        long volumeMaximumYExclusive = Math.addExact((long) floorToInt(volumeBounds.maximumY()), 1L);
+        int boundedMaximumYExclusive = (int) Math.min(
+                (long) requestedMaximumYExclusive,
+                volumeMaximumYExclusive);
+        if (boundedMaximumYExclusive <= boundedMinimumY) {
+            return OptionalInt.empty();
+        }
+
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.firstFreeHeightVerticalSamples",
+                boundedMaximumYExclusive - boundedMinimumY);
+        for (int worldY = boundedMaximumYExclusive - 1; worldY >= boundedMinimumY; worldY--) {
             if (interpreter.classify(worldX, worldY, worldZ).isSolid()) {
                 return OptionalInt.of(worldY + 1);
             }
         }
         return OptionalInt.empty();
+    }
+
+    private WorldBounds requireBounds(SkyIslandWorldVolumeId volumeId) {
+        WorldBounds bounds = boundsByVolumeId.get(volumeId);
+        if (bounds == null) {
+            throw new IllegalArgumentException("unknown Skyforge world volume: " + volumeId.path());
+        }
+        return bounds;
+    }
+
+    private static int floorToInt(double value) {
+        double floored = Math.floor(value);
+        if (floored < Integer.MIN_VALUE || floored > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("world bound exceeds Minecraft integer coordinates: " + value);
+        }
+        return (int) floored;
     }
 
     private SkyIslandTerrainInterpreter requireInterpreter(SkyIslandWorldVolumeId volumeId) {
