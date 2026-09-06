@@ -190,6 +190,33 @@ val waveC3WindTunnelRuns = listOf(
     "waveC3WindTunnelServer",
 )
 
+
+//
+// Wave C5 tests the reuse-first soaring-fauna substrate. Fowl Play remains an optional runtime
+// candidate: the production adapter must not require it merely for Skyforge to boot.
+val waveC5PinFile = layout.projectDirectory.file("wave-c5-mods.properties")
+val waveC5Pins = Properties().apply {
+    waveC5PinFile.asFile.inputStream().use(::load)
+}
+
+fun waveC5Pin(mod: String, field: String): String =
+    requireNotNull(waveC5Pins.getProperty("$mod.$field")) {
+        "missing Wave C5 pin: $mod.$field in " + waveC5PinFile.asFile
+    }
+
+check(waveC5Pin("minecraft", "version") == "1.21.1") {
+    "Wave C5 is defined only for Minecraft 1.21.1"
+}
+check(waveC5Pin("neoforge", "version") == "21.1.249") {
+    "Wave C5 NeoForge pin must match the adapter runtime"
+}
+
+val waveC5BirdStackMods = listOf(
+    "fowlplay",
+    "smartbrainlib",
+    "yacl",
+)
+
 neoForge {
     version = "21.1.249"
 
@@ -1353,6 +1380,18 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
+        // Wave C5 keeps the bird/AI stack isolated while reusing the already accepted A4MC core.
+        // The first gate is intentionally headless: prove Fowl Play + SBL + YACL + A4MC can coexist
+        // on the dedicated server before any thermal-soaring compatibility code is admitted.
+        create("waveC5SoaringFaunaServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c5-soaring-fauna-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC5Profile", "soaring-fauna")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
     }
 
     unitTest {
@@ -1391,6 +1430,30 @@ mapOf(
         doFirst {
             prepareWaveC3SmokeServerDirectory(relativePath)
         }
+    }
+}
+
+
+val waveC5SmokeServerProperties = """
+    level-name=wave-c5-smoke
+    level-seed=600500
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC5SoaringFaunaServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c5-soaring-fauna-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC5SmokeServerProperties)
     }
 }
 
@@ -3234,6 +3297,36 @@ tasks.register("waveC3ResolvePinnedMods") {
 }
 
 
+tasks.register("waveC5ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve the exact Wave C5 soaring-fauna runtime specimen."
+    inputs.file(waveC5PinFile)
+    inputs.file(waveC3PinFile)
+
+    doLast {
+        val files = configurations.getByName("waveC5SoaringFaunaServerLegacyClasspath")
+            .files
+            .map { it.name }
+            .sorted()
+
+        val requiredTokens = mapOf(
+            "Fowl Play" to waveC5Pin("fowlplay", "artifactToken"),
+            "SmartBrainLib" to waveC5Pin("smartbrainlib", "artifactToken"),
+            "YACL" to waveC5Pin("yacl", "artifactToken"),
+            "Aerodynamics4MC core" to waveC3Pin("aerodynamics4mcCore", "artifactToken"),
+        )
+        requiredTokens.forEach { (label, token) ->
+            check(files.any { it.contains(token) }) {
+                "Wave C5 missing $label artifact token '$token': $files"
+            }
+        }
+
+        println("Wave C5 soaring-fauna classpath")
+        files.forEach { println("  resolved=$it") }
+    }
+}
+
+
 dependencies {
     api(project(":skyforge-world"))
 
@@ -3322,6 +3415,19 @@ dependencies {
             waveC3Pin("ldlib", "coordinate"),
         )
     }
+
+
+    // C5 reuses A4MC core as the accepted atmosphere source and adds only the bird/AI substrate.
+    waveC5BirdStackMods.forEach { mod ->
+        add(
+            "waveC5SoaringFaunaServerAdditionalRuntimeClasspath",
+            waveC5Pin(mod, "coordinate"),
+        )
+    }
+    add(
+        "waveC5SoaringFaunaServerAdditionalRuntimeClasspath",
+        files(waveC3AeroCoreArtifact),
+    )
 
     testImplementation(project(":skyforge-recipes"))
 
