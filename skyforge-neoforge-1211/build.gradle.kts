@@ -173,12 +173,21 @@ val waveC3FlightStackMods = listOf(
 )
 val waveC3AtmosphereRuns = listOf(
     "waveC3AtmosphereCoreClient",
+    "waveC3AtmosphereCoreServer",
     "waveC3AircraftWindClient",
+    "waveC3AircraftWindServer",
     "waveC3WindTunnelClient",
+    "waveC3WindTunnelServer",
 )
 val waveC3CompatRuns = listOf(
     "waveC3AircraftWindClient",
+    "waveC3AircraftWindServer",
     "waveC3WindTunnelClient",
+    "waveC3WindTunnelServer",
+)
+val waveC3WindTunnelRuns = listOf(
+    "waveC3WindTunnelClient",
+    "waveC3WindTunnelServer",
 )
 
 neoForge {
@@ -1277,12 +1286,28 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        create("waveC3AtmosphereCoreServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-atmosphere-core-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC3Profile", "atmosphere-core-server")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // A4MC core + its dedicated Create Aeronautics compatibility jar over Skyforge's already
         // pinned minimum flight substrate. This is the actual relative-airflow candidate.
         create("waveC3AircraftWindClient") {
             client()
             gameDirectory = layout.projectDirectory.dir("run-wave-c3-aircraft-wind").asFile
             systemProperty("skyforge.dev.waveC3Profile", "aircraft-wind")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC3AircraftWindServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-aircraft-wind-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC3Profile", "aircraft-wind-server")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -1296,11 +1321,52 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        create("waveC3WindTunnelServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-wind-tunnel-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC3Profile", "wind-tunnel-server")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
     }
 
     unitTest {
         enable()
         testedMod.set(mods.named("skyforge"))
+    }
+}
+
+val waveC3SmokeServerProperties = """
+    level-name=wave-c3-smoke
+    level-seed=600300
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareWaveC3SmokeServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(waveC3SmokeServerProperties)
+}
+
+mapOf(
+    "runWaveC3AtmosphereCoreServer" to "run-wave-c3-atmosphere-core-server",
+    "runWaveC3AircraftWindServer" to "run-wave-c3-aircraft-wind-server",
+    "runWaveC3WindTunnelServer" to "run-wave-c3-wind-tunnel-server",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareWaveC3SmokeServerDirectory(relativePath)
+        }
     }
 }
 
@@ -3222,14 +3288,16 @@ dependencies {
 
     // Wind Tunnel is a test instrument only. Its source-built LDLib floor is pinned explicitly
     // because Modrinth Maven does not carry transitive dependency metadata.
-    add(
-        "waveC3WindTunnelClientAdditionalRuntimeClasspath",
-        waveC3Pin("windTunnel", "coordinate"),
-    )
-    add(
-        "waveC3WindTunnelClientAdditionalRuntimeClasspath",
-        waveC3Pin("ldlib", "coordinate"),
-    )
+    waveC3WindTunnelRuns.forEach { runName ->
+        add(
+            "${runName}AdditionalRuntimeClasspath",
+            waveC3Pin("windTunnel", "coordinate"),
+        )
+        add(
+            "${runName}AdditionalRuntimeClasspath",
+            waveC3Pin("ldlib", "coordinate"),
+        )
+    }
 
     testImplementation(project(":skyforge-recipes"))
 
