@@ -84,7 +84,10 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                     continue;
                 }
 
-                var observation = binding.ledger().observe(SkyforgeNativeChunkOccupancySurvey.survey(volumeId, chunk));
+                var survey = SkyforgeRuntimePerformanceMetrics.measure(
+                        "admission.nativeOccupancySurvey",
+                        () -> SkyforgeNativeChunkOccupancySurvey.survey(volumeId, chunk));
+                var observation = binding.ledger().observe(survey);
                 if (observation.state() == SkyforgePhysicalVolumeAdmissionState.PLANNED) {
                     PendingRealization pending = new PendingRealization(
                             volumeId,
