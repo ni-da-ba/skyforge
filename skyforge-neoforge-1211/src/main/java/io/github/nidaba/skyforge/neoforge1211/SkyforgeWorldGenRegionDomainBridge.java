@@ -24,6 +24,13 @@ public final class SkyforgeWorldGenRegionDomainBridge {
                 .orElse(true);
     }
 
+    /** Phase-aware virtual block state for reads hidden outside the active exact volume. */
+    public static BlockState hiddenExteriorBlockState() {
+        return SkyforgePopulationExecutionStage.activeExecution()
+                .map(SkyforgePopulationExecutionStage.Execution::hiddenExteriorBlockState)
+                .orElseGet(() -> net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+    }
+
     /**
      * Non-mutating preflight used by {@code WorldGenLevel.ensureCanWrite}.
      *
