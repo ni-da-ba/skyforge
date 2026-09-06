@@ -15,7 +15,7 @@ final class SkyforgeNativeInteriorPopulationPlanTest {
             new SkyIslandWorldVolumeId(69L, "interior", 0, 0, 6900L);
 
     @Test
-    void acceptedInteriorPhasesPreserveNativeOrderAndExcludeSurfaceEcology() {
+    void acceptedInteriorPhasesPreserveNativeOrderAndEndWithRoutedPostCaveVegetation() {
         List<GenerationStep.Decoration> phases =
                 SkyforgeNativeInteriorPopulationPhasePolicy.admittedPhases();
 
@@ -25,9 +25,9 @@ final class SkyforgeNativeInteriorPopulationPlanTest {
                         GenerationStep.Decoration.LOCAL_MODIFICATIONS,
                         GenerationStep.Decoration.UNDERGROUND_ORES,
                         GenerationStep.Decoration.UNDERGROUND_DECORATION,
-                        GenerationStep.Decoration.FLUID_SPRINGS),
+                        GenerationStep.Decoration.FLUID_SPRINGS,
+                        GenerationStep.Decoration.VEGETAL_DECORATION),
                 phases);
-        assertFalse(phases.contains(GenerationStep.Decoration.VEGETAL_DECORATION));
 
         int previous = -1;
         for (GenerationStep.Decoration phase : phases) {
@@ -37,7 +37,7 @@ final class SkyforgeNativeInteriorPopulationPlanTest {
     }
 
     @Test
-    void acceptedPlanUsesOnlyPreviouslyAuthorizedInteriorPhases() {
+    void acceptedPlanUsesOnlyAuthorizedPostCavePhases() {
         var plan = SkyforgeNativeInteriorPopulationPlan.acceptedNativeInterior(VOLUME_ID, 2);
 
         assertEquals(VOLUME_ID, plan.volumeId());
@@ -46,20 +46,20 @@ final class SkyforgeNativeInteriorPopulationPlanTest {
     }
 
     @Test
-    void planRejectsSurfaceAndOutOfOrderPhases() {
+    void planRejectsNonInteriorSurfacePhaseAndOutOfOrderPhases() {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new SkyforgeNativeInteriorPopulationPlan(
                         VOLUME_ID,
-                        List.of(GenerationStep.Decoration.VEGETAL_DECORATION),
+                        List.of(GenerationStep.Decoration.TOP_LAYER_MODIFICATION),
                         0));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new SkyforgeNativeInteriorPopulationPlan(
                         VOLUME_ID,
                         List.of(
-                                GenerationStep.Decoration.FLUID_SPRINGS,
-                                GenerationStep.Decoration.UNDERGROUND_DECORATION),
+                                GenerationStep.Decoration.VEGETAL_DECORATION,
+                                GenerationStep.Decoration.FLUID_SPRINGS),
                         0));
     }
 
