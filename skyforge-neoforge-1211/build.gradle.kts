@@ -771,6 +771,93 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0069 production post-cave native interior population. The mixed-biome exact
+        // volume resolves river on one side and dripstone caves on the other so the production
+        // scheduler can exercise accepted LAKES, local geology, ores, cave decoration and springs
+        // without any feature-ID forcing.
+        create("productionInteriorPopulationAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0069-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionInteriorPopulation", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0069-production-interior-a")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0069/production-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionInteriorPopulationAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0069-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionInteriorPopulation", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0069-production-interior-b")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0069/production-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionInteriorPopulationAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0069-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionInteriorPopulationReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0069-production-interior-reload")
+            systemProperty(
+                "skyforge.dev.productionInteriorPopulationExpectedResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0069/production-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0069/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionInteriorPopulationAcceptanceStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0069-auto-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionInteriorPopulationStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0069-production-interior-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0069/stacked.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -2729,4 +2816,215 @@ dependencies {
     testImplementation(enforcedPlatform("org.junit:junit-bom:5.14.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+
+val sfImp0069AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0069")
+val sfImp0069AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=600068
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=7
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSfImp0069AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(sfImp0069AcceptanceServerProperties)
+}
+
+fun requireSfImp0069AcceptancePass(resultName: String) {
+    val file = sfImp0069AcceptanceResultDirectory.get().file("$resultName.properties").asFile
+    check(file.isFile) { "SF-IMP-0069 acceptance result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS") {
+        val detail = properties.getProperty("failure")
+            ?: "status=" + properties.getProperty("status")
+        "SF-IMP-0069 acceptance case $resultName did not PASS: $detail"
+    }
+}
+
+listOf(
+    Triple("runProductionInteriorPopulationAcceptanceA", "run-sf-imp-0069-auto-a", "production-a"),
+    Triple("runProductionInteriorPopulationAcceptanceB", "run-sf-imp-0069-auto-b", "production-b"),
+    Triple("runProductionInteriorPopulationAcceptanceStacked", "run-sf-imp-0069-auto-stacked", "stacked"),
+).forEach { (taskName, relativePath, resultName) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareSfImp0069AcceptanceServerDirectory(relativePath)
+        }
+        doLast {
+            requireSfImp0069AcceptancePass(resultName)
+        }
+    }
+}
+
+tasks.named("runProductionInteriorPopulationAcceptanceA").configure {
+    doFirst {
+        delete(sfImp0069AcceptanceResultDirectory)
+    }
+}
+tasks.named("runProductionInteriorPopulationAcceptanceB").configure {
+    mustRunAfter("runProductionInteriorPopulationAcceptanceA")
+}
+tasks.named("runProductionInteriorPopulationAcceptanceReloadClient").configure {
+    mustRunAfter("runProductionInteriorPopulationAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-sf-imp-0069-auto-b").asFile
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+    doLast {
+        requireSfImp0069AcceptancePass("reload")
+    }
+}
+tasks.named("runProductionInteriorPopulationAcceptanceStacked").configure {
+    mustRunAfter("runProductionInteriorPopulationAcceptanceReloadClient")
+}
+
+tasks.register("sfImp0069AcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic SF-IMP-0069 production native interior evidence."
+    doLast {
+        fun load0069(name: String): Properties {
+            val file = sfImp0069AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0069 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        val first = load0069("production-a")
+        val second = load0069("production-b")
+        val reload = load0069("reload")
+        val stacked = load0069("stacked")
+        for ((name, result) in listOf(
+            "production-a" to first,
+            "production-b" to second,
+            "reload" to reload,
+            "stacked" to stacked,
+        )) {
+            check(result.getProperty("status") == "PASS") { "$name did not report PASS: $result" }
+        }
+
+        for (key in listOf(
+            "islandKey",
+            "requiredChunks",
+            "initialInteriorTotal",
+            "initialInteriorPending",
+            "finalInteriorPending",
+            "finalInteriorCompleted",
+            "resultChunks",
+            "emptyChunks",
+            "biomes",
+            "phaseDigest",
+            "lakesAttempted",
+            "lakesSuccessful",
+            "localModificationsAttempted",
+            "localModificationsSuccessful",
+            "oresAttempted",
+            "oresSuccessful",
+            "decorationAttempted",
+            "decorationSuccessful",
+            "springsAttempted",
+            "springsSuccessful",
+            "trackedFluids",
+            "fluidDigest",
+            "sampleFluidPos",
+            "sampleFluidState",
+            "scheduledOutsideOwner",
+            "rejectedBoundaryWrites",
+            "successfulFeatureKeys",
+        )) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "SF-IMP-0069 deterministic evidence changed for $key: A=" +
+                    first.getProperty(key) + " B=" + second.getProperty(key)
+            }
+        }
+
+        val required = first.getProperty("requiredChunks").toInt()
+        check(first.getProperty("productionStage") == "true"
+                && first.getProperty("islandKey") == "1471"
+                && required > 0
+                && first.getProperty("initialInteriorTotal").toInt() == required
+                && first.getProperty("initialInteriorPending").toInt() == required
+                && first.getProperty("finalInteriorPending") == "0"
+                && first.getProperty("finalInteriorCompleted").toInt() == required
+                && first.getProperty("resultChunks").toInt() > 0
+                && first.getProperty("cavesCompleteBeforeInterior") == "true"
+                && first.getProperty("monotonicPending") == "true"
+                && first.getProperty("noReplay") == "true"
+                && first.getProperty("biomes").contains("minecraft:river")
+                && first.getProperty("biomes").contains("minecraft:dripstone_caves")
+                && first.getProperty("lakesAttempted").toInt() > 0
+                && first.getProperty("lakesSuccessful").toInt() > 0
+                && first.getProperty("localModificationsAttempted").toInt() > 0
+                && first.getProperty("localModificationsSuccessful").toInt() > 0
+                && first.getProperty("oresAttempted").toInt() > 0
+                && first.getProperty("oresSuccessful").toInt() > 0
+                && first.getProperty("decorationAttempted").toInt() > 0
+                && first.getProperty("decorationSuccessful").toInt() > 0
+                && first.getProperty("springsAttempted").toInt() > 0
+                && first.getProperty("springsSuccessful").toInt() > 0
+                && first.getProperty("trackedFluids").toInt() > 0
+                && first.getProperty("scheduledOutsideOwner") == "0"
+                && first.getProperty("rejectedBoundaryWrites") == "0") {
+            "SF-IMP-0069 production interior evidence incomplete: $first"
+        }
+
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("mutationBindingsAbsent") == "true"
+                && reload.getProperty("persistedFluidPos") == second.getProperty("sampleFluidPos")
+                && reload.getProperty("persistedInitialFluidState") == second.getProperty("sampleFluidState")
+                && reload.getProperty("clientFluidPos") == reload.getProperty("persistedFluidPos")
+                && reload.getProperty("clientFluidState") == reload.getProperty("persistedFluidState")
+                && reload.getProperty("persistedTrackedPositions").toInt() > 0
+                && reload.getProperty("reloadPropagationTicks").toInt() > 0
+                && reload.getProperty("scheduledOutsideOwner") == "0"
+                && reload.getProperty("rejectedBoundaryWrites") == "0") {
+            "SF-IMP-0069 reload/client evidence incomplete: $reload"
+        }
+
+        check(stacked.getProperty("lowerRequired").toInt() > 0
+                && stacked.getProperty("upperRequired").toInt() > 0
+                && stacked.getProperty("lowerCompleted") == stacked.getProperty("lowerRequired")
+                && stacked.getProperty("upperCompleted") == stacked.getProperty("upperRequired")
+                && stacked.getProperty("lowerResultChunks").toInt() > 0
+                && stacked.getProperty("upperResultChunks").toInt() > 0
+                && stacked.getProperty("lowerSuccessful").toInt() > 0
+                && stacked.getProperty("upperSuccessful").toInt() > 0
+                && stacked.getProperty("lowerTrackedFluids").toInt() > 0
+                && stacked.getProperty("upperTrackedFluids").toInt() > 0
+                && stacked.getProperty("lowerSampleY") != stacked.getProperty("upperSampleY")
+                && stacked.getProperty("lowerFinalPending") == "0"
+                && stacked.getProperty("upperFinalPending") == "0"
+                && stacked.getProperty("independentLedgers") == "true"
+                && stacked.getProperty("foreignFluidRejected") == "true"
+                && stacked.getProperty("cavesCompleteBeforeInterior") == "true"
+                && stacked.getProperty("monotonicPending") == "true"
+                && stacked.getProperty("noReplay") == "true") {
+            "SF-IMP-0069 stacked production evidence incomplete: $stacked"
+        }
+
+        println(
+            "SF-IMP-0069 AUTOMATED ACCEPTANCE PASS: obligations=$required" +
+                ", phaseDigest=" + first.getProperty("phaseDigest") +
+                ", lakes=" + first.getProperty("lakesSuccessful") +
+                ", localModifications=" + first.getProperty("localModificationsSuccessful") +
+                ", ores=" + first.getProperty("oresSuccessful") +
+                ", decoration=" + first.getProperty("decorationSuccessful") +
+                ", springs=" + first.getProperty("springsSuccessful"),
+        )
+    }
 }
