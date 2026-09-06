@@ -47,10 +47,33 @@ final class WaveC2DevelopmentResourceTest {
                     "Phantom hunting must not gate starter-group personal mobility");
         }
 
+        for (Path root : new Path[] {DEVELOPMENT_RESOURCES, MOBILITY_DATAPACK}) {
+            String repairTag = readFrom(
+                    root,
+                    "data",
+                    "reliable_gliders",
+                    "tags",
+                    "item",
+                    "glider_repair_items.json");
+
+            assertTrue(
+                    repairTag.contains("\"replace\": true"),
+                    "Skyforge must replace, not extend, Reliable Gliders' Phantom repair tag");
+            assertTrue(
+                    repairTag.contains("\"minecraft:leather\""),
+                    "ordinary leather must repair the bootstrap glider");
+            assertTrue(
+                    repairTag.contains("\"#minecraft:wool\""),
+                    "ordinary wool must repair the bootstrap glider");
+            assertFalse(
+                    repairTag.contains("phantom_membrane"),
+                    "Phantom hunting must not return through glider maintenance");
+        }
+
         assertTrue(
                 Files.notExists(DEVELOPMENT_RESOURCES.resolve(
                         Path.of("data", "reliable_gliders", "tags", "block", "updraft_blocks.json"))),
-                "first C2 pass must leave Reliable Gliders' stock updraft sources untouched");
+                "C2/C8 must leave Reliable Gliders' stock block-heat updraft sources untouched");
     }
 
     @Test

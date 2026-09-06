@@ -43,3 +43,6 @@ jobs:
 
       - name: Resolve immutable Wave C2 artifacts
         run: ./gradlew :skyforge-neoforge-1211:waveC2ResolvePinnedMods --no-configuration-cache
+
+      - name: Verify Wave C2 mobility resources
+        run: ./gradlew :skyforge-neoforge-1211:test --tests '*WaveC2DevelopmentResourceTest' --no-configuration-cache
