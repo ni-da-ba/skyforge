@@ -1502,6 +1502,17 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
+        // Wave C10 loads the standalone C2 Nether-scale datapack into a disposable first-boot
+        // world and asserts the final live DimensionType rather than trusting JSON inspection.
+        create("waveC10NetherScaleAcceptanceServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c10-nether-scale-acceptance-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC10NetherScaleAcceptance", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
     }
 
     unitTest {
@@ -1639,6 +1650,39 @@ tasks.named("runWaveC9ComputingAvionicsServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(waveC9SmokeServerProperties)
+    }
+}
+
+
+val waveC10NetherScaleServerProperties = """
+    level-name=wave-c10-nether-scale
+    level-seed=601000
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC10NetherScaleAcceptanceServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c10-nether-scale-acceptance-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC10NetherScaleServerProperties)
+
+        val sourcePack =
+            layout.projectDirectory.dir("src/development/wave-c2-nether-scale-datapack").asFile
+        val targetPack =
+            directory.resolve("wave-c10-nether-scale/datapacks/skyforge-nether-scale")
+        copy {
+            from(sourcePack)
+            into(targetPack)
+        }
     }
 }
 
