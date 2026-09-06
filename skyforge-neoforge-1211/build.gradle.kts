@@ -1120,7 +1120,9 @@ tasks.named("runNativeCarverAcceptanceReloadClient").configure {
         val directory = layout.projectDirectory.dir("run-sf-imp-0061-auto-b").asFile
         directory.resolve("options.txt").writeText(
             "onboardAccessibility:false\n"
-                + "narrator:0\n",
+                + "narrator:0\n"
+                + "renderDistance:12\n"
+                + "simulationDistance:8\n",
         )
     }
 }
