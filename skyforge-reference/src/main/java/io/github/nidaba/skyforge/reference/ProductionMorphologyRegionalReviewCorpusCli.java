@@ -219,7 +219,7 @@ public final class ProductionMorphologyRegionalReviewCorpusCli {
     }
 
     private static String archipelagoSection(String id, String title) {
-        return "<section><h2>" + title + "</h2><div class="grid">"
+        return "<section><h2>" + title + "</h2><div class=\"grid\">"
                 + figure(id, "plan.png", "Hierarchical planner view")
                 + figure(id, "top-down-groups.png", "Realized top-down geometry by group")
                 + figure(id, "upper-envelope.png", "Regional upper envelope")
@@ -229,8 +229,8 @@ public final class ProductionMorphologyRegionalReviewCorpusCli {
     }
 
     private static String figure(String id, String file, String caption) {
-        return "<figure><figcaption>" + caption + "</figcaption><img src="" + id + "/"
-                + file + "" alt="" + caption + ""></figure>";
+        return "<figure><figcaption>" + caption + "</figcaption><img src=\"" + id + "/"
+                + file + "\" alt=\"" + caption + "\"></figure>";
     }
 
     private record ContextResult(
