@@ -298,6 +298,42 @@ V_relative = V_air - V_body
 
 in the airfoil frame, followed by the aerodynamic model.
 
+### Harnessability confirmed from Wind Tunnel source
+
+The audited Wind Tunnel source does not trap these controls/readouts behind client GUI state.
+
+Server-side block entities expose callable configuration and measurement surfaces including:
+
+```text
+WindTunnelControllerBlockEntity
+    applySettings(...)
+    getTargetAirspeed()
+
+AirflowInjectorBlockEntity
+    applySettings(...)
+    getAirspeed()
+    getAngleOfAttack()
+    getSideslipAngle()
+    createRelativeFlowSource(...)
+
+WindTunnelMountBlockEntity
+    applySettings(...)
+    bind(...)
+    getMeasurement()
+
+WindTunnelMountMeasurement
+    lift
+    drag
+    side force
+    pitch
+    roll
+    yaw
+```
+
+Therefore the next executable acceptance harness should configure and sample these server-side
+surfaces directly (or through a thin reflection bridge while the dependency remains development
+only). A player should not be required to open a GUI and copy force values into a report.
+
 ---
 
 ## 7. Human-eye role
