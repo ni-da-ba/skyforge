@@ -39,7 +39,7 @@ abstract class SkyforgeLevelDomainMixin {
         }
         if (SkyforgeWorldGenRegionDomainBridge.active()
                 && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
-            callback.setReturnValue(Blocks.AIR.defaultBlockState());
+            callback.setReturnValue(SkyforgeWorldGenRegionDomainBridge.hiddenExteriorBlockState());
         }
     }
 
