@@ -112,11 +112,11 @@ final class SkyforgeProductionMorphologyAtlasFixtureTest {
         var lobed = SkyforgeProductionMorphologyAtlasFixture.fixture(
                 SkyforgeProductionMorphologyAtlasFixture.Member.LOBED);
 
-        Set<String> supportSignatures = Set.of(
-                tableland.exactSupport().bounds().toString(),
-                spine.exactSupport().bounds().toString(),
-                basin.exactSupport().bounds().toString(),
-                lobed.exactSupport().bounds().toString());
+        Set<String> supportSignatures = new HashSet<>();
+        supportSignatures.add(tableland.exactSupport().bounds().toString());
+        supportSignatures.add(spine.exactSupport().bounds().toString());
+        supportSignatures.add(basin.exactSupport().bounds().toString());
+        supportSignatures.add(lobed.exactSupport().bounds().toString());
         assertTrue(supportSignatures.size() >= 2);
         assertNotEquals(tableland.morphologyIdentifier(), spine.morphologyIdentifier());
         assertNotEquals(basin.morphologyIdentifier(), lobed.morphologyIdentifier());
