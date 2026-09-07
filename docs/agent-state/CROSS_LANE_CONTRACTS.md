@@ -19,7 +19,7 @@
 | --- | --- |
 | Authorship | `AUTH-0093` accepted: normalized Iron/Copper/Zinc geological opportunity over exact AUTH-0033 mineral-bearing structural provenance |
 | Implementation | `SF-IMP-0082` accepted: all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / #284 multi-seed/multi-scale built-in matrix in progress |
-| Content / Experience | `C18` accepted: stock turtle freight/ticking envelope measured and base capability retained; C11/C12 remain separately in progress/reserved |
+| Content / Experience | `C19` accepted: stock mining-turtle extraction/ticking envelope measured and base capability retained; C11/C12 remain separately in progress/reserved |
 | Music / Audio | `MUS-0001` accepted in `0b3386ad74ef610f49d9d3e8050e5a701f5e2cbd`: durable score/source lane, canonical manifests, BBCSO/library audit, Track 02 persistence repair, and explicit remaining human/source-recovery gates |
 | AUDIT | `AUDIT-0008` accepted: repository-visible agent/process convergence health is a durable supervisory responsibility |
 
@@ -158,7 +158,7 @@ Cross-lane consequences:
 - do not add a duplicate generic Skyforge networking authority/API;
 - ordinary Wireless Modems may remain unnerfed as infrastructure;
 - Ender Modems are a mature bypass and should be progression-conscious rather than an unexamined early default;
-- final Ender gating, GPS tower placement/spacing, remaining turtle mining/farming/loader/Ender-storage economics, and autopilot progression remain Content gameplay decisions;
+- final Ender gating, GPS tower placement/spacing, remaining turtle farming/quarry-scale/loader/Ender-storage economics, and autopilot progression remain Content gameplay decisions;
 - thin Skyforge peripherals remain reserved for genuinely Skyforge-owned semantics absent upstream.
 
 **C17 / PR #272**, merge `65bd49a4e349f16bab8b796aa5b1a1e6dd72a7cc`, proves stock GPS topology on real CraftOS computers:
@@ -181,7 +181,20 @@ boundaryOutcome=STALLED  boundaryMoves=17
 boundaryFuelStart=80     boundaryFuelEnd=63
 ```
 
-Cross-lane consequence: retain stock turtle movement/freight; no generic Skyforge turtle nerf or replacement is justified by the base envelope. Turtles can cross unsupported sky when external infrastructure keeps the route loaded/ticking, but they do not themselves provide arbitrary long-range ticking. Dedicated chunk-loader progression, mining/farming throughput, Ender-storage combinations, autopilot, and final freight economics remain Content-owned questions.
+Cross-lane consequence: retain stock turtle movement/freight; no generic Skyforge turtle nerf or replacement is justified by the base envelope. Turtles can cross unsupported sky when external infrastructure keeps the route loaded/ticking, but they do not themselves provide arbitrary long-range ticking. C19 subsequently closes the base mining-extraction question; farming/quarry-scale mining, dedicated chunk-loader progression, Ender-storage combinations, autopilot, and final freight economics remain Content-owned questions.
+
+**C19 / PR #292**, merge `97c9e1accf0a243ddc892fbf1fc424825b0c244e`, measures real stock mining-turtle extraction and route-ticking dependence:
+
+```text
+digs=96  outboundMoves=96  returnMoves=96  delivered=96
+fuelStart=240  fuelEnd=48
+boundaryOutcome=STALLED  boundaryDigs=17  boundaryMoves=17
+boundaryFuelStart=80     boundaryFuelEnd=63
+```
+
+Cross-lane consequence: retain the stock mining-turtle base capability; no generic Skyforge mining-turtle nerf or replacement is justified by this envelope. Turtles can automate local physical extraction where deposits and ticking infrastructure exist, but the mining tool does not create arbitrary long-range ticking or remote resource creation. Farming throughput, quarry/branch-mining scale, chunk-loader progression, Ender-storage combinations, ore abundance, mature fleet automation, and final aircraft economics remain Content-owned questions.
+
+AUTH-0093 now supplies normalized Iron/Copper/Zinc geological opportunity to the resource-geography leg. Content owns how that semantic opportunity becomes availability classes, bootstrap guarantees, trade/salvage, and progression policy; Implementation still owns concrete deposits/blocks/worldgen/lifecycle.
 
 Bootstrap computing remains tracked in #224.
 
