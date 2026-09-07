@@ -33,7 +33,7 @@ This separation makes terrain behavior explainable and testable before it reache
 
 ## Durable development state
 
-Current agent/lane state is maintained under [`docs/handoffs/`](docs/handoffs/README.md). New development agents should read the [program charter](docs/handoffs/PROGRAM_CHARTER.md), their canonical lane state (for Implementation: [`IMPLEMENTATION_STATE.md`](docs/handoffs/IMPLEMENTATION_STATE.md)), and the [cross-lane contracts](docs/handoffs/CROSS_LANE_CONTRACTS.md) before relying on conversational recollection.
+Current agent/lane state is maintained under [`docs/agent-state/`](docs/agent-state/README.md). Fresh agents should read the canonical program charter, their lane state, and the cross-lane contracts there before relying on conversational recollection.
 
 The capability narrative below is retained as an architectural/reviewer snapshot and may lag the latest accepted milestone. The canonical current Implementation frontier is the lane state document plus merged Git history/tests.
 
