@@ -38,13 +38,26 @@ Implementation's native `FLUID_SPRINGS` path should enforce:
 - molten/lava candidates fail closed until explicit geothermal/volcanic authorship exists;
 - existing exact-volume generated-fluid provenance/fencing remains authoritative after admission.
 
-### IN PROGRESS — AUTH-0086 visible authored hydrology
+### MERGED / ACCEPTED — AUTH-0086 visible authored hydrology
 
-PR #241 projects accepted coherent naturalized channels, retained-waterbody footprints/margins, and
-accepted channel-drop events into exact backend-neutral visible-water intents.
+AUTH-0086 / PR #241 merged as `a55e500c86f0baf910af809985956ac398742706`.
 
-Implementation should not build authored channel/waterfall runtime behavior against AUTH-0086 until
-that PR is merged/accepted.
+The accepted producer contract projects authored surface hydrology one-for-one into backend-neutral
+visible-water intents:
+
+- every accepted naturalized channel path becomes one `CHANNEL_WATER` intent;
+- every accepted retained-waterbody footprint remains paired with its exact dry margin in one
+  `RETAINED_WATER` intent;
+- accepted `CASCADE_STEP`, `WATERFALL`, and `EDGE_FALL` events map directly to
+  `CASCADE`, `WATERFALL`, and `EDGE_DISCHARGE`;
+- exact source ordering, island identity, riparian relationships, and dry-margin provenance must be
+  preserved; no adapter-local replacement threshold may silently omit or substitute an accepted
+  source.
+
+Implementation owns the downstream Minecraft realization. It should map those exact intents through
+the accepted physical terrain/ownership transform and choose block/fluid behavior there; it must not
+recompute a second watershed/channel/waterbody planner. AUTH-0085 native cave springs remain a
+separate supplemental subsurface path and are never substitutes for AUTH-0086 surface hydrology.
 
 ### MERGED / ACCEPTED — current Implementation capability relevant to Authorship
 

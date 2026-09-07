@@ -39,7 +39,7 @@ Reconciles:
 - reviewer guidance to the canonical Implementation lane state and current issues **#194** / **#214**;
 - explicit distinction between machine-accepted technical showcase capability and unresolved human ecology/morphology quality gates.
 
-No cross-lane ownership contract changes.
+Cross-lane ownership is unchanged. AUDIT-0002 only advances the shared AUTH-0086 handoff status from in-progress to merged/accepted and records its already-accepted producer/consumer boundary.
 
 ## CURRENT AUTHORITATIVE PROGRAM SNAPSHOT
 
