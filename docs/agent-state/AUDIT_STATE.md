@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot before AUDIT-0002:** `cab1be65f370f3f81a6d8019ed3db23bcff6f49f`
+**Main snapshot before AUDIT-0002 merge:** `5d4a293d6c57e3db4a52ec33dabd8725bbd4b091`
 
 Read first:
 
