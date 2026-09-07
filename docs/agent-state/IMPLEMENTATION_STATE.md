@@ -81,14 +81,27 @@ Issue #193 is closed. No arbitrary lichen density cap was required.
 Read [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md). Most important near-term dependencies:
 
 - Authorship morphology stack must be brought through the production lifecycle rather than beautifying the compact showcase specimen.
-- AUTH-0086 visible-hydrology intent should precede authored Minecraft waterfall/channel realization.
+- AUTH-0086 is now merged/accepted (PR #241, merge `a55e500c86f0baf910af809985956ac398742706`); authored Minecraft channel/waterfall realization may consume that intent contract when it reaches priority, without inventing a second planner.
 - Content structure/progression requirements should use generic realization contracts.
 
 ## IN PROGRESS
 
-No open Implementation PR was authoritative at the migration snapshot.
+### SF-IMP-0080 — issue #194 legible land-biome ecology
 
-The next active implementation target is **issue #194: visually legible land-biome/ecology realization in the human-facing showcase**.
+PR **#248** / branch `agent/sf-imp-0080-showcase-ecology` is the active Implementation work.
+
+The first prototype attempted to make the compact river/dripstone cave fixture carry forest/taiga ecology as well. Current-main showcase acceptance disproved that direction: both exact volumes retained hundreds of thousands of soil blocks but produced **0 grass, 0 logs, 0 leaves, and 0 surface plants**. Issue #194's recorded owner direction also explicitly keeps that compact world as the cave/interior technical fixture.
+
+The replacement implementation is additive and production-shaped:
+
+- the accepted broad SF-IMP-0054/0055 TABLELAND forest/taiga ecology geometry is translated into clear high-air bands so modern whole-volume admission can evaluate it safely;
+- lower exact volume resolves `minecraft:forest`; upper resolves `minecraft:taiga`;
+- terrain uses native-surface adaptation, whole-volume physical admission, deferred stable-chunk catch-up, the idempotent native surface-population coordinator, and durable exact-volume biome presentation;
+- the ecology world is persisted, then reopened in an actual client with only compiled terrain ownership restored; admission/population/biome mutation remains inert;
+- the existing current-capability cave/interior showcase is unchanged and retains its own acceptance job;
+- machine evidence requires land substrate, persistent logs/leaves, persistent non-tree surface plants, distinct forest/taiga native feature identity, zero pending catch-up/presentation obligations, and equivalent evidence after actual-client reopen.
+
+Automated acceptance is still pending on the current branch, and the human gate below remains mandatory. **SF-IMP-0080 is not accepted and must not merge before that gate.**
 
 ## PROPOSED / priority order
 
@@ -103,7 +116,8 @@ Deprioritized performance follow-up: issue #219 (canonical nearest-first surface
 
 ## Known hazards / technical debt
 
-- The compact current showcase is a technical specimen and visually poor; do not make it the de facto production morphology.
+- The compact current showcase is a technical cave/interior specimen and visually poor; do not make it the de facto ecology or production-morphology authority.
+- SF-IMP-0080 established that changing the compact specimen's biome/base representation alone is insufficient for legible land ecology; its failed prototype produced soil but no grass/logs/leaves/plants. Reuse a topology that native land ecology can actually inhabit rather than increasing feature density.
 - Surface material mapping in technical fixtures can remain simple (for example generic dirt mantle); production geology/material roles are not yet fully realized.
 - Native Minecraft feature assumptions are grounded in ordinary solid worlds; new phases must be audited for floating-domain read/write assumptions as they are introduced.
 - README/current-runtime capability prose may lag the current SF-IMP boundary. This state file is canonical for lane status; architecture/review docs remain useful for the specific boundary they describe.
@@ -125,7 +139,10 @@ Useful local Gradle entry points include:
 ```text
 :skyforge-neoforge-1211:sfImp0070PerformanceVerify
 :skyforge-neoforge-1211:showcaseViewerVerify
+:skyforge-neoforge-1211:showcaseEcologyPrepareVerify
+:skyforge-neoforge-1211:showcaseEcologyViewerVerify
 :skyforge-neoforge-1211:launchShowcase
+:skyforge-neoforge-1211:launchShowcaseEcology
 ```
 
 Use `--no-configuration-cache` for the showcase/dev runs where the project marks ModDev orchestration incompatible with configuration cache.
@@ -134,9 +151,15 @@ Do not merge behavioral worldgen changes on a stale integration base: verify exa
 
 ## MANUAL VERIFICATION REQUIRED
 
-### #194 — ecology legibility
+### SF-IMP-0080 / #194 — ecology legibility
 
-Human reviewer must be able to see persistent land-biome population: soil/grass, trees, surface plants, and a meaningful biome distinction. Machine success counters are insufficient.
+After the dedicated automated preparation and actual-client reopen pass, run:
+
+```text
+:skyforge-neoforge-1211:launchShowcaseEcology --no-configuration-cache
+```
+
+Inspect `/skyforge_ecology lower_forest` and `/skyforge_ecology upper_taiga`. Human reviewer must visibly confirm land substrate, trees/foliage, non-tree surface plants, meaningful forest-versus-taiga distinction, plausible vegetation attachment, and no obvious persistence defect. Machine success counters are insufficient.
 
 ### #214 — production morphology visual atlas
 
@@ -146,6 +169,6 @@ Do not declare production morphology aesthetically accepted before this human ga
 
 ## Immediate recommended next work
 
-Implement **#194** with the smallest production-faithful showcase change that exposes an already-accepted legible land-biome population specimen. Keep the compact technical showcase's correctness purpose intact; do not cosmetically decorate it into a fake production morphology.
+Finish SF-IMP-0080 automated CI/showcase acceptance on a synchronized current-main head, then request the #194 human-eye review through `launchShowcaseEcology`. If and only if that gate is explicitly accepted, merge PR #248, update this ledger to the merged SF-IMP-0080 boundary, close #194, and begin the production-morphology integration era with the first #214 human-eye tranche clearly flagged.
 
 After #194 is human-inspectable, begin the production morphology integration era and explicitly flag the first #214 human-eye review tranche.
