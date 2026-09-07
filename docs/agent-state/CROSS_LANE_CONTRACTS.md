@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `844ad6cd09a7cbe60529f1a7d43badc12a84a1e1`
+**Repository snapshot when updated:** `d63f7c712355fb421c909f7bbdc74465a88522e6`
 
 ## Program-wide invariants
 
@@ -19,8 +19,8 @@
 | --- | --- |
 | Authorship | `AUTH-0088` merged on current `main` (published surface ecology projection) |
 | Implementation | `SF-IMP-0080` merged on current `main` (legible forest/taiga ecology showcase) |
-| Content / Experience | C15 ordinary-player 1:1 Nether portal linking/placement accepted; C14 executable avionics capability, C13 Elytra/firework suppression, C10 live 1:1 Nether-scale registry proof, C9 computing substrate, and C8 glider-maintenance closure also accepted; C11/C12 remain separately in progress/reserved |
-| AUDIT | AUDIT-0001 repository-state reconstruction / durable audit handoff accepted on `main` |
+| Content / Experience | C16 stock wireless infrastructure envelope accepted; C15 ordinary-player 1:1 Nether portal linking/placement, C14 executable avionics capability, C13 Elytra/firework suppression, C10 registry proof, C9 computing substrate, and C8 glider-maintenance closure also accepted; C11/C12 remain separately in progress/reserved |
+| AUDIT | AUDIT-0005 post-ecology convergence audit accepted by the merge that places this update on `main` |
 
 Use each lane's own state file and git history for detail. Do not infer acceptance solely from an old
 architecture summary; some older runtime overview docs lag current `main`.
@@ -94,10 +94,11 @@ not yet claim ecology-to-Minecraft-biome translation from AUTH-0003.
 
 ### MANUAL VERIFICATION REQUIRED — morphology quality
 
-AUTH-0083/AUTH-0084 review machinery is merged, but issue #214 remains the human gate. Implementation
-must preserve deterministic handoff IDs when producing above/approach/below views and flight routes.
-The gate determines whether current underside morphology is sufficient or needs an explicit
-underside-secondary vocabulary.
+AUTH-0083/AUTH-0084 review machinery is merged, and issue #214 remains open as the broader human gate.
+The first SF-IMP-0081 Massif tranche has passed its human silhouette/morphology/underside review; that
+does not close #214. Remaining built-in families, seeds/scales, hybrids/providers, regional contexts,
+and later material/ecology/hydrology contexts still require review. Issue #267 tracks the first
+Massif's non-blocking on-foot traversal/lumpiness observation.
 
 ## Active coordination contracts
 
@@ -105,8 +106,7 @@ underside-secondary vocabulary.
 
 Issue **#224** is the organizing Content vertical slice.
 
-Final content acceptance depends on a visually legible land-biome specimen, currently tracked by
-Implementation issue **#194**. Content must not judge ecology from gravel/ocean showcase fixtures.
+The visually legible land-biome prerequisite is now satisfied by accepted SF-IMP-0080; issue **#194** is closed after machine and human review. Bootstrap Province work may consume that accepted legibility without reopening the old gravel/ocean showcase problem. Remaining production-world quality work, including issue #214 morphology review, is tracked separately.
 
 Required progression shape:
 
@@ -182,6 +182,13 @@ throttle through its upstream 0..15 clamp. The retained flight stack also initia
 computing layer, so computers remain optional for manual and first flight. Other lanes should not add
 a duplicate generic aircraft telemetry/control API; thin Skyforge peripherals remain reserved for
 Skyforge-owned semantics not exposed upstream.
+
+C16 / PR #264, merge `d63f7c712355fb421c909f7bbdc74465a88522e6`, measures the stock
+CC:Tweaked wireless envelope with real CraftOS/modem calls: ordinary Wireless Modems communicate at
+48 blocks but not 96 blocks in the accepted low-altitude specimen, while Ender Modems communicate at
+512 blocks and across Overworld/Nether. This is accepted measurement, not a mandated recipe change.
+Ordinary wireless remains useful bounded infrastructure; any gating/reservation of Ender Modems is a
+Content progression decision, not a new Skyforge network authority.
 
 Next contract questions are gameplay/bypass:
 
