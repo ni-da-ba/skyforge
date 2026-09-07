@@ -1,13 +1,13 @@
 # Skyforge Current Runtime Architecture
 
-**Snapshot:** 2026-09-03 (America/Chicago)  
-**Accepted Minecraft integration through:** SF-IMP-0057  
+**Snapshot:** 2026-09-06 (America/Chicago)  
+**Accepted Minecraft integration through:** **SF-IMP-0079**  
 **Accepted branch:** `main`  
-**Accepted integration merge:** `9b93ebd25a7917b7b934e89144480c1f026c286c`  
-**Current Minecraft follow-on:** SF-IMP-0051 / issue #52 — cross-volume terrain-matching structure projection  
-**Parallel lane:** backend-neutral Skyforge authorship, developed independently under `auth/*`
+**Current Implementation frontier:** issue **#194** — human-legible land-biome/ecology showcase  
+**Later production morphology gate:** issue **#214**  
+**Parallel lanes:** backend-neutral Authorship and Content / Experience; see `docs/agent-state/`
 
-This document is the concise current-state runtime architecture and implementation handoff. Milestone acceptance records and ADRs remain authoritative for individual contracts.
+This document is the concise current-state runtime architecture. The canonical lane state and merged Git/test history determine the current frontier; milestone acceptance records remain authoritative for individual contracts.
 
 ## Executive state
 
@@ -16,48 +16,33 @@ Skyforge is a deterministic, backend-neutral procedural world-synthesis engine. 
 The accepted Minecraft path can now:
 
 - compile semantic island intent into deterministic finite suspended volumes;
-- compose independent islands without collapsing vertically stacked X/Z regions into one global surface;
-- query exact three-dimensional ownership through the backend-neutral world catalog;
+- compose independent exact volumes without collapsing vertically stacked X/Z regions into one global surface;
 - preserve ordinary Minecraft BASE_WORLD generation as a separate generation domain;
-- realize Skyforge-owned solid terrain additively into real chunks;
-- scope height and biome behavior to one exact island-owned operation;
-- reuse live registered Minecraft biome vegetation inside exact volumes;
-- coordinate native surface population idempotently per volume/chunk/phase;
-- survey an entire finite Skyforge volume for native occupancy before destructive realization;
-- reject conflicting volumes atomically without mutating the native conflict;
-- admit clear volumes only after complete finite footprint evidence exists;
-- defer catch-up until target chunks are already stable and loaded, without forcing future generation;
-- preserve Minecraft native post-processing work while deferred population runs on stable chunks;
-- synchronize deferred stable-chunk terrain mutations to lighting and tracking clients.
+- survey whole finite volumes for physical admission before destructive realization;
+- defer realization without forcing unavailable future chunks;
+- preserve stable-chunk native post-processing, lighting, and client synchronization during deferred work;
+- resolve exact-volume biome context and execute native surface ecology idempotently;
+- compose native and authored caves inside exact ownership;
+- execute production post-cave native interior phases including lakes, local modifications, ores, underground decoration, fluid springs, and routed cave-dependent vegetation;
+- persist generated-fluid provenance and fence fluid descendants to their authorized ownership/boundary policy;
+- save/reload and reopen the persisted showcase through an actual client;
+- keep vertically stacked exact volumes isolated through terrain, cave, population, fluid, and lifecycle work;
+- run the accepted technical showcase and performance characterization fixtures.
 
-The principal unresolved Minecraft integration defect is no longer physical collision or deferred population lifecycle. It is **cross-domain terrain projection by native structures**: a structure rooted in one world domain must not use an unrelated vertically stacked Skyforge surface merely because a vanilla heightmap reports it as highest at the same X/Z.
+The active Implementation problem is no longer the old SF-IMP-0057 deferred-population boundary or issue #52 structure projection. Current `main` has accepted through SF-IMP-0079. The immediate frontier is **#194**, which must expose already-proven land-biome ecology in a visually legible persistent specimen so humans can judge soil/grass/trees/plants and biome distinction. Production morphology follows; **#214** remains the later human visual/flight-quality gate.
 
 ## Architectural ownership
 
 Module ownership remains:
 
-- `skyforge-kernel` — coordinates, field contracts, typed procedural graphs, canonical serialization, validation, deterministic reference evaluation.
-- `skyforge-model` — backend-neutral semantic descriptors and validation.
-- `skyforge-recipes` — deterministic compilation from semantic/geological intent to procedural graphs.
-- `skyforge-world` — exact world volumes, placement, ownership, support/composition policy, and backend-neutral authored world semantics.
-- `skyforge-reference` — deterministic corpora, sampled evidence, topology/morphology analysis, hashes and visual diagnostics.
-- `skyforge-neoforge-1211` — Minecraft/NeoForge realization, registry translation, exact-volume lifecycle integration, development fixtures and packaging.
+- `skyforge-kernel` — coordinates, field contracts, typed procedural graphs, canonical serialization, validation, deterministic reference evaluation;
+- `skyforge-model` — backend-neutral semantic descriptors and validation;
+- `skyforge-recipes` — deterministic compilation from semantic/geological intent to procedural graphs;
+- `skyforge-world` — exact world volumes, placement, ownership, support/composition policy, and backend-neutral authored world semantics;
+- `skyforge-reference` — deterministic corpora, sampled evidence, topology/morphology analysis, hashes, and visual diagnostics;
+- `skyforge-neoforge-1211` — Minecraft/NeoForge realization, registry translation, exact-volume lifecycle integration, development fixtures, and packaging.
 
-Dependency direction is strictly downstream:
-
-```text
-skyforge-kernel
-      ^
-skyforge-model
-      ^
-skyforge-recipes
-      ^
-skyforge-world
-      ^
-skyforge-neoforge-1211
-```
-
-Minecraft and NeoForge concepts may not leak upward into the neutral engine merely to simplify an adapter problem.
+Dependency direction remains downstream toward the backend. Minecraft and NeoForge concepts may not leak into neutral modules merely to simplify adapter implementation.
 
 Guiding rule:
 
@@ -65,182 +50,195 @@ Guiding rule:
 
 ## Runtime domain model
 
-Minecraft and Skyforge are treated as separate generation domains.
+Minecraft BASE_WORLD and Skyforge exact volumes are separate generation domains.
 
 ```text
 Minecraft BASE_WORLD
-    -> native terrain
-    -> native structures
-    -> native generation lifecycle
+    -> native terrain / structures / generation lifecycle
 
-Skyforge island domain
-    -> exact finite volume
+Skyforge exact volume
+    -> finite authored ownership
     -> physical admission
-    -> additive terrain realization
-    -> exact-volume biome/population execution
-    -> deferred stable-chunk lifecycle adaptation when necessary
+    -> terrain realization
+    -> native-surface adaptation
+    -> exact-volume biome/population
+    -> composed caves
+    -> post-cave interior population
+    -> generated-fluid provenance/fencing
+    -> persistence / stable-chunk synchronization
 ```
 
-BASE_WORLD generation does not globally see all Skyforge terrain as another highest surface. An explicit Skyforge operation may opt into one exact island domain.
-
-The mature model must continue to support multiple independent domains at identical X/Z positions, for example:
+The model supports multiple independent domains at the same X/Z:
 
 ```text
-Y=400  Skyforge island A
-Y=250  Skyforge island B
+Y=400  Skyforge volume A
+Y=250  Skyforge volume B
 Y=70   Minecraft BASE_WORLD
 ```
 
-No global column-level answer may collapse those domains together.
+No column-global answer may silently substitute one of those domains for another.
 
-## Exact-volume realization
+## Exact-volume realization and physical admission
 
-Normal additive composition uses:
+Normal additive terrain composition remains:
 
 ```text
 Skyforge solid -> write resolved Skyforge BlockState
 Skyforge AIR   -> preserve existing backend state
 ```
 
-AIR means absence of Skyforge ownership, not permission to erase Minecraft terrain.
+AIR means absence of Skyforge-owned solid terrain, not permission to erase BASE_WORLD state.
 
-A planned volume may not write until physical admission reaches a terminal result.
-
-## SF-IMP-0056 — physical volume admission
-
-Acceptance record: [`SF-IMP-0056-physical-admission-acceptance.md`](../reviews/SF-IMP-0056-physical-admission-acceptance.md)
-
-SF-IMP-0056 separated two previously conflated concerns:
-
-```text
-generation-domain isolation != physical occupancy compatibility
-```
-
-The accepted lifecycle is:
+Physical admission remains a distinct finite-volume lifecycle:
 
 ```text
 PLANNED -> ADMITTED
 PLANNED -> REJECTED
 ```
 
-Properties:
+Key invariants established at SF-IMP-0056 and retained through current `main`:
 
-- evidence is collected only for Skyforge-owned solid coordinates;
-- any detected native occupancy conflict rejects the whole planned volume;
-- rejection is terminal and leaves the native conflict unchanged;
-- admission occurs only after every required chunk in the finite footprint has reported evidence;
-- unresolved volumes fail closed and may not partially realize;
-- deferred realization stores immutable work descriptions rather than retaining mutable generation chunks/regions;
-- catch-up uses `ServerChunkCache#getChunkNow` and therefore does not create generation tickets for unavailable chunks;
-- native surface population begins only after physical admission.
+- evidence is collected over Skyforge-owned solids;
+- conflicting native occupancy can reject the whole planned volume without destructive mutation;
+- unresolved PLANNED volumes fail closed;
+- admission waits for the required finite footprint evidence;
+- deferred work stores immutable descriptions rather than mutable generation regions/chunks;
+- catch-up uses already-loaded/stable chunks and does not force arbitrary future generation;
+- population begins only for an admitted owner.
 
-Accepted runtime proof:
+## Deferred lifecycle and persistence
 
-- lower volume rejected on native bedrock and preserved the conflict;
-- upper volume admitted after 25 / 25 required chunks;
-- pending catch-up reached 0;
-- upper terrain materialized;
-- 21 / 21 actual surface-bearing chunks completed native population.
+SF-IMP-0057 established the stable-chunk lifecycle seam that later milestones continue to use:
 
-The 25 required admission chunks and 21 surface-population chunks are intentionally different sets: footprint corner chunks may be required for complete occupancy evidence while containing no exact island surface.
+- pre-existing native post-processing work is preserved rather than consumed by Skyforge;
+- Skyforge-created post-processing is isolated and drained while exact-volume scope is active;
+- abnormal completion restores native state and fails closed;
+- stable-chunk low-level terrain changes are submitted to lighting and client block-change synchronization;
+- direct `WorldGenRegion` behavior remains generation-oriented.
 
-## SF-IMP-0057 — deferred native lifecycle semantics
+Later production lifecycle work extended this same model through caves, interior features, generated fluids, persistence, save/reload, and actual-client reopen. No newer milestone redefines stable chunks as ordinary gameplay block-placement operations.
 
-Acceptance record: [`SF-IMP-0057-deferred-post-processing-acceptance.md`](../reviews/SF-IMP-0057-deferred-post-processing-acceptance.md)
+## Exact-volume biome and surface ecology
 
-SF-IMP-0057 repaired two lifecycle differences exposed by stable loaded-chunk catch-up.
+Skyforge can execute registered Minecraft biome surface content against one exact owner while preserving three-dimensional isolation and deterministic/idempotent lifecycle keys.
 
-### Native post-processing preservation
+The accepted surface path is no longer simply “run all VEGETAL_DECORATION before caves.” SF-IMP-0079 routes cave-dependent `MultifaceGrowthFeature` entries out of the pre-cave surface pass and into post-cave execution while preserving the original biome feature-list occurrence ordinal. Ordinary vegetation remains surface ecology and is not rerolled merely because multiface growth moves later.
 
-A promoted `LevelChunk` may legitimately retain native post-processing marks. Therefore deferred Skyforge population must not assume the queue is empty and must not consume unrelated Minecraft work.
+The current #194 work is therefore a **presentation/legibility gate**, not proof that trees/plants can execute at all. That capability is already machine-accepted; the missing claim is that a persisted human-facing specimen makes the ecology visibly judgeable.
 
-Accepted behavior:
+## Cave composition
 
-1. snapshot/detach pre-existing native post-processing marks for the touched chunk;
-2. run one exact Skyforge population operation with an isolated live queue;
-3. resolve Skyforge-created marks through `LevelChunk#postProcessGeneration()` while exact-volume scope remains active;
-4. require the isolated Skyforge queue to drain;
-5. restore the native snapshot unchanged;
-6. on abnormal scope completion, clear unflushed Skyforge marks and restore native state before failing closed.
+The production lifecycle supports composition between native and authored cave systems within exact-volume ownership.
 
-Direct `WorldGenRegion` population remains unchanged.
-
-### Stable-chunk mutation synchronization
-
-Low-level generation-style chunk writes are sufficient before a chunk becomes client-visible but are not lifecycle-equivalent after promotion to a stable loaded chunk.
-
-Deferred catch-up therefore enters a narrow stable-chunk mutation scope that submits actual changed positions to Minecraft lighting and block-change synchronization. It does **not** replace the generation writer with ordinary gameplay-style block updates or introduce broad neighbor-update side effects.
-
-This repaired the observed state in which authoritative server collision existed while a client rendered part of the island as stale/invisible/dark.
-
-## Native population scope
-
-The currently accepted generic native population phase remains deliberately narrow: **`VEGETAL_DECORATION`**.
-
-Skyforge can resolve an exact volume to a final-registry Minecraft biome during its owning operation and invoke the biome's registered native feature list through Minecraft machinery.
-
-Current exclusions include:
-
-- ores and general underground decoration;
-- carvers/cave systems;
-- complete hydrology realization;
-- structures generated as island-owned local-world content;
-- top-layer modification beyond currently admitted paths;
-- persistent client-visible authored biome identity.
-
-These are future bounded-miniature-world capabilities, not evidence that the current surface-population path is incomplete for its accepted scope.
-
-## Biome semantics and future authorship
-
-The current Minecraft bridge is transitional: it can make an exact island population operation execute against a selected registered biome, but Minecraft biome identity is not yet the upstream semantic source of an island.
-
-The intended direction is:
+The important architecture is ordering and domain ownership rather than treating a floating island as an ordinary infinite underground column:
 
 ```text
-Skyforge island identity
-    -> authored environmental fields
-    -> local ecological classification
-    -> backend biome expression
-    -> Minecraft registered biome / native content
+admitted exact terrain
+    -> native/authored cave composition
+    -> final owned cave interior/exterior shell
+    -> post-cave native interior phases
 ```
 
-A sufficiently large island should ultimately behave as a bounded miniature world and may contain several real vanilla/modded biome expressions, structures, caves, water systems and other local-world content where spatial support permits.
+Exact-volume operations may not borrow terrain/interior support from a vertically stacked foreign owner.
 
-The parallel `auth/*` lane is developing those upstream backend-neutral semantics independently. The Minecraft implementation lane should consume them later through an explicit contract rather than duplicating or constraining them with Minecraft-specific ontology.
+## Post-cave native interior population
 
-Issue #78 / SF-IMP-0058, client-visible exact-volume biome presentation, remains deliberately deferred until that upstream authorship direction makes the persistent representation worth finalizing.
+The accepted production interior lifecycle includes:
 
-## Active Minecraft boundary — issue #52 / SF-IMP-0051
+- lakes;
+- local modifications;
+- ores;
+- underground decoration;
+- fluid springs;
+- cave-dependent multiface vegetation routed from VEGETAL_DECORATION after cave composition.
 
-Issue #52 records a concrete stacked-surface defect observed during the SF-IMP-0050 proof.
+These phases reuse Minecraft/native feature machinery where possible, but their world view is constrained by Skyforge ownership and lifecycle semantics.
 
-A vanilla village rooted in ordinary lower Overworld terrain projected stray terrain-matching path/plank blocks onto a vertically separated Skyforge island above it. No village building itself belonged to the island. The likely mechanism is vanilla jigsaw `terrain_matching` projection consulting a global heightmap such as `WORLD_SURFACE_WG` and therefore selecting the unrelated upper surface.
+The implementation does **not** claim that every vanilla/mod feature assumption is automatically valid in floating topology. New phases still require explicit read/write-domain review.
 
-Required invariant:
+## Floating-island feature plausibility — SF-IMP-0078/0079
 
-> Terrain adaptation/projection for a native structure must not cross onto an unrelated vertically separated world volume merely because that volume is the highest heightmap surface at the same X/Z.
+Human showcase review exposed two topology/lifecycle pathologies: exposed spring-derived fluids and implausible/floating glow lichen.
 
-Constraints:
+SF-IMP-0078 added phase-aware floating-domain behavior:
 
-- preserve the lower native structure when possible;
-- do not add a village blacklist;
-- do not build a per-structure compatibility table;
-- unknown/modded jigsaw structures using ordinary projection mechanics should benefit automatically;
-- stacked Skyforge islands must remain independent;
-- vanilla behavior must remain unchanged when no vertical-domain ambiguity exists;
-- explicit future multi-volume structures may span volumes only through an operation that deliberately owns those volumes.
+- sensitive underground reads outside exact ownership are hidden behind an inert barrier rather than arbitrary AIR;
+- FLUID_SPRINGS use an interior-shell boundary policy;
+- lakes retain their broader owner-domain policy;
+- spring descendants are provenance-tracked and fenced from leaking through the floating-island shell;
+- final multiface growth must have valid support and remain outside the reserved exterior shell.
 
-### Investigation order
+SF-IMP-0079 identified the remaining glow-lichen defect as lifecycle ordering. `MultifaceGrowthFeature` entries registered in `VEGETAL_DECORATION` are now routed after composed caves.
 
-1. locate the vanilla jigsaw terrain-matching height/surface query seam used during piece projection/placement;
-2. determine whether the structure execution context already carries enough information to identify its owning world domain or structure reference surface;
-3. prefer a structure-scoped height/surface view over copying vanilla structure-placement logic;
-4. constrain projection rather than reject the whole structure;
-5. add a deterministic stacked-surface fixture that proves lower BASE_WORLD structure projection does not touch an upper Skyforge volume;
-6. add the reciprocal proof needed for future structures rooted inside a Skyforge island;
-7. preserve an unambiguous control case showing ordinary vanilla terrain matching is unchanged.
+Accepted stacked evidence recorded by the Implementation lane includes:
 
-Do not implement this by globally hiding Skyforge terrain from all structure logic; island-owned structures will eventually need to see their own local terrain.
+```text
+final glow lichen        lower 134 / upper 80
+max per chunk            lower 7   / upper 6
+unsupported              0 / 0
+exterior-shell lichen    0 / 0
+pre-cave glow attempts   0 / 0
+spring boundary cells    0 / 0
+```
+
+Issue #193 is closed. No arbitrary global lichen-density cap was required.
+
+## Generated-fluid ownership
+
+Generated fluids are not treated as unowned vanilla side effects once they originate from a Skyforge-owned native phase.
+
+The retained architecture records provenance and a boundary policy so descendants can continue inside the permitted domain while failing closed at unauthorized ownership boundaries. Lakes and springs intentionally have different boundary semantics.
+
+This state persists across save/reload and remains part of the current showcase/persistence acceptance.
+
+## Performance convergence — SF-IMP-0070 through 0077
+
+Performance work followed a measurement-first sequence.
+
+The accepted tranche:
+
+- instrumented the production stacked fixture;
+- removed avoidable non-candidate terrain projection;
+- bounded physical-admission surveys to exact-volume Y envelopes;
+- skipped direct projection while candidate owners remained merely PLANNED;
+- bounded deferred materialization to authoritative volume Y ranges;
+- bounded exact-volume first-free/surface height queries;
+- decomposed remaining deferred realization subphase costs.
+
+The resulting policy is deliberate:
+
+> Do not continue local micro-optimization merely because another hot loop can be shortened.
+
+Reopen issue #219 or similar work only if fresh realistic-scale profiling shows surface discovery or another component is materially limiting again.
+
+## Structure realization
+
+Native structure admission/support/accommodation and piece-aware footprints were accepted before the current cave/interior lifecycle tranche. Structure support remains a real capability, but full reintegration of every realization mode into the newest production exact-volume population lifecycle is still future work.
+
+Current cross-lane realization modes include surface-supported, settlement/network, subsurface, cliff/underside, detached, and structure-seeded terrain. Content owns gameplay roles, Authorship owns site/environment semantics, and Implementation owns realization/lifecycle safety.
+
+## Authorship handoff boundaries
+
+The Minecraft implementation must consume backend-neutral authored meaning through explicit contracts rather than inventing parallel semantics.
+
+Current relevant contracts include:
+
+- Authorship through **AUTH-0086**: AUTH-0085 admits supplemental native WATER springs from authored cave + aquifer evidence, while AUTH-0086 projects accepted surface channels, retained waterbodies, cascades, waterfalls, and edge discharge into exact backend-neutral visible-water intents.
+
+Vanilla fluid springs are not equivalent to authored channels, waterfalls, retained waterbodies, or surface hydrology. Implementation must consume AUTH-0086's accepted one-for-one intent plan and preserve its provenance/dry-margin semantics rather than create a second hydrology planner.
+
+## Current showcase role
+
+The compact showcase is a **technical current-capability fixture**. It exists to prove exact ownership, stacked isolation, lifecycle order, persistence, reopen behavior, and representative native-content execution.
+
+It is not the production morphology target.
+
+Current human-facing sequence:
+
+1. **#194:** expose persistent legible land ecology without weakening production lifecycle semantics;
+2. production representative Massif/Tableland/Spine/Basin/Lobed realization;
+3. **#214:** judge silhouette, top/rim/underside quality, approach readability, and actual flight/orbit-underneath views;
+4. only then promote production morphology aesthetics.
 
 ## Non-regression rules
 
@@ -248,25 +246,44 @@ Do not implement this by globally hiding Skyforge terrain from all structure log
 - Exact ownership is three-dimensional, not column-global.
 - PLANNED physical volumes fail closed.
 - REJECTED volumes leave no destructive terrain/population work behind.
-- ADMITTED deferred catch-up never forces unavailable chunks.
-- Native population never begins before admission when the physical-admission stage is installed.
-- Deferred population preserves unrelated native post-processing state.
-- Stable-chunk deferred writes synchronize lighting/client state without changing normal generation writer semantics.
-- Population replay remains idempotent.
-- Mutable generation chunks/regions are not retained as long-lived deferred work.
-- Backend-neutral modules remain free of Minecraft/NeoForge APIs.
-- Deterministic identity, exact volume ownership and canonical evidence behavior remain stable unless an explicit versioned contract changes them.
+- Exact-volume operations do not borrow stacked/foreign terrain.
+- Deferred catch-up never forces unavailable chunks.
+- Mutable generation chunks/regions are not retained as long-lived deferred evidence.
+- Population is deterministic, idempotent, and phase ordered.
+- Stable-chunk catch-up preserves unrelated native post-processing and synchronizes client-visible mutations.
+- Native/generated fluids retain provenance and may not cross unauthorized ownership/boundary policy.
+- Cave-dependent native vegetation executes only after usable cave support exists.
+- Backend-neutral modules remain free of Minecraft/NeoForge APIs unless a genuinely neutral abstraction is first established.
+- Machine correctness does not replace explicit human visual/play gates where the claim is aesthetic or experiential.
+
+## Verification authority
+
+Current Implementation verification authorities include:
+
+- repository CI;
+- `SF-IMP-0070 Performance Characterization` for retained performance/regression evidence;
+- `Skyforge Showcase Acceptance`, including persisted actual-client reopen;
+- targeted unit/runtime tests for the lifecycle/domain policy being changed.
+
+Useful local entry points recorded by the lane state include:
+
+```text
+:skyforge-neoforge-1211:sfImp0070PerformanceVerify
+:skyforge-neoforge-1211:showcaseViewerVerify
+:skyforge-neoforge-1211:launchShowcase
+```
+
+Use `--no-configuration-cache` where the project's ModDev showcase/dev orchestration requires it.
 
 ## Next implementation procedure
 
-The Minecraft implementation lane should now continue issue #52 from current accepted `main`.
+Implementation should continue from current `main`, not from this architecture document's historical predecessors.
 
-1. branch from the latest `main` only after checking whether the authorship lane has advanced it;
-2. keep all #52 implementation changes on a dedicated `agent/*` branch;
-3. do not modify `auth/*` branches or fold authorship semantic work into the structure fix;
-4. first build the smallest reliable observation seam for terrain-matching projection before changing behavior;
-5. preserve a control case proving normal vanilla projection still works;
-6. require exact-head CI plus a dedicated runtime/visual proof before merge;
-7. add a permanent acceptance record under `docs/reviews/` only after the runtime invariant is demonstrated.
+1. complete issue #194 with the smallest production-faithful change that exposes persistent legible land-biome ecology;
+2. require machine acceptance plus the explicit human ecology-legibility gate before closing #194;
+3. move representative production morphology families through the same admission/cave/population/persistence pipeline;
+4. trigger the first #214 Minecraft/reference/flight review tranche rather than inventing aesthetic thresholds in code;
+5. then connect authored materials/geology and authored hydrology to concrete Minecraft realization;
+6. reintegrate structures into the newest lifecycle and converge with Content on the deterministic Bootstrap Province.
 
-The target is not merely to remove stray village blocks. The target is to establish **structure-owned terrain projection** as another bounded-world invariant that will later support both native BASE_WORLD structures and structures legitimately generated inside Skyforge miniature worlds.
+The target is not to make the compact technical fixture attractive. The target is to carry authored, visually convincing floating worlds through the already-proven exact-volume runtime without weakening ownership, lifecycle, persistence, or Minecraft reuse contracts.
