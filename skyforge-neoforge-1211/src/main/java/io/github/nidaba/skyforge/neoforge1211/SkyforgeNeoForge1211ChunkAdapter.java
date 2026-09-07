@@ -152,6 +152,24 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     }
 
     /**
+     * Returns the exact discrete solid Y interval for one compiled island column.
+     *
+     * <p>This reuses the same accepted discrete-support bridge that derives tight Minecraft voxel
+     * bounds. The returned interval is authoritative for physical occupancy and avoids repeatedly
+     * re-evaluating full terrain semantics at every Y in a known continuous solid column.
+     */
+    Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> integerSolidRange(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return SkyforgeExactVoxelSupportBounds.integerSolidRange(
+                requireInterpreter(volumeId),
+                worldX,
+                worldZ);
+    }
+
+    /**
      * Returns the independently compiled island volumes that actually own a solid Skyforge sample.
      *
      * <p>This is a provenance query for the Minecraft adapter only. It does not merge vertically
