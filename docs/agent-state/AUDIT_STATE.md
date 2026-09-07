@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot at AUDIT-0005 start:** `d63f7c712355fb421c909f7bbdc74465a88522e6`
+**Main snapshot at latest AUDIT-0005 synchronization:** `0d31539e921e602002251d8425ad0cb67c56b30a`
 
 Read first:
 
@@ -64,7 +64,7 @@ Accepted by the merge that places this update on `main`.
 AUDIT-0005 records repository-visible convergence after AUDIT-0004 without creating producer-lane behavior:
 
 - AUTH-0088 / PR #262 is merged/accepted on `main`, with exact-head CI run `34083554995` green; Authorship durable state was repaired by PR #266;
-- Content C16 / PR #264 is merged/accepted: stock CC:Tweaked normal wireless remains bounded while Ender Modems bypass range and dimension separation; any progression restriction remains Content-owned;
+- Content C16 / PR #264 is merged/accepted and its durable state is repaired by `0d31539e`: stock CC:Tweaked normal wireless remains bounded while Ender Modems bypass range and dimension separation; any progression restriction remains Content-owned;
 - SF-IMP-0081 / PR #265 passed its first Massif human #214 tranche and prior exact carrier machine proof, but current candidate head `23aa63f7` became stale when AUTH-0088 state and C16 merged to `main@d63f7c71`; final Implementation acceptance therefore still requires current-main synchronization and fresh exact-head regressions;
 - issue #267 records the non-blocking Massif traversal-cadence/lumpiness observation; do not flatten the accepted carrier from one specimen;
 - issue #269 reserves SF-IMP-0082 for Tableland, Spine, Basin, and Lobed using the generalized exact-carrier path;
@@ -144,21 +144,19 @@ Human play must verify discoverability and non-surprising redstone shutdown beha
 ## KNOWN HAZARDS / TECHNICAL DEBT
 
 1. **SF-IMP-0081 synchronization:** first Massif quality passed, but current candidate head must absorb C16/Authorship-state main changes and rerun final exact-head gates before merge.
-2. **Content durable-state lag:** C16 runtime is merged, while `CONTENT_STATE.md` still reports C15 highest. Repository history is authoritative until Content repairs its lane state.
-3. **Biome presentation flight envelope / issue #261:** immediate-surface biome presentation can fall back to BASE_WORLD ambience away from owned terrain. Non-blocking for SF-IMP-0080; avoid claiming whole native biome columns as the fix.
-4. **Long-lived branch drift:** C11, Portable Engine cutoff, and Bellanca proposal require current-main synchronization before acceptance.
-5. **Production morphology:** underside quality is a first-class requirement; the first Massif underside passed, but do not extrapolate full #214 acceptance from one family.
-6. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
-7. **Performance:** do not restart local micro-optimization absent fresh realistic-scale profiling.
+2. **Biome presentation flight envelope / issue #261:** immediate-surface biome presentation can fall back to BASE_WORLD ambience away from owned terrain. Non-blocking for SF-IMP-0080; avoid claiming whole native biome columns as the fix.
+3. **Long-lived branch drift:** C11, Portable Engine cutoff, and Bellanca proposal require current-main synchronization before acceptance.
+4. **Production morphology:** underside quality is a first-class requirement; the first Massif underside passed, but do not extrapolate full #214 acceptance from one family.
+5. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
+6. **Performance:** do not restart local micro-optimization absent fresh realistic-scale profiling.
 
-Resolved hazards include the C11/C13 identifier collision, duplicate live-state namespaces, AUTH-0086/AUTH-0087 durable-state lag, and SF-IMP-0080's compile/substrate/ecology-legibility blockers.
+Resolved hazards include the C11/C13 identifier collision, duplicate live-state namespaces, AUTH-0086/AUTH-0087/AUTH-0088 durable-state lag, C16 durable-state lag, and SF-IMP-0080's compile/substrate/ecology-legibility blockers.
 
 ## ORDERED NEXT AUDIT WORK
 
 1. Re-audit SF-IMP-0081 / PR #265 after synchronization to current main and fresh exact-head gates; accept the first Massif tranche only if machine evidence remains green and the recorded human pass remains applicable.
 2. If SF-IMP-0081 lands, verify Implementation durable state distinguishes first-family acceptance from full #214 closure and points to SF-IMP-0082 / issue #269.
-3. Track Content's durable-state repair from C15 to merged C16 without taking over `CONTENT_STATE.md`.
-4. Review AUTH-0089 only for cross-lane ownership/contract change; final semantic acceptance remains Authorship-owned.
-5. Track issue #267 as non-blocking traversal evidence and issue #261 as non-blocking biome-envelope refinement.
-6. Re-audit C11 / PR #233 and Portable Engine #240 only after their declared synchronization/runtime prerequisites.
-7. Update this ledger at each material merge, contract change, new hazard, or handoff.
+3. Review AUTH-0089 only for cross-lane ownership/contract change; final semantic acceptance remains Authorship-owned.
+4. Track issue #267 as non-blocking traversal evidence and issue #261 as non-blocking biome-envelope refinement.
+5. Re-audit C11 / PR #233 and Portable Engine #240 only after their declared synchronization/runtime prerequisites.
+6. Update this ledger at each material merge, contract change, new hazard, or handoff.
