@@ -193,3 +193,56 @@ These are minor and can be repaired surgically in the same controlled A/B, but t
 ### Tempo metadata clarification
 
 The persisted MIDI conductor tempo is exactly 104 BPM in 6/8. The earlier "experienced tempo approximately 108 BPM" description is retained as a perceptual characterization, not source metadata.
+
+
+## Range-repair A/B candidates
+
+Two non-canonical BBCSO repair candidates were generated from the verified V2F.1 source.
+
+### Candidate A — peak handoff
+
+Repository source:
+
+`assets/music/source/repair-candidates/track-00-v2f2a-peak-handoff-range-repair.mid.gz`
+
+Uncompressed MIDI SHA-256:
+
+`c8de531cba73d058ca02a8b58b444617596a09d888bd7cf7132601141121ca73`
+
+Repair strategy:
+
+- remove only the ten Horn note events above Discover's F5 ceiling;
+- transfer seven previously uncovered high peaks to Trumpets;
+- leave three already-covered Trumpet reinforcements unduplicated;
+- preserve all in-range Horn melody;
+- move the three out-of-range Viola B2 notes to Celli at identical pitch, timing, duration, and velocity.
+
+This is the preferred first audition because it preserves the original horn-led identity most conservatively.
+
+### Candidate B — continuous brass crest
+
+Repository source:
+
+`assets/music/source/repair-candidates/track-00-v2f2b-continuous-brass-crest-range-repair.mid.gz`
+
+Uncompressed MIDI SHA-256:
+
+`79d3ae690cf8aaf785ad0e31bef2e85f92ddfa3a3ac8cd2fe7c81b5d3c74d375`
+
+Repair strategy:
+
+- move the complete upper Horn melody from bars 57-60 to Trumpets;
+- retain the low Horn pad layer;
+- replace sparse Trumpet reinforcements in those bars with the continuous transferred line;
+- copy the Horn CC1/CC11 crest envelope into the Trumpet lane for that passage;
+- move the three out-of-range Viola B2 notes to Celli unchanged in pitch/timing/duration/velocity.
+
+This candidate is intentionally more interventionist and exists to test whether a coherent brass-family handoff works better than note-by-note peak transfer.
+
+### Acceptance gate
+
+Neither candidate is canonical.
+
+Audition at **104 BPM / 6/8** using the normal BBCSO Horns, Trumpets, Violas, and Celli patches. Compare bars 55-61 against the accepted V2F.1 render.
+
+Promote only if the repair preserves the cue's accepted revelation/departure character while eliminating silent or impossible library events.
