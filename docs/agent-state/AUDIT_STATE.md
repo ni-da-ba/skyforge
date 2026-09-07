@@ -56,20 +56,21 @@ Merged Bellanca PR #238 is accepted **design state**, not accepted aircraft runt
 
 ## IN PROGRESS / UNMERGED
 
-### Implementation SF-IMP-0080 — PR #248 / issue #194
+### Implementation land-biome legibility — issue #194
 
-Draft branch exposes forest/taiga land ecology in the human-facing showcase while preserving the accepted stacked production fixture/lifecycle.
+Issue **#194** remains open. PR **#248 / SF-IMP-0080** explored a forest/taiga human-facing showcase specimen but is now **closed without merge**.
 
-Important gate:
+The required claim is unchanged:
 
 - machine acceptance is necessary but insufficient;
+- a future Implementation attempt must preserve the accepted stacked production lifecycle;
 - issue #194 remains open until a human can visibly confirm persistent land surface, trees/foliage, plants, meaningful biome distinction, and no obvious new placement/persistence defect.
 
 Do not conflate this with production morphology aesthetics; issue #214 remains separate.
 
 ### Authorship state migration — PR #245
 
-Unmerged canonical-state consolidation work. It is recomposed onto the AUDIT-0001 merge, changes only `docs/agent-state/*`, and does not recreate the deprecated live authority under `docs/handoffs/`. Authorship still owns its exact-head CI/evidence and merge decision.
+PR **#245** is now **merged** as `5d4a293d`. The canonical live namespace remains `docs/agent-state/`; Authorship added `AUTHORSHIP_STATE.md` and extended the shared charter/contracts without recreating the deprecated live authority under `docs/handoffs/`.
 
 ### AUTH-0086 — PR #241
 
@@ -106,7 +107,7 @@ CONTENT-owned proposed documentation. Build evidence does not substitute for C12
 
 ### #194 — land-biome/ecology legibility
 
-Human review must see persistent soil/grass, trees/foliage, surface plants, and meaningful biome distinction. PR #248 is the current Implementation vehicle.
+Human review must see persistent soil/grass, trees/foliage, surface plants, and meaningful biome distinction. PR #248 closed without merge, so there is currently no accepted or active SF-IMP-0080 implementation vehicle.
 
 ### #214 — production morphology quality
 
@@ -125,15 +126,17 @@ Human play must verify interaction discoverability and that neighboring redstone
 1. **Long-lived branch drift:** C11 and Portable Engine cutoff require current-main synchronization before acceptance.
 2. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
 3. **Manual-gate ambiguity:** morphology corpus machinery and showcase counters do not constitute aesthetic/ecology acceptance.
-4. **State migration concurrency:** PR #245 must follow the canonical `docs/agent-state/` namespace and current main.
-5. **Reviewer-document drift:** AUDIT-0002 repairs the known SF-IMP-0057 runtime overview drift; future milestone/state changes should not silently turn overview prose back into a second lane ledger.
+4. **Reviewer-document drift:** AUDIT-0002 repairs the known SF-IMP-0057 runtime overview drift; future milestone/state changes should not silently turn overview prose back into a second lane ledger.
 
-Resolved hazard: PR #247's initial C11 milestone collision was corrected to **C13** without renumbering C11 or C12.
+Resolved hazards:
+- PR #247's initial C11 milestone collision was corrected to **C13** without renumbering C11 or C12.
+- PR #245 merged into the canonical `docs/agent-state/` namespace without recreating parallel live state.
+- duplicate AUDIT-0002 PR #250 was closed in favor of earlier PR #249 before either could merge.
 
 ## ORDERED NEXT AUDIT WORK
 
 1. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
-2. Track PR #248 without waiving its #194 human-eye gate.
+2. Track the next Implementation attempt on issue #194 without waiving the human-eye ecology gate.
 3. Review PR #242 only for cross-lane consistency; leave CONTENT ownership and C12 runtime acceptance intact.
 4. Re-audit PR #240 after assembled-Sable + persistence evidence.
 5. Continue checking future lane-state migrations remain under `docs/agent-state/`.
