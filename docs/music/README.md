@@ -6,7 +6,7 @@ The soundtrack is not treated as detached promotional media. Its purpose is to d
 
 ## Lane identifier
 
-The initial persistence milestone is **MUS-0001**.
+The initial persistence milestone is **MUS-0001**. **MUS-0002** adds executable source/library verification to normal repository CI.
 
 The lane follows the same evidence-first principles as the rest of the repository:
 
@@ -67,3 +67,14 @@ Before further composition, the library/MIDI audit must be closed:
 5. The principal-theme motif remains protected but undeveloped until the maintenance boundary is complete.
 
 Adaptive implementation remains downstream of accepted linear compositions.
+
+
+## Automated source verification
+
+Run the Music / Audio repository-health gate locally with:
+
+```shell
+python3 scripts/music/verify_music_sources.py
+```
+
+Normal GitHub CI runs the same verifier immediately after checkout, before Gradle/JDK setup. Canonical manifest/source mismatches, structural MIDI misalignment, undeclared BBCSO range violations, and special-lane provenance/mapping errors therefore fail the pull request instead of remaining review-only findings.
