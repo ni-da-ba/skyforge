@@ -113,18 +113,23 @@ final class SkyIslandPublishedSurfaceEcologyResolverTest {
     @Test
     void sampleEnvelopeRejectsEcologyWhenPhysicalOrAuthoredGateIsAbsent() {
         Fixture fixture = fixture(88005L, 1439L);
-        SkyIslandLocalPosition local = firstSupportedAuthoredPosition(fixture.association());
-        Coordinate2 world = toWorld(fixture.association(), local);
-        SkyIslandEcologySample ecology = SkyIslandEcologyField
-                .create(fixture.association().authoredDescriptor())
-                .sample(local);
+        SkyIslandLocalPosition sourceLocal =
+                firstSupportedAuthoredPosition(fixture.association());
+        SkyIslandPublishedSurfaceEcologySample valid =
+                new SkyIslandPublishedSurfaceEcologyResolver(fixture.binding())
+                        .sample(
+                                fixture.association().realizedVolumeId(),
+                                toWorld(fixture.association(), sourceLocal));
+        SkyIslandLocalPosition exactLocal = valid.localPosition();
+        Coordinate2 exactWorld = valid.worldPosition();
+        SkyIslandEcologySample ecology = valid.ecologySample().orElseThrow();
 
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new SkyIslandPublishedSurfaceEcologySample(
                         fixture.association(),
-                        world,
-                        local,
+                        exactWorld,
+                        exactLocal,
                         false,
                         1.0,
                         ecology));
@@ -132,8 +137,8 @@ final class SkyIslandPublishedSurfaceEcologyResolverTest {
                 IllegalArgumentException.class,
                 () -> new SkyIslandPublishedSurfaceEcologySample(
                         fixture.association(),
-                        world,
-                        local,
+                        exactWorld,
+                        exactLocal,
                         true,
                         0.0,
                         ecology));
