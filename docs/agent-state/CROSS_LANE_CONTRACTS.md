@@ -2,12 +2,12 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `993d3815aef7c5a894ae562880b9075a24a6ddc6`
+**Repository snapshot when updated:** `34bd884fb0646894dd682350fd1f35b3bdd46ed3`
 
 ## Program-wide invariants
 
 - Backend-neutral modules remain free of Minecraft/NeoForge ontology unless a neutral abstraction is justified.
-- Authorship owns world meaning; Implementation owns realization/lifecycle; Content owns game integration/experience.
+- Authorship owns world meaning; Implementation owns realization/lifecycle; Content owns game integration/experience; Music / Audio owns accepted score/audio authorship and source identity.
 - Exact three-dimensional ownership and deterministic identity remain fundamental.
 - Existing mods/content are asset and capability libraries under Skyforge semantic authority.
 - Do not solve poor morphology or ecological legibility by increasing content density.
@@ -19,8 +19,9 @@
 | --- | --- |
 | Authorship | `AUTH-0090` accepted: area-weighted regional ecological opportunity; AUTH-0091 freshwater habitat opportunity in progress |
 | Implementation | `SF-IMP-0081` accepted: first exact AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / #269 remaining built-in morphology atlas in progress |
-| Content / Experience | `C17` accepted: stock GPS requires ordinary host geometry/range while Ender-backed GPS is a mature range bypass; C11/C12 remain separately in progress/reserved |
-| AUDIT | AUDIT-0005 post-ecology / first-production-morphology convergence audit accepted by the merge that places this update on `main` |
+| Content / Experience | `C17` accepted: stock GPS requires ordinary host geometry/range while Ender-backed GPS is a mature range bypass; C18 is current-main green but remains draft/unaccepted; C11/C12 remain separately in progress/reserved |
+| Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 is draft/unmerged with branch-local cue/source freezes only |
+| AUDIT | AUDIT-0006 Music/Audio lane-integration audit accepted by the merge that places this update on `main` |
 
 Use each lane state file and merged history for detail.
 
@@ -144,6 +145,30 @@ enderRemoteFound=true enderRemote=512,80,272
 Cross-lane consequence: ordinary GPS is legitimate physical navigation infrastructure because it needs a non-collinear host constellation inside radio range; Ender-backed GPS is a mature range bypass. No duplicate Skyforge GPS authority/API is justified. Tower placement/spacing remains Content/Bootstrap design rather than a networking-capability gap.
 
 Bootstrap computing remains tracked in #224.
+
+### Music / Audio — MUS-0001 — DRAFT / UNMERGED
+
+MUS-0001 / PR #159 is the current soundtrack-persistence branch. Its branch-local records include
+frozen/candidate musical decisions, but no Music milestone is repository-level accepted until the
+branch is synchronized, verified, and merged.
+
+Current cross-lane ownership:
+
+- Music / Audio owns composition, motif/cue musical semantics, orchestration, exact source identity,
+  library/instrument alignment, production-state provenance, renders/masters, and listening gates;
+- Authorship owns the world/environment semantics that may later motivate musical state;
+- Content / Experience owns gameplay/experience meaning and progression decisions that may later
+  request cue changes;
+- Implementation owns concrete Minecraft playback, adaptive-state runtime, transitions,
+  persistence, and client integration;
+- issue #261's future biome/ambient flight envelope remains Implementation representation authority;
+  Audio may consume an accepted envelope later but must not redefine biome/volume ownership;
+- no adaptive music state machine, runtime cue trigger contract, or playback implementation is
+  currently accepted.
+
+Large rendered WAV masters remain outside ordinary Git until the project deliberately chooses a
+versioned large-artifact strategy. Canonical authoring sources and their identities must remain
+reproducible independently of those derived masters.
 
 ### Bellanca / mature utility aircraft
 
