@@ -96,6 +96,25 @@ Content source priority is mandatory:
 
 Skyforge owns **meaning**; it does not need to author every asset.
 
+### Music / Audio
+
+Owns original score/audio authorship and production evidence assigned to the lane:
+
+- musical language, themes, motifs, cue roles, form, orchestration, and arrangement;
+- exact authoring-source identity and persistence;
+- library/instrument alignment plus plugin/patch-state provenance needed for reproducibility;
+- render/master acceptance records and human listening gates;
+- soundtrack source/artifact storage policy.
+
+The current MUS lane is soundtrack-focused. Ambience, sound effects, or other audio domains enter this
+lane only when explicitly assigned rather than by assumption.
+
+Music / Audio does not invent world or gameplay truth merely to choose a cue. Authorship owns world
+semantics; Content / Experience owns gameplay/progression meaning; Implementation owns concrete
+Minecraft playback, transition, persistence, and client/runtime integration. Adaptive scoring must
+consume explicit accepted cross-lane state and accepted audio-source identities rather than
+reverse-discovering either.
+
 ## Working method
 
 Prefer:

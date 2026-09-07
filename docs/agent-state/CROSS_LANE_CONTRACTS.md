@@ -2,12 +2,12 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `70428e9920ff9e0f5d52a8f3ba90462f15a49e8f`
+**Repository snapshot when updated:** `34bd884fb0646894dd682350fd1f35b3bdd46ed3`
 
 ## Program-wide invariants
 
 - Backend-neutral modules remain free of Minecraft/NeoForge ontology unless a neutral abstraction is justified.
-- Authorship owns world meaning; Implementation owns realization/lifecycle; Content owns game integration/experience.
+- Authorship owns world meaning; Implementation owns realization/lifecycle; Content owns game integration/experience; Music / Audio owns accepted score/audio authorship and source identity.
 - Exact three-dimensional ownership and deterministic identity remain fundamental.
 - Existing mods/content are asset and capability libraries under Skyforge semantic authority.
 - Do not solve poor morphology or ecological legibility by increasing content density.
@@ -17,10 +17,11 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0089` accepted: deterministic island ecological opportunity profile, still placement/species/backend-neutral |
+| Authorship | `AUTH-0090` accepted: area-weighted regional ecological opportunity; AUTH-0091 freshwater habitat opportunity in progress |
 | Implementation | `SF-IMP-0081` accepted: first exact AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / #269 remaining built-in morphology atlas in progress |
-| Content / Experience | `C17` accepted: stock GPS requires ordinary host geometry/range while Ender-backed GPS is a mature range bypass; C11/C12 remain separately in progress/reserved |
-| AUDIT | AUDIT durable reconstruction/reconciliation remains the program-state review layer |
+| Content / Experience | `C17` accepted: stock GPS requires ordinary host geometry/range while Ender-backed GPS is a mature range bypass; C18 is current-main green but remains draft/unaccepted; C11/C12 remain separately in progress/reserved |
+| Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 is draft/unmerged with branch-local cue/source freezes only |
+| AUDIT | AUDIT-0006 Music/Audio lane-integration audit accepted by the merge that places this update on `main` |
 
 Use each lane state file and merged history for detail.
 
@@ -45,6 +46,16 @@ For one exact published volume ID + world X/Z, downstream may query unchanged AU
 ### AUTH-0089 — island ecological opportunity profile — ACCEPTED
 
 AUTH-0089 merged as `badcfbf8f9cf102a1f6f8f7bd018183d84f74e37`. It deterministically aggregates unchanged AUTH-0003 ecology into horizontal authored-habitat area, regime composition, and mean vegetation/saturation/thermal opportunity. It assigns no species, spawn counts, carrying capacity, resources, or backend biome identity.
+
+### AUTH-0090 — regional ecological opportunity — ACCEPTED
+
+AUTH-0090 / PR #276 merged as `1a2f9cc2e76bfd5ef9a36d3547dd0a0f3835fe28`.
+
+One exact AUTH-0058/AUTH-0087 published region can now aggregate every associated AUTH-0089 island profile into total horizontal authored-habitat area plus area-weighted AUTH-0003 regime composition and mean vegetation/saturation/thermal opportunity, retaining canonical island/volume provenance. It does not assign species, resources, province labels, Minecraft biomes, or backend lifecycle policy.
+
+### AUTH-0091 — freshwater habitat opportunity — IN PROGRESS
+
+Authorship is aggregating accepted retained-waterbody semantics into island-scale coarse horizontal inundated-area, shoreline-cell, source-kind, and normalized water-depth opportunity evidence. Dry islands must remain valid zero-water profiles. Physical water volume/depth, fauna, agriculture/resource eligibility, and Minecraft fluid identity remain outside this contract.
 
 ### SF-IMP-0080 — visible land ecology — ACCEPTED
 
@@ -84,7 +95,7 @@ Other lanes must not introduce an independent wind/thermal authority without reo
 
 ### Ecology
 
-Authorship/environment semantics determine niches/opportunity. Content maps retained species into those niches. Atmosphere may alter behavior but must not independently create population. AUTH-0088 is the exact published local query seam; AUTH-0089 is the accepted island-scale opportunity summary; SF-IMP-0080 is the visible Minecraft ecology seam. Do not conflate semantic opportunity with spawn/carrying-capacity policy.
+Authorship/environment semantics determine niches/opportunity. Content maps retained species into those niches. Atmosphere may alter behavior but must not independently create population. AUTH-0088 is the exact published local query seam; AUTH-0089 is the accepted island-scale ecology summary; AUTH-0090 is the accepted regional ecology summary; AUTH-0091 is preparing retained-freshwater habitat evidence. SF-IMP-0080 remains the visible Minecraft ecology seam. Do not conflate semantic opportunity with spawn/carrying-capacity/resource policy.
 
 ### Nether route scale
 
@@ -134,6 +145,30 @@ enderRemoteFound=true enderRemote=512,80,272
 Cross-lane consequence: ordinary GPS is legitimate physical navigation infrastructure because it needs a non-collinear host constellation inside radio range; Ender-backed GPS is a mature range bypass. No duplicate Skyforge GPS authority/API is justified. Tower placement/spacing remains Content/Bootstrap design rather than a networking-capability gap.
 
 Bootstrap computing remains tracked in #224.
+
+### Music / Audio — MUS-0001 — DRAFT / UNMERGED
+
+MUS-0001 / PR #159 is the current soundtrack-persistence branch. Its branch-local records include
+frozen/candidate musical decisions, but no Music milestone is repository-level accepted until the
+branch is synchronized, verified, and merged.
+
+Current cross-lane ownership:
+
+- Music / Audio owns composition, motif/cue musical semantics, orchestration, exact source identity,
+  library/instrument alignment, production-state provenance, renders/masters, and listening gates;
+- Authorship owns the world/environment semantics that may later motivate musical state;
+- Content / Experience owns gameplay/experience meaning and progression decisions that may later
+  request cue changes;
+- Implementation owns concrete Minecraft playback, adaptive-state runtime, transitions,
+  persistence, and client integration;
+- issue #261's future biome/ambient flight envelope remains Implementation representation authority;
+  Audio may consume an accepted envelope later but must not redefine biome/volume ownership;
+- no adaptive music state machine, runtime cue trigger contract, or playback implementation is
+  currently accepted.
+
+Large rendered WAV masters remain outside ordinary Git until the project deliberately chooses a
+versioned large-artifact strategy. Canonical authoring sources and their identities must remain
+reproducible independently of those derived masters.
 
 ### Bellanca / mature utility aircraft
 

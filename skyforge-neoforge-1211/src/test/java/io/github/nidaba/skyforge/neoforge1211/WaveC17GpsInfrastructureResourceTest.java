@@ -22,6 +22,8 @@ final class WaveC17GpsInfrastructureResourceTest {
 
         assertTrue(source.contains("shell.run(\"gps\", \"host\""));
         assertTrue(source.contains("gps.locate(2, false)"));
+        assertTrue(source.contains("for attempt = 1, 3 do"));
+        assertTrue(source.contains("sleep(0.5)"));
         assertTrue(source.contains("wireless_modem_normal"));
         assertTrue(source.contains("wireless_modem_advanced"));
         assertTrue(source.contains("WAVE_C17 PASS"));
