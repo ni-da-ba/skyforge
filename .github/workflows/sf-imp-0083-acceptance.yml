@@ -2,7 +2,7 @@ name: SF-IMP-0083 Morphology Seed-Scale Acceptance
 
 on:
   pull_request:
-    types: [edited]
+    types: [synchronize]
   workflow_dispatch:
     inputs:
       family:
