@@ -129,6 +129,7 @@ Human play must verify interaction discoverability and that neighboring redstone
 2. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
 3. **Manual-gate ambiguity:** morphology corpus machinery and showcase counters do not constitute aesthetic/ecology acceptance.
 4. **Reviewer-document drift:** AUDIT-0002 repairs the known SF-IMP-0057 runtime overview drift; future milestone/state changes should not silently turn overview prose back into a second lane ledger.
+5. **Authorship ledger lag:** current `main` has accepted AUTH-0086 / PR #241, but `docs/agent-state/AUTHORSHIP_STATE.md` still reports AUTH-0085 as highest and AUTH-0086 as in progress. Repository history/source/tests therefore override that stale lane summary until the Authorship owner refreshes it.
 
 Resolved hazards:
 - PR #247's initial C11 milestone collision was corrected to **C13** without renumbering C11 or C12.
@@ -137,9 +138,9 @@ Resolved hazards:
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
-2. Track the next Implementation attempt on issue #194 without waiving the human-eye ecology gate.
-3. Review PR #242 only for cross-lane consistency; leave CONTENT ownership and C12 runtime acceptance intact.
+1. Track correction of the Authorship lane ledger to merged AUTH-0086 without taking over Authorship-owned state.
+2. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
+3. Track the next Implementation attempt on issue #194 without waiving the human-eye ecology gate.
 4. Re-audit PR #240 after assembled-Sable + persistence evidence.
 5. Continue checking future lane-state migrations remain under `docs/agent-state/`.
 6. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
