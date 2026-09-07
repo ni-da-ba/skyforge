@@ -12,6 +12,7 @@
 - Existing mods/content are asset and capability libraries under Skyforge semantic authority.
 - Do not solve poor morphology or ecological legibility by increasing content density.
 - Negative space is intentional.
+- Audit owns repository/process convergence monitoring, including stale-branch and agent-loop/context-risk flags; it may require fresh synchronization/handoff but does not replace producer-lane technical ownership.
 
 ## Current lane snapshot
 
@@ -21,7 +22,7 @@
 | Implementation | `SF-IMP-0082` accepted: all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / #284 multi-seed/multi-scale built-in matrix in progress |
 | Content / Experience | `C17` accepted; C18 remains draft/unaccepted and machine-green only on its prior tested head, which now requires current-main resynchronization; C11/C12 remain separately in progress/reserved |
 | Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 is draft/unmerged with branch-local cue/source freezes only |
-| AUDIT | AUDIT-0007 post-SF-IMP-0082 convergence reconciliation accepted by the merge that places this update on `main` |
+| AUDIT | AUDIT-0008 agent/process-health governance accepted by the merge that places this update on `main` |
 
 Use each lane state file and merged history for detail.
 
