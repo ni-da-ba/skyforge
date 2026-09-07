@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot at latest AUDIT-0004 reconciliation:** `dfb439b9b33b24327cd5f110dabee6e51cb8a491`
+**Main snapshot at latest AUDIT-0004 reconciliation:** `22e114c7ea0c29e93f2dcb9507fc207c4d4291c0`
 
 Read first:
 
@@ -39,7 +39,7 @@ Accepted by the merge that places this update on `main`.
 
 AUDIT-0004 records the completed ecology-showcase convergence; it does not create Implementation behavior.
 
-SF-IMP-0080 / PR #248 merged as `e721b512d7aaf402d671b8d0c72db802f9bd0912`; Implementation then recorded the accepted boundary on `main` as `dfb439b9b33b24327cd5f110dabee6e51cb8a491`. Issue #194 is closed.
+SF-IMP-0080 / PR #248 merged as `e721b512d7aaf402d671b8d0c72db802f9bd0912`; Implementation recorded the accepted boundary as `dfb439b9b33b24327cd5f110dabee6e51cb8a491`. Issue #194 is closed.
 
 The acceptance path is evidence-backed:
 
@@ -53,7 +53,7 @@ The acceptance path is evidence-backed:
 
 Accepted visible result included land substrate, trees/foliage, non-tree plants, meaningful forest-versus-taiga distinction, plausible vegetation attachment, and correct persistence.
 
-One non-blocking limitation remains: moving a short distance away from terrain may return client-visible biome presentation to BASE_WORLD ambience. This matches the deliberately narrow SF-IMP-0058 immediate-surface envelope and is now tracked separately as issue #261; it does not reopen #194.
+One non-blocking limitation remains: moving a short distance away from terrain may return client-visible biome presentation to BASE_WORLD ambience. This matches the deliberately narrow SF-IMP-0058 immediate-surface envelope and is tracked separately as issue #261; it does not reopen #194.
 
 No producer-lane capability is created by AUDIT-0004.
 
@@ -62,7 +62,7 @@ No producer-lane capability is created by AUDIT-0004.
 | Lane | Highest merged boundary |
 | --- | --- |
 | Implementation | **SF-IMP-0080** / PR #248 — persistent human-legible forest/taiga ecology through the modern production lifecycle |
-| Authorship | **AUTH-0087** / PR #254 — exact published authored-realization binding; durable-state repair PR #257 remains open |
+| Authorship | **AUTH-0087** / PR #254 — exact published authored-realization binding; durable state repaired by merged PR #257 |
 | Content / Experience | **C15** / PR #259 — live ordinary-player 1:1 Nether portal linking/placement; C11/C12 remain separately in progress/reserved |
 | Showcase | cave/interior technical showcase accepted; separate ecology showcase machine- and human-accepted |
 | Music | no MUS milestone merged; PR #159 remains draft/unmerged |
@@ -80,19 +80,17 @@ First carrier should realize exact AUTH-0083 member `builtin-massif-small-seed-s
 
 Required first-tranche evidence should include objective realization/persistence checks plus guided above, horizon-approach, below, and orbit-underneath views. Do not invent aesthetic thresholds before correlating Minecraft output with AUTH-0083 diagnostics; #214 remains the human morphology-quality gate.
 
-### Authorship state repair — PR #257
-
-AUTH-0087 is already merged as `04fb6dab33cf80e8b82b42fc9d0fc7837cce31c4`.
-
-PR #257 is the Authorship-owned durable-state/cross-lane follow-up. Do not duplicate its owner-file edits. Until it merges, repository history/source/tests override stale Authorship summary fields.
-
 ### AUTH-0088 — published surface ecology projection — PR #262
 
 Draft/unaccepted.
 
-AUTH-0088 projects unchanged AUTH-0003 ecology through the exact AUTH-0087 publication↔authorship binding, using explicit volume identity and world/local X/Z translation while failing closed outside compiled/authored ownership.
+AUTH-0088 projects unchanged AUTH-0003 ecology through the accepted AUTH-0087 publication↔authorship binding, using explicit volume identity and world/local X/Z translation while failing closed outside compiled/authored ownership.
 
-Its stated consumer is the existing Implementation-owned exact-volume biome resolver. It adds no Minecraft biome key, quart-cell rule, placement, persistence, or lifecycle behavior. Treat as unaccepted until #257 lands, the branch is recomposed to resulting current main, and fresh exact-head Authorship evidence succeeds.
+Its stated consumer is the existing Implementation-owned exact-volume biome resolver. It adds no Minecraft biome key, quart-cell rule, placement, persistence, or lifecycle behavior. Treat as unaccepted until the branch is recomposed onto current main and fresh exact-head Authorship evidence succeeds.
+
+### Content C16 — wireless infrastructure envelope — PR #264
+
+Draft/unaccepted. Measures the actual CC:Tweaked wireless range boundary after accepted C14 rather than creating a Skyforge network authority. Ordinary wireless is intended to remain bounded while Ender Modems are treated as an explicit mature range/dimension bypass whose progression policy remains Content-owned. No AUDIT contract change is required unless that interpretation changes.
 
 ### C11 — live pre-Brass first-flight recipe surface — PR #233
 
@@ -120,7 +118,7 @@ Audited proposal head `797e0c54325b1f45d0aa6229124c3bb7e8727bda` remains cross-l
 
 ### #194 ecology legibility — PASSED / CLOSED
 
-Passed for accepted SF-IMP-0080 and recorded before merge. Do not reopen for the issue #261 ambient-biome-envelope limitation.
+Passed for accepted SF-IMP-0080 and recorded before merge. Do not reopen for issue #261.
 
 ### #214 production morphology — OPEN / next major human gate
 
@@ -137,21 +135,19 @@ Human play must verify discoverability and non-surprising redstone shutdown beha
 ## KNOWN HAZARDS / TECHNICAL DEBT
 
 1. **Biome presentation flight envelope / issue #261:** immediate-surface biome presentation can fall back to BASE_WORLD ambience away from owned terrain. Non-blocking for SF-IMP-0080; avoid claiming whole native biome columns as the fix.
-2. **AUTH-0087 durable-state lag:** accepted in history/source; PR #257 remains the owner-lane state repair.
-3. **Long-lived branch drift:** C11, Portable Engine cutoff, and Bellanca proposal require current-main synchronization before acceptance.
-4. **Production morphology:** underside quality is a first-class requirement and must not be inferred from topside-only review machinery.
-5. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
-6. **Performance:** do not restart local micro-optimization absent fresh realistic-scale profiling.
+2. **Long-lived branch drift:** C11, Portable Engine cutoff, and Bellanca proposal require current-main synchronization before acceptance.
+3. **Production morphology:** underside quality is a first-class requirement and must not be inferred from topside-only review machinery.
+4. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
+5. **Performance:** do not restart local micro-optimization absent fresh realistic-scale profiling.
 
-Resolved hazards include the C11/C13 identifier collision, duplicate live-state namespaces, AUTH-0086 state lag, and SF-IMP-0080's compile/substrate/ecology-legibility blockers.
+Resolved hazards include the C11/C13 identifier collision, duplicate live-state namespaces, AUTH-0086/AUTH-0087 durable-state lag, and SF-IMP-0080's compile/substrate/ecology-legibility blockers.
 
 ## ORDERED NEXT AUDIT WORK
 
 1. Audit the first SF-IMP-0081 / #214 production-morphology tranche when opened: verify exact AUTH-0083 member identity, tight compiled support bounds, current production lifecycle, persistence/reopen, and human-view handoff without aesthetic threshold invention.
-2. Track PR #257 until AUTH-0087 is durable in Authorship state/shared contracts; do not duplicate owner-file edits.
-3. Review AUTH-0088 only for cross-lane ownership/contract changes until prerequisites and exact-head evidence are complete.
-4. Track issue #261 as a non-blocking presentation-envelope refinement; do not let it reopen SF-IMP-0080.
-5. Re-audit C11 / PR #233 only after owner synchronization and focused runtime evidence.
-6. Re-audit PR #240 after assembled-Sable + persistence evidence.
-7. Review new Content milestones only for cross-lane contract effects; producer-lane acceptance remains owner-gated.
-8. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
+2. Review AUTH-0088 only for cross-lane ownership/contract changes until exact-head Authorship evidence is complete.
+3. Track issue #261 as a non-blocking presentation-envelope refinement; do not let it reopen SF-IMP-0080.
+4. Re-audit C11 / PR #233 only after owner synchronization and focused runtime evidence.
+5. Re-audit PR #240 after assembled-Sable + persistence evidence.
+6. Review new Content milestones such as C16 only for cross-lane contract effects; producer-lane acceptance remains owner-gated.
+7. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
