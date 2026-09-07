@@ -4,11 +4,14 @@ on:
   pull_request:
     paths:
       - ".github/workflows/wave-c5-soaring-fauna-preflight.yml"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c3-mods.properties"
       - "skyforge-neoforge-1211/wave-c5-mods.properties"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/WaveC5DevelopmentResourceTest.java"
       - "docs/design-audit/wave-c5-soaring-fauna-prototype-v0.1.md"
+  push:
+    branches: [main]
+    paths:
+      - "skyforge-neoforge-1211/build.gradle.kts"
   workflow_dispatch:
 
 permissions:
