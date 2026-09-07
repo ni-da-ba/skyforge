@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot at latest AUDIT-0005 synchronization:** `993d3815aef7c5a894ae562880b9075a24a6ddc6`
+**Main snapshot at latest AUDIT-0006 synchronization:** `c5c5f9c3fad1d1b233a0df626a511416bf95d239`
 
 Read first:
 
@@ -82,8 +82,8 @@ audio behavior by itself.
 
 Audited MUS-0001 / PR #159 boundary at branch head `1825d3931125f37e8be48abc46b0b1b13ebf2ed2`:
 
-- MUS-0001 remains **draft / unmerged / non-mergeable** and was approximately 88 commits ahead /
-  1056 behind `main@993d3815` at this audit point;
+- MUS-0001 remains **draft / unmerged / non-mergeable** and was 88 commits ahead /
+  1067 behind `main@c5c5f9c3` at this audit point;
 - no canonical `docs/agent-state/MUSIC_STATE.md` exists yet;
 - no current exact-head repository/source-verification CI exists for the Music branch;
 - Track 00 V2F.1 remains the canonical frozen source; two range-repair A/B candidates are explicitly
