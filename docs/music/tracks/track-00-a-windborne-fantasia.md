@@ -4,6 +4,7 @@
 **Role:** first ascent / panorama / rare revelation / thesis statement  
 **Meter:** 6/8  
 **Tonal center:** D major  
+**Authored MIDI tempo:** 104 BPM  
 **Experienced tempo:** approximately 108 BPM  
 **Length:** 72 bars
 
@@ -163,3 +164,32 @@ Shared tonal refinement:
 No further local polishing is justified unless a later soundtrack-wide audit exposes a concrete cross-cue problem.
 
 This cue established that Skyforge’s orchestral identity could support large-scale wonder, but its rarity and dynamic shape make it unsuitable as ordinary background rotation.
+
+
+## 2026-09-07 library-range audit
+
+The persisted V2F.1 source hash and canonical 20-track order verify correctly, but the BBCSO Discover range audit found two latent alignment defects.
+
+### Horn crest
+
+Track 06 HN contains ten notes above the documented Horns a4 ceiling of F5. They occur in bars 57-60, the cue's explicitly authored **horn crest**, and include F#5 / A5 / B5-class pitches.
+
+Because this passage is semantically important, do not apply a blind octave transpose.
+
+Required next step is a controlled A/B orchestration repair that preserves the crest's contour while deciding whether the high material belongs:
+
+- revoiced within Horn range;
+- transferred/doubled into Trumpets;
+- or split between Horns and Trumpets.
+
+The frozen source remains unchanged until that A/B is heard.
+
+### Viola floor
+
+Track 17 VLA contains three B2 notes, one semitone below the documented Viola floor of C3, at approximately bars 36, 67, and 70.
+
+These are minor and can be repaired surgically in the same controlled A/B, but they are not to be silently changed in the frozen source.
+
+### Tempo metadata clarification
+
+The persisted MIDI conductor tempo is exactly 104 BPM in 6/8. The earlier "experienced tempo approximately 108 BPM" description is retained as a perceptual characterization, not source metadata.
