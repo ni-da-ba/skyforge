@@ -341,3 +341,30 @@ For each frozen cue, the long-term source manifest should include:
 - accepted render identity.
 
 This is the minimum information required to reproduce a cue without relying on the original conversation or an undocumented Sonar template state.
+
+
+## Automated repository verification
+
+MUS-0002 makes the canonical-source persistence rules executable through:
+
+```shell
+python3 scripts/music/verify_music_sources.py
+```
+
+The verifier uses only the Python standard library and is run by normal repository CI immediately after checkout.
+
+It parses all persisted `.mid` and `.mid.gz` artifacts for structural validity. For every canonical `*.manifest.json`, it additionally enforces:
+
+- exact decompressed SHA-256 identity;
+- compressed SHA-256 when the manifest pins it;
+- Standard MIDI File format 1;
+- conductor + canonical 19-lane order;
+- declared PPQ, tempo, meter, and key-signature metadata;
+- BBCSO Discover playable ranges for ordinary winds/brass/strings;
+- exact machine-readable range exceptions rather than prose-only waivers;
+- Track 11 HC provenance presence whenever notes exist;
+- Track 12 PERC preset, absolute MIDI mapping, and attack counts;
+- Track 13 TP used/preset state;
+- no ordinary-Git WAV assets under `assets/music/`.
+
+This gate does not replace BBCSO listening or source-CWP inspection. It prevents persistence, routing, metadata, and known library-alignment facts from silently drifting between those human gates.
