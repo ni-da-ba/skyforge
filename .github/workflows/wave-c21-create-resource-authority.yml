@@ -1,0 +1,97 @@
+name: Wave C21 Create Resource Authority
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wave-c21-create-resource-authority.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c9-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC21CreateResourceAuthorityAcceptance.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/WaveC21CreateResourceAuthorityResourceTest.java"
+      - "docs/design-audit/wave-c21-create-resource-authority.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wave-c21-create-resource-authority-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authority:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Verify C21 wiring and retained Create pin
+        run: |
+          ./gradlew :skyforge-neoforge-1211:test --tests '*WaveC21CreateResourceAuthorityResourceTest' --no-configuration-cache
+          ./gradlew :skyforge-neoforge-1211:waveC9ResolvePinnedMods --no-configuration-cache
+
+      - name: Run Create resource-authority A/B
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_case() {
+            local task="$1"
+            local marker="$2"
+            local log="$3"
+
+            setsid ./gradlew ":skyforge-neoforge-1211:${task}" --no-configuration-cache >"${log}" 2>&1 &
+            local pid=$!
+            local outcome=""
+
+            for _ in $(seq 1 360); do
+              if grep -Fq "${marker}" "${log}" 2>/dev/null; then
+                outcome="pass"
+                break
+              fi
+              if grep -Fq "WAVE_C21 FAIL" "${log}" 2>/dev/null; then
+                outcome="fail"
+                break
+              fi
+              if ! kill -0 "${pid}" 2>/dev/null; then
+                break
+              fi
+              sleep 1
+            done
+
+            if [[ "${outcome}" == "pass" ]]; then
+              grep -F "${marker}" "${log}"
+              kill -TERM -- "-${pid}" 2>/dev/null || true
+              sleep 2
+              kill -KILL -- "-${pid}" 2>/dev/null || true
+              wait "${pid}" 2>/dev/null || true
+              return 0
+            fi
+
+            echo "FAIL ${marker}"
+            cat "${log}"
+            kill -TERM -- "-${pid}" 2>/dev/null || true
+            sleep 1
+            kill -KILL -- "-${pid}" 2>/dev/null || true
+            wait "${pid}" 2>/dev/null || true
+            return 1
+          }
+
+          run_case "runWaveC21CreateResourceBaselineServer" "WAVE_C21 PASS mode=BASELINE" "wave-c21-baseline.log"
+          run_case "runWaveC21CreateResourceSuppressedServer" "WAVE_C21 PASS mode=SUPPRESSED" "wave-c21-suppressed.log"
