@@ -294,3 +294,50 @@ For any cue using polymorphic percussion lanes, acceptance requires an explicit 
 - event count when practical.
 
 Do not infer BBCSO percussion notes from General MIDI conventions or DAW octave labels.
+
+
+### Harp / Celeste is also plugin-state-sensitive
+
+The canonical `11 HC | Harp & Celeste` lane is not fully self-describing from note data alone.
+
+BBCSO exposes Harp and Celeste as distinct selectable techniques/instruments within the percussion/color workflow. A MIDI file containing only musical notes plus CC1/CC11 does not prove which of those colors was active in the Sonar plugin instance.
+
+Therefore every accepted cue that uses Track 11 must record one of:
+
+- Harp;
+- Celeste;
+- an intentional technique-switching scheme with the exact trigger mechanism.
+
+Do not infer the Track 11 sound from the lane name or from register.
+
+### Instrument-range audit gate
+
+Before a BBCSO MIDI is frozen or re-persisted, compare every note event against the documented playable range of the actual Discover patch.
+
+The 2026-09-07 audit proved this is necessary:
+
+- Track 00 contains high Horn events above the Discover Horn a4 ceiling and three Viola notes below the Discover Viola floor;
+- Track 02 contains two Trumpet events one semitone above the Discover Trumpets a3 ceiling.
+
+An out-of-range event is not automatically a composition error, but it must not remain accidental or undocumented. Resolve it by one of:
+
+1. revoice into the intended section range;
+2. transfer the line to a section that can play it;
+3. deliberately accept the silent/unrealized event and document why.
+
+Never silently transpose a frozen cue merely to satisfy a range checker.
+
+### Full cue-state manifest
+
+For each frozen cue, the long-term source manifest should include:
+
+- source SHA-256;
+- tempo and meter;
+- track order;
+- key cue role;
+- patch/preset state for HC, PERC, and TP;
+- absolute-note map for mapped percussion;
+- known range exceptions;
+- accepted render identity.
+
+This is the minimum information required to reproduce a cue without relying on the original conversation or an undocumented Sonar template state.
