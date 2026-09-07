@@ -1,10 +1,6 @@
 name: SF-IMP-0063 Automated Acceptance
 
 on:
-  pull_request:
-    paths:
-      - "skyforge-neoforge-1211/**"
-      - ".github/workflows/sf-imp-0063-acceptance.yml"
   workflow_dispatch:
 
 permissions:
