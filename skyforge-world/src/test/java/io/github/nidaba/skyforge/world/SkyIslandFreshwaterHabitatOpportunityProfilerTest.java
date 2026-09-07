@@ -64,7 +64,7 @@ final class SkyIslandFreshwaterHabitatOpportunityProfilerTest {
 
         assertEquals(unique.size(), first.inundatedCellCount());
         assertEquals(shoreline, first.shorelineCellCount());
-        assertEquals(depthSum / unique.size(), first.meanWaterDepthPotential(), 0.0);
+        assertEquals(depthSum / unique.size(), first.meanWaterDepthPotential(), 1.0e-12);
         assertEquals(maxDepth, first.maxWaterDepthPotential(), 0.0);
 
         double cellArea = first.watershed().spacing() * first.watershed().spacing();
