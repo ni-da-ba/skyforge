@@ -1160,6 +1160,57 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // Dedicated SF-IMP-0080 land-ecology specimen. The broad forest/taiga TABLELAND pair is
+        // separate from the compact cave/interior showcase and exercises modern admission,
+        // deferred surface population, persistent biome presentation, save, and actual-client reopen.
+        create("showcaseEcologyPrepare") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-showcase-ecology").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("ecology")
+            systemProperty("skyforge.dev.showcaseEcology", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0080-showcase-ecology")
+            systemProperty("skyforge.dev.acceptanceRadius", "9")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/showcase-ecology/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("showcaseEcologyClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-showcase-ecology").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("ecology")
+            systemProperty("skyforge.dev.showcaseEcologyViewer", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("showcaseEcologyViewerAcceptanceClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-showcase-ecology").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("ecology")
+            systemProperty("skyforge.dev.showcaseEcologyViewer", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0080-showcase-ecology-viewer")
+            systemProperty("skyforge.dev.acceptanceRadius", "9")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/showcase-ecology/viewer.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -4319,4 +4370,162 @@ tasks.register("launchShowcase") {
     group = "application"
     description = "Rebuild the deterministic Skyforge showcase world, then launch Minecraft directly into it."
     dependsOn("runShowcasePrepare", "runShowcaseClient")
+}
+
+val skyforgeShowcaseEcologyResultDirectory = layout.buildDirectory.dir("acceptance/showcase-ecology")
+val skyforgeShowcaseEcologyServerProperties = """
+    level-name=ecology
+    level-seed=600080
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    allow-flight=true
+    view-distance=10
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSkyforgeShowcaseEcologyDirectory() {
+    val directory = layout.projectDirectory.dir("run-skyforge-showcase-ecology").asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(skyforgeShowcaseEcologyServerProperties)
+}
+
+fun requireSkyforgeShowcaseEcologyPreparationPass() {
+    val file = skyforgeShowcaseEcologyResultDirectory.get().file("prepare.properties").asFile
+    check(file.isFile) { "Skyforge ecology showcase preparation result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("lowerState") == "ADMITTED"
+            && properties.getProperty("upperState") == "ADMITTED"
+            && properties.getProperty("lowerObserved") == properties.getProperty("lowerRequired")
+            && properties.getProperty("upperObserved") == properties.getProperty("upperRequired")
+            && properties.getProperty("lowerPopulationChunks") == properties.getProperty("lowerExpectedPopulationChunks")
+            && properties.getProperty("upperPopulationChunks") == properties.getProperty("upperExpectedPopulationChunks")
+            && properties.getProperty("lowerSuccessful").toInt() > 0
+            && properties.getProperty("upperSuccessful").toInt() > 0
+            && properties.getProperty("distinctFeatureIdentity") == "true"
+            && properties.getProperty("lowerSubstrate").toInt() > 0
+            && properties.getProperty("lowerLogs").toInt() > 0
+            && properties.getProperty("lowerLeaves").toInt() > 0
+            && properties.getProperty("lowerPlants").toInt() > 0
+            && properties.getProperty("upperSubstrate").toInt() > 0
+            && properties.getProperty("upperLogs").toInt() > 0
+            && properties.getProperty("upperLeaves").toInt() > 0
+            && properties.getProperty("upperPlants").toInt() > 0
+            && properties.getProperty("persistentBiomePresentation") == "true"
+            && properties.getProperty("pendingCatchup") == "0"
+            && properties.getProperty("pendingBiomePresentation") == "0") {
+        val detail = properties.getProperty("failure") ?: properties.toString()
+        "Skyforge ecology showcase preparation did not PASS: $detail"
+    }
+}
+
+fun requireSkyforgeShowcaseEcologyViewerPass() {
+    val file = skyforgeShowcaseEcologyResultDirectory.get().file("viewer.properties").asFile
+    check(file.isFile) { "Skyforge ecology showcase viewer result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("viewerTerrainOwnershipRestored") == "true"
+            && properties.getProperty("viewerMutationBindingsInert") == "true"
+            && properties.getProperty("viewerPersistentForest") == "true"
+            && properties.getProperty("viewerPersistentTaiga") == "true"
+            && properties.getProperty("viewerLowerSubstrate").toInt() > 0
+            && properties.getProperty("viewerLowerLogs").toInt() > 0
+            && properties.getProperty("viewerLowerLeaves").toInt() > 0
+            && properties.getProperty("viewerLowerPlants").toInt() > 0
+            && properties.getProperty("viewerUpperSubstrate").toInt() > 0
+            && properties.getProperty("viewerUpperLogs").toInt() > 0
+            && properties.getProperty("viewerUpperLeaves").toInt() > 0
+            && properties.getProperty("viewerUpperPlants").toInt() > 0
+            && properties.getProperty("viewerClientPass") == "true") {
+        val detail = properties.getProperty("failure") ?: properties.toString()
+        "Skyforge ecology showcase viewer did not PASS: $detail"
+    }
+}
+
+tasks.named("runShowcaseEcologyPrepare").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask and ecology-showcase filesystem orchestration are intentionally runtime-bound.",
+    )
+    doFirst {
+        delete(skyforgeShowcaseEcologyResultDirectory)
+        prepareSkyforgeShowcaseEcologyDirectory()
+    }
+    doLast {
+        requireSkyforgeShowcaseEcologyPreparationPass()
+    }
+}
+
+tasks.named("runShowcaseEcologyClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is interactive and intentionally not configuration-cache serialized.",
+    )
+    mustRunAfter("runShowcaseEcologyPrepare")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-skyforge-showcase-ecology").asFile
+        check(directory.resolve("saves/ecology/level.dat").isFile) {
+            "Skyforge ecology showcase world is missing; run runShowcaseEcologyPrepare first or use launchShowcaseEcology."
+        }
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.named("runShowcaseEcologyViewerAcceptanceClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is an actual quick-play ecology acceptance process.",
+    )
+    mustRunAfter("runShowcaseEcologyPrepare")
+    doFirst {
+        requireSkyforgeShowcaseEcologyPreparationPass()
+        val directory = layout.projectDirectory.dir("run-skyforge-showcase-ecology").asFile
+        check(directory.resolve("saves/ecology/level.dat").isFile) {
+            "Skyforge ecology showcase world is missing; prepare it before viewer acceptance."
+        }
+        delete(skyforgeShowcaseEcologyResultDirectory.get().file("viewer.properties").asFile)
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.register("showcaseEcologyPrepareVerify") {
+    group = "verification"
+    description = "Verify the persisted SF-IMP-0080 forest/taiga ecology specimen."
+    dependsOn("runShowcaseEcologyPrepare")
+    doLast {
+        requireSkyforgeShowcaseEcologyPreparationPass()
+        println(
+            "SF-IMP-0080 SHOWCASE ECOLOGY PREPARATION PASS: persisted forest/taiga world is ready for human review.",
+        )
+    }
+}
+
+tasks.register("showcaseEcologyViewerVerify") {
+    group = "verification"
+    description = "Reopen the SF-IMP-0080 ecology world in an actual client and verify persistence."
+    dependsOn("runShowcaseEcologyViewerAcceptanceClient")
+    doLast {
+        requireSkyforgeShowcaseEcologyViewerPass()
+        println(
+            "SF-IMP-0080 SHOWCASE ECOLOGY VIEWER PASS: persisted land ecology survived mutation-inert actual-client reopen.",
+        )
+    }
+}
+
+tasks.register("launchShowcaseEcology") {
+    group = "application"
+    description = "Rebuild the dedicated forest/taiga ecology specimen, then launch Minecraft into it for human review."
+    dependsOn("runShowcaseEcologyPrepare", "runShowcaseEcologyClient")
 }
