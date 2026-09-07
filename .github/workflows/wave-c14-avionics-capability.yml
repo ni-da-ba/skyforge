@@ -1,0 +1,121 @@
+name: Wave C14 Avionics Capability
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wave-c14-avionics-capability.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/wave-c9-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC14AvionicsCapabilityAcceptance.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/WaveC14AvionicsCapabilityResourceTest.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wave-c14-avionics-capability-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Verify C14 wiring and exact A/B classpaths
+        run: |
+          ./gradlew :skyforge-neoforge-1211:test --tests '*WaveC9ComputingResourceTest' --tests '*WaveC14AvionicsCapabilityResourceTest' --no-configuration-cache
+          ./gradlew :skyforge-neoforge-1211:waveC14ResolvePinnedMods --no-configuration-cache
+
+      - name: Prove retained flight stack remains healthy without computing mods
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wave-c14-flight-baseline.log"
+          setsid ./gradlew :skyforge-neoforge-1211:runWaveC14FlightBaselineServer --no-configuration-cache >"${log}" 2>&1 &
+          pid=$!
+          ready=0
+
+          for _ in $(seq 1 120); do
+            grep -Fq "Done (" "${log}" 2>/dev/null && ready=1 || true
+            if [[ "${ready}" -eq 1 ]]; then
+              break
+            fi
+            if ! kill -0 "${pid}" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          if [[ "${ready}" -eq 1 ]]; then
+            echo "PASS Wave C14 baseline: retained flight stack reached server-ready state without CC/Avionics"
+            kill -TERM -- "-${pid}" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-${pid}" 2>/dev/null || true
+            wait "${pid}" 2>/dev/null || true
+            exit 0
+          fi
+
+          echo "FAIL Wave C14 flight-only baseline"
+          cat "${log}"
+          kill -TERM -- "-${pid}" 2>/dev/null || true
+          sleep 1
+          kill -KILL -- "-${pid}" 2>/dev/null || true
+          wait "${pid}" 2>/dev/null || true
+          exit 1
+
+      - name: Prove real CC discovery, live sensor read, and bounded throttle control
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wave-c14-avionics-capability.log"
+          setsid ./gradlew :skyforge-neoforge-1211:runWaveC14AvionicsCapabilityServer --no-configuration-cache >"${log}" 2>&1 &
+          pid=$!
+          passed=0
+
+          for _ in $(seq 1 180); do
+            grep -Fq "WAVE_C14 PASS" "${log}" 2>/dev/null && passed=1 || true
+            if [[ "${passed}" -eq 1 ]]; then
+              break
+            fi
+            if ! kill -0 "${pid}" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          if [[ "${passed}" -eq 1 ]]; then
+            grep -F "WAVE_C14 PASS" "${log}"
+            kill -TERM -- "-${pid}" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-${pid}" 2>/dev/null || true
+            wait "${pid}" 2>/dev/null || true
+            exit 0
+          fi
+
+          echo "FAIL Wave C14 avionics capability"
+          cat "${log}"
+          kill -TERM -- "-${pid}" 2>/dev/null || true
+          sleep 1
+          kill -KILL -- "-${pid}" 2>/dev/null || true
+          wait "${pid}" 2>/dev/null || true
+          exit 1
