@@ -1,213 +1,196 @@
 #!/usr/bin/env python3
-"""Verify Skyforge music-source persistence and BBCSO MIDI alignment.
-
-Uses only the Python standard library so it can run in repository CI before
-Gradle/JDK setup. Canonical cue manifests are the machine-readable boundary;
-historical/experimental MIDI is still syntax-checked but is not promoted by
-this verifier.
-"""
-
+"""Verify persisted Skyforge MIDI/source manifests using only Python stdlib."""
 from __future__ import annotations
-
-import argparse
-import collections
-import gzip
-import hashlib
-import json
-import struct
-import sys
-from dataclasses import dataclass, field
+import collections, gzip, hashlib, json, struct, sys
 from pathlib import Path
-from typing import Iterable
 
+LANES=["01 PICC","02 FLT","03 OBO","04 CL","05 BSN","06 HN","07 TPT","08 TBN","09 BTBN","10 TUBA","11 HC","12 PERC","13 TP","14 PNO","15 V1","16 V2","17 VLA","18 VLC","19 CB"]
+RANGES={1:(74,108),2:(59,96),3:(59,89),4:(50,88),5:(34,74),6:(40,77),7:(52,84),8:(31,74),9:(28,67),10:(26,64),15:(55,97),16:(55,97),17:(48,90),18:(36,82),19:(24,54)}
+MAJOR={-7:"Cb",-6:"Gb",-5:"Db",-4:"Ab",-3:"Eb",-2:"Bb",-1:"F",0:"C",1:"G",2:"D",3:"A",4:"E",5:"B",6:"F#",7:"C#"}
+MINOR={-7:"Abm",-6:"Ebm",-5:"Bbm",-4:"Fm",-3:"Cm",-2:"Gm",-1:"Dm",0:"Am",1:"Em",2:"Bm",3:"F#m",4:"C#m",5:"G#m",6:"D#m",7:"A#m"}
+class VError(RuntimeError): pass
 
-CANONICAL_LANES = [
-    "01 PICC", "02 FLT", "03 OBO", "04 CL", "05 BSN",
-    "06 HN", "07 TPT", "08 TBN", "09 BTBN", "10 TUBA",
-    "11 HC", "12 PERC", "13 TP", "14 PNO",
-    "15 V1", "16 V2", "17 VLA", "18 VLC", "19 CB",
-]
-
-# BBC Symphony Orchestra Discover v1.8 documented ranges, expressed as
-# absolute MIDI note numbers. Polymorphic/color lanes 11-14 are verified by
-# cue-level manifest state instead of one generic range.
-BBCSO_DISCOVER_RANGES = {
-    1: (74, 108),  # Piccolo D5-C8
-    2: (59, 96),   # Flutes a3 B3-C7
-    3: (59, 89),   # Oboes a3 B3-F6
-    4: (50, 88),   # Clarinets a3 D3-E6
-    5: (34, 74),   # Bassoons a3 Bb1-D5
-    6: (40, 77),   # Horns a4 E2-F5
-    7: (52, 84),   # Trumpets a3 E3-C6
-    8: (31, 74),   # Tenor Trombones a3 G1-D5
-    9: (28, 67),   # Bass Trombones a2 E1-G4
-    10: (26, 64),  # Tuba D1-E4
-    15: (55, 97),  # Violins 1 G3-C#7
-    16: (55, 97),  # Violins 2 G3-C#7
-    17: (48, 90),  # Violas C3-F#6
-    18: (36, 82),  # Celli C2-A#5
-    19: (24, 54),  # Contrabasses C1-F#3
-}
-
-
-class VerificationError(RuntimeError):
-    pass
-
-
-@dataclass
-class TrackInfo:
-    name: str | None = None
-    note_on_counts: collections.Counter[int] = field(default_factory=collections.Counter)
-    tempos: list[tuple[int, int]] = field(default_factory=list)  # tick, us/quarter
-    time_signatures: list[tuple[int, int, int]] = field(default_factory=list)  # tick, num, denom
-    key_signatures: list[tuple[int, int, bool]] = field(default_factory=list)  # tick, sf, minor
-
-
-@dataclass
-class MidiInfo:
-    format_type: int
-    track_count: int
-    ticks_per_beat: int
-    tracks: list[TrackInfo]
-
-
-def sha256_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
-def read_vlq(data: bytes, pos: int, end: int) -> tuple[int, int]:
-    value = 0
+def vlq(b,p,e):
+    v=0
     for _ in range(4):
-        if pos >= end:
-            raise VerificationError("truncated MIDI variable-length quantity")
-        byte = data[pos]
-        pos += 1
-        value = (value << 7) | (byte & 0x7F)
-        if not (byte & 0x80):
-            return value, pos
-    raise VerificationError("invalid MIDI variable-length quantity (>4 bytes)")
+        if p>=e: raise VError("truncated VLQ")
+        x=b[p]; p+=1; v=(v<<7)|(x&127)
+        if x<128:return v,p
+    raise VError("invalid VLQ")
 
-
-def parse_track(payload: bytes, track_index: int) -> TrackInfo:
-    info = TrackInfo()
-    pos = 0
-    end = len(payload)
-    tick = 0
-    running_status: int | None = None
-
-    while pos < end:
-        delta, pos = read_vlq(payload, pos, end)
-        tick += delta
-        if pos >= end:
-            raise VerificationError(f"track {track_index}: truncated event")
-
-        first = payload[pos]
-        if first & 0x80:
-            status = first
-            pos += 1
-            data_first: int | None = None
+def parse_track(b,idx):
+    p=t=0; e=len(b); run=None; name=None; notes=collections.Counter(); tempos=[]; meters=[]; keys=[]
+    while p<e:
+        d,p=vlq(b,p,e); t+=d
+        if p>=e: raise VError(f"track {idx}: truncated event")
+        x=b[p]
+        if x&128: status=x;p+=1;first=None
         else:
-            if running_status is None:
-                raise VerificationError(f"track {track_index}: running status without prior channel status")
-            status = running_status
-            data_first = first
-            pos += 1
-
-        if status == 0xFF:  # meta event
-            if pos >= end:
-                raise VerificationError(f"track {track_index}: truncated meta event")
-            meta_type = payload[pos]
-            pos += 1
-            length, pos = read_vlq(payload, pos, end)
-            if pos + length > end:
-                raise VerificationError(f"track {track_index}: truncated meta payload")
-            meta = payload[pos:pos + length]
-            pos += length
-
-            if meta_type == 0x03 and info.name is None:
-                info.name = meta.decode("utf-8", errors="replace")
-            elif meta_type == 0x51:
-                if length != 3:
-                    raise VerificationError(f"track {track_index}: tempo meta event has length {length}, expected 3")
-                info.tempos.append((tick, int.from_bytes(meta, "big")))
-            elif meta_type == 0x58:
-                if length < 2:
-                    raise VerificationError(f"track {track_index}: time-signature meta event too short")
-                numerator = meta[0]
-                denominator = 1 << meta[1]
-                info.time_signatures.append((tick, numerator, denominator))
-            elif meta_type == 0x59:
-                if length != 2:
-                    raise VerificationError(f"track {track_index}: key-signature meta event has length {length}, expected 2")
-                sf = struct.unpack("b", meta[:1])[0]
-                minor = bool(meta[1])
-                info.key_signatures.append((tick, sf, minor))
-            # Meta events do not become running status. Keep the most recent
-            # channel status; common SMF writers rely on this permissive rule.
+            if run is None: raise VError(f"track {idx}: bad running status")
+            status=run;first=x;p+=1
+        if status==255:
+            if p>=e: raise VError(f"track {idx}: truncated meta")
+            typ=b[p];p+=1;n,p=vlq(b,p,e)
+            if p+n>e: raise VError(f"track {idx}: truncated meta payload")
+            m=b[p:p+n];p+=n
+            if typ==3 and name is None:name=m.decode("utf-8","replace")
+            elif typ==81:
+                if n!=3: raise VError(f"track {idx}: bad tempo meta")
+                tempos.append((t,int.from_bytes(m,"big")))
+            elif typ==88:
+                if n<2: raise VError(f"track {idx}: bad meter meta")
+                meters.append((t,m[0],1<<m[1]))
+            elif typ==89:
+                if n!=2: raise VError(f"track {idx}: bad key meta")
+                keys.append((t,struct.unpack("b",m[:1])[0],bool(m[1])))
             continue
-
-        if status in (0xF0, 0xF7):  # SysEx
-            running_status = None
-            length, pos = read_vlq(payload, pos, end)
-            if pos + length > end:
-                raise VerificationError(f"track {track_index}: truncated SysEx payload")
-            pos += length
+        if status in (240,247):
+            run=None;n,p=vlq(b,p,e);p+=n
+            if p>e:raise VError(f"track {idx}: truncated sysex")
             continue
+        if status>=240: raise VError(f"track {idx}: unsupported system status {status:#x}")
+        run=status; typ=status&240; need=1 if typ in (192,208) else 2
+        if first is None:
+            if p>=e:raise VError(f"track {idx}: truncated channel event")
+            d1=b[p];p+=1
+        else:d1=first
+        d2=None
+        if need==2:
+            if p>=e:raise VError(f"track {idx}: truncated channel event")
+            d2=b[p];p+=1
+        if typ==144 and d2:notes[d1]+=1
+    return {"name":name,"notes":notes,"tempos":tempos,"meters":meters,"keys":keys}
 
-        if status >= 0xF0:
-            raise VerificationError(f"track {track_index}: unsupported system status 0x{status:02X} in SMF")
+def parse_midi(b,label):
+    if len(b)<14 or b[:4]!=b"MThd":raise VError(f"{label}: missing MThd")
+    h=struct.unpack(">I",b[4:8])[0]
+    if h<6 or len(b)<8+h:raise VError(f"{label}: bad header")
+    fmt,ntrks,div=struct.unpack(">HHH",b[8:14])
+    if div&0x8000:raise VError(f"{label}: SMPTE division unsupported")
+    p=8+h;tracks=[]
+    for i in range(ntrks):
+        if p+8>len(b) or b[p:p+4]!=b"MTrk":raise VError(f"{label}: missing MTrk {i}")
+        n=struct.unpack(">I",b[p+4:p+8])[0];s=p+8;e=s+n
+        if e>len(b):raise VError(f"{label}: truncated MTrk {i}")
+        tracks.append(parse_track(b[s:e],i));p=e
+    if p!=len(b):raise VError(f"{label}: {len(b)-p} trailing bytes")
+    return {"fmt":fmt,"ntrks":ntrks,"ppq":div,"tracks":tracks}
 
-        running_status = status
-        event_type = status & 0xF0
-        data_len = 1 if event_type in (0xC0, 0xD0) else 2
+def sha(b):return hashlib.sha256(b).hexdigest()
+def source_of(m):
+    s=m.get("source") or m.get("repository_source")
+    if not isinstance(s,str) or not s:raise VError("manifest missing source")
+    return s
+def hash_of(m):
+    vals=[m.get("uncompressed_midi_sha256"),m.get("source_provenance",{}).get("canonical_persisted_midi_sha256")]
+    vals=[x.lower() for x in vals if isinstance(x,str) and x]
+    if len(vals)!=1:raise VError("manifest must pin exactly one uncompressed MIDI SHA-256")
+    return vals[0]
+def tempo_of(m):
+    for x in (m.get("midi",{}).get("tempo_bpm"),m.get("conductor",{}).get("tempo_bpm"),m.get("tempo_bpm")):
+        if x is not None:return float(x)
+def meter_of(m):
+    x=m.get("midi",{}).get("meter") or m.get("conductor",{}).get("meter") or m.get("meter")
+    if x is None:return None
+    a,b=str(x).split("/");return int(a),int(b)
+def key_name(sf,minor):return (MINOR if minor else MAJOR)[sf]
+def key_of(m):return m.get("conductor",{}).get("key_signature_meta")
 
-        if data_first is None:
-            if pos >= end:
-                raise VerificationError(f"track {track_index}: truncated channel event")
-            d1 = payload[pos]
-            pos += 1
-        else:
-            d1 = data_first
+def declared_exceptions(m):
+    a=m.get("library_audit")
+    if not isinstance(a,dict):raise VError("canonical manifest missing library_audit")
+    xs=a.get("range_exceptions")
+    if not isinstance(xs,list):raise VError("library_audit.range_exceptions must be a list")
+    out={}
+    for x in xs:
+        i=x.get("track_index");ns=x.get("notes");reason=x.get("reason")
+        if i not in RANGES or not isinstance(ns,dict) or not ns or not isinstance(reason,str) or not reason.strip():raise VError(f"invalid range exception {x!r}")
+        lo,hi=RANGES[i];c=collections.Counter()
+        for k,v in ns.items():
+            n=int(k)
+            if lo<=n<=hi or not isinstance(v,int) or v<=0:raise VError(f"invalid range exception note/count {i}:{k}={v}")
+            c[n]+=v
+        out[i]=c
+    return out
 
-        d2: int | None = None
-        if data_len == 2:
-            if pos >= end:
-                raise VerificationError(f"track {track_index}: truncated channel event")
-            d2 = payload[pos]
-            pos += 1
+def actual_exceptions(md):
+    out={}
+    for i,(lo,hi) in RANGES.items():
+        c=collections.Counter({n:v for n,v in md["tracks"][i]["notes"].items() if n<lo or n>hi})
+        if c:out[i]=c
+    return out
 
-        if event_type == 0x90 and d2 is not None and d2 > 0:
-            info.note_on_counts[d1] += 1
+def verify_manifest(root,p,warns):
+    m=json.loads(p.read_text("utf-8")); rel=p.relative_to(root); srel=source_of(m); src=root/srel
+    if not srel.startswith("assets/music/source/") or not srel.endswith(".mid.gz") or not src.is_file():raise VError(f"{rel}: invalid/missing canonical source {srel}")
+    gz=src.read_bytes(); gh=m.get("source_provenance",{}).get("canonical_gzip_sha256")
+    if gh and sha(gz)!=str(gh).lower():raise VError(f"{rel}: gzip SHA mismatch")
+    try:raw=gzip.decompress(gz)
+    except Exception as e:raise VError(f"{rel}: gzip decode failed: {e}") from e
+    digest=sha(raw)
+    if digest!=hash_of(m):raise VError(f"{rel}: MIDI SHA mismatch actual={digest}")
+    md=parse_midi(raw,srel)
+    if md["fmt"]!=1 or md["ntrks"]!=20:raise VError(f"{srel}: expected format 1 / 20 tracks")
+    for i,pfx in enumerate(LANES,1):
+        nm=md["tracks"][i]["name"]
+        if not nm or not nm.startswith(pfx):raise VError(f"{srel}: track {i} name {nm!r} != lane {pfx!r}")
+    mm=m.get("midi",{})
+    if "ticks_per_beat" in mm and md["ppq"]!=int(mm["ticks_per_beat"]):raise VError(f"{srel}: PPQ mismatch")
+    bpm=tempo_of(m)
+    if bpm is not None:
+        target=round(60000000/bpm);allx=[x for t in md["tracks"] for x in t["tempos"]]
+        if not any(t==0 and abs(us-target)<=1 for t,us in md["tracks"][0]["tempos"]):raise VError(f"{srel}: conductor tick-0 tempo != {bpm:g}")
+        if any(abs(us-target)>1 for t,us in allx):raise VError(f"{srel}: conflicting tempo events")
+    meter=meter_of(m)
+    if meter:
+        allx=[x for t in md["tracks"] for x in t["meters"]]
+        if not any(t==0 and (a,b)==meter for t,a,b in md["tracks"][0]["meters"]):raise VError(f"{srel}: conductor tick-0 meter != {meter[0]}/{meter[1]}")
+        if any((a,b)!=meter for t,a,b in allx):raise VError(f"{srel}: conflicting meter events")
+    key=key_of(m)
+    if key:
+        allx=[x for t in md["tracks"] for x in t["keys"]]
+        if not any(t==0 and key_name(sf,mi)==key for t,sf,mi in md["tracks"][0]["keys"]):raise VError(f"{srel}: conductor tick-0 key != {key}")
+        if any(key_name(sf,mi)!=key for t,sf,mi in allx):raise VError(f"{srel}: conflicting key events")
+    if actual_exceptions(md)!=declared_exceptions(m):raise VError(f"{rel}: BBCSO range exceptions differ from manifest; actual={actual_exceptions(md)} declared={declared_exceptions(m)}")
+    audit=m["library_audit"]
+    hc=sum(md["tracks"][11]["notes"].values()); state=audit.get("track_11_hc_state")
+    if hc and (not isinstance(state,str) or not state.strip()):raise VError(f"{srel}: HC notes exist but plugin state is undocumented")
+    if hc and any(x in state.lower() for x in ("not recoverable","unknown","recover")):warns.append(f"{srel}: HC plugin state explicitly unresolved ({hc} note-ons)")
+    pc=sum(md["tracks"][12]["notes"].values()); pm=m.get("track_12_percussion")
+    if isinstance(pm,dict):
+        if not pm.get("bbcso_preset") or not isinstance(pm.get("absolute_midi_map"),list):raise VError(f"{srel}: incomplete PERC manifest")
+        exp=collections.Counter({int(x["note"]):int(x["attacks"]) for x in pm["absolute_midi_map"]})
+        if md["tracks"][12]["notes"]!=exp:raise VError(f"{srel}: PERC note/count map mismatch")
+    elif "track_12_perc_used" in audit:
+        if bool(pc)!=bool(audit["track_12_perc_used"]):raise VError(f"{srel}: PERC used-state mismatch")
+    elif pc:raise VError(f"{srel}: PERC notes exist without preset/map")
+    tc=sum(md["tracks"][13]["notes"].values()); tm=m.get("track_13_tuned_percussion")
+    if isinstance(tm,dict):
+        if bool(tc)!=bool(tm.get("used")):raise VError(f"{srel}: TP used-state mismatch")
+        if tm.get("used") and not tm.get("bbcso_preset"):raise VError(f"{srel}: TP used without preset")
+    elif "track_13_tp_used" in audit:
+        if bool(tc)!=bool(audit["track_13_tp_used"]):raise VError(f"{srel}: TP used-state mismatch")
+    elif tc:raise VError(f"{srel}: TP notes exist without preset declaration")
+    return srel,digest
 
-    return info
-
-
-def parse_midi(data: bytes, label: str) -> MidiInfo:
-    if len(data) < 14 or data[:4] != b"MThd":
-        raise VerificationError(f"{label}: missing Standard MIDI File header")
-    header_len = struct.unpack(">I", data[4:8])[0]
-    if header_len < 6 or len(data) < 8 + header_len:
-        raise VerificationError(f"{label}: invalid MIDI header length {header_len}")
-    fmt, ntrks, division = struct.unpack(">HHH", data[8:14])
-    if division & 0x8000:
-        raise VerificationError(f"{label}: SMPTE time division is unsupported by the Skyforge authoring contract")
-
-    pos = 8 + header_len
-    tracks: list[TrackInfo] = []
-    for index in range(ntrks):
-        if pos + 8 > len(data) or data[pos:pos + 4] != b"MTrk":
-            raise VerificationError(f"{label}: missing MTrk chunk for track {index}")
-        length = struct.unpack(">I", data[pos + 4:pos + 8])[0]
-        start = pos + 8
-        end = start + length
-        if end > len(data):
-            raise VerificationError(f"{label}: truncated MTrk payload for track {index}")
-        tracks.append(parse_track(data[start:end], index))
-        pos = end
-
-    if pos != len(data):
-        # A few encoders can append benign NULs; accepting arbitrary trailing
-        # bytes would hide persistence corruption, so fail closed.
-        raise VerificationError(f"{label}: {len(data) - pos} trailing bytes after declared MIDI tracks")
-
-    return MidiInfo(fmt, ntrks, division, tracks)
+def main():
+    here=Path(__file__).resolve();root=next((p for p in here.parents if (p/"assets/music/source").is_dir()),Path.cwd())
+    try:
+        wavs=list((root/"assets/music").rglob("*.wav"))
+        if wavs:raise VError("ordinary Git music assets contain WAV: "+", ".join(str(x.relative_to(root)) for x in wavs[:5]))
+        source=root/"assets/music/source"; count=0
+        for p in sorted([*source.rglob("*.mid"),*source.rglob("*.mid.gz")]):
+            b=p.read_bytes(); b=gzip.decompress(b) if p.name.endswith(".mid.gz") else b; parse_midi(b,str(p.relative_to(root)));count+=1
+        manifests=sorted(source.rglob("*.manifest.json"))
+        if not manifests:raise VError("no canonical manifests found")
+        warns=[];seen_s=set();seen_h=set()
+        for p in manifests:
+            s,h=verify_manifest(root,p,warns)
+            if s in seen_s or h in seen_h:raise VError(f"duplicate canonical source/hash: {s} {h}")
+            seen_s.add(s);seen_h.add(h);print(f"PASS {p.relative_to(root)} -> {s} [{h[:12]}]")
+        for w in warns:print("WARN",w)
+        print(f"PASS parsed {count} MIDI artifacts; verified {len(manifests)} canonical manifests")
+        return 0
+    except (VError,KeyError,ValueError,json.JSONDecodeError) as e:
+        print("MUSIC SOURCE VERIFICATION FAILED:",e,file=sys.stderr);return 1
+if __name__=="__main__":raise SystemExit(main())
