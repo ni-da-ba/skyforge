@@ -198,34 +198,48 @@ Its main value is twofold:
 
 Adaptive decomposition remains deferred until runtime encounter states and transition semantics are concrete enough to justify loop/stem boundaries.
 
+## Post-freeze percussion repair — active maintenance
 
-## Post-freeze percussion-map audit
+Track 06 exposed a broader BBCSO percussion-authoring mistake that also affects the frozen Track 02 source.
 
-A later Track 06 percussion-mapping defect prompted an audit of the frozen Track 02 MIDI.
+The original Track 02 PERC lane used note numbers that align with **General MIDI drum roles**, while BBCSO Discover Untuned Percussion uses a different keyboard layout and Spitfire octave convention.
 
-The canonical Track 02 Untuned Percussion track contains:
+Observed legacy note roles:
 
-- MIDI 36: 97 attacks — BBCSO Bass Drum, valid;
-- MIDI 41: 26 attacks — BBCSO Suspended Cymbal, valid;
-- MIDI 49: 14 attacks — not part of the intended BBCSO Discover Untuned Percussion white-key map and consistent with an earlier GM-style crash-cymbal assumption.
+- MIDI 36 x97 — GM Bass Drum 1;
+- MIDI 41 x26 — GM Low Floor Tom;
+- MIDI 49 x14 — GM Crash Cymbal 1.
 
-The MIDI-49 events occur at bars 27, 28, 37, 41, 44, 53, 57, 60, 61, 65, 68, 77, 81, and 84.
+This role pattern also matches the musical placement: the 41 events form repeated panic/drum activity, while the 49 events are sparse structural crash accents.
 
-This is a latent implementation defect in the authored percussion layer, not a discovered failure of the accepted composition. The frozen BBCSO render/master was reviewed and accepted with those events effectively absent or nonfunctional.
+### Proposed BBCSO Discover repair map
 
-Do not silently alter the frozen Track 02 master. If Track 02 is remastered or re-rendered in the future, create an explicit A/B correction candidate for these 14 accents and judge whether restoring them improves the cue before replacing the canonical source.
+For the controlled A/B repair:
 
+- legacy MIDI 36 -> **MIDI 48 / BBCSO Bass Drum**;
+- legacy MIDI 41 -> **MIDI 50 / BBCSO Tenor Drum**;
+- legacy MIDI 49 -> **MIDI 71 / BBCSO Piatti**.
 
-### Octave-convention correction to the audit
+BBCSO preset:
 
-The first post-freeze percussion audit incorrectly treated Spitfire's documented C2 as MIDI note 36.
+`12 PERC | Percussion -> Untuned Percussion`
 
-That conversion was wrong. BBCSO Discover's Spitfire convention places MIDI note 0 at C-2, so C2 corresponds to MIDI 48.
+This is a semantic instrument-role repair, not a blanket octave transpose.
 
-Accordingly, the frozen Track 02 PERC lane requires a broader future correction than first recorded:
+In particular, do **not** simply transpose every PERC event +12:
+the old GM floor-tom and crash notes need to be remapped to the closest intended BBCSO instruments, not merely moved by octave.
 
-- MIDI 36 events are one octave below the intended BBCSO Bass Drum key;
-- MIDI 41 events are one octave below the intended BBCSO Suspended Cymbal key if that was their authored intent;
-- MIDI 49 events also retain the separate GM-style crash-assumption problem.
+### Crash positions
 
-Do not modify the frozen master yet. When the user returns to the dragon MIDI, rebuild the PERC mapping from intended instrument function to absolute BBCSO MIDI numbers and A/B the result against the accepted render.
+The 14 legacy MIDI-49 crash accents occur at:
+
+- bar 27 beat 4;
+- bar 28 beat 4;
+- bars 37, 41, 44, 53, 57, 60, 61, 65, 68, 77, 81, and 84 beat 1.
+
+### Acceptance rule
+
+Preserve all non-percussion composition and controller work.
+
+The existing frozen render remains canonical until the corrected percussion version is auditioned in BBCSO. If the repaired layer strengthens physical danger without obscuring the accepted motif / brass / panic hierarchy, promote the corrected source. Otherwise retain the frozen render and treat the percussion repair as optional.
+
