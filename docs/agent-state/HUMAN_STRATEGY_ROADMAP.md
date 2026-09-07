@@ -150,103 +150,44 @@ or chunk protection.
 **Resolved direction:** CC:Tweaked / retained avionics and networking are optional capability
 progression layered onto mechanical competence rather than mandatory bootstrap knowledge.
 
+### HS-R08 — layered validation / evidence economy
+
+**Resolved direction:** the project owner approved risk-driven layered certification to reduce
+evidence saturation while preserving robustness.
+
+Canonical policy: [VALIDATION_POLICY.md](VALIDATION_POLICY.md).
+
+Key rules:
+
+- cheap deterministic contract evidence remains exhaustive where practical;
+- expensive Minecraft lifecycle/persistence/reopen evidence is representative by risk-equivalence
+  class rather than multiplied across every parameter point;
+- a sampled failure automatically widens the affected expensive-test class;
+- expensive evidence may remain portable across orthogonal main movement when the tested dependency
+  surface is unchanged and synchronized cheap CI is green;
+- once a standalone risk is retired, prefer integration with the next major system.
+
+For SF-IMP-0083 specifically, retain cheap deterministic coverage for all 20 remaining built-in
+specimens but target roughly seven new full-runtime representatives selected from support/profile risk
+evidence rather than requiring 20 repeated lifecycle/reopen proofs.
+
+### HS-R09 — validation runtime tiers
+
+**Resolved direction:** use operational budgets as escalation triggers, not arbitrary correctness
+cutoffs:
+
+- routine recurring CI should normally target about 15 minutes per job;
+- recurring jobs above about 20 minutes require justification, optimization, splitting, or promotion
+  to deliberate characterization;
+- deliberate milestone characterization should normally target about 30 minutes or less where
+  technically practical;
+- longer soak/large-matrix work is manual/scheduled and must name the uncertainty it retires.
+
+Heavy acceptance work is not rerun solely because unrelated documentation/state moved on main.
+
 ---
 
 # OPEN HUMAN STRATEGY TOPICS
-
-## HS-01 — Implementation certification depth and "good enough" boundary
-
-**Status:** **DISCUSS NOW — default direction is layered certification unless human review overrides**
-
-**Why now:** SF-IMP-0083 / issue #284 currently requires all 20 remaining built-in AUTH-0083
-seed/scale specimens to receive exact Minecraft evidence including admission, persistence, digest, and
-actual-client reopen. The tranche has already exposed serious warmup/catch-up performance pathologies
-and accumulated substantial branch/integration churn.
-
-The technical work has been useful, but the program now needs an explicit answer to:
-
-> How exhaustive must Minecraft carrier certification be before we accept that the generic carrier
-> works and move on to the integrated world?
-
-### Decision
-
-Choose the long-term acceptance philosophy for large deterministic corpora:
-
-**A — exhaustive full-lifecycle certification**
-- every exact corpus member receives full Minecraft lifecycle + reopen evidence;
-- strongest individual evidence;
-- highest CI/runtime/integration cost.
-
-**B — layered certification**
-- all corpus members receive cheap deterministic identity/support/topology/digest evidence;
-- a representative matrix receives full Minecraft lifecycle/persistence/reopen;
-- targeted expansion occurs only when a family/scale/provider exercises a genuinely different backend
-  path or a sampled failure appears.
-
-**C — split milestone**
-- close the generic backend-carrier milestone on bounded representative evidence;
-- move exhaustive atlas generation into a manual visual/regression corpus that does not block the
-  next production-world milestone.
-
-### Audit recommendation
-
-Prefer **B, with C-style separation of heavy visual atlas work from ordinary acceptance**.
-
-The project owner has explicitly agreed that over-testing is a real process risk and that Audit owns
-detecting it. This does not unilaterally rewrite issue #284's acceptance criteria, but it establishes
-the default policy that the next human discussion should decide whether the current 20-member
-full-lifecycle requirement should be reduced or split rather than assuming exhaustive repetition is
-automatically desirable.
-
-The accepted SF-IMP-0081/0082 work already indicates one generic exact-carrier architecture serves
-multiple families. Repeating actual-client persistence for every parameter specimen has diminishing
-architectural information unless the specimen exercises a new backend path.
-
-Do not silently relax issue #284; this is a human acceptance-policy decision.
-
-**Trigger:** already met.
-
----
-
-## HS-02 — CI, characterization, and performance budget
-
-**Status:** **DISCUSS NOW / establish before the next large matrix**
-
-The project has a technical principle against endless micro-optimization, but it lacks a durable
-human-owned budget for how expensive normal acceptance may become.
-
-Decide:
-
-- expected upper bound for routine PR CI;
-- which workloads may be manual-only;
-- acceptable duration for a deliberate heavy characterization;
-- reference machine/server class for worldgen performance;
-- acceptable near-player generation/tick hitch behavior;
-- whether full actual-client reopen is required per specimen, per backend path, or only at milestone
-  boundaries;
-- how much GitHub Actions cost/runtime the program is willing to spend for redundant confidence.
-
-### Audit recommendation
-
-Use three tiers:
-
-```text
-ROUTINE PR GATES
-    cheap, deterministic, automatically recurring
-
-MILESTONE CHARACTERIZATION
-    deliberately triggered, bounded, representative
-
-HUMAN / SOAK / LARGE-MATRIX EVIDENCE
-    manual or scheduled only when the milestone truly needs it
-```
-
-The program should treat a 50-minute repeated matrix as a design smell unless that runtime is itself
-the thing being measured.
-
-**Trigger:** already met by SF-IMP-0083.
-
----
 
 ## HS-03 — Post-morphology pivot point
 
@@ -579,8 +520,8 @@ Audit should treat the ordering approximately as:
 
 ```text
 NOW
-    HS-01 certification depth
-    HS-02 CI/performance budget
+    apply HS-R08 / HS-R09 to SF-IMP-0083 and other active lanes
+    finish the smallest clean morphology-carrier acceptance boundary
 
 AFTER SF-IMP-0083 CLEAN BOUNDARY
     HS-03 post-morphology pivot
