@@ -163,16 +163,23 @@ Age alone is not a process failure. If resumed, reconstruct from current main an
 
 ## KNOWN HAZARDS / TECHNICAL DEBT
 
-1. **SF-IMP-0083 integration drift:** current machine-green head is 35 ahead / 23 behind current main and non-mergeable; synchronize before acceptance.
-2. **SF-IMP-0083 historical warmup pathology:** prior five-family synchronous warmup reached roughly 54–55 minutes. Recovery work is information-bearing, but unchanged expensive reruns remain prohibited.
-3. **Content durable-state lag:** C20 is accepted while main `CONTENT_STATE.md` still reports C19; PR #305 must be recomposed onto current main.
-4. **Obsolete Authorship milestone branch:** PR #303 uses AUTH-0094 for a different proposed subject after AUTH-0094 was accepted by PR #307; it must not merge under the conflicting number.
-5. **Music manual/source debt:** Track-00 A/B, HC/PERC/TP state provenance, and missing exact Track-06 MIDI remain open despite MUS-0002's green verifier head.
-6. **Production morphology:** #214 remains open beyond the accepted SMALL tranche; #267 and #283 require broader evidence before retuning.
-7. **Biome presentation / issue #261:** immediate-surface biome presentation may fall back to BASE_WORLD ambience away from owned terrain; non-blocking for accepted ecology.
-8. **Structure reintegration:** earlier structure support has not yet been fully reintegrated into the newest production exact-volume lifecycle.
-9. **Audit PR drift:** #298–#300 remain old-base design/docs work and #309 is superseded by this reconciliation; none may become competing durable-state authorities.
-10. **Dormant old-base branches:** C11, cutoff, and Bellanca are valid reserved work only if reconstructed from current main when resumed.
+1. **SF-IMP-0083 evidence economy:** the historical five-family synchronous warmup reached roughly
+   54–55 minutes. Layered validation now forbids returning to a 20x full-lifecycle matrix without
+   evidence of parameter-dependent heterogeneity.
+2. **Obsolete Authorship milestone branch:** PR #303 uses AUTH-0094 for a different proposed subject
+   after AUTH-0094 was accepted by PR #307; it must not merge under the conflicting number.
+3. **Music manual/source debt:** Track-00 A/B, HC/PERC/TP state provenance, and missing exact Track-06
+   MIDI remain open despite MUS-0002 verifier progress.
+4. **Production morphology:** #214 remains open beyond the accepted SMALL tranche; #267 and #283
+   require broader representative evidence before retuning.
+5. **Biome presentation / issue #261:** immediate-surface biome presentation may fall back to
+   BASE_WORLD ambience away from owned terrain; non-blocking for accepted ecology.
+6. **Structure reintegration:** earlier structure support has not yet been fully reintegrated into the
+   newest production exact-volume lifecycle.
+7. **Audit PR drift:** #298–#300 remain old-base design/docs work; preserve/recompose their valid
+   decisions and close the stale branches.
+8. **Dormant old-base branches:** C11, cutoff, and Bellanca are valid reserved work only if
+   reconstructed from current main when resumed.
 
 ## SUPERVISORY WATCH POLICY
 
@@ -208,7 +215,9 @@ The next strategy trigger is HS-03 once SF-IMP-0083 reaches a clean acceptance b
 
 ## NEXT AUDIT WORK
 
-1. Track issue #319 until accepted heavy showcase/performance proofs are split from broad routine PR fan-out without losing change-impact coverage.
+1. Merge the issue #319 CI-economy change after exact-head CI: old SF-IMP-0061..0069 are manual-only;
+   showcase/performance move to retained scheduled/manual execution; accepted Content waves keep
+   direct PR triggers but move broad build/central-registration fan-out to one post-merge main run.
 2. Enforce [VALIDATION_POLICY.md](VALIDATION_POLICY.md) across active lanes: flag evidence saturation,
    unnecessary expensive reruns after orthogonal main movement, and Cartesian heavy matrices that do
    not retire distinct risk.

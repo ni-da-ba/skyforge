@@ -170,6 +170,25 @@ MERGE-READY ACCEPTANCE EVIDENCE
 
 Evidence portability may bridge the two only under the rule above.
 
+## Synchronization economy
+
+A producer branch being numerically behind `main` is not by itself a defect.
+
+Synchronize/recompose when one of these is true:
+
+- an intervening change touches the producer's dependency or contract surface;
+- GitHub reports a real merge conflict that must be resolved;
+- the branch is approaching an acceptance/merge boundary;
+- Audit identifies stale state that materially changes the claim being tested;
+- a relevant retained regression failed on newer main.
+
+Do **not** merge/rebase current main into an active branch merely to erase a behind-count when the
+intervening commits are orthogonal docs/state or unrelated lane work. Preserve portable expensive
+evidence and continue the bounded feature until the next meaningful integration boundary.
+
+At final acceptance, synchronize once, run cheap exact-head/current-contract gates, and rerun only the
+expensive evidence whose dependency surface actually changed.
+
 ## Branch-convergence rule
 
 If branch synchronization/test maintenance begins consuming more effort than the feature:
@@ -274,10 +293,41 @@ Use:
 The exhaustive 20-member in-engine atlas may remain a later/manual regression or presentation asset if
 useful; it should not block the next production-world system once the carrier risk is retired.
 
-## Current CI-economy follow-up
+## Documentation/state fast path
 
-Issue #319 owns the immediate workflow-level cleanup: split accepted heavy showcase/performance proofs
-from broad routine NeoForge PR fan-out while preserving change-impact-aware representative coverage.
+Routine CI should distinguish repository prose/state changes from executable changes.
+
+- Changes confined to `docs/**` and selected top-level documentation files use a lightweight integrity
+  gate rather than provisioning Java/Gradle and regenerating the complete evidence corpus.
+- Code, assets, build configuration, workflow definitions, and all other executable-affecting paths
+  continue through the full CI suite.
+- If change-impact classification is uncertain, fail safe to full CI.
+- Documentation-only validation must still reject merge-conflict markers and require the canonical
+  program/state entry points to exist.
+
+This reduces state-ledger/Audit/design-document merge latency without weakening executable coverage.
+
+## Retained regression trigger policy
+
+Accepted historical evidence remains available, but its trigger should match the risk it protects.
+
+- **Obsolete milestone-specific suites** that are superseded by newer aggregate coverage remain
+  `workflow_dispatch`-only. They must not create skipped checks on every modern PR.
+- **Large showcase / actual-client / exploration-performance suites** run on a deliberate/manual basis
+  and on a low-frequency retained schedule rather than on every NeoForge PR.
+- **Accepted Content compatibility waves** retain pre-merge PR triggers for their own fixture, policy,
+  dependency-pin, or adapter files.
+- Broad cross-cutting files such as the shared NeoForge build script or central mod registration do
+  not fan every retained compatibility proof out across every PR synchronization. Those changes run
+  the affected retained wave once after they land on `main`, while normal CI remains the pre-merge
+  gate.
+- A producer may still deliberately invoke any retained suite when a milestone's dependency surface
+  or prior failure makes that evidence relevant.
+
+This preserves direct pre-merge protection for the code that owns each contract while removing
+historical-capability-complete fan-out from ordinary development.
+
+Issue #319 tracks the first repository implementation of this policy.
 
 ## Audit enforcement
 
