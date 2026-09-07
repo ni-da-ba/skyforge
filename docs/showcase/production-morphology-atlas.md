@@ -71,6 +71,26 @@ Machine gates require:
 
 No aesthetic threshold is encoded.
 
+### Tableland persistence edge case
+
+The first four-family persistence run exposed one exact one-voxel Tableland fringe column at
+`(-163, 160, -19)`. The canonical morphology and height claim remained present, but the stored block
+was AIR after reopen. Preparation had proven the block existed before save.
+
+ADR-0041 requires native surface adaptation to preserve Skyforge occupancy and explicitly deferred
+falling-block policy. SF-IMP-0082 therefore adds the narrow representation rule required by that
+invariant:
+
+- non-falling native surface materials adapt exactly as before;
+- a gravity-affected native material (for example sand/gravel) still adapts when the exact Skyforge
+  materialization has a solid immediately below the exposed top;
+- when the exposed Skyforge top has AIR immediately below it, a falling native material is not
+  copied and the stable original Skyforge surface representation is retained.
+
+This does not retune Tableland morphology, add filler depth, or define a general beach/shore policy.
+It only prevents concrete backend representation from deleting authoritative Skyforge occupancy.
+The focused adapter regression and full four-family prepare/reopen matrix are the acceptance gates.
+
 ## Automated commands
 
 Windows PowerShell:
