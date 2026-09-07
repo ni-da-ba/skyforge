@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `a55e500c86f0baf910af809985956ac398742706`
+**Repository snapshot when updated:** `dfb439b9b33b24327cd5f110dabee6e51cb8a491`
 
 ## Program-wide invariants
 
@@ -17,8 +17,8 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0086` merged on current `main` (visible authored-hydrology realization intent) |
-| Implementation | `SF-IMP-0079` merged before current Authorship work (post-cave vegetal routing) |
+| Authorship | `AUTH-0087` merged on current `main` (published authored-realization binding) |
+| Implementation | `SF-IMP-0080` merged on current `main` (legible forest/taiga ecology showcase) |
 | Content / Experience | C15 ordinary-player 1:1 Nether portal linking/placement accepted; C14 executable avionics capability, C13 Elytra/firework suppression, C10 live 1:1 Nether-scale registry proof, C9 computing substrate, and C8 glider-maintenance closure also accepted; C11/C12 remain separately in progress/reserved |
 | AUDIT | AUDIT-0001 repository-state reconstruction / durable audit handoff accepted on `main` |
 
@@ -53,12 +53,34 @@ fluid lifecycle. It must not substitute native springs or invent a second hydrol
 backend-neutral physicalization added later must use compiled column authority rather than treating
 normalized semantic hydrology potentials as literal world-space Y.
 
+### MERGED / ACCEPTED — AUTH-0087 published authored-realization binding
+
+AUTH-0087 / PR #254 merged as `04fb6dab33cf80e8b82b42fc9d0fc7837cce31c4`.
+
+Downstream consumers may pair an accepted AUTH-0058 publication with an explicit AUTH-0046 association
+catalog only through exact root/count/volume-value coverage. Missing, extra, substituted, or foreign-root
+sets fail closed; no spatial/seed/order inference is allowed.
+
+Immediate consequences:
+
+- Implementation may use the proven association set to drive accepted AUTH-0049 material composition;
+- concrete Minecraft material binding and mutation remain Implementation-owned;
+- Authorship may reuse the same exact binding for surface ecology without creating a second publication
+  association protocol.
+
+### IN PROGRESS — AUTH-0088 published surface ecology
+
+Draft PR #262 is unaccepted. Its intended seam is exact published volume ID + world X/Z -> AUTH-0003
+ecology, gated by compiled horizontal support and current authored-domain ownership. Minecraft biome
+keys, physical Y presentation, and quart-cell policy remain Implementation-owned.
+
 ### MERGED / ACCEPTED — current Implementation capability relevant to Authorship
 
-SF-IMP-0079 is the latest merged Implementation milestone. The runtime already provides exact-volume
-ownership/admission, native population, authored/native cave composition, post-cave interior
-population, and generated-fluid fencing/persistence. Authorship should target those seams rather than
-inventing a parallel backend lifecycle.
+SF-IMP-0080 is now merged/accepted. The runtime already provides exact-volume ownership/admission,
+native population, authored/native cave composition, post-cave interior population, generated-fluid
+fencing/persistence, and a separately accepted forest/taiga land-ecology showcase whose machine and
+human gates passed. AUTH-0088 remains a distinct producer-side semantic projection; SF-IMP-0080 does
+not yet claim ecology-to-Minecraft-biome translation from AUTH-0003.
 
 ### MANUAL VERIFICATION REQUIRED — morphology quality
 
@@ -99,6 +121,8 @@ Aerodynamics4MC is the leading single atmosphere authority.
 - Other lanes must not introduce a second independent wind/thermal authority without reopening this contract.
 
 ### Ecology
+
+SF-IMP-0080 has now passed its automated ecology/showcase/reopen/performance gates and the project-owner human visual review, and is merged on current main. This proves legible forest/taiga land ecology, not AUTH-0003 semantic-biome translation.
 
 Authorship/environment semantics determine viable niches and population opportunity.
 Content maps retained species into those niches.
