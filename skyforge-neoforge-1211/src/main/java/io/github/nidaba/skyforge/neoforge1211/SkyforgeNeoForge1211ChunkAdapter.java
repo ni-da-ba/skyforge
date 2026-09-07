@@ -5,7 +5,6 @@ import io.github.nidaba.skyforge.world.SkyIslandSurfaceSupportEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainBoxObserver;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainInterpreter;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
-import io.github.nidaba.skyforge.world.SkyIslandTerrainSampleContext;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainSemantic;
 import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
@@ -119,16 +118,20 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         int minimumX = chunkPos.getMinBlockX();
         int minimumZ = chunkPos.getMinBlockZ();
 
-        for (int localY = 0; localY < height; localY++) {
-            int worldY = Math.addExact(minimumY, localY);
-            for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
-                int worldZ = Math.addExact(minimumZ, localZ);
-                for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
-                    int worldX = Math.addExact(minimumX, localX);
-                    SkyIslandTerrainSemantic semantic = classify(interpreters, worldX, worldY, worldZ);
-                    SkyIslandTerrainSampleContext context =
-                            new SkyIslandTerrainSampleContext(worldX, worldY, worldZ, semantic);
-                    ResourceLocation blockKey = palette.blockKey(context);
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            int worldZ = Math.addExact(minimumZ, localZ);
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+                int worldX = Math.addExact(minimumX, localX);
+                SkyIslandTerrainInterpreter.ColumnInterpreter[] columns =
+                        new SkyIslandTerrainInterpreter.ColumnInterpreter[interpreters.size()];
+                for (int index = 0; index < interpreters.size(); index++) {
+                    columns[index] = interpreters.get(index).column(worldX, worldZ);
+                }
+
+                for (int localY = 0; localY < height; localY++) {
+                    int worldY = Math.addExact(minimumY, localY);
+                    SkyIslandTerrainSemantic semantic = classify(columns, worldY);
+                    ResourceLocation blockKey = palette.blockKey(semantic);
                     if (!palette.preservesOccupancy(semantic, blockKey)) {
                         throw new IllegalStateException("Minecraft palette changed authoritative Skyforge occupancy");
                     }
@@ -318,12 +321,10 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     }
 
     private static SkyIslandTerrainSemantic classify(
-            List<SkyIslandTerrainInterpreter> interpreters,
-            double x,
-            double y,
-            double z) {
-        for (SkyIslandTerrainInterpreter interpreter : interpreters) {
-            SkyIslandTerrainSemantic semantic = interpreter.classify(x, y, z);
+            SkyIslandTerrainInterpreter.ColumnInterpreter[] columns,
+            double y) {
+        for (SkyIslandTerrainInterpreter.ColumnInterpreter column : columns) {
+            SkyIslandTerrainSemantic semantic = column.classify(y);
             if (semantic.isSolid()) {
                 return semantic;
             }

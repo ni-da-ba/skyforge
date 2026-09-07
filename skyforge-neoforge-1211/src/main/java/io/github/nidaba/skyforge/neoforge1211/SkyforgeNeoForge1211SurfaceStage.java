@@ -182,18 +182,33 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                     adaptStart);
         }
 
-        long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
-        int expectedSolidBlocks = materialization.solidBlockCount();
-        SkyforgeRuntimePerformanceMetrics.recordSince(
-                "terrain.deferred.solidCount",
-                solidCountStart);
+        boolean exactAdmissionFastPath =
+                SkyforgePhysicalVolumeAdmissionStage.canUseExactDeferredWriteFastPath(
+                        pending,
+                        chunk,
+                        range.minimumY(),
+                        range.height());
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.deferredExactAdmissionFastPath",
+                exactAdmissionFastPath ? 1L : 0L);
+
+        int expectedSolidBlocks = -1;
+        if (!exactAdmissionFastPath) {
+            long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
+            expectedSolidBlocks = materialization.solidBlockCount();
+            SkyforgeRuntimePerformanceMetrics.recordSince(
+                    "terrain.deferred.solidCount",
+                    solidCountStart);
+        }
 
         long writeStart = SkyforgeRuntimePerformanceMetrics.start();
-        MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
+        MinecraftChunkWriteResult result = exactAdmissionFastPath
+                ? binding.writer().writeAdmittedExactSolidOverlay(chunk, materialization)
+                : binding.writer().writeSolidOverlay(chunk, materialization);
         SkyforgeRuntimePerformanceMetrics.recordSince(
                 "terrain.deferred.write",
                 writeStart);
-        if (result.solidBlockCount() != expectedSolidBlocks) {
+        if (!exactAdmissionFastPath && result.solidBlockCount() != expectedSolidBlocks) {
             // Another exact volume still owns at least one blocked coordinate. Keep the record
             // pending until all owners have terminal admission decisions.
             return false;

@@ -150,6 +150,45 @@ final class SkyforgePhysicalVolumeAdmissionStage {
     }
 
     /**
+     * Returns whether an exact deferred realization can bypass per-block physical-admission checks.
+     *
+     * <p>The fast path is deliberately narrow: the current volume must already be ADMITTED, the
+     * pending record must still be live for this chunk, and the exact chunk/Y interval may intersect
+     * no other catalog volume bounds. Under those conditions every solid emitted by the exact-volume
+     * materialization has the same already-admitted owner that {@link #allowsWriteAt(int, int, int)}
+     * would rediscover at each block. Any overlap or mixed-volume interval falls back to the
+     * historical position gate.
+     */
+    static boolean canUseExactDeferredWriteFastPath(
+            PendingRealization pending,
+            ChunkAccess chunk,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(pending, "pending");
+        Objects.requireNonNull(chunk, "chunk");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return false;
+        }
+        MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(chunk.getPos(), minimumY, height);
+        synchronized (binding) {
+            if (!binding.ledger().admitted(pending.volumeId())) {
+                return false;
+            }
+            Map<Long, PendingRealization> byChunk = binding.pendingByVolume().get(pending.volumeId());
+            if (byChunk == null || !pending.equals(byChunk.get(pending.chunkKey()))) {
+                return false;
+            }
+            var candidates = binding.catalog().query(chunkBounds.worldBounds());
+            return candidates.size() == 1
+                    && candidates.getFirst().id().equals(pending.volumeId());
+        }
+    }
+
+    /**
      * Returns whether direct composite terrain realization can currently produce an authorized write.
      *
      * <p>When admission is absent, historical direct-realization behavior is preserved. With
