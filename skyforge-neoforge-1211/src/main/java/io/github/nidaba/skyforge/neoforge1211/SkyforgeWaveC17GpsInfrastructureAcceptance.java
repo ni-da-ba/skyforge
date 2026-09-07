@@ -209,7 +209,16 @@ final class SkyforgeWaveC17GpsInfrastructureAcceptance {
                 local modem = assert(peripheral.find("modem"), "wireless modem peripheral missing")
                 assert(modem.isWireless(), "discovered modem is not wireless")
                 sleep(1.5)
-                local x, y, z = gps.locate(2, false)
+                local x, y, z
+                for attempt = 1, 3 do
+                  x, y, z = gps.locate(2, false)
+                  if x ~= nil then
+                    break
+                  end
+                  if attempt < 3 then
+                    sleep(0.5)
+                  end
+                end
                 local found = x ~= nil
 
                 local f = assert(fs.open("%s", "w"))
