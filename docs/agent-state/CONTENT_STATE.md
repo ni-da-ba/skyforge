@@ -3,7 +3,7 @@
 **Lane:** Content / Experience  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot when updated:** `335978905f5c5e235c07a114a653a3be24536c47`
+**Main snapshot before C13 merge:** `5d4a293d6c57e3db4a52ec33dabd8725bbd4b091`
 
 Read first:
 
@@ -13,7 +13,25 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest executable Content milestone: C10
+### Highest accepted executable Content milestone by identifier: C13
+
+**C13 / PR #247**, targeted acceptance head `c68ce3cc0a7269fb92102ce67e4f7d1dd2275d20`.
+
+C13 closes the Elytra/firework mobility bypass with a black-box dedicated-server comparison:
+
+```text
+vanilla baseline: boostDelta=0.85, boostRockets=1, fallFlying=true, ordinaryRockets=1
+suppressed:       boostDelta=0.0,  boostRockets=0, fallFlying=true, ordinaryRockets=1
+```
+
+The exact pinned No More Elytra Boosting 1.0.0 runtime therefore removes Elytra rocket propulsion
+without disabling unpowered Elytra flight or ordinary block-launched fireworks. No bespoke Skyforge
+mixin is justified for mobility integrity. Blast/damage/instability feedback remains optional UX only.
+
+C11 and C12 remain separately reserved/in progress below. C13 used the next free identifier rather
+than overwriting those parallel milestone identities; numerical order does not imply C11/C12 acceptance.
+
+### C10 — live 1:1 Nether-scale proof
 
 **C10 / PR #232**, merge `5eaff75638cd3f9033f440e67b82f705c999cd51`.
 
@@ -115,14 +133,25 @@ survival -> Create -> cheap glider -> shared thermals/fauna -> first aircraft
 
 Computing/CC integration is explicitly part of #224.
 
-### Land-biome visibility dependency — issue #194
+### C11 — live pre-Brass first-flight recipe surface — PR #233
+
+C11 is already owned by draft PR #233. It tests the retained Create/Sable/Aeronautics recipe surface
+for an early alternative to advanced material families. Do not create a second C11 milestone.
+
+### C12 — executable Bellanca B0 — issue #239
+
+C12 is reserved for the real assembled Sable/Create Aeronautics Bellanca engineering mule. It depends
+on C11 recipe-surface closure and requires issue #237/equivalent before power-off glide/restart can close.
+
+### Land-biome visibility dependency — issue #194 / draft PR #248
 
 Implementation must expose a human-visible persistent land-biome specimen with legible soil/grass/trees/plants.
 Do not tune ecology from gravel/ocean showcase fixtures.
 
-### Portable Engine cutoff — issue #237
+### Portable Engine cutoff — issue #237 / draft PR #240
 
-Opt-in engine cutoff/fuel-pause behavior is open and not implemented/accepted.
+The opt-in cutoff has stationary retained-stack runtime evidence in PR #240, but assembled-Sable,
+save/reload, two-engine behavior, and human ergonomics remain unaccepted.
 
 ## PROPOSED
 
@@ -164,13 +193,13 @@ C1 scaffolding is merged, but do not claim complete gameplay acceptance until th
 - Gold-vs-Electrum electrical throughput;
 - world-side industrial source throughput.
 
-### Mobility/gameplay closure beyond C7 physics
+### Mobility/gameplay closure beyond C13 mechanics
 
-Machine correctness for shared lift is accepted, but the following experience decisions remain:
+C13 accepts the mechanical Elytra/firework suppression contract. Remaining experience work is:
 
 - practical glider capability envelope after C8's accepted cheap acquisition/maintenance closure;
-- Elytra/firework boost suppression in play;
-- decision on optional blast/instability feedback;
+- human confirmation that blocked rocket boosting is understandable in normal play;
+- add blast/instability feedback only if that playtest shows a clarity/value gap;
 - C10 portal linking/placement usability and retained-mod assumptions before final 1:1 Nether policy lock;
 - aircraft-versus-personal-flight freight/logistics comparison.
 
@@ -210,7 +239,7 @@ Final province acceptance requires visible play in a good land-biome specimen af
 ## Cross-lane dependencies
 
 - **Authorship:** current `main` includes AUTH-0085; Content consumes semantic environment/geography rather than redefining it.
-- **Implementation:** current recent accepted work includes SF-IMP-0079; #194 is the immediate Content-visible dependency.
+- **Implementation:** SF-IMP-0079 remains the accepted runtime boundary; #194 / draft PR #248 is the immediate Content-visible dependency.
 - **Bootstrap Province:** #224 is the shared vertical-slice target.
 - **Bellanca cutoff:** #237 requires thin implementation/compat work before powered-soaring acceptance.
 
@@ -220,6 +249,7 @@ Final province acceptance requires visible play in a good land-biome specimen af
 - C1 remains partially runtime-gated despite being merged.
 - C8 removes the stock Phantom dependency; keep future recipe/tag changes from reintroducing it.
 - Optional-mod reflection bridges are intentionally version-pinned and fail-closed; upstream API/version changes require rerunning focused workflows.
+- C13 proves the pinned No More Elytra Boosting 1.0.0 behavior, not an irrevocable production dependency lock; rerun the focused acceptance before version/substitute changes.
 - Do not promote A4MC, Reliable Gliders, Fowl Play, CC add-ons, or Bellanca tuning from prototype to permanent pack lock solely because current specimens pass.
 
 ## Verification shortcuts
@@ -231,6 +261,7 @@ Relevant focused workflows/commands:
 - `Wave C5 Soaring Fauna Preflight`
 - `Wave C6 Hawk Thermal Compat`
 - `Wave C7 Glider Shared Lift`
+- `Wave C13 Elytra Bypass`
 - repository `CI`
 
 Detailed commands and evidence live in the corresponding `docs/design-audit/wave-c*.md`, Gradle run definitions,
@@ -238,13 +269,13 @@ workflow files, PRs, and tests.
 
 ## Ordered next work
 
-1. Execute Elytra/firework suppression acceptance and decide whether blast/instability feedback is worth bespoke work.
+1. Do not duplicate active C11 PR #233; consume its live first-flight recipe result into #224 when accepted.
 2. Extend C9 from loader compatibility to computing capability/bypass acceptance (autopilot, telemetry, turtles, networking).
 3. Exercise C10 portal linking/placement and retained-mod compatibility before locking 1:1 Nether as final route policy.
-4. Coordinate #194 and begin Bootstrap Province acceptance as soon as a legible persistent land-biome fixture exists.
-5. Implement/accept #237, then build and fly the Giuseppe Bellanca B0.
+4. Coordinate #194 / PR #248 and begin Bootstrap Province acceptance as soon as a legible persistent land-biome fixture exists.
+5. Complete/accept #237 / PR #240, then execute the C12 Bellanca B0 specimen.
 6. Return to C1 industrial runtime evidence when the focused runtime window is available.
 
 Immediate recommendation for the next fresh Content agent:
 
-> Start with the Elytra/firework executable bypass closure, then the C9 computing capability/bypass specimen; keep both subordinate to #224 Bootstrap Province rather than opening another broad audit.
+> Treat C13 Elytra suppression as mechanically closed. Avoid colliding with active C11/C12 work; next open Content lane is the C9 computing capability/bypass specimen, kept subordinate to #224 Bootstrap Province.
