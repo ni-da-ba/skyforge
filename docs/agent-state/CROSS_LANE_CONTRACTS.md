@@ -17,7 +17,7 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0090` accepted; AUTH-0091 / draft PR #279 recomposed onto current history with fresh exact-head CI in progress |
+| Authorship | `AUTH-0090` accepted; AUTH-0091 / draft PR #279 is recomposed onto current history and exact-head green, pending Authorship-owned acceptance/merge |
 | Implementation | `SF-IMP-0082` accepted: all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / #284 multi-seed/multi-scale built-in matrix in progress |
 | Content / Experience | `C17` accepted; C18 remains draft/unaccepted and machine-green only on its prior tested head, which now requires current-main resynchronization; C11/C12 remain separately in progress/reserved |
 | Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 is draft/unmerged with branch-local cue/source freezes only |
