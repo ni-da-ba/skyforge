@@ -165,7 +165,7 @@ final class SkyIslandPublishedSurfaceEcologyResolverTest {
         double radius = volume.compiledVolume().descriptor().nominalRadius();
 
         for (long key = 0L; key < 96L; key++) {
-            SkyIslandDescriptor authored = authored(key, radius);
+            SkyIslandDescriptor authored = authored(key, volume);
             SkyIslandAuthoredRealizationAssociation association =
                     SkyIslandAuthoredRealizationAssociation.of(authored, volume);
             SkyIslandSemanticField interiority =
@@ -185,9 +185,7 @@ final class SkyIslandPublishedSurfaceEcologyResolverTest {
                                 publication.catalog().volumes().subList(
                                         1, publication.catalog().volumes().size())) {
                             associations.add(SkyIslandAuthoredRealizationAssociation.of(
-                                    authored(
-                                            key + 20_000L + ordinal,
-                                            other.compiledVolume().descriptor().nominalRadius()),
+                                    authored(key + 20_000L + ordinal, other),
                                     other));
                             ordinal++;
                         }
@@ -245,9 +243,7 @@ final class SkyIslandPublishedSurfaceEcologyResolverTest {
         SkyIslandCompiledWorldPublication publication = new SkyIslandCompiledWorldPublisher()
                 .publish(acceptedCompilation(rootSeed), 1L);
         SkyIslandWorldVolume selectedVolume = publication.catalog().volumes().getFirst();
-        SkyIslandDescriptor selectedAuthored = authored(
-                authoredIslandKey,
-                selectedVolume.compiledVolume().descriptor().nominalRadius());
+        SkyIslandDescriptor selectedAuthored = authored(authoredIslandKey, selectedVolume);
         SkyIslandAuthoredRealizationAssociation selectedAssociation =
                 SkyIslandAuthoredRealizationAssociation.of(selectedAuthored, selectedVolume);
 
@@ -257,9 +253,7 @@ final class SkyIslandPublishedSurfaceEcologyResolverTest {
         for (SkyIslandWorldVolume volume : publication.catalog().volumes().subList(
                 1, publication.catalog().volumes().size())) {
             associations.add(SkyIslandAuthoredRealizationAssociation.of(
-                    authored(
-                            authoredIslandKey + 10_000L + ordinal,
-                            volume.compiledVolume().descriptor().nominalRadius()),
+                    authored(authoredIslandKey + 10_000L + ordinal, volume),
                     volume));
             ordinal++;
         }
@@ -273,15 +267,21 @@ final class SkyIslandPublishedSurfaceEcologyResolverTest {
                 selectedAssociation);
     }
 
-    private static SkyIslandDescriptor authored(long islandKey, double radius) {
+    private static SkyIslandDescriptor authored(
+            long islandKey,
+            SkyIslandWorldVolume volume) {
         SkyIslandDescriptor base = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(AUTHORED_WORLD, 8L, 88L, islandKey));
+        var realized = volume.compiledVolume().descriptor();
+        var morphology = realized.hasSemanticMorphologyFamily()
+                ? realized.morphologyFamily()
+                : base.morphologyFamily();
         return new SkyIslandDescriptor(
                 base.schemaVersion(),
                 base.identity(),
                 base.authorshipSeed(),
-                base.morphologyFamily(),
-                radius,
+                morphology,
+                realized.nominalRadius(),
                 base.reliefBudget(),
                 base.rockCompetence(),
                 base.permeability(),
