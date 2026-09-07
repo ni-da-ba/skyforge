@@ -152,6 +152,7 @@ Skyforge intentionally keeps its engineering history visible. Architectural deci
 - [`docs/decisions`](docs/decisions) - architectural decision records;
 - [`docs/reviews`](docs/reviews) - milestone acceptance, interactive runbooks, and visual review;
 - [`docs/authorship`](docs/authorship) - backend-neutral world-authorship milestones and semantics;
+- [`docs/music`](docs/music) - original soundtrack authorship, production workflow, cue records, and musical-language evidence;
 - [`docs/releases`](docs/releases) - versioned proof claims and release criteria;
 - [`docs/agent-state`](docs/agent-state/README.md) - concise live agent handoffs, program charter, and cross-lane contracts.
 

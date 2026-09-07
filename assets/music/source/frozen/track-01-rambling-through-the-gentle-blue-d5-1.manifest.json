@@ -1,0 +1,22 @@
+{
+  "cue": "Track 01 — Rambling Through the Gentle Blue",
+  "status": "frozen; structural and documented-range audit passed",
+  "source": "assets/music/source/frozen/track-01-rambling-through-the-gentle-blue-d5-1.mid.gz",
+  "uncompressed_midi_sha256": "5fed750e6650b8996785e0197214b4d94517cb88e904a73ff03a4b85ad5a2b65",
+  "midi": {
+    "type": 1,
+    "ticks_per_beat": 480,
+    "tempo_bpm": 96,
+    "meter": "4/4",
+    "instrument_tracks": 19,
+    "conductor_track_index": 0
+  },
+  "library_audit": {
+    "ordinary_track_order": "verified",
+    "range_status": "pass",
+    "known_range_exceptions": [],
+    "track_11_hc_state": "not recoverable from MIDI alone; verify Harp/Celeste technique from source CWP for full reproducibility",
+    "track_12_perc_used": false,
+    "track_13_tp_used": false
+  }
+}

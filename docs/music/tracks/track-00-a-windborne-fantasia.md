@@ -1,0 +1,248 @@
+# Track 00 — A Windborne Fantasia
+
+**Status:** Frozen  
+**Role:** first ascent / panorama / rare revelation / thesis statement  
+**Meter:** 6/8  
+**Tonal center:** D major  
+**Authored MIDI tempo:** 104 BPM  
+**Experienced tempo:** approximately 108 BPM  
+**Length:** 72 bars
+
+## Dramatic function
+
+A Windborne Fantasia is the score’s large-scale statement of hopeful aerial wonder.
+
+It is intentionally **not** ordinary exploration rotation. Its best use is for:
+
+- first arrival or first flight;
+- major altitude transition;
+- spectacular generated landmark;
+- legendary island;
+- title or thesis-sequence use;
+- rare revelation.
+
+The core image used during composition was:
+
+> breaking through the clouds and into some kind of wonder.
+
+## Formal arc
+
+| Bars | Function |
+| --- | --- |
+| 1–16 | opening / first panorama |
+| 17–24 | exhale |
+| 25–32 | renewed ascent / build |
+| 33–36 | threshold |
+| 37–47 | revelation |
+| 48–51 | triumph / peace |
+| 52–56 | bridge into horn departure |
+| 57–60 | horn crest |
+| 61–64 | horn-to-flute handoff |
+| 65–72 | coda / afterglow |
+
+## Principal identities
+
+### Opening / propulsion
+
+The opening woodwind vocabulary is built around upward travel and curiosity.
+
+The core opening motif family includes:
+
+```text
+D -> F# -> A -> B
+```
+
+with an answering descent.
+
+Flute functions here as propulsion and curiosity rather than as generic “sky color.”
+
+### Threshold
+
+The threshold architecture was abstracted as:
+
+```text
+up 3 -> down 3 -> up 3 -> up 3
+```
+
+Its dramatic function is:
+
+```text
+lift -> recoil -> renewed lift -> intensified lift
+```
+
+The final high point is intentionally unresolved because it leads directly into the revelation.
+
+### Arrival / revelation
+
+A protected authored arrival gesture developed into the revelation section. The important compositional principle is that the foreground melody remains relatively direct while the harmony supplies the wonder.
+
+A distinctive protected harmonic landmark is:
+
+```text
+Cmaj7(#11)/E -> B7/D# -> Em9
+```
+
+The full cue uses a broader vocabulary including Dadd9, Gmaj7, Bm7, Asus4, inversions, suspended dominant color, and occasional D-Lydian inflection.
+
+## Orchestral semantics
+
+- flute: upward travel / curiosity;
+- horns: breadth, horizon, confidence;
+- V1: emotional realization;
+- low voices: support and scale, not independent narrative foreground.
+
+The first horn declaration was deliberately preserved because it established the panorama without turning the cue martial.
+
+## Accepted production findings
+
+The real BBCSO render showed that orchestral mockup quality depended heavily on controller design and low-mid management.
+
+Important retained lessons:
+
+- higher CC1 with lower CC11 can brighten the BBCSO timbral layer without merely increasing loudness;
+- inner voices should be written horizontally rather than as barline chord blocks;
+- coda mass should be shed rather than maintained;
+- the payoff should simplify perceptually after a busy approach.
+
+A late V2F.1 correction smoothed the first horn entry after the real render exposed an attack that was too abrupt.
+
+## Canonical MIDI identity
+
+SHA-256:
+
+```text
+beb0c9d7d5625c7764207d140cce6b5496bbf1ad0803b2f0d78c26ce3cde9695
+```
+
+Canonical authoring source at MUS-0001 record time:
+
+```text
+SF_V2F1_01_FULL_72bar_HORN_ENTRY_SMOOTHED.mid
+```
+
+## Mastering
+
+Shared tonal refinement:
+
+- low shelf near 140 Hz: approximately -0.4 dB;
+- broad reduction near 550 Hz: approximately -1.2 dB, Q ~0.8;
+- high shelf near 5 kHz: approximately +1.0 dB.
+
+### GAME master
+
+- no broadband compression;
+- approximately -19.1 LUFS;
+- approximately 15.3 LU loudness range;
+- approximately -1 dB true peak.
+
+### OST master
+
+- gentle 1.25:1 compression;
+- approximately -17.5 LUFS;
+- approximately 15.0 LU loudness range;
+- approximately -1 dB true peak.
+
+## Final evaluation at freeze
+
+| Category | Score |
+| --- | ---: |
+| Intended-function fit | 8.4 |
+| Melodic identity | 7.4 |
+| Harmony | 8.1 |
+| Rhythm / motion | 7.6 |
+| Form / pacing | 8.2 |
+| Orchestration | 7.8 |
+| Timbral identity | 7.5 |
+| Production / mockup | 7.6 |
+| Distinctiveness | 7.3 |
+| Repeated-gameplay suitability | 6.7 |
+| Overall composition | **7.8 / 10** |
+| Overall for intended role | **8.3 / 10** |
+
+## Freeze decision
+
+No further local polishing is justified unless a later soundtrack-wide audit exposes a concrete cross-cue problem.
+
+This cue established that Skyforge’s orchestral identity could support large-scale wonder, but its rarity and dynamic shape make it unsuitable as ordinary background rotation.
+
+
+## 2026-09-07 library-range audit
+
+The persisted V2F.1 source hash and canonical 20-track order verify correctly, but the BBCSO Discover range audit found two latent alignment defects.
+
+### Horn crest
+
+Track 06 HN contains ten notes above the documented Horns a4 ceiling of F5. They occur in bars 57-60, the cue's explicitly authored **horn crest**, and include F#5 / A5 / B5-class pitches.
+
+Because this passage is semantically important, do not apply a blind octave transpose.
+
+Required next step is a controlled A/B orchestration repair that preserves the crest's contour while deciding whether the high material belongs:
+
+- revoiced within Horn range;
+- transferred/doubled into Trumpets;
+- or split between Horns and Trumpets.
+
+The frozen source remains unchanged until that A/B is heard.
+
+### Viola floor
+
+Track 17 VLA contains three B2 notes, one semitone below the documented Viola floor of C3, at approximately bars 36, 67, and 70.
+
+These are minor and can be repaired surgically in the same controlled A/B, but they are not to be silently changed in the frozen source.
+
+### Tempo metadata clarification
+
+The persisted MIDI conductor tempo is exactly 104 BPM in 6/8. The earlier "experienced tempo approximately 108 BPM" description is retained as a perceptual characterization, not source metadata.
+
+
+## Range-repair A/B candidates
+
+Two non-canonical BBCSO repair candidates were generated from the verified V2F.1 source.
+
+### Candidate A — peak handoff
+
+Repository source:
+
+`assets/music/source/repair-candidates/track-00-v2f2a-peak-handoff-range-repair.mid.gz`
+
+Uncompressed MIDI SHA-256:
+
+`c8de531cba73d058ca02a8b58b444617596a09d888bd7cf7132601141121ca73`
+
+Repair strategy:
+
+- remove only the ten Horn note events above Discover's F5 ceiling;
+- transfer seven previously uncovered high peaks to Trumpets;
+- leave three already-covered Trumpet reinforcements unduplicated;
+- preserve all in-range Horn melody;
+- move the three out-of-range Viola B2 notes to Celli at identical pitch, timing, duration, and velocity.
+
+This is the preferred first audition because it preserves the original horn-led identity most conservatively.
+
+### Candidate B — continuous brass crest
+
+Repository source:
+
+`assets/music/source/repair-candidates/track-00-v2f2b-continuous-brass-crest-range-repair.mid.gz`
+
+Uncompressed MIDI SHA-256:
+
+`79d3ae690cf8aaf785ad0e31bef2e85f92ddfa3a3ac8cd2fe7c81b5d3c74d375`
+
+Repair strategy:
+
+- move the complete upper Horn melody from bars 57-60 to Trumpets;
+- retain the low Horn pad layer;
+- replace sparse Trumpet reinforcements in those bars with the continuous transferred line;
+- copy the Horn CC1/CC11 crest envelope into the Trumpet lane for that passage;
+- move the three out-of-range Viola B2 notes to Celli unchanged in pitch/timing/duration/velocity.
+
+This candidate is intentionally more interventionist and exists to test whether a coherent brass-family handoff works better than note-by-note peak transfer.
+
+### Acceptance gate
+
+Neither candidate is canonical.
+
+Audition at **104 BPM / 6/8** using the normal BBCSO Horns, Trumpets, Violas, and Celli patches. Compare bars 55-61 against the accepted V2F.1 render.
+
+Promote only if the repair preserves the cue's accepted revelation/departure character while eliminating silent or impossible library events.
