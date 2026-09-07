@@ -3,8 +3,8 @@
 **Canonical lane:** IMPLEMENTATION  
 **Updated:** 2026-09-06  
 **Repository snapshot observed at migration:** `main@3f300346e598a6bc87a3a1468ec028bdee7eec0b`  
-**Highest merged Implementation milestone:** **SF-IMP-0079**  
-**SF-IMP-0079 merge:** PR #236, `91da8370a9c8078758b355a7ca4bd5f66531df6b`
+**Highest merged Implementation milestone:** **SF-IMP-0080**  
+**SF-IMP-0080 merge:** PR #248, `e721b512d7aaf402d671b8d0c72db802f9bd0912`
 
 Always verify current `main` before starting work; the snapshot above records the migration point, not a claim that other lanes stopped advancing afterward.
 
@@ -62,6 +62,29 @@ Accepted stacked evidence recorded:
 
 Issue #193 is closed. No arbitrary lichen density cap was required.
 
+
+### SF-IMP-0080 — legible persistent land-biome ecology
+
+SF-IMP-0080 (PR #248, merge `e721b512d7aaf402d671b8d0c72db802f9bd0912`) is **MERGED / ACCEPTED** and closes issue #194.
+
+The accepted implementation keeps the compact river/dripstone showcase as the technical cave/interior authority and adds a separate human-facing forest/taiga ecology world. The accepted path uses native-surface adaptation, whole-volume physical admission, deferred stable-chunk catch-up, exact-volume native surface population, durable biome presentation, persistence, and mutation-inert actual-client reopen.
+
+Final machine evidence on the accepted land-backed fixture included:
+
+- lower FOREST / upper TAIGA physical admission: **361 / 361 observed and required chunks each**, both ADMITTED;
+- lower forest: **172** populated chunks, **1376** feature attempts, **339** successes, **37,684** substrate samples, **27,818** grass samples, **8,224** logs, **74,908** leaves, and **1,881** surface plants;
+- upper taiga: **178** populated chunks, **1602** feature attempts, **402** successes, **39,077** substrate samples, **28,941** grass samples, **10,307** logs, **77,023** leaves, and **1,744** surface plants;
+- distinct forest/taiga native feature identity: true;
+- pending terrain catch-up: **0**;
+- pending biome presentation: **0**;
+- durable biome presentation: true;
+- mutation-inert actual-client reopen: PASS;
+- repository CI, existing showcase acceptance, dedicated ecology acceptance, and SF-IMP-0070 performance characterization: PASS on the synchronized integration head before merge.
+
+The required human #194 gate explicitly passed. The reviewer reported that both ecosystems were clearly legible and visually strong, with plausible vegetation attachment, meaningful forest/taiga distinction, and correct persistence across reopen.
+
+A separate non-blocking presentation limitation was observed: moving a short distance away from the terrain can return the client-visible biome to BASE_WORLD ambience. This matches the intentionally narrow SF-IMP-0058 immediate-surface quart contract and is tracked as **issue #261**; it does not reopen #194 or weaken SF-IMP-0080 ecology acceptance.
+
 ## Architectural invariants
 
 - BASE_WORLD generation and Skyforge exact ownership remain distinct domains.
@@ -81,29 +104,28 @@ Issue #193 is closed. No arbitrary lichen density cap was required.
 Read [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md). Most important near-term dependencies:
 
 - Authorship morphology stack must be brought through the production lifecycle rather than beautifying the compact showcase specimen.
-- AUTH-0086 visible-hydrology intent should precede authored Minecraft waterfall/channel realization.
+- AUTH-0086 is now merged/accepted (PR #241, merge `a55e500c86f0baf910af809985956ac398742706`); authored Minecraft channel/waterfall realization may consume that intent contract when it reaches priority, without inventing a second planner.
 - Content structure/progression requirements should use generic realization contracts.
 
 ## IN PROGRESS
 
-No open Implementation PR was authoritative at the migration snapshot.
-
-The next active implementation target is **issue #194: visually legible land-biome/ecology realization in the human-facing showcase**.
+No Implementation milestone is open at this exact accepted boundary. The next milestone is SF-IMP-0081, the first Minecraft realization tranche for AUTH-0083 / issue #214 production morphology.
 
 ## PROPOSED / priority order
 
-1. **#194 — legible biome/ecology showcase specimen.** Use a deliberately readable land-biome specimen/pair (existing forest/taiga proof is the leading source) so soil, grass, trees, plants, and biome differences are human-visible without weakening production lifecycle semantics.
-2. **Production morphology era.** Route representative Massif, Tableland, Spine, Basin, Lobed instances through the same physical-admission, caves, population, persistence, and performance pipeline.
-3. Add representative hybrids/provider composition, secondary morphology, bounded local detail, and regional/cluster composition.
-4. Connect authored materials/geology and then authored hydrology to concrete Minecraft realization.
-5. Reintegrate structures into the newest exact-volume lifecycle across surface, embedded, cliff/underside, detached, settlement/network, and structure-seeded modes.
-6. Converge on the deterministic Bootstrap Province vertical slice.
+1. **Production morphology era / #214.** Begin with one exact AUTH-0083 built-in specimen in Minecraft, then expand across Massif, Tableland, Spine, Basin, Lobed, scales/seeds, hybrids/provider composition, and AUTH-0084 regional contexts. Preserve reference member/context IDs in Minecraft evidence.
+2. Add representative hybrids/provider composition, secondary morphology, bounded local detail, and regional/cluster composition through the current lifecycle.
+3. Connect authored materials/geology and then authored hydrology to concrete Minecraft realization.
+4. Reintegrate structures into the newest exact-volume lifecycle across surface, embedded, cliff/underside, detached, settlement/network, and structure-seeded modes.
+5. Converge on the deterministic Bootstrap Province vertical slice.
 
 Deprioritized performance follow-up: issue #219 (canonical nearest-first surface discovery) is valid but should only be revived if realistic-scale profiling shows surface discovery is again material.
 
 ## Known hazards / technical debt
 
-- The compact current showcase is a technical specimen and visually poor; do not make it the de facto production morphology.
+- The compact current showcase is a technical cave/interior specimen and visually poor; do not make it the de facto ecology or production-morphology authority.
+- SF-IMP-0080 established that changing the compact specimen's biome/base representation alone is insufficient for legible land ecology; its failed prototype produced soil but no grass/logs/leaves/plants. Reuse a topology that native land ecology can actually inhabit rather than increasing feature density.
+- Issue #261 records a non-blocking flight/ambient-presentation limitation: exact-volume biome presentation currently ends close to the owned surface and may fall back to BASE_WORLD ambience a short distance away. Do not solve this by claiming whole native biome columns.
 - Surface material mapping in technical fixtures can remain simple (for example generic dirt mantle); production geology/material roles are not yet fully realized.
 - Native Minecraft feature assumptions are grounded in ordinary solid worlds; new phases must be audited for floating-domain read/write assumptions as they are introduced.
 - README/current-runtime capability prose may lag the current SF-IMP boundary. This state file is canonical for lane status; architecture/review docs remain useful for the specific boundary they describe.
@@ -125,7 +147,10 @@ Useful local Gradle entry points include:
 ```text
 :skyforge-neoforge-1211:sfImp0070PerformanceVerify
 :skyforge-neoforge-1211:showcaseViewerVerify
+:skyforge-neoforge-1211:showcaseEcologyPrepareVerify
+:skyforge-neoforge-1211:showcaseEcologyViewerVerify
 :skyforge-neoforge-1211:launchShowcase
+:skyforge-neoforge-1211:launchShowcaseEcology
 ```
 
 Use `--no-configuration-cache` for the showcase/dev runs where the project marks ModDev orchestration incompatible with configuration cache.
@@ -133,10 +158,6 @@ Use `--no-configuration-cache` for the showcase/dev runs where the project marks
 Do not merge behavioral worldgen changes on a stale integration base: verify exact PR head/base and rerun current-main gates when `main` advances.
 
 ## MANUAL VERIFICATION REQUIRED
-
-### #194 — ecology legibility
-
-Human reviewer must be able to see persistent land-biome population: soil/grass, trees, surface plants, and a meaningful biome distinction. Machine success counters are insufficient.
 
 ### #214 — production morphology visual atlas
 
@@ -146,6 +167,16 @@ Do not declare production morphology aesthetically accepted before this human ga
 
 ## Immediate recommended next work
 
-Implement **#194** with the smallest production-faithful showcase change that exposes an already-accepted legible land-biome population specimen. Keep the compact technical showcase's correctness purpose intact; do not cosmetically decorate it into a fake production morphology.
+Begin **SF-IMP-0081** as the first issue #214 Minecraft production-morphology tranche.
 
-After #194 is human-inspectable, begin the production morphology integration era and explicitly flag the first #214 human-eye review tranche.
+Use the exact AUTH-0083 member identity `builtin-massif-small-seed-skyforge` as the first executable specimen. Preserve its canonical seed, physical scale, full bounded detail, full secondary morphology, and provider-neutral `SkyIslandMorphologySpecCompiler` path; only translate the suspension elevation into Minecraft's build range.
+
+The first tranche should:
+
+- derive tight Minecraft integer-voxel support bounds from the compiled production morphology instead of paying physical-admission cost over a broad generic envelope;
+- realize the specimen through native-surface adaptation, whole-volume physical admission, deferred stable-chunk catch-up, persistence, and a mutation-inert actual-client reopen;
+- preserve a stable AUTH-0083 member ID in all evidence;
+- provide guided **above / horizon-approach / below / orbit-underneath** player views for the first #214 human review;
+- use machine gates only for objective realization failures (clipping, missing terrain, persistence mismatch, lifecycle violation). Do not invent aesthetic thresholds before correlating Minecraft views with AUTH-0083 diagnostics.
+
+After that carrier proof is green, expand the same mechanism across the other four built-in families before moving to hybrids/provider axes and AUTH-0084 regional scenes.
