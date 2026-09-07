@@ -35,11 +35,11 @@ This separation makes terrain behavior explainable and testable before it reache
 
 Current agent/lane state is maintained under [`docs/agent-state/`](docs/agent-state/README.md). Fresh agents should read the canonical program charter, their lane state, and the cross-lane contracts there before relying on conversational recollection.
 
-The capability narrative below is retained as an architectural/reviewer snapshot and may lag the latest accepted milestone. The canonical current Implementation frontier is the lane state document plus merged Git history/tests.
+The capability narrative below is maintained as a reviewer-facing runtime snapshot. The canonical current Implementation frontier remains the lane state document plus merged Git history/tests; this snapshot is reconciled through SF-IMP-0079.
 
 ## Current capabilities
 
-The accepted Minecraft integration through **SF-IMP-0057** includes:
+The accepted Minecraft integration through **SF-IMP-0079** includes:
 
 - immutable, typed procedural graphs and canonical serialization;
 - deterministic reference evaluation and fixed-seed regression corpora;
@@ -54,11 +54,18 @@ The accepted Minecraft integration through **SF-IMP-0057** includes:
 - whole-volume physical admission before destructive realization, with terminal reject/admit decisions over finite native-occupancy evidence;
 - deferred realization only through already-loaded stable chunks, without forcing future chunk generation;
 - preservation of native post-processing semantics during deferred surface population;
-- stable-chunk lighting and client synchronization after deferred low-level terrain writes.
+- stable-chunk lighting and client synchronization after deferred low-level terrain writes;
+- persistent client-visible exact-volume biome presentation;
+- exact-volume virtualization of native underground ores, local modifications, carvers, underground decoration, fluid springs, and lakes;
+- authored cave realization with native-first/authored-last cave composition;
+- production composed-cave and post-cave native interior-population stages with deterministic, idempotent obligations;
+- generated-fluid provenance, exact-volume propagation fencing, save/reload persistence, and actual-client reopen evidence;
+- evidence-driven performance convergence through bounded cave catch-up, candidate filtering, exact-volume Y clamps, and deferred subphase profiling;
+- floating-island plausibility policy for native interior features, including interior-shell spring containment and post-cave routing of cave-dependent multiface vegetation.
 
-A parallel backend-neutral authorship lane is now developing island-local environmental and hydrologic semantics that the Minecraft adapter can consume later without reversing the dependency direction.
+Backend-neutral Authorship has advanced through AUTH-0085, with AUTH-0086 visible-water intent in progress. The Minecraft adapter consumes those semantics through explicit contracts rather than becoming their source.
 
-The active Minecraft-integration boundary is **cross-volume native structure terrain projection**: terrain-matching structures rooted in one vertical world domain must not project onto an unrelated stacked Skyforge volume merely because it is the highest surface at the same X/Z. Skyforge is pre-release: it is not yet packaged as a general-purpose player-facing mod, and no stable API compatibility is promised.
+The active Implementation boundary is **issue #194 / draft SF-IMP-0080**: expose an already-accepted land-biome ecology specimen that is human-legible in the persisted showcase without weakening the production lifecycle. That work still requires its manual visual gate and current-main synchronization before acceptance. Production morphology integration, authored hydrology/material realization, and structure reintegration into the newest exact-volume lifecycle remain downstream. Skyforge is pre-release: it is not yet packaged as a general-purpose player-facing mod, and no stable API compatibility is promised.
 
 ## Engineering proof at a glance
 
@@ -71,6 +78,9 @@ Skyforge treats milestone acceptance as an engineering artifact. The repository 
 | **Native population is coordinated and idempotent per exact volume.** | [SF-IMP-0055](docs/reviews/SF-IMP-0055-surface-population-acceptance.md) completed **50 lifecycle keys** across 25 chunks and two volumes; an immediate equivalent replay executed **0** additional phases. |
 | **Physical realization is atomic at whole-volume scale.** | [SF-IMP-0056](docs/reviews/SF-IMP-0056-physical-admission-acceptance.md) rejected a native-bedrock collision without mutation while admitting a clear upper volume only after **25 / 25** footprint chunks reported evidence; deferred catch-up completed with **0** pending chunks. |
 | **Deferred native population preserves stable-chunk lifecycle semantics.** | [SF-IMP-0057](docs/reviews/SF-IMP-0057-deferred-post-processing-acceptance.md) preserved pre-existing native post-processing work, eliminated the unsupported stable-chunk fallback, completed **21 / 21** admitted surface-population phases, and synchronized deferred terrain to tracking clients. |
+| **Native and authored cave semantics compose in one exact volume.** | [SF-IMP-0067](docs/reviews/SF-IMP-0067-native-authored-cave-precedence-acceptance.md) proves native-carver AIR union authored AUTH-0030 AIR with exact-volume isolation and reload/client persistence; the production lifecycle is exercised by the [SF-IMP-0068](.github/workflows/sf-imp-0068-acceptance.yml) and [SF-IMP-0069](.github/workflows/sf-imp-0069-acceptance.yml) gates. |
+| **Post-cave native population is productionized and floating-island-aware.** | The [current showcase](docs/showcase/current-capability-showcase.md) reuses the accepted SF-IMP-0069 stacked production fixture; SF-IMP-0078/0079 then constrain spring/exterior behavior and route cave-dependent multiface vegetation after composed caves. |
+| **Performance changes are measurement-gated.** | [SF-IMP-0070 characterization](.github/workflows/sf-imp-0070-performance.yml) established the baseline used by SF-IMP-0071 through 0077; the current policy is to stop local micro-optimization unless fresh profiling exposes another material pathology. |
 | **Procedural output is reproducible outside Minecraft.** | The fixed-seed and suspended-volume evidence tasks emit machine-readable descriptors/graphs, exact sampled data, numerical morphology metrics, SHA-256 identities, HTML review guides, and diagnostic images. |
 
 The latest accepted runtime architecture and the active development boundary are summarized in [`Skyforge_Current_Runtime_Architecture.md`](docs/architecture/Skyforge_Current_Runtime_Architecture.md).
@@ -79,11 +89,11 @@ The latest accepted runtime architecture and the active development boundary are
 
 For a compact technical review of the project:
 
-1. Start with the [current runtime architecture](docs/architecture/Skyforge_Current_Runtime_Architecture.md) for ownership and dependency boundaries.
-2. Read the [SF-IMP-0057 acceptance record](docs/reviews/SF-IMP-0057-deferred-post-processing-acceptance.md) for the latest accepted Minecraft runtime proof.
-3. Read the [SF-IMP-0056 acceptance record](docs/reviews/SF-IMP-0056-physical-admission-acceptance.md) for the whole-volume admission invariant on which deferred population depends.
-4. Inspect [ADR-0056](docs/decisions/ADR-0056-terrain-domain-generation-isolation.md), [ADR-0057](docs/decisions/ADR-0057-exact-volume-biome-bridge.md), and [ADR-0058](docs/decisions/ADR-0058-native-surface-population-planner.md) for the recent design decisions behind that runtime.
-5. Inspect the [CI workflow](.github/workflows/ci.yml) for the repository’s build, backend-isolation, deterministic-evidence, and review-bundle gates.
+1. Start with the [current Implementation lane state](docs/agent-state/IMPLEMENTATION_STATE.md) for the accepted frontier, active work, and manual gates.
+2. Read the [current runtime architecture](docs/architecture/Skyforge_Current_Runtime_Architecture.md) for ownership and lifecycle boundaries.
+3. Inspect the [current-capability showcase](docs/showcase/current-capability-showcase.md) for the integrated SF-IMP-0069 production ordering and its intentionally excluded capabilities.
+4. Read [SF-IMP-0067](docs/reviews/SF-IMP-0067-native-authored-cave-precedence-acceptance.md) plus the [SF-IMP-0068](.github/workflows/sf-imp-0068-acceptance.yml), [SF-IMP-0069](.github/workflows/sf-imp-0069-acceptance.yml), and [SF-IMP-0070](.github/workflows/sf-imp-0070-performance.yml) workflows for the modern cave/interior/performance evidence chain.
+5. Inspect the [CI](.github/workflows/ci.yml) and [showcase acceptance](.github/workflows/showcase-acceptance.yml) workflows for repository-wide and persisted-client regression gates.
 
 ## Modules
 
