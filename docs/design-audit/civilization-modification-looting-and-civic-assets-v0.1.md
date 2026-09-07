@@ -262,6 +262,32 @@ Inputs:
 
 This is primarily a content/data problem, not an AI/protection problem.
 
+## Generated aircraft and vehicle capture
+
+A complete generated aircraft is itself a progression-sensitive civic asset, not merely a collection
+of ordinary blocks.
+
+The player remains free to attack, board, damage, dismantle, or salvage aircraft through ordinary
+Minecraft mechanics where the realized vehicle permits it. However, ordinary pre-P2 civilian/faction
+traffic must not make a turnkey reusable aircraft the easiest route to reliable regional flight.
+
+Preferred policy:
+
+- keep most ordinary traffic airborne rather than parked unattended;
+- treat intact capture as a deliberate reward class, not an accidental consequence of every encounter;
+- use damaged/crash/salvage states where early defeat would otherwise yield a complete vehicle;
+- budget propulsion, avionics, radar, weapon, and fuel recovery as progression-sensitive assets;
+- permit later intact capture once the player already owns reliable-flight capability, where it expands
+  vehicle variety rather than replacing the engineering progression;
+- avoid whole-aircraft invulnerability or broad ownership protection unless a concrete exploit survives
+  the physical/content controls.
+
+A generated aircraft may be visually complete for world legibility while still lacking a convenient
+player manual-control package. An automation-only or service-specific configuration can require
+meaningful retrofit before player use.
+
+See [Aircraft Reuse, Automation, and Capture Governance v0.1](aircraft-reuse-automation-and-capture-governance-v0.1.md).
+
 ## Example: airfield
 
 An active airfield may contain:
