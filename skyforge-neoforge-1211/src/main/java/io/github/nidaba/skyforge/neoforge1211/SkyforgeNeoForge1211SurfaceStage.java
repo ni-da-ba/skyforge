@@ -305,6 +305,23 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return binding == null ? Optional.empty() : binding.adapter().volumeBounds(volumeId);
     }
 
+    /**
+     * Returns the exact discrete solid interval for one runtime-bound island column.
+     *
+     * <p>The interval comes from the accepted compiled support bridge and is therefore suitable for
+     * physical-admission scans that need occupancy, not terrain-role classification.
+     */
+    static Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> integerSolidRange(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? Optional.empty()
+                : binding.adapter().integerSolidRange(volumeId, worldX, worldZ);
+    }
+
     static Optional<List<SurfaceSupportAssessment>> assessSurfaceSupport(SurfaceSupportRequirements requirements) {
         Objects.requireNonNull(requirements, "requirements");
         RuntimeBinding binding = ACTIVE.get();
