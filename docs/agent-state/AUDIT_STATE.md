@@ -295,7 +295,7 @@ Snapshot at AUDIT-0008 commencement from `main@5ababf52`. Re-evaluate from repos
 
 | Lane / work | Health | Evidence / required action |
 | --- | --- | --- |
-| Implementation — SF-IMP-0083 / PR #285 | **HEALTHY / ACTIVE** | The first profiling assertion failed once, was corrected with new information, then work progressed through synchronized fixture -> runtime/viewer -> lifecycle -> automated seed/scale matrix. Retained build/showcase/ecology/performance/Content regressions are green; new five-family seed/scale jobs are pending. No loop evidence. |
+| Implementation — SF-IMP-0083 / PR #285 | **WATCH — prepare scalability** | The first profiling assertion was corrected with new information and retained regressions are green, so there is no reasoning-loop evidence. However all five new seed/scale jobs have remained in synchronous prepare warmup for ~45–50+ minutes versus ~3–4 minutes for accepted SF-IMP-0082 family prepares. The acceptance harness deadline begins only after synchronous warmup returns, so GitHub's 60-minute step timeout can kill setup before Skyforge's own bounded PASS timer starts. Diagnose footprint/admission/materialization cost before retrying or raising timeouts. |
 | Authorship — AUTH-0091 state repair / PR #287 | **WATCH — synchronization conflict** | Producer responded promptly and build is green, but the state-repair branch is now behind AUDIT-0007 and conflicts in shared `CROSS_LANE_CONTRACTS.md`. Recompose onto current main before merge. This is parallel drift, not a reasoning loop. |
 | Content — C18 / PR #277 | **WATCH — branch drift** | Tested head remains machine-green but is approximately 8 commits ahead / 50 behind current main. Synchronize and rerun exact-head evidence before acceptance or before adding another large tranche. |
 | Music / Audio — MUS-0001 / PR #159 | **STALE / HIGH-RISK HISTORY** | Approximately 88 commits ahead / 1119 behind current main at this snapshot. Do not indefinitely append persistence/fix work to this historical branch; reconstruct from current main and recompose the canonical source/manifests/history before repository acceptance. Existing listening/source-integrity gates remain. |
@@ -307,6 +307,7 @@ Process-health actions already taken:
 - PR #159 received a high-risk stale-history warning;
 - PR #277 received a synchronization warning;
 - PR #287 received a current-main synchronization warning after parallel Audit movement.
+- PR #285 received a prepare-scalability warning with accepted SF-IMP-0082 timing comparison and an explicit instruction not to paper over the problem by raising timeouts/retrying unchanged.
 
 ## KNOWN HAZARDS / TECHNICAL DEBT
 
@@ -317,6 +318,7 @@ Process-health actions already taken:
 5. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
 6. **Performance:** do not restart local micro-optimization absent fresh realistic-scale profiling.
 7. **Authorship durable-state lag:** AUTH-0091 is merged/accepted but AUTHORSHIP_STATE.md still reports AUTH-0090 as highest; producer-owned repair remains required.
+8. **SF-IMP-0083 synchronous acceptance warmup:** the seed/scale family matrix warms its explicit finite chunk corpus synchronously via `level.getChunk(...)`, and the harness timeout starts only after warmup completes. All five families are currently >10x slower than accepted SF-IMP-0082 prepares and are approaching the outer CI step limit. Treat repeated timeout/rerun cycles without profiling as a loop/process failure.
 
 Resolved hazards include the C11/C13 identifier collision, duplicate live-state namespaces, AUTH-0086/AUTH-0087/AUTH-0088 durable-state lag, C16 durable-state lag, SF-IMP-0080's compile/substrate/ecology-legibility blockers, SF-IMP-0081's post-C16 synchronization plus temporary Implementation-ledger lag, SF-IMP-0082's stale post-merge Audit/shared snapshot, and C18's permissive STOPPED gate.
 
