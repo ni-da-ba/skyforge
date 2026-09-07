@@ -69,7 +69,7 @@ Do not conflate this with production morphology aesthetics; issue #214 remains s
 
 ### Authorship state migration — PR #245
 
-Unmerged canonical-state consolidation work. It must remain under `docs/agent-state/` and synchronize with current `main` after AUDIT-0001.
+Unmerged canonical-state consolidation work. It is recomposed onto the AUDIT-0001 merge, changes only `docs/agent-state/*`, and does not recreate the deprecated live authority under `docs/handoffs/`. Authorship still owns its exact-head CI/evidence and merge decision.
 
 ### AUTH-0086 — PR #241
 
@@ -79,9 +79,11 @@ Backend-neutral visible-hydrologic realization intent remains draft/in progress.
 
 Existing **C11** identity. Branch requires current-main synchronization and fresh focused evidence before acceptance. Preserve the distinction between this crude pre-Brass bootstrap aircraft and the later Brass-era Bellanca.
 
-### Elytra/firework bypass — PR #247
+### Elytra/firework bypass — PR #247 / C13
 
-Technically focused suppression proof, but its branch/title initially reused **C11**, colliding with PR #233; issue #239 already reserves C12. Owning Content lane must assign a non-conflicting identity before merge.
+The initial C11 identity collision discovered during AUDIT-0001 is resolved. Content has explicitly reassigned this work to **C13**, preserving PR #233 as C11 and issue #239 as C12.
+
+Current branch remains draft/unmerged. AUDIT has verified the milestone-identity correction only; runtime acceptance remains Content-owned.
 
 ### Portable Engine cutoff — PR #240 / issue #237
 
@@ -123,15 +125,16 @@ Human play must verify interaction discoverability and that neighboring redstone
 1. **Long-lived branch drift:** C11 and Portable Engine cutoff require current-main synchronization before acceptance.
 2. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
 3. **Manual-gate ambiguity:** morphology corpus machinery and showcase counters do not constitute aesthetic/ecology acceptance.
-4. **Content milestone collision:** PR #247 initially reused C11 while PR #233 owns C11 and issue #239 reserves C12.
-5. **State migration concurrency:** PR #245 must follow the canonical `docs/agent-state/` namespace and current main.
-6. **Reviewer-document drift:** AUDIT-0002 repairs the known SF-IMP-0057 runtime overview drift; future milestone/state changes should not silently turn overview prose back into a second lane ledger.
+4. **State migration concurrency:** PR #245 must follow the canonical `docs/agent-state/` namespace and current main.
+5. **Reviewer-document drift:** AUDIT-0002 repairs the known SF-IMP-0057 runtime overview drift; future milestone/state changes should not silently turn overview prose back into a second lane ledger.
+
+Resolved hazard: PR #247's initial C11 milestone collision was corrected to **C13** without renumbering C11 or C12.
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Verify PR #245 is synchronized to current main and preserves one canonical state namespace.
-2. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
-3. Track PR #248 without waiving its #194 human-eye gate.
-4. Review PR #242 only for cross-lane consistency; leave CONTENT ownership and C12 runtime acceptance intact.
-5. Re-audit PR #240 after assembled-Sable + persistence evidence.
+1. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
+2. Track PR #248 without waiving its #194 human-eye gate.
+3. Review PR #242 only for cross-lane consistency; leave CONTENT ownership and C12 runtime acceptance intact.
+4. Re-audit PR #240 after assembled-Sable + persistence evidence.
+5. Continue checking future lane-state migrations remain under `docs/agent-state/`.
 6. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
