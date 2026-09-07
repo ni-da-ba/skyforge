@@ -146,6 +146,30 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return completed;
     }
 
+    /**
+     * Services at most one eligible exact-volume terrain record for one already-available chunk.
+     *
+     * <p>The eligible list is refreshed from the same admission-stage iteration used by
+     * {@link #serviceCatchup(ChunkAccess)}. Returning after the first successful realization makes
+     * one scheduler quantum correspond to one exact (volume, chunk) mutation instead of every
+     * vertically stacked volume in that chunk. Repeated calls therefore preserve the historical
+     * per-chunk iteration order while allowing the outer elapsed-time guard to yield between
+     * independent exact volumes.
+     */
+    static int serviceOneCatchup(ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return 0;
+        }
+        for (var pending : SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos())) {
+            if (realizeDeferred(binding, chunk, pending)) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+
     private static boolean realizeDeferred(
             RuntimeBinding binding,
             ChunkAccess chunk,
