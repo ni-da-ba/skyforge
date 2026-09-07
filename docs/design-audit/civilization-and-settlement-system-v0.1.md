@@ -80,6 +80,28 @@ This allows the sky to feel inhabited while preserving the project's sparse nega
 Ordinary wilderness may have mostly ecological aerial life; developed regions can show civilian
 traffic; contested/restricted/hostile regions can produce organized faction aviation.
 
+## Air-traffic support as infrastructure capability
+
+Inhabited-airspace traffic should consume coarse civilization capability rather than require every
+aircraft to be simulated as an independent economic actor.
+
+Relevant support can be represented by settlement/cluster capacity such as:
+
+- fuel service;
+- maintenance;
+- munitions for armed factions;
+- navigation/radar coverage;
+- launch/parking capacity;
+- route importance.
+
+The world may realize these capabilities through visible fuel depots, workshops, ammunition stores,
+radar posts, airfields, docks, and representative parked-aircraft patterns. Their existence can govern
+which traffic/encounter classes are eligible without maintaining literal inventories and service
+cycles for every transient aircraft.
+
+Where player action destroys or restores a key support site, future traffic capability may change.
+This is preferable to a continuously simulated NPC logistics economy.
+
 ## Semantic hierarchy
 
 ### Province civilization context
