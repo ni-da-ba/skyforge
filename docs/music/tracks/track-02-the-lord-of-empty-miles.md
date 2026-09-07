@@ -252,3 +252,10 @@ The previously stored Track 02 `.mid.gz` was discovered to contain Track 00 data
 
 The old documented Track 02 hash `73aa5969...` is retained only as historical provenance and must not be used as the current repository-source identity.
 
+
+
+### Additional range-audit note
+
+The post-repair full-source range audit found two Trumpet note-ons at MIDI 85 / C#6, approximately bars 56 and 60. The documented BBCSO Discover Trumpets a3 range ends at C6 / MIDI 84.
+
+The repaired BBCSO render has already been accepted, so this does **not** reopen Track 02 by default. Treat the two events as a known minor frozen-source exception. If Track 02 is ever re-rendered for another reason, audition a two-note A/B revoice rather than silently changing the canonical source.
