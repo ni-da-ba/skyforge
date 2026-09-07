@@ -94,6 +94,16 @@ val waveC14FlightBaselineRuntime = sourceSets.create("waveC14FlightBaselineRunti
         development.output
 }
 
+// C15 keeps the accepted 1:1 Nether datapack under the retained flight stack while exercising
+// vanilla portal search/placement. No portal-overhaul mod is introduced.
+val waveC15PortalRuntime = sourceSets.create("waveC15PortalRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
 
 // Wave C13 performs a black-box baseline-vs-suppressed Elytra test. Only the suppressed run loads
 // the pinned No More Elytra Boosting jar; ordinary Skyforge and the baseline acceptance stay vanilla.
@@ -1542,6 +1552,17 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // C15: live vanilla portal destination search/creation with the C10 1:1 datapack and
+        // retained Create/Sable/Aeronautics runtime.
+        create("waveC15PortalLinkingAcceptanceServer") {
+            server()
+            sourceSet.set(waveC15PortalRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c15-portal-linking-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC15PortalLinking", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
 
         // Wave C10 loads the standalone C2 Nether-scale datapack into a disposable first-boot
         // world and asserts the final live DimensionType rather than trusting JSON inspection.
@@ -1737,6 +1758,38 @@ mapOf(
             directory.mkdirs()
             directory.resolve("eula.txt").writeText("eula=true\n")
             directory.resolve("server.properties").writeText(waveC14ServerProperties)
+        }
+    }
+}
+
+val waveC15PortalServerProperties = """
+    level-name=wave-c15-portal
+    level-seed=601500
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC15PortalLinkingAcceptanceServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c15-portal-linking-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC15PortalServerProperties)
+
+        val sourcePack =
+            layout.projectDirectory.dir("src/development/wave-c2-nether-scale-datapack").asFile
+        val targetPack =
+            directory.resolve("wave-c15-portal/datapacks/skyforge-nether-scale")
+        copy {
+            from(sourcePack)
+            into(targetPack)
         }
     }
 }
@@ -3823,6 +3876,31 @@ tasks.register("waveC14ResolvePinnedMods") {
     }
 }
 
+tasks.register("waveC15ResolvePinnedMods") {
+    group = "verification"
+    description = "Assert C15 uses the exact retained flight substrate without a portal overhaul mod."
+    inputs.file(waveC1PinFile)
+
+    doLast {
+        val files = waveC15PortalRuntime.runtimeClasspath.files.map { it.name }.sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '" + coordinate + "'" }
+            return parts[1] + "-" + parts[2]
+        }
+
+        listOf("create", "sable", "aeronautics").forEach { mod ->
+            val token = artifactToken(waveC1Pin(mod, "coordinate"))
+            check(files.any { it.contains(token) }) {
+                "C15 portal runtime missing retained " + mod + " artifact token '" + token + "': " + files
+            }
+        }
+
+        println("Wave C15 runtime classpath PASS: exact retained Create/Sable/Aeronautics substrate present")
+    }
+}
+
 tasks.register("waveC13ResolvePinnedMods") {
     group = "verification"
     description = "Resolve and assert the exact C13 Elytra-suppression runtime."
@@ -3981,6 +4059,14 @@ dependencies {
     listOf("create", "sable", "aeronautics").forEach { mod ->
         add(
             waveC14FlightBaselineRuntime.runtimeOnlyConfigurationName,
+            waveC1Pin(mod, "coordinate"),
+        )
+    }
+
+    // C15 uses the same exact retained flight substrate while exercising vanilla portal mechanics.
+    listOf("create", "sable", "aeronautics").forEach { mod ->
+        add(
+            waveC15PortalRuntime.runtimeOnlyConfigurationName,
             waveC1Pin(mod, "coordinate"),
         )
     }
