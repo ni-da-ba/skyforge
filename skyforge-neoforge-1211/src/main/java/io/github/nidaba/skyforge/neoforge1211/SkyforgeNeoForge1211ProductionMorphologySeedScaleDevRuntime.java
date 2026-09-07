@@ -215,6 +215,7 @@ final class SkyforgeNeoForge1211ProductionMorphologySeedScaleDevRuntime {
             evidence.put(prefix + "SurfaceDigest", Long.toUnsignedString(surface.digest()));
         }
 
+        evidence.putAll(SkyforgeRuntimePerformanceMetrics.evidence());
         proofComplete = true;
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(event.getServer(), evidence);
         LOGGER.log(

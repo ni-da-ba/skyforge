@@ -1382,6 +1382,7 @@ neoForge {
                 programArgument("--world")
                 programArgument(worldName)
                 systemProperty("skyforge.dev.productionMorphologySeedScaleFamily", family)
+                systemProperty("skyforge.dev.performanceMetrics", "true")
                 systemProperty("skyforge.dev.acceptanceHarness", "true")
                 systemProperty("skyforge.dev.acceptanceMode", "server")
                 systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0083-$family")
