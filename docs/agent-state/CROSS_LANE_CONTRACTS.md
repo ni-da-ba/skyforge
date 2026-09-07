@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `993d3815aef7c5a894ae562880b9075a24a6ddc6`
+**Repository snapshot when updated:** `c5c5f9c3fad1d1b233a0df626a511416bf95d239`
 
 ## Program-wide invariants
 
