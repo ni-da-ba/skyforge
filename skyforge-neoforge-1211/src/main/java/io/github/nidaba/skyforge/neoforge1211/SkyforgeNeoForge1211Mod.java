@@ -63,6 +63,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeWaveC10NetherScaleAcceptance.installFromSystemProperty();
         SkyforgeWaveC13ElytraBypassAcceptance.installFromSystemProperty();
         SkyforgeWaveC14AvionicsCapabilityAcceptance.installFromSystemProperty();
+        // C16 and SF-IMP-0081 are independent opt-in ModDev fixtures; both remain inert in normal packaged runtime.
         SkyforgeWaveC15PortalLinkingAcceptance.installFromSystemProperty();
         SkyforgeWaveC16WirelessEnvelopeAcceptance.installFromSystemProperty();
     }
