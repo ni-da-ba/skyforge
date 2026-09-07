@@ -84,6 +84,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 
 ## Documents
 
+- [Exceptional regional phenomena v0.1](exceptional-regional-phenomena-v0.1.md)
 - [Ecology and fauna](ecology-and-fauna.md)
 - [Atmosphere, aviation, navigation, and horizon](atmosphere-aviation-navigation.md)
 - [Threats, hostile spawning, and farm compatibility](threats-and-spawn-governance.md)
