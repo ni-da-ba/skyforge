@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot at latest AUDIT-0003 synchronization:** `04fb6dab33cf80e8b82b42fc9d0fc7837cce31c4`
+**Main snapshot at latest AUDIT-0003 synchronization:** `b4b44c87509ee70b27ddbe20468d2d287cbd79f1`
 
 Read first:
 
@@ -53,7 +53,7 @@ This milestone records the next active-gate audit without taking over producer-l
 
 - SF-IMP-0080 / PR #248 compile blocker at `dc5cccc3` was repaired by head `611a85f93e51effde30eeb13a872128fb0ffad9c`; the specimen now reaches runtime ecology preparation and fails because the lower FOREST volume produces no meaningful native surface-population evidence after exact admission/catch-up/result-cardinality obligations complete;
 - AUTH-0087 / PR #254 merged as `04fb6dab33cf80e8b82b42fc9d0fc7837cce31c4`; Audit found no ownership blocker in the exact publication↔authored-realization gate, while lane-state/cross-lane acceptance recording is being handled by Authorship PR #257;
-- C14 / PR #256 audited head `dda6d1c6a98034c12931bcdcfcaf9fe70a9d03dd` has no Audit-discovered ownership blocker: it proves existing CC:Tweaked/Create: Avionics altitude/throttle capability without creating a Skyforge avionics authority or first-flight prerequisite;
+- C14 / PR #256 merged as `b4b44c87509ee70b27ddbe20468d2d287cbd79f1` after its exact head `dda6d1c6a98034c12931bcdcfcaf9fe70a9d03dd` passed repository/retained-stack gates; it proves existing CC:Tweaked/Create: Avionics altitude/throttle capability without creating a Skyforge avionics authority or first-flight prerequisite;
 - Bellanca B0-A docs / PR #242 audited head `797e0c54325b1f45d0aa6229124c3bb7e8727bda` remain cross-lane consistent design state, but the branch is based on old main and live C12 Sable assembly/physics/flight evidence remains authoritative;
 - C11 / PR #233 and Portable Engine cutoff / PR #240 remain blocked on their already-recorded synchronization/runtime prerequisites.
 
@@ -65,7 +65,7 @@ No runtime behavior or producer-lane acceptance is created by AUDIT-0003.
 | --- | --- |
 | Implementation | **SF-IMP-0079** / PR #236 — cave-dependent vegetation routed post-cave |
 | Authorship | **AUTH-0087** / PR #254 — exact published authored-realization binding; lane-state repair PR #257 remains open |
-| Content / Experience | **C13** / PR #247 — Elytra/firework bypass suppression; C11/C12 remain separately in progress/reserved |
+| Content / Experience | **C14** / PR #256 — executable avionics capability; C11/C12 remain separately in progress/reserved |
 | Showcase | technical current-capability showcase + persisted client reopen accepted |
 | Music | no MUS milestone merged; PR #159 remains draft/unmerged |
 | AUDIT | **AUDIT-0003** by the active-gate audit merge that places this update on `main` |
@@ -108,12 +108,6 @@ Accepted producer boundary:
 
 PR #257 is the Authorship-owned durable-state/cross-lane recording follow-up. Until it merges, repository history/source/tests override the older AUTH-0086 lane summary.
 
-### C14 executable avionics capability — PR #256
-
-Draft C14 exact audited head: `dda6d1c6a98034c12931bcdcfcaf9fe70a9d03dd`.
-
-AUDIT found no cross-lane ownership blocker. The specimen uses real CC:Tweaked computers and retained Create: Avionics/Simulated peripherals through ordinary CraftOS `peripheral.find`, proves altitude delta and bounded throttle commands, and verifies the final physical redstone signal from Minecraft outside CC. It introduces no bespoke Skyforge peripheral/API, autopilot authority, or first-flight computing prerequisite. Acceptance remains Content-owned and exact-head-gated.
-
 ### Content first-flight recipe proof — PR #233
 
 Existing **C11** identity. Branch requires current-main synchronization and fresh focused evidence before acceptance. Preserve the distinction between this crude pre-Brass bootstrap aircraft and the later Brass-era Bellanca.
@@ -135,6 +129,7 @@ AUDIT found the proposal cross-lane consistent: it remains the later Brass-era B
 - Performance optimization is evidence-gated: SF-IMP-0070 measured first, 0071–0077 removed identified pathologies, and issue #219 remains conditional on fresh profiling.
 - AUTH-0085 supplies semantic admission for native WATER springs from authored cave + aquifer evidence; Implementation retains native execution, fluid propagation/provenance/fencing, persistence, and lifecycle.
 - AUTH-0086 is the accepted producer contract for one-for-one visible channel, retained-water, cascade, waterfall, and edge-discharge intent; it is not Minecraft block placement.
+- C14 accepts the retained CC:Tweaked + Create: Avionics stack as a sufficient baseline programmable sensor/bounded-control substrate; it does not accept mature autopilot, route/fleet automation, or make computing a first-flight prerequisite.
 - Machine correctness cannot waive explicit visual/play gates.
 
 ## MANUAL VERIFICATION REQUIRED
@@ -161,10 +156,11 @@ Human play must verify interaction discoverability and that neighboring redstone
 
 1. **SF-IMP-0080 ecology population blocker:** audited head `611a85f9` passes compilation and reaches runtime, but lower FOREST native surface-population evidence is empty/non-meaningful after exact surface obligations complete; final ecology counts and persistence/reopen acceptance remain downstream.
 2. **AUTH-0087 state lag:** AUTH-0087 is merged on main, but the Authorship lane summary still reports AUTH-0086 until PR #257 lands. Repository history/source/tests are authoritative during that gap.
-3. **Long-lived branch drift:** C11 and Portable Engine cutoff require current-main synchronization before acceptance.
-4. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
-5. **Manual-gate ambiguity:** morphology corpus machinery and showcase counters do not constitute aesthetic/ecology acceptance.
-6. **Reviewer-document drift:** AUDIT-0002 repairs the known SF-IMP-0057 runtime overview drift; future milestone/state changes should not silently turn overview prose back into a second lane ledger.
+3. **C14 state lag:** C14 is merged on main and its exact head passed capability/retained-stack checks, but canonical `CONTENT_STATE.md` and the shared Content snapshot still stop at C13. Repository history/source/tests override those stale summaries until Content refreshes them.
+4. **Long-lived branch drift:** C11 and Portable Engine cutoff require current-main synchronization before acceptance.
+5. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
+6. **Manual-gate ambiguity:** morphology corpus machinery and showcase counters do not constitute aesthetic/ecology acceptance.
+7. **Reviewer-document drift:** AUDIT-0002 repairs the known SF-IMP-0057 runtime overview drift; future milestone/state changes should not silently turn overview prose back into a second lane ledger.
 
 Resolved hazards:
 - PR #247's initial C11 milestone collision was corrected to **C13** without renumbering C11 or C12; C13 is now merged/accepted as the Elytra/firework bypass suppression contract.
@@ -176,8 +172,8 @@ Resolved hazards:
 
 1. Re-audit SF-IMP-0080 / PR #248 after the lower-FOREST population blocker is repaired, the branch is synchronized with current main, and ecology/showcase/performance gates are green; do not waive the #194 human-eye ecology gate.
 2. Track Authorship PR #257 until the accepted AUTH-0087 boundary is durable in the lane ledger/shared contracts; do not duplicate its owner-file edits.
-3. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
-4. Re-audit PR #240 after assembled-Sable + persistence evidence.
-5. Re-check C14 only if its capability/ownership boundary changes; ordinary exact-head acceptance remains Content-owned.
+3. Track Content durable-state correction from C13 to merged C14 without rewriting the Content-owned lane ledger from Audit.
+4. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
+5. Re-audit PR #240 after assembled-Sable + persistence evidence.
 6. Continue checking future lane-state migrations remain under `docs/agent-state/`.
 7. Update this ledger at each material audit merge, contract change, new hazard, or handoff.

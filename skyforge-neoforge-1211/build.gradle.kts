@@ -84,6 +84,16 @@ val waveC9Runtime = sourceSets.create("waveC9Runtime") {
         development.output
 }
 
+// C14 adds an explicit flight-only A/B baseline. It reuses the exact C9 flight substrate but omits
+// CC:Tweaked and Create: Avionics so the capability specimen also proves computing remains optional.
+val waveC14FlightBaselineRuntime = sourceSets.create("waveC14FlightBaselineRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
 
 // Wave C13 performs a black-box baseline-vs-suppressed Elytra test. Only the suppressed run loads
 // the pinned No More Elytra Boosting jar; ordinary Skyforge and the baseline acceptance stay vanilla.
@@ -1513,6 +1523,25 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // C14 A/B baseline: the retained Create/Sable/Aeronautics stack without computing mods.
+        create("waveC14FlightBaselineServer") {
+            server()
+            sourceSet.set(waveC14FlightBaselineRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c14-flight-baseline-server").asFile
+            programArgument("--nogui")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // C14 capability run: exact C9 computing stack plus a black-box real-computer specimen.
+        create("waveC14AvionicsCapabilityServer") {
+            server()
+            sourceSet.set(waveC9Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c14-avionics-capability-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC14AvionicsCapability", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
 
         // Wave C10 loads the standalone C2 Nether-scale datapack into a disposable first-boot
         // world and asserts the final live DimensionType rather than trusting JSON inspection.
@@ -1681,6 +1710,34 @@ tasks.named("runWaveC9ComputingAvionicsServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(waveC9SmokeServerProperties)
+    }
+}
+
+val waveC14ServerProperties = """
+    level-name=wave-c14
+    level-seed=601400
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+mapOf(
+    "runWaveC14FlightBaselineServer" to "run-wave-c14-flight-baseline-server",
+    "runWaveC14AvionicsCapabilityServer" to "run-wave-c14-avionics-capability-server",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            val directory = layout.projectDirectory.dir(relativePath).asFile
+            delete(directory)
+            directory.mkdirs()
+            directory.resolve("eula.txt").writeText("eula=true\n")
+            directory.resolve("server.properties").writeText(waveC14ServerProperties)
+        }
     }
 }
 
@@ -3725,6 +3782,47 @@ tasks.register("waveC9ResolvePinnedMods") {
 }
 
 
+tasks.register("waveC14ResolvePinnedMods") {
+    group = "verification"
+    description = "Assert C14 flight-only baseline versus exact C9 computing capability classpaths."
+    inputs.file(waveC1PinFile)
+    inputs.file(waveC9PinFile)
+
+    doLast {
+        val baselineFiles = waveC14FlightBaselineRuntime.runtimeClasspath.files.map { it.name }.sorted()
+        val capabilityFiles = waveC9Runtime.runtimeClasspath.files.map { it.name }.sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '" + coordinate + "'" }
+            return parts[1] + "-" + parts[2]
+        }
+
+        val flightTokens = listOf("create", "sable", "aeronautics").associateWith {
+            artifactToken(waveC1Pin(it, "coordinate"))
+        }
+        flightTokens.forEach { (label, token) ->
+            check(baselineFiles.any { it.contains(token) }) {
+                "C14 baseline missing " + label + " artifact token '" + token + "': " + baselineFiles
+            }
+            check(capabilityFiles.any { it.contains(token) }) {
+                "C14 capability missing " + label + " artifact token '" + token + "': " + capabilityFiles
+            }
+        }
+
+        val ccToken = artifactToken(waveC9Pin("cctweaked", "coordinate"))
+        val avionicsToken = artifactToken(waveC9Pin("createavionics", "coordinate"))
+        check(baselineFiles.none { it.contains(ccToken) || it.contains(avionicsToken) }) {
+            "C14 flight baseline leaked computing integration: " + baselineFiles
+        }
+        check(capabilityFiles.any { it.contains(ccToken) } && capabilityFiles.any { it.contains(avionicsToken) }) {
+            "C14 capability runtime is missing exact C9 computing integration: " + capabilityFiles
+        }
+
+        println("Wave C14 classpath A/B PASS: flight-only baseline excludes CC/Avionics; capability reuses exact C9 pins")
+    }
+}
+
 tasks.register("waveC13ResolvePinnedMods") {
     group = "verification"
     description = "Resolve and assert the exact C13 Elytra-suppression runtime."
@@ -3878,6 +3976,14 @@ dependencies {
         waveC9Pin("createavionics", "coordinate"),
     )
 
+
+    // C14 A/B baseline: same retained flight substrate as C9, deliberately without CC/Avionics.
+    listOf("create", "sable", "aeronautics").forEach { mod ->
+        add(
+            waveC14FlightBaselineRuntime.runtimeOnlyConfigurationName,
+            waveC1Pin(mod, "coordinate"),
+        )
+    }
 
     // C13's suppressed run contains exactly the pinned server-side no-boost mod. The baseline run
     // deliberately uses the ordinary source set and therefore has vanilla Elytra/firework behavior.
