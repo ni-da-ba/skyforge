@@ -1,0 +1,101 @@
+{
+  "status": "user-approved canonical voice transcription",
+  "source_workflow": "NeuralNote -> minimal manual cleanup -> user ear acceptance",
+  "ppq": 960,
+  "capture_tempo_bpm": 120,
+  "meter": "4/4 capture grid only; not yet canonical",
+  "notes": [
+    {
+      "onset_tick": 0,
+      "note": 50,
+      "name": "D3",
+      "velocity": 95,
+      "duration_tick": 870
+    },
+    {
+      "onset_tick": 1026,
+      "note": 49,
+      "name": "C#3",
+      "velocity": 94,
+      "duration_tick": 691
+    },
+    {
+      "onset_tick": 1940,
+      "note": 50,
+      "name": "D3",
+      "velocity": 95,
+      "duration_tick": 1449
+    },
+    {
+      "onset_tick": 3678,
+      "note": 45,
+      "name": "A2",
+      "velocity": 83,
+      "duration_tick": 1315
+    },
+    {
+      "onset_tick": 5328,
+      "note": 45,
+      "name": "A2",
+      "velocity": 62,
+      "duration_tick": 780
+    },
+    {
+      "onset_tick": 6598,
+      "note": 56,
+      "name": "Ab3",
+      "velocity": 90,
+      "duration_tick": 290
+    },
+    {
+      "onset_tick": 6888,
+      "note": 57,
+      "name": "A3",
+      "velocity": 102,
+      "duration_tick": 1204
+    },
+    {
+      "onset_tick": 8493,
+      "note": 45,
+      "name": "A2",
+      "velocity": 96,
+      "duration_tick": 1092
+    },
+    {
+      "onset_tick": 10031,
+      "note": 45,
+      "name": "A2",
+      "velocity": 99,
+      "duration_tick": 914
+    },
+    {
+      "onset_tick": 11257,
+      "note": 57,
+      "name": "A3",
+      "velocity": 101,
+      "duration_tick": 1293
+    },
+    {
+      "onset_tick": 12751,
+      "note": 55,
+      "name": "G3",
+      "velocity": 96,
+      "duration_tick": 1248
+    },
+    {
+      "onset_tick": 14244,
+      "note": 54,
+      "name": "F#3",
+      "velocity": 70,
+      "duration_tick": 825
+    },
+    {
+      "onset_tick": 15359,
+      "note": 55,
+      "name": "G3",
+      "velocity": 90,
+      "duration_tick": 1649
+    }
+  ],
+  "interpretation_guardrail": "Preserve raw timing and pitch sequence until deliberate composition study; do not quantize or reharmonize the source silently."
+}
