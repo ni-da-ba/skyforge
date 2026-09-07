@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot before AUDIT-0002 merge:** `a55e500c86f0baf910af809985956ac398742706`
+**Main snapshot before AUDIT-0002 merge:** `519c47bb3bd0111bd2ed25b5b169b123d5b0d6d7`
 
 Read first:
 
@@ -39,7 +39,7 @@ Reconciles:
 - reviewer guidance to the canonical Implementation lane state and current issues **#194** / **#214**;
 - explicit distinction between machine-accepted technical showcase capability and unresolved human ecology/morphology quality gates.
 
-Cross-lane ownership is unchanged. AUDIT-0002 only advances the shared AUTH-0086 handoff status from in-progress to merged/accepted and records its already-accepted producer/consumer boundary.
+Cross-lane ownership is unchanged. Current `main` already records AUTH-0086 as merged/accepted in the canonical Authorship state and shared contracts; AUDIT-0002 records that authoritative status without duplicating or redefining the producer/consumer boundary.
 
 ## CURRENT AUTHORITATIVE PROGRAM SNAPSHOT
 
@@ -129,18 +129,17 @@ Human play must verify interaction discoverability and that neighboring redstone
 2. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
 3. **Manual-gate ambiguity:** morphology corpus machinery and showcase counters do not constitute aesthetic/ecology acceptance.
 4. **Reviewer-document drift:** AUDIT-0002 repairs the known SF-IMP-0057 runtime overview drift; future milestone/state changes should not silently turn overview prose back into a second lane ledger.
-5. **Authorship ledger lag:** current `main` has accepted AUTH-0086 / PR #241, but `docs/agent-state/AUTHORSHIP_STATE.md` still reports AUTH-0085 as highest and AUTH-0086 as in progress. Repository history/source/tests therefore override that stale lane summary until the Authorship owner refreshes it.
 
 Resolved hazards:
 - PR #247's initial C11 milestone collision was corrected to **C13** without renumbering C11 or C12.
 - PR #245 merged into the canonical `docs/agent-state/` namespace without recreating parallel live state.
+- Authorship refreshed its canonical ledger and shared contract after AUTH-0086 merged, eliminating the temporary state-summary lag.
 - duplicate AUDIT-0002 PR #250 was closed in favor of earlier PR #249 before either could merge.
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Track correction of the Authorship lane ledger to merged AUTH-0086 without taking over Authorship-owned state.
-2. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
-3. Track the next Implementation attempt on issue #194 without waiving the human-eye ecology gate.
-4. Re-audit PR #240 after assembled-Sable + persistence evidence.
-5. Continue checking future lane-state migrations remain under `docs/agent-state/`.
-6. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
+1. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
+2. Track the next Implementation attempt on issue #194 without waiving the human-eye ecology gate.
+3. Re-audit PR #240 after assembled-Sable + persistence evidence.
+4. Continue checking future lane-state migrations remain under `docs/agent-state/`.
+5. Update this ledger at each material audit merge, contract change, new hazard, or handoff.

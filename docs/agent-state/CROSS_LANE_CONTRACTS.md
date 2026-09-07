@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `cab1be65f370f3f81a6d8019ed3db23bcff6f49f`
+**Repository snapshot when updated:** `a55e500c86f0baf910af809985956ac398742706`
 
 ## Program-wide invariants
 
@@ -17,7 +17,7 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0085` merged on current `main` (native spring semantic admission) |
+| Authorship | `AUTH-0086` merged on current `main` (visible authored-hydrology realization intent) |
 | Implementation | `SF-IMP-0079` merged before current Authorship work (post-cave vegetal routing) |
 | Content / Experience | C10 live 1:1 Nether-scale proof merged; C9 CC:Tweaked avionics substrate and C8 glider-maintenance closure also accepted; later Bellanca B0/Portable Engine design contracts merged |
 | AUDIT | AUDIT-0001 repository-state reconstruction / durable audit handoff accepted on `main` |
@@ -42,22 +42,16 @@ Implementation's native `FLUID_SPRINGS` path should enforce:
 
 AUTH-0086 / PR #241 merged as `a55e500c86f0baf910af809985956ac398742706`.
 
-The accepted producer contract projects authored surface hydrology one-for-one into backend-neutral
-visible-water intents:
+Implementation may now consume the accepted exact backend-neutral visible-water intents for:
 
-- every accepted naturalized channel path becomes one `CHANNEL_WATER` intent;
-- every accepted retained-waterbody footprint remains paired with its exact dry margin in one
-  `RETAINED_WATER` intent;
-- accepted `CASCADE_STEP`, `WATERFALL`, and `EDGE_FALL` events map directly to
-  `CASCADE`, `WATERFALL`, and `EDGE_DISCHARGE`;
-- exact source ordering, island identity, riparian relationships, and dry-margin provenance must be
-  preserved; no adapter-local replacement threshold may silently omit or substitute an accepted
-  source.
+- coherent naturalized channel paths;
+- retained-waterbody footprints with dry margins;
+- cascades, waterfalls, and edge discharge.
 
-Implementation owns the downstream Minecraft realization. It should map those exact intents through
-the accepted physical terrain/ownership transform and choose block/fluid behavior there; it must not
-recompute a second watershed/channel/waterbody planner. AUTH-0085 native cave springs remain a
-separate supplemental subsurface path and are never substitutes for AUTH-0086 surface hydrology.
+The adapter owns physical rasterization, block/fluid identity, exact-volume mutation, scheduling, and
+fluid lifecycle. It must not substitute native springs or invent a second hydrology planner. Any
+backend-neutral physicalization added later must use compiled column authority rather than treating
+normalized semantic hydrology potentials as literal world-space Y.
 
 ### MERGED / ACCEPTED — current Implementation capability relevant to Authorship
 
