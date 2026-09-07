@@ -63,5 +63,6 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeWaveC14AvionicsCapabilityAcceptance.installFromSystemProperty();
         SkyforgeWaveC15PortalLinkingAcceptance.installFromSystemProperty();
         SkyforgeWaveC16WirelessEnvelopeAcceptance.installFromSystemProperty();
+        SkyforgeWaveC17GpsInfrastructureAcceptance.installFromSystemProperty();
     }
 }
