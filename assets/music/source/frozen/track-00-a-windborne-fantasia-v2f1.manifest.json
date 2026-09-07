@@ -30,7 +30,25 @@
     ],
     "track_11_hc_state": "not recoverable from MIDI alone; verify Harp/Celeste technique from source CWP before reproduction-clean status",
     "track_12_perc_used": false,
-    "track_13_tp_used": false
+    "track_13_tp_used": false,
+    "range_exceptions": [
+      {
+        "track_index": 6,
+        "notes": {
+          "78": 4,
+          "81": 4,
+          "83": 2
+        },
+        "reason": "Accepted V2F.1 horn crest contains ten notes above BBCSO Discover Horns a4 F5 ceiling; retained only as an explicit frozen-source exception pending human A/B repair."
+      },
+      {
+        "track_index": 17,
+        "notes": {
+          "47": 3
+        },
+        "reason": "Accepted V2F.1 contains three Viola B2 note-ons below BBCSO Discover Viola C3 floor; retained only as an explicit frozen-source exception pending human A/B repair."
+      }
+    ]
   },
   "guardrail": "Do not rewrite canonical MIDI silently. Repair range exceptions only through an auditioned A/B."
 }
