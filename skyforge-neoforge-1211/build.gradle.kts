@@ -1069,6 +1069,7 @@ neoForge {
             programArgument("--world")
             programArgument("acceptance")
             systemProperty("skyforge.dev.productionInteriorPopulationStacked", "true")
+            systemProperty("skyforge.dev.showcaseLegibleEcology", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0069-production-interior-stacked")
@@ -1690,7 +1691,7 @@ val sfImp0061AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/s
 val sfImp0061AcceptanceServerProperties = """
     level-name=acceptance
     level-seed=600061
-    level-type=skyforge:development
+    level-type=skyforge:showcase_land
     online-mode=false
     spawn-protection=0
     gamemode=creative
