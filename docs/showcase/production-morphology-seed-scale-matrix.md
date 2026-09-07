@@ -52,15 +52,22 @@ coordinates:
 
 The first exact solid begins above the maximum vanilla Overworld generation interval and every
 neighbor is separated by a 32-block air gap. Each relocation is a proven integer Y translation.
-The review dimension is development-only (`min_y=-64`, `height=2048`); the underlying Overworld
-noise settings remain unchanged, so the extra vertical space is evidence-carrier space rather than
-a production world-height decision.
+The review dimension is development-only (`min_y=320`, `height=1616`, interval
+`[320, 1936)`). The exact stack still starts at Y=336 and therefore preserves every previously
+proved integer translation. The interval begins at the vanilla Overworld noise ceiling, so the
+carrier remains disjoint from native noise terrain instead of spending acceptance time generating
+irrelevant base terrain. The existing `skyforge:noise_overlay` lifecycle remains in use; only this
+explicit SF-IMP-0083 development fixture suppresses native structures/surface decoration before
+exact Skyforge realization. This is an evidence-carrier optimization, not a production world-height
+or production generator policy.
 
 This packaging has two advantages:
 
 - all 20 exact specimens remain representable without clipping or rescaling;
 - the four same-family specimens share their horizontal admission footprint, reducing persistence
-  and human-review packaging from 20 separate worlds to five family worlds.
+  and human-review packaging from 20 separate worlds to five family worlds;
+- the development carrier does not generate native Overworld terrain that is provably below the
+  entire review stack.
 
 The existing exact-volume physical admission, vertically stacked isolation, deferred realization,
 and mutation-inert actual-client reopen contracts remain the authority. No new Authorship contract
