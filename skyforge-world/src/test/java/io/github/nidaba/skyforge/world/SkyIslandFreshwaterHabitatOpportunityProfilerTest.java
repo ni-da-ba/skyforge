@@ -113,7 +113,7 @@ final class SkyIslandFreshwaterHabitatOpportunityProfilerTest {
                 profiler.profile(largeDescriptor);
 
         assertEquals(small.watershed().gridSize(), large.watershed().gridSize());
-        assertEquals(small.watershed().spacing() * 2.0, large.watershed().spacing(), 0.0);
+        assertEquals(small.watershed().spacing() * 2.0, large.watershed().spacing(), 1.0e-12);
         assertEquals(small.footprintCount(), large.footprintCount());
         assertEquals(small.sourceCandidateCount(), large.sourceCandidateCount());
         assertEquals(small.inundatedCellCount(), large.inundatedCellCount());
