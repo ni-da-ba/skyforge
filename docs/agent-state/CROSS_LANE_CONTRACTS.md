@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `cab1be65f370f3f81a6d8019ed3db23bcff6f49f`
+**Repository snapshot when updated:** `a55e500c86f0baf910af809985956ac398742706`
 
 ## Program-wide invariants
 
@@ -17,7 +17,7 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0086` merged on current `main` (visible authored hydrologic realization intents) |
+| Authorship | `AUTH-0086` merged on current `main` (visible authored-hydrology realization intent) |
 | Implementation | `SF-IMP-0079` merged before current Authorship work (post-cave vegetal routing) |
 | Content / Experience | C13 Elytra/firework bypass suppression accepted; C10 live 1:1 Nether-scale proof, C9 CC:Tweaked avionics substrate, and C8 glider-maintenance closure also accepted; C11/C12 remain separately in progress/reserved |
 | AUDIT | AUDIT-0001 repository-state reconstruction / durable audit handoff accepted on `main` |
@@ -40,12 +40,18 @@ Implementation's native `FLUID_SPRINGS` path should enforce:
 
 ### MERGED / ACCEPTED — AUTH-0086 visible authored hydrology
 
-AUTH-0086 / PR #241, merge `a55e500c86f0baf910af809985956ac398742706`, projects accepted coherent
-naturalized channels, retained-waterbody footprints/margins, and accepted channel-drop events into
-exact backend-neutral visible-water intents.
+AUTH-0086 / PR #241 merged as `a55e500c86f0baf910af809985956ac398742706`.
 
-Implementation may now consume those intents at the realization boundary; Authorship still owns the
-semantic hydrologic plan and Implementation owns Minecraft-visible realization/lifecycle.
+Implementation may now consume the accepted exact backend-neutral visible-water intents for:
+
+- coherent naturalized channel paths;
+- retained-waterbody footprints with dry margins;
+- cascades, waterfalls, and edge discharge.
+
+The adapter owns physical rasterization, block/fluid identity, exact-volume mutation, scheduling, and
+fluid lifecycle. It must not substitute native springs or invent a second hydrology planner. Any
+backend-neutral physicalization added later must use compiled column authority rather than treating
+normalized semantic hydrology potentials as literal world-space Y.
 
 ### MERGED / ACCEPTED — current Implementation capability relevant to Authorship
 
@@ -100,7 +106,7 @@ Atmosphere may alter behavior (for example thermal soaring) but must not indepen
 
 ### Nether route scale
 
-C10 / PR #232 proves a 1:1 Nether `coordinate_scale` datapack reaches the live final runtime registry.
+C10 / PR #232 proves a 1:1 Nether `coordinate_scale` datapack reaches the live final dimension registry.
 Final route policy still requires portal linking/placement and retained-mod compatibility evidence.
 
 ### Structures / civilization
