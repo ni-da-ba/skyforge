@@ -300,6 +300,16 @@ val waveC5BirdStackMods = listOf(
     "yacl",
 )
 
+val skyforgeProductionMorphologyAtlasMembers = linkedMapOf(
+    "tableland" to "builtin-tableland-small-seed-skyforge",
+    "spine" to "builtin-spine-small-seed-skyforge",
+    "basin" to "builtin-basin-small-seed-skyforge",
+    "lobed" to "builtin-lobed-small-seed-skyforge",
+)
+
+fun skyforgeMorphologyAtlasSuffix(family: String): String =
+    family.substring(0, 1).uppercase() + family.substring(1)
+
 neoForge {
     version = "21.1.249"
 
@@ -1291,6 +1301,63 @@ neoForge {
                 layout.buildDirectory.file("acceptance/production-morphology-massif/viewer.properties").get().asFile.absolutePath,
             )
             taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // SF-IMP-0082 generalizes the accepted exact AUTH-0083 carrier across the remaining
+        // built-in SMALL / seed-skyforge members. The runtime installs each member's explicit
+        // finite chunk footprint into the acceptance harness, so no arbitrary square radius is used.
+        for ((family, memberId) in skyforgeProductionMorphologyAtlasMembers) {
+            val suffix = skyforgeMorphologyAtlasSuffix(family)
+            val atlasGameDirectory =
+                layout.projectDirectory.dir("run-skyforge-production-morphology-atlas-$family")
+            val worldName = "morphology-atlas-$family"
+            val resultDirectory = "acceptance/production-morphology-atlas/$family"
+
+            create("productionMorphologyAtlas${suffix}Prepare") {
+                server()
+                gameDirectory = atlasGameDirectory.asFile
+                programArgument("--nogui")
+                programArgument("--universe")
+                programArgument("saves")
+                programArgument("--world")
+                programArgument(worldName)
+                systemProperty("skyforge.dev.productionMorphologyAtlasMember", memberId)
+                systemProperty("skyforge.dev.acceptanceHarness", "true")
+                systemProperty("skyforge.dev.acceptanceMode", "server")
+                systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0082-$family")
+                systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+                systemProperty(
+                    "skyforge.dev.acceptanceResultFile",
+                    layout.buildDirectory.file("$resultDirectory/prepare.properties").get().asFile.absolutePath,
+                )
+                taskBefore(tasks.named(development.processResourcesTaskName))
+            }
+
+            create("productionMorphologyAtlas${suffix}Client") {
+                client()
+                gameDirectory = atlasGameDirectory.asFile
+                programArgument("--quickPlaySingleplayer")
+                programArgument(worldName)
+                systemProperty("skyforge.dev.productionMorphologyAtlasViewerMember", memberId)
+                taskBefore(tasks.named(development.processResourcesTaskName))
+            }
+
+            create("productionMorphologyAtlas${suffix}ViewerAcceptanceClient") {
+                client()
+                gameDirectory = atlasGameDirectory.asFile
+                programArgument("--quickPlaySingleplayer")
+                programArgument(worldName)
+                systemProperty("skyforge.dev.productionMorphologyAtlasViewerMember", memberId)
+                systemProperty("skyforge.dev.acceptanceHarness", "true")
+                systemProperty("skyforge.dev.acceptanceMode", "client")
+                systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0082-$family-viewer")
+                systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "300")
+                systemProperty(
+                    "skyforge.dev.acceptanceResultFile",
+                    layout.buildDirectory.file("$resultDirectory/viewer.properties").get().asFile.absolutePath,
+                )
+                taskBefore(tasks.named(development.processResourcesTaskName))
+            }
         }
 
         // Same final-head native-carver proof in an independent game directory for deterministic
@@ -5059,4 +5126,213 @@ tasks.register("launchProductionMorphologyMassif") {
     group = "application"
     description = "Rebuild the first AUTH-0083 production Massif carrier, then launch Minecraft for #214 review."
     dependsOn("runProductionMorphologyMassifPrepare", "runProductionMorphologyMassifClient")
+}
+
+
+val skyforgeProductionMorphologyAtlasServerProperties = """
+    level-seed=1405130932537311389
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=spectator
+    difficulty=peaceful
+    allow-flight=true
+    view-distance=12
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun skyforgeProductionMorphologyAtlasResultDirectory(family: String) =
+    layout.buildDirectory.dir("acceptance/production-morphology-atlas/$family")
+
+fun skyforgeProductionMorphologyAtlasGameDirectory(family: String) =
+    layout.projectDirectory.dir("run-skyforge-production-morphology-atlas-$family").asFile
+
+fun prepareSkyforgeProductionMorphologyAtlasDirectory(family: String) {
+    val directory = skyforgeProductionMorphologyAtlasGameDirectory(family)
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(
+        "level-name=morphology-atlas-$family\n" + skyforgeProductionMorphologyAtlasServerProperties,
+    )
+}
+
+fun requireSkyforgeProductionMorphologyAtlasPreparationPass(
+    family: String,
+    memberId: String,
+) {
+    val file =
+        skyforgeProductionMorphologyAtlasResultDirectory(family).get().file("prepare.properties").asFile
+    check(file.isFile) { "Skyforge production morphology atlas preparation result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    val claimed = properties.getProperty("sampledClaims")?.toIntOrNull() ?: 0
+    val footprint = properties.getProperty("footprintChunks")?.toIntOrNull() ?: 0
+    val required = properties.getProperty("required")?.toIntOrNull() ?: 0
+    check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("memberId") == memberId
+            && properties.getProperty("family") == family
+            && properties.getProperty("state") == "ADMITTED"
+            && properties.getProperty("observed") == properties.getProperty("required")
+            && footprint > 0
+            && footprint == required
+            && properties.getProperty("pendingCatchup") == "0"
+            && properties.getProperty("minimumY") == "96"
+            && properties.getProperty("maximumY").toInt() < 320
+            && claimed > 0
+            && properties.getProperty("storedTop").toInt() == claimed
+            && properties.getProperty("airAbove").toInt() == claimed
+            && properties.getProperty("storedUnderside").toInt() == claimed
+            && properties.getProperty("airBelow").toInt() == claimed
+            && properties.getProperty("heightMismatches") == "0"
+            && properties.getProperty("landTop").toInt() > 0
+            && properties.getProperty("grassTop").toInt() > 0
+            && !properties.getProperty("surfaceDigest").isNullOrBlank()) {
+        val detail = properties.getProperty("failure") ?: properties.toString()
+        "Skyforge production morphology atlas $family preparation did not PASS: $detail"
+    }
+}
+
+fun requireSkyforgeProductionMorphologyAtlasViewerPass(
+    family: String,
+    memberId: String,
+) {
+    val directory = skyforgeProductionMorphologyAtlasResultDirectory(family).get()
+    val prepareFile = directory.file("prepare.properties").asFile
+    val viewerFile = directory.file("viewer.properties").asFile
+    check(prepareFile.isFile) { "Skyforge morphology atlas preparation evidence missing: $prepareFile" }
+    check(viewerFile.isFile) { "Skyforge morphology atlas viewer result missing: $viewerFile" }
+
+    val prepare = Properties()
+    val viewer = Properties()
+    prepareFile.inputStream().use(prepare::load)
+    viewerFile.inputStream().use(viewer::load)
+    val claimed = viewer.getProperty("viewerSampledClaims")?.toIntOrNull() ?: 0
+    check(viewer.getProperty("status") == "PASS"
+            && viewer.getProperty("viewerMemberId") == memberId
+            && viewer.getProperty("viewerFamily") == family
+            && viewer.getProperty("viewerTerrainOwnershipRestored") == "true"
+            && viewer.getProperty("viewerMutationBindingsInert") == "true"
+            && viewer.getProperty("viewerClientPass") == "true"
+            && viewer.getProperty("viewerFootprintChunks") == prepare.getProperty("footprintChunks")
+            && claimed > 0
+            && viewer.getProperty("viewerStoredTop").toInt() == claimed
+            && viewer.getProperty("viewerAirAbove").toInt() == claimed
+            && viewer.getProperty("viewerStoredUnderside").toInt() == claimed
+            && viewer.getProperty("viewerAirBelow").toInt() == claimed
+            && viewer.getProperty("viewerHeightMismatches") == "0"
+            && viewer.getProperty("viewerLandTop").toInt() > 0
+            && viewer.getProperty("viewerGrassTop").toInt() > 0
+            && viewer.getProperty("viewerSurfaceDigest") == prepare.getProperty("surfaceDigest")) {
+        val detail = viewer.getProperty("failure") ?: viewer.toString()
+        "Skyforge production morphology atlas $family viewer did not PASS: $detail"
+    }
+}
+
+val skyforgeProductionMorphologyAtlasPrepareTasks = mutableListOf<String>()
+val skyforgeProductionMorphologyAtlasViewerTasks = mutableListOf<String>()
+
+for ((family, memberId) in skyforgeProductionMorphologyAtlasMembers) {
+    val suffix = skyforgeMorphologyAtlasSuffix(family)
+    val prepareRun = "runProductionMorphologyAtlas${suffix}Prepare"
+    val clientRun = "runProductionMorphologyAtlas${suffix}Client"
+    val viewerRun = "runProductionMorphologyAtlas${suffix}ViewerAcceptanceClient"
+    val prepareVerify = "productionMorphologyAtlas${suffix}PrepareVerify"
+    val viewerVerify = "productionMorphologyAtlas${suffix}ViewerVerify"
+    val launch = "launchProductionMorphologyAtlas$suffix"
+
+    tasks.named(prepareRun).configure {
+        notCompatibleWithConfigurationCache(
+            "NeoForge ModDev RunGameTask and morphology-atlas filesystem orchestration are runtime-bound.",
+        )
+        doFirst {
+            delete(skyforgeProductionMorphologyAtlasResultDirectory(family))
+            prepareSkyforgeProductionMorphologyAtlasDirectory(family)
+        }
+        doLast {
+            requireSkyforgeProductionMorphologyAtlasPreparationPass(family, memberId)
+        }
+    }
+
+    tasks.named(clientRun).configure {
+        notCompatibleWithConfigurationCache(
+            "NeoForge ModDev RunGameTask is interactive and intentionally not configuration-cache serialized.",
+        )
+        mustRunAfter(prepareRun)
+        doFirst {
+            val directory = skyforgeProductionMorphologyAtlasGameDirectory(family)
+            check(directory.resolve("saves/morphology-atlas-$family/level.dat").isFile) {
+                "Skyforge morphology atlas $family world is missing; prepare it first or use $launch."
+            }
+            directory.resolve("options.txt").writeText(
+                "onboardAccessibility:false\n"
+                    + "narrator:0\n",
+            )
+        }
+    }
+
+    tasks.named(viewerRun).configure {
+        notCompatibleWithConfigurationCache(
+            "NeoForge ModDev RunGameTask is an actual quick-play morphology-atlas acceptance process.",
+        )
+        mustRunAfter(prepareRun)
+        doFirst {
+            requireSkyforgeProductionMorphologyAtlasPreparationPass(family, memberId)
+            val directory = skyforgeProductionMorphologyAtlasGameDirectory(family)
+            check(directory.resolve("saves/morphology-atlas-$family/level.dat").isFile) {
+                "Skyforge morphology atlas $family world is missing before viewer acceptance."
+            }
+            delete(
+                skyforgeProductionMorphologyAtlasResultDirectory(family).get()
+                    .file("viewer.properties").asFile,
+            )
+            directory.resolve("options.txt").writeText(
+                "onboardAccessibility:false\n"
+                    + "narrator:0\n",
+            )
+        }
+    }
+
+    tasks.register(prepareVerify) {
+        group = "verification"
+        description = "Verify exact AUTH-0083 $family production morphology carrier."
+        dependsOn(prepareRun)
+        doLast {
+            requireSkyforgeProductionMorphologyAtlasPreparationPass(family, memberId)
+            println("SF-IMP-0082 ${family.uppercase()} PREPARATION PASS: $memberId")
+        }
+    }
+
+    tasks.register(viewerVerify) {
+        group = "verification"
+        description = "Reopen persisted AUTH-0083 $family carrier and verify exact geometry."
+        dependsOn(viewerRun)
+        doLast {
+            requireSkyforgeProductionMorphologyAtlasViewerPass(family, memberId)
+            println("SF-IMP-0082 ${family.uppercase()} VIEWER PASS: $memberId")
+        }
+    }
+
+    tasks.register(launch) {
+        group = "application"
+        description = "Rebuild AUTH-0083 $family carrier, then launch Minecraft for #214 review."
+        dependsOn(prepareRun, clientRun)
+    }
+
+    skyforgeProductionMorphologyAtlasPrepareTasks += prepareVerify
+    skyforgeProductionMorphologyAtlasViewerTasks += viewerVerify
+}
+
+tasks.register("productionMorphologyAtlasPrepareVerify") {
+    group = "verification"
+    description = "Verify all four remaining AUTH-0083 built-in production morphology carriers."
+    dependsOn(skyforgeProductionMorphologyAtlasPrepareTasks)
+}
+
+tasks.register("productionMorphologyAtlasViewerVerify") {
+    group = "verification"
+    description = "Actual-client persistence verification for all four remaining morphology carriers."
+    dependsOn(skyforgeProductionMorphologyAtlasViewerTasks)
 }

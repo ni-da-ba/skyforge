@@ -5,9 +5,13 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.Objects;
 import java.util.Properties;
 import net.minecraft.server.MinecraftServer;
@@ -58,6 +62,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
             System.getLogger(SkyforgeAutomatedAcceptanceHarness.class.getName());
 
     private static final Map<String, String> EVIDENCE = new LinkedHashMap<>();
+    private static Set<Long> explicitWarmupChunkKeys = Set.of();
     private static boolean warmupComplete;
     private static boolean completionRequested;
     private static long firstServerTickNanos = Long.MIN_VALUE;
@@ -95,7 +100,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
                 LOGGER.log(
                         System.Logger.Level.INFO,
                         "SKYFORGE AUTOMATED ACCEPTANCE WARMUP: case=" + caseId()
-                                + ", radiusChunks=" + radius()
+                                + ", " + warmupDescription()
                                 + ". Development harness synchronously loaded and ticketed the finite proof footprint.");
             }
         }
@@ -114,6 +119,34 @@ final class SkyforgeAutomatedAcceptanceHarness {
         if (elapsedSeconds > timeout) {
             fail(event.getServer(), "acceptance case exceeded " + timeout + " seconds without PASS");
         }
+    }
+
+    /**
+     * Installs an explicit finite acceptance-only chunk footprint before warmup.
+     *
+     * <p>This exists for large non-square development proofs such as the production morphology
+     * atlas. It does not alter ordinary Skyforge loading behavior; only the opt-in automated
+     * acceptance harness consumes these keys.
+     */
+    static synchronized void installWarmupChunkKeys(Set<Long> chunkKeys) {
+        if (!enabled()) {
+            return;
+        }
+        Objects.requireNonNull(chunkKeys, "chunkKeys");
+        if (warmupComplete) {
+            throw new IllegalStateException("acceptance warmup footprint cannot change after warmup");
+        }
+        if (chunkKeys.isEmpty()) {
+            throw new IllegalArgumentException("acceptance warmup footprint must not be empty");
+        }
+        TreeSet<Long> sorted = new TreeSet<>((left, right) -> {
+            int leftX = ChunkPos.getX(left);
+            int rightX = ChunkPos.getX(right);
+            int x = Integer.compare(leftX, rightX);
+            return x != 0 ? x : Integer.compare(ChunkPos.getZ(left), ChunkPos.getZ(right));
+        });
+        sorted.addAll(chunkKeys);
+        explicitWarmupChunkKeys = Collections.unmodifiableSet(new LinkedHashSet<>(sorted));
     }
 
     static synchronized void record(Map<String, ?> values) {
@@ -181,24 +214,44 @@ final class SkyforgeAutomatedAcceptanceHarness {
 
     private static void warmOriginFootprint(ServerLevel level) {
         long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
-        int radius = radius();
         var chunkSource = level.getChunkSource();
-        for (int chunkX = -radius; chunkX <= radius; chunkX++) {
-            for (int chunkZ = -radius; chunkZ <= radius; chunkZ++) {
-                ChunkPos pos = new ChunkPos(chunkX, chunkZ);
-                // The harness itself is the independent load reason for this finite proof corpus.
-                // A non-persistent development-only region ticket keeps each target stable between
-                // resumable production quanta without repeatedly synchronously loading hundreds of
-                // chunks on every server tick. Production code remains strictly getChunkNow-only.
-                chunkSource.addRegionTicket(
-                        ACCEPTANCE_TICKET,
-                        pos,
-                        ACCEPTANCE_TICKET_DISTANCE,
-                        pos);
-                level.getChunk(chunkX, chunkZ);
+        Set<Long> explicit = explicitWarmupChunkKeys;
+        if (!explicit.isEmpty()) {
+            for (long key : explicit) {
+                warmChunk(level, chunkSource, new ChunkPos(ChunkPos.getX(key), ChunkPos.getZ(key)));
+            }
+        } else {
+            int radius = radius();
+            for (int chunkX = -radius; chunkX <= radius; chunkX++) {
+                for (int chunkZ = -radius; chunkZ <= radius; chunkZ++) {
+                    warmChunk(level, chunkSource, new ChunkPos(chunkX, chunkZ));
+                }
             }
         }
         SkyforgeRuntimePerformanceMetrics.recordSince("acceptance.warmOriginFootprint", performanceStart);
+    }
+
+    private static void warmChunk(
+            ServerLevel level,
+            net.minecraft.server.level.ServerChunkCache chunkSource,
+            ChunkPos pos) {
+        // The harness itself is the independent load reason for this finite proof corpus.
+        // A non-persistent development-only region ticket keeps each target stable between
+        // resumable production quanta without repeatedly synchronously loading hundreds of
+        // chunks on every server tick. Production code remains strictly getChunkNow-only.
+        chunkSource.addRegionTicket(
+                ACCEPTANCE_TICKET,
+                pos,
+                ACCEPTANCE_TICKET_DISTANCE,
+                pos);
+        level.getChunk(pos.x, pos.z);
+    }
+
+    private static String warmupDescription() {
+        Set<Long> explicit = explicitWarmupChunkKeys;
+        return explicit.isEmpty()
+                ? "radiusChunks=" + radius()
+                : "explicitChunks=" + explicit.size();
     }
 
     private static int radius() {
