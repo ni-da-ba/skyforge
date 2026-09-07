@@ -19,7 +19,7 @@
 | --- | --- |
 | Authorship | `AUTH-0085` merged on current `main` (native spring semantic admission) |
 | Implementation | `SF-IMP-0079` merged before current Authorship work (post-cave vegetal routing) |
-| Content / Experience | C7 shared glider/A4MC lift merged; later Bellanca B0/Portable Engine design contracts merged |
+| Content / Experience | C10 live 1:1 Nether-scale proof merged; C9 CC:Tweaked avionics substrate and C8 glider-maintenance closure also accepted; later Bellanca B0/Portable Engine design contracts merged |
 
 Use each lane's own state file and git history for detail. Do not infer acceptance solely from an old
 architecture summary; some older runtime overview docs lag current `main`.
@@ -50,6 +50,7 @@ Aerodynamics4MC is the leading single atmosphere authority.
 - Aircraft consume it through the retained Aeronautics compatibility path.
 - C6 proves the retained Fowl Play red-tailed hawk can enter/exit thermal SOAR from the same field.
 - C7 proves Reliable Gliders can consume trusted vertical lift after native glider physics.
+- C8 closes Phantom-gated glider maintenance with ordinary leather/wool repair.
 - Other lanes must not introduce a second independent wind/thermal authority without reopening this contract.
 
 ### Ecology
@@ -57,6 +58,11 @@ Aerodynamics4MC is the leading single atmosphere authority.
 Authorship/environment semantics determine viable niches and population opportunity.
 Content maps retained species into those niches.
 Atmosphere may alter behavior (for example thermal soaring) but must not independently create population.
+
+### Nether route scale
+
+C10 / PR #232 proves a 1:1 Nether `coordinate_scale` datapack reaches the live final runtime registry.
+Final route policy still requires portal linking/placement and retained-mod compatibility evidence.
 
 ### Structures / civilization
 
@@ -79,13 +85,17 @@ Progression-critical structures must remain obtainable.
 
 Computing is a first-class capability axis but is **not** a first-flight prerequisite.
 
-Leading reuse path:
+C9 / PR #230 accepts the runtime coexistence of CC:Tweaked 1.119.0 + Create: Avionics 0.5.2 with
+the retained Create/Sable/Aeronautics stack.
 
-- CC:Tweaked as computing substrate;
-- existing Aeronautics/CC avionics/peripheral integrations before bespoke Skyforge peripherals;
+Next contract questions are gameplay capability/bypass:
+
+- autopilot versus route/navigation gameplay;
+- turtles versus resource/freight geography;
+- wireless/rednet/GPS versus infrastructure value;
 - thin Skyforge peripherals only for genuinely Skyforge-owned semantics not already exposed.
 
-Bootstrap computing requirements and bypass questions are tracked in **#224**.
+Bootstrap computing requirements remain tracked in **#224**.
 
 ### Bellanca / first mature utility aircraft
 

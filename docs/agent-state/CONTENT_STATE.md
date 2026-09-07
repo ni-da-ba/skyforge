@@ -13,7 +13,47 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest executable Content milestone: C7
+### Highest executable Content milestone: C10
+
+**C10 / PR #232**, merge `5eaff75638cd3f9033f440e67b82f705c999cd51`.
+
+C10 proves the standalone 1:1 Nether datapack reaches Minecraft's live final dimension registry:
+
+```text
+Overworld coordinateScale = 1.0
+Nether    coordinateScale = 1.0
+```
+
+This accepts the runtime mechanism, not yet the final portal-route policy.
+
+### C9 — CC:Tweaked avionics substrate
+
+**PR #230**, merge `6db44a0f26d244598aa44317abe6c7219eec44c1`.
+
+The exact retained flight stack loads with:
+
+```text
+CC:Tweaked 1.119.0
+Create: Avionics 0.5.2
+Create 6.0.10
+Sable 2.0.5
+Create Aeronautics 1.3.2
+```
+
+Accepted claim: the reuse-first computing/avionics substrate is runtime-compatible and no bespoke
+Skyforge computer/peripheral is required merely for aircraft instrumentation/control.
+
+Production lock, autopilot balance, turtle/mining roles, and Skyforge-specific peripherals remain open.
+
+### C8 — bootstrap glider maintenance closure
+
+**PR #229**, merge `d2f9ee69c55f10da32f9da3802945e390f5168cf`.
+
+C2 already replaced Phantom-gated crafting with wool/leather/sticks. C8 also replaces the Reliable
+Gliders repair tag with leather + `#minecraft:wool` using `replace: true`, so neither acquisition
+nor maintenance requires Phantom Membrane.
+
+### C7 — player shared lift
 
 **PR #223**, merge `a3281a0e6f0fe3e6eb4ce86cacc8470bf6006c88`.
 
@@ -25,8 +65,6 @@ C7 closes the player-facing shared-lift proof:
 - real Reliable Gliders gliding-state admission is used;
 - stronger native/block updraft wins rather than stacking;
 - untrusted atmosphere and non-gliding players are inert.
-
-Focused C2/C3/C5/C6/C7 and normal CI were green for the accepted C7 head.
 
 ### C6 — real hawk thermal compatibility
 
@@ -88,16 +126,18 @@ Opt-in engine cutoff/fuel-pause behavior is open and not implemented/accepted.
 
 ## PROPOSED
 
-### Computing
+### Computing beyond the accepted C9 substrate
 
 Computing is a first-class capability axis, not a first-flight gate.
 
-Leading reuse order:
+C9 accepts CC:Tweaked + Create: Avionics as a viable runtime substrate. Next computing decisions are
+capability/bypass questions rather than basic loader compatibility:
 
-1. CC:Tweaked;
-2. existing 1.21.1 Aeronautics/CC avionics/peripheral integrations;
-3. CBC peripheral integrations where heavy-industry automation remains desirable;
-4. thin Skyforge peripherals only for Skyforge-owned semantics that retained mods do not expose.
+- autopilot must not erase route planning/navigation gameplay;
+- turtles must not trivialize resource geography/freight;
+- wireless/rednet/GPS should support telemetry/navigation without making infrastructure irrelevant;
+- prefer existing avionics/peripheral integrations before bespoke Skyforge APIs;
+- thin Skyforge peripherals are reserved for genuinely Skyforge-owned semantics not otherwise exposed.
 
 Progression intent:
 
@@ -105,8 +145,6 @@ Progression intent:
 local display/control -> sensors/peripherals -> wired automation
 -> wireless telemetry/networking -> route/fleet/infrastructure control
 ```
-
-Executable compatibility/bypass tests are still required before locking specific add-ons.
 
 ### First powered flight
 
@@ -130,11 +168,10 @@ C1 scaffolding is merged, but do not claim complete gameplay acceptance until th
 
 Machine correctness for shared lift is accepted, but the following experience decisions remain:
 
-- final early glider recipe **and repair** economy;
-- practical glider capability envelope;
+- practical glider capability envelope after C8's accepted cheap acquisition/maintenance closure;
 - Elytra/firework boost suppression in play;
 - decision on optional blast/instability feedback;
-- 1:1 Nether coordinate-scale policy;
+- C10 portal linking/placement usability and retained-mod assumptions before final 1:1 Nether policy lock;
 - aircraft-versus-personal-flight freight/logistics comparison.
 
 ### Bellanca B0
@@ -181,7 +218,7 @@ Final province acceptance requires visible play in a good land-biome specimen af
 
 - Some old overview/handoff docs lag current `main`; use git/reviews/lane state rather than assuming their stated milestone is current.
 - C1 remains partially runtime-gated despite being merged.
-- Reliable Gliders stock acquisition/repair uses Phantom Membrane; Bootstrap policy requires closing both acquisition and upkeep, not recipe alone.
+- C8 removes the stock Phantom dependency; keep future recipe/tag changes from reintroducing it.
 - Optional-mod reflection bridges are intentionally version-pinned and fail-closed; upstream API/version changes require rerunning focused workflows.
 - Do not promote A4MC, Reliable Gliders, Fowl Play, CC add-ons, or Bellanca tuning from prototype to permanent pack lock solely because current specimens pass.
 
@@ -201,13 +238,13 @@ workflow files, PRs, and tests.
 
 ## Ordered next work
 
-1. Close early glider acquisition **and repair** with the smallest data override; verify no Phantom dependency remains.
-2. Execute Elytra/firework suppression acceptance and decide whether blast/instability feedback is worth bespoke work.
-3. Turn computing from #224 design intent into a pinned executable CC:Tweaked/Aeronautics compatibility specimen.
+1. Execute Elytra/firework suppression acceptance and decide whether blast/instability feedback is worth bespoke work.
+2. Extend C9 from loader compatibility to computing capability/bypass acceptance (autopilot, telemetry, turtles, networking).
+3. Exercise C10 portal linking/placement and retained-mod compatibility before locking 1:1 Nether as final route policy.
 4. Coordinate #194 and begin Bootstrap Province acceptance as soon as a legible persistent land-biome fixture exists.
 5. Implement/accept #237, then build and fly the Giuseppe Bellanca B0.
 6. Return to C1 industrial runtime evidence when the focused runtime window is available.
 
 Immediate recommendation for the next fresh Content agent:
 
-> Start with the early-glider recipe/repair executable closure, then the CC computing specimen; keep both subordinate to #224 Bootstrap Province rather than opening another broad audit.
+> Start with the Elytra/firework executable bypass closure, then the C9 computing capability/bypass specimen; keep both subordinate to #224 Bootstrap Province rather than opening another broad audit.
