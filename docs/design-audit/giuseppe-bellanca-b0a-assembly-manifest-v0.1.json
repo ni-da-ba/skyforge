@@ -311,7 +311,13 @@
           ],
           "count": 8
         }
-      ]
+      ],
+      "preassembly": {
+        "required_before_main_physics_assembler": true,
+        "method": "run propeller_bearing at small nonzero governed RPM until ControlledContraptionEntity exists",
+        "rationale": "SimAssemblyHelper flattens controlled Create contraptions owned by included controller blocks",
+        "rotation_robustness": "four-blade cross is invariant under StructureTransform nearest-90-degree rotation"
+      }
     }
   },
   "reserved_dynamic_children": {
@@ -361,8 +367,9 @@
   ],
   "assembly_phases": [
     "build_static_world_fixture",
+    "preassemble_prop_child_at_low_nonzero_rpm",
     "assemble_main_sable_body",
-    "reassemble_prop_child",
+    "reassemble_prop_child_on_main_sublevel",
     "assemble_tested_swivel_children",
     "run_mass_lift_propulsion_acceptance"
   ],
@@ -464,5 +471,18 @@
     "create_selection_max_distance_blocks": "<24 between selected positions",
     "ordinary_block_adjacency_is_not_assumed_sticky": true,
     "automated_fixture_may_materialize_equivalent_super_glue_aabbs": true
-  }
+  },
+  "acceptance_order": [
+    "main_body_connectivity",
+    "paper_vs_live_mass_and_cg",
+    "left_engine_single_source",
+    "right_engine_single_source",
+    "dual_engine_cooperation",
+    "prop_child_preassembly_and_flattening",
+    "prop_child_reassembly_at_128_rpm",
+    "main_wing_lift_sign",
+    "one_control_axis",
+    "landing_gear",
+    "assembled_sable_engine_cutoff"
+  ]
 }
