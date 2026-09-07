@@ -1,7 +1,7 @@
 # Skyforge Program Charter
 
 **Status:** Canonical program-level agent charter  
-**Updated:** 2026-09-06 (America/Chicago)
+**Updated:** 2026-09-07 (America/Chicago)
 
 ## Durable-memory rule
 
@@ -114,6 +114,34 @@ semantics; Content / Experience owns gameplay/progression meaning; Implementatio
 Minecraft playback, transition, persistence, and client/runtime integration. Adaptive scoring must
 consume explicit accepted cross-lane state and accepted audio-source identities rather than
 reverse-discovering either.
+
+### Audit / Program Health
+
+Owns repository-wide convergence assurance and agent/workflow health:
+
+- reconstruct authoritative state from current `main`, source/tests, merged history, lane ledgers, and cross-lane contracts;
+- independently check producer acceptance evidence, manual gates, stale state, and cross-lane drift;
+- monitor execution health using repository-visible signals such as branch divergence, repeated failure/rework without new information, contradictory or lagging handoffs, abandoned branch growth, repeated resynchronization churn, and long commit sequences without a meaningful acceptance boundary;
+- flag when a producer should stop extending a stale execution branch, checkpoint durable state, and restart from a fresh session/current-main reconstruction;
+- distinguish intentional dormant/reserved work from an actively stuck or looping agent.
+
+Audit cannot directly inspect another agent's private context window. "Context blowup" is therefore treated as an evidence-based process-risk inference from repository behavior and explicit user/session reports, not as hidden-state knowledge.
+
+Audit does not seize producer-lane technical ownership. Authorship still owns world meaning, Implementation runtime realization, Content game experience, and Music / Audio source authorship. Audit may request synchronization, fresh execution, narrower scope, or state repair; producer lanes own their technical fixes and producer acceptance unless a genuine cross-lane integration change requires otherwise.
+
+### Supervisory operating model
+
+Audit is the default supervisory watchdog for active Skyforge agents. The project owner should not need to manually poll every producer session.
+
+Audit should autonomously:
+
+- check every active lane against current `main`, its lane ledger, open PRs, recent commits, and exact-head workflow state;
+- intervene in-repository when a lane is stale, looping, conflicted, repeatedly rerunning unchanged evidence, or carrying contradictory durable state;
+- request a fresh producer execution session when repository/process evidence or an explicit project-owner report indicates the current session is no longer converging;
+- keep silent when agents are healthy and no human gate is pending;
+- escalate to the project owner only for manual Minecraft/visual/listening judgment, high-level cross-lane orchestration, or a significant process failure that cannot be repaired within repository workflow.
+
+A scheduled Audit watch may perform these checks periodically. Scheduled monitoring does not change lane ownership or acceptance authority.
 
 ## Working method
 

@@ -2,9 +2,9 @@
 
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
-**Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot at latest Authorship acceptance:** `1a2f9cc2e76bfd5ef9a36d3547dd0a0f3835fe28`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0090**
+**Updated:** 2026-09-07 (America/Chicago)  
+**Main snapshot at latest Authorship acceptance:** `c739fe9a521e2c75f640bbfcf79eee6abd0298cf`  
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0091**
 
 Read first:
 
@@ -200,31 +200,60 @@ Accepted invariants:
 
 Reference: `docs/authorship/AUTH-0090-regional-ecological-opportunity.md`.
 
-## IN PROGRESS
-
 ### AUTH-0091 — freshwater habitat opportunity profile
 
-Stacked development branch: `auth/auth-0091-freshwater-habitat-opportunity`.
+PR #279 merged as `c739fe9a521e2c75f640bbfcf79eee6abd0298cf`.
 
-Current work is **unaccepted** and must be recomposed onto current `main` before final verification.
+Exact acceptance:
+
+- accepted head: `fbebcf5defa8a69a304216422d28d1bcb0e0d639`;
+- synchronized base: `fad6b17575b25437a18c52a352ebd566acdb52b5`;
+- CI PASS, run `34139804616`;
+- evidence artifact `10025611282`;
+- digest `sha256:712e389aded9946d0436e6ff7d4ce6b16bebef79020c452b5dc3bd1b5a849a18`;
+- all triggered retained regression checks completed with zero failures.
+
+Accepted invariants:
+
+- one authored descriptor is profiled only through the accepted fixed AUTH-0005 watershed and retained-waterbody footprint planners;
+- callers cannot select watershed resolution, basin thresholds, footprint inputs, or custom area weights;
+- exact watershed and retained-waterbody footprint-plan provenance is retained;
+- inundated planning cells are unioned by exact watershed index in canonical index order;
+- conflicting duplicate footprint-cell data fails closed;
+- coarse horizontal inundated-area estimate is unique inundated-cell count × accepted watershed spacing²;
+- shoreline remains a unique planning-cell count and is not reinterpreted as physical perimeter;
+- POND, LAKE, and WETLAND source-kind counts are complete and sum to exact retained source-candidate count;
+- mean/max water-depth values remain unchanged normalized semantic potentials, not metres, blocks, or cubic volume;
+- legitimately dry islands produce a valid all-zero freshwater opportunity profile;
+- radius-only scaling preserves normalized freshwater topology/depth while coarse horizontal area scales by radius²;
+- no fish/fauna role, carrying capacity, crop/agriculture/resource eligibility, Minecraft fluid/biome identity, physical water-volume claim, or backend lifecycle enters the contract.
+
+Reference: `docs/authorship/AUTH-0091-freshwater-habitat-opportunity.md`.
+
+## IN PROGRESS
+
+No Authorship milestone is currently accepted beyond AUTH-0091.
+
+Next development target: **AUTH-0092 — regional island isolation evidence**.
 
 Intended boundary:
 
-- reuse the accepted fixed AUTH-0005 watershed and AUTH-0009 retained-waterbody footprint planners;
-- retain exact watershed and footprint-plan provenance for one authored descriptor;
-- expose unique inundated planning-cell count and coarse horizontal inundated-area estimate from watershed spacing;
-- expose shoreline planning-cell count, retained source-kind counts, and mean/max normalized water-depth potential;
-- preserve a valid all-zero profile for legitimately dry islands;
-- add no physical water-volume/depth claim, fish/fauna role, crop/agriculture threshold, resource ID, Minecraft fluid/biome identity, or backend lifecycle.
+- consume exactly one accepted AUTH-0087 published authored-realization binding;
+- preserve canonical AUTH-0046 association provenance for every published island;
+- derive raw pairwise horizontal center distance only from exact realized descriptor centers;
+- derive nominal radial gap only from exact center distance and the accepted matching authored/realized nominal radii;
+- choose nearest-neighbor provenance deterministically with canonical association-order tie breaking;
+- represent a one-island region without fabricating a neighbor;
+- expose no isolated/not-isolated class, fauna/resource threshold, settlement policy, Minecraft distance rule, or backend lifecycle behavior.
 
 ## PROPOSED
 
 ### Later semantic priorities
 
-1. Use AUTH-0091 only as retained-freshwater habitat evidence; normalized depth potentials are not physical metres or cubic volume.
-2. Combine AUTH-0090 regional ecology and AUTH-0091 freshwater evidence with geology, civilization/trade, and progression only when one concrete Bootstrap/resource consumer is ready.
-3. Define fauna role suitability only after additional habitat causes such as cliff/cave opportunity, isolation, disturbance, and trophic state are available.
-4. Add geothermal/volcanic semantics only if player/content design requires them.
+1. Use AUTH-0092 as raw regional isolation evidence; do not turn distance into an ecological class without a concrete consumer.
+2. A future cave/cliff habitat profile may summarize accepted AUTH-0024–0030 topology/exposure, but must not relabel semantic depth fractions as physical cave volume.
+3. Combine AUTH-0090 ecology, AUTH-0091 freshwater, AUTH-0092 isolation, geology, civilization/trade, and progression only when one concrete Bootstrap/resource or fauna consumer is ready.
+4. Add disturbance, predator-pressure, trophic-state, geothermal/volcanic, or other semantics only when design consumers require them.
 
 ## Architectural decisions / invariants
 
@@ -248,9 +277,10 @@ Implementation:
 - may consume AUTH-0088 as the exact backend-neutral surface-ecology query for a named published volume and world X/Z;
 - may consume AUTH-0089 as island-scale ecological opportunity evidence; it is not a spawn/carrying-capacity/resource contract;
 - may consume AUTH-0090 as area-weighted regional ecological opportunity evidence; it still assigns no species/resources/province class;
+- may consume AUTH-0091 as retained-freshwater habitat opportunity evidence; its area/depth quantities remain coarse/normalized planning semantics, not physical fluid volume;
 - owns block-space realization, chunk lifecycle, fluid propagation/fencing, and live Minecraft proofs;
 - SF-IMP-0080 remains the accepted forest/taiga ecology showcase;
-- SF-IMP-0081 is the accepted first AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / issue #269 owns the remaining built-in morphology atlas;
+- SF-IMP-0081 / SF-IMP-0082 accept all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / issue #284 owns the remaining built-in seed/scale matrix;
 - issue #214 still requires the broader AUTH-0083/AUTH-0084 Minecraft family/regional review.
 
 Content / Experience:
@@ -304,8 +334,8 @@ Human review still needs the AUTH-0083/AUTH-0084 reference + Minecraft matrices,
 
 ## Ordered next work
 
-1. Merge this AUTH-0090 durable-state boundary.
-2. Recompose stacked AUTH-0091 onto resulting current `main`.
-3. Verify wet/dry freshwater opportunity, exact retained-water provenance, fixed watershed-grid semantics, radius² scale covariance, and evidence packaging.
-4. Merge AUTH-0091 only after fresh exact-head CI.
-5. Keep SF-IMP-0082 / issue #269 morphology work independently Implementation-owned.
+1. Recompose existing AUTH-0092 regional island-isolation work onto current `main`; do not extend the stale branch in place.
+2. Reuse exact AUTH-0087 binding/association provenance and realized descriptor centers/radii; add no new spatial discovery or thresholds.
+3. Add acceptance-quality architecture/provenance evidence before proposing AUTH-0092 as merged/accepted.
+4. Prove deterministic nearest-neighbor selection, one-island empty-neighbor behavior, translation covariance, scale covariance, and exact-head CI/evidence.
+5. Keep SF-IMP-0083 / issue #284 seed-scale morphology work independently Implementation-owned.

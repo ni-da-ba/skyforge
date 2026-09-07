@@ -1,8 +1,8 @@
 # Skyforge Cross-Lane Contracts
 
 **Status:** Canonical concise coordination state  
-**Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `34bd884fb0646894dd682350fd1f35b3bdd46ed3`
+**Updated:** 2026-09-07 (America/Chicago)  
+**Repository snapshot before AUDIT-0007 reconciliation:** c739fe9a521e2c75f640bbfcf79eee6abd0298cf
 
 ## Program-wide invariants
 
@@ -17,11 +17,11 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0090` accepted: area-weighted regional ecological opportunity; AUTH-0091 freshwater habitat opportunity in progress |
+| Authorship | `AUTH-0091` accepted: deterministic retained-freshwater habitat opportunity; owning Authorship ledger repair is still pending |
 | Implementation | `SF-IMP-0082` accepted: all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / #284 multi-seed/multi-scale built-in matrix in progress |
-| Content / Experience | `C17` accepted: stock GPS requires ordinary host geometry/range while Ender-backed GPS is a mature range bypass; C18 is current-main green but remains draft/unaccepted; C11/C12 remain separately in progress/reserved |
+| Content / Experience | `C17` accepted; C18 remains draft/unaccepted and machine-green only on its prior tested head, which now requires current-main resynchronization; C11/C12 remain separately in progress/reserved |
 | Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 is draft/unmerged with branch-local cue/source freezes only |
-| AUDIT | AUDIT-0006 Music/Audio lane-integration audit accepted by the merge that places this update on `main` |
+| AUDIT | AUDIT-0007 post-SF-IMP-0082 convergence reconciliation accepted by the merge that places this update on `main` |
 
 Use each lane state file and merged history for detail.
 
@@ -53,10 +53,13 @@ AUTH-0090 / PR #276 merged as `1a2f9cc2e76bfd5ef9a36d3547dd0a0f3835fe28`.
 
 One exact AUTH-0058/AUTH-0087 published region can now aggregate every associated AUTH-0089 island profile into total horizontal authored-habitat area plus area-weighted AUTH-0003 regime composition and mean vegetation/saturation/thermal opportunity, retaining canonical island/volume provenance. It does not assign species, resources, province labels, Minecraft biomes, or backend lifecycle policy.
 
-### AUTH-0091 — freshwater habitat opportunity — IN PROGRESS
+### AUTH-0091 — freshwater habitat opportunity — ACCEPTED
 
-Authorship is aggregating accepted retained-waterbody semantics into island-scale coarse horizontal inundated-area, shoreline-cell, source-kind, and normalized water-depth opportunity evidence. Dry islands must remain valid zero-water profiles. Physical water volume/depth, fauna, agriculture/resource eligibility, and Minecraft fluid identity remain outside this contract.
+AUTH-0091 / PR #279 merged as c739fe9a521e2c75f640bbfcf79eee6abd0298cf from exact-head candidate fbebcf5defa8a69a304216422d28d1bcb0e0d639.
 
+One authored SkyIslandDescriptor now deterministically summarizes accepted retained-waterbody semantics through the fixed watershed/waterbody planner stack into exact provenance, unique inundated planning-cell count/coarse horizontal area, shoreline-cell count, complete POND / LAKE / WETLAND source-kind counts, and mean/max unchanged normalized water-depth potential. Legitimately dry islands retain valid zero-water profiles.
+
+Physical cubic water volume/depth, fauna/carrying capacity, agriculture/resources, Minecraft fluid/biome identity, and backend lifecycle remain outside this contract.
 ### SF-IMP-0080 — visible land ecology — ACCEPTED
 
 The forest/taiga showcase passed machine persistence/reopen gates and project-owner human visual review. This proves legible Minecraft land ecology, not yet AUTH-0003-to-Minecraft-biome semantic translation. Issue #194 is closed; #261 is a non-blocking short-distance ambience/presentation follow-up.
@@ -103,7 +106,7 @@ Other lanes must not introduce an independent wind/thermal authority without reo
 
 ### Ecology
 
-Authorship/environment semantics determine niches/opportunity. Content maps retained species into those niches. Atmosphere may alter behavior but must not independently create population. AUTH-0088 is the exact published local query seam; AUTH-0089 is the accepted island-scale ecology summary; AUTH-0090 is the accepted regional ecology summary; AUTH-0091 is preparing retained-freshwater habitat evidence. SF-IMP-0080 remains the visible Minecraft ecology seam. Do not conflate semantic opportunity with spawn/carrying-capacity/resource policy.
+Authorship/environment semantics determine niches/opportunity. Content maps retained species into those niches. Atmosphere may alter behavior but must not independently create population. AUTH-0088 is the exact published local query seam; AUTH-0089 is the accepted island-scale ecology summary; AUTH-0090 is the accepted regional ecology summary; AUTH-0091 supplies accepted retained-freshwater habitat-opportunity evidence. SF-IMP-0080 remains the visible Minecraft ecology seam. Do not conflate semantic opportunity with spawn/carrying-capacity/resource policy.
 
 ### Nether route scale
 
