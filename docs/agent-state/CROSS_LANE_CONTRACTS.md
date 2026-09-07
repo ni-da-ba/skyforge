@@ -1,8 +1,8 @@
 # Skyforge Cross-Lane Contracts
 
 **Status:** Canonical concise coordination state  
-**Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `34bd884fb0646894dd682350fd1f35b3bdd46ed3`
+**Updated:** 2026-09-07 (America/Chicago)  
+**Repository snapshot when updated:** `3c48828924b0cf4ac7f1184c493d60ef605bf84a`
 
 ## Program-wide invariants
 
@@ -18,10 +18,10 @@
 | Lane | Repository-visible boundary |
 | --- | --- |
 | Authorship | `AUTH-0090` accepted: area-weighted regional ecological opportunity; AUTH-0091 freshwater habitat opportunity in progress |
-| Implementation | `SF-IMP-0081` accepted: first exact AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / #269 remaining built-in morphology atlas in progress |
+| Implementation | `SF-IMP-0082` accepted: exact AUTH-0083 Tableland / Spine / Basin / Lobed carriers join the accepted Massif carrier; full #214 remains open |
 | Content / Experience | `C17` accepted: stock GPS requires ordinary host geometry/range while Ender-backed GPS is a mature range bypass; C18 is current-main green but remains draft/unaccepted; C11/C12 remain separately in progress/reserved |
 | Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 is draft/unmerged with branch-local cue/source freezes only |
-| AUDIT | AUDIT-0006 Music/Audio lane-integration audit accepted by the merge that places this update on `main` |
+| AUDIT | AUDIT-0007 state reconciliation records SF-IMP-0082 acceptance and repairs post-merge durable-state drift |
 
 Use each lane state file and merged history for detail.
 
@@ -61,11 +61,15 @@ Authorship is aggregating accepted retained-waterbody semantics into island-scal
 
 The forest/taiga showcase passed machine persistence/reopen gates and project-owner human visual review. This proves legible Minecraft land ecology, not yet AUTH-0003-to-Minecraft-biome semantic translation. Issue #194 is closed; #261 is a non-blocking short-distance ambience/presentation follow-up.
 
-### SF-IMP-0081 / issue #214 — morphology quality — FIRST TRANCHE ACCEPTED
+### SF-IMP-0081 / SF-IMP-0082 / issue #214 — built-in morphology tranche — ACCEPTED
 
-SF-IMP-0081 / PR #265 merged as `bac972eb7e8d772a250d292602e109428d06514a`. The first exact AUTH-0083 Massif carrier passed machine persistence/reopen and project-owner human review; its pure morphology and underside were accepted as strong. Issue #214 remains open for the broader atlas.
+SF-IMP-0081 / PR #265 merged as `bac972eb7e8d772a250d292602e109428d06514a` and accepted the first exact AUTH-0083 Massif carrier.
 
-SF-IMP-0082 / #269 expands the same exact-ID carrier architecture to Tableland, Spine, Basin, and Lobed. Preserve deterministic handoff IDs and above/approach/below/orbit review. Issue #267 separately tracks Massif traversal lumpiness and must not be conflated with carrier correctness.
+SF-IMP-0082 / PR #273 merged as `3c48828924b0cf4ac7f1184c493d60ef605bf84a` after current-main synchronization, exact-head repository/showcase/performance/retained-Content regressions, deterministic prepare/reopen proofs, and project-owner human review all passed. Exact AUTH-0083 SMALL / seed-skyforge Tableland, Spine, Basin, and Lobed members now share the accepted provider-neutral carrier path with pure integer suspension-Y translation.
+
+The Tableland falling-native-surface persistence repair is Implementation representation policy only: unsupported gravity-affected native material may not erase authoritative one-voxel Skyforge occupancy; it does not retune morphology or define authored shore/material semantics.
+
+Full issue #214 remains open for multiple seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts. Issue #267 tracks Massif traversal cadence; issue #283 separately tracks Tableland plateau identity. Neither reopens the accepted carrier tranche.
 
 ## Active coordination contracts
 
