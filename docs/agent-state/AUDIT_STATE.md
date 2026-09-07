@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot reconstructed:** `01bde4fb96860d8ccfd17b4e6f9d9459c0e827fc`
+**Main snapshot reconstructed for AUDIT-0002:** `cab1be65f370f3f81a6d8019ed3db23bcff6f49f`
 
 Read first:
 
@@ -13,18 +13,29 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest AUDIT milestone: AUDIT-0001
+### Highest AUDIT milestone: AUDIT-0002
 
-AUDIT-0001 is the repository-state reconstruction that establishes this lane state.
+AUDIT-0002 reconciles the public/current-runtime narrative with the accepted SF-IMP-0079 implementation boundary and records branch/state drift exposed immediately after AUDIT-0001.
 
-Its accepted claim is intentionally narrow:
+Accepted by the merge that places this update on `main`:
+
+- root `README.md` no longer presents SF-IMP-0057 or closed issue #52 as the current runtime frontier;
+- `docs/architecture/Skyforge_Current_Runtime_Architecture.md` is advanced through SF-IMP-0079 and points to issue #194 / draft SF-IMP-0080 as the immediate Implementation boundary;
+- the architecture summary now reflects production composed caves, post-cave native interior population, fluid provenance/fencing, evidence-driven performance convergence, and floating-island native-feature plausibility;
+- transient coordination facts are corrected: PR #245 is closed/superseded by AUDIT-0001, while PR #248 is active but stale against the canonical agent-state namespace and current main.
+
+Detailed source/runtime behavior remains owned by the producing lanes.
+
+### AUDIT-0001 — authoritative state reconstruction
+
+AUDIT-0001 established repository-first reconstruction, canonicalized `docs/agent-state/` as the live durable-state namespace, migrated the accepted Implementation state there, and removed the duplicate live charter/contracts/state files from `docs/handoffs/`.
+
+Its accepted invariants remain:
 
 - fresh AUDIT sessions reconstruct from repository authority rather than conversation;
 - current lane boundaries and active work are recorded from `main` and Git history;
 - stale duplicate work may be closed only after proving it is superseded;
 - conflicting durable-state namespaces are identified before they can become parallel sources of truth.
-
-This milestone is accepted by the merge that places this file on `main`; detailed source/runtime behavior remains owned by the producing lanes.
 
 ### Stale C8 duplicate cleanup
 
@@ -49,25 +60,32 @@ At the reconstructed `main`:
 | Content / Experience | **C10** / PR #232 — live 1:1 Nether coordinate-scale proof |
 | Showcase | technical current-capability showcase + persisted reopen accepted via #185/#189 |
 | Music | no MUS milestone merged; PR #159 remains draft |
-| AUDIT | **AUDIT-0001** by this state-reconstruction merge |
+| AUDIT | **AUDIT-0002** by the runtime-state reconciliation merge that places this update on `main` |
 
 The merged Bellanca documents in PR #238 are accepted **design state**, not accepted flight/runtime behavior.
 
 ## IN PROGRESS
 
-### Canonical agent-state consolidation
+### SF-IMP-0080 showcase ecology — PR #248 / issue #194
 
-During AUDIT-0001, PR **#244** merged a second live-state system under `docs/handoffs/` after `docs/agent-state/` had already landed on main.
+Implementation has opened draft PR **#248** to expose human-legible forest/taiga ecology in the persisted stacked showcase.
 
-AUDIT-0001 resolves that split on this branch:
+Audit state at the AUDIT-0002 base:
 
-- `docs/agent-state/` remains the single canonical live-state namespace;
-- the accepted Implementation lane state from #244 is migrated to `docs/agent-state/IMPLEMENTATION_STATE.md`;
-- duplicate live charter/contracts/Implementation files under `docs/handoffs/` are removed;
-- `docs/handoffs/` is restored to historical milestone-handoff storage;
-- root README points to one live-state system.
+- PR head: `02015bd4`;
+- branch base predates AUDIT-0001's canonical-state consolidation;
+- ordinary CI and performance characterization are green;
+- the current showcase-acceptance run is failing;
+- the branch still edits removed `docs/handoffs/IMPLEMENTATION_STATE.md` rather than canonical `docs/agent-state/IMPLEMENTATION_STATE.md`;
+- issue #194 remains open because the required human-eye land-biome gate has not passed.
 
-PR **#245** has already recomposed its Authorship state into `docs/agent-state/AUTHORSHIP_STATE.md`, but remains unmerged and must still synchronize with whatever main results from this audit.
+Before acceptance, the owning Implementation lane must synchronize with current `main`, preserve the canonical state namespace, repair the showcase failure without weakening existing gates, rerun exact-head verification, and complete the manual visual review.
+
+### Canonical agent-state consolidation status
+
+AUDIT-0001 is merged and `docs/agent-state/` is the single live state namespace.
+
+PR **#245** is now closed without merge because its overlapping consolidation work was superseded by AUDIT-0001. Future lane-state migrations must extend the canonical namespace rather than recreate live charter/contracts/state under `docs/handoffs/`.
 
 ### Content C11 — PR #233
 
@@ -209,18 +227,18 @@ Human play must confirm the control interaction is intuitive and does not create
 
 ## KNOWN HAZARDS / TECHNICAL DEBT
 
-1. **Runtime overview drift.** Root `README.md` and `docs/architecture/Skyforge_Current_Runtime_Architecture.md` still describe SF-IMP-0057 as current even though `main` has accepted SF-IMP-0079.
-2. **Parallel durable-state namespaces.** #244 briefly created a second canonical system under `docs/handoffs/`; AUDIT-0001 consolidates it back into `docs/agent-state/`. Future lane migrations must extend that namespace rather than fork it.
-3. **Long-lived branch drift.** C11 and Portable Engine cutoff need current-main synchronization before acceptance.
-4. **Design/runtime ambiguity.** Detailed merged/open design documents must not be described as executable capability without their required evidence.
-5. **Manual-gate ambiguity.** Morphology corpus machinery is accepted; morphology aesthetics are not.
-6. **Content milestone collision.** PR #247 initially reuses C11 even though PR #233 already owns C11 and issue #239 reserves C12; this must be reconciled before #247 merges.
+1. **Parallel branch/state drift.** PR #248 predates the canonical-state merge, edits a removed historical state path, and currently has a failing showcase-acceptance run; it must synchronize before acceptance.
+2. **Long-lived branch drift.** C11 and Portable Engine cutoff need current-main synchronization before acceptance.
+3. **Design/runtime ambiguity.** Detailed merged/open design documents must not be described as executable capability without their required evidence.
+4. **Manual-gate ambiguity.** Morphology corpus machinery is accepted; morphology aesthetics are not.
+5. **Content milestone collision.** PR #247 initially reuses C11 even though PR #233 already owns C11 and issue #239 reserves C12; this must be reconciled before #247 merges.
+6. **Overview drift can recur.** AUDIT-0002 repairs the public/runtime architecture snapshot through SF-IMP-0079; future implementation milestones must update or explicitly supersede these reviewer-facing summaries rather than leaving them as implicit historical state.
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Reconcile stale root/current-runtime documentation to the actual SF-IMP-0079 boundary.
-2. Verify that #245 and future lane migrations remain in the canonical agent-state namespace.
-3. Re-audit C11 after synchronization before it can be treated as accepted recipe closure.
+1. Re-audit SF-IMP-0080 / PR #248 after it synchronizes with current main, repairs the canonical state path, and regains showcase acceptance; do not waive the #194 human-eye gate.
+2. Re-audit C11 after synchronization before it can be treated as accepted recipe closure.
+3. Track the PR #247 milestone-identity collision until Content assigns a non-conflicting milestone.
 4. Review PR #242 only for cross-lane consistency; leave CONTENT ownership of the B0-A design/merge decision intact.
 5. Re-audit PR #240 after assembled-Sable and persistence evidence.
 6. Update this state at every material merge/contract/hazard boundary.
