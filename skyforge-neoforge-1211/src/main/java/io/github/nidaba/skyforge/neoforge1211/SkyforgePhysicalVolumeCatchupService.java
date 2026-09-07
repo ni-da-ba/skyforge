@@ -31,11 +31,59 @@ final class SkyforgePhysicalVolumeCatchupService {
      * work cap and an elapsed-time guard. A single non-preemptible quantum may overrun the elapsed
      * guard, but no tick can start more than the hard work cap.
      */
+    static final int MAX_TERRAIN_CATCHUP_CHUNKS_PER_LEVEL_TICK = 64;
+    static final long TERRAIN_CATCHUP_TIME_BUDGET_NANOS = 8_000_000L;
     static final int MAX_COMPOSED_CAVE_QUANTA_PER_LEVEL_TICK = 128;
     static final long COMPOSED_CAVE_TIME_BUDGET_NANOS = 8_000_000L;
     private static final int MAX_NATIVE_INTERIOR_POPULATION_CHUNKS_PER_LEVEL_TICK = 1;
 
     private SkyforgePhysicalVolumeCatchupService() {}
+
+    /**
+     * Services at most one canonical already-loaded deferred-terrain chunk.
+     *
+     * <p>A failed realization at the first loaded pending key is a deterministic barrier for this
+     * tick. That avoids repeatedly materializing later chunks around an unresolved exact-owner
+     * dependency while preserving the canonical X/Z order already exposed by the admission stage.
+     */
+    private static boolean serviceOneTerrainCatchupChunk(ServerLevel level) {
+        var chunkSource = level.getChunkSource();
+        var generator = chunkSource.getGenerator();
+        for (long chunkKey : SkyforgePhysicalVolumeAdmissionStage.eligibleCatchupChunkKeys()) {
+            int chunkX = ChunkPos.getX(chunkKey);
+            int chunkZ = ChunkPos.getZ(chunkKey);
+            LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
+            if (chunk == null) {
+                continue;
+            }
+
+            int completed;
+            var mutationLifecycle = SkyforgeDeferredChunkMutationLifecycle.open(level, chunk);
+            try {
+                completed = SkyforgeNeoForge1211SurfaceStage.serviceCatchup(chunk);
+            } finally {
+                mutationLifecycle.close();
+            }
+            if (completed <= 0) {
+                return false;
+            }
+            SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Bounded deferred-terrain pump. The first chunk is always allowed so a single expensive
+     * materialization cannot starve progress; later chunks require remaining time budget.
+     */
+    static PumpResult pumpTerrainCatchupChunks(
+            BooleanSupplier serviceOneChunk,
+            LongSupplier nanoTime,
+            int maximumChunks,
+            long timeBudgetNanos) {
+        return pumpBoundedWork(serviceOneChunk, nanoTime, maximumChunks, timeBudgetNanos);
+    }
 
     /**
      * Services the first canonical pending cave chunk that can make progress without loading it.
@@ -73,29 +121,37 @@ final class SkyforgePhysicalVolumeCatchupService {
             LongSupplier nanoTime,
             int maximumQuanta,
             long timeBudgetNanos) {
-        Objects.requireNonNull(serviceOneQuantum, "serviceOneQuantum");
+        return pumpBoundedWork(serviceOneQuantum, nanoTime, maximumQuanta, timeBudgetNanos);
+    }
+
+    private static PumpResult pumpBoundedWork(
+            BooleanSupplier serviceOneWorkItem,
+            LongSupplier nanoTime,
+            int maximumWorkItems,
+            long timeBudgetNanos) {
+        Objects.requireNonNull(serviceOneWorkItem, "serviceOneWorkItem");
         Objects.requireNonNull(nanoTime, "nanoTime");
-        if (maximumQuanta <= 0) {
-            throw new IllegalArgumentException("maximumQuanta must be positive");
+        if (maximumWorkItems <= 0) {
+            throw new IllegalArgumentException("maximumWorkItems must be positive");
         }
         if (timeBudgetNanos <= 0L) {
             throw new IllegalArgumentException("timeBudgetNanos must be positive");
         }
 
         long start = nanoTime.getAsLong();
-        int workedQuanta = 0;
-        while (workedQuanta < maximumQuanta) {
-            if (workedQuanta > 0
+        int workedItems = 0;
+        while (workedItems < maximumWorkItems) {
+            if (workedItems > 0
                     && Math.max(0L, nanoTime.getAsLong() - start) >= timeBudgetNanos) {
                 break;
             }
-            if (!serviceOneQuantum.getAsBoolean()) {
+            if (!serviceOneWorkItem.getAsBoolean()) {
                 break;
             }
-            workedQuanta++;
+            workedItems++;
         }
         long elapsedNanos = Math.max(0L, nanoTime.getAsLong() - start);
-        return new PumpResult(workedQuanta, elapsedNanos);
+        return new PumpResult(workedItems, elapsedNanos);
     }
 
     record PumpResult(int workedQuanta, long elapsedNanos) {
@@ -114,24 +170,21 @@ final class SkyforgePhysicalVolumeCatchupService {
         for (ServerLevel level : event.getServer().getAllLevels()) {
             var chunkSource = level.getChunkSource();
             var generator = chunkSource.getGenerator();
-            for (long chunkKey : SkyforgePhysicalVolumeAdmissionStage.eligibleCatchupChunkKeys()) {
-                int chunkX = ChunkPos.getX(chunkKey);
-                int chunkZ = ChunkPos.getZ(chunkKey);
-                LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
-                if (chunk == null) {
-                    continue;
-                }
 
-                int completed;
-                var mutationLifecycle = SkyforgeDeferredChunkMutationLifecycle.open(level, chunk);
-                try {
-                    completed = SkyforgeNeoForge1211SurfaceStage.serviceCatchup(chunk);
-                } finally {
-                    mutationLifecycle.close();
-                }
-                if (completed > 0) {
-                    SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
-                }
+            // Deferred terrain materialization can be substantially more expensive than a cave
+            // cursor quantum. Historically every loaded pending chunk was realized in one tick,
+            // which allowed realistic large-volume acceptance to monopolize the server thread for
+            // minutes. Preserve canonical order but yield between bounded work batches.
+            long terrainPumpStart = SkyforgeRuntimePerformanceMetrics.start();
+            PumpResult terrainPump = pumpTerrainCatchupChunks(
+                    () -> serviceOneTerrainCatchupChunk(level),
+                    System::nanoTime,
+                    MAX_TERRAIN_CATCHUP_CHUNKS_PER_LEVEL_TICK,
+                    TERRAIN_CATCHUP_TIME_BUDGET_NANOS);
+            if (terrainPump.workedQuanta() > 0) {
+                SkyforgeRuntimePerformanceMetrics.recordSince(
+                        "catchup.terrainPump",
+                        terrainPumpStart);
             }
 
             // Composed caves are a post-terrain exact-volume obligation. The stage itself gates on
