@@ -1,6 +1,6 @@
 # MUS-0001 — Score foundation and persistence record
 
-**Status:** Active / amended after soundtrack-source audit
+**Status:** Accepted / maintained
 
 ## Scope
 
