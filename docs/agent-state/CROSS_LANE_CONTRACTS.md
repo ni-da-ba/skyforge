@@ -17,7 +17,7 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0085` merged on current `main` (native spring semantic admission) |
+| Authorship | `AUTH-0086` merged on current `main` (visible authored hydrologic realization intents) |
 | Implementation | `SF-IMP-0079` merged before current Authorship work (post-cave vegetal routing) |
 | Content / Experience | C13 Elytra/firework bypass suppression accepted; C10 live 1:1 Nether-scale proof, C9 CC:Tweaked avionics substrate, and C8 glider-maintenance closure also accepted; C11/C12 remain separately in progress/reserved |
 | AUDIT | AUDIT-0001 repository-state reconstruction / durable audit handoff accepted on `main` |
@@ -38,13 +38,14 @@ Implementation's native `FLUID_SPRINGS` path should enforce:
 - molten/lava candidates fail closed until explicit geothermal/volcanic authorship exists;
 - existing exact-volume generated-fluid provenance/fencing remains authoritative after admission.
 
-### IN PROGRESS — AUTH-0086 visible authored hydrology
+### MERGED / ACCEPTED — AUTH-0086 visible authored hydrology
 
-PR #241 projects accepted coherent naturalized channels, retained-waterbody footprints/margins, and
-accepted channel-drop events into exact backend-neutral visible-water intents.
+AUTH-0086 / PR #241, merge `a55e500c86f0baf910af809985956ac398742706`, projects accepted coherent
+naturalized channels, retained-waterbody footprints/margins, and accepted channel-drop events into
+exact backend-neutral visible-water intents.
 
-Implementation should not build authored channel/waterfall runtime behavior against AUTH-0086 until
-that PR is merged/accepted.
+Implementation may now consume those intents at the realization boundary; Authorship still owns the
+semantic hydrologic plan and Implementation owns Minecraft-visible realization/lifecycle.
 
 ### MERGED / ACCEPTED — current Implementation capability relevant to Authorship
 
