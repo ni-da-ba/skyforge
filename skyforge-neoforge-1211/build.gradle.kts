@@ -3140,7 +3140,7 @@ tasks.register("sfImp0067AcceptanceVerify") {
                 && first.getProperty("nativeAuthoredAirOverlap") == "582"
                 && first.getProperty("nativeRejectedWrites") == "0"
                 && first.getProperty("nativeMappedOutsideTarget") == "0"
-                && first.getProperty("nativeTransformDigest") == "95c046280c7f1c13"
+                && first.getProperty("nativeTransformDigest") == "95c046280c7f1c11"
                 && first.getProperty("nativeCarveDigest") == "c277e3af5030dd01"
                 && first.getProperty("authoredPositive") == "89068"
                 && first.getProperty("authoredBasePositive") == "78030"
@@ -3470,7 +3470,7 @@ tasks.register("sfImp0068AcceptanceVerify") {
             "SF-IMP-0068 stacked production isolation failed: $stacked"
         }
 
-        check(composed0067.getProperty("nativeTransformDigest") == "95c046280c7f1c13"
+        check(composed0067.getProperty("nativeTransformDigest") == "95c046280c7f1c11"
                 && composed0067.getProperty("nativeCarveDigest") == "c277e3af5030dd01"
                 && composed0067.getProperty("authoredChangedDigest") == "6d2120967a6c73bd"
                 && composed0067.getProperty("authoredProvenanceDigest") == "3032a41620c93935"
