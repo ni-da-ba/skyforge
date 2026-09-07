@@ -1666,6 +1666,18 @@ neoForge {
         }
 
 
+        // C16: exact accepted computing stack, but the specimen exercises only real CC wireless
+        // modem behavior. Skyforge adds no network implementation.
+        create("waveC16WirelessEnvelopeServer") {
+            server()
+            sourceSet.set(waveC9Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c16-wireless-envelope-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC16WirelessEnvelope", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         // Wave C10 loads the standalone C2 Nether-scale datapack into a disposable first-boot
         // world and asserts the final live DimensionType rather than trusting JSON inspection.
         create("waveC10NetherScaleAcceptanceServer") {
@@ -1893,6 +1905,30 @@ tasks.named("runWaveC15PortalLinkingAcceptanceServer").configure {
             from(sourcePack)
             into(targetPack)
         }
+    }
+}
+
+
+val waveC16WirelessServerProperties = """
+    level-name=wave-c16-wireless
+    level-seed=601600
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC16WirelessEnvelopeServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c16-wireless-envelope-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC16WirelessServerProperties)
     }
 }
 
