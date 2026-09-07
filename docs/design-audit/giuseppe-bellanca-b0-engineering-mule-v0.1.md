@@ -123,16 +123,35 @@ The craft reads as a single-engine aircraft even though the Create powerplant us
 
 ### Propeller test ladder
 
-Test kinetic delivery at:
+Further source inspection shows the Simulated Analog Transmission uses discrete redstone-derived ratios rather than an arbitrary continuous output.
+
+With a simple 32 -> 64 RPM first gear stage, representative attainable outputs include approximately:
 
 ~~~text
-128 RPM
-160 RPM
-192 RPM
-224 RPM
+128.0 RPM
+146.3 RPM
+170.7 RPM
+204.8 RPM
+256.0 RPM
 ~~~
 
-Do not assume 256 RPM is a normal operating condition.
+For an 8-sail-power Propeller Bearing, current Aeronautics stress arithmetic gives approximately:
+
+~~~text
+128.0 RPM -> 2048 SU
+146.3 RPM -> 2341 SU
+170.7 RPM -> 2731 SU
+204.8 RPM -> 3277 SU
+256.0 RPM -> 4096 SU
+~~~
+
+Two ordinary Portable Engines provide a theoretical combined 4096 SU at their native 32 RPM under current Create stress scaling.
+
+Therefore:
+- 256 RPM is a boundary/full-capacity point and should not be assumed as normal operation;
+- ~170.7 RPM is a strong first cruise candidate;
+- ~204.8 RPM is a strong first takeoff/climb candidate;
+- actual useful settings remain subject to flight measurement.
 
 Record at each point:
 
@@ -142,8 +161,6 @@ Record at each point:
 - top/equilibrium speed;
 - handling;
 - fuel consumption.
-
-The initial design expectation is that ~192 RPM may be a useful operating point, but no value is accepted until measured.
 
 ## Engine cutoff / powered soaring
 
@@ -355,7 +372,7 @@ Do not solve a badly overweight craft by reflexively adding more engines/lift.
 
 ### C — propulsion
 
-- 128/160/192/224 RPM;
+- 128/146.3/170.7/204.8/256 RPM;
 - stress;
 - acceleration;
 - equilibrium speed;
