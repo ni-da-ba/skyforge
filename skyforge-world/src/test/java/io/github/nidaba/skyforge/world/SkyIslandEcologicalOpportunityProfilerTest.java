@@ -105,8 +105,9 @@ final class SkyIslandEcologicalOpportunityProfilerTest {
         double rasterCellWidth =
                 (2.0 * descriptor.nominalRadius())
                         / SkyIslandEcologicalOpportunityProfiler.SAMPLES_PER_AXIS;
+        double rasterCellArea = rasterCellWidth * rasterCellWidth;
         assertEquals(
-                profile.ownedCellCount() * rasterCellWidth * rasterCellWidth,
+                profile.ownedCellCount() * rasterCellArea,
                 profile.horizontalOwnedAreaEstimate(),
                 0.0);
     }
