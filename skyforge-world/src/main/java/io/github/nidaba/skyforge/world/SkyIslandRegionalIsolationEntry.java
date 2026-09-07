@@ -11,14 +11,15 @@ public record SkyIslandRegionalIsolationEntry(
     public SkyIslandRegionalIsolationEntry {
         association = Objects.requireNonNull(association, "association");
         nearestNeighbor = Objects.requireNonNull(nearestNeighbor, "nearestNeighbor");
-        nearestNeighbor.ifPresent(neighbor -> {
+        if (nearestNeighbor.isPresent()) {
+            SkyIslandRegionalIsolationNeighbor neighbor = nearestNeighbor.orElseThrow();
             if (neighbor.association().equals(association)) {
                 throw new IllegalArgumentException(
                         "regional isolation entry cannot use itself as nearest neighbor");
             }
             double expectedCenter = centerDistance(association, neighbor.association());
-            double expectedGap = nominalRadialGap(
-                    association, neighbor.association(), expectedCenter);
+            double expectedGap =
+                    nominalRadialGap(association, neighbor.association(), expectedCenter);
             if (Double.doubleToLongBits(expectedCenter)
                             != Double.doubleToLongBits(neighbor.centerDistance())
                     || Double.doubleToLongBits(expectedGap)
@@ -26,7 +27,7 @@ public record SkyIslandRegionalIsolationEntry(
                 throw new IllegalArgumentException(
                         "regional isolation neighbor distances must match exact association geometry");
             }
-        });
+        }
     }
 
     public boolean hasNeighbor() {
