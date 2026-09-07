@@ -15,7 +15,7 @@ Read first:
 
 ### Highest accepted executable Content milestone by identifier: C13
 
-**C13 / PR #247**, targeted acceptance head `c68ce3cc0a7269fb92102ce67e4f7d1dd2275d20`.
+**C13 / PR #247**, exact-head targeted acceptance `7ca8d8d6126d772320b696be73bf7084070f33cc`.
 
 C13 closes the Elytra/firework mobility bypass with a black-box dedicated-server comparison:
 
