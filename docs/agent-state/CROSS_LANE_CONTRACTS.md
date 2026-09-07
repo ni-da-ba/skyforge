@@ -1,8 +1,8 @@
 # Skyforge Cross-Lane Contracts
 
 **Status:** Canonical concise coordination state  
-**Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `34bd884fb0646894dd682350fd1f35b3bdd46ed3`
+**Updated:** 2026-09-07 (America/Chicago)  
+**Repository snapshot before AUDIT-0007 reconciliation:** `fad6b17575b25437a18c52a352ebd566acdb52b5`
 
 ## Program-wide invariants
 
@@ -17,11 +17,11 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0090` accepted: area-weighted regional ecological opportunity; AUTH-0091 freshwater habitat opportunity in progress |
+| Authorship | `AUTH-0090` accepted; AUTH-0091 / draft PR #279 recomposed onto current history with fresh exact-head CI in progress |
 | Implementation | `SF-IMP-0082` accepted: all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / #284 multi-seed/multi-scale built-in matrix in progress |
-| Content / Experience | `C17` accepted: stock GPS requires ordinary host geometry/range while Ender-backed GPS is a mature range bypass; C18 is current-main green but remains draft/unaccepted; C11/C12 remain separately in progress/reserved |
+| Content / Experience | `C17` accepted; C18 remains draft/unaccepted and machine-green only on its prior tested head, which now requires current-main resynchronization; C11/C12 remain separately in progress/reserved |
 | Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 is draft/unmerged with branch-local cue/source freezes only |
-| AUDIT | AUDIT-0006 Music/Audio lane-integration audit accepted by the merge that places this update on `main` |
+| AUDIT | AUDIT-0007 post-SF-IMP-0082 state reconciliation accepted by the merge that places this update on `main` |
 
 Use each lane state file and merged history for detail.
 
