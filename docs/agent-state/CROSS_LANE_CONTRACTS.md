@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `335978905f5c5e235c07a114a653a3be24536c47`
+**Repository snapshot when updated:** `cab1be65f370f3f81a6d8019ed3db23bcff6f49f`
 
 ## Program-wide invariants
 
@@ -20,9 +20,45 @@
 | Authorship | `AUTH-0085` merged on current `main` (native spring semantic admission) |
 | Implementation | `SF-IMP-0079` merged before current Authorship work (post-cave vegetal routing) |
 | Content / Experience | C10 live 1:1 Nether-scale proof merged; C9 CC:Tweaked avionics substrate and C8 glider-maintenance closure also accepted; later Bellanca B0/Portable Engine design contracts merged |
+| AUDIT | AUDIT-0001 repository-state reconstruction / durable audit handoff accepted on `main` |
 
 Use each lane's own state file and git history for detail. Do not infer acceptance solely from an old
 architecture summary; some older runtime overview docs lag current `main`.
+
+## Authorship / Implementation world-realization contracts
+
+### MERGED / ACCEPTED — AUTH-0085 native spring admission
+
+AUTH-0085 merge: `335978905f5c5e235c07a114a653a3be24536c47`.
+
+Implementation's native `FLUID_SPRINGS` path should enforce:
+
+- water candidates require authored cave interior plus accepted AUTH-0023 `AQUIFER_BODY` support;
+- no adapter-local second aquifer threshold;
+- molten/lava candidates fail closed until explicit geothermal/volcanic authorship exists;
+- existing exact-volume generated-fluid provenance/fencing remains authoritative after admission.
+
+### IN PROGRESS — AUTH-0086 visible authored hydrology
+
+PR #241 projects accepted coherent naturalized channels, retained-waterbody footprints/margins, and
+accepted channel-drop events into exact backend-neutral visible-water intents.
+
+Implementation should not build authored channel/waterfall runtime behavior against AUTH-0086 until
+that PR is merged/accepted.
+
+### MERGED / ACCEPTED — current Implementation capability relevant to Authorship
+
+SF-IMP-0079 is the latest merged Implementation milestone. The runtime already provides exact-volume
+ownership/admission, native population, authored/native cave composition, post-cave interior
+population, and generated-fluid fencing/persistence. Authorship should target those seams rather than
+inventing a parallel backend lifecycle.
+
+### MANUAL VERIFICATION REQUIRED — morphology quality
+
+AUTH-0083/AUTH-0084 review machinery is merged, but issue #214 remains the human gate. Implementation
+must preserve deterministic handoff IDs when producing above/approach/below views and flight routes.
+The gate determines whether current underside morphology is sufficient or needs an explicit
+underside-secondary vocabulary.
 
 ## Active coordination contracts
 
@@ -102,8 +138,9 @@ Bootstrap computing requirements remain tracked in **#224**.
 Merged design contracts define the Giuseppe Bellanca / B0 engineering mule.
 The aircraft must be a real Sable/Create Aeronautics contraption and support useful power-off flight.
 
-Issue **#237** tracks the proposed opt-in Portable Engine cutoff needed to conserve active fuel during
-intentional engine-off soaring. This is proposed compatibility work, not accepted runtime behavior.
+Issue **#237** and draft PR **#240** track the opt-in Portable Engine cutoff needed to conserve active fuel during
+intentional engine-off soaring. The PR has stationary retained-stack runtime evidence, but assembled-Sable,
+save/reload, two-engine aircraft behavior, and human ergonomics remain unaccepted.
 
 ## Handoff discipline
 
@@ -115,3 +152,11 @@ When one lane changes a contract another lane relies on, update this file with:
 - whether the change is accepted, in progress, or proposed.
 
 Keep detailed history out of this file.
+
+## Durable-state namespace
+
+The canonical live agent-state namespace is `docs/agent-state/`.
+
+Parallel lane-state work should add its unique lane file there and reuse this charter/contracts layer. Do not
+establish a second canonical program charter or cross-lane contract set under `docs/handoffs/`; that directory
+may continue to contain historical milestone handoffs.

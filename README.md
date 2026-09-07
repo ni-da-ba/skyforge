@@ -31,6 +31,12 @@ This separation makes terrain behavior explainable and testable before it reache
 - **Backend independence.** The build rejects Minecraft and NeoForge imports from neutral engine modules.
 - **Evidence over screenshots.** Visual atlases accompany, but never replace, topology checks, exact grids, provenance, and pinned hashes.
 
+## Durable development state
+
+Current agent/lane state is maintained under [`docs/agent-state/`](docs/agent-state/README.md). Fresh agents should read the canonical program charter, their lane state, and the cross-lane contracts there before relying on conversational recollection.
+
+The capability narrative below is retained as an architectural/reviewer snapshot and may lag the latest accepted milestone. The canonical current Implementation frontier is the lane state document plus merged Git history/tests.
+
 ## Current capabilities
 
 The accepted Minecraft integration through **SF-IMP-0057** includes:
