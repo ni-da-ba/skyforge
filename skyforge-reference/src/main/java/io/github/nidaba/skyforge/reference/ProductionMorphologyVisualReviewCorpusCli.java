@@ -55,6 +55,7 @@ public final class ProductionMorphologyVisualReviewCorpusCli {
                 generateMembers(members, output, version);
 
         writeSummary(members, results, output);
+        writeSurfaceCharacterSummary(members, results, output);
         writeMinecraftHandoff(members, output);
         Files.writeString(output.resolve("index.html"), galleryHtml(members), StandardCharsets.UTF_8);
         System.out.println(output.resolve("index.html").toAbsolutePath());
