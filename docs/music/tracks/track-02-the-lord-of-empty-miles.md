@@ -131,17 +131,37 @@ The final correction replaced the overlap with one continuous E and smoothed the
 
 ## Canonical MIDI identity
 
-SHA-256:
+The accepted percussion repair was auditioned from the user's final Sonar export and then promoted to canonical source.
 
-```text
-73aa596990090b22d250d994714e24bc3162eba5a04b5a70bf7c36ace8a5ef28
-```
+### Provenance chain
 
-Canonical authoring source at MUS-0001 record time:
+- user Sonar MIDI export before repair SHA-256:
+  `55994f79650df7d4dbda39f78d13df52a4dc01490164469416c4896716e0ef0b`
+- percussion-repaired audition MIDI SHA-256:
+  `500763a02801c3cb61f45fba7505e8d26d6eb0087318a92516db586756f6daf2`
+- canonical persisted MIDI SHA-256:
+  `79be46fd4ca2d712a727a571265d8521740148a550e05c04288cd14d5b9bf50d`
 
-```text
-The_Lord_of_Empty_Miles_Draft4_2_FULL_HORN_TRANSITION_SMOOTHED.mid
-```
+The canonical persisted version differs from the audition MIDI only in conductor metadata:
+
+- tempo metadata corrected from the exported 120 BPM placeholder to the actual canonical **132 BPM**;
+- key-signature metadata changed from C to **E minor** for self-contained source identity.
+
+No note timing, duration, velocity, controller data, track order, or orchestration was changed during this metadata normalization.
+
+Repository source:
+
+`assets/music/source/frozen/track-02-the-lord-of-empty-miles-d4-2.mid.gz`
+
+BBCSO Track 12 preset:
+
+`Percussion -> Untuned Percussion`
+
+Canonical percussion map:
+
+- MIDI 48 x97 — Bass Drum;
+- MIDI 50 x26 — Tenor Drum;
+- MIDI 71 x14 — Piatti.
 
 ## Stereo master
 
@@ -198,79 +218,37 @@ Its main value is twofold:
 
 Adaptive decomposition remains deferred until runtime encounter states and transition semantics are concrete enough to justify loop/stem boundaries.
 
-## Post-freeze percussion repair — active maintenance
+## Post-freeze percussion repair — accepted
 
-Track 06 exposed a broader BBCSO percussion-authoring mistake that also affects the frozen Track 02 source.
+Track 06 exposed a BBCSO percussion-authoring defect in Track 02. The user's final Sonar MIDI confirmed the legacy Track 12 note roles:
 
-The original Track 02 PERC lane used note numbers that align with **General MIDI drum roles**, while BBCSO Discover Untuned Percussion uses a different keyboard layout and Spitfire octave convention.
+- MIDI 36 x97 — bass-drum role;
+- MIDI 41 x26 — floor-tom/drum role;
+- MIDI 49 x14 — crash-cymbal role.
 
-Observed legacy note roles:
+These were repaired semantically for BBCSO Discover Untuned Percussion:
 
-- MIDI 36 x97 — GM Bass Drum 1;
-- MIDI 41 x26 — GM Low Floor Tom;
-- MIDI 49 x14 — GM Crash Cymbal 1.
+- 36 -> 48 — Bass Drum;
+- 41 -> 50 — Tenor Drum;
+- 49 -> 71 — Piatti.
 
-This role pattern also matches the musical placement: the 41 events form repeated panic/drum activity, while the 49 events are sparse structural crash accents.
+The user auditioned the repaired BBCSO render and accepted the result.
 
-### Proposed BBCSO Discover repair map
+### Accepted repaired render
 
-For the controlled A/B repair:
+User export: `TLoEM_Fixed.wav`
 
-- legacy MIDI 36 -> **MIDI 48 / BBCSO Bass Drum**;
-- legacy MIDI 41 -> **MIDI 50 / BBCSO Tenor Drum**;
-- legacy MIDI 49 -> **MIDI 71 / BBCSO Piatti**.
+- SHA-256: `d80a8e340f10f7bf046f8279ff061d225fd597f8e80c2521c86cc8da430f351c`;
+- stereo, 44.1 kHz;
+- duration: approximately 170.000 s;
+- 92 bars at 132 BPM end at approximately 167.273 s, leaving approximately 2.727 s of render tail;
+- sample peak: approximately -7.58 dBFS.
 
-BBCSO preset:
+The repaired percussion is clearly audible in the accepted render, including the fire/panic region. This maintenance repair is now complete.
 
-`12 PERC | Percussion -> Untuned Percussion`
+### Persistence incident and resolution
 
-This is a semantic instrument-role repair, not a blanket octave transpose.
+The previously stored Track 02 `.mid.gz` was discovered to contain Track 00 data despite its Track 02 path. That artifact has been replaced in-place with the verified repaired Track 02 source.
 
-In particular, do **not** simply transpose every PERC event +12:
-the old GM floor-tom and crash notes need to be remapped to the closest intended BBCSO instruments, not merely moved by octave.
+The old documented Track 02 hash `73aa5969...` is retained only as historical provenance and must not be used as the current repository-source identity.
 
-### Crash positions
-
-The 14 legacy MIDI-49 crash accents occur at:
-
-- bar 27 beat 4;
-- bar 28 beat 4;
-- bars 37, 41, 44, 53, 57, 60, 61, 65, 68, 77, 81, and 84 beat 1.
-
-### Acceptance rule
-
-Preserve all non-percussion composition and controller work.
-
-The existing frozen render remains canonical until the corrected percussion version is auditioned in BBCSO. If the repaired layer strengthens physical danger without obscuring the accepted motif / brass / panic hierarchy, promote the corrected source. Otherwise retain the frozen render and treat the percussion repair as optional.
-
-
-
-## Source-persistence defect discovered during percussion repair
-
-While preparing the BBCSO percussion-repaired MIDI, the repository artifact
-`assets/music/source/frozen/track-02-the-lord-of-empty-miles-d4-2.mid.gz`
-was decompressed and verified.
-
-It does **not** contain the documented Track 02 canonical MIDI. Its decompressed SHA-256 is:
-
-`beb0c9d7d5625c7764207d140cce6b5496bbf1ad0803b2f0d78c26ce3cde9695`
-
-which is the frozen Track 00 / *A Windborne Fantasia* source hash, not the documented Track 02 hash:
-
-`73aa596990090b22d250d994714e24bc3162eba5a04b5a70bf7c36ace8a5ef28`
-
-Therefore the repository's Track 02 frozen binary is a mislabeled persistence artifact and must **not** be used to manufacture a repaired dragon MIDI.
-
-The repair must be applied to the actual final Track 02 source exported from the accepted Sonar session:
-
-`The_Lord_of_Empty_Miles_Draft4_2_FULL_HORN_TRANSITION_SMOOTHED.mid`
-
-Once recovered, apply only the documented PERC role map:
-
-- legacy 36 -> BBCSO 48 / Bass Drum;
-- legacy 41 -> BBCSO 50 / Tenor Drum;
-- legacy 49 -> BBCSO 71 / Piatti;
-
-with Track 12 routed to Percussion -> Untuned Percussion.
-
-After user audition, replace the mislabeled repository artifact with the verified corrected source and update its SHA-256.
