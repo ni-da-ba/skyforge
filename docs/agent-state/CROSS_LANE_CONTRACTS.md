@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `d63f7c712355fb421c909f7bbdc74465a88522e6`
+**Repository snapshot when updated:** `70428e9920ff9e0f5d52a8f3ba90462f15a49e8f`
 
 ## Program-wide invariants
 
@@ -17,9 +17,9 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0088` accepted: published surface-ecology projection; AUTH-0089 in progress only |
+| Authorship | `AUTH-0089` accepted: deterministic island ecological opportunity profile, still placement/species/backend-neutral |
 | Implementation | `SF-IMP-0081` accepted: first exact AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / #269 remaining built-in morphology atlas in progress |
-| Content / Experience | `C16` accepted: bounded Wireless Modem / universal Ender Modem envelope; C11/C12 remain separately in progress/reserved |
+| Content / Experience | `C17` accepted: stock GPS requires ordinary host geometry/range while Ender-backed GPS is a mature range bypass; C11/C12 remain separately in progress/reserved |
 | AUDIT | AUDIT durable reconstruction/reconciliation remains the program-state review layer |
 
 Use each lane state file and merged history for detail.
@@ -42,9 +42,9 @@ Published volumes may bind to authorship only through the explicit exact associa
 
 For one exact published volume ID + world X/Z, downstream may query unchanged AUTH-0003 ecology only through AUTH-0087 association, compiled horizontal support, and current authored ownership. Native-unowned fringe fails closed. Physical Y, Minecraft biome keys, quart-cell presentation, persistence, and atmospheric biome envelopes remain Implementation-owned.
 
-### AUTH-0089 — island ecological opportunity profile — IN PROGRESS
+### AUTH-0089 — island ecological opportunity profile — ACCEPTED
 
-Authorship is aggregating placement-free ecology regime composition and broad environmental potentials. It must not assign species, spawn counts, carrying capacity, resources, or backend biome identity.
+AUTH-0089 merged as `badcfbf8f9cf102a1f6f8f7bd018183d84f74e37`. It deterministically aggregates unchanged AUTH-0003 ecology into horizontal authored-habitat area, regime composition, and mean vegetation/saturation/thermal opportunity. It assigns no species, spawn counts, carrying capacity, resources, or backend biome identity.
 
 ### SF-IMP-0080 — visible land ecology — ACCEPTED
 
@@ -84,7 +84,7 @@ Other lanes must not introduce an independent wind/thermal authority without reo
 
 ### Ecology
 
-Authorship/environment semantics determine niches/opportunity. Content maps retained species into those niches. Atmosphere may alter behavior but must not independently create population. AUTH-0088 is the semantic query seam; SF-IMP-0080 is the current visible Minecraft ecology seam. Do not conflate them.
+Authorship/environment semantics determine niches/opportunity. Content maps retained species into those niches. Atmosphere may alter behavior but must not independently create population. AUTH-0088 is the exact published local query seam; AUTH-0089 is the accepted island-scale opportunity summary; SF-IMP-0080 is the visible Minecraft ecology seam. Do not conflate semantic opportunity with spawn/carrying-capacity policy.
 
 ### Nether route scale
 
@@ -119,8 +119,19 @@ Cross-lane consequences:
 - do not add a duplicate generic Skyforge networking authority/API;
 - ordinary Wireless Modems may remain unnerfed as infrastructure;
 - Ender Modems are a mature bypass and should be progression-conscious rather than an unexamined early default;
-- final Ender gating, GPS layout, turtle throughput, and autopilot progression remain Content gameplay decisions;
+- final Ender gating, GPS tower placement/spacing, turtle throughput, and autopilot progression remain Content gameplay decisions;
 - thin Skyforge peripherals remain reserved for genuinely Skyforge-owned semantics absent upstream.
+
+**C17 / PR #272**, merge `65bd49a4e349f16bab8b796aa5b1a1e6dd72a7cc`, proves stock GPS topology on real CraftOS computers:
+
+```text
+noHostFound=false
+normalNearFound=true  normalNear=16,64,16
+normalFarFound=false
+enderRemoteFound=true enderRemote=512,80,272
+```
+
+Cross-lane consequence: ordinary GPS is legitimate physical navigation infrastructure because it needs a non-collinear host constellation inside radio range; Ender-backed GPS is a mature range bypass. No duplicate Skyforge GPS authority/API is justified. Tower placement/spacing remains Content/Bootstrap design rather than a networking-capability gap.
 
 Bootstrap computing remains tracked in #224.
 

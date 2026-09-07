@@ -68,5 +68,6 @@ public final class SkyforgeNeoForge1211Mod {
         // C16 and SF-IMP-0081 are independent opt-in ModDev fixtures; both remain inert in normal packaged runtime.
         SkyforgeWaveC15PortalLinkingAcceptance.installFromSystemProperty();
         SkyforgeWaveC16WirelessEnvelopeAcceptance.installFromSystemProperty();
+        SkyforgeWaveC17GpsInfrastructureAcceptance.installFromSystemProperty();
     }
 }
