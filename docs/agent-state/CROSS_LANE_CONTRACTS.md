@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `93a7c542b7493ee84d305331b75b6db9459514b8`
+**Repository snapshot when updated:** `993d3815aef7c5a894ae562880b9075a24a6ddc6`
 
 ## Program-wide invariants
 
@@ -17,7 +17,7 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0089` accepted: deterministic island ecological opportunity profile, still placement/species/backend-neutral |
+| Authorship | `AUTH-0090` accepted: area-weighted regional ecological opportunity; AUTH-0091 freshwater habitat opportunity in progress |
 | Implementation | `SF-IMP-0081` accepted: first exact AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / #269 remaining built-in morphology atlas in progress |
 | Content / Experience | `C17` accepted: stock GPS requires ordinary host geometry/range while Ender-backed GPS is a mature range bypass; C11/C12 remain separately in progress/reserved |
 | AUDIT | AUDIT-0005 post-ecology / first-production-morphology convergence audit accepted by the merge that places this update on `main` |
@@ -45,6 +45,16 @@ For one exact published volume ID + world X/Z, downstream may query unchanged AU
 ### AUTH-0089 — island ecological opportunity profile — ACCEPTED
 
 AUTH-0089 merged as `badcfbf8f9cf102a1f6f8f7bd018183d84f74e37`. It deterministically aggregates unchanged AUTH-0003 ecology into horizontal authored-habitat area, regime composition, and mean vegetation/saturation/thermal opportunity. It assigns no species, spawn counts, carrying capacity, resources, or backend biome identity.
+
+### AUTH-0090 — regional ecological opportunity — ACCEPTED
+
+AUTH-0090 / PR #276 merged as `1a2f9cc2e76bfd5ef9a36d3547dd0a0f3835fe28`.
+
+One exact AUTH-0058/AUTH-0087 published region can now aggregate every associated AUTH-0089 island profile into total horizontal authored-habitat area plus area-weighted AUTH-0003 regime composition and mean vegetation/saturation/thermal opportunity, retaining canonical island/volume provenance. It does not assign species, resources, province labels, Minecraft biomes, or backend lifecycle policy.
+
+### AUTH-0091 — freshwater habitat opportunity — IN PROGRESS
+
+Authorship is aggregating accepted retained-waterbody semantics into island-scale coarse horizontal inundated-area, shoreline-cell, source-kind, and normalized water-depth opportunity evidence. Dry islands must remain valid zero-water profiles. Physical water volume/depth, fauna, agriculture/resource eligibility, and Minecraft fluid identity remain outside this contract.
 
 ### SF-IMP-0080 — visible land ecology — ACCEPTED
 
@@ -84,7 +94,7 @@ Other lanes must not introduce an independent wind/thermal authority without reo
 
 ### Ecology
 
-Authorship/environment semantics determine niches/opportunity. Content maps retained species into those niches. Atmosphere may alter behavior but must not independently create population. AUTH-0088 is the exact published local query seam; AUTH-0089 is the accepted island-scale opportunity summary; SF-IMP-0080 is the visible Minecraft ecology seam. Do not conflate semantic opportunity with spawn/carrying-capacity policy.
+Authorship/environment semantics determine niches/opportunity. Content maps retained species into those niches. Atmosphere may alter behavior but must not independently create population. AUTH-0088 is the exact published local query seam; AUTH-0089 is the accepted island-scale ecology summary; AUTH-0090 is the accepted regional ecology summary; AUTH-0091 is preparing retained-freshwater habitat evidence. SF-IMP-0080 remains the visible Minecraft ecology seam. Do not conflate semantic opportunity with spawn/carrying-capacity/resource policy.
 
 ### Nether route scale
 

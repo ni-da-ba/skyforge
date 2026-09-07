@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot at latest AUDIT-0005 synchronization:** `93a7c542b7493ee84d305331b75b6db9459514b8`
+**Main snapshot at latest AUDIT-0005 synchronization:** `993d3815aef7c5a894ae562880b9075a24a6ddc6`
 
 Read first:
 
@@ -63,7 +63,7 @@ Accepted by the merge that places this update on `main`.
 
 AUDIT-0005 records repository-visible convergence after AUDIT-0004 without creating producer-lane behavior:
 
-- AUTH-0088 / PR #262 remains accepted; AUTH-0089 / PR #268 is now also merged/accepted as the fixed island ecological-opportunity profile, with exact-head CI `34085928791` green and durable state repaired by PR #274;
+- AUTH-0088 and AUTH-0089 remain accepted; AUTH-0090 / PR #276 is now also merged/accepted as the exact area-weighted regional ecological-opportunity profile. Accepted head `744e2d76`, CI `34088215137` PASS, runtime merge `1a2f9cc2`, and durable-state repair PR #278 are all complete;
 - Content C16 remains accepted; Content C17 / PR #272 is now also merged/accepted, proving stock GPS requires a non-collinear host constellation inside ordinary wireless range while Ender-backed GPS inherits the mature-bypass status. Exact-head C17, repository CI, showcase persistence, and performance gates passed on `9373c307`;
 - SF-IMP-0081 / PR #265 is merged/accepted as the first exact AUTH-0083 Massif Minecraft carrier: accepted head `0e3dddae90a8af605dd959132ce865412e92e5c0`, runtime merge `bac972eb7e8d772a250d292602e109428d06514a`, Implementation state repair `0566c7909219a5281609da3445d8a082d0be02c6`, and shared-contract update `001bc7aa6dbd01d94d8a92023f8c5fc7831d3020`; first #214 human Massif review passed while full #214 remains open;
 - issue #267 records the non-blocking Massif traversal-cadence/lumpiness observation; do not flatten the accepted carrier from one specimen;
@@ -77,7 +77,7 @@ No producer-lane capability is created by AUDIT-0005.
 | Lane | Highest merged boundary |
 | --- | --- |
 | Implementation | **SF-IMP-0081** / PR #265 — first exact AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / #269 is the active remaining-family tranche |
-| Authorship | **AUTH-0089** / PR #268 — deterministic island ecological-opportunity profile; durable state repaired by merged PR #274 |
+| Authorship | **AUTH-0090** / PR #276 — exact area-weighted regional ecological-opportunity aggregation; durable state repaired by merged PR #278 |
 | Content / Experience | **C17** / PR #272 — stock GPS infrastructure topology; C18 turtle freight is in progress; C11/C12 remain separately in progress/reserved |
 | Showcase | cave/interior technical showcase accepted; ecology showcase accepted; first production Massif carrier machine- and human-accepted |
 | Music | no MUS milestone merged; PR #159 remains draft/unmerged |
@@ -111,26 +111,33 @@ Acceptance still requires the full exact-head four-family machine matrix and the
 
 ### Content C18 / PR #277 — stock turtle void-freight envelope
 
-Draft/in progress with a **blocking fixture-precondition failure** on current head `9005c0e0`.
+Draft/in progress. The first unloaded-adjacent-chunk fixture hypothesis failed closed because Minecraft kept the intended target loaded. The owner replaced that artificial precondition with a better player-facing experiment: one explicitly forced starting chunk, then a 48-block otherwise-unforced route with durable per-move progress and fuel accounting.
 
-The black-box design remains appropriately scoped: real CraftOS turtle movement/refuel/drop calls, a deliberately fixture-forced loaded freight corridor, and a separate intended unloaded-boundary case. Audit found no production chunk-loader policy in the code.
-
-However dedicated run `34088462995` failed before exercising stock `turtle.forward()` at the unloaded boundary:
+Repaired dedicated run `34088869796` **PASSED** on head `c1496ada`:
 
 ```text
-could not establish loaded-start/unloaded-target turtle boundary;
-startLoaded=true targetLoaded=true
+outboundMoves=64
+returnMoves=64
+fuelStart=160
+fuelEnd=32
+delivered=960
+elapsedTicks=1168
+boundaryOutcome=STALLED
+boundaryMoves=17
+boundaryFuelStart=80
+boundaryFuelEnd=63
+boundaryError=NO_TICK_PROGRESS
 ```
 
-Therefore C18 currently proves neither success nor failure of the intended unloaded-chunk movement boundary. The owner must establish a genuinely unloaded adjacent destination while the current turtle chunk is live, preserve the fail-closed precondition check, and rerun exact-head evidence. Do not infer unload state from distance/geometry alone and do not weaken the gate.
+This proves measured route/ticking-envelope dependence, not an exact internal chunk-boundary error and not a production chunk-loader policy. The freight turtle moved 128 blocks with exact fuel delta and delivered 960 items; the unforced-route turtle stalled after 17 successful moves with exact fuel delta.
 
-Even after repair, the acceptance claim must remain bounded to measured cargo, fuel, cadence, and loaded-world dependence; aircraft-vs-turtle economics, mining/farming throughput, Ender-storage combinations, and any nerf remain later Content decisions.
+Dedicated C18, showcase persistence, and performance gates are green on the repaired head; repository CI was still running at this Audit boundary. In addition, current main has advanced through AUTH-0090 runtime/state, so final C18 acceptance still requires synchronization and fresh exact-head evidence. Aircraft-vs-turtle economics, dedicated chunk-loader progression, mining/farming throughput, Ender-storage combinations, and any nerf remain separate Content decisions.
 
-### AUTH-0090 / PR #276 — regional ecological opportunity aggregation
+### AUTH-0091 — freshwater habitat opportunity — in progress / unaccepted
 
-Draft/in progress. Audit found no ownership blocker. The public API accepts only one exact AUTH-0087 published binding, regenerates accepted AUTH-0089 profiles for every canonical association, preserves exact order/count/provenance, sums horizontal authored-habitat area, and computes only area-weighted AUTH-0003 regime/vegetation/saturation/thermal aggregates.
+AUTH-0090 is now **MERGED / ACCEPTED**. Audit independently reviewed its exact AUTH-0087 binding input, AUTH-0089 per-island regeneration, canonical association coverage/order, exact horizontal-area sum, and area-weighted AUTH-0003 regime/vegetation/saturation/thermal aggregation. It introduces no species, carrying capacity, spawn, resource eligibility, province label, Minecraft biome, or backend lifecycle.
 
-It introduces no species, carrying capacity, spawn count, resource eligibility, agricultural/province label, Minecraft biome identity, or backend lifecycle. Final semantic acceptance remains Authorship-owned and requires exact-head CI/evidence.
+Authorship durable state now names AUTH-0091 as the next semantic target. Its intended boundary is retained-freshwater planning evidence from accepted watershed/waterbody semantics only: coarse inundated area, shoreline cells, source-kind counts, and normalized depth opportunity. Physical water volume/metres, fauna, agriculture/resources, Minecraft fluid identity, and backend lifecycle remain outside the contract. Treat AUTH-0091 as unaccepted until a concrete branch/PR passes owner exact-head evidence.
 
 ### C11 — live pre-Brass first-flight recipe surface — PR #233
 
@@ -164,9 +171,9 @@ Audited proposal head `797e0c54325b1f45d0aa6229124c3bb7e8727bda` remains cross-l
 
 Passed for accepted SF-IMP-0080 and recorded before merge. Do not reopen for issue #261.
 
-### #214 production morphology — OPEN / first tranche passed
+### #214 production morphology — OPEN / first tranche passed / tracking corrected
 
-The SF-IMP-0081 Massif human tranche passed for silhouette/morphology/underside quality. Full #214 remains open for the other built-in families, multiple seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts. Issue #267 tracks Massif traversal cadence separately.
+The SF-IMP-0081 Massif human tranche passed for silhouette/morphology/underside quality. Full #214 remains open for the other built-in families, multiple seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts. GitHub issue #214 had been incorrectly closed at the SF-IMP-0081 merge boundary; AUDIT reopened it to match the accepted ledgers and explicit first-tranche-only human decision. Issue #267 tracks Massif traversal cadence separately.
 
 ### Bellanca / C12 — OPEN
 
@@ -189,8 +196,8 @@ Resolved hazards include the C11/C13 identifier collision, duplicate live-state 
 ## ORDERED NEXT AUDIT WORK
 
 1. Continue auditing SF-IMP-0082 / PR #273 through its exact-head four-family prepare/reopen matrix and human #214 review; do not infer family acceptance from machine evidence alone.
-2. Track AUTH-0090 / PR #276 only for contract/ownership drift until Authorship exact-head acceptance is complete.
-3. Track C18 / PR #277 through repair of its loaded-start/unloaded-target fixture precondition; require a genuine unloaded-boundary proof before any capability/economics interpretation, and reject any leap to production chunk-loader policy or premature turtle nerf.
+2. Audit AUTH-0091 when concrete work opens; preserve normalized retained-freshwater opportunity as planning evidence rather than physical water depth/volume, fauna, agriculture/resource, or backend authority.
+3. Track C18 / PR #277 through current-main synchronization and final exact-head CI. Preserve the revised route/ticking-envelope interpretation; reject any leap to a production chunk-loader policy, exact internal chunk-boundary claim, or premature turtle nerf.
 4. Track issue #267 as non-blocking Massif traversal evidence and issue #261 as non-blocking biome-envelope refinement.
 5. Re-audit C11 / PR #233 and Portable Engine #240 only after their declared synchronization/runtime prerequisites.
 6. Keep full #214 open for seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts after the built-in family tranche.
