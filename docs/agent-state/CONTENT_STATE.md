@@ -3,7 +3,7 @@
 **Lane:** Content / Experience  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot after C15 merge:** `764fbb393644fd2de7aa9076f71f29602fa25732`
+**Main snapshot after C16 merge:** `d63f7c712355fb421c909f7bbdc74465a88522e6`
 
 Read first:
 
@@ -13,326 +13,173 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest accepted executable Content milestone by identifier: C15
+### Highest accepted executable Content milestone: C16
 
-**C15 / PR #259**, merge `764fbb393644fd2de7aa9076f71f29602fa25732`; exact synchronized
-runtime head `8e75e84b800587a6d87676d8e18e4ed974f65c29`.
+**C16 / PR #264**, merge `d63f7c712355fb421c909f7bbdc74465a88522e6`; exact synchronized runtime head `03418c4e941bc394989ca4269a1fbff3fc40cab7`.
 
-C15 closes ordinary-player portal linking/placement for the interim C10 1:1 Nether route policy using
-the real vanilla `NetherPortalBlock.getPortalDestination` path with the retained Create/Sable/
-Aeronautics runtime and no portal overhaul:
+C16 measures the real CC:Tweaked wireless infrastructure envelope with six real CraftOS computers and stock modem peripherals:
 
 ```text
-overworldScale=1.0
-netherScale=1.0
-outboundSameDistance=0.0
-outboundDistractorDistance=653.0666122226736
-returnDistance=0.0
-createdPortal=BlockPos{x=-702, y=95, z=451}
-createdOffset=3.605551275463989
-createdTransitionOffset=3.605551275463989
+normalNearReceived=true  normalNearDistance=48
+normalFarReceived=false
+enderRemoteReceived=true enderRemoteDistance=512
+enderCrossReceived=true  enderCrossDistance=nil
 ```
 
-At non-origin coordinates, vanilla selects the same-coordinate Nether portal instead of a deliberate
-8:1-compressed distractor; the reverse link is exact; and when the target is absent, vanilla creates a
-searchable portal near the live 1:1 target. C15 accepts ordinary player portal mechanics only. It does
-not accept assembled Sable/Aeronautics contraption transfer, passengers/cargo, authored portal-site
-safety, subjective terminal usability, or permanent 1:1 cosmology.
+Accepted interpretation:
 
-C11 and C12 remain separately reserved/in progress; numerical order does not imply their acceptance.
+- ordinary Wireless Modems are a bounded local/regional infrastructure layer and need no Skyforge nerf or replacement;
+- Ender Modems remove same-dimension range and cross-dimensional separation and are therefore an explicit mature bypass, not an unexamined early Bootstrap Province default;
+- no bespoke Skyforge generic networking API is justified;
+- final Ender Modem progression/recipe gating, GPS layout, turtle throughput, and autopilot progression remain separate gameplay decisions.
 
-### C14 — executable avionics capability
+Exact-head verification before merge passed C2/C3/C5/C6/C7/C9/C10/C13/C14/C15/C16, repository CI, both showcase persistence jobs, and SF-IMP-0070 performance characterization. A first C6 attempt on an earlier synchronized head timed out while the runner was ~40 ticks behind; the exact same C6 job was rerun successfully before later synchronization, and C6 passed again on the final C16 head.
 
-**C14 / PR #256**, merge `b4b44c87509ee70b27ddbe20468d2d287cbd79f1`; exact synchronized runtime head
-`dda6d1c6a98034c12931bcdcfcaf9fe70a9d03dd`.
+### C15 — ordinary-player 1:1 Nether portal linking/placement
 
-C14 closes the first executable C9 capability gap without adding a Skyforge computing API. The exact
-retained CC:Tweaked + Create: Avionics stack booted two real CraftOS computers, discovered real
-Simulated altitude-sensor and throttle-lever peripherals, and produced:
+**PR #259**, merge `764fbb393644fd2de7aa9076f71f29602fa25732`; accepted head `8e75e84b800587a6d87676d8e18e4ed974f65c29`.
 
-```text
-lowHeight=80.5
-highHeight=120.5
-altitudeDelta=40.0
-throttle=0 -> 9 -> 0 -> 15
-physicalLow=15
-physicalHigh=15
-```
+Vanilla portal search and missing-target creation consume the live C10 1:1 scale at non-origin coordinates. Same-coordinate linking beats a deliberate 8:1 distractor; reverse linking is exact; missing targets are created near the 1:1 destination. Assembled contraption/passenger/cargo transfer, authored foothold safety, terminal UX, and permanent cosmology remain open.
 
-The A/B baseline also reached dedicated-server ready state with the retained Create/Sable/Aeronautics
-flight stack and no CC:Tweaked/Create: Avionics. Existing Create: Avionics peripherals are therefore
-the accepted baseline programmable sensor/bounded-control substrate. Computing remains optional for
-manual/first flight, and thin Skyforge peripherals remain reserved for genuinely Skyforge-owned
-semantics unavailable upstream. C14 does not accept autopilot progression, turtle throughput,
-wireless/GPS balance, route/fleet automation UX, or a permanent optional-mod version lock.
+### C14 — executable programmable avionics capability
 
-C11 and C12 remain separately reserved/in progress; numerical order does not imply their acceptance.
+**PR #256**, merge `b4b44c87509ee70b27ddbe20468d2d287cbd79f1`.
+
+Real CraftOS computers discover upstream Create: Avionics altitude/throttle peripherals, read live altitude, and drive the retained physical throttle through upstream 0..15 clamping. Computing remains optional for manual/first flight; no duplicate generic aircraft telemetry/control API is justified.
 
 ### C13 — Elytra/firework bypass suppression
 
-**C13 / PR #247**, exact-head targeted acceptance `7ca8d8d6126d772320b696be73bf7084070f33cc`.
+**PR #247**, merge `dcfa4d467bfcd8e64443da84f2f970de6b1ccd7b`.
 
-C13 closes the Elytra/firework mobility bypass with a black-box dedicated-server comparison:
+The pinned No More Elytra Boosting 1.0.0 runtime removes Elytra rocket propulsion while preserving fall-flying and ordinary fireworks. Human clarity/optional feedback remains a UX question only.
 
-```text
-vanilla baseline: boostDelta=0.85, boostRockets=1, fallFlying=true, ordinaryRockets=1
-suppressed:       boostDelta=0.0,  boostRockets=0, fallFlying=true, ordinaryRockets=1
-```
+### C10 — live 1:1 Nether scale
 
-The exact pinned No More Elytra Boosting 1.0.0 runtime therefore removes Elytra rocket propulsion
-without disabling unpowered Elytra flight or ordinary block-launched fireworks. No bespoke Skyforge
-mixin is justified for mobility integrity. Blast/damage/instability feedback remains optional UX only.
+**PR #232**, merge `5eaff75638cd3f9033f440e67b82f705c999cd51`.
 
-C11 and C12 remain separately reserved/in progress below. C13 used the next free identifier rather
-than overwriting those parallel milestone identities; numerical order does not imply C11/C12 acceptance.
-
-### C10 — live 1:1 Nether-scale proof
-
-**C10 / PR #232**, merge `5eaff75638cd3f9033f440e67b82f705c999cd51`.
-
-C10 proves the standalone 1:1 Nether datapack reaches Minecraft's live final dimension registry:
-
-```text
-Overworld coordinateScale = 1.0
-Nether    coordinateScale = 1.0
-```
-
-This accepts the runtime mechanism, not yet the final portal-route policy.
+Final live Overworld and Nether `coordinate_scale` are both 1.0. C15 subsequently closes ordinary-player portal linking/creation for that interim policy.
 
 ### C9 — CC:Tweaked avionics substrate
 
 **PR #230**, merge `6db44a0f26d244598aa44317abe6c7219eec44c1`.
 
-The exact retained flight stack loads with:
+Accepted retained stack: CC:Tweaked 1.119.0 + Create: Avionics 0.5.2 + Create 6.0.10 + Sable 2.0.5 + Create Aeronautics 1.3.2.
 
-```text
-CC:Tweaked 1.119.0
-Create: Avionics 0.5.2
-Create 6.0.10
-Sable 2.0.5
-Create Aeronautics 1.3.2
-```
+### C8 and earlier retained experience contracts
 
-Accepted claim: the reuse-first computing/avionics substrate is runtime-compatible and no bespoke
-Skyforge computer/peripheral is required merely for aircraft instrumentation/control.
+- C8 / PR #229 closes Phantom-gated glider acquisition/maintenance with ordinary leather/wool repair.
+- C7 / PR #223 proves Reliable Gliders consumes trusted shared A4MC lift after native glider physics.
+- C6 proves the retained Fowl Play red-tailed hawk can enter/exit thermal SOAR from the same atmosphere authority.
+- C3/C5 prove A4MC and retained fauna stack loader/runtime compatibility.
+- C1 industrial scaffolding is merged but still has manual/runtime closure gates listed below.
 
-Production lock, autopilot balance, turtle/mining roles, and Skyforge-specific peripherals remain open.
-
-### C8 — bootstrap glider maintenance closure
-
-**PR #229**, merge `d2f9ee69c55f10da32f9da3802945e390f5168cf`.
-
-C2 already replaced Phantom-gated crafting with wool/leather/sticks. C8 also replaces the Reliable
-Gliders repair tag with leather + `#minecraft:wool` using `replace: true`, so neither acquisition
-nor maintenance requires Phantom Membrane.
-
-### C7 — player shared lift
-
-**PR #223**, merge `a3281a0e6f0fe3e6eb4ce86cacc8470bf6006c88`.
-
-C7 closes the player-facing shared-lift proof:
-
-- Reliable Gliders remains owner of glider mechanics;
-- A4MC remains atmosphere authority;
-- Skyforge applies only trusted post-native vertical lift;
-- real Reliable Gliders gliding-state admission is used;
-- stronger native/block updraft wins rather than stacking;
-- untrusted atmosphere and non-gliding players are inert.
-
-### C6 — real hawk thermal compatibility
-
-Merged before C7.
-
-Accepted machine evidence against a real Fowl Play red-tailed hawk:
-
-```text
-joined hawks        1
-brain adaptations   1
-SOAR transitions    2
-steering commands   3
-stock schedule      restored
-```
-
-Fowl Play hawk is therefore the retained THERMAL_SOARER realization; no bespoke Skyforge hawk is justified.
-
-### C3-C5 supporting boundary
-
-- C3: A4MC core/compat and measurement stack reached dedicated-server ready state.
-- C4: shared-lift consumer contract.
-- C5: Fowl Play + SmartBrainLib + YACL + A4MC coexistence proved headlessly.
-
-### Latest merged Content design tranche
-
-**PR #238**, merge `0368261e59da1501266427980780848e331e3e7a`.
-
-Merged records:
-
-- `giuseppe-bellanca-aircraft-contract-v0.1.md`;
-- `giuseppe-bellanca-b0-engineering-mule-v0.1.md`;
-- `portable-engine-redstone-cutoff-compatibility-contract-v0.1.md`.
-
-These documents are merged design state, **not** accepted flight/runtime behavior.
-
-## IN PROGRESS
+## IN PROGRESS / RESERVED
 
 ### Bootstrap Province — issue #224
 
-This is the central Content vertical slice.
-
-It must prove, through one deterministic starting province:
+Central Content vertical slice:
 
 ```text
 survival -> Create -> cheap glider -> shared thermals/fauna -> first aircraft
 -> specialized destination -> regional freight -> mature infrastructure evidence
 ```
 
-Computing/CC integration is explicitly part of #224.
+SF-IMP-0080 / PR #248 is now merged/accepted and the project-owner human ecology gate passed, so legible forest/taiga land ecology is no longer blocked by issue #194. Issue #261 is only a non-blocking short-distance biome ambience/presentation follow-up.
 
-### C11 — live pre-Brass first-flight recipe surface — PR #233
+### C11 — live pre-Brass first-flight recipe surface — draft PR #233
 
-C11 is already owned by draft PR #233. It tests the retained Create/Sable/Aeronautics recipe surface
-for an early alternative to advanced material families. Do not create a second C11 milestone.
+Already owned by parallel work. Do not duplicate C11.
 
 ### C12 — executable Bellanca B0 — issue #239
 
-C12 is reserved for the real assembled Sable/Create Aeronautics Bellanca engineering mule. It depends
-on C11 recipe-surface closure and requires issue #237/equivalent before power-off glide/restart can close.
-
-### Land-biome visibility dependency — issue #194 / draft PR #248
-
-Implementation must expose a human-visible persistent land-biome specimen with legible soil/grass/trees/plants.
-Do not tune ecology from gravel/ocean showcase fixtures.
+Reserved for the real assembled Sable/Create Aeronautics Bellanca engineering mule. It still depends on C11 closure and the Portable Engine cutoff path.
 
 ### Portable Engine cutoff — issue #237 / draft PR #240
 
-The opt-in cutoff has stationary retained-stack runtime evidence in PR #240, but assembled-Sable,
-save/reload, two-engine behavior, and human ergonomics remain unaccepted.
+Stationary retained-stack evidence exists. Assembled-Sable, save/reload, two-engine behavior, and human ergonomics remain unaccepted.
 
-## PROPOSED
+### Authorship / Implementation dependencies
 
-### Computing beyond the accepted C14 capability surface
+- AUTH-0088 is accepted: exact published-volume/world-XZ surface-ecology projection, with no Minecraft biome/Y policy.
+- AUTH-0089 is in progress only: island ecological opportunity profile, no species/spawn decisions.
+- SF-IMP-0080 is accepted: legible forest/taiga ecology showcase.
+- SF-IMP-0081 / issue #214 remains the human morphology-quality gate.
 
-Computing is a first-class capability axis, not a first-flight gate.
+## PROPOSED / OPEN CONTENT QUESTIONS
 
-C9 accepts runtime coexistence and C14 accepts real upstream sensor/read plus bounded-control capability.
-Remaining computing decisions are gameplay/bypass questions rather than substrate or basic capability questions:
+### Computing after C16
 
-- autopilot must not erase route planning/navigation gameplay;
-- turtles must not trivialize resource geography/freight;
-- wireless/rednet/GPS should support telemetry/navigation without making infrastructure irrelevant;
-- prefer existing avionics/peripheral integrations before bespoke Skyforge APIs;
-- thin Skyforge peripherals are reserved for genuinely Skyforge-owned semantics not otherwise exposed.
+C9/C14/C16 now establish substrate, real avionics capability, and wireless-envelope behavior. Remaining questions are gameplay/bypass questions only:
 
-Progression intent:
+- turtles versus resource geography and freight value;
+- GPS host placement / navigation infrastructure;
+- Ender Modem progression gating;
+- autopilot versus route-planning/navigation gameplay;
+- thin Skyforge peripherals only for genuinely Skyforge-owned semantics absent upstream.
 
-```text
-local display/control -> sensors/peripherals -> wired automation
--> wireless telemetry/networking -> route/fleet/infrastructure control
-```
+Computing is a first-class infrastructure axis, **not** a first-flight prerequisite.
 
-### First powered flight
+### Nether after C15
 
-Preserve pre-Brass, pre-petroleum first powered flight unless actual recipe closure disproves it.
-The later Giuseppe Bellanca B0 is Brass-era because its selected Propeller Bearing/governor stack is more mature.
+Ordinary 1:1 portal mechanics are closed. Remaining questions:
+
+- assembled Aeronautics/Sable contraption portal transfer;
+- passengers/cargo if transfer is possible;
+- authored portal foothold/site safety;
+- human portal-terminal usability;
+- eventual permanent route-scale/cosmology decision.
 
 ## MANUAL VERIFICATION REQUIRED
 
 ### C1 industrial specimen
 
-C1 scaffolding is merged, but do not claim complete gameplay acceptance until the runtime checks are actually run/recorded:
+Still requires recorded runtime/play evidence for material suppression/recipe closure, identity collisions, Metallurgy A/B value, electrical throughput, and world-side industrial source throughput.
 
-- live Platinum/Wolframite suppression;
-- JEI recipe closure/rejected-material leaks;
-- Steel/Bronze identity collisions;
-- Metallurgy A/B value;
-- Gold-vs-Electrum electrical throughput;
-- world-side industrial source throughput.
+### Mobility / aircraft
 
-### Mobility/gameplay closure beyond C13 mechanics
+- practical cheap-glider envelope;
+- blocked Elytra-boost clarity in ordinary play;
+- aircraft-vs-personal-flight freight/logistics comparison;
+- Bellanca B0 mass/CG, propulsion, ground handling, takeoff/climb/cruise, power-off glide/restart, atmosphere response, and payload;
+- human-eye aircraft review only after mechanical credibility.
 
-C13 accepts the mechanical Elytra/firework suppression contract. Remaining experience work is:
+### Morphology
 
-- practical glider capability envelope after C8's accepted cheap acquisition/maintenance closure;
-- human confirmation that blocked rocket boosting is understandable in normal play;
-- add blast/instability feedback only if that playtest shows a clarity/value gap;
-- C15 closes ordinary vanilla portal linking/placement mechanics; remaining Nether portal work is authored foothold/site safety, human terminal usability, and explicit assembled-contraption transfer rules;
-- aircraft-versus-personal-flight freight/logistics comparison.
+Issue #214 remains a project-owner visual gate for underside/approach quality. Do not treat machine evidence as a substitute for the required view/flight-route review.
 
-### Bellanca B0
+## Architectural invariants
 
-The merged B0 build specification still requires actual assembly/flight evidence:
-
-- mass/CG;
-- propulsion/governor ladder;
-- ground handling;
-- takeoff/climb/cruise;
-- power-off glide/restart;
-- atmosphere response;
-- payload.
-
-Human-eye aircraft review comes only after mechanical flight credibility.
-
-### Bootstrap Province
-
-Final province acceptance requires visible play in a good land-biome specimen after #194/world-quality convergence.
-
-## Architectural decisions / invariants
-
-- Content source priority: vanilla -> existing mods -> config/datapack/integration -> thin adapter -> bespoke.
-- Skyforge owns meaning; do not author duplicate assets without a demonstrated gap.
+- Reuse priority: vanilla -> existing mods -> config/datapack/integration -> thin adapter -> bespoke.
+- Skyforge owns meaning; retained mods provide assets/capabilities unless a demonstrated gap justifies more.
 - Personal mobility is cheap; logistics are not.
-- Aircraft must win through payload, repeatability, fluids/entities/contraptions/automation, not blanket nerfs.
-- Resource geography creates routes and infrastructure, not repetitive chores.
-- Prefer manufactured complexity over redundant ores/material tiers.
-- Ecology is niche-first and sparse; atmosphere changes behavior, not population authority.
-- Open sky and End-like negative space remain intentionally sparse.
-- Do not solve weak geography with mobs/plants/structures.
-- First-flight progression should expose aviation before ordinary Minecraft traversal already solves the game.
-- A4MC is the leading single atmosphere authority; C6/C7 share it across fauna/player movement.
-- Computing extends infrastructure; manual flight and the basic game loop must not depend on Lua/computers.
-
-## Cross-lane dependencies
-
-- **Authorship:** current `main` includes accepted AUTH-0086 visible hydrologic realization intents; Content consumes semantic environment/geography rather than redefining it.
-- **Implementation:** SF-IMP-0079 remains the accepted runtime boundary; #194 / draft PR #248 is the immediate Content-visible dependency.
-- **Bootstrap Province:** #224 is the shared vertical-slice target.
-- **Bellanca cutoff:** #237 requires thin implementation/compat work before powered-soaring acceptance.
-
-## Known hazards / technical debt
-
-- Some old overview/handoff docs lag current `main`; use git/reviews/lane state rather than assuming their stated milestone is current.
-- C1 remains partially runtime-gated despite being merged.
-- C8 removes the stock Phantom dependency; keep future recipe/tag changes from reintroducing it.
-- Optional-mod reflection bridges are intentionally version-pinned and fail-closed; upstream API/version changes require rerunning focused workflows.
-- C13 proves the pinned No More Elytra Boosting 1.0.0 behavior, not an irrevocable production dependency lock; rerun the focused acceptance before version/substitute changes.
-- Do not promote A4MC, Reliable Gliders, Fowl Play, CC add-ons, or Bellanca tuning from prototype to permanent pack lock solely because current specimens pass.
+- Aircraft win through payload, repeatability, fluids/entities/contraptions/automation, not blanket nerfs.
+- Resource geography should create routes/infrastructure rather than repetitive chores.
+- A4MC remains the single atmosphere authority for accepted aircraft/fauna/player lift behavior.
+- Computing extends infrastructure; manual flight and the basic loop must not depend on Lua/computers.
+- Ordinary wireless is bounded infrastructure; Ender Modems are a mature bypass and should be progression-conscious.
 
 ## Verification shortcuts
-
-Relevant focused workflows/commands:
 
 - `Wave C2 Mobility Preflight`
 - `Wave C3 Atmosphere Preflight`
 - `Wave C5 Soaring Fauna Preflight`
 - `Wave C6 Hawk Thermal Compat`
 - `Wave C7 Glider Shared Lift`
+- `Wave C9 Computing Avionics`
+- `Wave C10 Nether Scale Runtime`
 - `Wave C13 Elytra Bypass`
 - `Wave C14 Avionics Capability`
 - `Wave C15 Portal Linking`
+- `Wave C16 Wireless Envelope`
+- `Skyforge Showcase Acceptance`
 - repository `CI`
-
-Detailed commands and evidence live in the corresponding `docs/design-audit/wave-c*.md`, Gradle run definitions,
-workflow files, PRs, and tests.
 
 ## Ordered next work
 
-1. Do not duplicate active C11 PR #233; consume its live first-flight recipe result into #224 when accepted.
-2. Continue #227 computing **gameplay/bypass** audits where evidence is executable: turtles/resource geography, wireless/GPS infrastructure value, then mature autopilot progression.
-3. Keep C15's 1:1 ordinary-player portal mechanics accepted while separately auditing assembled-contraption transfer and authored Nether foothold/site safety before a permanent route-policy lock.
-4. Coordinate #194 / PR #248 and begin Bootstrap Province acceptance as soon as a legible persistent land-biome fixture exists.
-5. Complete/accept #237 / PR #240, then execute the C12 Bellanca B0 specimen.
-6. Return to C1 industrial runtime evidence when the focused runtime window is available.
-
-Immediate recommendation for the next fresh Content agent:
-
-> Treat C15 ordinary-player 1:1 portal mechanics as mechanically closed. Avoid colliding with active C11/C12 work; next prefer a narrow executable computing gameplay/bypass specimen or a newly unblocked Bootstrap Province dependency, while keeping assembled aircraft portal transfer separate.
+1. Do not duplicate active C11/C12 work; consume their results into #224 when accepted.
+2. Check whether C17 is already claimed before reserving any new milestone.
+3. If unclaimed and executable, prefer the next narrow #227 gameplay/bypass specimen: turtles versus resource geography/freight, or GPS/navigation infrastructure if that is more directly testable.
+4. Begin more of Bootstrap Province acceptance now that SF-IMP-0080 has cleared the land-ecology visibility gate, without waiting on the non-blocking #261 ambience follow-up.
+5. Complete/accept #237 / PR #240 before C12 powered-soaring closure.
+6. Keep assembled-aircraft Nether transfer separate from accepted ordinary-player C15 mechanics.
+7. Return to C1 industrial runtime evidence when a focused runtime window is practical.
