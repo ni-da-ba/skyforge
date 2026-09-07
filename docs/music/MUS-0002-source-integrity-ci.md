@@ -23,7 +23,7 @@ For each cue it verifies:
 2. gzip decompression succeeds;
 3. decompressed SHA-256 equals the accepted cue identity and manifest identity;
 4. the file is Standard MIDI File format 1;
-5. the file has conductor + 19 instrument tracks at 480 PPQ;
+5. the file has conductor + 19 instrument tracks at the cue's accepted PPQ (480 for Tracks 00/01/03; 960 for Track 02);
 6. conductor tempo and meter match the accepted cue;
 7. instrument-lane names remain in canonical order;
 8. lanes declared unused for PERC/TP remain note-empty;
@@ -31,6 +31,21 @@ For each cue it verifies:
 10. the documented Track 00 and Track 02 range-exception counts do not silently drift.
 
 The dedicated workflow is `.github/workflows/music-source-integrity.yml`.
+
+## Defect found during implementation
+
+The first execution of the new gate immediately exposed a second persistence defect in the Track 02 storage artifact:
+
+- the repository `.mid.gz` compressed-byte SHA did not match its manifest;
+- after correcting that stale compressed hash, gzip decompression failed CRC validation;
+- the accepted uncompressed canonical MIDI identity was still recoverable exactly from the accepted repaired audition MIDI by applying only the already-documented conductor normalization: 132 BPM and E-minor key-signature metadata;
+- that reconstruction reproduced the documented canonical uncompressed SHA-256 exactly: `79be46fd4ca2d712a727a571265d8521740148a550e05c04288cd14d5b9bf50d`;
+- the corrupted gzip container was replaced with a deterministic valid gzip containing those exact canonical MIDI bytes;
+- the repaired storage-level gzip SHA-256 is `157f256c3734e32d395b52e73fba238f297daeab24d082c89228183a5c11dd46`.
+
+This repair changes only the storage container. The canonical uncompressed MIDI identity, musical note/controller data, accepted percussion mapping, and accepted render identity are unchanged.
+
+The gate also made explicit that Track 02's canonical source is 960 PPQ, whereas Tracks 00/01/03 are 480 PPQ. PPQ is therefore verified per cue rather than incorrectly assumed to be globally uniform.
 
 ## Deliberate boundary
 
