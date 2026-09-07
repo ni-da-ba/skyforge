@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 final class AuthorshipPublishedAuthoredRealizationBindingCorpusTest {
     @Test
-    void generatesExactPublishedMaterialBindingProof() throws Exception {
+    void generatesExactPublishedAuthoredRealizationBindingProof() throws Exception {
         Path output = Path.of(
                 "build",
                 "evidence",
