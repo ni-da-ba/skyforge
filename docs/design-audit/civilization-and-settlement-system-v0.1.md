@@ -54,6 +54,54 @@ Minecraft handles loaded local simulation:
 - local combat;
 - player modification.
 
+## Inhabited airspace
+
+Civilization should be visible not only through occupied ground sites but through plausible use of
+the sky between them.
+
+A settled or industrial region may therefore imply sparse traffic such as:
+
+- civilian cargo aircraft;
+- couriers;
+- balloons or lighter-than-air craft;
+- maintenance/service flights;
+- patrol or customs aircraft;
+- military/faction scouts, escorts, interceptors, or gunships where control state supports them.
+
+Traffic is a consequence of the existing regional network rather than a decorative random-spawn
+layer. Its frequency and vehicle roles should derive from coarse state such as `trafficIntensity`,
+`routeImportance`, `militaryPressure`, settlement roles, and faction/control state.
+
+Far from active players, Skyforge only needs coarse route/traffic plausibility. Concrete physics
+aircraft should be materialized near relevant players/active areas rather than continuously
+simulating world-scale fleets.
+
+This allows the sky to feel inhabited while preserving the project's sparse negative-space rule.
+Ordinary wilderness may have mostly ecological aerial life; developed regions can show civilian
+traffic; contested/restricted/hostile regions can produce organized faction aviation.
+
+## Air-traffic support as infrastructure capability
+
+Inhabited-airspace traffic should consume coarse civilization capability rather than require every
+aircraft to be simulated as an independent economic actor.
+
+Relevant support can be represented by settlement/cluster capacity such as:
+
+- fuel service;
+- maintenance;
+- munitions for armed factions;
+- navigation/radar coverage;
+- launch/parking capacity;
+- route importance.
+
+The world may realize these capabilities through visible fuel depots, workshops, ammunition stores,
+radar posts, airfields, docks, and representative parked-aircraft patterns. Their existence can govern
+which traffic/encounter classes are eligible without maintaining literal inventories and service
+cycles for every transient aircraft.
+
+Where player action destroys or restores a key support site, future traffic capability may change.
+This is preferable to a continuously simulated NPC logistics economy.
+
 ## Semantic hierarchy
 
 ### Province civilization context
