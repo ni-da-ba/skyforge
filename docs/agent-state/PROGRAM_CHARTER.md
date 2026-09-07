@@ -33,6 +33,25 @@ The Minecraft realization succeeds when a new player can naturally discover that
 - distant negative space remains meaningful;
 - the result remains recognizably Minecraft while enabling experiences ordinary Minecraft does not.
 
+## World-realization convergence
+
+The intended production flow is:
+
+```text
+regional intent
+-> island morphology
+-> geology / materials
+-> hydrology
+-> caves / structures
+-> soils / ecology
+-> Minecraft realization
+-> persistent gameplay
+```
+
+Correctness is mandatory but not sufficient. Work should increasingly be judged by whether it brings
+the actual production Minecraft world closer to a fast, visually legible, semantically coherent,
+playable Skyforge experience.
+
 ## Major lanes
 
 ### Authorship
