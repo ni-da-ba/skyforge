@@ -66,11 +66,21 @@ final class SkyforgeProductionMorphologySeedScaleMatrixFixtureTest {
     }
 
     @Test
-    void reviewDimensionIsDevelopmentOnlyTallSpaceWithVanillaGenerationBelowTheStack() {
-        assertEquals(-64, SkyforgeProductionMorphologySeedScaleMatrixFixture.REVIEW_DIMENSION_MIN_Y);
-        assertEquals(2048, SkyforgeProductionMorphologySeedScaleMatrixFixture.REVIEW_DIMENSION_HEIGHT);
+    void reviewDimensionIsDevelopmentOnlyCarrierDisjointFromVanillaNoiseTerrain() {
+        assertEquals(320, SkyforgeProductionMorphologySeedScaleMatrixFixture.REVIEW_DIMENSION_MIN_Y);
+        assertEquals(1616, SkyforgeProductionMorphologySeedScaleMatrixFixture.REVIEW_DIMENSION_HEIGHT);
         assertEquals(
-                1984,
+                1936,
                 SkyforgeProductionMorphologySeedScaleMatrixFixture.REVIEW_DIMENSION_MAX_Y_EXCLUSIVE);
+
+        for (MorphologyFamily family : MorphologyFamily.values()) {
+            var fixture = SkyforgeProductionMorphologySeedScaleMatrixFixture.buildFamily(family);
+            for (var member : fixture.members()) {
+                assertTrue(member.exactSupport().bounds().minimumY() > 320.0);
+                assertTrue(
+                        member.exactSupport().bounds().maximumY()
+                                < SkyforgeProductionMorphologySeedScaleMatrixFixture.REVIEW_DIMENSION_MAX_Y_EXCLUSIVE - 1.0);
+            }
+        }
     }
 }
