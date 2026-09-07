@@ -157,15 +157,19 @@ final class SkyIslandPublishedSurfaceEcologyResolverTest {
     }
 
     private static FringeFixture firstPhysicalUnownedFringe(long rootSeed) {
+        SkyIslandCompiledWorldPublication publication = new SkyIslandCompiledWorldPublisher()
+                .publish(acceptedCompilation(rootSeed), 1L);
+        SkyIslandWorldVolume volume = publication.catalog().volumes().getFirst();
+        SkyIslandCompiledVolumeColumnField columns =
+                new SkyIslandCompiledVolumeColumnField(volume.compiledVolume());
+        double radius = volume.compiledVolume().descriptor().nominalRadius();
+
         for (long key = 0L; key < 96L; key++) {
-            Fixture fixture = fixture(rootSeed, key);
-            SkyIslandAuthoredRealizationAssociation association = fixture.association();
-            SkyIslandCompiledVolumeColumnField columns = new SkyIslandCompiledVolumeColumnField(
-                    association.realizedVolume().compiledVolume());
-            SkyIslandSemanticField interiority = SkyIslandSemanticFieldSet
-                    .create(association.authoredDescriptor())
-                    .interiority();
-            double radius = association.authoredDescriptor().nominalRadius();
+            SkyIslandDescriptor authored = authored(key, radius);
+            SkyIslandAuthoredRealizationAssociation association =
+                    SkyIslandAuthoredRealizationAssociation.of(authored, volume);
+            SkyIslandSemanticField interiority =
+                    SkyIslandSemanticFieldSet.create(authored).interiority();
             for (int iz = 0; iz <= 40; iz++) {
                 double z = -radius + iz * (2.0 * radius / 40.0);
                 for (int ix = 0; ix <= 40; ix++) {
@@ -173,7 +177,17 @@ final class SkyIslandPublishedSurfaceEcologyResolverTest {
                     SkyIslandLocalPosition local = new SkyIslandLocalPosition(x, z);
                     if (columns.columnAt(local).isPresent()
                             && interiority.sample(local) == 0.0) {
-                        return new FringeFixture(fixture, local);
+                        SkyIslandAuthoredRealizationCatalog catalog =
+                                new SkyIslandAuthoredRealizationCatalog(
+                                        AUTHORED_WORLD,
+                                        publication.catalog().rootSeed(),
+                                        List.of(association));
+                        return new FringeFixture(
+                                new Fixture(
+                                        new SkyIslandPublishedAuthoredRealizationBinding(
+                                                publication, catalog),
+                                        association),
+                                local);
                     }
                 }
             }
