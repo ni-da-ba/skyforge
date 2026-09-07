@@ -257,18 +257,16 @@ public final class AuthorshipPublishedSurfaceEcologyCorpusCli {
             SkyIslandCompiledWorldPublication publication) {
         EnumSet<SkyIslandEcologyRegime> seen = EnumSet.noneOf(SkyIslandEcologyRegime.class);
         ArrayList<RegimeObservation> observations = new ArrayList<>();
+        SkyIslandWorldVolume selectedVolume = publication.catalog().volumes().getFirst();
+        SkyIslandCompiledVolumeColumnField columns =
+                new SkyIslandCompiledVolumeColumnField(selectedVolume.compiledVolume());
 
         for (long key = 0L; key < 512L && observations.size() < 6; key++) {
-            Fixture fixture = fixture(publication, key);
-            SkyIslandAuthoredRealizationAssociation association = fixture.association();
-            SkyIslandCompiledVolumeColumnField columns =
-                    new SkyIslandCompiledVolumeColumnField(
-                            association.realizedVolume().compiledVolume());
+            SkyIslandDescriptor descriptor = authored(key, selectedVolume);
             SkyIslandSemanticField interiority =
-                    SkyIslandSemanticFieldSet.create(association.authoredDescriptor()).interiority();
-            SkyIslandEcologyField ecology =
-                    SkyIslandEcologyField.create(association.authoredDescriptor());
-            double radius = association.authoredDescriptor().nominalRadius();
+                    SkyIslandSemanticFieldSet.create(descriptor).interiority();
+            SkyIslandEcologyField ecology = SkyIslandEcologyField.create(descriptor);
+            double radius = descriptor.nominalRadius();
 
             boolean selected = false;
             for (int iz = 0; iz <= 16 && !selected; iz++) {
@@ -281,11 +279,12 @@ public final class AuthorshipPublishedSurfaceEcologyCorpusCli {
                     }
                     SkyIslandEcologyRegime regime = ecology.sample(local).regime();
                     if (seen.add(regime)) {
+                        Fixture fixture = fixture(publication, key);
                         SkyIslandPublishedSurfaceEcologySample sample =
                                 new SkyIslandPublishedSurfaceEcologyResolver(fixture.binding())
                                         .sample(
-                                                association.realizedVolumeId(),
-                                                toWorld(association, local));
+                                                fixture.association().realizedVolumeId(),
+                                                toWorld(fixture.association(), local));
                         observations.add(new RegimeObservation(key, sample));
                         selected = true;
                         break;
@@ -304,17 +303,16 @@ public final class AuthorshipPublishedSurfaceEcologyCorpusCli {
         double radius = volume.compiledVolume().descriptor().nominalRadius();
 
         for (long key = 0L; key < 128L; key++) {
-            Fixture fixture = fixture(publication, key);
-            SkyIslandAuthoredRealizationAssociation association = fixture.association();
+            SkyIslandDescriptor descriptor = authored(key, volume);
             SkyIslandSemanticField interiority =
-                    SkyIslandSemanticFieldSet.create(association.authoredDescriptor()).interiority();
+                    SkyIslandSemanticFieldSet.create(descriptor).interiority();
             for (int iz = 0; iz <= 40; iz++) {
                 double z = -radius + iz * (2.0 * radius / 40.0);
                 for (int ix = 0; ix <= 40; ix++) {
                     double x = -radius + ix * (2.0 * radius / 40.0);
                     SkyIslandLocalPosition local = new SkyIslandLocalPosition(x, z);
                     if (columns.columnAt(local).isPresent() && interiority.sample(local) == 0.0) {
-                        return new FringeFixture(fixture, local);
+                        return new FringeFixture(fixture(publication, key), local);
                     }
                 }
             }
