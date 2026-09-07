@@ -1,6 +1,9 @@
 # Wave C19 — stock mining-turtle extraction envelope
 
-**Status:** IN PROGRESS until exact-head runtime acceptance is green and merged  
+**Status:** MERGED / ACCEPTED  
+**PR:** #292  
+**Merge:** `97c9e1accf0a243ddc892fbf1fc424825b0c244e`  
+**Accepted runtime head:** `4c6bfe67f07e5c80650c23d8a697615588a02a9a`  
 **Issue:** #291  
 **Parent computing contract:** #227  
 **Parent vertical slice:** #224
@@ -98,3 +101,29 @@ Still separate:
 - ore-generation abundance;
 - mature fleet automation;
 - final aircraft-versus-turtle economics.
+## Accepted result
+
+Final current-main runtime evidence:
+
+```text
+digs=96
+outboundMoves=96
+returnMoves=96
+fuelStart=240
+fuelEnd=48
+delivered=96
+elapsedTicks=2377
+boundaryOutcome=STALLED
+boundaryPhase=NO_TICK_PROGRESS
+boundaryDigs=17
+boundaryMoves=17
+boundaryFuelStart=80
+boundaryFuelEnd=63
+boundaryError=NO_TICK_PROGRESS
+```
+
+Decision: **KEEP** the stock mining-turtle base capability. The specimen proves useful local physical
+extraction automation, but it does not show a geography-erasing capability: the turtle still requires
+physical access to the deposit, fuel, loaded/ticking execution, and physical material return. Farming,
+quarry/branch-mining scale, chunk-loader progression, Ender-storage combinations, ore abundance,
+fleet automation, and final aircraft economics remain separate audits.
