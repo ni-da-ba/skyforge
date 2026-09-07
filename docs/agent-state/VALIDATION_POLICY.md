@@ -274,6 +274,20 @@ Use:
 The exhaustive 20-member in-engine atlas may remain a later/manual regression or presentation asset if
 useful; it should not block the next production-world system once the carrier risk is retired.
 
+## Documentation/state fast path
+
+Routine CI should distinguish repository prose/state changes from executable changes.
+
+- Changes confined to `docs/**` and selected top-level documentation files use a lightweight integrity
+  gate rather than provisioning Java/Gradle and regenerating the complete evidence corpus.
+- Code, assets, build configuration, workflow definitions, and all other executable-affecting paths
+  continue through the full CI suite.
+- If change-impact classification is uncertain, fail safe to full CI.
+- Documentation-only validation must still reject merge-conflict markers and require the canonical
+  program/state entry points to exist.
+
+This reduces state-ledger/Audit/design-document merge latency without weakening executable coverage.
+
 ## Retained regression trigger policy
 
 Accepted historical evidence remains available, but its trigger should match the risk it protects.
