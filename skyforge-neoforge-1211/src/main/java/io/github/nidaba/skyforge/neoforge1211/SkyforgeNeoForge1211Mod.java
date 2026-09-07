@@ -58,5 +58,6 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeWaveC7GliderLiftDevRuntime.installFromSystemProperty();
         SkyforgeWaveC10NetherScaleAcceptance.installFromSystemProperty();
         SkyforgeWaveC13ElytraBypassAcceptance.installFromSystemProperty();
+        SkyforgeWaveC14AvionicsCapabilityAcceptance.installFromSystemProperty();
     }
 }
