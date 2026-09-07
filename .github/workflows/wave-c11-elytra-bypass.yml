@@ -1,0 +1,107 @@
+name: Wave C11 Elytra Bypass
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wave-c11-elytra-bypass.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c2-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC11ElytraBypassAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wave-c11-elytra-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  baseline-vs-suppressed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Resolve exact suppression artifact
+        run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
+
+      - name: Prove vanilla baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wave-c11-baseline.log"
+          setsid ./gradlew :skyforge-neoforge-1211:runWaveC11VanillaElytraAcceptanceServer --no-configuration-cache >"${log}" 2>&1 &
+          pid=$!
+          outcome=""
+
+          for _ in $(seq 1 120); do
+            grep -Fq "WAVE_C11_BASELINE PASS" "${log}" 2>/dev/null && { outcome="pass"; break; }
+            grep -Fq "WAVE_C11_BASELINE FAIL" "${log}" 2>/dev/null && { outcome="fail"; break; }
+            kill -0 "${pid}" 2>/dev/null || break
+            sleep 1
+          done
+
+          if [[ "${outcome}" == "pass" ]]; then
+            grep -F "WAVE_C11_BASELINE PASS" "${log}"
+            kill -TERM -- "-${pid}" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-${pid}" 2>/dev/null || true
+            wait "${pid}" 2>/dev/null || true
+            exit 0
+          fi
+
+          cat "${log}"
+          kill -TERM -- "-${pid}" 2>/dev/null || true
+          sleep 1
+          kill -KILL -- "-${pid}" 2>/dev/null || true
+          wait "${pid}" 2>/dev/null || true
+          exit 1
+
+      - name: Prove suppressed boost with ordinary fireworks preserved
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wave-c11-suppressed.log"
+          setsid ./gradlew :skyforge-neoforge-1211:runWaveC11SuppressedElytraAcceptanceServer --no-configuration-cache >"${log}" 2>&1 &
+          pid=$!
+          outcome=""
+
+          for _ in $(seq 1 120); do
+            grep -Fq "WAVE_C11_SUPPRESSED PASS" "${log}" 2>/dev/null && { outcome="pass"; break; }
+            grep -Fq "WAVE_C11_SUPPRESSED FAIL" "${log}" 2>/dev/null && { outcome="fail"; break; }
+            kill -0 "${pid}" 2>/dev/null || break
+            sleep 1
+          done
+
+          if [[ "${outcome}" == "pass" ]]; then
+            grep -F "WAVE_C11_SUPPRESSED PASS" "${log}"
+            kill -TERM -- "-${pid}" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-${pid}" 2>/dev/null || true
+            wait "${pid}" 2>/dev/null || true
+            exit 0
+          fi
+
+          cat "${log}"
+          kill -TERM -- "-${pid}" 2>/dev/null || true
+          sleep 1
+          kill -KILL -- "-${pid}" 2>/dev/null || true
+          wait "${pid}" 2>/dev/null || true
+          exit 1
