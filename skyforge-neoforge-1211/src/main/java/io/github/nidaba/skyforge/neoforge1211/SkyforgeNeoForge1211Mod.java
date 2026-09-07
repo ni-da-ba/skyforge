@@ -59,5 +59,6 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeWaveC10NetherScaleAcceptance.installFromSystemProperty();
         SkyforgeWaveC13ElytraBypassAcceptance.installFromSystemProperty();
         SkyforgeWaveC14AvionicsCapabilityAcceptance.installFromSystemProperty();
+        SkyforgeWaveC15PortalLinkingAcceptance.installFromSystemProperty();
     }
 }
