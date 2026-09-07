@@ -2,7 +2,7 @@
 
 **Status:** IN PROGRESS — MUS-0001 / PR #159 merge candidate  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Merge-candidate head:** `ae23d17145ab4fb19417653991f36e0633f5a83b`
+**Latest main synchronization commit:** `fbf97b1da28c3201c0ef1ee776b4aef090b2497e`
 
 ## Authority
 
