@@ -3,8 +3,11 @@ package io.github.nidaba.skyforge.world;
 import java.util.Objects;
 
 /**
- * AUTH-0087 exact production binding between one accepted compiled-world publication and the
- * explicit authored-realization associations required by AUTH-0049 material composition.
+ * AUTH-0087 exact production binding between one accepted compiled-world publication and one
+ * explicit authored-realization association catalog.
+ *
+ * <p>AUTH-0049 material composition is the first concrete consumer, but the coverage invariant is
+ * intentionally reusable by other authored world-space semantics.
  *
  * <p>The binding introduces no association inference. Every published volume must be covered by
  * exactly one AUTH-0046 association that retains the exact published volume value.
