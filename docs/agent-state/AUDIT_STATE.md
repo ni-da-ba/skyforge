@@ -10,6 +10,7 @@ Read first:
 
 - [Program charter](PROGRAM_CHARTER.md)
 - [Cross-lane contracts](CROSS_LANE_CONTRACTS.md)
+- [Human strategy roadmap](HUMAN_STRATEGY_ROADMAP.md)
 - all current lane state files
 - current `main`, source/tests, merged history, open PRs, issues, and exact-head workflow evidence
 
@@ -196,13 +197,19 @@ Repository comments posted in this watch:
 - PR #305 — recompose narrow C20 durable-state repair onto current main without overwriting accepted AUTH-0094 contracts.
 - PR #304 — verifier recovery is green/healthy; synchronize small main drift before merge and retain existing human gates.
 
-No human intervention is required at this snapshot.
+Human strategy escalation is now appropriate for **HS-01 implementation certification depth** and
+**HS-02 CI/characterization budget**. SF-IMP-0083 has produced useful technical recovery, but the
+amount of full-lifecycle evidence required by issue #284 is itself now a program-level acceptance
+policy question rather than a producer-only implementation detail.
 
 ## NEXT AUDIT WORK
 
-1. Re-check PR #285 after current-main synchronization. If it resumes repeated unchanged long prepares or conflict churn without new information, escalate to LOOP RISK and request a fresh Implementation execution session.
-2. Re-check PR #304 after synchronization; ordinary integration movement is not a health failure.
-3. Verify PR #305 repairs `CONTENT_STATE.md` against current main and preserves the accepted AUTH-0094→C20 contract.
-4. Ensure obsolete PR #303 is closed or explicitly re-reserved under a future non-conflicting Authorship milestone only when justified.
-5. Recompose or close stale Audit PRs #298–#300; close superseded #309 after this current-main reconciliation is opened.
-6. Continue to distinguish intentionally dormant C11/cutoff/Bellanca work from active stuck sessions.
+1. Track [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md). Notify Nicholas only when an OPEN
+   topic's trigger is met; persist decisions into the owning contracts/design state and mark them
+   RESOLVED rather than repeatedly re-asking them.
+2. Re-check PR #285 after current-main synchronization. If it resumes repeated unchanged long prepares or conflict churn without new information, escalate to LOOP RISK and request a fresh Implementation execution session.
+3. Re-check PR #304 after synchronization; ordinary integration movement is not a health failure.
+4. Verify PR #305 repairs `CONTENT_STATE.md` against current main and preserves the accepted AUTH-0094→C20 contract.
+5. Ensure obsolete PR #303 is closed or explicitly re-reserved under a future non-conflicting Authorship milestone only when justified.
+6. Recompose or close stale Audit PRs #298–#300; close superseded #309 after this current-main reconciliation is opened.
+7. Continue to distinguish intentionally dormant C11/cutoff/Bellanca work from active stuck sessions.
