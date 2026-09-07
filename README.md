@@ -142,6 +142,7 @@ Skyforge intentionally keeps its engineering history visible. Architectural deci
 - [`docs/reviews`](docs/reviews) - milestone acceptance, interactive runbooks, and visual review;
 - [`docs/authorship`](docs/authorship) - backend-neutral world-authorship milestones and semantics;
 - [`docs/releases`](docs/releases) - versioned proof claims and release criteria.
+- [`docs/agent-state`](docs/agent-state/README.md) - concise live agent handoffs, program charter, and cross-lane contracts.
 
 The early [`v0.1 architecture-proof record`](docs/releases/Skyforge_v0.1.0_Release_Record.md) documents the original backend-neutral claim. Later ADRs and acceptance records extend that foundation into finite volumes and Minecraft realization; they do not imply that a public binary release already exists.
 
