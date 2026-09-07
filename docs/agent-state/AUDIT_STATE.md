@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot at latest AUDIT-0004 reconciliation:** `22e114c7ea0c29e93f2dcb9507fc207c4d4291c0`
+**Main snapshot at latest AUDIT-0005 synchronization:** `993d3815aef7c5a894ae562880b9075a24a6ddc6`
 
 Read first:
 
@@ -33,7 +33,7 @@ PR #255 / merge `e7689121aee85c71573b971393d82823f3d86028`.
 
 Recorded the SF-IMP-0080 compile/substrate failure progression, AUTH-0087/C14 acceptance state, and remaining C11/#240/Bellanca prerequisites without taking over producer-lane work.
 
-### Highest AUDIT milestone: AUDIT-0004 — accepted SF-IMP-0080 ecology boundary
+### AUDIT-0004 — accepted SF-IMP-0080 ecology boundary
 
 Accepted by the merge that places this update on `main`.
 
@@ -57,40 +57,101 @@ One non-blocking limitation remains: moving a short distance away from terrain m
 
 No producer-lane capability is created by AUDIT-0004.
 
+### Highest AUDIT milestone: AUDIT-0005 — post-ecology convergence audit
+
+Accepted by the merge that places this update on `main`.
+
+AUDIT-0005 records repository-visible convergence after AUDIT-0004 without creating producer-lane behavior:
+
+- AUTH-0088 and AUTH-0089 remain accepted; AUTH-0090 / PR #276 is now also merged/accepted as the exact area-weighted regional ecological-opportunity profile. Accepted head `744e2d76`, CI `34088215137` PASS, runtime merge `1a2f9cc2`, and durable-state repair PR #278 are all complete;
+- Content C16 remains accepted; Content C17 / PR #272 is now also merged/accepted, proving stock GPS requires a non-collinear host constellation inside ordinary wireless range while Ender-backed GPS inherits the mature-bypass status. Exact-head C17, repository CI, showcase persistence, and performance gates passed on `9373c307`;
+- SF-IMP-0081 / PR #265 is merged/accepted as the first exact AUTH-0083 Massif Minecraft carrier: accepted head `0e3dddae90a8af605dd959132ce865412e92e5c0`, runtime merge `bac972eb7e8d772a250d292602e109428d06514a`, Implementation state repair `0566c7909219a5281609da3445d8a082d0be02c6`, and shared-contract update `001bc7aa6dbd01d94d8a92023f8c5fc7831d3020`; first #214 human Massif review passed while full #214 remains open;
+- issue #267 records the non-blocking Massif traversal-cadence/lumpiness observation; do not flatten the accepted carrier from one specimen;
+- issue #269 reserves SF-IMP-0082 for Tableland, Spine, Basin, and Lobed using the generalized exact-carrier path;
+- SF-IMP-0082 / PR #273 and Content C18 / PR #277 remain reviewed in-progress producer work. AUTH-0090 / PR #276 is merged/accepted and its durable state is repaired by PR #278.
+
+No producer-lane capability is created by AUDIT-0005.
+
 ## CURRENT AUTHORITATIVE PROGRAM SNAPSHOT
 
 | Lane | Highest merged boundary |
 | --- | --- |
-| Implementation | **SF-IMP-0080** / PR #248 — persistent human-legible forest/taiga ecology through the modern production lifecycle |
-| Authorship | **AUTH-0087** / PR #254 — exact published authored-realization binding; durable state repaired by merged PR #257 |
-| Content / Experience | **C15** / PR #259 — live ordinary-player 1:1 Nether portal linking/placement; C11/C12 remain separately in progress/reserved |
-| Showcase | cave/interior technical showcase accepted; separate ecology showcase machine- and human-accepted |
+| Implementation | **SF-IMP-0081** / PR #265 — first exact AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / #269 is the active remaining-family tranche |
+| Authorship | **AUTH-0090** / PR #276 — exact area-weighted regional ecological-opportunity aggregation; durable state repaired by merged PR #278 |
+| Content / Experience | **C17** / PR #272 — stock GPS infrastructure topology; C18 turtle freight is in progress; C11/C12 remain separately in progress/reserved |
+| Showcase | cave/interior technical showcase accepted; ecology showcase accepted; first production Massif carrier machine- and human-accepted |
 | Music | no MUS milestone merged; PR #159 remains draft/unmerged |
-| AUDIT | **AUDIT-0004** by this state merge |
+| AUDIT | **AUDIT-0005** by this state merge |
 
 Merged Bellanca PR #238 remains accepted **design state**, not accepted aircraft runtime/flight behavior.
 
 ## IN PROGRESS / UNMERGED
 
-### Implementation next era — SF-IMP-0081 / issue #214 production morphology
+### SF-IMP-0082 / issue #269 — remaining built-in production morphology atlas
 
-Canonical Implementation state names SF-IMP-0081 as the next milestone.
+SF-IMP-0081 / PR #265 is **MERGED / ACCEPTED** as the first exact AUTH-0083 Minecraft carrier. Audit verified exact member identity, pure integer suspension-Y translation, certified/tight integer support, whole-volume admission, top + underside boundary sampling, deterministic digest equality across save/reopen, mutation-inert viewer behavior, current showcase/ecology persistence, performance, repository CI, retained Content compatibility, and the first project-owner #214 human pass.
 
-First carrier should realize exact AUTH-0083 member `builtin-massif-small-seed-skyforge` through the accepted production lifecycle while preserving its member ID, canonical seed/scale, full bounded detail, secondary morphology, and provider-neutral compiler path.
+Accepted exact-head gates on `0e3dddae90a8af605dd959132ce865412e92e5c0`:
+- repository CI `34085031045` PASS;
+- Skyforge Showcase Acceptance `34085031081` PASS, including current showcase, ecology, and production-Massif prepare/reopen;
+- SF-IMP-0070 characterization `34085031094` PASS;
+- retained C2/C3/C5/C6/C7/C9/C10/C13/C14/C15/C16 gates PASS.
 
-Required first-tranche evidence should include objective realization/persistence checks plus guided above, horizon-approach, below, and orbit-underneath views. Do not invent aesthetic thresholds before correlating Minecraft output with AUTH-0083 diagnostics; #214 remains the human morphology-quality gate.
+The first Massif silhouette, morphology, and underside were judged strong in-engine. Issue #267 separately tracks potentially lumpy on-foot relief cadence and must not weaken or reopen SF-IMP-0081.
 
-### AUTH-0088 — published surface ecology projection — PR #262
+Issue **#269 / SF-IMP-0082** is now the active Implementation tranche. It should generalize the accepted carrier rather than copy-paste family-specific runtimes, preserving exact AUTH-0083 IDs for Tableland, Spine, Basin, and Lobed with objective machine gates plus human above/approach/below/orbit review. Full issue #214 remains open beyond this four-family tranche.
 
-Draft/unaccepted.
+### SF-IMP-0082 / PR #273 — remaining built-in morphology atlas
 
-AUTH-0088 projects unchanged AUTH-0003 ecology through the accepted AUTH-0087 publication↔authorship binding, using explicit volume identity and world/local X/Z translation while failing closed outside compiled/authored ownership.
+Draft/in progress. Audit reviewed the reusable four-family carrier architecture and found no ownership blocker. Exact AUTH-0083 IDs for Tableland, Spine, Basin, and Lobed are preserved through the provider-neutral compiler with pure integer suspension-Y translation, tight finite support, parameterized prepare/reopen evidence, and objective top/underside/digest checks.
 
-Its stated consumer is the existing Implementation-owned exact-volume biome resolver. It adds no Minecraft biome key, quart-cell rule, placement, persistence, or lifecycle behavior. Treat as unaccepted until the branch is recomposed onto current main and fresh exact-head Authorship evidence succeeds.
+The Tableland persistence repair in `MinecraftNativeSurfaceTopAdapter` is a narrow occupancy-preservation rule: unsupported falling native material is not allowed to replace an authoritative one-voxel Skyforge solid that would then disappear. Supported falling material and all non-falling material retain prior behavior. This is Implementation representation policy, not morphology/material authorship.
 
-### Content C16 — wireless infrastructure envelope — PR #264
+Acceptance still requires the full exact-head four-family machine matrix and the explicit human #214 review. Full #214 remains open beyond SF-IMP-0082.
 
-Draft/unaccepted. Measures the actual CC:Tweaked wireless range boundary after accepted C14 rather than creating a Skyforge network authority. Ordinary wireless is intended to remain bounded while Ender Modems are treated as an explicit mature range/dimension bypass whose progression policy remains Content-owned. No AUDIT contract change is required unless that interpretation changes.
+### Content C18 / PR #277 — stock turtle void-freight envelope
+
+Draft/in progress. The first unloaded-adjacent-chunk fixture hypothesis failed closed because Minecraft kept the intended target loaded. The owner replaced that artificial precondition with a better player-facing experiment: one explicitly forced starting chunk, then a 48-block otherwise-unforced route with durable per-move progress and fuel accounting.
+
+Repaired dedicated run `34088869796` **PASSED** on head `c1496ada`:
+
+```text
+outboundMoves=64
+returnMoves=64
+fuelStart=160
+fuelEnd=32
+delivered=960
+elapsedTicks=1168
+boundaryOutcome=STALLED
+boundaryMoves=17
+boundaryFuelStart=80
+boundaryFuelEnd=63
+boundaryError=NO_TICK_PROGRESS
+```
+
+This proves measured route/ticking-envelope dependence, not an exact internal chunk-boundary error and not a production chunk-loader policy. The freight turtle moved 128 blocks with exact fuel delta and delivered 960 items; the unforced-route turtle stalled after 17 successful moves with exact fuel delta.
+
+One Audit gate-definition blocker remains on the repaired runtime: the explicit `STOPPED` branch currently accepts any stop reason after 1–47 successful moves. An unrelated obstruction/error could therefore satisfy the route-envelope gate. The observed `STALLED / NO_TICK_PROGRESS` specimen is valid evidence; before C18 acceptance, either constrain `STOPPED` to the intended loading/ticking boundary or independently prove the route unobstructed and classify only the intended stop.
+
+Dedicated C18, showcase persistence, and performance gates are green on the repaired head; repository CI was still running at this Audit boundary. In addition, current main has advanced through AUTH-0090 runtime/state, so final C18 acceptance still requires synchronization and fresh exact-head evidence. Aircraft-vs-turtle economics, dedicated chunk-loader progression, mining/farming throughput, Ender-storage combinations, and any nerf remain separate Content decisions.
+
+### AUTH-0091 / PR #279 — freshwater habitat opportunity — in progress / unaccepted
+
+AUTH-0090 is now **MERGED / ACCEPTED**. Audit independently reviewed its exact AUTH-0087 binding input, AUTH-0089 per-island regeneration, canonical association coverage/order, exact horizontal-area sum, and area-weighted AUTH-0003 regime/vegetation/saturation/thermal aggregation. It introduces no species, carrying capacity, spawn, resource eligibility, province label, Minecraft biome, or backend lifecycle.
+
+AUTH-0091 is now concrete draft PR #279. Audit reviewed current production semantics and found no ownership blocker:
+- public input is exactly one authored descriptor;
+- accepted watershed and retained-waterbody footprint planners are reused without caller-selected thresholds/resolution;
+- exact watershed/footprint provenance is retained;
+- inundated planning cells are unioned by watershed index and conflicting duplicates fail closed;
+- coarse inundated area is exact unique-cell count × accepted watershed spacing²;
+- shoreline remains a planning-cell count, not physical perimeter;
+- normalized water-depth potential remains non-physical;
+- legitimately dry islands remain valid all-zero profiles;
+- radius-only scaling preserves normalized topology/depth while coarse area scales by radius²;
+- retained source candidates are not double-counted because the accepted footprint planner partitions candidate seeds exactly once across overlap groups.
+
+Physical water volume/metres, fauna roles/carrying capacity, agriculture/resources, Minecraft fluid/biome identity, and backend lifecycle remain outside the contract. AUTH-0091 is unaccepted pending owner exact-head CI/evidence and merge.
 
 ### C11 — live pre-Brass first-flight recipe surface — PR #233
 
@@ -109,8 +170,13 @@ Audited proposal head `797e0c54325b1f45d0aa6229124c3bb7e8727bda` remains cross-l
 - Authorship owns semantic world meaning; Implementation owns Minecraft realization/lifecycle; Content owns game integration/experience.
 - AUTH-0086 is the accepted visible authored-hydrology intent producer; it is not Minecraft water placement.
 - AUTH-0087 is the accepted exact publication↔authored-realization coverage gate before downstream authored material/ecology consumers; concrete Minecraft material/biome mapping remains Implementation-owned.
+- AUTH-0088 is the accepted exact published-volume/world-XZ surface-ecology projection; physical Y, quart-cell policy, Minecraft biome identity, placement, persistence, and lifecycle remain Implementation-owned.
+- AUTH-0089 is the accepted fixed island-scale ecological-opportunity summary; it is horizontal authored-habitat planning evidence, not species/spawn/carrying-capacity/resource/backend policy.
+- AUTH-0090 is the accepted exact regional aggregation of AUTH-0089 through AUTH-0087 provenance with horizontal-area weighting; it still assigns no species/resources/province class/backend behavior.
 - C14 accepts existing CC:Tweaked/Create: Avionics as a baseline programmable sensor/bounded-control substrate, not mature autopilot or a first-flight prerequisite.
 - C15 accepts ordinary-player 1:1 Nether portal linking/placement mechanics only; assembled contraption transfer, passengers/cargo, authored portal-site safety, terminal UX, and permanent cosmology remain separate.
+- C16 accepts the measured stock CC:Tweaked wireless envelope only: ordinary wireless remains bounded local/regional infrastructure; Ender Modems are a range/dimension bypass whose progression treatment remains Content-owned.
+- C17 accepts stock GPS as infrastructure-dependent under ordinary radio range; Ender-backed GPS inherits the mature-bypass status. No duplicate Skyforge GPS/network authority is justified.
 - Bootstrap first powered aircraft remains distinct from the later Brass-era Giuseppe Bellanca GB-1A.
 - Machine correctness cannot waive explicit human/play gates.
 
@@ -120,9 +186,9 @@ Audited proposal head `797e0c54325b1f45d0aa6229124c3bb7e8727bda` remains cross-l
 
 Passed for accepted SF-IMP-0080 and recorded before merge. Do not reopen for issue #261.
 
-### #214 production morphology — OPEN / next major human gate
+### #214 production morphology — OPEN / first tranche passed / tracking corrected
 
-AUTH-0083/0084 provide deterministic review machinery, not aesthetic production acceptance. Required review includes family identity, distant silhouette, top/rim/approach/section/below views, underside quality, regional negative space, and actual flight/orbit underneath representative production islands.
+The SF-IMP-0081 Massif human tranche passed for silhouette/morphology/underside quality. Full #214 remains open for the other built-in families, multiple seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts. GitHub issue #214 had been incorrectly closed at the SF-IMP-0081 merge boundary; AUDIT reopened it to match the accepted ledgers and explicit first-tranche-only human decision. Issue #267 tracks Massif traversal cadence separately.
 
 ### Bellanca / C12 — OPEN
 
@@ -136,18 +202,18 @@ Human play must verify discoverability and non-surprising redstone shutdown beha
 
 1. **Biome presentation flight envelope / issue #261:** immediate-surface biome presentation can fall back to BASE_WORLD ambience away from owned terrain. Non-blocking for SF-IMP-0080; avoid claiming whole native biome columns as the fix.
 2. **Long-lived branch drift:** C11, Portable Engine cutoff, and Bellanca proposal require current-main synchronization before acceptance.
-3. **Production morphology:** underside quality is a first-class requirement and must not be inferred from topside-only review machinery.
+3. **Production morphology:** underside quality is a first-class requirement; the first Massif underside passed, but do not extrapolate full #214 acceptance from one family.
 4. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
 5. **Performance:** do not restart local micro-optimization absent fresh realistic-scale profiling.
 
-Resolved hazards include the C11/C13 identifier collision, duplicate live-state namespaces, AUTH-0086/AUTH-0087 durable-state lag, and SF-IMP-0080's compile/substrate/ecology-legibility blockers.
+Resolved hazards include the C11/C13 identifier collision, duplicate live-state namespaces, AUTH-0086/AUTH-0087/AUTH-0088 durable-state lag, C16 durable-state lag, SF-IMP-0080's compile/substrate/ecology-legibility blockers, and SF-IMP-0081's post-C16 synchronization plus temporary Implementation-ledger lag.
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Audit the first SF-IMP-0081 / #214 production-morphology tranche when opened: verify exact AUTH-0083 member identity, tight compiled support bounds, current production lifecycle, persistence/reopen, and human-view handoff without aesthetic threshold invention.
-2. Review AUTH-0088 only for cross-lane ownership/contract changes until exact-head Authorship evidence is complete.
-3. Track issue #261 as a non-blocking presentation-envelope refinement; do not let it reopen SF-IMP-0080.
-4. Re-audit C11 / PR #233 only after owner synchronization and focused runtime evidence.
-5. Re-audit PR #240 after assembled-Sable + persistence evidence.
-6. Review new Content milestones such as C16 only for cross-lane contract effects; producer-lane acceptance remains owner-gated.
-7. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
+1. Continue auditing SF-IMP-0082 / PR #273 through its exact-head four-family prepare/reopen matrix and human #214 review; do not infer family acceptance from machine evidence alone.
+2. Track AUTH-0091 / PR #279 through owner exact-head acceptance; preserve normalized retained-freshwater opportunity as planning evidence rather than physical water depth/volume, fauna, agriculture/resource, or backend authority.
+3. Track C18 / PR #277 through tightening of the permissive `STOPPED` gate, current-main synchronization, and final exact-head CI. Preserve the revised route/ticking-envelope interpretation; reject unrelated stop reasons, any leap to a production chunk-loader policy, exact internal chunk-boundary claim, or premature turtle nerf.
+4. Track issue #267 as non-blocking Massif traversal evidence and issue #261 as non-blocking biome-envelope refinement.
+5. Re-audit C11 / PR #233 and Portable Engine #240 only after their declared synchronization/runtime prerequisites.
+6. Keep full #214 open for seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts after the built-in family tranche.
+7. Update this ledger at each material merge, contract change, new hazard, or handoff.

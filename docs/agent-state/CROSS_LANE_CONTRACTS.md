@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `1a2f9cc2e76bfd5ef9a36d3547dd0a0f3835fe28`
+**Repository snapshot when updated:** `993d3815aef7c5a894ae562880b9075a24a6ddc6`
 
 ## Program-wide invariants
 
@@ -20,7 +20,7 @@
 | Authorship | `AUTH-0090` accepted: area-weighted regional ecological opportunity; AUTH-0091 freshwater habitat opportunity in progress |
 | Implementation | `SF-IMP-0081` accepted: first exact AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / #269 remaining built-in morphology atlas in progress |
 | Content / Experience | `C17` accepted: stock GPS requires ordinary host geometry/range while Ender-backed GPS is a mature range bypass; C11/C12 remain separately in progress/reserved |
-| AUDIT | AUDIT durable reconstruction/reconciliation remains the program-state review layer |
+| AUDIT | AUDIT-0005 post-ecology / first-production-morphology convergence audit accepted by the merge that places this update on `main` |
 
 Use each lane state file and merged history for detail.
 
