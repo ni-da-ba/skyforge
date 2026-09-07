@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-final class SkyIslandPublishedAuthoredMaterialBindingTest {
+final class SkyIslandPublishedAuthoredRealizationBindingTest {
     private static final long AUTHORED_WORLD = 0x4155544830303837L;
     private static final SkyIslandWorldVerticalReservation ADEQUATE_VERTICAL =
             new SkyIslandWorldVerticalReservation(260.0, 160.0);
@@ -33,8 +33,8 @@ final class SkyIslandPublishedAuthoredMaterialBindingTest {
         SkyIslandAuthoredRealizationCatalog associations =
                 exactAssociations(publication, AUTHORED_WORLD);
 
-        SkyIslandPublishedAuthoredMaterialBinding binding =
-                new SkyIslandPublishedAuthoredMaterialBinding(publication, associations);
+        SkyIslandPublishedAuthoredRealizationBinding binding =
+                new SkyIslandPublishedAuthoredRealizationBinding(publication, associations);
 
         assertEquals(publication, binding.publication());
         assertSame(associations, binding.associationCatalog());
@@ -55,7 +55,7 @@ final class SkyIslandPublishedAuthoredMaterialBindingTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new SkyIslandPublishedAuthoredMaterialBinding(publication, missing));
+                () -> new SkyIslandPublishedAuthoredRealizationBinding(publication, missing));
     }
 
     @Test
@@ -92,7 +92,7 @@ final class SkyIslandPublishedAuthoredMaterialBindingTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new SkyIslandPublishedAuthoredMaterialBinding(publication, oversized));
+                () -> new SkyIslandPublishedAuthoredRealizationBinding(publication, oversized));
     }
 
     @Test
@@ -126,7 +126,7 @@ final class SkyIslandPublishedAuthoredMaterialBindingTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new SkyIslandPublishedAuthoredMaterialBinding(publication, counterfeit));
+                () -> new SkyIslandPublishedAuthoredRealizationBinding(publication, counterfeit));
     }
 
     @Test
@@ -157,7 +157,7 @@ final class SkyIslandPublishedAuthoredMaterialBindingTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new SkyIslandPublishedAuthoredMaterialBinding(publication, associations));
+                () -> new SkyIslandPublishedAuthoredRealizationBinding(publication, associations));
     }
 
     private static SkyIslandAuthoredRealizationCatalog exactAssociations(

@@ -27,9 +27,9 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.imageio.ImageIO;
 
-/** Generates AUTH-0087 exact published authored-material binding evidence. */
-public final class AuthorshipPublishedAuthoredMaterialBindingCorpusCli {
-    public static final String EVIDENCE_ID = "authorship-published-authored-material-binding-v1";
+/** Generates AUTH-0087 exact published authored-realization binding evidence. */
+public final class AuthorshipPublishedAuthoredRealizationBindingCorpusCli {
+    public static final String EVIDENCE_ID = "authorship-published-authored-realization-binding-v1";
 
     private static final long AUTHORED_WORLD = 0x4155544830303837L;
     private static final int WIDTH = 1280;
@@ -39,12 +39,12 @@ public final class AuthorshipPublishedAuthoredMaterialBindingCorpusCli {
     private static final SkyIslandWorldVerticalReservation ADEQUATE_VERTICAL =
             new SkyIslandWorldVerticalReservation(260.0, 160.0);
 
-    private AuthorshipPublishedAuthoredMaterialBindingCorpusCli() {}
+    private AuthorshipPublishedAuthoredRealizationBindingCorpusCli() {}
 
     public static void main(String[] args) throws IOException {
         if (args.length > 1) {
             throw new IllegalArgumentException(
-                    "usage: AuthorshipPublishedAuthoredMaterialBindingCorpusCli [output-directory]");
+                    "usage: AuthorshipPublishedAuthoredRealizationBindingCorpusCli [output-directory]");
         }
         Path out = args.length == 1
                 ? Path.of(args[0])
@@ -114,10 +114,10 @@ public final class AuthorshipPublishedAuthoredMaterialBindingCorpusCli {
                 out.resolve("index.html"),
                 """
                 <!doctype html><html lang="en"><head><meta charset="utf-8">
-                <title>AUTH-0087 published authored-material binding</title>
+                <title>AUTH-0087 published authored-realization binding</title>
                 <style>body{font-family:system-ui,sans-serif;max-width:1400px;margin:2rem auto;padding:0 1rem;background:#f5f2e9;color:#30343b}img{width:100%;border:1px solid #bbb;background:white}</style>
                 </head><body>
-                <h1>Published authored-material binding</h1>
+                <h1>Published authored-realization binding</h1>
                 <p>AUTH-0087 proves that one accepted compiled-world publication is covered exactly by the explicit AUTH-0046 association catalog before AUTH-0049 material composition is exposed. Missing, extra, substituted, and foreign-root association sets fail closed. No Minecraft block, registry, placement, or material identity is introduced.</p>
                 <img src="atlas.png" alt="AUTH-0087 proof atlas">
                 <p><a href="manifest.csv">manifest.csv</a> · <a href="coverage.csv">coverage.csv</a></p>
@@ -132,8 +132,8 @@ public final class AuthorshipPublishedAuthoredMaterialBindingCorpusCli {
                         acceptedCompilation(58701L), 1L);
         SkyIslandAuthoredRealizationCatalog exact =
                 exactAssociations(publication);
-        SkyIslandPublishedAuthoredMaterialBinding binding =
-                new SkyIslandPublishedAuthoredMaterialBinding(publication, exact);
+        SkyIslandPublishedAuthoredRealizationBinding binding =
+                new SkyIslandPublishedAuthoredRealizationBinding(publication, exact);
 
         boolean exactCoverage = binding.volumeCount() == publication.volumeCount()
                 && exact.size() == publication.volumeCount()
@@ -142,7 +142,7 @@ public final class AuthorshipPublishedAuthoredMaterialBindingCorpusCli {
                                 .map(association -> association.realizedVolume().equals(volume))
                                 .orElse(false));
         boolean composerReady = binding.materialComposer().catalog() == exact;
-        boolean missingRejected = rejected(() -> new SkyIslandPublishedAuthoredMaterialBinding(
+        boolean missingRejected = rejected(() -> new SkyIslandPublishedAuthoredRealizationBinding(
                 publication,
                 new SkyIslandAuthoredRealizationCatalog(
                         AUTHORED_WORLD, publication.catalog().rootSeed(), List.of())));
@@ -164,7 +164,7 @@ public final class AuthorshipPublishedAuthoredMaterialBindingCorpusCli {
                         999L,
                         source.compiledVolume().descriptor().nominalRadius()),
                 extraVolume));
-        boolean extraRejected = rejected(() -> new SkyIslandPublishedAuthoredMaterialBinding(
+        boolean extraRejected = rejected(() -> new SkyIslandPublishedAuthoredRealizationBinding(
                 publication,
                 new SkyIslandAuthoredRealizationCatalog(
                         AUTHORED_WORLD, publication.catalog().rootSeed(), extras)));
@@ -180,7 +180,7 @@ public final class AuthorshipPublishedAuthoredMaterialBindingCorpusCli {
                         bounds.minimumZ(),
                         bounds.maximumZ()),
                 source.compiledVolume());
-        boolean substitutionRejected = rejected(() -> new SkyIslandPublishedAuthoredMaterialBinding(
+        boolean substitutionRejected = rejected(() -> new SkyIslandPublishedAuthoredRealizationBinding(
                 publication,
                 new SkyIslandAuthoredRealizationCatalog(
                         AUTHORED_WORLD,
@@ -344,7 +344,7 @@ public final class AuthorshipPublishedAuthoredMaterialBindingCorpusCli {
     }
 
     private record Evidence(
-            SkyIslandPublishedAuthoredMaterialBinding binding,
+            SkyIslandPublishedAuthoredRealizationBinding binding,
             boolean exactCoverage,
             boolean composerReady,
             boolean missingRejected,

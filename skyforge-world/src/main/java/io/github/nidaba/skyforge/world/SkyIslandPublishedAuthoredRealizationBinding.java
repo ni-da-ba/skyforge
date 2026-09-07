@@ -9,11 +9,11 @@ import java.util.Objects;
  * <p>The binding introduces no association inference. Every published volume must be covered by
  * exactly one AUTH-0046 association that retains the exact published volume value.
  */
-public record SkyIslandPublishedAuthoredMaterialBinding(
+public record SkyIslandPublishedAuthoredRealizationBinding(
         SkyIslandCompiledWorldPublication publication,
         SkyIslandAuthoredRealizationCatalog associationCatalog) {
 
-    public SkyIslandPublishedAuthoredMaterialBinding {
+    public SkyIslandPublishedAuthoredRealizationBinding {
         publication = Objects.requireNonNull(publication, "publication");
         associationCatalog = Objects.requireNonNull(associationCatalog, "associationCatalog");
 
@@ -23,7 +23,7 @@ public record SkyIslandPublishedAuthoredMaterialBinding(
         }
         if (associationCatalog.size() != publication.volumeCount()) {
             throw new IllegalArgumentException(
-                    "published authored-material binding requires exact one-to-one volume coverage");
+                    "published authored-realization binding requires exact one-to-one volume coverage");
         }
 
         for (SkyIslandWorldVolume publishedVolume : publication.catalog().volumes()) {

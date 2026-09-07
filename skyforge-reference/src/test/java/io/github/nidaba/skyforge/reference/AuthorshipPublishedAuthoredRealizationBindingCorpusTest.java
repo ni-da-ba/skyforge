@@ -10,15 +10,15 @@ import java.nio.file.Path;
 import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 
-final class AuthorshipPublishedAuthoredMaterialBindingCorpusTest {
+final class AuthorshipPublishedAuthoredRealizationBindingCorpusTest {
     @Test
     void generatesExactPublishedMaterialBindingProof() throws Exception {
         Path output = Path.of(
                 "build",
                 "evidence",
-                AuthorshipPublishedAuthoredMaterialBindingCorpusCli.EVIDENCE_ID);
+                AuthorshipPublishedAuthoredRealizationBindingCorpusCli.EVIDENCE_ID);
 
-        AuthorshipPublishedAuthoredMaterialBindingCorpusCli.main(
+        AuthorshipPublishedAuthoredRealizationBindingCorpusCli.main(
                 new String[] {output.toString()});
 
         assertTrue(Files.isRegularFile(output.resolve("index.html")));
