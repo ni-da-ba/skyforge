@@ -317,9 +317,11 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             int worldZ) {
         Objects.requireNonNull(volumeId, "volumeId");
         RuntimeBinding binding = ACTIVE.get();
-        return binding == null
-                ? Optional.empty()
-                : binding.adapter().integerSolidRange(volumeId, worldX, worldZ);
+        if (binding == null) {
+            throw new IllegalStateException(
+                    "exact column support requires an active Skyforge terrain binding");
+        }
+        return binding.adapter().integerSolidRange(volumeId, worldX, worldZ);
     }
 
     static Optional<List<SurfaceSupportAssessment>> assessSurfaceSupport(SurfaceSupportRequirements requirements) {
