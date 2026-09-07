@@ -27,6 +27,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211BiomePopulationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211SurfacePopulationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211ProductionMorphologyMassifDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ShowcaseEcologyDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211LocalModificationsDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211CarverDevRuntime.installFromSystemProperty();
@@ -56,11 +57,13 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211UndergroundStackedDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ShowcaseViewer.installFromSystemProperty();
         SkyforgeNeoForge1211ShowcaseEcologyViewer.installFromSystemProperty();
+        SkyforgeNeoForge1211ProductionMorphologyMassifViewer.installFromSystemProperty();
         SkyforgeWaveC6SoaringFaunaDevRuntime.installFromSystemProperty();
         SkyforgeWaveC7GliderLiftDevRuntime.installFromSystemProperty();
         SkyforgeWaveC10NetherScaleAcceptance.installFromSystemProperty();
         SkyforgeWaveC13ElytraBypassAcceptance.installFromSystemProperty();
         SkyforgeWaveC14AvionicsCapabilityAcceptance.installFromSystemProperty();
+        // C16 and SF-IMP-0081 are independent opt-in ModDev fixtures; both remain inert in normal packaged runtime.
         SkyforgeWaveC15PortalLinkingAcceptance.installFromSystemProperty();
         SkyforgeWaveC16WirelessEnvelopeAcceptance.installFromSystemProperty();
     }
