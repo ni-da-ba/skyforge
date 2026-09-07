@@ -300,6 +300,16 @@ val waveC5BirdStackMods = listOf(
     "yacl",
 )
 
+val skyforgeProductionMorphologyAtlasMembers = linkedMapOf(
+    "tableland" to "builtin-tableland-small-seed-skyforge",
+    "spine" to "builtin-spine-small-seed-skyforge",
+    "basin" to "builtin-basin-small-seed-skyforge",
+    "lobed" to "builtin-lobed-small-seed-skyforge",
+)
+
+fun skyforgeMorphologyAtlasSuffix(family: String): String =
+    family.substring(0, 1).uppercase() + family.substring(1)
+
 neoForge {
     version = "21.1.249"
 
@@ -1291,6 +1301,63 @@ neoForge {
                 layout.buildDirectory.file("acceptance/production-morphology-massif/viewer.properties").get().asFile.absolutePath,
             )
             taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // SF-IMP-0082 generalizes the accepted exact AUTH-0083 carrier across the remaining
+        // built-in SMALL / seed-skyforge members. The runtime installs each member's explicit
+        // finite chunk footprint into the acceptance harness, so no arbitrary square radius is used.
+        for ((family, memberId) in skyforgeProductionMorphologyAtlasMembers) {
+            val suffix = skyforgeMorphologyAtlasSuffix(family)
+            val gameDirectory =
+                layout.projectDirectory.dir("run-skyforge-production-morphology-atlas-$family")
+            val worldName = "morphology-atlas-$family"
+            val resultDirectory = "acceptance/production-morphology-atlas/$family"
+
+            create("productionMorphologyAtlas${suffix}Prepare") {
+                server()
+                gameDirectory = gameDirectory.asFile
+                programArgument("--nogui")
+                programArgument("--universe")
+                programArgument("saves")
+                programArgument("--world")
+                programArgument(worldName)
+                systemProperty("skyforge.dev.productionMorphologyAtlasMember", memberId)
+                systemProperty("skyforge.dev.acceptanceHarness", "true")
+                systemProperty("skyforge.dev.acceptanceMode", "server")
+                systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0082-$family")
+                systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+                systemProperty(
+                    "skyforge.dev.acceptanceResultFile",
+                    layout.buildDirectory.file("$resultDirectory/prepare.properties").get().asFile.absolutePath,
+                )
+                taskBefore(tasks.named(development.processResourcesTaskName))
+            }
+
+            create("productionMorphologyAtlas${suffix}Client") {
+                client()
+                gameDirectory = gameDirectory.asFile
+                programArgument("--quickPlaySingleplayer")
+                programArgument(worldName)
+                systemProperty("skyforge.dev.productionMorphologyAtlasViewerMember", memberId)
+                taskBefore(tasks.named(development.processResourcesTaskName))
+            }
+
+            create("productionMorphologyAtlas${suffix}ViewerAcceptanceClient") {
+                client()
+                gameDirectory = gameDirectory.asFile
+                programArgument("--quickPlaySingleplayer")
+                programArgument(worldName)
+                systemProperty("skyforge.dev.productionMorphologyAtlasViewerMember", memberId)
+                systemProperty("skyforge.dev.acceptanceHarness", "true")
+                systemProperty("skyforge.dev.acceptanceMode", "client")
+                systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0082-$family-viewer")
+                systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "300")
+                systemProperty(
+                    "skyforge.dev.acceptanceResultFile",
+                    layout.buildDirectory.file("$resultDirectory/viewer.properties").get().asFile.absolutePath,
+                )
+                taskBefore(tasks.named(development.processResourcesTaskName))
+            }
         }
 
         // Same final-head native-carver proof in an independent game directory for deterministic
