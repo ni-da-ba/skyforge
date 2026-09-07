@@ -6,6 +6,7 @@ This directory is the concise durable handoff layer for active agent work.
 
 1. [Program charter](PROGRAM_CHARTER.md)
 2. The relevant lane state:
+   - [Authorship](AUTHORSHIP_STATE.md)
    - [Content / Experience](CONTENT_STATE.md)
    - [Implementation](IMPLEMENTATION_STATE.md)
    - [AUDIT](AUDIT_STATE.md)
