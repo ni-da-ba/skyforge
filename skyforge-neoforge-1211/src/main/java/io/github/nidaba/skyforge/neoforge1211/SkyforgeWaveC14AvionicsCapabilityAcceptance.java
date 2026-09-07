@@ -107,12 +107,11 @@ final class SkyforgeWaveC14AvionicsCapabilityAcceptance {
 
     private static void onServerStarted(ServerStartedEvent event) {
         try {
-            requireLoaded("create");
-            requireLoaded("sable");
-            requireLoaded("aeronautics");
+            // The exact Create/Sable/Aeronautics artifacts are asserted by the C14 classpath
+            // gate. At runtime, check only the two optional computing-layer mod IDs we actually
+            // consume; bundled Simulated/Aeronautics identity is proven below by its real blocks.
             requireLoaded("computercraft");
             requireLoaded("create_avionics");
-            requireLoaded("simulated");
 
             MinecraftServer server = event.getServer();
             level = server.overworld();
