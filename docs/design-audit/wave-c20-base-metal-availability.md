@@ -1,6 +1,9 @@
 # Wave C20 — AUTH-0093 base-metal availability policy
 
-**Status:** IN PROGRESS until exact-head verification is green and merged  
+**Status:** MERGED / ACCEPTED  
+**PR:** #302  
+**Merge:** `0b76038a0b0a98628b6b3ec0e39b5cb0cd76a8d9`  
+**Accepted policy head:** `efc03a4f5233eade9eff24d438315315524b247d`  
 **Issue:** #301  
 **Authorship producer:** AUTH-0093 / PR #294  
 **Parent vertical slice:** #224
@@ -108,3 +111,15 @@ C20 is accepted when:
 5. policy does not classify availability from opportunity magnitude;
 6. backend-independence checks remain green;
 7. repository CI passes on the exact synchronized head.
+
+## Accepted evidence
+
+```text
+Wave C20 Base Metal Content Policy: PASS (run 34158865011)
+repository CI: PASS (run 34158865063)
+```
+
+Decision: **ACCEPT** the fixed backend-neutral availability/guarantee policy above. Concrete resource
+identity selection is a Content integration follow-up; deposit geometry, quantity, accessibility,
+placement, and lifecycle remain Implementation-owned. No manual Minecraft or visual gate applies to
+C20 itself.
