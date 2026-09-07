@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `65bd49a4e349f16bab8b796aa5b1a1e6dd72a7cc`
+**Repository snapshot when updated:** `70428e9920ff9e0f5d52a8f3ba90462f15a49e8f`
 
 ## Program-wide invariants
 
@@ -84,7 +84,7 @@ Other lanes must not introduce an independent wind/thermal authority without reo
 
 ### Ecology
 
-Authorship/environment semantics determine niches/opportunity. Content maps retained species into those niches. Atmosphere may alter behavior but must not independently create population. AUTH-0088 is the semantic query seam; SF-IMP-0080 is the current visible Minecraft ecology seam. Do not conflate them.
+Authorship/environment semantics determine niches/opportunity. Content maps retained species into those niches. Atmosphere may alter behavior but must not independently create population. AUTH-0088 is the exact published local query seam; AUTH-0089 is the accepted island-scale opportunity summary; SF-IMP-0080 is the visible Minecraft ecology seam. Do not conflate semantic opportunity with spawn/carrying-capacity policy.
 
 ### Nether route scale
 
