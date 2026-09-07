@@ -1,4 +1,5 @@
 name: Wave C17 GPS Infrastructure
+# Diagnostic-only current-main control for C21 regression isolation.
 
 on:
   pull_request:
