@@ -2,8 +2,8 @@ package io.github.nidaba.skyforge.world;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.Objects;
 
 /**
@@ -20,8 +20,8 @@ public final class SkyIslandFreshwaterHabitatOpportunityProfiler {
         SkyIslandWaterbodyFootprintPlan footprints =
                 SkyIslandWaterbodyFootprintPlanner.plan(descriptor);
 
-        Map<Integer, SkyIslandWaterbodyFootprintCell> uniqueCells = new HashMap<>();
-        Map<Integer, Boolean> shorelineByCell = new HashMap<>();
+        Map<Integer, SkyIslandWaterbodyFootprintCell> uniqueCells = new TreeMap<>();
+        Map<Integer, Boolean> shorelineByCell = new TreeMap<>();
         long sources = 0L;
         EnumMap<SkyIslandWaterbodyKind, Long> sourceKinds =
                 new EnumMap<>(SkyIslandWaterbodyKind.class);
