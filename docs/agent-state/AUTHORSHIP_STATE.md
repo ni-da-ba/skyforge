@@ -3,8 +3,8 @@
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot at latest Authorship acceptance:** `04fb6dab33cf80e8b82b42fc9d0fc7837cce31c4`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0087**
+**Main snapshot at latest Authorship acceptance:** `844ad6cd09a7cbe60529f1a7d43badc12a84a1e1`  
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0088**
 
 Read first:
 
@@ -124,50 +124,54 @@ Accepted invariants:
 
 Reference: `docs/authorship/AUTH-0087-published-authored-realization-binding.md`.
 
-## IN PROGRESS
-
 ### AUTH-0088 — published surface ecology projection
 
-Development branch: `auth/auth-0088-published-surface-ecology`; draft PR #262.
+PR #262 merged as `844ad6cd09a7cbe60529f1a7d43badc12a84a1e1`.
 
-Current work is **unaccepted**. Before acceptance it must be recomposed onto current `main` and receive
-fresh exact-head repository CI/evidence.
+Exact acceptance:
+
+- accepted head: `aee6de6ed3f51e4096861a030854d2a64ba4950e`;
+- synchronized base: `da8ef1b98cff4932d77e4d319603f2552b362dda`;
+- CI PASS, run `34083554995`;
+- evidence artifact `10004585440`;
+- digest `sha256:2e70d519391f8ca433b3f20219d64d3b99e2d224132887a1fe2a105ad35abcd7`.
+
+Accepted invariants:
+
+- one exact published volume id plus world X/Z routes only through the explicit AUTH-0087/AUTH-0046 association;
+- world/local translation uses the exact realized-volume center with no inferred island discovery;
+- AUTH-0003 ecology is exposed only where strict compiled horizontal support and current authored-domain ownership both exist;
+- physical-but-native-unowned fringe emits no ecology rather than converting diagnostic COLD_BARREN fallback into ownership;
+- returned ecology equals exact AUTH-0003 evaluation at the recovered local position;
+- the public surface-ecology query intentionally contains no physical Y;
+- no Minecraft biome key, quart-cell policy, placement, persistence, or lifecycle behavior enters Authorship.
+
+Reference: `docs/authorship/AUTH-0088-published-surface-ecology.md`.
+
+## IN PROGRESS
+
+### AUTH-0089 — island ecological opportunity profile
+
+Stacked development branch: `auth/auth-0089-ecological-opportunity-profile`.
+
+Current work is **unaccepted** and must be recomposed onto current `main` before final verification.
 
 Intended boundary:
 
-- exact published volume ID + world-space X/Z -> explicit AUTH-0046 local frame;
-- require authoritative compiled horizontal column support;
-- require current naturalized authored-domain interiority;
-- expose unchanged AUTH-0003 `SkyIslandEcologySample` only where both gates hold;
-- no physical Y/quart-cell policy and no Minecraft biome identity in Authorship.
+- fixed deterministic 128×128 local quadrature over current authored-domain ownership;
+- aggregate unchanged AUTH-0003 regime composition plus mean vegetation/saturation/thermal potentials;
+- expose horizontal authored-habitat planning area separately from normalized composition;
+- no species, role assignment, spawn count, carrying-capacity claim, resource ID, Minecraft biome, or backend state.
 
 ## PROPOSED
 
-### Next priority — physical visible-hydrology bridge
-
-After AUTH-0086 merges, define the smallest handoff needed to turn its intents into physical water
-realization.
-
-Known constraint:
-
-- AUTH-0009 waterbody `waterSurfacePotential`, depth potentials, and related hydrologic scalars are
-  normalized semantic potentials, **not** literal world-space Y coordinates;
-- physical vertical authority already exists through compiled volume columns and
-  `SkyIslandSemanticDepthRealizationTransform`;
-- do not invent a naive scalar-to-Y mapping;
-- preserve exact-volume ownership and reuse existing Implementation fluid provenance/fencing.
-
-Determine whether this is best expressed as thin backend-neutral rasterization support or handed
-directly to Implementation. Do not grow new hydrology ontology without a concrete failure mode.
-
 ### Later semantic priorities
 
-Subject to morphology/hydrology findings:
-
-1. geology-to-visible-palette expression;
-2. ecology/geography coupling;
-3. deterministic Bootstrap Province convergence;
-4. geothermal/volcanic semantics only if player/content design requires them.
+1. Use AUTH-0089 only as island-scale ecological evidence; do not jump directly to entity spawning.
+2. Define explicit fauna habitat/role suitability only after remaining causes such as water volume/depth,
+   cave/cliff opportunity, isolation, disturbance, and trophic state are available.
+3. Continue deterministic Bootstrap Province convergence when concrete progression/resource inputs are ready.
+4. Add geothermal/volcanic semantics only if player/content design requires them.
 
 ## Architectural decisions / invariants
 
@@ -188,6 +192,7 @@ Implementation:
 - consumes AUTH-0085 for semantically valid native spring admission;
 - may consume accepted AUTH-0086 as the authoritative visible authored-hydrology intent contract;
 - may consume AUTH-0087 as the exact publication/authorship association gate before AUTH-0049 material composition;
+- may consume AUTH-0088 as the exact backend-neutral surface-ecology query for a named published volume and world X/Z;
 - owns block-space realization, chunk lifecycle, fluid propagation/fencing, and live Minecraft proofs;
 - SF-IMP-0080 is now merged/accepted as the legible forest/taiga ecology showcase after machine and human review; it does not yet claim AUTH-0088 semantic-biome translation;
 - issue #214 requires Minecraft rendering of AUTH-0083/AUTH-0084 deterministic handoff IDs.
@@ -243,9 +248,8 @@ Human review still needs the AUTH-0083/AUTH-0084 reference + Minecraft matrices,
 
 ## Ordered next work
 
-1. Merge this AUTH-0087 durable-state boundary.
-2. Recompose AUTH-0088 / PR #262 onto resulting current `main`, which now includes accepted SF-IMP-0080.
-3. Complete exact-volume-ID/world-XZ ecology projection with physical-column and authored-domain fail-closed gates.
-4. Require fresh exact-head repository CI/evidence before AUTH-0088 acceptance.
-5. Keep SF-IMP-0080 ecology showcase acceptance distinct from future AUTH-0088 semantic-biome consumption.
-6. Keep issue #214 morphology-quality review independent.
+1. Merge this AUTH-0088 durable-state boundary.
+2. Recompose AUTH-0089 onto resulting current `main`.
+3. Verify fixed island-scale ecology aggregation, normalization, deterministic scale covariance, and evidence packaging.
+4. Merge AUTH-0089 only after fresh exact-head CI.
+5. Keep SF-IMP-0081 / issue #214 production morphology independent and Implementation-owned.
