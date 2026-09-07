@@ -234,7 +234,7 @@ public final class AuthorshipPublishedSurfaceEcologyCorpusCli {
                                 .equals(List.of(SkyIslandWorldVolumeId.class, Coordinate2.class));
 
         List<RegimeObservation> regimes = diverseRegimes(publication);
-        boolean regimeDiversity = regimes.size() >= 5
+        boolean regimeDiversity = regimes.size() >= 6
                 && regimes.stream()
                         .map(observation ->
                                 observation.sample().ecologySample().orElseThrow().regime())
