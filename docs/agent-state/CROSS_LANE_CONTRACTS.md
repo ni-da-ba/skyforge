@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Repository snapshot after AUTH-0092 acceptance:** f7440b05279d7cb7f7f72c575e70d0e880ef184f
+**Repository snapshot after AUTH-0093 acceptance:** 636f261cdc491d80fcf9a6ae73d1c10be480ccfd
 
 ## Program-wide invariants
 
@@ -17,7 +17,7 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0092` accepted: deterministic raw regional center-distance / nominal-radial-gap isolation evidence over exact AUTH-0087 provenance |
+| Authorship | `AUTH-0093` accepted: normalized Iron/Copper/Zinc geological opportunity over exact AUTH-0033 mineral-bearing structural provenance |
 | Implementation | `SF-IMP-0082` accepted: all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / #284 multi-seed/multi-scale built-in matrix in progress |
 | Content / Experience | `C18` accepted: stock turtle freight/ticking envelope measured and base capability retained; C11/C12 remain separately in progress/reserved |
 | Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 is draft/unmerged with branch-local cue/source freezes only |
@@ -69,6 +69,14 @@ One exact AUTH-0087 published authored-realization binding now yields canonical 
 
 Nominal radial gap is authored planning evidence, not exact physical terrain-edge separation. AUTH-0092 assigns no isolated/not-isolated class, fauna/resource/settlement threshold, route cost, Minecraft range policy, or backend lifecycle.
 
+### AUTH-0093 — base-metal geological opportunity — ACCEPTED
+
+AUTH-0093 / PR #294 merged as `636f261cdc491d80fcf9a6ae73d1c10be480ccfd` from exact-head candidate `73a0d26c7455011b8ef54f9e860b206f2d764b44`.
+
+One authored island now exposes normalized IRON / COPPER / ZINC geological opportunity over the fixed exact AUTH-0033 material-family lattice. Every nonzero element opportunity is subordinate to and bounded by accepted `MINERAL_BEARING_STRUCTURAL_HOST` support; broad element-specific affinity cannot create independent ore noise.
+
+Content owns availability classes, bootstrap guarantees, trade/salvage, resource-tier/progression decisions, and the choice to map these geological opportunities to retained Minecraft/mod resources. Implementation owns concrete deposits/blocks/worldgen/lifecycle. AUTH-0093 supplies no grade, reserves, deposit count/volume, ore id, or placement policy.
+
 ### SF-IMP-0080 — visible land ecology — ACCEPTED
 
 The forest/taiga showcase passed machine persistence/reopen gates and project-owner human visual review. This proves legible Minecraft land ecology, not yet AUTH-0003-to-Minecraft-biome semantic translation. Issue #194 is closed; #261 is a non-blocking short-distance ambience/presentation follow-up.
@@ -99,7 +107,7 @@ spawn -> survival foothold -> Create workshop -> cheap glider -> shared thermals
 -> evidence of mature skyborne civilization
 ```
 
-The previous legible-land dependency is cleared by SF-IMP-0080. Content may proceed with ecology-visible province work while treating #261 as non-blocking. First powered flight should remain pre-Brass/pre-petroleum unless executable recipe closure disproves it.
+The previous legible-land dependency is cleared by SF-IMP-0080. Content may proceed with ecology-visible province work while treating #261 as non-blocking. First powered flight should remain pre-Brass/pre-petroleum unless executable recipe closure disproves it. AUTH-0093 now supplies backend-neutral Iron/Copper/Zinc geological opportunity for the resource-geography leg; Content still owns concrete availability and starting-region guarantees.
 
 ### Atmosphere and lift
 
