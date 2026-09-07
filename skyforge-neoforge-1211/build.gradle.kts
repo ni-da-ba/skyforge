@@ -85,9 +85,9 @@ val waveC9Runtime = sourceSets.create("waveC9Runtime") {
 }
 
 
-// Wave C11 performs a black-box baseline-vs-suppressed Elytra test. Only the suppressed run loads
+// Wave C13 performs a black-box baseline-vs-suppressed Elytra test. Only the suppressed run loads
 // the pinned No More Elytra Boosting jar; ordinary Skyforge and the baseline acceptance stay vanilla.
-val waveC11Runtime = sourceSets.create("waveC11Runtime") {
+val waveC13Runtime = sourceSets.create("waveC13Runtime") {
     compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
     runtimeClasspath +=
         sourceSets.main.get().output +
@@ -1525,22 +1525,22 @@ neoForge {
         }
 
 
-        // C11 baseline: vanilla 1.21.1 Elytra/firework behavior with no suppression mod loaded.
-        create("waveC11VanillaElytraAcceptanceServer") {
+        // C13 baseline: vanilla 1.21.1 Elytra/firework behavior with no suppression mod loaded.
+        create("waveC13VanillaElytraAcceptanceServer") {
             server()
-            gameDirectory = layout.projectDirectory.dir("run-wave-c11-elytra-baseline-server").asFile
+            gameDirectory = layout.projectDirectory.dir("run-wave-c13-elytra-baseline-server").asFile
             programArgument("--nogui")
-            systemProperty("skyforge.dev.waveC11ElytraAcceptance", "baseline")
+            systemProperty("skyforge.dev.waveC13ElytraAcceptance", "baseline")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-        // C11 suppressed: identical acceptance with only the exact pinned no-boost mod added.
-        create("waveC11SuppressedElytraAcceptanceServer") {
+        // C13 suppressed: identical acceptance with only the exact pinned no-boost mod added.
+        create("waveC13SuppressedElytraAcceptanceServer") {
             server()
-            sourceSet.set(waveC11Runtime)
-            gameDirectory = layout.projectDirectory.dir("run-wave-c11-elytra-suppressed-server").asFile
+            sourceSet.set(waveC13Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c13-elytra-suppressed-server").asFile
             programArgument("--nogui")
-            systemProperty("skyforge.dev.waveC11ElytraAcceptance", "suppressed")
+            systemProperty("skyforge.dev.waveC13ElytraAcceptance", "suppressed")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -1718,8 +1718,8 @@ tasks.named("runWaveC10NetherScaleAcceptanceServer").configure {
 }
 
 
-val waveC11ElytraServerProperties = """
-    level-name=wave-c11-elytra
+val waveC13ElytraServerProperties = """
+    level-name=wave-c13-elytra
     level-seed=601100
     online-mode=false
     spawn-protection=0
@@ -1732,8 +1732,8 @@ val waveC11ElytraServerProperties = """
 """.trimIndent() + "\n"
 
 mapOf(
-    "runWaveC11VanillaElytraAcceptanceServer" to "run-wave-c11-elytra-baseline-server",
-    "runWaveC11SuppressedElytraAcceptanceServer" to "run-wave-c11-elytra-suppressed-server",
+    "runWaveC13VanillaElytraAcceptanceServer" to "run-wave-c13-elytra-baseline-server",
+    "runWaveC13SuppressedElytraAcceptanceServer" to "run-wave-c13-elytra-suppressed-server",
 ).forEach { (taskName, relativePath) ->
     tasks.named(taskName).configure {
         doFirst {
@@ -1741,7 +1741,7 @@ mapOf(
             delete(directory)
             directory.mkdirs()
             directory.resolve("eula.txt").writeText("eula=true\n")
-            directory.resolve("server.properties").writeText(waveC11ElytraServerProperties)
+            directory.resolve("server.properties").writeText(waveC13ElytraServerProperties)
         }
     }
 }
@@ -3140,7 +3140,7 @@ tasks.register("sfImp0067AcceptanceVerify") {
                 && first.getProperty("nativeAuthoredAirOverlap") == "582"
                 && first.getProperty("nativeRejectedWrites") == "0"
                 && first.getProperty("nativeMappedOutsideTarget") == "0"
-                && first.getProperty("nativeTransformDigest") == "95c046280c7f1c11"
+                && first.getProperty("nativeTransformDigest") == "95c046280c7f1c13"
                 && first.getProperty("nativeCarveDigest") == "c277e3af5030dd01"
                 && first.getProperty("authoredPositive") == "89068"
                 && first.getProperty("authoredBasePositive") == "78030"
@@ -3470,7 +3470,7 @@ tasks.register("sfImp0068AcceptanceVerify") {
             "SF-IMP-0068 stacked production isolation failed: $stacked"
         }
 
-        check(composed0067.getProperty("nativeTransformDigest") == "95c046280c7f1c11"
+        check(composed0067.getProperty("nativeTransformDigest") == "95c046280c7f1c13"
                 && composed0067.getProperty("nativeCarveDigest") == "c277e3af5030dd01"
                 && composed0067.getProperty("authoredChangedDigest") == "6d2120967a6c73bd"
                 && composed0067.getProperty("authoredProvenanceDigest") == "3032a41620c93935"
@@ -3725,21 +3725,21 @@ tasks.register("waveC9ResolvePinnedMods") {
 }
 
 
-tasks.register("waveC11ResolvePinnedMods") {
+tasks.register("waveC13ResolvePinnedMods") {
     group = "verification"
-    description = "Resolve and assert the exact C11 Elytra-suppression runtime."
+    description = "Resolve and assert the exact C13 Elytra-suppression runtime."
     inputs.file(waveC2PinFile)
 
     doLast {
-        val files = waveC11Runtime.runtimeClasspath.files.map { it.name }.sorted()
+        val files = waveC13Runtime.runtimeClasspath.files.map { it.name }.sorted()
         val coordinate = waveC2Pin("noelytraboost", "coordinate")
         val parts = coordinate.split(":")
         check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
         val token = "${parts[1]}-${parts[2]}"
         check(files.any { it.contains(token) }) {
-            "Wave C11 missing No More Elytra Boosting artifact token '$token': $files"
+            "Wave C13 missing No More Elytra Boosting artifact token '$token': $files"
         }
-        println("Wave C11 suppressed-Elytra classpath")
+        println("Wave C13 suppressed-Elytra classpath")
         files.forEach { println("  resolved=$it") }
     }
 }
@@ -3879,10 +3879,10 @@ dependencies {
     )
 
 
-    // C11's suppressed run contains exactly the pinned server-side no-boost mod. The baseline run
+    // C13's suppressed run contains exactly the pinned server-side no-boost mod. The baseline run
     // deliberately uses the ordinary source set and therefore has vanilla Elytra/firework behavior.
     add(
-        waveC11Runtime.runtimeOnlyConfigurationName,
+        waveC13Runtime.runtimeOnlyConfigurationName,
         waveC2Pin("noelytraboost", "coordinate"),
     )
 
