@@ -1,7 +1,9 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import java.util.Objects;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
 /**
@@ -83,10 +85,42 @@ public final class MinecraftNativeSurfaceTopAdapter {
             }
 
             int worldY = minimumY + localY;
-            if (nativeSurface.worldY() < worldY) {
+            if (nativeSurface.worldY() < worldY
+                    && stableWhenAdapted(
+                            blockKeys,
+                            localY,
+                            localX,
+                            localZ,
+                            nativeSurface.blockKey())) {
                 blockKeys[index] = nativeSurface.blockKey();
             }
         }
+    }
+
+    /**
+     * Prevents concrete native representation from invalidating authoritative Skyforge occupancy.
+     *
+     * <p>A gravity-affected native surface block may be copied onto an elevated Skyforge top only
+     * when the Skyforge materialization already contains a solid immediately below it. Otherwise a
+     * one-voxel fringe can fall after realization and disappear before/after save, violating the
+     * accepted ADR-0041 invariant that surface adaptation never removes a Skyforge solid.
+     * Non-falling native materials remain eligible exactly as before.
+     */
+    private static boolean stableWhenAdapted(
+            ResourceLocation[] blockKeys,
+            int localY,
+            int localX,
+            int localZ,
+            ResourceLocation nativeBlockKey) {
+        var nativeBlock = BuiltInRegistries.BLOCK.get(nativeBlockKey);
+        if (!(nativeBlock instanceof FallingBlock)) {
+            return true;
+        }
+        if (localY == 0) {
+            return false;
+        }
+        return !SkyforgeMinecraftBlockPalette.AIR.equals(
+                blockKeys[linearIndex(localX, localY - 1, localZ)]);
     }
 
     private static int linearIndex(int localX, int localY, int localZ) {
