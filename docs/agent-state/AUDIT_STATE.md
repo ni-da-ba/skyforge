@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot before AUDIT-0002 merge:** `dcfa4d467bfcd8e64443da84f2f970de6b1ccd7b`
+**Main snapshot at AUDIT-0003 start:** `d0e4329ed95088a38a5a0f8f2880736a34986616`
 
 Read first:
 
@@ -26,9 +26,13 @@ Accepted boundary:
 - stale duplicate Content PR #225 was closed only after proving merged C8 / PR #229 behaviorally superseded it;
 - cross-lane milestone/progression collisions and manual gates were made explicit.
 
-### AUDIT-0002 — current runtime documentation reconciliation
+### Highest accepted AUDIT milestone: AUDIT-0002
 
-Accepted by the merge that places this update on `main`.
+PR **#249** merged as `d0e4329ed95088a38a5a0f8f2880736a34986616`.
+
+Accepted head: `ed02e6e033f5b2001fba7ff4ab6ae9f4ba86a967`. Exact-head repository CI run **34079407149** passed the full build/tests/evidence generation, evidence-review entry-point check, and compact evidence-bundle publication.
+
+### AUDIT-0002 — current runtime documentation reconciliation
 
 Scope is documentation accuracy only; it does not create or extend runtime capability.
 
@@ -41,6 +45,19 @@ Reconciles:
 
 Cross-lane ownership is unchanged. Current `main` already records AUTH-0086 as merged/accepted in the canonical Authorship state and shared contracts; AUDIT-0002 records that authoritative status without duplicating or redefining the producer/consumer boundary.
 
+### AUDIT-0003 — active gate blocker audit
+
+Accepted by the merge that places this state update on `main`.
+
+This milestone records the next active-gate audit without taking over producer-lane implementation:
+
+- SF-IMP-0080 / PR #248 current audited head `dc5cccc378c5dc08cba6e9ea05e55feb2f05bf49` is compile-blocked by literal `\\n` text inserted in `SkyforgeNeoForge1211Mod.java`; sampled CI/showcase/performance jobs all fail at `:skyforge-neoforge-1211:compileJava` before runtime evidence executes;
+- AUTH-0087 / PR #254 audited head `9b788ba6d291332d81b865a4e271188e88403517` has no Audit-discovered ownership blocker: exact published-volume/root coverage gates the existing AUTH-0049 composer while Minecraft material/biome mapping and lifecycle remain Implementation-owned;
+- Bellanca B0-A docs / PR #242 audited head `797e0c54325b1f45d0aa6229124c3bb7e8727bda` remain cross-lane consistent design state, but the branch is based on old main and live C12 Sable assembly/physics/flight evidence remains authoritative;
+- C11 / PR #233 and Portable Engine cutoff / PR #240 remain blocked on their already-recorded synchronization/runtime prerequisites.
+
+No runtime behavior or producer-lane acceptance is created by AUDIT-0003.
+
 ## CURRENT AUTHORITATIVE PROGRAM SNAPSHOT
 
 | Lane | Highest merged boundary |
@@ -50,7 +67,7 @@ Cross-lane ownership is unchanged. Current `main` already records AUTH-0086 as m
 | Content / Experience | **C13** / PR #247 — Elytra/firework bypass suppression; C11/C12 remain separately in progress/reserved |
 | Showcase | technical current-capability showcase + persisted client reopen accepted |
 | Music | no MUS milestone merged; PR #159 remains draft/unmerged |
-| AUDIT | **AUDIT-0002** by this documentation-reconciliation merge |
+| AUDIT | **AUDIT-0003** by the active-gate audit merge that places this update on `main` |
 
 Merged Bellanca PR #238 is accepted **design state**, not accepted aircraft runtime/flight behavior.
 
@@ -58,9 +75,11 @@ Merged Bellanca PR #238 is accepted **design state**, not accepted aircraft runt
 
 ### Implementation land-biome legibility — issue #194 / PR #248
 
-PR **#248 / SF-IMP-0080** is active again as a draft after replacing its failed compact-showcase prototype with a separate ecology showcase.
+PR **#248 / SF-IMP-0080** is active as a draft. Exact audited head: `dc5cccc378c5dc08cba6e9ea05e55feb2f05bf49`.
 
-Current design boundary:
+That head has one immediate compile blocker: `SkyforgeNeoForge1211Mod.java` contains literal `\\n` text at the two new ecology registration seams. Repository CI, Showcase Acceptance, ecology acceptance, performance characterization, and sampled compatibility workflows all fail in Java compilation before runtime evidence can execute. Those red checks therefore do not yet discriminate ecology behavior.
+
+Current design boundary after that compile blocker is repaired:
 
 - the accepted current-capability cave/interior showcase remains unchanged;
 - the ecology specimen reuses broad TABLELAND land geometry plus forest/taiga identity through modern whole-volume admission, deferred catch-up, exact-volume native surface population, durable biome presentation, save/reopen, and a mutation-inert actual-client viewer;
@@ -70,19 +89,11 @@ Current design boundary:
 
 Do not conflate this with production morphology aesthetics; issue #214 remains separate.
 
-### Authorship state migration — PR #245
+### AUTH-0087 authored-realization publication binding — PR #254
 
-PR **#245** is now **merged** as `5d4a293d`. The canonical live namespace remains `docs/agent-state/`; Authorship added `AUTHORSHIP_STATE.md` and extended the shared charter/contracts without recreating the deprecated live authority under `docs/handoffs/`.
+Draft AUTH-0087 exact audited head: `9b788ba6d291332d81b865a4e271188e88403517`.
 
-### Authorship visible hydrology — AUTH-0086 / PR #241
-
-AUTH-0086 is now merged. It projects every accepted authored naturalized channel, retained-waterbody footprint, and channel-drop event into deterministic backend-neutral visible-water intents while preserving exact source identity, riparian relationships, dry waterbody margins, and cross-island isolation.
-
-It does not define Minecraft block/fluid identities, block-space rasterization, fluid ticks, scheduling, or placement. Implementation owns that downstream realization and must consume the accepted plan rather than invent a competing hydrology planner.
-
-### AUTH-0087 authored-material publication binding — PR #254
-
-Draft AUTH-0087 binds one exact accepted compiled-world publication to an explicit authored-realization association catalog before exposing the already accepted AUTH-0049 material composer.
+It binds one exact accepted compiled-world publication to an explicit authored-realization association catalog before exposing the already accepted AUTH-0049 material composer. Audit spot-check of the binding/tests found no cross-lane ownership blocker; Authorship acceptance remains contingent on its own exact-head CI/evidence.
 
 Current contract is backend-neutral and fail-closed:
 
@@ -103,7 +114,9 @@ Stationary retained-stack behavior has evidence, but acceptance remains blocked 
 
 ### Bellanca B0-A assembly docs — PR #242
 
-CONTENT-owned proposed documentation. Build evidence does not substitute for C12 live Sable assembly/physics/flight acceptance.
+Exact audited head: `797e0c54325b1f45d0aa6229124c3bb7e8727bda`.
+
+AUDIT found the proposal cross-lane consistent: it remains the later Brass-era Bellanca, uses a real Sable main body plus nested Create propeller/child-Sable control concepts, treats live Sable mass/CG as authoritative, and makes assembled-aircraft cutoff contingent on #240. The branch is still based on old main. Build/document plausibility does not substitute for C12 live Sable assembly/physics/flight acceptance or later power-off glide/handling evidence.
 
 ## VERIFIED CROSS-LANE CONTRACTS
 
@@ -136,10 +149,11 @@ Human play must verify interaction discoverability and that neighboring redstone
 
 ## KNOWN HAZARDS / TECHNICAL DEBT
 
-1. **Long-lived branch drift:** C11 and Portable Engine cutoff require current-main synchronization before acceptance.
-2. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
-3. **Manual-gate ambiguity:** morphology corpus machinery and showcase counters do not constitute aesthetic/ecology acceptance.
-4. **Reviewer-document drift:** AUDIT-0002 repairs the known SF-IMP-0057 runtime overview drift; future milestone/state changes should not silently turn overview prose back into a second lane ledger.
+1. **SF-IMP-0080 compile blocker:** audited head `dc5cccc3` cannot produce behavioral ecology evidence until the literal `\\n` registration text is repaired; current red workflow results are compile-cascade evidence only.
+2. **Long-lived branch drift:** C11 and Portable Engine cutoff require current-main synchronization before acceptance.
+3. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
+4. **Manual-gate ambiguity:** morphology corpus machinery and showcase counters do not constitute aesthetic/ecology acceptance.
+5. **Reviewer-document drift:** AUDIT-0002 repairs the known SF-IMP-0057 runtime overview drift; future milestone/state changes should not silently turn overview prose back into a second lane ledger.
 
 Resolved hazards:
 - PR #247's initial C11 milestone collision was corrected to **C13** without renumbering C11 or C12; C13 is now merged/accepted as the Elytra/firework bypass suppression contract.
@@ -149,8 +163,9 @@ Resolved hazards:
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Track active SF-IMP-0080 / PR #248 without waiving the #194 human-eye ecology gate.
+1. Re-audit SF-IMP-0080 / PR #248 after its compile blocker is fixed, current main is synchronized, and machine ecology/showcase/performance gates produce behavioral evidence; do not waive the #194 human-eye ecology gate.
 2. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
 3. Re-audit PR #240 after assembled-Sable + persistence evidence.
-4. Continue checking future lane-state migrations remain under `docs/agent-state/`.
-5. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
+4. Re-check AUTH-0087 only if its producer contract or ownership boundary changes; ordinary exact-head acceptance remains Authorship-owned.
+5. Continue checking future lane-state migrations remain under `docs/agent-state/`.
+6. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
