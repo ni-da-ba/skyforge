@@ -26,10 +26,10 @@ final class SkyforgeShowcaseEcologyResourceTest {
                 "showcase_land.json"));
         String json = Files.readString(preset);
 
-        assertTrue(json.contains(""type": "skyforge:noise_overlay""));
-        assertTrue(json.contains(""type": "minecraft:fixed""));
-        assertTrue(json.contains(""biome": "minecraft:plains""));
-        assertTrue(json.contains(""settings": "minecraft:overworld""));
+        assertTrue(json.contains("\"type\": \"skyforge:noise_overlay\""));
+        assertTrue(json.contains("\"type\": \"minecraft:fixed\""));
+        assertTrue(json.contains("\"biome\": \"minecraft:plains\""));
+        assertTrue(json.contains("\"settings\": \"minecraft:overworld\""));
     }
 
     @Test
@@ -37,10 +37,12 @@ final class SkyforgeShowcaseEcologyResourceTest {
         String build = Files.readString(PROJECT_DIRECTORY.resolve("build.gradle.kts"));
 
         assertTrue(build.contains("level-type=skyforge:showcase_land"));
-        assertTrue(build.contains("systemProperty("skyforge.dev.showcaseLegibleEcology", "true")"));
-        assertTrue(build.contains("val sfImp0069AcceptanceServerProperties = """\n"
-                + "    level-name=acceptance\n"
-                + "    level-seed=600068\n"
-                + "    level-type=skyforge:development"));
+        assertTrue(build.contains(
+                "systemProperty(\"skyforge.dev.showcaseLegibleEcology\", \"true\")"));
+        assertTrue(build.contains(
+                "val sfImp0069AcceptanceServerProperties = \"\"\"\n"
+                        + "    level-name=acceptance\n"
+                        + "    level-seed=600068\n"
+                        + "    level-type=skyforge:development"));
     }
 }
