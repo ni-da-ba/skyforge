@@ -19,7 +19,7 @@
 | --- | --- |
 | Authorship | `AUTH-0086` merged on current `main` (visible authored-hydrology realization intent) |
 | Implementation | `SF-IMP-0079` merged before current Authorship work (post-cave vegetal routing) |
-| Content / Experience | C14 executable avionics capability accepted; C13 Elytra/firework suppression, C10 live 1:1 Nether-scale proof, C9 computing substrate, and C8 glider-maintenance closure also accepted; C11/C12 remain separately in progress/reserved |
+| Content / Experience | C15 ordinary-player 1:1 Nether portal linking/placement accepted; C14 executable avionics capability, C13 Elytra/firework suppression, C10 live 1:1 Nether-scale registry proof, C9 computing substrate, and C8 glider-maintenance closure also accepted; C11/C12 remain separately in progress/reserved |
 | AUDIT | AUDIT-0001 repository-state reconstruction / durable audit handoff accepted on `main` |
 
 Use each lane's own state file and git history for detail. Do not infer acceptance solely from an old
@@ -107,7 +107,15 @@ Atmosphere may alter behavior (for example thermal soaring) but must not indepen
 ### Nether route scale
 
 C10 / PR #232 proves a 1:1 Nether `coordinate_scale` datapack reaches the live final dimension registry.
-Final route policy still requires portal linking/placement and retained-mod compatibility evidence.
+
+C15 / PR #259, merge `764fbb393644fd2de7aa9076f71f29602fa25732`, proves ordinary vanilla
+portal destination search and missing-target portal creation consume that live 1:1 scale at non-origin
+coordinates with the retained Create/Sable/Aeronautics stack loaded. Same-coordinate linking beats a
+deliberate vanilla-8:1 distractor; reverse linking is exact; missing targets are created near the 1:1
+destination.
+
+Remaining route-policy gates are assembled contraption/passenger/cargo transfer, authored portal-site
+safety/footholds, human terminal usability, and the later permanent-cosmology decision.
 
 ### Structures / civilization
 
