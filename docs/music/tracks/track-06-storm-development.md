@@ -1,11 +1,11 @@
 # Track 06 — storm / weather development record
 
-**Status:** Draft 02 active  
+**Status:** Composition frozen at Draft 02.3; title/mastering disposition pending  
 **Role:** energetic environmental danger / storm-cell traversal  
 **Tempo:** 144 BPM  
 **Meter:** 4/4  
 **Center:** D-minor-centered storm language  
-**Current boundary:** Draft 02 — Thunderbreak
+**Current boundary:** accepted full BBCSO realization — no structural rewrite
 
 ## Dramatic function
 
@@ -501,3 +501,32 @@ Strong naming families:
 - old-fashioned travel/weather vernacular.
 
 Current leading candidates remain **A Province of Thunder**, **No Harbor in the Air**, and **Where Thunder Keeps Its Court**, but no title is locked.
+
+
+## Composition freeze after real render
+
+The real BBCSO review is sufficient to freeze Track 06 compositionally at Draft 02.3.
+
+Accepted and frozen:
+
+- full Track 02 territorial-language callback at opening and ending;
+- storm motif `D-F-A-Eb | C-Bb-G-A`;
+- buffeting low-string motor;
+- charged-eye / false-clearing section;
+- Thunderbreak;
+- sustained eyewall at lower average level than Thunderbreak;
+- escape and territorial recession;
+- PERC -> Untuned Percussion;
+- TP -> Glockenspiel;
+- accepted percussion level pass.
+
+The previously proposed motif-power pass is **deferred**, not required for freeze. The cue's identity is distributed across melody, rhythm, form, pressure contrast, and impact design; do not reopen a successful BBCSO realization merely to chase the singability of Track 02 or Track 03.
+
+Remaining completion items are non-structural:
+
+1. lock title;
+2. preserve/source the accepted Draft 02.3 MIDI;
+3. create final GAME / OST masters from the accepted BBCSO render when the source WAV is available in-session;
+4. update the soundtrack index / release manifest.
+
+Leading title candidate remains **A Province of Thunder**; no title is locked without user acceptance.
