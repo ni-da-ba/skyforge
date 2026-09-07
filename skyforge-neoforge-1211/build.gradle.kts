@@ -4223,7 +4223,20 @@ fun requireSkyforgeShowcasePreparationPass() {
             && properties.getProperty("independentLedgers") == "true"
             && properties.getProperty("foreignFluidRejected") == "true"
             && properties.getProperty("cavesCompleteBeforeInterior") == "true"
-            && properties.getProperty("noReplay") == "true") {
+            && properties.getProperty("noReplay") == "true"
+            && properties.getProperty("showcaseLegibleEcology") == "true"
+            && properties.getProperty("showcaseLowerBiome") == "minecraft:forest"
+            && properties.getProperty("showcaseUpperBiome") == "minecraft:taiga"
+            && properties.getProperty("showcaseLowerGrass").toInt() > 0
+            && properties.getProperty("showcaseUpperGrass").toInt() > 0
+            && properties.getProperty("showcaseLowerSoil").toInt() > 0
+            && properties.getProperty("showcaseUpperSoil").toInt() > 0
+            && properties.getProperty("showcaseLowerLogs").toInt() > 0
+            && properties.getProperty("showcaseUpperLogs").toInt() > 0
+            && properties.getProperty("showcaseLowerLeaves").toInt() > 0
+            && properties.getProperty("showcaseUpperLeaves").toInt() > 0
+            && properties.getProperty("showcaseLowerPlants").toInt() > 0
+            && properties.getProperty("showcaseUpperPlants").toInt() > 0) {
         "Skyforge showcase preparation evidence is incomplete: $properties"
     }
 }
