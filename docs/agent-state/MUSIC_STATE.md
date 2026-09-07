@@ -1,6 +1,6 @@
 # Skyforge Music / Audio State
 
-**Status:** MERGED / ACCEPTED — MUS-0001  
+**Status:** MUS-0001 MERGED / ACCEPTED; MUS-0002 IN PROGRESS  
 **Updated:** 2026-09-07 (America/Chicago)  
 **Accepted merge:** `0b3386ad74ef610f49d9d3e8050e5a701f5e2cbd`
 
@@ -66,7 +66,7 @@ Music / Audio milestone.
 1. close Track 00 repair through human A/B;
 2. recover HC state for frozen cues;
 3. recover and audit exact Track 06 Draft 02.3 MIDI;
-4. add automated music-source verification where it can mechanically enforce manifests/checksums;
+4. complete MUS-0002 automated music-source verification and merge it after exact-head CI;
 5. only then resume principal-theme composition.
 
 ## Cross-lane boundary
@@ -77,3 +77,26 @@ and listening gates.
 It does not own world/environment semantics, gameplay/progression semantics, or Minecraft runtime
 playback/adaptive-state implementation. Those remain Authorship, Content / Experience, and
 Implementation responsibilities respectively.
+
+
+## MUS-0002 — automated source verification
+
+**Status:** IN PROGRESS
+
+MUS-0002 converts the 2026-09-07 source/library audit from documentation-only policy into executable repository health.
+
+The verifier at `scripts/music/verify_music_sources.py` is intentionally standard-library-only so normal CI can run it immediately after checkout. It checks every repository MIDI archive for parseability and every canonical cue manifest for:
+
+- gzip/source existence and exact uncompressed SHA-256 identity;
+- optional compressed-gzip identity where recorded;
+- Standard MIDI File format-1 / conductor + 19-lane structure;
+- canonical lane-name ordering;
+- PPQ when pinned;
+- tick-0 tempo, meter, and key-signature metadata when declared;
+- BBCSO Discover ordinary-instrument playable ranges, with only exact machine-declared frozen exceptions allowed;
+- Track 11 HC plugin-state provenance presence whenever that lane contains notes;
+- Track 12 PERC preset / absolute-note / attack-count mapping;
+- Track 13 TP used-state and preset declaration;
+- no accidental large WAV assets under ordinary Git music assets.
+
+Known frozen exceptions are data, not suppressions: Track 00's horn/viola defects and Track 02's two C#6 trumpet events must match their manifest exactly or CI fails.
