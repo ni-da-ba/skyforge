@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot reconstructed:** `01bde4fb96860d8ccfd17b4e6f9d9459c0e827fc`
+**Main snapshot before AUDIT-0002:** `cab1be65f370f3f81a6d8019ed3db23bcff6f49f`
 
 Read first:
 
@@ -13,214 +13,125 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest AUDIT milestone: AUDIT-0001
+### AUDIT-0001 — authoritative state reconstruction
 
-AUDIT-0001 is the repository-state reconstruction that establishes this lane state.
+Merged via PR **#246**, merge `cab1be65f370f3f81a6d8019ed3db23bcff6f49f`.
 
-Its accepted claim is intentionally narrow:
+Accepted boundary:
 
-- fresh AUDIT sessions reconstruct from repository authority rather than conversation;
-- current lane boundaries and active work are recorded from `main` and Git history;
-- stale duplicate work may be closed only after proving it is superseded;
-- conflicting durable-state namespaces are identified before they can become parallel sources of truth.
+- fresh agents reconstruct from repository authority rather than conversation;
+- `docs/agent-state/` is the single canonical live-state namespace;
+- the duplicate live-state system introduced under `docs/handoffs/` by PR #244 was consolidated back into `docs/agent-state/`;
+- historical handoffs remain under `docs/handoffs/`;
+- stale duplicate Content PR #225 was closed only after proving merged C8 / PR #229 behaviorally superseded it;
+- cross-lane milestone/progression collisions and manual gates were made explicit.
 
-This milestone is accepted by the merge that places this file on `main`; detailed source/runtime behavior remains owned by the producing lanes.
+### AUDIT-0002 — current runtime documentation reconciliation
 
-### Stale C8 duplicate cleanup
+Accepted by the merge that places this update on `main`.
 
-PR **#225** was closed as superseded by merged CONTENT C8 / PR **#229**.
+Scope is documentation accuracy only; it does not create or extend runtime capability.
 
-Audit comparison found:
+Reconciles:
 
-- both repair-tag JSON resources were byte-identical;
-- remaining workflow/test differences were wording-only;
-- #229 already carried the accepted behavioral contract.
+- root `README.md` from the obsolete SF-IMP-0057 narrative to the accepted **SF-IMP-0079** boundary;
+- `docs/architecture/Skyforge_Current_Runtime_Architecture.md` from the old issue #52 / surface-only population frontier to the current admission -> deferred lifecycle -> composed caves -> post-cave native population -> fluid provenance/persistence architecture;
+- reviewer guidance to the canonical Implementation lane state and current issues **#194** / **#214**;
+- explicit distinction between machine-accepted technical showcase capability and unresolved human ecology/morphology quality gates.
 
-The obsolete draft therefore no longer appears as active Content work.
+No cross-lane ownership contract changes.
 
 ## CURRENT AUTHORITATIVE PROGRAM SNAPSHOT
 
-At the reconstructed `main`:
-
 | Lane | Highest merged boundary |
 | --- | --- |
-| Implementation | **SF-IMP-0079** / PR #236 — route cave-dependent vegetation after composed caves |
+| Implementation | **SF-IMP-0079** / PR #236 — cave-dependent vegetation routed post-cave |
 | Authorship | **AUTH-0085** / PR #234 — native spring semantic admission |
 | Content / Experience | **C10** / PR #232 — live 1:1 Nether coordinate-scale proof |
-| Showcase | technical current-capability showcase + persisted reopen accepted via #185/#189 |
-| Music | no MUS milestone merged; PR #159 remains draft |
-| AUDIT | **AUDIT-0001** by this state-reconstruction merge |
+| Showcase | technical current-capability showcase + persisted client reopen accepted |
+| Music | no MUS milestone merged; PR #159 remains draft/unmerged |
+| AUDIT | **AUDIT-0002** by this documentation-reconciliation merge |
 
-The merged Bellanca documents in PR #238 are accepted **design state**, not accepted flight/runtime behavior.
+Merged Bellanca PR #238 is accepted **design state**, not accepted aircraft runtime/flight behavior.
 
-## IN PROGRESS
+## IN PROGRESS / UNMERGED
 
-### Canonical agent-state consolidation
+### Implementation SF-IMP-0080 — PR #248 / issue #194
 
-During AUDIT-0001, PR **#244** merged a second live-state system under `docs/handoffs/` after `docs/agent-state/` had already landed on main.
+Draft branch exposes forest/taiga land ecology in the human-facing showcase while preserving the accepted stacked production fixture/lifecycle.
 
-AUDIT-0001 resolves that split on this branch:
+Important gate:
 
-- `docs/agent-state/` remains the single canonical live-state namespace;
-- the accepted Implementation lane state from #244 is migrated to `docs/agent-state/IMPLEMENTATION_STATE.md`;
-- duplicate live charter/contracts/Implementation files under `docs/handoffs/` are removed;
-- `docs/handoffs/` is restored to historical milestone-handoff storage;
-- root README points to one live-state system.
+- machine acceptance is necessary but insufficient;
+- issue #194 remains open until a human can visibly confirm persistent land surface, trees/foliage, plants, meaningful biome distinction, and no obvious new placement/persistence defect.
 
-PR **#245** has already recomposed its Authorship state into `docs/agent-state/AUTHORSHIP_STATE.md`, but remains unmerged and must still synchronize with whatever main results from this audit.
+Do not conflate this with production morphology aesthetics; issue #214 remains separate.
 
-### Content C11 — PR #233
+### Authorship state migration — PR #245
 
-Live first-flight recipe-surface proof.
-
-State at audit:
-
-- draft;
-- branch substantially behind current main;
-- targeted recipe/runtime checks have passed;
-- the current head also has a failed historical `compile-and-smoke` check among its workflow results.
-
-Required before acceptance:
-
-- synchronize with current main;
-- rerun focused verification on the synchronized head;
-- preserve the distinction between the crude pre-Brass bootstrap aircraft and the later Brass-era Bellanca.
-
-### Portable Engine cutoff — PR #240 / issue #237
-
-Implemented on a draft branch but **not accepted**.
-
-Current head proves stationary retained-stack cutoff behavior, including:
-
-- default engine unchanged;
-- active burn timer freezes while cut;
-- zero generated output while cut;
-- queued fuel is preserved;
-- restart resumes the exact timer.
-
-Still open:
-
-- assembled-Sable behavior;
-- two-engine aircraft behavior;
-- save/reload;
-- human interaction ergonomics.
-
-The branch is behind current main and requires synchronization before acceptance.
+Unmerged canonical-state consolidation work. It must remain under `docs/agent-state/` and synchronize with current `main` after AUDIT-0001.
 
 ### AUTH-0086 — PR #241
 
-Backend-neutral visible hydrologic realization intent.
+Backend-neutral visible-hydrologic realization intent remains draft/in progress. Implementation must not independently create a competing authored-hydrology planner.
 
-State at audit:
+### Content first-flight recipe proof — PR #233
 
-- draft;
-- based on the reconstructed main;
-- ordinary build green;
-- full authorship evidence/acceptance still pending.
-
-Implementation must not independently invent a second hydrology planner while this producer contract is in progress.
+Existing **C11** identity. Branch requires current-main synchronization and fresh focused evidence before acceptance. Preserve the distinction between this crude pre-Brass bootstrap aircraft and the later Brass-era Bellanca.
 
 ### Elytra/firework bypass — PR #247
 
-A focused new Content branch opened during AUDIT-0001 and currently proves the vanilla-Elytra/firework baseline versus No More Elytra Boosting suppression.
+Technically focused suppression proof, but its branch/title initially reused **C11**, colliding with PR #233; issue #239 already reserves C12. Owning Content lane must assign a non-conflicting identity before merge.
 
-The work is technically scoped, but its initial title/branch uses **CONTENT C11**, which conflicts with already-open PR #233 / C11. Issue #239 already reserves C12.
+### Portable Engine cutoff — PR #240 / issue #237
 
-AUDIT has flagged this as a merge-blocking milestone-identity collision. Preserve the existing C11/C12 records; the owning Content lane must assign a non-conflicting identity before merge.
+Stationary retained-stack behavior has evidence, but acceptance remains blocked on assembled-Sable behavior, two-engine aircraft behavior, save/reload, current-main synchronization, and human interaction ergonomics.
 
 ### Bellanca B0-A assembly docs — PR #242
 
-CONTENT-owned, non-draft documentation branch based on current reconstructed main.
+CONTENT-owned proposed documentation. Build evidence does not substitute for C12 live Sable assembly/physics/flight acceptance.
 
-It defines the proposed B0-A main-Sable / nested-Create / child-Sable topology, glue domains, powerplant layout, and paper mass/CG model.
+## VERIFIED CROSS-LANE CONTRACTS
 
-Build is green, but C12's live Sable aircraft evidence remains unproven. AUDIT must not convert documentation plausibility into flight acceptance.
-
-## CROSS-LANE CONTRACTS VERIFIED
-
-### First powered flight is not the Giuseppe Bellanca
-
-The two contracts are distinct.
-
-**Bootstrap first powered aircraft**
-
-- remains targeted at pre-Brass, pre-petroleum, pre-electricity closure if executable proof supports it;
-- C11 is recipe-surface evidence for this path;
-- actual assembly/takeoff/landing/logistics proof remains required.
-
-**Giuseppe Bellanca GB-1A**
-
-- is a later, more mature utility aircraft;
-- merged B0 design explicitly uses Brass-era Propeller Bearing / Rotation Speed Controller access;
-- starter-wreck realization must not hand those later components to the player intact;
-- C12 is an engineering mule before production art.
-
-Do not collapse these into one BOM or progression gate.
-
-### Performance optimization is evidence-gated
-
-SF-IMP-0070 measured first; SF-IMP-0071 through 0077 removed scheduler/full-height pathologies and stopped once residual deferred work was ordinary bounded cost.
-
-Issue **#219** remains conditional. Do not resume micro-optimization unless fresh timing shows `surfacePopulation.findSurface` is still material.
-
-### Authorship/implementation hydrology boundary
-
-AUTH-0085 supplies semantic admission for native WATER springs only where authored cave + accepted aquifer evidence exists.
-
-Implementation retains native feature execution, fluid propagation/provenance/fencing, persistence, and lifecycle ownership.
-
-AUTH-0086 is the in-progress backend-neutral visible-water intent producer. It is not a block-placement implementation.
+- Authorship owns semantic world meaning; Implementation owns Minecraft realization/lifecycle; Content owns game integration/experience.
+- Bootstrap first powered aircraft remains distinct from the later Giuseppe Bellanca GB-1A.
+- Performance optimization is evidence-gated: SF-IMP-0070 measured first, 0071–0077 removed identified pathologies, and issue #219 remains conditional on fresh profiling.
+- AUTH-0085 supplies semantic admission for native WATER springs from authored cave + aquifer evidence; Implementation retains native execution, fluid propagation/provenance/fencing, persistence, and lifecycle.
+- AUTH-0086 is a producer contract in progress, not Minecraft block placement.
+- Machine correctness cannot waive explicit visual/play gates.
 
 ## MANUAL VERIFICATION REQUIRED
 
-### Production morphology — issue #214
+### #194 — land-biome/ecology legibility
 
-AUTH-0083 and AUTH-0084 accept deterministic review machinery, not aesthetic approval.
+Human review must see persistent soil/grass, trees/foliage, surface plants, and meaningful biome distinction. PR #248 is the current Implementation vehicle.
 
-Still requires:
+### #214 — production morphology quality
 
-- reference atlas review;
-- Minecraft above / horizon-approach / below views;
-- flight/orbit-underneath review;
-- decision whether explicit underside-secondary semantics are actually justified.
-
-### Land-biome legibility — issue #194
-
-The technical showcase's river/dripstone fixture is not sufficient for player-facing ecology judgment.
-
-A visibly legible persistent land-biome specimen remains required before final Bootstrap Province visual/play acceptance.
+AUTH-0083/0084 provide deterministic review machinery, not aesthetic acceptance. Required review includes reference atlas, Minecraft above/approach/below views, and actual flight/orbit-underneath judgment.
 
 ### Bellanca / C12
 
-Machine assembly and physics evidence must precede production beautification.
+Machine assembly/physics first; human handling, landing, rough-field usefulness, glide feel, control ergonomics, and later silhouette/art review remain required.
 
-Human gates include:
+### Portable Engine cutoff
 
-- handling;
-- landing;
-- rough-field usefulness;
-- glide feel;
-- control ergonomics;
-- eventual silhouette/art judgment.
-
-### Engine cutoff
-
-Human play must confirm the control interaction is intuitive and does not create surprising neighboring-redstone shutdown behavior.
+Human play must verify interaction discoverability and that neighboring redstone does not create surprising shutdown behavior.
 
 ## KNOWN HAZARDS / TECHNICAL DEBT
 
-1. **Runtime overview drift.** Root `README.md` and `docs/architecture/Skyforge_Current_Runtime_Architecture.md` still describe SF-IMP-0057 as current even though `main` has accepted SF-IMP-0079.
-2. **Parallel durable-state namespaces.** #244 briefly created a second canonical system under `docs/handoffs/`; AUDIT-0001 consolidates it back into `docs/agent-state/`. Future lane migrations must extend that namespace rather than fork it.
-3. **Long-lived branch drift.** C11 and Portable Engine cutoff need current-main synchronization before acceptance.
-4. **Design/runtime ambiguity.** Detailed merged/open design documents must not be described as executable capability without their required evidence.
-5. **Manual-gate ambiguity.** Morphology corpus machinery is accepted; morphology aesthetics are not.
-6. **Content milestone collision.** PR #247 initially reuses C11 even though PR #233 already owns C11 and issue #239 reserves C12; this must be reconciled before #247 merges.
+1. **Long-lived branch drift:** C11 and Portable Engine cutoff require current-main synchronization before acceptance.
+2. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
+3. **Manual-gate ambiguity:** morphology corpus machinery and showcase counters do not constitute aesthetic/ecology acceptance.
+4. **Content milestone collision:** PR #247 initially reused C11 while PR #233 owns C11 and issue #239 reserves C12.
+5. **State migration concurrency:** PR #245 must follow the canonical `docs/agent-state/` namespace and current main.
+6. **Reviewer-document drift:** AUDIT-0002 repairs the known SF-IMP-0057 runtime overview drift; future milestone/state changes should not silently turn overview prose back into a second lane ledger.
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Reconcile stale root/current-runtime documentation to the actual SF-IMP-0079 boundary.
-2. Verify that #245 and future lane migrations remain in the canonical agent-state namespace.
-3. Re-audit C11 after synchronization before it can be treated as accepted recipe closure.
-4. Review PR #242 only for cross-lane consistency; leave CONTENT ownership of the B0-A design/merge decision intact.
-5. Re-audit PR #240 after assembled-Sable and persistence evidence.
-6. Update this state at every material merge/contract/hazard boundary.
+1. Verify PR #245 is synchronized to current main and preserves one canonical state namespace.
+2. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
+3. Track PR #248 without waiving its #194 human-eye gate.
+4. Review PR #242 only for cross-lane consistency; leave CONTENT ownership and C12 runtime acceptance intact.
+5. Re-audit PR #240 after assembled-Sable + persistence evidence.
+6. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
