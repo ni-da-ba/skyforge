@@ -2,8 +2,8 @@
 
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
-**Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot at latest AUDIT-0006 synchronization:** `34bd884fb0646894dd682350fd1f35b3bdd46ed3`
+**Updated:** 2026-09-07 (America/Chicago)  
+**Main snapshot before AUDIT-0007 reconciliation:** `3c48828924b0cf4ac7f1184c493d60ef605bf84a`
 
 Read first:
 
@@ -72,7 +72,7 @@ AUDIT-0005 records repository-visible convergence after AUDIT-0004 without creat
 
 No producer-lane capability is created by AUDIT-0005.
 
-### Highest AUDIT milestone: AUDIT-0006 — Music / Audio lane integration
+### AUDIT-0006 — Music / Audio lane integration
 
 Accepted by the merge that places this update on `main`.
 
@@ -119,44 +119,37 @@ Cross-lane rule: musical authorship/source identity belongs to Music / Audio; wo
 Authorship-owned, gameplay/experience meaning remains Content-owned, and Minecraft/adaptive playback
 runtime remains Implementation-owned. No runtime adaptive-music contract is accepted yet.
 
+### Highest AUDIT milestone: AUDIT-0007 — SF-IMP-0082 acceptance-state reconciliation
+
+Accepted by the merge that places this update on `main`.
+
+AUDIT-0007 records and reconciles the producer boundary created by SF-IMP-0082 / PR #273; it creates no new worldgen behavior.
+
+Verified accepted producer evidence:
+
+- SF-IMP-0082 merged as `3c48828924b0cf4ac7f1184c493d60ef605bf84a` from synchronized head `88f0898b9913d14875b35ec1fb6214af6b0e53b5`;
+- exact-head repository build `34138809914`, SF-IMP-0070 characterization `34138809979`, and Showcase Acceptance `34138809832` passed;
+- Tableland, Spine, Basin, Lobed, retained Massif, ecology, persistence/reopen, and retained Content compatibility gates passed with no failing exact-head checks;
+- project-owner #214 review passed the four-family Tableland / Spine / Basin / Lobed viability tranche;
+- issue #283 records the non-blocking Tableland-vs-Massif plateau-identity concern, distinct from Massif traversal issue #267;
+- full issue #214 correctly remains open beyond the five built-in SMALL / seed-skyforge carriers.
+
+The merge exposed durable-state drift: PR #273 still carried pre-review `IMPLEMENTATION_STATE.md` language saying the machine/human gates were pending. AUDIT-0007 repairs that factual ledger, the shared cross-lane snapshot, and this Audit ledger only. No Implementation contract or behavior is changed.
+
 ## CURRENT AUTHORITATIVE PROGRAM SNAPSHOT
 
 | Lane | Highest merged boundary |
 | --- | --- |
-| Implementation | **SF-IMP-0081** / PR #265 — first exact AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / #269 is the active remaining-family tranche |
+| Implementation | **SF-IMP-0082** / PR #273 — exact Tableland / Spine / Basin / Lobed carriers accepted alongside Massif; full #214 continues beyond the built-in tranche |
 | Authorship | **AUTH-0090** / PR #276 — exact area-weighted regional ecological-opportunity aggregation; durable state repaired by merged PR #278 |
 | Content / Experience | **C17** / PR #272 — stock GPS infrastructure topology; C18 turtle freight is current-main green but remains draft/unaccepted; C11/C12 remain separately in progress/reserved |
-| Showcase | cave/interior technical showcase accepted; ecology showcase accepted; first production Massif carrier machine- and human-accepted |
+| Showcase | cave/interior and ecology showcases accepted; all five built-in SMALL / seed-skyforge production morphology carriers have passed their current machine/human tranche |
 | Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 remains draft/unmerged and requires synchronization/source-verification/state repair before repository acceptance |
-| AUDIT | **AUDIT-0006** by this governance merge |
+| AUDIT | **AUDIT-0007** by this reconciliation merge |
 
 Merged Bellanca PR #238 remains accepted **design state**, not accepted aircraft runtime/flight behavior.
 
 ## IN PROGRESS / UNMERGED
-
-### SF-IMP-0082 / issue #269 — remaining built-in production morphology atlas
-
-SF-IMP-0081 / PR #265 is **MERGED / ACCEPTED** as the first exact AUTH-0083 Minecraft carrier. Audit verified exact member identity, pure integer suspension-Y translation, certified/tight integer support, whole-volume admission, top + underside boundary sampling, deterministic digest equality across save/reopen, mutation-inert viewer behavior, current showcase/ecology persistence, performance, repository CI, retained Content compatibility, and the first project-owner #214 human pass.
-
-Accepted exact-head gates on `0e3dddae90a8af605dd959132ce865412e92e5c0`:
-- repository CI `34085031045` PASS;
-- Skyforge Showcase Acceptance `34085031081` PASS, including current showcase, ecology, and production-Massif prepare/reopen;
-- SF-IMP-0070 characterization `34085031094` PASS;
-- retained C2/C3/C5/C6/C7/C9/C10/C13/C14/C15/C16 gates PASS.
-
-The first Massif silhouette, morphology, and underside were judged strong in-engine. Issue #267 separately tracks potentially lumpy on-foot relief cadence and must not weaken or reopen SF-IMP-0081.
-
-Issue **#269 / SF-IMP-0082** is now the active Implementation tranche. It should generalize the accepted carrier rather than copy-paste family-specific runtimes, preserving exact AUTH-0083 IDs for Tableland, Spine, Basin, and Lobed with objective machine gates plus human above/approach/below/orbit review. Full issue #214 remains open beyond this four-family tranche.
-
-### SF-IMP-0082 / PR #273 — remaining built-in morphology atlas
-
-Draft/in progress. Audit reviewed the reusable four-family carrier architecture and found no ownership blocker. Exact AUTH-0083 IDs for Tableland, Spine, Basin, and Lobed are preserved through the provider-neutral compiler with pure integer suspension-Y translation, tight finite support, parameterized prepare/reopen evidence, and objective top/underside/digest checks.
-
-The Tableland persistence repair in `MinecraftNativeSurfaceTopAdapter` is a narrow occupancy-preservation rule: unsupported falling native material is not allowed to replace an authoritative one-voxel Skyforge solid that would then disappear. Supported falling material and all non-falling material retain prior behavior. This is Implementation representation policy, not morphology/material authorship.
-
-The full tested-head machine matrix is green on `a0bc3d59221f7418d29921115876fe52fef42e5a`: repository CI `34088332291`, SF-IMP-0070 characterization `34088332227`, Showcase Acceptance `34088332097`, and Tableland/Spine/Basin/Lobed prepare + actual-client reopen all PASS. That branch is now materially behind current main and must synchronize before merge.
-
-Acceptance still requires the explicit project-owner human #214 review of Tableland, Spine, Basin, and Lobed plus current-main synchronization/fresh exact-head regressions. Full #214 remains open beyond SF-IMP-0082.
 
 ### Content C18 / PR #277 — stock turtle void-freight envelope
 
@@ -236,9 +229,11 @@ Audited proposal head `797e0c54325b1f45d0aa6229124c3bb7e8727bda` remains cross-l
 
 Passed for accepted SF-IMP-0080 and recorded before merge. Do not reopen for issue #261.
 
-### #214 production morphology — OPEN / first tranche passed / tracking corrected
+### #214 production morphology — OPEN / built-in family tranche passed
 
-The SF-IMP-0081 Massif human tranche passed for silhouette/morphology/underside quality. Full #214 remains open for the other built-in families, multiple seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts. GitHub issue #214 had been incorrectly closed at the SF-IMP-0081 merge boundary; AUDIT reopened it to match the accepted ledgers and explicit first-tranche-only human decision. Issue #267 tracks Massif traversal cadence separately.
+The Massif SF-IMP-0081 tranche and the Tableland / Spine / Basin / Lobed SF-IMP-0082 tranche have all passed their explicit in-engine human carrier/viability reviews. Full #214 remains open for multiple deterministic seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts.
+
+Issue #267 tracks Massif traversal cadence/lumpiness. Issue #283 separately tracks stronger Tableland plateau identity relative to Massif. Neither is a carrier-regression blocker.
 
 ### Music / Audio — OPEN listening / persistence gates
 
@@ -262,19 +257,18 @@ Human play must verify discoverability and non-surprising redstone shutdown beha
 1. **Biome presentation flight envelope / issue #261:** immediate-surface biome presentation can fall back to BASE_WORLD ambience away from owned terrain. Non-blocking for SF-IMP-0080; avoid claiming whole native biome columns as the fix.
 2. **Long-lived branch drift:** C11, Portable Engine cutoff, Bellanca proposal, and MUS-0001 require current-main synchronization before acceptance.
 3. **Music source reproducibility:** MUS-0001 currently relies on manifests/audit prose without a repository-executable canonical MIDI/library-alignment gate; Track 06 canonical source is missing and Track 00 repair remains human-gated.
-4. **Production morphology:** underside quality is a first-class requirement; the first Massif underside passed, but do not extrapolate full #214 acceptance from one family.
+4. **Production morphology tuning:** the five built-in SMALL / seed-skyforge carriers have passed the current human tranche, but full #214 remains open. Track Massif traversal cadence (#267) and Tableland plateau identity (#283) across multiple seeds/scales before retuning.
 5. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
 6. **Performance:** do not restart local micro-optimization absent fresh realistic-scale profiling.
 
-Resolved hazards include the C11/C13 identifier collision, duplicate live-state namespaces, AUTH-0086/AUTH-0087/AUTH-0088 durable-state lag, C16 durable-state lag, SF-IMP-0080's compile/substrate/ecology-legibility blockers, SF-IMP-0081's post-C16 synchronization plus temporary Implementation-ledger lag, and C18's permissive `STOPPED` gate.
+Resolved hazards include the C11/C13 identifier collision, duplicate live-state namespaces, AUTH-0086/AUTH-0087/AUTH-0088 durable-state lag, C16 durable-state lag, SF-IMP-0080's compile/substrate/ecology-legibility blockers, SF-IMP-0081's post-C16 synchronization plus temporary Implementation-ledger lag, SF-IMP-0082's post-merge stale Implementation/shared-state handoff, and C18's permissive `STOPPED` gate.
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Continue auditing SF-IMP-0082 / PR #273 through its explicit four-family #214 human review; its tested-head machine atlas is green, but the branch must synchronize to current main and machine evidence cannot waive the visual/flight gate.
-2. Include Music / Audio in every future repository reconstruction. Track MUS-0001 / PR #159 through current-main recomposition, MUSIC_STATE creation, executable source-integrity verification, Track-00 A/B listening, Track-06 exact-source recovery, PR-state reconciliation, and exact-head CI.
-3. Track AUTH-0091 / PR #279 through current-main recomposition and owner exact-head acceptance; preserve normalized opportunity as non-physical planning evidence.
-4. Track C18 / PR #277 as Audit-cleared on `f99219eb`; Content still owns acceptance/merge and later freight/turtle balance decisions. Reject any leap from this specimen to turtle nerfs, production chunk-loader policy, or exact internal chunk-boundary claims.
-5. Track issue #267 as non-blocking Massif traversal evidence and issue #261 as non-blocking biome/ambient-envelope refinement; Audio may consume a later accepted ambient envelope but does not own it.
-6. Re-audit C11 / PR #233 and Portable Engine #240 only after their declared synchronization/runtime prerequisites.
-7. Keep full #214 open for seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts after the built-in family tranche.
-8. Update this ledger at each material merge, contract change, new hazard, or handoff.
+1. Include Music / Audio in every repository reconstruction. Track MUS-0001 / PR #159 through current-main recomposition, MUSIC_STATE creation, executable source-integrity verification, Track-00 A/B listening, Track-06 exact-source recovery, PR-state reconciliation, and exact-head CI.
+2. Track AUTH-0091 / PR #279 through current-main recomposition and owner exact-head acceptance; preserve normalized freshwater opportunity as non-physical planning evidence.
+3. Track C18 / PR #277 as Audit-cleared on its tested head but still Content-owned/unaccepted; require current-main synchronization before merge and reject leaps from the specimen to turtle nerfs, production chunk-loader policy, or exact internal chunk-boundary claims.
+4. Keep full #214 open beyond the accepted five built-in carriers. Audit later multi-seed/scale, hybrid/provider, regional, and dressed-world tranches; keep #267 and #283 as evidence-driven tuning questions.
+5. Track issue #261 as the non-blocking biome/ambient flight-envelope refinement; Audio may consume a later accepted envelope but does not own it.
+6. Re-audit C11 / PR #233, Portable Engine #240, and Bellanca #242 only after their declared synchronization/runtime prerequisites.
+7. Update this ledger at each material merge, contract change, new hazard, or handoff.
