@@ -162,6 +162,22 @@ Testing exists to retire named risk. Once a milestone's material uncertainty is 
 prefer integration with the next major system over exhaustive repetition of the same invariant across
 a larger parameter corpus.
 
+The canonical validation policy is [VALIDATION_POLICY.md](VALIDATION_POLICY.md). Its default program
+rule is:
+
+~~~text
+cheap deterministic evidence -> exhaustive where practical
+expensive full-runtime evidence -> representative by risk-equivalence class
+sampled failure -> widen the affected class
+orthogonal main movement -> reuse portable expensive evidence
+retired standalone risk -> integrate the next major system
+~~~
+
+Producer acceptance should not require a Cartesian product of expensive lifecycle tests merely because
+a deterministic parameter corpus is large. Conversely, representative sampling is never allowed to
+hide a discovered parameter-dependent defect; sampled failures automatically expand coverage until the
+failure domain is understood.
+
 Sparse, coherent world composition is preferred to solving weak geography with content density.
 
 ## Acceptance vocabulary
