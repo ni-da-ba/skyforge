@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Repository snapshot before AUDIT-0007 reconciliation:** c739fe9a521e2c75f640bbfcf79eee6abd0298cf
+**Repository snapshot after Content C18 acceptance:** 1c7e24a0e37c4ade8aa5a8943f65017d2300248b
 
 ## Program-wide invariants
 
@@ -17,11 +17,11 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0091` accepted: deterministic retained-freshwater habitat opportunity; owning Authorship ledger repair is still pending |
+| Authorship | `AUTH-0091` accepted: deterministic retained-freshwater habitat opportunity; owning ledger repair merged as `8bc451c27f65dc7b88ac8038a6d992bbe54be50b` |
 | Implementation | `SF-IMP-0082` accepted: all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / #284 multi-seed/multi-scale built-in matrix in progress |
-| Content / Experience | `C17` accepted; C18 remains draft/unaccepted and machine-green only on its prior tested head, which now requires current-main resynchronization; C11/C12 remain separately in progress/reserved |
+| Content / Experience | `C18` accepted: stock turtle freight/ticking envelope measured and base capability retained; C11/C12 remain separately in progress/reserved |
 | Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 is draft/unmerged with branch-local cue/source freezes only |
-| AUDIT | AUDIT-0007 post-SF-IMP-0082 convergence reconciliation accepted by the merge that places this update on `main` |
+| AUDIT | `AUDIT-0008` accepted: repository-visible agent/process convergence health is a durable supervisory responsibility |
 
 Use each lane state file and merged history for detail.
 
@@ -141,7 +141,7 @@ Cross-lane consequences:
 - do not add a duplicate generic Skyforge networking authority/API;
 - ordinary Wireless Modems may remain unnerfed as infrastructure;
 - Ender Modems are a mature bypass and should be progression-conscious rather than an unexamined early default;
-- final Ender gating, GPS tower placement/spacing, turtle throughput, and autopilot progression remain Content gameplay decisions;
+- final Ender gating, GPS tower placement/spacing, remaining turtle mining/farming/loader/Ender-storage economics, and autopilot progression remain Content gameplay decisions;
 - thin Skyforge peripherals remain reserved for genuinely Skyforge-owned semantics absent upstream.
 
 **C17 / PR #272**, merge `65bd49a4e349f16bab8b796aa5b1a1e6dd72a7cc`, proves stock GPS topology on real CraftOS computers:
@@ -154,6 +154,17 @@ enderRemoteFound=true enderRemote=512,80,272
 ```
 
 Cross-lane consequence: ordinary GPS is legitimate physical navigation infrastructure because it needs a non-collinear host constellation inside radio range; Ender-backed GPS is a mature range bypass. No duplicate Skyforge GPS authority/API is justified. Tower placement/spacing remains Content/Bootstrap design rather than a networking-capability gap.
+
+**C18 / PR #277**, merge `1c7e24a0e37c4ade8aa5a8943f65017d2300248b`, measures real stock turtle freight and route-ticking dependence:
+
+```text
+outboundMoves=64  returnMoves=64  delivered=960
+fuelStart=160      fuelEnd=32
+boundaryOutcome=STALLED  boundaryMoves=17
+boundaryFuelStart=80     boundaryFuelEnd=63
+```
+
+Cross-lane consequence: retain stock turtle movement/freight; no generic Skyforge turtle nerf or replacement is justified by the base envelope. Turtles can cross unsupported sky when external infrastructure keeps the route loaded/ticking, but they do not themselves provide arbitrary long-range ticking. Dedicated chunk-loader progression, mining/farming throughput, Ender-storage combinations, autopilot, and final freight economics remain Content-owned questions.
 
 Bootstrap computing remains tracked in #224.
 

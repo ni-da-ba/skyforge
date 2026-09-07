@@ -2,8 +2,8 @@
 
 **Lane:** Content / Experience  
 **Status:** Canonical live lane handoff  
-**Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot after C17 merge:** `65bd49a4e349f16bab8b796aa5b1a1e6dd72a7cc`
+**Updated:** 2026-09-07 (America/Chicago)  
+**Main snapshot after C18 merge:** `1c7e24a0e37c4ade8aa5a8943f65017d2300248b`
 
 Read first:
 
@@ -13,7 +13,32 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest accepted executable Content milestone: C17
+### Highest accepted executable Content milestone: C18
+
+**C18 / PR #277**, merge `1c7e24a0e37c4ade8aa5a8943f65017d2300248b`; final synchronized runtime head `9ce39a797ea337fe2f152bc5168ba4d6715c578a`.
+
+C18 measures real stock CC:Tweaked turtle freight and loaded/ticking-route dependence on the retained C9 computing stack:
+
+```text
+outboundMoves=64  returnMoves=64
+delivered=960
+fuelStart=160      fuelEnd=32
+boundaryOutcome=STALLED  boundaryMoves=17
+boundaryFuelStart=80     boundaryFuelEnd=63
+boundaryError=NO_TICK_PROGRESS
+```
+
+Accepted interpretation:
+
+- stock turtle movement/freight is **KEEP**; C18 does not justify a generic Skyforge turtle nerf or replacement;
+- a turtle can carry 15 full stacks across unsupported sky when external infrastructure keeps the route loaded/ticking, with one fuel per successful physical move;
+- a turtle does not itself provide arbitrary long-range chunk/ticking infrastructure: the otherwise-unforced 48-block specimen stalled after 17 moves with exact fuel accounting;
+- route loading therefore remains infrastructure rather than a free turtle capability;
+- mining/farming throughput, dedicated chunk-loader progression, Ender-storage combinations, autopilot, and final aircraft-vs-turtle economics remain separate Content decisions.
+
+Final exact-head verification passed C10/C13/C14/C15/C16/C17/C18, repository CI, the complete current Showcase Acceptance matrix, and SF-IMP-0070 performance characterization. C17 required one targeted rerun for its already-known GPS-host startup race; the rerun passed and no repeated unchanged retries were used.
+
+### C17
 
 **C17 / PR #272**, merge `65bd49a4e349f16bab8b796aa5b1a1e6dd72a7cc`; final synchronized runtime head `9373c307ef6bc79a64643ad0d958f5a09ebe1c9c`.
 
@@ -126,15 +151,15 @@ Stationary retained-stack evidence exists. Assembled-Sable, save/reload, two-eng
 - AUTH-0088 is accepted: exact published-volume/world-XZ surface-ecology projection, with no Minecraft biome/Y policy.
 - AUTH-0089 is accepted: deterministic island ecological opportunity aggregation without species/spawn/resource/backend policy.
 - SF-IMP-0080 is accepted: legible forest/taiga ecology showcase.
-- SF-IMP-0081 is accepted for the Massif carrier/human tranche; SF-IMP-0082 / #269 is expanding the remaining built-in morphology atlas, while #267 separately tracks Massif traversal lumpiness.
+- SF-IMP-0081 and SF-IMP-0082 are accepted for all five SMALL / seed-skyforge built-in morphology carriers; SF-IMP-0083 / issue #284 owns the remaining multi-seed/multi-scale built-in matrix, while #267 and #283 separately track tuning concerns.
 
 ## PROPOSED / OPEN CONTENT QUESTIONS
 
-### Computing after C17
+### Computing after C18
 
-C9/C14/C16/C17 now establish substrate, real avionics capability, wireless-envelope behavior, and GPS infrastructure topology. Remaining questions are gameplay/bypass questions only:
+C9/C14/C16/C17/C18 now establish substrate, real avionics capability, wireless-envelope behavior, GPS infrastructure topology, and the base turtle freight/ticking envelope. Remaining questions are gameplay/bypass questions only:
 
-- turtles versus resource geography and freight value;
+- turtle mining/farming throughput, dedicated chunk-loader progression, Ender-storage combinations, and final aircraft-vs-turtle economics;
 - GPS tower spacing/placement and how visibly navigation infrastructure appears in #224;
 - Ender Modem progression gating;
 - autopilot versus route-planning/navigation gameplay;
@@ -195,15 +220,16 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 - `Wave C15 Portal Linking`
 - `Wave C16 Wireless Envelope`
 - `Wave C17 GPS Infrastructure`
+- `Wave C18 Turtle Freight`
 - `Skyforge Showcase Acceptance`
 - repository `CI`
 
 ## Ordered next work
 
 1. Do not duplicate active C11/C12 work; consume their results into #224 when accepted.
-2. Check whether C18 is already claimed before reserving any new milestone.
-3. Prefer the next narrow #227 executable bypass specimen: turtles versus resource geography/freight value. Do not nerf turtles without measured substitution evidence.
-4. Begin more of Bootstrap Province acceptance now that SF-IMP-0080 has cleared land-ecology visibility and C17 has closed the GPS topology question; treat final GPS tower placement as province design, not a substrate uncertainty.
+2. Check whether C19 is already claimed before reserving a new milestone.
+3. Prefer the next narrow #227 executable bypass specimen among the still-open turtle questions: mining/farming throughput or dedicated chunk-loader/Ender-storage combinations. Do not nerf turtles without measured substitution evidence.
+4. Continue Bootstrap Province acceptance now that ecology visibility, GPS topology, and the base turtle freight envelope are closed; treat final GPS placement and mature computing examples as province design.
 5. Complete/accept #237 / PR #240 before C12 powered-soaring closure.
 6. Keep assembled-aircraft Nether transfer separate from accepted ordinary-player C15 mechanics.
 7. Return to C1 industrial runtime evidence when a focused runtime window is practical.
