@@ -18,7 +18,7 @@
 | Lane | Repository-visible boundary |
 | --- | --- |
 | Authorship | `AUTH-0090` accepted: area-weighted regional ecological opportunity; AUTH-0091 freshwater habitat opportunity in progress |
-| Implementation | `SF-IMP-0081` accepted: first exact AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / #269 remaining built-in morphology atlas in progress |
+| Implementation | `SF-IMP-0082` accepted: all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / #284 multi-seed/multi-scale built-in matrix in progress |
 | Content / Experience | `C17` accepted: stock GPS requires ordinary host geometry/range while Ender-backed GPS is a mature range bypass; C18 is current-main green but remains draft/unaccepted; C11/C12 remain separately in progress/reserved |
 | Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 is draft/unmerged with branch-local cue/source freezes only |
 | AUDIT | AUDIT-0006 Music/Audio lane-integration audit accepted by the merge that places this update on `main` |
@@ -61,11 +61,19 @@ Authorship is aggregating accepted retained-waterbody semantics into island-scal
 
 The forest/taiga showcase passed machine persistence/reopen gates and project-owner human visual review. This proves legible Minecraft land ecology, not yet AUTH-0003-to-Minecraft-biome semantic translation. Issue #194 is closed; #261 is a non-blocking short-distance ambience/presentation follow-up.
 
-### SF-IMP-0081 / issue #214 — morphology quality — FIRST TRANCHE ACCEPTED
+### SF-IMP-0081 / 0082 / issue #214 — built-in SMALL morphology carriers — ACCEPTED
 
-SF-IMP-0081 / PR #265 merged as `bac972eb7e8d772a250d292602e109428d06514a`. The first exact AUTH-0083 Massif carrier passed machine persistence/reopen and project-owner human review; its pure morphology and underside were accepted as strong. Issue #214 remains open for the broader atlas.
+SF-IMP-0081 / PR #265 merged as `bac972eb7e8d772a250d292602e109428d06514a` and accepted the first exact AUTH-0083 Massif carrier.
 
-SF-IMP-0082 / #269 expands the same exact-ID carrier architecture to Tableland, Spine, Basin, and Lobed. Preserve deterministic handoff IDs and above/approach/below/orbit review. Issue #267 separately tracks Massif traversal lumpiness and must not be conflated with carrier correctness.
+SF-IMP-0082 / PR #273 merged as `3c48828924b0cf4ac7f1184c493d60ef605bf84a` and accepted the remaining SMALL / seed-skyforge built-ins: Tableland, Spine, Basin, and Lobed. All five built-in families now have exact Minecraft carrier/persistence/human-review evidence at that axis.
+
+Issue #214 remains open. SF-IMP-0083 / #284 owns the remaining built-in AUTH-0083 seed/scale matrix before hybrids/provider composition and AUTH-0084 regional review.
+
+Keep tuning findings separate from carrier correctness:
+- #267 tracks Massif traversal lumpiness;
+- #283 tracks insufficient Tableland-vs-Massif plateau separation in the reviewed SMALL specimens.
+
+Do not retune from one seed/scale; use SF-IMP-0083 evidence first.
 
 ## Active coordination contracts
 
