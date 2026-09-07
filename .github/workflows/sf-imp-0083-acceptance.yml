@@ -1,0 +1,80 @@
+name: SF-IMP-0083 Morphology Seed-Scale Acceptance
+
+on:
+  pull_request:
+    paths:
+      - "skyforge-neoforge-1211/**"
+      - "skyforge-reference/**"
+      - "docs/showcase/production-morphology-seed-scale-matrix.md"
+      - ".github/workflows/sf-imp-0083-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-imp-0083-acceptance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 285
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - family: massif
+            task: Massif
+          - family: tableland
+            task: Tableland
+          - family: spine
+            task: Spine
+          - family: basin
+            task: Basin
+          - family: lobed
+            task: Lobed
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Compile and unit-test optimized admission path
+        timeout-minutes: 10
+        run: ./gradlew :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:test --stacktrace --no-configuration-cache
+
+      - name: Prepare exact AUTH-0083 ${{ matrix.family }} seed/scale atlas
+        timeout-minutes: 60
+        run: ./gradlew :skyforge-neoforge-1211:productionMorphologySeedScale${{ matrix.task }}PrepareVerify --stacktrace --no-configuration-cache
+
+      - name: Reopen persisted ${{ matrix.family }} seed/scale atlas in actual client
+        timeout-minutes: 20
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a ./gradlew :skyforge-neoforge-1211:productionMorphologySeedScale${{ matrix.task }}ViewerVerify --stacktrace --no-configuration-cache
+
+      - name: Publish ${{ matrix.family }} seed/scale morphology evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sf-imp-0083-${{ matrix.family }}-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            skyforge-neoforge-1211/build/acceptance/production-morphology-seed-scale/${{ matrix.family }}/*.properties
+            skyforge-neoforge-1211/run-skyforge-production-morphology-seed-scale-${{ matrix.family }}/logs/*.log
+            skyforge-neoforge-1211/run-skyforge-production-morphology-seed-scale-${{ matrix.family }}/crash-reports/*.txt
