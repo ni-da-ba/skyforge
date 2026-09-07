@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
@@ -83,7 +84,13 @@ final class SkyforgeNeoForge1211ProductionMorphologySeedScaleDevRuntime {
                         SkyIslandTerrainProfile.reference(),
                         new SkyforgeMinecraftBlockPalette()),
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
-        persistentAdmissionBinding = SkyforgePhysicalVolumeAdmissionStage.install(fixture.catalog());
+        LinkedHashMap<io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId, Set<Long>> requiredFootprints =
+                new LinkedHashMap<>();
+        for (var member : fixture.members()) {
+            requiredFootprints.put(member.volumeId(), member.footprintChunkKeys());
+        }
+        persistentAdmissionBinding =
+                SkyforgePhysicalVolumeAdmissionStage.install(fixture.catalog(), requiredFootprints);
 
         LOGGER.log(
                 System.Logger.Level.INFO,
@@ -253,16 +260,16 @@ final class SkyforgeNeoForge1211ProductionMorphologySeedScaleDevRuntime {
 
         for (int x = minimumX; x <= maximumX; x += SURFACE_SAMPLE_STRIDE) {
             for (int z = minimumZ; z <= maximumZ; z += SURFACE_SAMPLE_STRIDE) {
-                int chunkX = Math.floorDiv(x, 16);
-                int chunkZ = Math.floorDiv(z, 16);
-                if (level.getChunkSource().getChunkNow(chunkX, chunkZ) == null) {
-                    return Optional.empty();
-                }
-
                 Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> expectedRange =
                         SkyforgeExactVoxelSupportBounds.integerSolidRange(interpreter, x, z);
                 if (expectedRange.isEmpty()) {
                     continue;
+                }
+
+                int chunkX = Math.floorDiv(x, 16);
+                int chunkZ = Math.floorDiv(z, 16);
+                if (level.getChunkSource().getChunkNow(chunkX, chunkZ) == null) {
+                    return Optional.empty();
                 }
                 var claim = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
                         fixture.volumeId(),

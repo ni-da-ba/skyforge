@@ -33,9 +33,39 @@ final class SkyforgePhysicalVolumeAdmissionStage {
 
     static AutoCloseable install(SkyIslandWorldCatalog catalog) {
         Objects.requireNonNull(catalog, "catalog");
+        return install(
+                catalog,
+                new SkyforgePhysicalVolumeAdmissionLedger(catalog.volumes()));
+    }
+
+    /**
+     * Installs physical admission with an exact precomputed required chunk footprint per volume.
+     *
+     * <p>This is appropriate when an upstream exact-voxel support pass has already proved which
+     * Minecraft chunks contain at least one owned solid coordinate. Chunks containing no Skyforge
+     * solid cannot contain a physical occupancy conflict and therefore need not delay whole-volume
+     * admission. The historical bounds-derived constructor remains the production fallback.
+     */
+    static AutoCloseable install(
+            SkyIslandWorldCatalog catalog,
+            Map<SkyIslandWorldVolumeId, Set<Long>> requiredChunkKeysByVolume) {
+        Objects.requireNonNull(catalog, "catalog");
+        Objects.requireNonNull(requiredChunkKeysByVolume, "requiredChunkKeysByVolume");
+        if (!requiredChunkKeysByVolume.keySet().equals(
+                catalog.volumes().stream().map(volume -> volume.id()).collect(java.util.stream.Collectors.toSet()))) {
+            throw new IllegalArgumentException("exact physical-admission footprints must cover the catalog exactly");
+        }
+        return install(
+                catalog,
+                new SkyforgePhysicalVolumeAdmissionLedger(requiredChunkKeysByVolume));
+    }
+
+    private static AutoCloseable install(
+            SkyIslandWorldCatalog catalog,
+            SkyforgePhysicalVolumeAdmissionLedger ledger) {
         Binding binding = new Binding(
                 catalog,
-                new SkyforgePhysicalVolumeAdmissionLedger(catalog.volumes()),
+                ledger,
                 new HashMap<>(),
                 new HashMap<>());
         if (!ACTIVE.compareAndSet(null, binding)) {

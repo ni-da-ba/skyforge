@@ -137,7 +137,7 @@ final class SkyforgeProductionMorphologySeedScaleMatrixFixture {
                     volumeId,
                     translatedSupport.bounds(),
                     translatedCompilation.volume());
-            Set<Long> memberFootprint = footprintChunkKeys(translatedSupport.bounds());
+            Set<Long> memberFootprint = translatedSupport.occupiedChunkKeys();
             footprint.addAll(memberFootprint);
             worldVolumes.add(worldVolume);
             memberFixtures.add(new MemberFixture(
