@@ -70,5 +70,6 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeWaveC16WirelessEnvelopeAcceptance.installFromSystemProperty();
         SkyforgeWaveC17GpsInfrastructureAcceptance.installFromSystemProperty();
         SkyforgeWaveC18TurtleFreightAcceptance.installFromSystemProperty();
+        SkyforgeWaveC19TurtleMiningAcceptance.installFromSystemProperty();
     }
 }

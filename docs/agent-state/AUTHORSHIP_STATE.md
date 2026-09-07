@@ -3,8 +3,8 @@
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Main snapshot at latest Authorship acceptance:** `f7440b05279d7cb7f7f72c575e70d0e880ef184f`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0092**
+**Main snapshot at latest Authorship acceptance:** `636f261cdc491d80fcf9a6ae73d1c10be480ccfd`  
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0093**
 
 Read first:
 
@@ -257,22 +257,47 @@ Accepted invariants:
 
 Reference: `docs/authorship/AUTH-0092-regional-isolation-evidence.md`.
 
+### AUTH-0093 — base-metal geological opportunity
+
+PR #294 merged as `636f261cdc491d80fcf9a6ae73d1c10be480ccfd`.
+
+Exact acceptance:
+
+- accepted head: `73a0d26c7455011b8ef54f9e860b206f2d764b44`;
+- synchronized base: `a1d550ad0b6d8153b2560c264fbb1e6c653145b1`;
+- CI PASS, run `34150993175`;
+- evidence artifact `10029433121`;
+- digest `sha256:cffa330ffc6192bf7c39f67a725b85bc41c5827cd67c4f73e0a60342552ad0cc`.
+
+Accepted invariants:
+
+- one authored descriptor is profiled only through the fixed accepted AUTH-0033 material-family plan;
+- every base-metal cell retains exact AUTH-0033 host-cell identity/order;
+- IRON, COPPER, and ZINC are backend-neutral geological element opportunities, not Minecraft ore identities;
+- every nonzero element opportunity requires accepted `MINERAL_BEARING_STRUCTURAL_HOST` support and cannot exceed that exact support;
+- broad element-specific affinity may differentiate mineralized regions only after common accepted geological support exists;
+- mean, peak, and relative opportunity share remain normalized planning evidence rather than grade, reserves, deposit volume/count, or availability class;
+- radius-only scaling preserves normalized cell identity/opportunity;
+- no ore block/registry identity, placement, resource tier, bootstrap guarantee, trade/salvage rule, or progression threshold enters Authorship.
+
+Reference: `docs/authorship/AUTH-0093-base-metal-geological-opportunity.md`.
+
 ## IN PROGRESS
 
 No Authorship milestone is currently in progress.
 
-Do not open AUTH-0093 merely to continue semantic accumulation. Select the next milestone only from a
-concrete Bootstrap, fauna, resource, civilization, or other production consumer that demonstrates a
-missing backend-neutral cause.
+AUTH-0093 closes the currently demonstrated Iron/Copper/Zinc geological-semantic gap for Bootstrap
+resource geography. Do not open AUTH-0094 until a concrete retained resource or other production
+consumer demonstrates another missing backend-neutral cause.
 
 ## PROPOSED
 
 ### Later semantic priorities
 
-1. Use AUTH-0092 only as raw regional isolation evidence; any isolated/not-isolated class belongs to a concrete downstream consumer.
-2. A future cave/cliff habitat profile may summarize accepted AUTH-0024–0030 topology/exposure only if a concrete consumer needs it; semantic depth fractions are not physical cave volume.
-3. Combine AUTH-0090 ecology, AUTH-0091 freshwater, AUTH-0092 isolation, geology, civilization/trade, and progression only where one concrete Bootstrap/resource/fauna/civilization decision requires the combination.
-4. Add disturbance, predator-pressure, trophic-state, geothermal/volcanic, or other semantics only when design consumers require them.
+1. Content may consume AUTH-0093 to define Iron bootstrap reliability and Copper/Zinc post-flight specialization; availability classes and guarantees remain Content-owned.
+2. Use AUTH-0092 only as raw regional isolation evidence; any isolated/not-isolated class belongs to a concrete downstream consumer.
+3. A future cave/cliff habitat profile may summarize accepted AUTH-0024–0030 topology/exposure only if a concrete consumer needs it; semantic depth fractions are not physical cave volume.
+4. Add petroleum, precious-resource, disturbance, predator-pressure, trophic-state, geothermal/volcanic, or other semantics only when a retained production consumer requires a distinct cause.
 
 ## Architectural decisions / invariants
 
@@ -298,6 +323,7 @@ Implementation:
 - may consume AUTH-0090 as area-weighted regional ecological opportunity evidence; it still assigns no species/resources/province class;
 - may consume AUTH-0091 as retained-freshwater habitat opportunity evidence; its area/depth quantities remain coarse/normalized planning semantics, not physical fluid volume;
 - may consume AUTH-0092 as raw regional center-distance/nominal-radial-gap evidence; it is not a physical terrain-edge, route-cost, gameplay-range, or ecological-isolation contract;
+- may consume AUTH-0093 as normalized Iron/Copper/Zinc geological opportunity; concrete ore realization remains downstream of Content resource policy and Implementation placement/lifecycle;
 - owns block-space realization, chunk lifecycle, fluid propagation/fencing, and live Minecraft proofs;
 - SF-IMP-0080 remains the accepted forest/taiga ecology showcase;
 - SF-IMP-0081 / SF-IMP-0082 accept all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / issue #284 owns the remaining built-in seed/scale matrix;
@@ -354,7 +380,7 @@ Human review still needs the AUTH-0083/AUTH-0084 reference + Minecraft matrices,
 
 ## Ordered next work
 
-1. Reconstruct the next concrete Authorship consumer from current Content/Bootstrap/fauna/resource/civilization design before assigning AUTH-0093.
-2. If a real missing semantic cause is demonstrated, scope one narrow backend-neutral milestone around that cause and reuse accepted source semantics rather than inventing parallel thresholds.
-3. Do not convert AUTH-0092 raw distances into an ecological/gameplay class inside Authorship without an explicit consumer-owned decision boundary.
+1. Hand AUTH-0093 to Content/Bootstrap as the geological suitability input for Iron/Copper/Zinc resource policy.
+2. Let Content decide availability class, starting-region guarantee, trade/salvage alternatives, and post-flight specialization before Authorship adds any deposit-scale semantics.
+3. Assign AUTH-0094 only if a concrete retained resource or world-system consumer demonstrates a missing semantic cause; do not expand the resource taxonomy for completeness.
 4. Keep SF-IMP-0083 / issue #284 seed-scale morphology work independently Implementation-owned.
