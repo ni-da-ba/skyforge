@@ -5,6 +5,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -145,7 +146,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
             return x != 0 ? x : Integer.compare(ChunkPos.getZ(left), ChunkPos.getZ(right));
         });
         sorted.addAll(chunkKeys);
-        explicitWarmupChunkKeys = Set.copyOf(new LinkedHashSet<>(sorted));
+        explicitWarmupChunkKeys = Collections.unmodifiableSet(new LinkedHashSet<>(sorted));
     }
 
     static synchronized void record(Map<String, ?> values) {
