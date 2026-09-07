@@ -141,6 +141,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Giuseppe Bellanca B0 engineering mule v0.1](giuseppe-bellanca-b0-engineering-mule-v0.1.md)
 - [Giuseppe Bellanca B0-A assembly topology v0.1](giuseppe-bellanca-b0a-assembly-topology-v0.1.md)
 - [Giuseppe Bellanca B0-A machine-readable assembly manifest v0.1](giuseppe-bellanca-b0a-assembly-manifest-v0.1.json)
+- [Giuseppe Bellanca B0-A mass and balance note v0.1](giuseppe-bellanca-b0a-mass-and-balance-v0.1.md)
 - [Portable Engine redstone cutoff compatibility contract v0.1](portable-engine-redstone-cutoff-compatibility-contract-v0.1.md)
 - [Bootstrap experience recipes v0.1](bootstrap-experience-recipes-v0.1.md)
 - [Selected-mod resource worldgen authority audit v0.1](selected-mod-resource-worldgen-authority-audit-v0.1.md)
