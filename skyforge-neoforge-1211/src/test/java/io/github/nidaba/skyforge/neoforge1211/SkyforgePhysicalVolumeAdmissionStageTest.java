@@ -40,8 +40,11 @@ final class SkyforgePhysicalVolumeAdmissionStageTest {
 
     @Test
     void exactFootprintSkipsBoundsOnlyChunksBeforeOccupancySurvey() throws Exception {
-        var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
-        var volume = catalog.volumes().getFirst();
+        var sourceCatalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
+        var volume = sourceCatalog.volumes().getFirst();
+        var catalog = new io.github.nidaba.skyforge.world.SkyIslandWorldCatalog(
+                sourceCatalog.rootSeed(),
+                List.of(volume));
         var bounds = volume.bounds();
         int minimumChunkX = Math.floorDiv((int) Math.floor(bounds.minimumX()), 16);
         int maximumChunkX = Math.floorDiv((int) Math.floor(bounds.maximumX()), 16);
