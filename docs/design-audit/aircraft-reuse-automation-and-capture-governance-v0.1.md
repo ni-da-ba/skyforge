@@ -120,6 +120,118 @@ back into coarse state.
 
 Therefore arbitrary autonomous landing is **not** a prerequisite for inhabited-airspace viability.
 
+## Fidelity boundary for generated aircraft
+
+Generated civilian/faction aircraft do not need player-equivalent internal engineering fidelity merely
+because they are rendered as real Sable/Create Aeronautics contraptions.
+
+The preferred rule is:
+
+> Simulate the physical behavior the player can directly observe or affect; abstract routine
+> operating logistics that exist primarily to justify the encounter.
+
+Examples that may remain coarse for ordinary transient traffic:
+
+- fuel quantity and refueling cycles;
+- ammunition magazines and reload labor;
+- maintenance intervals;
+- crew provisioning;
+- spare parts;
+- strategic sortie generation;
+- hangar turnaround;
+- route scheduling.
+
+The corresponding infrastructure should still exist semantically and, where useful, physically in
+the world. A faction airfield may therefore contain:
+
+- fuel tanks / refinery or fuel-service structures;
+- ammunition storage;
+- workshops / maintenance hangars;
+- radar / navigation infrastructure;
+- parking or launch aprons;
+- representative aircraft patterns.
+
+Those structures justify and constrain the regional traffic capability without requiring every
+materialized aircraft to contain a literal full fuel or ammunition simulation.
+
+### Coarse capability model
+
+A useful future regional/faction model may expose bounded capabilities such as:
+
+```text
+aircraftAvailability
+sortieCapacity
+fuelSupport
+munitionSupport
+maintenanceSupport
+radarCoverage
+routeCoverage
+```
+
+These are semantic capability/resource states, not necessarily item stacks.
+
+They may control whether a patrol, cargo flight, interceptor, or armed encounter is eligible to
+materialize.
+
+Examples:
+
+```text
+airfield + fuel support
+    -> ordinary powered traffic eligible
+
+military site + munition support
+    -> armed patrol / interceptor eligible
+
+radar site destroyed
+    -> reduced detection / intercept capability
+
+fuel depot destroyed
+    -> reduced or suspended powered sortie capability
+```
+
+This preserves physical causality at the infrastructure level without simulating each aircraft as an
+independent logistics inventory.
+
+### Materialized encounter fidelity
+
+Once an aircraft is active near the player, simulate only the quantities needed for credible play.
+
+Examples:
+
+- bounded mission duration/range may stand in for exact fuel burn;
+- bounded firing opportunities / weapon cooldown / sortie munition budget may stand in for literal
+  magazine inventories;
+- visible engine, wing, control, radar, and weapon damage should remain physically meaningful where
+  the retained vehicle stack supports it;
+- an aircraft should not obviously fire forever or remain airborne indefinitely after its supporting
+  capability should have expired.
+
+If a vehicle becomes player-owned, captured, or deliberately persistent, it may transition to a
+different fidelity class. Player-operated craft should obey the ordinary player-facing fuel,
+ammunition, repair, and engineering systems appropriate to that vehicle.
+
+Thus:
+
+```text
+NPC TRAFFIC FIDELITY
+    !=
+PLAYER VEHICLE FIDELITY
+```
+
+without requiring the NPC craft to be visually fake.
+
+### Infrastructure before invisible bookkeeping
+
+Prefer visible world infrastructure over hidden per-aircraft simulation when choosing where to spend
+complexity.
+
+A fuel depot, ammunition bunker, maintenance hangar, radar tower, and parked-aircraft pattern can
+communicate a functioning air arm more effectively than thousands of invisible per-vehicle inventory
+updates.
+
+Destroying or capturing that infrastructure may alter future encounter eligibility, creating
+meaningful world consequences at far lower simulation cost.
+
 ## Player-acquisition invariant
 
 > Generated aircraft must not make player aircraft construction economically optional before the
