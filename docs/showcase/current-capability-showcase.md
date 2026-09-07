@@ -20,7 +20,7 @@ From a clean checkout at the repository root:
 
 The task performs two ordered phases:
 
-1. **Prepare** — creates a fresh `run-skyforge-showcase/saves/showcase` world using the accepted SF-IMP-0069 stacked production runtime and waits for its self-checking proof to PASS.
+1. **Prepare** — creates a fresh `run-skyforge-showcase/saves/showcase` world using the accepted stacked production lifecycle and waits for its self-checking proof to PASS. SF-IMP-0080 changes only the human-facing configuration: the base representation comes from the development-only `skyforge:showcase_land` preset (the same `skyforge:noise_overlay` generator over a fixed plains biome), while the lower and upper exact volumes resolve as forest and taiga respectively.
 2. **View** — launches Minecraft directly into the saved world with every mutation lifecycle inert. The viewer restores only the deterministic compiled terrain-ownership catalog required to fence persisted generated-fluid ticks, plus the presentation-only navigator.
 
 The preparation phase is intentionally destructive to the previous showcase directory so every `launchShowcase` starts from the same deterministic state.
@@ -46,10 +46,10 @@ Recommended order:
 | Stop | Command | What to inspect |
 | --- | --- | --- |
 | 1 | `/skyforge_showcase panorama` | Both vertically aligned production volumes in one view. This is the clearest visual proof that the same X/Z footprint can host independently tracked stacked volumes. |
-| 2 | `/skyforge_showcase lower_surface` | Lower island terrain, native surface adaptation, exact-volume surface population, and the physical separation from the upper volume. |
-| 3 | `/skyforge_showcase upper_surface` | Upper island independently admitted and populated through the same production lifecycle. |
-| 4 | `/skyforge_showcase west_biome` | West half of the exact-volume resolver, using `minecraft:river`. |
-| 5 | `/skyforge_showcase east_biome` | East half of the exact-volume resolver, using `minecraft:dripstone_caves`. |
+| 2 | `/skyforge_showcase lower_surface` | **Human gate:** lower forest volume. Confirm grass/soil, persistent native logs/leaves, surface plants, and physical separation from the upper volume. |
+| 3 | `/skyforge_showcase upper_surface` | **Human gate:** upper taiga volume. Confirm grass/soil, visibly different tree/ecology character, surface plants, and independent stacked realization. |
+| 4 | `/skyforge_showcase west_biome` | Legacy west approach retained as a convenient alternate view of the upper taiga surface. |
+| 5 | `/skyforge_showcase east_biome` | Legacy east approach retained as a convenient alternate view of the upper taiga surface. |
 | 6 | `/skyforge_showcase lower_caves` | Spectator inspection through the lower island: native-carved AIR plus authored exterior-connected cave topology, followed by native underground population. |
 | 7 | `/skyforge_showcase upper_caves` | The same composed-cave/interior pipeline in the upper volume, independently fenced from the lower volume. |
 
@@ -57,7 +57,7 @@ The surface stops use creative mode. Cave and overview stops use spectator mode 
 
 ## What this world actually contains
 
-The prepare task reuses the accepted **SF-IMP-0069 stacked production fixture** rather than a showcase-specific generator. For each exact volume, the persisted world therefore comes through the real accepted ordering:
+The prepare task reuses the accepted **stacked production fixture and production lifecycle** rather than a showcase-specific terrain generator. SF-IMP-0080 does not alter exact ownership, admission, caves, interior population, persistence, or the `skyforge:noise_overlay` generator. It deliberately supplies a grass-bearing plains base representation to the already-accepted native-surface adapter, then assigns the lower exact volume to `minecraft:forest` and the upper exact volume to `minecraft:taiga` so native ecology is visually inspectable. For each exact volume, the persisted world still comes through the real accepted ordering:
 
 ```text
 native/base world generation
@@ -83,9 +83,27 @@ The preparation proof also requires:
 - generated fluid provenance in both volumes;
 - foreign-volume fluid propagation rejection;
 - whole-volume cave completion before interior population;
-- monotonic obligation completion and no replay.
+- monotonic obligation completion and no replay;
+- SF-IMP-0080 lower/upper biome identities of forest/taiga;
+- nonzero final grass, soil, logs, leaves, and surface plants on **both** exact volumes.
 
 The viewer run does **not** reinstall admission, biome/surface population, cave, interior-population, material, or other mutation bindings. It restores only the same immutable compiled stacked-volume ownership catalog used by the accepted reload proofs, because persisted generated-fluid ticks must still know their exact-volume boundary after a full stop/reload. It then opens the saved chunks and registers navigation commands.
+
+## SF-IMP-0080 ecology human gate
+
+The machine proof can establish that the final persisted world contains land surface material and persistent native ecology. It cannot decide whether the result is visually legible.
+
+Before SF-IMP-0080 is accepted, inspect `lower_surface` and `upper_surface` in the actual quick-play showcase and confirm:
+
+- both surfaces visibly read as land rather than gravel/ocean floor;
+- grass/soil is plainly visible;
+- trees and foliage are plainly visible on both volumes;
+- surface plants are present rather than only machine-counted off-camera;
+- lower forest and upper taiga have a meaningful visual distinction;
+- vegetation is attached to plausible surfaces and is not obviously floating;
+- the improved ecology does not conceal a new terrain/persistence defect.
+
+This is an **ecology legibility gate**, not production morphology acceptance. The compact showcase islands may still look geometrically primitive; issue #214 governs the later production-morphology human review.
 
 ## Intentionally not fabricated into the integrated world
 
@@ -109,7 +127,7 @@ Create a new world using **Skyforge Development** and inspect near `x=8, y=242, 
 
 ### Authored materials and authored hydrology
 
-The current authorship publication/checkpoint chain does not yet map semantic material or hydrology policy to concrete Minecraft block/fluid palettes. The water/lava visible here are **native Minecraft LAKES / FLUID_SPRINGS behavior** accepted in SF-IMP-0063/0064/0069. No showcase-only semantic material or fluid mapping has been invented.
+The current authorship publication/checkpoint chain does not yet map semantic material or hydrology policy to concrete Minecraft block/fluid palettes. The water/lava visible here remain native Minecraft lake/spring behavior under the accepted floating-island plausibility and provenance rules; authored waterfalls/outlets are not fabricated for the showcase. The plains base preset is used only as a native **surface-representation source**, not as a replacement material ontology.
 
 ## Correctness authority
 
