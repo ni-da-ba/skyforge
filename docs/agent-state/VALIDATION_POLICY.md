@@ -170,6 +170,25 @@ MERGE-READY ACCEPTANCE EVIDENCE
 
 Evidence portability may bridge the two only under the rule above.
 
+## Synchronization economy
+
+A producer branch being numerically behind `main` is not by itself a defect.
+
+Synchronize/recompose when one of these is true:
+
+- an intervening change touches the producer's dependency or contract surface;
+- GitHub reports a real merge conflict that must be resolved;
+- the branch is approaching an acceptance/merge boundary;
+- Audit identifies stale state that materially changes the claim being tested;
+- a relevant retained regression failed on newer main.
+
+Do **not** merge/rebase current main into an active branch merely to erase a behind-count when the
+intervening commits are orthogonal docs/state or unrelated lane work. Preserve portable expensive
+evidence and continue the bounded feature until the next meaningful integration boundary.
+
+At final acceptance, synchronize once, run cheap exact-head/current-contract gates, and rerun only the
+expensive evidence whose dependency surface actually changed.
+
 ## Branch-convergence rule
 
 If branch synchronization/test maintenance begins consuming more effort than the feature:
