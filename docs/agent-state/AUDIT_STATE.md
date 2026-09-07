@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot at latest AUDIT-0004 reconciliation:** `764fbb393644fd2de7aa9076f71f29602fa25732`
+**Main snapshot at latest AUDIT-0004 reconciliation:** `267c75060f9b77ca840ff41041711e498cb24b88`
 
 Read first:
 
@@ -62,7 +62,7 @@ The explicit #194 human-eye gate also **PASSED** on `4f3e65f7`. Owner review con
 
 One non-blocking follow-up remains: moving modestly away from the island surface can fall back to the ambient/base-world biome field. Treat this as later biome-presentation/flight-envelope refinement, not a failure of #194 ecology population acceptance.
 
-AUDIT-0004 does **not** accept SF-IMP-0080. Current Implementation head `da4a046080e76b467dbc4cc4cfcc5213cd99206e` is rerunning CI/showcase on top of AUDIT-0003, while current `main` has since advanced through Content C15. Before Implementation acceptance, #248 must synchronize to current `main` and pass its exact-head machine matrix there. The human ecology gate does not need to be repeated unless the synchronized changes materially alter the inspected specimen.
+AUDIT-0004 does **not** accept SF-IMP-0080. Current Implementation head `da4a046080e76b467dbc4cc4cfcc5213cd99206e` is rerunning CI/showcase after synchronization through AUDIT-0003, while current `main` has since advanced through Content C15 and its durable state. Before Implementation acceptance, #248 must synchronize to current `main` and pass its exact-head machine matrix there. The human ecology gate does not need to be repeated unless synchronized changes materially alter the inspected specimen.
 
 No runtime behavior or producer-lane acceptance is created by AUDIT-0004.
 
@@ -92,7 +92,7 @@ Known progression:
 3. the first real runtime attempt proved the ocean/gravel-backed deterministic substrate unsuitable for land ecology;
 4. land-backed seed `1405130932537311389` produced the green machine/human evidence on `4f3e65f7`;
 5. the branch synchronized through AUDIT-0003 and reran retained gates;
-6. current `main` subsequently advanced through C15, so a final current-main synchronization/exact-head rerun is still required.
+6. current `main` subsequently advanced through C15 and its durable-state refresh, so a final current-main synchronization/exact-head rerun is still required.
 
 Issue #194 remains open until SF-IMP-0080 itself is accepted/merged. The human ecology judgment is already passed for the inspected specimen.
 
