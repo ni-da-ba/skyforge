@@ -1,0 +1,23 @@
+{
+  "cue": "Track 03 — Count the Leagues",
+  "status": "frozen / complete; 72-bar Second Horizon",
+  "source": "assets/music/source/track-03-count-the-leagues-full-draft-02-second-horizon-72bar.mid.gz",
+  "uncompressed_midi_sha256": "7e1e968af4e92a4b1937b23f2e7a0e2e04bda2873c46930d0b7cc1f4e0faaec1",
+  "midi": {
+    "type": 1,
+    "ticks_per_beat": 480,
+    "tempo_bpm": 76,
+    "meter": "3/4",
+    "bars": 72,
+    "instrument_tracks": 19,
+    "conductor_track_index": 0
+  },
+  "library_audit": {
+    "ordinary_track_order": "verified",
+    "range_status": "pass",
+    "known_range_exceptions": [],
+    "track_11_hc_state": "not recoverable from MIDI alone; cue uses rare high-register afterimage color; verify Harp/Celeste technique from source CWP rather than infer it",
+    "track_12_perc_used": false,
+    "track_13_tp_used": false
+  }
+}
