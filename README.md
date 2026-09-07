@@ -39,27 +39,37 @@ Repository state, merged history, and tests are authoritative. Detailed architec
 
 ## Current capabilities
 
-The accepted Minecraft integration through **SF-IMP-0079** includes:
+Skyforge's accepted architecture now spans backend-neutral world authorship, exact finite-volume realization, and executable Minecraft gameplay integration.
+
+The backend-neutral engine provides:
 
 - immutable typed procedural graphs, canonical serialization, deterministic reference evaluation, and fixed-seed evidence;
 - finite suspended volumes with independent upper/underside morphology and exact three-dimensional ownership;
-- five primary landform families — Massif, Tableland, Spine, Basin, and Lobed — plus accepted backend-neutral secondary/hybrid/provider composition machinery;
-- Minecraft/NeoForge exact-volume terrain realization while preserving BASE_WORLD as a separate generation domain;
+- five primary landform families — Massif, Tableland, Spine, Basin, and Lobed — plus accepted secondary, hybrid, provider, group, and archipelago composition machinery;
+- explicit authored-to-realized identity/provenance rather than rediscovery from seed, position, or iteration order;
+- island-local ecology, hydrology, cave, geology/material, and other semantic evidence that remains attached to the exact authored island;
+- higher-order regional composition that can aggregate or relate multiple islands through explicit provenance while preserving each member's independent identity;
+- accepted regional ecological opportunity, freshwater habitat, raw inter-island isolation/gap evidence, and normalized Iron/Copper/Zinc geological opportunity through **AUTH-0093**.
+
+The accepted Minecraft/NeoForge lifecycle through **SF-IMP-0082** includes:
+
+- exact-volume terrain realization while preserving BASE_WORLD as a separate generation domain;
 - vertically stacked exact volumes at shared X/Z without collapsing them into one column-global surface;
+- exact-volume biome bridging and deterministic/idempotent native surface population, including a human-accepted persistent forest/taiga ecology specimen;
 - native structure candidate admission, bounded terrain accommodation, support, and piece-aware footprints;
 - whole-volume physical admission with fail-closed PLANNED/REJECTED behavior before destructive realization;
-- non-forcing deferred realization from immutable evidence, including stable-chunk lighting/client synchronization and preserved native post-processing state;
-- exact-volume biome bridging and deterministic/idempotent native surface population;
+- non-forcing deferred realization from immutable evidence, stable-chunk/client synchronization, save/reload, and mutation-inert actual-client reopen;
 - native + authored cave composition;
 - production post-cave native interior population including lakes, local modifications, ores, underground decoration, and fluid springs;
-- generated-fluid provenance, boundary fencing, persistence, save/reload, and actual-client reopen proof;
-- bounded performance convergence through SF-IMP-0077, which removed the measured scheduler/full-height pathologies and then stopped local micro-optimization once residual work was ordinary bounded cost;
-- floating-island native-feature plausibility through SF-IMP-0078/0079: spring descendants remain inside the authorized shell and cave-dependent multiface vegetation is routed after composed caves without rerolling unrelated surface ecology;
-- a current-capability technical showcase with persisted viewer reopen.
+- generated-fluid provenance and boundary fencing;
+- bounded performance convergence through SF-IMP-0077 and floating-island native-feature plausibility through SF-IMP-0078/0079;
+- exact Minecraft carriers for all five SMALL / seed-skyforge production morphology families.
 
-The current Implementation frontier is **issue #194: expose a visibly legible persistent land-biome/ecology specimen for human review**. The compact technical showcase is intentionally not the production morphology target. After #194, the planned implementation era is representative production morphology through the accepted exact-volume lifecycle, with issue #214 as the human visual/flight-quality gate.
+The current Implementation frontier is **SF-IMP-0083 / issue #284**, which expands production morphology to the remaining multi-seed/multi-scale built-in matrix before hybrids/providers and regional contexts. Human issue **#214** remains the visual/flight-quality authority; #267 and #283 track Massif traversal cadence and Tableland-vs-Massif family separation without reopening accepted carrier correctness.
 
-Backend-neutral Authorship has independently advanced through **AUTH-0086** visible-hydrologic realization intent; Content / Experience has executable acceptance through **C13** Elytra/firework bypass suppression while C11/C12 remain separately in progress/reserved. Live lane-state files provide durable handoff context, but merged history/source/tests remain authoritative whenever a lane summary trails a newer merge.
+Content / Experience is accepted through **C18**, including retained Create/Sable/Aeronautics mobility, shared atmosphere/glider/fauna behavior, Elytra-boost suppression, 1:1 Nether portal behavior, CC:Tweaked avionics/network/GPS capability, and measured stock turtle freight/ticking behavior. Music / Audio has its first accepted durable lane boundary at **MUS-0001**.
+
+Live lane-state files remain the authoritative status surface when parallel work advances beyond this summary.
 
 Skyforge is pre-release: it is not yet packaged as a general-purpose player-facing mod, and no stable API compatibility is promised.
 
@@ -85,7 +95,7 @@ The current runtime architecture is summarized in [`Skyforge_Current_Runtime_Arc
 For a compact current technical review:
 
 1. Read the [program charter](docs/agent-state/PROGRAM_CHARTER.md) and [cross-lane contracts](docs/agent-state/CROSS_LANE_CONTRACTS.md).
-2. Read the [Implementation lane state](docs/agent-state/IMPLEMENTATION_STATE.md) for the current SF-IMP-0079 boundary, open #194/#214 gates, and verification procedures.
+2. Read the lane state files under [`docs/agent-state/`](docs/agent-state/) for current Authorship, Implementation, Content, Music / Audio, Audit, manual-gate, and verification state.
 3. Read the [current runtime architecture](docs/architecture/Skyforge_Current_Runtime_Architecture.md) for ownership and lifecycle structure.
 4. Use milestone acceptance records under [`docs/reviews`](docs/reviews) and merged PRs for detailed evidence behind individual claims.
 5. Inspect the [CI workflow](.github/workflows/ci.yml) plus milestone-specific workflows for build, backend-isolation, deterministic-evidence, runtime, persistence, and showcase gates.
