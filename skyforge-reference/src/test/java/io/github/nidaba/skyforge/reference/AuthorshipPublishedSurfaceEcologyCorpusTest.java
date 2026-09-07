@@ -43,7 +43,7 @@ final class AuthorshipPublishedSurfaceEcologyCorpusTest {
         assertTrue(exact.contains(",true,"));
 
         String regimes = Files.readString(output.resolve("regimes.csv"));
-        assertTrue(regimes.lines().count() >= 6L);
+        assertTrue(regimes.lines().count() >= 7L);
 
         String html = Files.readString(output.resolve("index.html"));
         assertTrue(html.contains("AUTH-0003"));
