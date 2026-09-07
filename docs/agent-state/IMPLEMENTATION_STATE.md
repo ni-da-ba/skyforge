@@ -109,7 +109,23 @@ Read [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md). Most important near-ter
 
 ## IN PROGRESS
 
-No Implementation milestone is open at this exact accepted boundary. The next milestone is SF-IMP-0081, the first Minecraft realization tranche for AUTH-0083 / issue #214 production morphology.
+### SF-IMP-0081 — first AUTH-0083 production morphology Minecraft carrier
+
+Branch **`agent/sf-imp-0081-production-morphology-massif`** is the active Implementation work for the first issue #214 tranche.
+
+The first carrier preserves exact AUTH-0083 member **`builtin-massif-small-seed-skyforge`**: canonical Skyforge seed, SMALL scale, built-in Massif provider, full bounded detail, full provider secondary morphology, and provider-neutral `SkyIslandMorphologySpecCompiler` compilation. Minecraft changes only the suspension elevation by an integer Y translation so the discrete shape is preserved inside the 1.21.1 build range.
+
+Implementation work in this tranche:
+
+- derive tight exact integer-voxel runtime bounds from the compiled morphology inside its certified provider support envelope, rather than paying whole-volume admission over the broad proof envelope;
+- native-surface-adapt the exact carrier onto the accepted land-backed deterministic base;
+- require whole-volume physical admission and zero deferred catch-up;
+- intentionally omit caves/ecology/interior mutation so the first #214 review sees unobscured morphology;
+- sample both top and underside boundaries against compiled exact-volume expectations;
+- persist the world and require an ownership-only actual-client reopen with an identical sampled geometry digest;
+- expose `above`, `approach`, `below`, and `orbit` guided stops for the first human #214 review.
+
+No aesthetic thresholds are encoded. Automated acceptance is objective carrier correctness only; issue #214 remains a human visual/design gate.
 
 ## PROPOSED / priority order
 
