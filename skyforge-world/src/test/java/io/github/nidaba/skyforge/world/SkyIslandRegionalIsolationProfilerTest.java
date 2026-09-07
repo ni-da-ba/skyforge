@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.world;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 final class SkyIslandRegionalIsolationProfilerTest {
@@ -173,6 +175,24 @@ final class SkyIslandRegionalIsolationProfilerTest {
             assertEquals(a.centerDistance() * 2.0, b.centerDistance(), 1.0e-9);
             assertEquals(a.nominalRadialGap() * 2.0, b.nominalRadialGap(), 1.0e-9);
         }
+    }
+
+    @Test
+    void entryRejectsSubstitutedDistanceEvidence() {
+        SkyIslandRegionalIsolationProfile profile =
+                new SkyIslandRegionalIsolationProfiler()
+                        .profile(fixture(92006L, 3, 0.0, 0.0, 1.0).binding());
+        SkyIslandRegionalIsolationEntry entry = profile.islands().getFirst();
+        SkyIslandRegionalIsolationNeighbor valid = entry.nearestNeighbor().orElseThrow();
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandRegionalIsolationEntry(
+                        entry.association(),
+                        Optional.of(new SkyIslandRegionalIsolationNeighbor(
+                                valid.association(),
+                                valid.centerDistance() + 1.0,
+                                valid.nominalRadialGap()))));
     }
 
     @Test

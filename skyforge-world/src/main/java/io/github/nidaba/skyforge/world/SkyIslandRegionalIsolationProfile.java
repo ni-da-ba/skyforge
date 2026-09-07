@@ -11,6 +11,9 @@ import java.util.OptionalDouble;
  *
  * <p>No ecological isolation class is produced. Distances remain world-horizontal planning
  * evidence attached to exact authored-realization provenance.
+ *
+ * <p>Every summary is taken over the neighbor selected by minimum nominal radial gap, then minimum
+ * center distance; exact remaining ties preserve canonical AUTH-0046 association order.
  */
 public final class SkyIslandRegionalIsolationProfile {
     private final SkyIslandPublishedAuthoredRealizationBinding binding;
