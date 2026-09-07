@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot before AUDIT-0002 merge:** `519c47bb3bd0111bd2ed25b5b169b123d5b0d6d7`
+**Main snapshot before AUDIT-0002 merge:** `dcfa4d467bfcd8e64443da84f2f970de6b1ccd7b`
 
 Read first:
 
@@ -47,7 +47,7 @@ Cross-lane ownership is unchanged. Current `main` already records AUTH-0086 as m
 | --- | --- |
 | Implementation | **SF-IMP-0079** / PR #236 — cave-dependent vegetation routed post-cave |
 | Authorship | **AUTH-0086** / PR #241 — visible hydrologic realization intent |
-| Content / Experience | **C10** / PR #232 — live 1:1 Nether coordinate-scale proof |
+| Content / Experience | **C13** / PR #247 — Elytra/firework bypass suppression; C11/C12 remain separately in progress/reserved |
 | Showcase | technical current-capability showcase + persisted client reopen accepted |
 | Music | no MUS milestone merged; PR #159 remains draft/unmerged |
 | AUDIT | **AUDIT-0002** by this documentation-reconciliation merge |
@@ -83,12 +83,6 @@ It does not define Minecraft block/fluid identities, block-space rasterization, 
 ### Content first-flight recipe proof — PR #233
 
 Existing **C11** identity. Branch requires current-main synchronization and fresh focused evidence before acceptance. Preserve the distinction between this crude pre-Brass bootstrap aircraft and the later Brass-era Bellanca.
-
-### Elytra/firework bypass — PR #247 / C13
-
-The initial C11 identity collision discovered during AUDIT-0001 is resolved. Content has explicitly reassigned this work to **C13**, preserving PR #233 as C11 and issue #239 as C12.
-
-The branch is now non-draft but remains unmerged. It uses black-box baseline/suppressed Elytra-firework runtime evidence and currently targets a base older than current main, so final acceptance still requires synchronization/exact-head verification under Content ownership. AUDIT has verified milestone identity and scope only, not runtime acceptance.
 
 ### Portable Engine cutoff — PR #240 / issue #237
 
@@ -135,7 +129,7 @@ Human play must verify interaction discoverability and that neighboring redstone
 4. **Reviewer-document drift:** AUDIT-0002 repairs the known SF-IMP-0057 runtime overview drift; future milestone/state changes should not silently turn overview prose back into a second lane ledger.
 
 Resolved hazards:
-- PR #247's initial C11 milestone collision was corrected to **C13** without renumbering C11 or C12.
+- PR #247's initial C11 milestone collision was corrected to **C13** without renumbering C11 or C12; C13 is now merged/accepted as the Elytra/firework bypass suppression contract.
 - PR #245 merged into the canonical `docs/agent-state/` namespace without recreating parallel live state.
 - Authorship refreshed its canonical ledger and shared contract after AUTH-0086 merged, eliminating the temporary state-summary lag.
 - duplicate AUDIT-0002 PR #250 was closed in favor of earlier PR #249 before either could merge.
@@ -145,6 +139,5 @@ Resolved hazards:
 1. Track active SF-IMP-0080 / PR #248 without waiving the #194 human-eye ecology gate.
 2. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
 3. Re-audit PR #240 after assembled-Sable + persistence evidence.
-4. Re-check C13 / PR #247 only after current-main synchronization and exact-head acceptance evidence.
-5. Continue checking future lane-state migrations remain under `docs/agent-state/`.
-6. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
+4. Continue checking future lane-state migrations remain under `docs/agent-state/`.
+5. Update this ledger at each material audit merge, contract change, new hazard, or handoff.

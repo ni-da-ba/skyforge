@@ -84,6 +84,17 @@ val waveC9Runtime = sourceSets.create("waveC9Runtime") {
         development.output
 }
 
+
+// Wave C13 performs a black-box baseline-vs-suppressed Elytra test. Only the suppressed run loads
+// the pinned No More Elytra Boosting jar; ordinary Skyforge and the baseline acceptance stay vanilla.
+val waveC13Runtime = sourceSets.create("waveC13Runtime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
 val waveC9PinFile = layout.projectDirectory.file("wave-c9-mods.properties")
 val waveC9Pins = Properties().apply {
     waveC9PinFile.asFile.inputStream().use(::load)
@@ -1513,6 +1524,26 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
+        // C13 baseline: vanilla 1.21.1 Elytra/firework behavior with no suppression mod loaded.
+        create("waveC13VanillaElytraAcceptanceServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c13-elytra-baseline-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC13ElytraAcceptance", "baseline")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // C13 suppressed: identical acceptance with only the exact pinned no-boost mod added.
+        create("waveC13SuppressedElytraAcceptanceServer") {
+            server()
+            sourceSet.set(waveC13Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c13-elytra-suppressed-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC13ElytraAcceptance", "suppressed")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
     }
 
     unitTest {
@@ -1682,6 +1713,35 @@ tasks.named("runWaveC10NetherScaleAcceptanceServer").configure {
         copy {
             from(sourcePack)
             into(targetPack)
+        }
+    }
+}
+
+
+val waveC13ElytraServerProperties = """
+    level-name=wave-c13-elytra
+    level-seed=601100
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+mapOf(
+    "runWaveC13VanillaElytraAcceptanceServer" to "run-wave-c13-elytra-baseline-server",
+    "runWaveC13SuppressedElytraAcceptanceServer" to "run-wave-c13-elytra-suppressed-server",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            val directory = layout.projectDirectory.dir(relativePath).asFile
+            delete(directory)
+            directory.mkdirs()
+            directory.resolve("eula.txt").writeText("eula=true\n")
+            directory.resolve("server.properties").writeText(waveC13ElytraServerProperties)
         }
     }
 }
@@ -3665,6 +3725,26 @@ tasks.register("waveC9ResolvePinnedMods") {
 }
 
 
+tasks.register("waveC13ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve and assert the exact C13 Elytra-suppression runtime."
+    inputs.file(waveC2PinFile)
+
+    doLast {
+        val files = waveC13Runtime.runtimeClasspath.files.map { it.name }.sorted()
+        val coordinate = waveC2Pin("noelytraboost", "coordinate")
+        val parts = coordinate.split(":")
+        check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+        val token = "${parts[1]}-${parts[2]}"
+        check(files.any { it.contains(token) }) {
+            "Wave C13 missing No More Elytra Boosting artifact token '$token': $files"
+        }
+        println("Wave C13 suppressed-Elytra classpath")
+        files.forEach { println("  resolved=$it") }
+    }
+}
+
+
 dependencies {
     api(project(":skyforge-world"))
 
@@ -3796,6 +3876,14 @@ dependencies {
     add(
         waveC9Runtime.runtimeOnlyConfigurationName,
         waveC9Pin("createavionics", "coordinate"),
+    )
+
+
+    // C13's suppressed run contains exactly the pinned server-side no-boost mod. The baseline run
+    // deliberately uses the ordinary source set and therefore has vanilla Elytra/firework behavior.
+    add(
+        waveC13Runtime.runtimeOnlyConfigurationName,
+        waveC2Pin("noelytraboost", "coordinate"),
     )
 
     testImplementation(project(":skyforge-recipes"))

@@ -19,7 +19,7 @@
 | --- | --- |
 | Authorship | `AUTH-0086` merged on current `main` (visible authored-hydrology realization intent) |
 | Implementation | `SF-IMP-0079` merged before current Authorship work (post-cave vegetal routing) |
-| Content / Experience | C10 live 1:1 Nether-scale proof merged; C9 CC:Tweaked avionics substrate and C8 glider-maintenance closure also accepted; later Bellanca B0/Portable Engine design contracts merged |
+| Content / Experience | C13 Elytra/firework bypass suppression accepted; C10 live 1:1 Nether-scale proof, C9 CC:Tweaked avionics substrate, and C8 glider-maintenance closure also accepted; C11/C12 remain separately in progress/reserved |
 | AUDIT | AUDIT-0001 repository-state reconstruction / durable audit handoff accepted on `main` |
 
 Use each lane's own state file and git history for detail. Do not infer acceptance solely from an old
@@ -94,6 +94,8 @@ Aerodynamics4MC is the leading single atmosphere authority.
 - C6 proves the retained Fowl Play red-tailed hawk can enter/exit thermal SOAR from the same field.
 - C7 proves Reliable Gliders can consume trusted vertical lift after native glider physics.
 - C8 closes Phantom-gated glider maintenance with ordinary leather/wool repair.
+- C13 / PR #247 proves the exact pinned No More Elytra Boosting 1.0.0 runtime removes firework propulsion while preserving Elytra fall-flying and ordinary block-launched fireworks.
+- Blast/damage/instability feedback for attempted boost is optional UX, not required for mobility-integrity acceptance.
 - Other lanes must not introduce a second independent wind/thermal authority without reopening this contract.
 
 ### Ecology
@@ -104,7 +106,7 @@ Atmosphere may alter behavior (for example thermal soaring) but must not indepen
 
 ### Nether route scale
 
-C10 / PR #232 proves a 1:1 Nether `coordinate_scale` datapack reaches the live final runtime registry.
+C10 / PR #232 proves a 1:1 Nether `coordinate_scale` datapack reaches the live final dimension registry.
 Final route policy still requires portal linking/placement and retained-mod compatibility evidence.
 
 ### Structures / civilization
