@@ -110,6 +110,12 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             SectionPos sectionPos) {
         var activeIslandVolumeId = SkyforgeGenerationDomainStage.activeIslandVolumeId();
         if (activeIslandVolumeId.isEmpty()) {
+            // SF-IMP-0083's tall review carrier is intentionally disjoint from the vanilla
+            // Overworld noise interval. Native structures are irrelevant to this morphology-only
+            // evidence carrier and can otherwise manufacture unsupported work at the carrier floor.
+            if (SkyforgeNeoForge1211ProductionMorphologySeedScaleDevRuntime.enabled()) {
+                return false;
+            }
             return super.tryGenerateStructure(
                     structureSelectionEntry,
                     structureManager,
@@ -303,7 +309,12 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             StructureManager structureManager,
             RandomState random,
             ChunkAccess chunk) {
-        super.buildSurface(level, structureManager, random, chunk);
+        // The SF-IMP-0083 development carrier begins at Y=320, outside the vanilla Overworld
+        // noise interval. Avoid running a native surface pass over a deliberately empty base while
+        // retaining the accepted native-snapshot seam for exact Skyforge surface realization.
+        if (!SkyforgeNeoForge1211ProductionMorphologySeedScaleDevRuntime.enabled()) {
+            super.buildSurface(level, structureManager, random, chunk);
+        }
         if (SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()
                 && SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk)) {
             SkyforgeNativeSurfaceSnapshotStage.capture(chunk);
@@ -315,9 +326,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             WorldGenLevel level,
             ChunkAccess chunk,
             StructureManager structureManager) {
-        // BASE_WORLD completes its ordinary structure/feature/decoration stream before any Skyforge
-        // block exists in the live chunk. This is the core SF-IMP-0052 isolation invariant.
-        super.applyBiomeDecoration(level, chunk, structureManager);
+        // BASE_WORLD normally completes its ordinary feature/decoration stream before any
+        // Skyforge block exists. SF-IMP-0083 is a development-only morphology carrier whose
+        // dimension interval is deliberately disjoint from native Overworld terrain, so native
+        // decoration would be irrelevant work and is skipped only for that explicit fixture.
+        if (!SkyforgeNeoForge1211ProductionMorphologySeedScaleDevRuntime.enabled()) {
+            super.applyBiomeDecoration(level, chunk, structureManager);
+        }
 
         if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()
                 || !SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk)) {
