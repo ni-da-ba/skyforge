@@ -1,6 +1,6 @@
 # Skyforge Music / Audio State
 
-**Status:** MERGED / ACCEPTED — MUS-0001  
+**Status:** MERGED / ACCEPTED — MUS-0001; MUS-0002 IN PROGRESS  
 **Updated:** 2026-09-07 (America/Chicago)  
 **Accepted merge:** `0b3386ad74ef610f49d9d3e8050e5a701f5e2cbd`
 
@@ -24,6 +24,17 @@ Conversation is supplementary only.
 
 The exact-head PR CI passed before the squash merge. This is the first repository-level accepted
 Music / Audio milestone.
+
+## In-progress repository-health work
+
+`MUS-0002` is adding an executable canonical-source integrity gate:
+
+- standard-library MIDI parser / verifier at `tools/verify_music_sources.py`;
+- dedicated `Music Source Integrity` GitHub Actions workflow;
+- checksum, SMF structure, PPQ, conductor tempo/meter, track-order, PERC/TP lane-state, Track 02
+  percussion-map, and documented range-exception stability checks.
+
+MUS-0002 is not accepted until exact-head CI and the dedicated workflow pass and the change is merged.
 
 ## Current accepted musical state on `main`
 
@@ -63,10 +74,10 @@ Music / Audio milestone.
 
 ## Next technically prudent work
 
-1. close Track 00 repair through human A/B;
-2. recover HC state for frozen cues;
-3. recover and audit exact Track 06 Draft 02.3 MIDI;
-4. add automated music-source verification where it can mechanically enforce manifests/checksums;
+1. complete and merge MUS-0002 source-integrity CI;
+2. close Track 00 repair through human A/B;
+3. recover HC state for frozen cues;
+4. recover and audit exact Track 06 Draft 02.3 MIDI;
 5. only then resume principal-theme composition.
 
 ## Cross-lane boundary
