@@ -66,6 +66,30 @@ final class SkyforgeProductionMorphologySeedScaleMatrixFixtureTest {
     }
 
     @Test
+    void familyWarmupUsesExactOccupiedChunksInsteadOfRectangularBounds() {
+        boolean observedStrictReduction = false;
+        for (MorphologyFamily family : MorphologyFamily.values()) {
+            var fixture = SkyforgeProductionMorphologySeedScaleMatrixFixture.buildFamily(family);
+            Set<Long> union = new HashSet<>();
+            for (var member : fixture.members()) {
+                Set<Long> exact = member.exactSupport().occupiedChunkKeys();
+                Set<Long> rectangular =
+                        SkyforgeProductionMorphologySeedScaleMatrixFixture.footprintChunkKeys(
+                                member.exactSupport().bounds());
+                assertEquals(exact, member.footprintChunkKeys());
+                assertTrue(rectangular.containsAll(exact));
+                assertTrue(exact.size() <= rectangular.size());
+                observedStrictReduction |= exact.size() < rectangular.size();
+                union.addAll(exact);
+            }
+            assertEquals(union, fixture.footprintChunkKeys());
+        }
+        assertTrue(
+                observedStrictReduction,
+                "the exact occupied-chunk carrier should eliminate at least one empty bounding-box chunk");
+    }
+
+    @Test
     void reviewDimensionIsDevelopmentOnlyCarrierDisjointFromVanillaNoiseTerrain() {
         assertEquals(320, SkyforgeProductionMorphologySeedScaleMatrixFixture.REVIEW_DIMENSION_MIN_Y);
         assertEquals(1616, SkyforgeProductionMorphologySeedScaleMatrixFixture.REVIEW_DIMENSION_HEIGHT);
