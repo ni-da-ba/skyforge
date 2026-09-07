@@ -1503,6 +1503,18 @@ neoForge {
         }
 
 
+        // Portable Engine cutoff acceptance reuses the already-retained C9 flight/CC stack so the
+        // optional Simulated target is present without adding a production dependency.
+        create("portableEngineCutoffAcceptanceServer") {
+            server()
+            sourceSet.set(waveC9Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-portable-engine-cutoff-acceptance-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.portableEngineCutoffAcceptance", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         // Wave C10 loads the standalone C2 Nether-scale datapack into a disposable first-boot
         // world and asserts the final live DimensionType rather than trusting JSON inspection.
         create("waveC10NetherScaleAcceptanceServer") {
@@ -1650,6 +1662,30 @@ tasks.named("runWaveC9ComputingAvionicsServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(waveC9SmokeServerProperties)
+    }
+}
+
+
+val portableEngineCutoffServerProperties = """
+    level-name=portable-engine-cutoff-acceptance
+    level-seed=602370
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runPortableEngineCutoffAcceptanceServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-portable-engine-cutoff-acceptance-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(portableEngineCutoffServerProperties)
     }
 }
 
