@@ -32,7 +32,7 @@ final class SkyIslandRegionalBaseMetalOpportunityProfilerTest {
             new SkyIslandWorldVerticalReservation(260.0, 160.0);
 
     @Test
-    void profilesExactPublishedRegionInCanonicalAssociationOrder() {
+    void profilesExactPublishedRegionInCanonicalAssociationOrderDeterministically() {
         Fixture fixture = fixture(94001L);
         SkyIslandRegionalBaseMetalOpportunityProfiler profiler =
                 new SkyIslandRegionalBaseMetalOpportunityProfiler();
@@ -48,7 +48,18 @@ final class SkyIslandRegionalBaseMetalOpportunityProfilerTest {
                 first.islands().stream()
                         .map(SkyIslandRegionalBaseMetalOpportunityEntry::association)
                         .toList());
-        assertEquals(first.islands(), second.islands());
+        assertEquals(first.islandCount(), second.islandCount());
+        for (int index = 0; index < first.islandCount(); index++) {
+            SkyIslandRegionalBaseMetalOpportunityEntry a = first.islands().get(index);
+            SkyIslandRegionalBaseMetalOpportunityEntry b = second.islands().get(index);
+            assertEquals(a.association(), b.association());
+            assertEquals(a.islandProfile().sourcePlan(), b.islandProfile().sourcePlan());
+            for (SkyIslandBaseMetalKind kind : SkyIslandBaseMetalKind.values()) {
+                assertEquals(a.islandProfile().meanOpportunity(kind), b.islandProfile().meanOpportunity(kind), 0.0);
+                assertEquals(a.islandProfile().peakOpportunity(kind), b.islandProfile().peakOpportunity(kind), 0.0);
+                assertEquals(a.islandProfile().relativeOpportunityShare(kind), b.islandProfile().relativeOpportunityShare(kind), 0.0);
+            }
+        }
     }
 
     @Test
@@ -199,8 +210,7 @@ final class SkyIslandRegionalBaseMetalOpportunityProfilerTest {
         return new SkyIslandAcceptedConvergenceCompiler().compileOnce(convergence, registry);
     }
 
-    private static SkyIslandArchipelagoRequest request(
-            long rootSeed, ProviderMorphologySpec morphology) {
+    private static SkyIslandArchipelagoRequest request(long rootSeed, ProviderMorphologySpec morphology) {
         List<SkyIslandMorphologySpec> morphologies = List.of(morphology, morphology, morphology);
         SkyIslandGroupTemplate template = new SkyIslandGroupTemplate(
                 "auth94",
