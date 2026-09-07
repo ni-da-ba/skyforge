@@ -48,8 +48,8 @@ public final class SkyIslandFreshwaterHabitatOpportunityProfile {
             throw new IllegalArgumentException(
                     "shoreline planning cells cannot exceed inundated planning cells");
         }
-        double expectedArea =
-                inundatedCellCount * watershed.spacing() * watershed.spacing();
+        double cellArea = watershed.spacing() * watershed.spacing();
+        double expectedArea = inundatedCellCount * cellArea;
         if (Double.doubleToLongBits(coarseHorizontalInundatedAreaEstimate)
                 != Double.doubleToLongBits(expectedArea)) {
             throw new IllegalArgumentException(
