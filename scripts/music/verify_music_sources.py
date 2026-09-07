@@ -178,13 +178,15 @@ def main():
     try:
         wavs=list((root/"assets/music").rglob("*.wav"))
         if wavs:raise VError("ordinary Git music assets contain WAV: "+", ".join(str(x.relative_to(root)) for x in wavs[:5]))
-        source=root/"assets/music/source"; count=0
+        source=root/"assets/music/source"; count=0; archive_errors=[]
         for p in sorted([*source.rglob("*.mid"),*source.rglob("*.mid.gz")]):
-            b=p.read_bytes()
-            if p.name.endswith(".mid.gz"):
-                try:b=gzip.decompress(b)
-                except Exception as e:raise VError(f"{p.relative_to(root)}: invalid gzip archive: {e}") from e
-            parse_midi(b,str(p.relative_to(root)));count+=1
+            try:
+                b=p.read_bytes()
+                if p.name.endswith(".mid.gz"):b=gzip.decompress(b)
+                parse_midi(b,str(p.relative_to(root)));count+=1
+            except Exception as e:
+                archive_errors.append(f"{p.relative_to(root)}: {e}")
+        if archive_errors:raise VError("invalid MIDI artifacts:\n  - "+"\n  - ".join(archive_errors))
         manifests=sorted(source.rglob("*.manifest.json"))
         if not manifests:raise VError("no canonical manifests found")
         warns=[];seen_s=set();seen_h=set()
