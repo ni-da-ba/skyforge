@@ -3,7 +3,7 @@
 **Lane:** Content / Experience  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot before C13 merge:** `5d4a293d6c57e3db4a52ec33dabd8725bbd4b091`
+**Main snapshot before C13 merge:** `a55e500c86f0baf910af809985956ac398742706`
 
 Read first:
 
@@ -238,7 +238,7 @@ Final province acceptance requires visible play in a good land-biome specimen af
 
 ## Cross-lane dependencies
 
-- **Authorship:** current `main` includes AUTH-0085; Content consumes semantic environment/geography rather than redefining it.
+- **Authorship:** current `main` includes accepted AUTH-0086 visible hydrologic realization intents; Content consumes semantic environment/geography rather than redefining it.
 - **Implementation:** SF-IMP-0079 remains the accepted runtime boundary; #194 / draft PR #248 is the immediate Content-visible dependency.
 - **Bootstrap Province:** #224 is the shared vertical-slice target.
 - **Bellanca cutoff:** #237 requires thin implementation/compat work before powered-soaring acceptance.
