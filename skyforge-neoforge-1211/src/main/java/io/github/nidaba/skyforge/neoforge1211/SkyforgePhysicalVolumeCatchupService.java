@@ -40,11 +40,12 @@ final class SkyforgePhysicalVolumeCatchupService {
     private SkyforgePhysicalVolumeCatchupService() {}
 
     /**
-     * Services at most one canonical already-loaded deferred-terrain chunk.
+     * Services at most one canonical already-loaded deferred exact (volume, chunk) obligation.
      *
-     * <p>A failed realization at the first loaded pending key is a deterministic barrier for this
-     * tick. That avoids repeatedly materializing later chunks around an unresolved exact-owner
-     * dependency while preserving the canonical X/Z order already exposed by the admission stage.
+     * <p>Only one exact volume is completed per call even when several vertically stacked volumes
+     * share the chunk. This makes the bounded pump genuinely preemptible between independent
+     * volume writes. A failed realization at the first loaded pending key remains a deterministic
+     * barrier for this tick, preserving the canonical X/Z scheduling contract.
      */
     private static boolean serviceOneTerrainCatchupChunk(ServerLevel level) {
         var chunkSource = level.getChunkSource();
@@ -60,7 +61,7 @@ final class SkyforgePhysicalVolumeCatchupService {
             int completed;
             var mutationLifecycle = SkyforgeDeferredChunkMutationLifecycle.open(level, chunk);
             try {
-                completed = SkyforgeNeoForge1211SurfaceStage.serviceCatchup(chunk);
+                completed = SkyforgeNeoForge1211SurfaceStage.serviceOneCatchup(chunk);
             } finally {
                 mutationLifecycle.close();
             }
