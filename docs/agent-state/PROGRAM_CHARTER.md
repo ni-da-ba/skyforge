@@ -191,6 +191,20 @@ Agent-state files must distinguish:
 
 Existing milestone numbering and historical acceptance records remain intact.
 
+## Convergence and bookkeeping economy
+
+- Do not synchronize a producer branch merely because `main` advanced. Recompose when relevant
+  contracts/dependencies changed, a real conflict exists, or the branch is approaching acceptance.
+- Prefer one bounded active acceptance target per producer lane; explicitly park reserved work instead
+  of accumulating multiple live branches.
+- Include the lane-state update and any genuinely changed cross-lane contract in the milestone PR when
+  practical. A merge SHA is useful evidence but is not worth a separate repair PR when PR number,
+  accepted head, tests, and merged history already identify the boundary.
+- Avoid follow-up bookkeeping PRs whose only purpose is copying an already-authoritative merge hash or
+  restating unchanged shared contracts.
+- Keep `CROSS_LANE_CONTRACTS.md` concise and update it only for a real cross-lane invariant/handoff,
+  not for every lane-local milestone.
+
 ## State-update rule
 
 Each lane updates its state document when it:
