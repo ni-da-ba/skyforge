@@ -165,7 +165,7 @@ Audit ownership boundary:
 - use the multi-seed/multi-scale evidence to classify #267 and #283 before any morphology retuning;
 - retain the explicit #214 human comparison gate.
 
-PR #285 head `b5b0d47a` is current with `main@fad6b175` at this audit point and its initial CI is in progress. No SF-IMP-0083 capability is accepted yet.
+PR #285 head `b5b0d47a` is current with `main@fad6b175` at this audit point. Its first retained CI fan-out is **not green**: the showcase/ecology/morphology/performance jobs fail at their shared compile-and-unit-test stage before runtime preparation executes, while the general build remains pending. Audit has not assigned a root cause from incomplete log evidence; Implementation owns diagnosis/fix. No SF-IMP-0083 capability is accepted yet.
 
 ### Content C18 / PR #277 — stock turtle void-freight envelope
 
