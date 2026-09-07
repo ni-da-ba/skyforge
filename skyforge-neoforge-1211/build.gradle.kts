@@ -4375,7 +4375,10 @@ tasks.register("launchShowcase") {
 val skyforgeShowcaseEcologyResultDirectory = layout.buildDirectory.dir("acceptance/showcase-ecology")
 val skyforgeShowcaseEcologyServerProperties = """
     level-name=ecology
-    level-seed=600080
+    // Land-backed deterministic base: Java 1.21 seed with a broad plains surface around (0,0).
+    // Native-surface adaptation therefore exercises Minecraft-owned grass/dirt representation
+    // instead of inheriting an ocean-floor gravel/sand top that cannot host forest/taiga ecology.
+    level-seed=1405130932537311389
     level-type=skyforge:development
     online-mode=false
     spawn-protection=0
