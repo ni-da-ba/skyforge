@@ -55,9 +55,16 @@ jobs:
           HANDOFF="$DIR/minecraft-handoff.csv"
           test -f "$FILE"
           test -f "$HANDOFF"
-          test "$(wc -l < "$FILE")" -eq 26
           cut -d, -f1 "$HANDOFF" | grep '^builtin-' | sort > /tmp/auth95-expected.txt
           tail -n +2 "$FILE" | cut -d, -f1 | sort > /tmp/auth95-actual.txt
+          echo "surface rows including header: $(wc -l < "$FILE")"
+          echo "expected built-in ids: $(wc -l < /tmp/auth95-expected.txt)"
+          echo "actual surface ids: $(wc -l < /tmp/auth95-actual.txt)"
+          echo "--- expected AUTH-0083 built-ins ---"
+          cat /tmp/auth95-expected.txt
+          echo "--- actual AUTH-0095 surface members ---"
+          cat /tmp/auth95-actual.txt
+          test "$(wc -l < "$FILE")" -eq 26
           test "$(wc -l < /tmp/auth95-expected.txt)" -eq 25
           test "$(wc -l < /tmp/auth95-actual.txt)" -eq 25
           diff -u /tmp/auth95-expected.txt /tmp/auth95-actual.txt
