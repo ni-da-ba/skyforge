@@ -119,7 +119,7 @@ Cross-lane rule: musical authorship/source identity belongs to Music / Audio; wo
 Authorship-owned, gameplay/experience meaning remains Content-owned, and Minecraft/adaptive playback
 runtime remains Implementation-owned. No runtime adaptive-music contract is accepted yet.
 
-### Highest AUDIT milestone: AUDIT-0007 — post-SF-IMP-0082 convergence reconciliation
+### AUDIT-0007 — post-SF-IMP-0082 convergence reconciliation
 
 Accepted by the merge that places this update on main.
 
@@ -136,6 +136,33 @@ Verified boundaries:
 - the owning Authorship ledger still reports AUTH-0090 as highest at this snapshot and requires an Authorship-owned durable-state repair.
 
 Parallel producer state is preserved rather than rewritten. Audit/shared coordination state is reconciled only where repository evidence makes the prior snapshot stale.
+### Highest AUDIT milestone: AUDIT-0008 — agent / execution process-health governance
+
+Accepted by the merge that places this update on `main`.
+
+AUDIT-0008 extends Audit from repository-state correctness into explicit **agent/process convergence health**. It changes no producer behavior or acceptance result.
+
+Audit now treats the following as first-class evidence:
+
+- branch divergence relative to current `main`;
+- repeated CI failure/rework cycles that do not produce new diagnostic information;
+- contradictory, stale, or repeatedly repaired durable handoffs;
+- long-lived branches that continue accumulating work while integration history moves far ahead;
+- repeated synchronization/merge churn that obscures the actual producer delta;
+- large commit sequences without a meaningful verified boundary;
+- explicit user reports that an agent/session has expired, become slow, or is approaching context limits.
+
+Audit cannot see another agent's private token/context state. A context-blowup flag must therefore be described as a **process-risk inference**, unless the user explicitly reports the session condition.
+
+Operational classifications are intentionally qualitative rather than hard numeric cutoffs:
+
+- **HEALTHY / ACTIVE** — work is producing new evidence and converging toward a bounded acceptance gate;
+- **WATCH** — drift, repeated failures, or state lag require intervention soon but useful convergence continues;
+- **STALE / DORMANT** — work is materially behind and should not resume without fresh current-main reconstruction;
+- **LOOP RISK** — repeated attempts are reproducing substantially the same failure or rework without information gain; checkpoint and start a fresh execution session rather than extending the loop.
+
+Intentional dormant/reserved work is not considered an unhealthy agent merely because it is old. The health concern begins when stale work is actively extended or represented as current without reconstruction.
+
 ## CURRENT AUTHORITATIVE PROGRAM SNAPSHOT
 
 | Lane | Highest merged boundary |
@@ -262,25 +289,61 @@ Machine assembly/physics first; human handling, landing, rough-field usefulness,
 
 Human play must verify discoverability and non-surprising redstone shutdown behavior after missing assembled/persistence machine gates close.
 
+## SUPERVISORY WATCH POLICY
+
+The project owner should not need to manually check whether producer agents are still moving. Audit owns the recurring repository-visible health check and should remain quiet unless intervention is required.
+
+Notification policy:
+
+- **No notification** for healthy convergence, ordinary CI latency, or intentional dormant/reserved work.
+- **Repository intervention without owner interruption** for stale-state comments, synchronization requests, targeted profiling requests, bounded recovery guidance, and Audit-ledger updates.
+- **Owner escalation** only for human Minecraft/visual/listening gates, high-level orchestration choices, repeated unchanged loop behavior after Audit intervention, or a session that must be abandoned/restarted because it is no longer converging.
+
+Current scheduled watchdog cadence: hourly condition-based checks. This schedule is an operational convenience, not an acceptance contract.
+
+## AGENT / EXECUTION HEALTH WATCH
+
+Snapshot at AUDIT-0008 commencement from `main@5ababf52`. Re-evaluate from repository evidence rather than carrying these labels forward mechanically.
+
+| Lane / work | Health | Evidence / required action |
+| --- | --- | --- |
+| Implementation — SF-IMP-0083 / PR #285 | **WATCH / ACTIVE RECOVERY** | Audit observed a real loop-risk event when a documentation-only sync restarted the unchanged ~54–55 minute five-family prepare matrix. Implementation then produced targeted commits `9ff2f339` and `4d01cfff` exposing exact discrete column support through the runtime binding, which is new technical information aimed at reducing admission/occupancy work. Keep the expensive full-matrix gate under watch until the new path demonstrates materially bounded prepare time; unchanged reruns would re-escalate to LOOP RISK. |
+| Authorship — AUTH-0091 state repair / PR #287 | **SESSION STALE / WORK RECOVERABLE** | Repository work is valid and the prior build is green, but the branch conflicts with current shared state and the project owner reports the active Authorship GPT session has been hanging on the same line for an extended period. Stop that session; reconstruct in a fresh Authorship execution from current main and recompose only the producer-owned ledger repair/current next-work note. |
+| Content — C18 / PR #277 | **SESSION STALE / WORK RECOVERABLE** | C18's tested head remains machine-green and its divergence is mostly orthogonal (only one of five changed files overlaps intervening main changes), but the project owner reports the active Content GPT session has been hanging on the same line for an extended period. Stop that session; reconstruct in a fresh Content execution from current main, recompose the narrow C18 delta, and rerun exact-head gates before acceptance. |
+| Music / Audio — MUS-0001 / PR #159 | **STALE / HIGH-RISK HISTORY** | Approximately 88 commits ahead / 1119 behind current main at this snapshot. Do not indefinitely append persistence/fix work to this historical branch; reconstruct from current main and recompose the canonical source/manifests/history before repository acceptance. Existing listening/source-integrity gates remain. |
+| Content C11 / Portable Engine / Bellanca branches | **STALE / DORMANT-RESERVED** | Roughly 369 / 323 / 301 commits behind current main respectively. Their dormancy is not itself unhealthy. If work resumes, use a fresh session/current-main reconstruction and recompose the narrow valid delta rather than continuing from old conversational state. |
+| Audit | **HEALTHY / ACTIVE** | AUDIT-0007 merged exact-head green; AUDIT-0008 makes this process-health watch durable. |
+
+Process-health actions already taken:
+
+- PR #159 received a high-risk stale-history warning;
+- PR #277 received a synchronization warning;
+- PR #287 received a current-main synchronization warning after parallel Audit movement.
+- PR #285 received a prepare-scalability warning with accepted SF-IMP-0082 timing comparison and an explicit instruction not to paper over the problem by raising timeouts/retrying unchanged.
+- After the project owner reported UI-level hanging, PRs #287 and #277 received explicit fresh-session reconstruction directives; their work remains recoverable, but the current Authorship/Content conversations should not be continued.
+- PR #285 subsequently produced targeted exact-column-support commits, so Implementation was downgraded from LOOP RISK to WATCH / ACTIVE RECOVERY pending bounded runtime evidence.
+
 ## KNOWN HAZARDS / TECHNICAL DEBT
 
 1. **Biome presentation flight envelope / issue #261:** immediate-surface biome presentation can fall back to BASE_WORLD ambience away from owned terrain. Non-blocking for SF-IMP-0080; avoid claiming whole native biome columns as the fix.
-2. **Long-lived branch drift:** C11, Portable Engine cutoff, Bellanca proposal, and MUS-0001 require current-main synchronization before acceptance.
+2. **Long-lived branch / execution drift:** C11, Portable Engine cutoff, Bellanca proposal, and especially MUS-0001 require fresh current-main reconstruction before active continuation or acceptance. Audit must distinguish intentional dormancy from an actively extended stale execution.
 3. **Music source reproducibility:** MUS-0001 currently relies on manifests/audit prose without a repository-executable canonical MIDI/library-alignment gate; Track 06 canonical source is missing and Track 00 repair remains human-gated.
 4. **Production morphology:** all five built-in SMALL / seed-skyforge carriers passed the current human tranche, but full #214 remains open. SF-IMP-0083 must test seed/scale stability before #267/#283 tuning decisions.
 5. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
 6. **Performance:** do not restart local micro-optimization absent fresh realistic-scale profiling.
 7. **Authorship durable-state lag:** AUTH-0091 is merged/accepted but AUTHORSHIP_STATE.md still reports AUTH-0090 as highest; producer-owned repair remains required.
+8. **SF-IMP-0083 synchronous acceptance warmup / loop risk:** the seed/scale family matrix warms its explicit finite chunk corpus synchronously via `level.getChunk(...)`, and the harness timeout starts only after warmup completes. Five families ran ~54–55 minutes versus ~3–4 minutes for accepted SF-IMP-0082 prepares. A documentation-only sync then cancelled and restarted the unchanged matrix. No further full-matrix retry is justified before targeted profiling or packaging/warmup change; continued unchanged reruns require a fresh Implementation execution session.
 
 Resolved hazards include the C11/C13 identifier collision, duplicate live-state namespaces, AUTH-0086/AUTH-0087/AUTH-0088 durable-state lag, C16 durable-state lag, SF-IMP-0080's compile/substrate/ecology-legibility blockers, SF-IMP-0081's post-C16 synchronization plus temporary Implementation-ledger lag, SF-IMP-0082's stale post-merge Audit/shared snapshot, and C18's permissive STOPPED gate.
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Audit SF-IMP-0083 / issue #284 / draft PR #285 as it moves from exact support/build-fit profiling into runtime packaging. Preserve exact AUTH-0083 identity and require objective persistence plus explicit #214 human seed/scale comparison before acceptance.
-2. Track the AUTH-0091 Authorship-ledger repair until AUTHORSHIP_STATE.md matches merged repository truth; do not reopen the accepted contract.
-3. Include Music / Audio in every reconstruction. Track MUS-0001 / PR #159 through current-main recomposition, MUSIC_STATE creation, executable source-integrity verification, Track-00 A/B listening, Track-06 exact-source recovery, PR-state reconciliation, and exact-head CI.
-4. Track C18 / PR #277 as Audit-cleared only on its tested head; require current-main synchronization before Content acceptance and reject leaps from the specimen to turtle nerfs, production chunk-loader policy, or exact internal chunk-boundary claims.
-5. Keep full #214 open beyond the accepted SMALL built-in carriers; classify #267 and #283 from the multi-seed/multi-scale matrix before tuning.
-6. Track issue #261 as the non-blocking biome/ambient flight-envelope refinement; Audio may consume a later accepted envelope but does not own it.
-7. Re-audit C11 / PR #233, Portable Engine #240, and Bellanca #242 only after their declared synchronization/runtime prerequisites.
-8. Update this ledger at each material merge, contract change, new hazard, or handoff.
+1. Maintain the agent/execution health watch on every Audit pass. Flag stale-history extension, repeated no-information failure cycles, contradictory handoffs, or user-reported context/session degradation; recommend a fresh execution session/current-main reconstruction when convergence degrades.
+2. Audit SF-IMP-0083 / issue #284 / draft PR #285 as it moves from exact support/build-fit profiling into runtime packaging. Preserve exact AUTH-0083 identity and require objective persistence plus explicit #214 human seed/scale comparison before acceptance.
+3. Track the AUTH-0091 Authorship-ledger repair until AUTHORSHIP_STATE.md matches merged repository truth; do not reopen the accepted contract.
+4. Include Music / Audio in every reconstruction. Track MUS-0001 / PR #159 through current-main recomposition, MUSIC_STATE creation, executable source-integrity verification, Track-00 A/B listening, Track-06 exact-source recovery, PR-state reconciliation, and exact-head CI.
+5. Track C18 / PR #277 as Audit-cleared only on its tested head; require current-main synchronization before Content acceptance and reject leaps from the specimen to turtle nerfs, production chunk-loader policy, or exact internal chunk-boundary claims.
+6. Keep full #214 open beyond the accepted SMALL built-in carriers; classify #267 and #283 from the multi-seed/multi-scale matrix before tuning.
+7. Track issue #261 as the non-blocking biome/ambient flight-envelope refinement; Audio may consume a later accepted envelope but does not own it.
+8. Re-audit C11 / PR #233, Portable Engine #240, and Bellanca #242 only after their declared synchronization/runtime prerequisites.
+9. Update this ledger at each material merge, contract change, new hazard, or handoff.
