@@ -27,7 +27,9 @@ final class SkyforgeNativeChunkOccupancySurveyTest {
                 SkyIslandTerrainProfile.reference(),
                 new SkyforgeMinecraftBlockPalette());
         BlockPos owned = firstOwnedPosition(adapter, volume.id(), chunk);
+        BlockPos columnMajorOwned = firstColumnMajorOwnedPosition(adapter, volume.id(), chunk);
         chunk.setBlockState(owned, Blocks.CHEST.defaultBlockState(), false);
+        chunk.setBlockState(columnMajorOwned, Blocks.CHEST.defaultBlockState(), false);
 
         SkyforgeNativeChunkOccupancySurvey.Result bounded;
         SkyforgeNativeChunkOccupancySurvey.Result fullHeight;
@@ -81,6 +83,26 @@ final class SkyforgeNativeChunkOccupancySurveyTest {
                 for (int localX = 0; localX < 16; localX++) {
                     int x = minimumX + localX;
                     int z = minimumZ + localZ;
+                    if (adapter.isSolidOwnedBy(volumeId, x, y, z)) {
+                        return new BlockPos(x, y, z);
+                    }
+                }
+            }
+        }
+        throw new AssertionError("fixture center chunk contains no exact-volume solid");
+    }
+
+    private static BlockPos firstColumnMajorOwnedPosition(
+            SkyforgeNeoForge1211ChunkAdapter adapter,
+            io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId volumeId,
+            ProtoChunk chunk) {
+        int minimumX = chunk.getPos().getMinBlockX();
+        int minimumZ = chunk.getPos().getMinBlockZ();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            for (int localX = 0; localX < 16; localX++) {
+                int x = minimumX + localX;
+                int z = minimumZ + localZ;
+                for (int y = chunk.getMinBuildHeight(); y < chunk.getMaxBuildHeight(); y++) {
                     if (adapter.isSolidOwnedBy(volumeId, x, y, z)) {
                         return new BlockPos(x, y, z);
                     }
