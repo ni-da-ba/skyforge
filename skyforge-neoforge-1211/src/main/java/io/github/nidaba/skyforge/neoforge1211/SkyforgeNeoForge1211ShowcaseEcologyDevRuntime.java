@@ -270,8 +270,8 @@ final class SkyforgeNeoForge1211ShowcaseEcologyDevRuntime {
                 compileTableland(lowerSeed, 216.0));
         var upper = new SkyIslandWorldVolume(
                 upperId,
-                new WorldBounds(-144.0, 144.0, 246.0, 318.0, -144.0, 144.0),
-                compileTableland(upperSeed, 286.0));
+                new WorldBounds(-144.0, 144.0, 236.0, 308.0, -144.0, 144.0),
+                compileTableland(upperSeed, 276.0));
         return new SkyIslandWorldCatalog(ROOT_SEED, List.of(lower, upper));
     }
 
