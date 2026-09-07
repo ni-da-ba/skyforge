@@ -133,11 +133,23 @@ This proves measured route/ticking-envelope dependence, not an exact internal ch
 
 Dedicated C18, showcase persistence, and performance gates are green on the repaired head; repository CI was still running at this Audit boundary. In addition, current main has advanced through AUTH-0090 runtime/state, so final C18 acceptance still requires synchronization and fresh exact-head evidence. Aircraft-vs-turtle economics, dedicated chunk-loader progression, mining/farming throughput, Ender-storage combinations, and any nerf remain separate Content decisions.
 
-### AUTH-0091 — freshwater habitat opportunity — in progress / unaccepted
+### AUTH-0091 / PR #279 — freshwater habitat opportunity — in progress / unaccepted
 
 AUTH-0090 is now **MERGED / ACCEPTED**. Audit independently reviewed its exact AUTH-0087 binding input, AUTH-0089 per-island regeneration, canonical association coverage/order, exact horizontal-area sum, and area-weighted AUTH-0003 regime/vegetation/saturation/thermal aggregation. It introduces no species, carrying capacity, spawn, resource eligibility, province label, Minecraft biome, or backend lifecycle.
 
-Authorship durable state now names AUTH-0091 as the next semantic target. Its intended boundary is retained-freshwater planning evidence from accepted watershed/waterbody semantics only: coarse inundated area, shoreline cells, source-kind counts, and normalized depth opportunity. Physical water volume/metres, fauna, agriculture/resources, Minecraft fluid identity, and backend lifecycle remain outside the contract. Treat AUTH-0091 as unaccepted until a concrete branch/PR passes owner exact-head evidence.
+AUTH-0091 is now concrete draft PR #279. Audit reviewed current production semantics and found no ownership blocker:
+- public input is exactly one authored descriptor;
+- accepted watershed and retained-waterbody footprint planners are reused without caller-selected thresholds/resolution;
+- exact watershed/footprint provenance is retained;
+- inundated planning cells are unioned by watershed index and conflicting duplicates fail closed;
+- coarse inundated area is exact unique-cell count × accepted watershed spacing²;
+- shoreline remains a planning-cell count, not physical perimeter;
+- normalized water-depth potential remains non-physical;
+- legitimately dry islands remain valid all-zero profiles;
+- radius-only scaling preserves normalized topology/depth while coarse area scales by radius²;
+- retained source candidates are not double-counted because the accepted footprint planner partitions candidate seeds exactly once across overlap groups.
+
+Physical water volume/metres, fauna roles/carrying capacity, agriculture/resources, Minecraft fluid/biome identity, and backend lifecycle remain outside the contract. AUTH-0091 is unaccepted pending owner exact-head CI/evidence and merge.
 
 ### C11 — live pre-Brass first-flight recipe surface — PR #233
 
@@ -197,7 +209,7 @@ Resolved hazards include the C11/C13 identifier collision, duplicate live-state 
 ## ORDERED NEXT AUDIT WORK
 
 1. Continue auditing SF-IMP-0082 / PR #273 through its exact-head four-family prepare/reopen matrix and human #214 review; do not infer family acceptance from machine evidence alone.
-2. Audit AUTH-0091 when concrete work opens; preserve normalized retained-freshwater opportunity as planning evidence rather than physical water depth/volume, fauna, agriculture/resource, or backend authority.
+2. Track AUTH-0091 / PR #279 through owner exact-head acceptance; preserve normalized retained-freshwater opportunity as planning evidence rather than physical water depth/volume, fauna, agriculture/resource, or backend authority.
 3. Track C18 / PR #277 through current-main synchronization and final exact-head CI. Preserve the revised route/ticking-envelope interpretation; reject any leap to a production chunk-loader policy, exact internal chunk-boundary claim, or premature turtle nerf.
 4. Track issue #267 as non-blocking Massif traversal evidence and issue #261 as non-blocking biome-envelope refinement.
 5. Re-audit C11 / PR #233 and Portable Engine #240 only after their declared synchronization/runtime prerequisites.
