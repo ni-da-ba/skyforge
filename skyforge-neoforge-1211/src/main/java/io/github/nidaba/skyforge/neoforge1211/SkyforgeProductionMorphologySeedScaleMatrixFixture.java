@@ -30,8 +30,11 @@ import net.minecraft.world.level.ChunkPos;
  */
 final class SkyforgeProductionMorphologySeedScaleMatrixFixture {
     static final long SKYFORGE_SEED = 0x534b59464f524745L;
-    static final int REVIEW_DIMENSION_MIN_Y = -64;
-    static final int REVIEW_DIMENSION_HEIGHT = 2048;
+    // Development-only carrier interval. Starting exactly at the vanilla Overworld noise ceiling
+    // keeps the exact review stack disjoint from native noise terrain while preserving the normal
+    // Skyforge generator/lifecycle machinery used by the accepted carriers.
+    static final int REVIEW_DIMENSION_MIN_Y = 320;
+    static final int REVIEW_DIMENSION_HEIGHT = 1616;
     static final int REVIEW_DIMENSION_MAX_Y_EXCLUSIVE =
             REVIEW_DIMENSION_MIN_Y + REVIEW_DIMENSION_HEIGHT;
 
