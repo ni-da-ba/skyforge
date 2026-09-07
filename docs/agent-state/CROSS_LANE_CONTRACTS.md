@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Repository snapshot after Content C18 acceptance:** 1c7e24a0e37c4ade8aa5a8943f65017d2300248b
+**Repository snapshot after AUTH-0092 acceptance:** f7440b05279d7cb7f7f72c575e70d0e880ef184f
 
 ## Program-wide invariants
 
@@ -17,7 +17,7 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0091` accepted: deterministic retained-freshwater habitat opportunity; owning ledger repair merged as `8bc451c27f65dc7b88ac8038a6d992bbe54be50b` |
+| Authorship | `AUTH-0092` accepted: deterministic raw regional center-distance / nominal-radial-gap isolation evidence over exact AUTH-0087 provenance |
 | Implementation | `SF-IMP-0082` accepted: all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / #284 multi-seed/multi-scale built-in matrix in progress |
 | Content / Experience | `C18` accepted: stock turtle freight/ticking envelope measured and base capability retained; C11/C12 remain separately in progress/reserved |
 | Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 is draft/unmerged with branch-local cue/source freezes only |
@@ -60,6 +60,15 @@ AUTH-0091 / PR #279 merged as c739fe9a521e2c75f640bbfcf79eee6abd0298cf from exac
 One authored SkyIslandDescriptor now deterministically summarizes accepted retained-waterbody semantics through the fixed watershed/waterbody planner stack into exact provenance, unique inundated planning-cell count/coarse horizontal area, shoreline-cell count, complete POND / LAKE / WETLAND source-kind counts, and mean/max unchanged normalized water-depth potential. Legitimately dry islands retain valid zero-water profiles.
 
 Physical cubic water volume/depth, fauna/carrying capacity, agriculture/resources, Minecraft fluid/biome identity, and backend lifecycle remain outside this contract.
+
+### AUTH-0092 — regional island isolation evidence — ACCEPTED
+
+AUTH-0092 / PR #289 merged as `f7440b05279d7cb7f7f72c575e70d0e880ef184f` from exact-head candidate `69a95f79e96272b200667ebab74ef5eb4d5ce7cb`.
+
+One exact AUTH-0087 published authored-realization binding now yields canonical per-island nearest-peer provenance plus raw world-horizontal center distance and nominal radial gap. Peer selection is deterministic by minimum nominal radial gap, then center distance, then canonical AUTH-0046 order; singleton publications retain no fabricated peer.
+
+Nominal radial gap is authored planning evidence, not exact physical terrain-edge separation. AUTH-0092 assigns no isolated/not-isolated class, fauna/resource/settlement threshold, route cost, Minecraft range policy, or backend lifecycle.
+
 ### SF-IMP-0080 — visible land ecology — ACCEPTED
 
 The forest/taiga showcase passed machine persistence/reopen gates and project-owner human visual review. This proves legible Minecraft land ecology, not yet AUTH-0003-to-Minecraft-biome semantic translation. Issue #194 is closed; #261 is a non-blocking short-distance ambience/presentation follow-up.
@@ -106,7 +115,7 @@ Other lanes must not introduce an independent wind/thermal authority without reo
 
 ### Ecology
 
-Authorship/environment semantics determine niches/opportunity. Content maps retained species into those niches. Atmosphere may alter behavior but must not independently create population. AUTH-0088 is the exact published local query seam; AUTH-0089 is the accepted island-scale ecology summary; AUTH-0090 is the accepted regional ecology summary; AUTH-0091 supplies accepted retained-freshwater habitat-opportunity evidence. SF-IMP-0080 remains the visible Minecraft ecology seam. Do not conflate semantic opportunity with spawn/carrying-capacity/resource policy.
+Authorship/environment semantics determine niches/opportunity. Content maps retained species into those niches. Atmosphere may alter behavior but must not independently create population. AUTH-0088 is the exact published local query seam; AUTH-0089 is the accepted island-scale ecology summary; AUTH-0090 is the accepted regional ecology summary; AUTH-0091 supplies accepted retained-freshwater habitat-opportunity evidence; AUTH-0092 supplies raw regional isolation evidence without classifying ecological isolation. SF-IMP-0080 remains the visible Minecraft ecology seam. Do not conflate semantic opportunity with spawn/carrying-capacity/resource policy.
 
 ### Nether route scale
 
