@@ -18,6 +18,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.GenerationStep;
 
 /**
  * Production lifecycle for registry-native interior population after the exact volume's final
@@ -151,6 +152,9 @@ final class SkyforgeNativeInteriorPopulationStage {
                 var postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(level);
                 try {
                     for (var phase : obligation.plan().phases()) {
+                        var route = phase == GenerationStep.Decoration.VEGETAL_DECORATION
+                                ? SkyforgeNativeVegetalFeatureRoute.POST_CAVE
+                                : SkyforgeNativeVegetalFeatureRoute.ALL;
                         phaseResults.add(SkyforgeRuntimePerformanceMetrics.measure(
                                 "interior." + phase.name(),
                                 () -> SkyforgeNativeBiomePopulationRunner.populateStep(
@@ -161,7 +165,8 @@ final class SkyforgeNativeInteriorPopulationStage {
                                         chunk.getPos(),
                                         biomeSample,
                                         phase,
-                                        obligation.plan().maximumAttachmentDepth())));
+                                        obligation.plan().maximumAttachmentDepth(),
+                                        route)));
                     }
                 } finally {
                     postProcessing.close();
