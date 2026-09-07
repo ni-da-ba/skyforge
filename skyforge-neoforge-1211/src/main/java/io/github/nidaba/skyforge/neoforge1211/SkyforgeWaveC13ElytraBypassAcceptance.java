@@ -8,14 +8,14 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.projectile.FireworkRocketEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
@@ -42,13 +42,13 @@ final class SkyforgeWaveC13ElytraBypassAcceptance {
     private static String mode;
     private static ServerLevel level;
     private static FakePlayer player;
-    private static AABB rocketArea;
     private static Phase phase = Phase.IDLE;
     private static long phaseStartTick;
+    private static FireworkRocketEntity boostRocket;
     private static int boostRocketCount;
+    private static int ordinaryRocketCount;
     private static double boostDelta;
     private static boolean fallFlyingAfterAttempt;
-    private static int ordinaryBefore;
 
     private SkyforgeWaveC13ElytraBypassAcceptance() {}
 
@@ -64,13 +64,17 @@ final class SkyforgeWaveC13ElytraBypassAcceptance {
         mode = configured;
         NeoForge.EVENT_BUS.addListener(SkyforgeWaveC13ElytraBypassAcceptance::onServerStarted);
         NeoForge.EVENT_BUS.addListener(SkyforgeWaveC13ElytraBypassAcceptance::onServerTickPost);
+        // Observe only entity joins that survived every higher-priority cancellation listener.
+        // This captures the real rocket object without relying on a FakePlayer-created chunk ticket.
+        NeoForge.EVENT_BUS.addListener(
+                EventPriority.LOWEST,
+                SkyforgeWaveC13ElytraBypassAcceptance::onEntityJoinLevel);
     }
 
     private static void onServerStarted(ServerStartedEvent event) {
         level = event.getServer().overworld();
-        // Headless acceptance has no real player to load the arena. FireworkRocketItem delegates to
-        // Level.addFreshEntity, which requires the target chunk to be admitted before the rocket
-        // can become visible/tickable.
+        // A real player would hold an entity-ticking chunk ticket. The headless FakePlayer does not,
+        // so admit the test arena explicitly and capture spawned rockets through EntityJoinLevelEvent.
         level.getChunkAt(new BlockPos(0, 120, 0));
         player = FakePlayerFactory.getMinecraft(level);
         player.setPos(0.0, 120.0, 0.0);
@@ -85,26 +89,20 @@ final class SkyforgeWaveC13ElytraBypassAcceptance {
             return;
         }
 
-        rocketArea = new AABB(-16.0, 96.0, -16.0, 16.0, 144.0, 16.0);
-        discardRockets();
-
         player.setDeltaMovement(Vec3.ZERO);
-        ItemStack boostRocket = new ItemStack(Items.FIREWORK_ROCKET);
-        player.setItemInHand(InteractionHand.MAIN_HAND, boostRocket);
-        var boostUseResult = Items.FIREWORK_ROCKET.use(level, player, InteractionHand.MAIN_HAND);
+        boostRocket = null;
+        boostRocketCount = 0;
+        phase = Phase.BOOST_SETTLE;
+        phaseStartTick = level.getGameTime();
 
-        // A headless FakePlayer does not create the normal player ticket that would make this
-        // chunk entity-ticking. Tick the actual vanilla rocket directly so the specimen measures
-        // FireworkRocketEntity propulsion instead of depending on unrelated chunk-ticket state.
-        var spawnedBoostRockets =
-                level.getEntitiesOfClass(FireworkRocketEntity.class, rocketArea);
-        if (mode.equals("baseline") && spawnedBoostRockets.isEmpty()) {
-            fail("vanilla baseline did not spawn an attached boost rocket");
-            return;
-        }
-        for (FireworkRocketEntity rocket : spawnedBoostRockets) {
-            rocket.tick();
-        }
+        ItemStack rocketStack = new ItemStack(Items.FIREWORK_ROCKET);
+        player.setItemInHand(InteractionHand.MAIN_HAND, rocketStack);
+
+        // Exercise the same server interaction route as an actual player's right click. Calling the
+        // item method directly would bypass NeoForge interaction hooks where a server-side
+        // compatibility mod is allowed to cancel or transform the action.
+        var boostUseResult =
+                player.gameMode.useItem(player, level, rocketStack, InteractionHand.MAIN_HAND);
 
         LOGGER.log(
                 System.Logger.Level.INFO,
@@ -115,10 +113,36 @@ final class SkyforgeWaveC13ElytraBypassAcceptance {
                         + " held="
                         + player.getItemInHand(InteractionHand.MAIN_HAND)
                         + " result="
-                        + boostUseResult.getResult());
+                        + boostUseResult
+                        + " capturedRockets="
+                        + boostRocketCount);
 
-        phase = Phase.BOOST_SETTLE;
-        phaseStartTick = level.getGameTime();
+        if (mode.equals("baseline") && boostRocket == null) {
+            fail("vanilla baseline interaction did not spawn an attached boost rocket");
+            return;
+        }
+
+        // Tick the actual rocket emitted by vanilla. This avoids making the acceptance depend on
+        // the FakePlayer's absent chunk ticket while still exercising the rocket implementation
+        // (including any loaded compatibility transformation) rather than a synthetic velocity.
+        if (boostRocket != null) {
+            boostRocket.tick();
+        }
+    }
+
+    private static void onEntityJoinLevel(EntityJoinLevelEvent event) {
+        if (level == null
+                || event.getLevel() != level
+                || !(event.getEntity() instanceof FireworkRocketEntity rocket)) {
+            return;
+        }
+
+        if (phase == Phase.BOOST_SETTLE && boostRocket == null) {
+            boostRocket = rocket;
+            boostRocketCount++;
+        } else if (phase == Phase.ORDINARY_SETTLE) {
+            ordinaryRocketCount++;
+        }
     }
 
     private static void onServerTickPost(ServerTickEvent.Post event) {
@@ -127,15 +151,14 @@ final class SkyforgeWaveC13ElytraBypassAcceptance {
         }
 
         long elapsed = level.getGameTime() - phaseStartTick;
-        if (phase == Phase.BOOST_SETTLE && elapsed >= 5L) {
+        if (phase == Phase.BOOST_SETTLE && elapsed >= 1L) {
             evaluateBoostAndLaunchOrdinaryFirework();
-        } else if (phase == Phase.ORDINARY_SETTLE && elapsed >= 2L) {
+        } else if (phase == Phase.ORDINARY_SETTLE && elapsed >= 1L) {
             evaluateOrdinaryFireworkAndPass();
         }
     }
 
     private static void evaluateBoostAndLaunchOrdinaryFirework() {
-        boostRocketCount = level.getEntitiesOfClass(FireworkRocketEntity.class, rocketArea).size();
         boostDelta = player.getDeltaMovement().length();
         fallFlyingAfterAttempt = player.isFallFlying();
 
@@ -162,33 +185,47 @@ final class SkyforgeWaveC13ElytraBypassAcceptance {
             return;
         }
 
-        discardRockets();
+        if (boostRocket != null) {
+            boostRocket.discard();
+        }
 
         // Ordinary firework launch must remain available for signaling/celebration and other
-        // non-propulsion vanilla uses. Exercise the block-use path while not fall-flying.
+        // non-propulsion vanilla uses. Exercise the real server block-use path while not fall-flying.
         player.stopFallFlying();
         BlockPos launchBlock = new BlockPos(0, 119, 0);
         level.setBlockAndUpdate(launchBlock, Blocks.STONE.defaultBlockState());
 
         ItemStack ordinaryRocket = new ItemStack(Items.FIREWORK_ROCKET);
         player.setItemInHand(InteractionHand.MAIN_HAND, ordinaryRocket);
-        ordinaryBefore = level.getEntitiesOfClass(FireworkRocketEntity.class, rocketArea).size();
+        ordinaryRocketCount = 0;
+        phase = Phase.ORDINARY_SETTLE;
+        phaseStartTick = level.getGameTime();
+
         BlockHitResult hit = new BlockHitResult(
                 new Vec3(0.5, 120.0, 0.5),
                 Direction.UP,
                 launchBlock,
                 false);
-        UseOnContext context =
-                new UseOnContext(level, player, InteractionHand.MAIN_HAND, ordinaryRocket, hit);
-        ordinaryRocket.useOn(context);
+        var ordinaryResult =
+                player.gameMode.useItemOn(
+                        player,
+                        level,
+                        ordinaryRocket,
+                        InteractionHand.MAIN_HAND,
+                        hit);
 
-        phase = Phase.ORDINARY_SETTLE;
-        phaseStartTick = level.getGameTime();
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "Wave C13 "
+                        + mode
+                        + " ordinary firework result="
+                        + ordinaryResult
+                        + " capturedRockets="
+                        + ordinaryRocketCount);
     }
 
     private static void evaluateOrdinaryFireworkAndPass() {
-        int ordinaryAfter = level.getEntitiesOfClass(FireworkRocketEntity.class, rocketArea).size();
-        if (ordinaryAfter <= ordinaryBefore) {
+        if (ordinaryRocketCount <= 0) {
             fail("ordinary block-launched firework no longer spawns");
             return;
         }
@@ -205,14 +242,7 @@ final class SkyforgeWaveC13ElytraBypassAcceptance {
                         + " fallFlying="
                         + fallFlyingAfterAttempt
                         + " ordinaryRockets="
-                        + (ordinaryAfter - ordinaryBefore));
-    }
-
-    private static void discardRockets() {
-        for (FireworkRocketEntity rocket :
-                level.getEntitiesOfClass(FireworkRocketEntity.class, rocketArea)) {
-            rocket.discard();
-        }
+                        + ordinaryRocketCount);
     }
 
     private static void fail(String reason) {
