@@ -86,13 +86,26 @@ Read [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md). Most important near-ter
 
 ## IN PROGRESS
 
-No open Implementation PR was authoritative at the migration snapshot.
+### SF-IMP-0080 — issue #194 legible showcase ecology
 
-The next active implementation target is **issue #194: visually legible land-biome/ecology realization in the human-facing showcase**.
+Active branch: `agent/sf-imp-0080-showcase-ecology`  
+Current integration base at tranche start: `main@01bde4fb96860d8ccfd17b4e6f9d9459c0e827fc`
+
+Goal: make accepted exact-volume native ecology visible to a human reviewer without turning the compact technical showcase into fake production morphology.
+
+Current implementation direction:
+
+- development-only `skyforge:showcase_land` world preset keeps the same `skyforge:noise_overlay` generator but uses fixed plains as the base native surface-representation source;
+- showcase mode maps the lower exact volume to forest and the upper exact volume to taiga;
+- ordinary SF-IMP-0069/performance fixtures remain on their historical development preset and biome routing;
+- showcase preparation must end with nonzero grass, soil, logs, leaves, and surface plants on both exact volumes;
+- full admission/cave/interior/fluid/persistence/client-reopen gates remain authoritative.
+
+Status is **IN PROGRESS**, not accepted. Automated evidence must pass and the human ecology gate below is still required.
 
 ## PROPOSED / priority order
 
-1. **#194 — legible biome/ecology showcase specimen.** Use a deliberately readable land-biome specimen/pair (existing forest/taiga proof is the leading source) so soil, grass, trees, plants, and biome differences are human-visible without weakening production lifecycle semantics.
+1. Complete and human-review **SF-IMP-0080 / #194**.
 2. **Production morphology era.** Route representative Massif, Tableland, Spine, Basin, Lobed instances through the same physical-admission, caves, population, persistence, and performance pipeline.
 3. Add representative hybrids/provider composition, secondary morphology, bounded local detail, and regional/cluster composition.
 4. Connect authored materials/geology and then authored hydrology to concrete Minecraft realization.
@@ -134,9 +147,18 @@ Do not merge behavioral worldgen changes on a stale integration base: verify exa
 
 ## MANUAL VERIFICATION REQUIRED
 
-### #194 — ecology legibility
+### SF-IMP-0080 / #194 — ecology legibility
 
-Human reviewer must be able to see persistent land-biome population: soil/grass, trees, surface plants, and a meaningful biome distinction. Machine success counters are insufficient.
+After automated showcase preparation and actual-client reopen pass, run `:skyforge-neoforge-1211:launchShowcase` and inspect `lower_surface` and `upper_surface`.
+
+Human reviewer must visibly confirm:
+
+- grass/soil on both exact volumes;
+- persistent trees/foliage and surface plants on both;
+- a meaningful lower-forest versus upper-taiga distinction;
+- no obvious floating/unsupported vegetation or new persistence defect.
+
+Machine success counters are insufficient. **Do not merge/accept SF-IMP-0080 before this gate.**
 
 ### #214 — production morphology visual atlas
 
@@ -146,6 +168,4 @@ Do not declare production morphology aesthetically accepted before this human ga
 
 ## Immediate recommended next work
 
-Implement **#194** with the smallest production-faithful showcase change that exposes an already-accepted legible land-biome population specimen. Keep the compact technical showcase's correctness purpose intact; do not cosmetically decorate it into a fake production morphology.
-
-After #194 is human-inspectable, begin the production morphology integration era and explicitly flag the first #214 human-eye review tranche.
+Finish SF-IMP-0080 automated CI/showcase acceptance, then request the #194 human-eye ecology review. If accepted, merge SF-IMP-0080, update this state to the new merged milestone, and begin the production morphology integration era. Explicitly flag the first #214 human-eye morphology review tranche when representative production families are Minecraft-visible.
