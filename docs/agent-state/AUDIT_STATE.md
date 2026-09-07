@@ -26,7 +26,7 @@ Accepted boundary:
 - stale duplicate Content PR #225 was closed only after proving merged C8 / PR #229 behaviorally superseded it;
 - cross-lane milestone/progression collisions and manual gates were made explicit.
 
-### Highest accepted AUDIT milestone: AUDIT-0002
+### Highest AUDIT milestone: AUDIT-0003
 
 PR **#249** merged as `d0e4329ed95088a38a5a0f8f2880736a34986616`.
 
