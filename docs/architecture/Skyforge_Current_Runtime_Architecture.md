@@ -182,9 +182,13 @@ This repaired the observed state in which authoritative server collision existed
 
 ## Native population scope
 
-The currently accepted generic native population phase remains deliberately narrow: **`VEGETAL_DECORATION`**.
+Native population is now split by lifecycle role rather than limited to one surface phase.
 
-Skyforge can resolve an exact volume to a final-registry Minecraft biome during its owning operation and invoke the biome's registered native feature list through Minecraft machinery.
+- pre-cave surface ecology executes ordinary biome `VEGETAL_DECORATION` features;
+- post-cave interior population executes `LAKES -> LOCAL_MODIFICATIONS -> UNDERGROUND_ORES -> UNDERGROUND_DECORATION -> FLUID_SPRINGS`;
+- cave-dependent multiface vegetation is routed from the biome's original `VEGETAL_DECORATION` list into a final post-cave pass while preserving its original occurrence ordinal.
+
+Skyforge resolves each exact-volume operation to a final-registry Minecraft biome and invokes registered native content through Minecraft machinery; phase-specific read/write policies adapt that content to floating exact volumes without copying feature definitions.
 
 The original SF-IMP-0057 surface-only boundary has since expanded materially:
 
