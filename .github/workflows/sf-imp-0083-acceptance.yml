@@ -1,8 +1,6 @@
 name: SF-IMP-0083 Morphology Seed-Scale Acceptance
 
 on:
-  pull_request:
-    types: [synchronize]
   workflow_dispatch:
     inputs:
       family:
@@ -22,15 +20,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: sf-imp-0083-acceptance-${{ github.event.pull_request.number || github.ref }}-${{ inputs.family || github.event.pull_request.head.sha }}
+  group: sf-imp-0083-acceptance-${{ github.ref }}-${{ inputs.family }}
   cancel-in-progress: false
 
 jobs:
   unit-equivalence:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.number == 285 &&
-       contains(github.event.pull_request.body, '<!-- SF-IMP-0083-RUN:'))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -57,10 +51,6 @@ jobs:
 
   acceptance:
     needs: unit-equivalence
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.number == 285 &&
-       contains(github.event.pull_request.body, '<!-- SF-IMP-0083-RUN:'))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -81,7 +71,7 @@ jobs:
       - name: Select requested family
         id: selection
         env:
-          SELECTED: ${{ (github.event_name == 'workflow_dispatch' && (inputs.family == 'all' || inputs.family == matrix.family)) || (github.event_name == 'pull_request' && (contains(github.event.pull_request.body, format('<!-- SF-IMP-0083-RUN:{0} -->', matrix.family)) || contains(github.event.pull_request.body, '<!-- SF-IMP-0083-RUN:all -->'))) }}
+          SELECTED: ${{ inputs.family == 'all' || inputs.family == matrix.family }}
         run: echo "selected=$SELECTED" >> "$GITHUB_OUTPUT"
 
       - name: Check out repository
