@@ -67,7 +67,18 @@ final class SkyforgeWaveC11ElytraBypassAcceptance {
         player.setDeltaMovement(Vec3.ZERO);
         ItemStack boostRocket = new ItemStack(Items.FIREWORK_ROCKET);
         player.setItemInHand(InteractionHand.MAIN_HAND, boostRocket);
-        boostRocket.use(level, player, InteractionHand.MAIN_HAND);
+        var boostUseResult = Items.FIREWORK_ROCKET.use(level, player, InteractionHand.MAIN_HAND);
+
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "Wave C11 "
+                        + mode
+                        + " boost invocation fallFlying="
+                        + player.isFallFlying()
+                        + " held="
+                        + player.getItemInHand(InteractionHand.MAIN_HAND)
+                        + " result="
+                        + boostUseResult.getResult());
 
         List<FireworkRocketEntity> boostRockets =
                 level.getEntitiesOfClass(FireworkRocketEntity.class, rocketArea);
