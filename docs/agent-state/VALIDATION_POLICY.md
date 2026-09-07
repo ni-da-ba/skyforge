@@ -274,10 +274,27 @@ Use:
 The exhaustive 20-member in-engine atlas may remain a later/manual regression or presentation asset if
 useful; it should not block the next production-world system once the carrier risk is retired.
 
-## Current CI-economy follow-up
+## Retained regression trigger policy
 
-Issue #319 owns the immediate workflow-level cleanup: split accepted heavy showcase/performance proofs
-from broad routine NeoForge PR fan-out while preserving change-impact-aware representative coverage.
+Accepted historical evidence remains available, but its trigger should match the risk it protects.
+
+- **Obsolete milestone-specific suites** that are superseded by newer aggregate coverage remain
+  `workflow_dispatch`-only. They must not create skipped checks on every modern PR.
+- **Large showcase / actual-client / exploration-performance suites** run on a deliberate/manual basis
+  and on a low-frequency retained schedule rather than on every NeoForge PR.
+- **Accepted Content compatibility waves** retain pre-merge PR triggers for their own fixture, policy,
+  dependency-pin, or adapter files.
+- Broad cross-cutting files such as the shared NeoForge build script or central mod registration do
+  not fan every retained compatibility proof out across every PR synchronization. Those changes run
+  the affected retained wave once after they land on `main`, while normal CI remains the pre-merge
+  gate.
+- A producer may still deliberately invoke any retained suite when a milestone's dependency surface
+  or prior failure makes that evidence relevant.
+
+This preserves direct pre-merge protection for the code that owns each contract while removing
+historical-capability-complete fan-out from ordinary development.
+
+Issue #319 tracks the first repository implementation of this policy.
 
 ## Audit enforcement
 
