@@ -9,6 +9,7 @@ This directory is the concise durable handoff layer for active agent work.
    - [Authorship](AUTHORSHIP_STATE.md)
    - [Content / Experience](CONTENT_STATE.md)
    - [Implementation](IMPLEMENTATION_STATE.md)
+   - [Music / Audio](MUSIC_STATE.md)
    - [AUDIT](AUDIT_STATE.md)
    - other lane states as they are migrated into this directory
 3. [Cross-lane contracts](CROSS_LANE_CONTRACTS.md)
