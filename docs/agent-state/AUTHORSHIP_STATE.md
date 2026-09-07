@@ -3,384 +3,229 @@
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Main snapshot at latest Authorship acceptance:** `636f261cdc491d80fcf9a6ae73d1c10be480ccfd`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0093**
+**Main snapshot at latest Authorship acceptance:** `2e9618ce170a107e4e9fe88d80a26e5b537209ab`  
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0094**
 
 Read first:
 
 - [Program charter](PROGRAM_CHARTER.md)
 - [Cross-lane contracts](CROSS_LANE_CONTRACTS.md)
 - current `docs/authorship/` milestone documents
-- recent Authorship PRs/commits named below
+- recent merged Authorship PRs named below
 
-Detailed evidence remains in source/tests, CI artifacts, PRs, and dedicated authorship/review docs.
+This ledger is intentionally concise. Detailed proof remains in milestone docs, source/tests, CI runs,
+artifacts, and merged PR history.
 
 ## MERGED / ACCEPTED
 
-### Direction after the publication/provenance tranche
+### Older accepted foundation
 
-The generic recursive publication/provenance tranche ended at AUTH-0081. Do not resume protocol
-recursion without a concrete production consumer.
+AUTH-0001 through AUTH-0081 establish the accepted deterministic authorship, geology, hydrology,
+material, publication, and provenance substrate. AUTH-0082 / PR #220 was **closed unmerged**; preserve
+the numbering gap. Do not restart generic publication/provenance recursion without a concrete
+production consumer.
 
-AUTH-0082 / PR #220 was **closed unmerged**. Preserve the numbering gap; do not report it as accepted.
+### AUTH-0083 / AUTH-0084 — production morphology review machinery
 
-### AUTH-0083 — production morphology visual-review corpus
+Accepted deterministic isolated/regional production morphology review corpora. These prove review
+machinery, not final aesthetic quality. Human morphology/regional approval remains issue #214.
 
-Merged/accepted as deterministic review machinery:
+References:
 
-- 41 isolated production morphology specimens;
-- production provider-neutral compiler path;
-- top/underside/section/isometric diagnostics;
-- exact Minecraft handoff IDs;
-- no invented aesthetic thresholds.
-
-Human aesthetic approval is still a separate manual gate under issue #214.
-
-Reference: `docs/authorship/AUTH-0083-production-morphology-visual-review.md`.
-
-### AUTH-0084 — regional morphology review corpus
-
-Merged/accepted as deterministic regional review machinery:
-
-- sparse, chain, cluster, Hub, Arc contexts;
-- existing group/archipelago planners reused;
-- descriptive regional diagnostics;
-- exact Minecraft views/routes handoff;
-- no premature aesthetic thresholds.
-
-Human regional approval is still a separate manual gate under issue #214.
-
-Reference: `docs/authorship/AUTH-0084-production-regional-morphology-review.md`.
+- `docs/authorship/AUTH-0083-production-morphology-visual-review.md`
+- `docs/authorship/AUTH-0084-production-regional-morphology-review.md`
 
 ### AUTH-0085 — native spring semantic admission
 
-PR #234 merged as `335978905f5c5e235c07a114a653a3be24536c47`.
+PR #234 / merge `335978905f5c5e235c07a114a653a3be24536c47`.
 
-Exact acceptance:
-
-- accepted head: `597d2ae58f2ed6047f6227974f9f41fbc2b2808f`;
-- synchronized base: `0368261e59da1501266427980780848e331e3e7a`;
-- CI #1335 PASS, run `34070501775`;
-- evidence artifact `10000402074`;
-- digest `sha256:52d06c88fcb4633c2919dd0d3207dec09666751cc0ae8946539de57fbaaa53ab`.
-
-Accepted invariants:
-
-- water requires authored cave interior + accepted AUTH-0023 `AQUIFER_BODY`;
-- no second aquifer threshold;
-- molten candidates fail closed without geothermal semantics;
-- exact cave/aquifer provenance;
-- cross-island semantic composition rejected;
-- no Minecraft types, registry lookup, placement, storage, propagation, or I/O in the world contract.
-
-Reference: `docs/authorship/AUTH-0085-native-spring-semantic-admission.md`.
+Water springs require exact authored cave + accepted aquifer semantics; molten candidates fail closed
+without geothermal semantics. No Minecraft placement/lifecycle enters Authorship.
 
 ### AUTH-0086 — visible hydrologic realization intent
 
-PR #241 merged as `a55e500c86f0baf910af809985956ac398742706`.
+PR #241 / merge `a55e500c86f0baf910af809985956ac398742706`.
 
-Exact acceptance:
-
-- accepted head: `0de4791f74d224d6f7b3611f833fe8c10c293018`;
-- synchronized base: `5d4a293d6c57e3db4a52ec33dabd8725bbd4b091`;
-- CI PASS, run `34077642262`;
-- evidence artifact `10002704618`;
-- digest `sha256:e647a1807bc42570e8a5eb2e8916636312778f058e91280e5df652e450e86a47`.
-
-Accepted invariants:
-
-- exactly one visible channel-water intent per accepted coherent naturalized channel path;
-- exactly one retained-water intent per accepted footprint + dry margin;
-- direct cascade/waterfall/edge-discharge mapping with no new threshold;
-- exact source/riparian/margin provenance and deterministic source ordering;
-- omitted, reordered, substituted, whole-plan cross-island, and mislabeled nested cross-island sources fail closed;
-- no Minecraft registry, placement, fluid update, scheduling, storage, or I/O behavior in `skyforge-world`;
-- 1280x720 architecture/provenance atlas plus count/provenance CSV evidence.
-
-Reference: `docs/authorship/AUTH-0086-visible-hydrologic-realization-intent.md`.
+Exact channel, retained-waterbody, cascade/waterfall, and edge-discharge intent with deterministic
+provenance; physical rasterization/fluid behavior remains Implementation-owned.
 
 ### AUTH-0087 — published authored-realization binding
 
-PR #254 merged as `04fb6dab33cf80e8b82b42fc9d0fc7837cce31c4`.
+PR #254 / merge `04fb6dab33cf80e8b82b42fc9d0fc7837cce31c4`.
 
-Exact acceptance:
+One publication may bind to authorship only through an explicit exact AUTH-0046 association catalog;
+no order/seed/spatial inference substitutes for that binding.
 
-- accepted head: `bc8e92842bca275b656de58592664096dbe63134`;
-- synchronized base: `d0e4329ed95088a38a5a0f8f2880736a34986616`;
-- CI PASS, run `34079821151`;
-- evidence artifact `10003436186`;
-- digest `sha256:7379ff41b44eb5cddf0709605fd7e8b98e0b39def2ad039071dab99c2fc21de3`.
+### AUTH-0088 — published surface ecology
 
-Accepted invariants:
+PR #262 / merge `844ad6cd09a7cbe60529f1a7d43badc12a84a1e1`.
 
-- one accepted AUTH-0058 publication is paired with one explicit AUTH-0046 association catalog;
-- realization root, volume count, exact volume identities, and exact realized-volume values must match;
-- missing, extra, substituted, and foreign-root association sets fail closed;
-- association identity is never inferred from order, geometry seed, center, bounds, radius, or morphology;
-- authored-world and realization-root identity domains remain independent;
-- accepted AUTH-0049 material composition may consume the proven association set;
-- later authored world-space semantics may reuse the same exact gate;
-- no Minecraft/NeoForge identity, placement, lifecycle, geology threshold, ecology threshold, or material threshold enters the contract.
+Exact published-volume/world-XZ ecology query over AUTH-0087 ownership. Minecraft biome/Y/persistence
+policy remains downstream.
 
-Reference: `docs/authorship/AUTH-0087-published-authored-realization-binding.md`.
+### AUTH-0089 — island ecological opportunity
 
-### AUTH-0088 — published surface ecology projection
+PR #268 / merge `badcfbf8f9cf102a1f6f8f7bd018183d84f74e37`.
 
-PR #262 merged as `844ad6cd09a7cbe60529f1a7d43badc12a84a1e1`.
+Fixed-resolution island authored-habitat/ecology summary. No species, carrying capacity, spawn,
+resource, or backend biome policy.
 
-Exact acceptance:
+### AUTH-0090 — regional ecological opportunity
 
-- accepted head: `aee6de6ed3f51e4096861a030854d2a64ba4950e`;
-- synchronized base: `da8ef1b98cff4932d77e4d319603f2552b362dda`;
-- CI PASS, run `34083554995`;
-- evidence artifact `10004585440`;
-- digest `sha256:2e70d519391f8ca433b3f20219d64d3b99e2d224132887a1fe2a105ad35abcd7`.
+PR #276 / merge `1a2f9cc2e76bfd5ef9a36d3547dd0a0f3835fe28`.
 
-Accepted invariants:
+Exact AUTH-0087 region aggregates canonical AUTH-0089 profiles with horizontal-area weighting while
+retaining exact island provenance. No regional species/resource/province class.
 
-- one exact published volume id plus world X/Z routes only through the explicit AUTH-0087/AUTH-0046 association;
-- world/local translation uses the exact realized-volume center with no inferred island discovery;
-- AUTH-0003 ecology is exposed only where strict compiled horizontal support and current authored-domain ownership both exist;
-- physical-but-native-unowned fringe emits no ecology rather than converting diagnostic COLD_BARREN fallback into ownership;
-- returned ecology equals exact AUTH-0003 evaluation at the recovered local position;
-- the public surface-ecology query intentionally contains no physical Y;
-- no Minecraft biome key, quart-cell policy, placement, persistence, or lifecycle behavior enters Authorship.
+### AUTH-0091 — freshwater habitat opportunity
 
-Reference: `docs/authorship/AUTH-0088-published-surface-ecology.md`.
+PR #279 / merge `c739fe9a521e2c75f640bbfcf79eee6abd0298cf`.
 
-### AUTH-0089 — island ecological opportunity profile
-
-PR #268 merged as `badcfbf8f9cf102a1f6f8f7bd018183d84f74e37`.
-
-Exact acceptance:
-
-- accepted head: `07e8d110f12058c5165c86531ce4fd51e5f1ed10`;
-- synchronized base: `001bc7aa6dbd01d94d8a92023f8c5fc7831d3020`;
-- CI PASS, run `34085928791`;
-- evidence artifact `10005324952`;
-- digest `sha256:64ed8f812b54ba14f4a799841fabe94f3751cad17a29b3596606c23772992f79`.
-
-Accepted invariants:
-
-- one fixed 128×128 cell-center quadrature summarizes current authored-domain ecology for one placement-free island;
-- consumers cannot choose a competing sampling resolution;
-- manually constructed profiles must preserve the canonical resolution and exact owned-cell horizontal-area arithmetic;
-- ownership reuses the accepted current `interiority > 0` authored-domain rule;
-- all AUTH-0003 regimes are represented in the composition map and fractions normalize to one;
-- mean vegetation, saturation, and thermal opportunity are unchanged AUTH-0003 values;
-- radius-only scaling preserves normalized ecology composition while horizontal planning area scales by radius²;
-- horizontal area is authored-habitat planning evidence, not physical sloped terrain, Minecraft blocks, carrying capacity, or spawn budget;
-- no species, fauna-role, entity, resource, Minecraft-biome, compiled-terrain, or backend-lifecycle policy enters the contract.
-
-Reference: `docs/authorship/AUTH-0089-island-ecological-opportunity-profile.md`.
-
-### AUTH-0090 — regional ecological opportunity aggregation
-
-PR #276 merged as `1a2f9cc2e76bfd5ef9a36d3547dd0a0f3835fe28`.
-
-Exact acceptance:
-
-- accepted head: `744e2d76df6abf6dbff20212d7c33e3cb89963bb`;
-- synchronized base: `93a7c542b7493ee84d305331b75b6db9459514b8`;
-- CI PASS, run `34088215137`;
-- evidence artifact `10006084754`;
-- digest `sha256:1db4b6a6ccc1a812ceca8efb3825aad0ca89c3f12c767747f47b904d03b288ca`.
-
-Accepted invariants:
-
-- the regional boundary is one exact accepted AUTH-0058 publication carried by an AUTH-0087 published authored-realization binding;
-- callers cannot supply arbitrary island/profile subsets, custom raster resolution, or custom weights;
-- every canonical AUTH-0087 association is profiled through accepted AUTH-0089;
-- exact association + AUTH-0089 island-profile provenance is retained in canonical association order;
-- missing, reordered, or descriptor-substituted regional entries fail closed;
-- regional horizontal authored-habitat area is the sum of AUTH-0089 island areas;
-- vegetation, saturation, thermal opportunity, and every AUTH-0003 regime fraction are horizontal-area weighted;
-- regional regime composition remains normalized with no new regional ecology class;
-- no species, fauna role, carrying capacity, spawn count, resource family, agricultural/province label, Minecraft biome, or backend lifecycle enters the contract.
-
-Reference: `docs/authorship/AUTH-0090-regional-ecological-opportunity.md`.
-
-### AUTH-0091 — freshwater habitat opportunity profile
-
-PR #279 merged as `c739fe9a521e2c75f640bbfcf79eee6abd0298cf`.
-
-Exact acceptance:
-
-- accepted head: `fbebcf5defa8a69a304216422d28d1bcb0e0d639`;
-- synchronized base: `fad6b17575b25437a18c52a352ebd566acdb52b5`;
-- CI PASS, run `34139804616`;
-- evidence artifact `10025611282`;
-- digest `sha256:712e389aded9946d0436e6ff7d4ce6b16bebef79020c452b5dc3bd1b5a849a18`;
-- all triggered retained regression checks completed with zero failures.
-
-Accepted invariants:
-
-- one authored descriptor is profiled only through the accepted fixed AUTH-0005 watershed and retained-waterbody footprint planners;
-- callers cannot select watershed resolution, basin thresholds, footprint inputs, or custom area weights;
-- exact watershed and retained-waterbody footprint-plan provenance is retained;
-- inundated planning cells are unioned by exact watershed index in canonical index order;
-- conflicting duplicate footprint-cell data fails closed;
-- coarse horizontal inundated-area estimate is unique inundated-cell count × accepted watershed spacing²;
-- shoreline remains a unique planning-cell count and is not reinterpreted as physical perimeter;
-- POND, LAKE, and WETLAND source-kind counts are complete and sum to exact retained source-candidate count;
-- mean/max water-depth values remain unchanged normalized semantic potentials, not metres, blocks, or cubic volume;
-- legitimately dry islands produce a valid all-zero freshwater opportunity profile;
-- radius-only scaling preserves normalized freshwater topology/depth while coarse horizontal area scales by radius²;
-- no fish/fauna role, carrying capacity, crop/agriculture/resource eligibility, Minecraft fluid/biome identity, physical water-volume claim, or backend lifecycle enters the contract.
-
-Reference: `docs/authorship/AUTH-0091-freshwater-habitat-opportunity.md`.
+Fixed accepted watershed/waterbody stack yields exact retained-waterbody provenance, coarse inundated
+planning area, shoreline-cell count, POND/LAKE/WETLAND counts, and normalized depth opportunity.
+These are planning semantics, not physical fluid volume or fauna/resource eligibility.
 
 ### AUTH-0092 — regional island isolation evidence
 
-PR #289 merged as `f7440b05279d7cb7f7f72c575e70d0e880ef184f`.
+PR #289 / merge `f7440b05279d7cb7f7f72c575e70d0e880ef184f`.
 
 Exact acceptance:
 
-- accepted head: `69a95f79e96272b200667ebab74ef5eb4d5ce7cb`;
-- synchronized base: `324373a1d981fc56a466f9d9ded842bdf6dc366d`;
-- CI PASS, run `34150119742`;
-- evidence artifact `10029142925`;
+- accepted head `69a95f79e96272b200667ebab74ef5eb4d5ce7cb`;
+- synchronized base `324373a1d981fc56a466f9d9ded842bdf6dc366d`;
+- CI `34150119742` PASS;
+- artifact `10029142925`;
 - digest `sha256:d77a7fa5b930e72af13065fb24357cafbbcbfe271ce84a4562feadc188b45490`.
 
-Accepted invariants:
-
-- one exact AUTH-0087 published authored-realization binding is the only public profiling input;
-- canonical AUTH-0046 association provenance/order is retained for every published island;
-- horizontal center distance derives only from exact realized descriptor centers;
-- nominal radial gap is `max(0, centerDistance - radiusA - radiusB)` using exact matching AUTH-0046 authored/realized nominal radii;
-- selected peer is deterministic by smallest nominal radial gap, then center distance, then existing canonical association order;
-- one-island publications retain an empty nearest-neighbor relation and empty regional distance summaries rather than fabricating a peer;
-- substituted distance evidence fails closed;
-- uniform translation preserves the relation and uniform two-times horizontal scale doubles raw distances while preserving selected-peer identity;
-- nominal radial gap is planning evidence, not exact physical terrain-edge separation;
-- no isolated/not-isolated class, fauna/resource/settlement threshold, route cost, Minecraft range rule, or backend lifecycle enters the contract.
+One exact AUTH-0087 region yields deterministic nearest-peer provenance, horizontal center distance,
+and nominal radial gap. No isolation class, route cost, gameplay range, or physical terrain-edge claim.
 
 Reference: `docs/authorship/AUTH-0092-regional-isolation-evidence.md`.
 
 ### AUTH-0093 — base-metal geological opportunity
 
-PR #294 merged as `636f261cdc491d80fcf9a6ae73d1c10be480ccfd`.
+PR #294 / merge `636f261cdc491d80fcf9a6ae73d1c10be480ccfd`.
 
 Exact acceptance:
 
-- accepted head: `73a0d26c7455011b8ef54f9e860b206f2d764b44`;
-- synchronized base: `a1d550ad0b6d8153b2560c264fbb1e6c653145b1`;
-- CI PASS, run `34150993175`;
-- evidence artifact `10029433121`;
+- accepted head `73a0d26c7455011b8ef54f9e860b206f2d764b44`;
+- synchronized base `a1d550ad0b6d8153b2560c264fbb1e6c653145b1`;
+- CI `34150993175` PASS;
+- artifact `10029433121`;
 - digest `sha256:cffa330ffc6192bf7c39f67a725b85bc41c5827cd67c4f73e0a60342552ad0cc`.
+
+IRON/COPPER/ZINC normalized geological opportunity is defined over exact AUTH-0033 material-family
+provenance. Every nonzero opportunity is subordinate to accepted mineral-bearing structural support.
+No ore id, deposit count/volume/grade, availability class, guarantee, trade, or placement policy.
+
+Reference: `docs/authorship/AUTH-0093-base-metal-geological-opportunity.md`.
+
+### AUTH-0094 — regional base-metal opportunity inventory
+
+PR #307 / merge `2e9618ce170a107e4e9fe88d80a26e5b537209ab`.
+
+Concrete consumer: accepted CONTENT C20 requires hard Iron/Copper/Zinc guarantees to select or
+re-plan scopes containing eligible AUTH-0093 geology rather than inject metals into unsuitable
+islands.
+
+Exact acceptance:
+
+- accepted head `07d931eaf98dd27be454fb16af8b819df6c9e0ee`;
+- synchronized base `0b76038a0b0a98628b6b3ec0e39b5cb0cd76a8d9`;
+- full repository CI `34160240174` PASS;
+- scoped evidence workflow `34160240210` PASS;
+- evidence artifact `10032355416`;
+- digest `sha256:2ad2f784f04782ba4a3821d936bf3bd4e9490dea1121141dc13dcfc1d7ac51e7`.
 
 Accepted invariants:
 
-- one authored descriptor is profiled only through the fixed accepted AUTH-0033 material-family plan;
-- every base-metal cell retains exact AUTH-0033 host-cell identity/order;
-- IRON, COPPER, and ZINC are backend-neutral geological element opportunities, not Minecraft ore identities;
-- every nonzero element opportunity requires accepted `MINERAL_BEARING_STRUCTURAL_HOST` support and cannot exceed that exact support;
-- broad element-specific affinity may differentiate mineralized regions only after common accepted geological support exists;
-- mean, peak, and relative opportunity share remain normalized planning evidence rather than grade, reserves, deposit volume/count, or availability class;
-- radius-only scaling preserves normalized cell identity/opportunity;
-- no ore block/registry identity, placement, resource tier, bootstrap guarantee, trade/salvage rule, or progression threshold enters Authorship.
+- public profiling input is exactly one AUTH-0087 published authored-realization binding;
+- every canonical AUTH-0046 association is profiled through AUTH-0093 from its exact authored descriptor;
+- complete association/profile coverage and canonical order are retained; missing/reordered/substituted entries fail closed;
+- geological eligibility is exactly the existing AUTH-0093 zero/nonzero boundary (`peakOpportunity > 0`) with no new threshold;
+- eligible islands may be descriptively ranked by unchanged AUTH-0093 mean opportunity; exact ties retain canonical association order;
+- opportunity is not summed or relabeled as regional reserves, grade, deposit volume, accessibility, or site selection;
+- CONTENT C20 remains owner of COMMON_REGIONAL availability, STARTING_CLUSTER / POST_FLIGHT_PROVINCE guarantees, trade/salvage, progression criticality, and scope-selection/replan policy;
+- Implementation remains owner of concrete ore/block identity, deposit geometry/count/volume/grade/accessibility, worldgen, persistence, and lifecycle.
 
-Reference: `docs/authorship/AUTH-0093-base-metal-geological-opportunity.md`.
+Reference: `docs/authorship/AUTH-0094-regional-base-metal-opportunity-inventory.md`.
 
 ## IN PROGRESS
 
 No Authorship milestone is currently in progress.
 
-AUTH-0093 closes the currently demonstrated Iron/Copper/Zinc geological-semantic gap for Bootstrap
-resource geography. Do not open AUTH-0094 until a concrete retained resource or other production
+Do not assign AUTH-0095 merely to continue the resource sequence. C20 now has the accepted regional
+Authorship inventory it requested. Open another Authorship milestone only when a concrete retained
 consumer demonstrates another missing backend-neutral cause.
 
-## PROPOSED
+## ACTIVE CROSS-LANE BOUNDARIES
 
-### Later semantic priorities
+### Content / Bootstrap
 
-1. Content may consume AUTH-0093 to define Iron bootstrap reliability and Copper/Zinc post-flight specialization; availability classes and guarantees remain Content-owned.
-2. Use AUTH-0092 only as raw regional isolation evidence; any isolated/not-isolated class belongs to a concrete downstream consumer.
-3. A future cave/cliff habitat profile may summarize accepted AUTH-0024–0030 topology/exposure only if a concrete consumer needs it; semantic depth fractions are not physical cave volume.
-4. Add petroleum, precious-resource, disturbance, predator-pressure, trophic-state, geothermal/volcanic, or other semantics only when a retained production consumer requires a distinct cause.
+- C20 is accepted and may consume AUTH-0094 to inspect/select/re-plan published scopes around eligible Iron/Copper/Zinc geology.
+- Iron availability/starting-cluster closure and Copper/Zinc post-flight-province guarantees remain Content-owned.
+- AUTH-0094 does not prove that a specific generated province satisfies C20; executable province planning/acceptance is downstream.
 
-## Architectural decisions / invariants
+### Implementation
+
+Implementation may consume AUTH-0093/0094 only after Content resource policy is applied. It owns all
+concrete deposits, blocks/tags, quantities, accessibility, placement/worldgen, persistence, and chunk
+lifecycle. Existing SF-IMP-0083 / issue #284 morphology work remains independently Implementation-owned.
+
+### Ecology / fauna / civilization
+
+AUTH-0089/0090/0091/0092 remain evidence inputs, not spawn/carrying-capacity/faction/province policy.
+Add cave/cliff, disturbance, predator-pressure, trophic, civilization-history, geothermal, petroleum,
+or other semantics only when a concrete consumer proves a gap.
+
+## Architectural invariants
 
 - `skyforge-world` remains backend-neutral.
-- Authorship describes meaning/intent; it does not execute Minecraft mutation.
+- Authorship describes meaning/evidence, not Minecraft mutation or gameplay tuning.
 - Reuse accepted planners/source objects instead of recomputing parallel thresholds.
-- Exact provenance and deterministic order are part of the contract.
-- A backend may choose realization technique but may not silently change authored intent.
-- Human aesthetic thresholds must be evidence-driven.
-- Native cave springs are supplemental hydrology, never substitutes for authored surface channels,
-  waterbodies, cascades, waterfalls, or edge discharge.
-- Do not restart generic publication/provenance recursion without a concrete production consumer.
+- Exact provenance and deterministic order are contractual.
+- Backend realization may choose technique but may not silently change authored intent.
+- Human aesthetic thresholds remain evidence-driven.
+- Native cave springs supplement rather than replace authored surface hydrology.
+- Generic publication/provenance recursion is closed unless a concrete production consumer reopens it.
 
-## Cross-lane dependencies
+## Known hazards
 
-Implementation:
-
-- consumes AUTH-0085 for semantically valid native spring admission;
-- may consume accepted AUTH-0086 as the authoritative visible authored-hydrology intent contract;
-- may consume AUTH-0087 as the exact publication/authorship association gate before AUTH-0049 material composition;
-- may consume AUTH-0088 as the exact backend-neutral surface-ecology query for a named published volume and world X/Z;
-- may consume AUTH-0089 as island-scale ecological opportunity evidence; it is not a spawn/carrying-capacity/resource contract;
-- may consume AUTH-0090 as area-weighted regional ecological opportunity evidence; it still assigns no species/resources/province class;
-- may consume AUTH-0091 as retained-freshwater habitat opportunity evidence; its area/depth quantities remain coarse/normalized planning semantics, not physical fluid volume;
-- may consume AUTH-0092 as raw regional center-distance/nominal-radial-gap evidence; it is not a physical terrain-edge, route-cost, gameplay-range, or ecological-isolation contract;
-- may consume AUTH-0093 as normalized Iron/Copper/Zinc geological opportunity; concrete ore realization remains downstream of Content resource policy and Implementation placement/lifecycle;
-- owns block-space realization, chunk lifecycle, fluid propagation/fencing, and live Minecraft proofs;
-- SF-IMP-0080 remains the accepted forest/taiga ecology showcase;
-- SF-IMP-0081 / SF-IMP-0082 accept all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / issue #284 owns the remaining built-in seed/scale matrix;
-- issue #214 still requires the broader AUTH-0083/AUTH-0084 Minecraft family/regional review.
-
-Content / Experience:
-
-- may motivate Bootstrap Province, geothermal, or other semantic capabilities;
-- design records are not evidence that a semantic system is already accepted.
-
-Shared coordination details: [Cross-lane contracts](CROSS_LANE_CONTRACTS.md).
-
-## Known hazards / technical debt
-
-- Some older README/runtime-overview text lags recent implementation merges; use git, reviews, and
-  lane state for current boundaries.
-- AUTH-0082 is a closed-unmerged historical branch.
-- Concurrent lane merges frequently move `main` during authorship CI; exact-head acceptance requires
-  recomposition and rerun whenever the base moves.
-- AUTH-0083/AUTH-0084 prove review machinery, not aesthetic production quality.
-- No geothermal/volcanic semantics currently exist.
-- Semantic hydrology potentials are not block coordinates.
+- Parallel lane merges frequently move `main`; exact-head Authorship acceptance requires recomposition and rerun when that happens.
+- Some other lane ledgers may lag merged history; current `main`, merged PRs, tests, and cross-lane contracts remain authoritative.
+- AUTH-0083/AUTH-0084 prove review machinery, not final visual quality.
+- No accepted geothermal/volcanic semantics currently exist.
+- Semantic hydrology/depth/material opportunity values are not literal block coordinates, metres, reserves, or quantities.
 
 ## Verification procedure
 
 For Authorship changes:
 
 1. keep neutral modules free of Minecraft/NeoForge imports;
-2. run repository CI on the exact candidate head;
-3. inspect world/reference tests for deterministic provenance and fail-closed invariants;
-4. require declared evidence entry points under `skyforge-reference/build/evidence`;
-5. record exact CI run and evidence artifact/digest for accepted proof corpora;
-6. re-check `main` immediately before merge;
-7. if `main` moved, recompose and rerun exact-head CI;
-8. merge with an expected-head lock.
-
-Architecture/provenance atlases do not require human review unless the milestone explicitly claims
-aesthetic/player-view acceptance.
+2. run targeted semantic/provenance tests and a declared evidence entry point;
+3. run repository CI on the exact candidate head;
+4. record exact workflow/artifact/digest evidence;
+5. re-check `main` immediately before merge;
+6. if `main` moved, recompose and rerun exact-head verification;
+7. merge with an expected-head lock;
+8. update this ledger and cross-lane contracts at the merge boundary.
 
 ## MANUAL VERIFICATION REQUIRED
 
-Issue #214 remains open.
-
-Human review still needs the AUTH-0083/AUTH-0084 reference + Minecraft matrices, especially:
+Issue #214 remains open for production morphology review, including:
 
 - long-range family identity;
 - macro/meso hierarchy;
-- rim/coast transitions;
-- underside quality;
-- regional negative space, navigation, and repetition;
-- above/approach/below Minecraft views;
-- short flight routes around/under representative islands;
-- explicit decision on whether an underside-secondary vocabulary is needed.
+- rim/coast transitions and underside quality;
+- regional negative space/navigation/repetition;
+- above/approach/below Minecraft views and representative flight routes;
+- decision on whether an underside-secondary vocabulary is needed.
+
+AUTH-0094 introduces no new human/manual gate.
 
 ## Ordered next work
 
-1. Hand AUTH-0093 to Content/Bootstrap as the geological suitability input for Iron/Copper/Zinc resource policy.
-2. Let Content decide availability class, starting-region guarantee, trade/salvage alternatives, and post-flight specialization before Authorship adds any deposit-scale semantics.
-3. Assign AUTH-0094 only if a concrete retained resource or world-system consumer demonstrates a missing semantic cause; do not expand the resource taxonomy for completeness.
-4. Keep SF-IMP-0083 / issue #284 seed-scale morphology work independently Implementation-owned.
+1. Let Content/Bootstrap consume AUTH-0094 in executable C20-aware scope selection/replanning.
+2. Do not add deposit scale, grade, accessibility, or quantity to Authorship unless a concrete downstream contract shows those require semantic authorship rather than Content/Implementation policy.
+3. Reconstruct the next missing semantic cause from current production consumers before assigning AUTH-0095.
+4. Keep SF-IMP-0083 / #284 and issue #214 independently owned by Implementation/human review.
