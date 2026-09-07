@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot at latest AUDIT-0006 synchronization:** `c5c5f9c3fad1d1b233a0df626a511416bf95d239`
+**Main snapshot at latest AUDIT-0006 synchronization:** `34bd884fb0646894dd682350fd1f35b3bdd46ed3`
 
 Read first:
 
@@ -82,8 +82,8 @@ audio behavior by itself.
 
 Audited MUS-0001 / PR #159 boundary at branch head `1825d3931125f37e8be48abc46b0b1b13ebf2ed2`:
 
-- MUS-0001 remains **draft / unmerged / non-mergeable** and was 88 commits ahead /
-  1067 behind `main@c5c5f9c3` at this audit point;
+- MUS-0001 remains **draft / unmerged / non-mergeable** and is 88 commits ahead /
+  1069 behind `main@34bd884f` at this audit point;
 - no canonical `docs/agent-state/MUSIC_STATE.md` exists yet;
 - no current exact-head repository/source-verification CI exists for the Music branch;
 - Track 00 V2F.1 remains the canonical frozen source; two range-repair A/B candidates are explicitly
@@ -125,7 +125,7 @@ runtime remains Implementation-owned. No runtime adaptive-music contract is acce
 | --- | --- |
 | Implementation | **SF-IMP-0081** / PR #265 — first exact AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / #269 is the active remaining-family tranche |
 | Authorship | **AUTH-0090** / PR #276 — exact area-weighted regional ecological-opportunity aggregation; durable state repaired by merged PR #278 |
-| Content / Experience | **C17** / PR #272 — stock GPS infrastructure topology; C18 turtle freight is in progress; C11/C12 remain separately in progress/reserved |
+| Content / Experience | **C17** / PR #272 — stock GPS infrastructure topology; C18 turtle freight is current-main green but remains draft/unaccepted; C11/C12 remain separately in progress/reserved |
 | Showcase | cave/interior technical showcase accepted; ecology showcase accepted; first production Massif carrier machine- and human-accepted |
 | Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 remains draft/unmerged and requires synchronization/source-verification/state repair before repository acceptance |
 | AUDIT | **AUDIT-0006** by this governance merge |
@@ -154,13 +154,17 @@ Draft/in progress. Audit reviewed the reusable four-family carrier architecture 
 
 The Tableland persistence repair in `MinecraftNativeSurfaceTopAdapter` is a narrow occupancy-preservation rule: unsupported falling native material is not allowed to replace an authoritative one-voxel Skyforge solid that would then disappear. Supported falling material and all non-falling material retain prior behavior. This is Implementation representation policy, not morphology/material authorship.
 
-Acceptance still requires the full exact-head four-family machine matrix and the explicit human #214 review. Full #214 remains open beyond SF-IMP-0082.
+The full tested-head machine matrix is green on `a0bc3d59221f7418d29921115876fe52fef42e5a`: repository CI `34088332291`, SF-IMP-0070 characterization `34088332227`, Showcase Acceptance `34088332097`, and Tableland/Spine/Basin/Lobed prepare + actual-client reopen all PASS. That branch is now materially behind current main and must synchronize before merge.
+
+Acceptance still requires the explicit project-owner human #214 review of Tableland, Spine, Basin, and Lobed plus current-main synchronization/fresh exact-head regressions. Full #214 remains open beyond SF-IMP-0082.
 
 ### Content C18 / PR #277 — stock turtle void-freight envelope
 
 Draft/in progress. The first unloaded-adjacent-chunk fixture hypothesis failed closed because Minecraft kept the intended target loaded. The owner replaced that artificial precondition with a better player-facing experiment: one explicitly forced starting chunk, then a 48-block otherwise-unforced route with durable per-move progress and fuel accounting.
 
-Repaired dedicated run `34088869796` **PASSED** on head `c1496ada`:
+The prior Audit gate-definition blocker is now resolved on current synchronized head `f99219eb6ba20f0a76be980b12a098cda7ae3f13`. Explicit `STOPPED` is accepted only when the stock turtle error contains `Cannot leave loaded world`; unrelated stop reasons fail. A no-result path may instead become measured `STALLED / NO_TICK_PROGRESS` only after the bounded progress-stall window.
+
+The accepted specimen interpretation remains:
 
 ```text
 outboundMoves=64
@@ -168,7 +172,6 @@ returnMoves=64
 fuelStart=160
 fuelEnd=32
 delivered=960
-elapsedTicks=1168
 boundaryOutcome=STALLED
 boundaryMoves=17
 boundaryFuelStart=80
@@ -176,11 +179,11 @@ boundaryFuelEnd=63
 boundaryError=NO_TICK_PROGRESS
 ```
 
-This proves measured route/ticking-envelope dependence, not an exact internal chunk-boundary error and not a production chunk-loader policy. The freight turtle moved 128 blocks with exact fuel delta and delivered 960 items; the unforced-route turtle stalled after 17 successful moves with exact fuel delta.
+This proves measured route/ticking-envelope dependence, not an exact internal chunk-boundary error and not a production chunk-loader policy. The freight turtle moves 128 blocks with exact fuel delta and delivers 960 items; the otherwise-unforced route stalls after bounded progress with exact fuel accounting.
 
-One Audit gate-definition blocker remains on the repaired runtime: the explicit `STOPPED` branch currently accepts any stop reason after 1–47 successful moves. An unrelated obstruction/error could therefore satisfy the route-envelope gate. The observed `STALLED / NO_TICK_PROGRESS` specimen is valid evidence; before C18 acceptance, either constrain `STOPPED` to the intended loading/ticking boundary or independently prove the route unobstructed and classify only the intended stop.
+Current-head gates are all green: C18 `34128010315`, C17 `34128009964`, repository CI `34128010024`, Showcase Acceptance `34128010145`, and SF-IMP-0070 characterization `34128010009` PASS. The branch is zero-behind `main@34bd884f` at this Audit point. AUDIT has no remaining cross-lane, gate-definition, synchronization, or machine-evidence blocker; Content still owns acceptance/merge and later gameplay conclusions.
 
-Dedicated C18, showcase persistence, and performance gates are green on the repaired head; repository CI was still running at this Audit boundary. In addition, current main has advanced through AUTH-0090 runtime/state, so final C18 acceptance still requires synchronization and fresh exact-head evidence. Aircraft-vs-turtle economics, dedicated chunk-loader progression, mining/farming throughput, Ender-storage combinations, and any nerf remain separate Content decisions.
+Aircraft-vs-turtle economics, dedicated chunk-loader progression, mining/farming throughput, Ender-storage combinations, and any nerf remain separate Content decisions.
 
 ### AUTH-0091 / PR #279 — freshwater habitat opportunity — in progress / unaccepted
 
@@ -198,7 +201,7 @@ AUTH-0091 is now concrete draft PR #279. Audit reviewed current production seman
 - radius-only scaling preserves normalized topology/depth while coarse area scales by radius²;
 - retained source candidates are not double-counted because the accepted footprint planner partitions candidate seeds exactly once across overlap groups.
 
-Physical water volume/metres, fauna roles/carrying capacity, agriculture/resources, Minecraft fluid/biome identity, and backend lifecycle remain outside the contract. AUTH-0091 is unaccepted pending owner exact-head CI/evidence and merge.
+Physical water volume/metres, fauna roles/carrying capacity, agriculture/resources, Minecraft fluid/biome identity, and backend lifecycle remain outside the contract. CI `34126267826` is green on head `26a855d564ccccb82e305e5e338d0a99477139bc`, but the branch is two commits behind current main through C17 maintenance and must recompose/rerun exact-head evidence before Authorship acceptance.
 
 ### C11 — live pre-Brass first-flight recipe surface — PR #233
 
@@ -263,25 +266,15 @@ Human play must verify discoverability and non-surprising redstone shutdown beha
 5. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
 6. **Performance:** do not restart local micro-optimization absent fresh realistic-scale profiling.
 
-Resolved hazards include the C11/C13 identifier collision, duplicate live-state namespaces, AUTH-0086/AUTH-0087/AUTH-0088 durable-state lag, C16 durable-state lag, SF-IMP-0080's compile/substrate/ecology-legibility blockers, and SF-IMP-0081's post-C16 synchronization plus temporary Implementation-ledger lag.
+Resolved hazards include the C11/C13 identifier collision, duplicate live-state namespaces, AUTH-0086/AUTH-0087/AUTH-0088 durable-state lag, C16 durable-state lag, SF-IMP-0080's compile/substrate/ecology-legibility blockers, SF-IMP-0081's post-C16 synchronization plus temporary Implementation-ledger lag, and C18's permissive `STOPPED` gate.
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Continue auditing SF-IMP-0082 / PR #273 through its explicit four-family #214 human review; its
-   current machine atlas is green but cannot waive the visual/flight gate.
-2. Include Music / Audio in every future repository reconstruction. Track MUS-0001 / PR #159 through
-   current-main recomposition, MUSIC_STATE creation, executable source-integrity verification,
-   Track-00 A/B listening, Track-06 exact-source recovery, PR-state reconciliation, and exact-head CI.
-3. Track AUTH-0091 / PR #279 through its deterministic freshwater-profile repair and owner exact-head
-   acceptance; preserve normalized opportunity as non-physical planning evidence.
-4. Track C18 / PR #277 through tightening of the permissive `STOPPED` gate, current-main
-   synchronization, and final exact-head CI. Preserve the route/ticking-envelope interpretation and
-   reject premature turtle nerfs or production chunk-loader claims.
-5. Track issue #267 as non-blocking Massif traversal evidence and issue #261 as non-blocking
-   biome/ambient-envelope refinement; Audio may consume a later accepted ambient envelope but does
-   not own it.
-6. Re-audit C11 / PR #233 and Portable Engine #240 only after their declared
-   synchronization/runtime prerequisites.
-7. Keep full #214 open for seeds/scales, hybrids/providers, regional contexts, and later
-   material/ecology/hydrology contexts after the built-in family tranche.
+1. Continue auditing SF-IMP-0082 / PR #273 through its explicit four-family #214 human review; its tested-head machine atlas is green, but the branch must synchronize to current main and machine evidence cannot waive the visual/flight gate.
+2. Include Music / Audio in every future repository reconstruction. Track MUS-0001 / PR #159 through current-main recomposition, MUSIC_STATE creation, executable source-integrity verification, Track-00 A/B listening, Track-06 exact-source recovery, PR-state reconciliation, and exact-head CI.
+3. Track AUTH-0091 / PR #279 through current-main recomposition and owner exact-head acceptance; preserve normalized opportunity as non-physical planning evidence.
+4. Track C18 / PR #277 as Audit-cleared on `f99219eb`; Content still owns acceptance/merge and later freight/turtle balance decisions. Reject any leap from this specimen to turtle nerfs, production chunk-loader policy, or exact internal chunk-boundary claims.
+5. Track issue #267 as non-blocking Massif traversal evidence and issue #261 as non-blocking biome/ambient-envelope refinement; Audio may consume a later accepted ambient envelope but does not own it.
+6. Re-audit C11 / PR #233 and Portable Engine #240 only after their declared synchronization/runtime prerequisites.
+7. Keep full #214 open for seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts after the built-in family tranche.
 8. Update this ledger at each material merge, contract change, new hazard, or handoff.
