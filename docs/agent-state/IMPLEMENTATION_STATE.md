@@ -100,6 +100,8 @@ The replacement implementation is additive and production-shaped:
 - the ecology world is persisted, then reopened in an actual client with only compiled terrain ownership restored; admission/population/biome mutation remains inert;
 - the existing current-capability cave/interior showcase is unchanged and retains its own acceptance job;
 - machine evidence requires land substrate, persistent logs/leaves, persistent non-tree surface plants, distinct forest/taiga native feature identity, zero pending catch-up/presentation obligations, and equivalent evidence after actual-client reopen.
+- first current-lifecycle execution on the original deterministic base seed `600080` compiled, admitted/warmed the full 19x19 footprint, then failed because the lower forest produced no meaningful native surface population; this is an invalid human-facing substrate choice, not an accepted result. Because native-surface adaptation intentionally inherits the underlying Minecraft top material, the fixture now uses Java 1.21 land-backed seed `1405130932537311389`, documented with broad plains around `(0,0)`, and retains detailed attempted/successful/feature-key diagnostics if native population still fails.
+- branch was resynchronized to current `main` `9e8f11604ba55adeb8f1e95b5260472b421adc5e` via clean merge integration before the next runtime gate.
 
 Automated acceptance is still pending on the current branch, and the human gate below remains mandatory. **SF-IMP-0080 is not accepted and must not merge before that gate.**
 
