@@ -208,16 +208,17 @@ The next strategy trigger is HS-03 once SF-IMP-0083 reaches a clean acceptance b
 
 ## NEXT AUDIT WORK
 
-1. Enforce [VALIDATION_POLICY.md](VALIDATION_POLICY.md) across active lanes: flag evidence saturation,
+1. Track issue #319 until accepted heavy showcase/performance proofs are split from broad routine PR fan-out without losing change-impact coverage.
+2. Enforce [VALIDATION_POLICY.md](VALIDATION_POLICY.md) across active lanes: flag evidence saturation,
    unnecessary expensive reruns after orthogonal main movement, and Cartesian heavy matrices that do
    not retire distinct risk.
-2. Track [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md). Notify Nicholas only when an OPEN
+3. Track [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md). Notify Nicholas only when an OPEN
    topic's trigger is met; persist decisions into the owning contracts/design state and mark them
    RESOLVED rather than repeatedly re-asking them.
-3. Re-check PR #285 for convergence under the narrowed ~7-representative full-runtime policy. Escalate
+4. Re-check PR #285 for convergence under the narrowed ~7-representative full-runtime policy. Escalate
    only if it returns to repeated expensive low-information work, branch churn, or new parameter
    heterogeneity that is not being bounded.
-4. Re-check PR #304 after synchronization; ordinary integration movement is not a health failure.
-5. Ensure obsolete PR #303 is closed or explicitly re-reserved under a future non-conflicting Authorship milestone only when justified.
-6. Recompose or close stale Audit PRs #298–#300; close superseded #309 after this current-main reconciliation is opened.
-7. Continue to distinguish intentionally dormant C11/cutoff/Bellanca work from active stuck sessions.
+5. Re-check PR #304 after synchronization; ordinary integration movement is not a health failure.
+6. Ensure obsolete PR #303 is closed or explicitly re-reserved under a future non-conflicting Authorship milestone only when justified.
+7. Recompose or close stale Audit PRs #298–#300; close superseded #309 after this current-main reconciliation is opened.
+8. Continue to distinguish intentionally dormant C11/cutoff/Bellanca work from active stuck sessions.
