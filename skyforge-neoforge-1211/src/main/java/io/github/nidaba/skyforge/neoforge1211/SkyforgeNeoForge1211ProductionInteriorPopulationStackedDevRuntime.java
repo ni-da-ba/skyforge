@@ -9,6 +9,7 @@ import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biomes;
@@ -23,6 +24,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.productionInteriorPopulationStacked";
+    static final String SHOWCASE_LEGIBLE_ECOLOGY_PROPERTY = "skyforge.dev.showcaseLegibleEcology";
 
     private static final int SURFACE_MAXIMUM_ATTACHMENT_DEPTH = 24;
     private static final int INTERIOR_MAXIMUM_ATTACHMENT_DEPTH = 0;
@@ -66,10 +68,14 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
 
         SkyIslandWorldVolume lower = FIXTURE.lower();
         SkyIslandWorldVolume upper = FIXTURE.upper();
+        boolean showcaseLegibleEcology = Boolean.getBoolean(SHOWCASE_LEGIBLE_ECOLOGY_PROPERTY);
         var resolver = (SkyforgeExactVolumeBiomeResolver) (volumeId, x, y, z) -> {
             if (!volumeId.equals(lower.id()) && !volumeId.equals(upper.id())) {
                 throw new IllegalArgumentException(
                         "SF-IMP-0069 stacked resolver received unknown volume " + volumeId.path());
+            }
+            if (showcaseLegibleEcology) {
+                return volumeId.equals(lower.id()) ? Biomes.FOREST : Biomes.TAIGA;
             }
             return x < 0 ? Biomes.RIVER : Biomes.DRIPSTONE_CAVES;
         };
@@ -239,6 +245,29 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                             + ", upperSurfaceGlowFeature=" + upperSurfaceGlowFeature);
         }
 
+        boolean showcaseLegibleEcology = Boolean.getBoolean(SHOWCASE_LEGIBLE_ECOLOGY_PROPERTY);
+        Ecology lowerEcology = showcaseLegibleEcology
+                ? scanShowcaseEcology(
+                        level,
+                        lower,
+                        SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(lower.id()))
+                : Ecology.notRequested();
+        Ecology upperEcology = showcaseLegibleEcology
+                ? scanShowcaseEcology(
+                        level,
+                        upper,
+                        SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(upper.id()))
+                : Ecology.notRequested();
+        if (showcaseLegibleEcology
+                && (lowerEcology == null
+                        || upperEcology == null
+                        || !lowerEcology.legible()
+                        || !upperEcology.legible())) {
+            throw new IllegalStateException(
+                    "SF-IMP-0080 showcase ecology is not visually discriminating: lower="
+                            + lowerEcology + ", upper=" + upperEcology);
+        }
+
         proofComplete = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
@@ -255,6 +284,9 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                         + ", upperGlowLichen=" + upperPlausibility.glowLichen()
                         + ", lowerMaxGlowLichenPerChunk=" + lowerPlausibility.maximumGlowLichenPerChunk()
                         + ", upperMaxGlowLichenPerChunk=" + upperPlausibility.maximumGlowLichenPerChunk()
+                        + ", showcaseLegibleEcology=" + showcaseLegibleEcology
+                        + ", lowerEcology=" + lowerEcology
+                        + ", upperEcology=" + upperEcology
                         + ", interiorShellPlausibility=true"
                         + ", independentLedgers=true, foreignFluidRejected=true, noReplay=true.");
 
@@ -298,7 +330,83 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
                         java.util.Map.entry("upperSurfaceGlowFeatureAttempts", upperSurfaceGlowFeature.attempts()),
                         java.util.Map.entry("lowerSurfaceGlowFeatureSuccesses", lowerSurfaceGlowFeature.successes()),
                         java.util.Map.entry("upperSurfaceGlowFeatureSuccesses", upperSurfaceGlowFeature.successes()),
+                        java.util.Map.entry("showcaseLegibleEcology", showcaseLegibleEcology),
+                        java.util.Map.entry("showcaseLowerBiome", showcaseLegibleEcology ? "minecraft:forest" : "disabled"),
+                        java.util.Map.entry("showcaseUpperBiome", showcaseLegibleEcology ? "minecraft:taiga" : "disabled"),
+                        java.util.Map.entry("showcaseLowerGrass", lowerEcology.grassBlocks()),
+                        java.util.Map.entry("showcaseUpperGrass", upperEcology.grassBlocks()),
+                        java.util.Map.entry("showcaseLowerSoil", lowerEcology.soilBlocks()),
+                        java.util.Map.entry("showcaseUpperSoil", upperEcology.soilBlocks()),
+                        java.util.Map.entry("showcaseLowerLogs", lowerEcology.logBlocks()),
+                        java.util.Map.entry("showcaseUpperLogs", upperEcology.logBlocks()),
+                        java.util.Map.entry("showcaseLowerLeaves", lowerEcology.leafBlocks()),
+                        java.util.Map.entry("showcaseUpperLeaves", upperEcology.leafBlocks()),
+                        java.util.Map.entry("showcaseLowerPlants", lowerEcology.plantBlocks()),
+                        java.util.Map.entry("showcaseUpperPlants", upperEcology.plantBlocks()),
                         java.util.Map.entry("interiorShellPlausibility", true)));
+    }
+
+    private static Ecology scanShowcaseEcology(
+            ServerLevel level,
+            SkyIslandWorldVolume volume,
+            Set<Long> requiredChunks) {
+        int minimumY = Math.max(
+                level.getMinBuildHeight(),
+                (int) Math.floor(volume.bounds().minimumY()));
+        int maximumY = Math.min(
+                level.getMaxBuildHeight() - 1,
+                (int) Math.ceil(volume.bounds().maximumY()) + SURFACE_MAXIMUM_ATTACHMENT_DEPTH);
+        int grassBlocks = 0;
+        int soilBlocks = 0;
+        int logBlocks = 0;
+        int leafBlocks = 0;
+        int plantBlocks = 0;
+        BlockPos.MutableBlockPos position = new BlockPos.MutableBlockPos();
+
+        for (long chunkKey : requiredChunks) {
+            LevelChunk chunk = level.getChunkSource().getChunkNow(
+                    ChunkPos.getX(chunkKey),
+                    ChunkPos.getZ(chunkKey));
+            if (chunk == null) {
+                return null;
+            }
+            for (int y = minimumY; y <= maximumY; y++) {
+                for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
+                    for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
+                        position.set(x, y, z);
+                        var state = chunk.getBlockState(position);
+                        if (state.is(Blocks.GRASS_BLOCK)) {
+                            grassBlocks++;
+                        }
+                        if (state.is(Blocks.DIRT)
+                                || state.is(Blocks.GRASS_BLOCK)
+                                || state.is(Blocks.PODZOL)
+                                || state.is(Blocks.COARSE_DIRT)) {
+                            soilBlocks++;
+                        }
+                        if (state.is(BlockTags.LOGS)) {
+                            logBlocks++;
+                        }
+                        if (state.is(BlockTags.LEAVES)) {
+                            leafBlocks++;
+                        }
+                        if (isShowcaseSurfacePlant(state)) {
+                            plantBlocks++;
+                        }
+                    }
+                }
+            }
+        }
+        return new Ecology(grassBlocks, soilBlocks, logBlocks, leafBlocks, plantBlocks);
+    }
+
+    private static boolean isShowcaseSurfacePlant(net.minecraft.world.level.block.state.BlockState state) {
+        return state.is(BlockTags.FLOWERS)
+                || state.is(Blocks.SHORT_GRASS)
+                || state.is(Blocks.TALL_GRASS)
+                || state.is(Blocks.FERN)
+                || state.is(Blocks.LARGE_FERN)
+                || state.is(Blocks.SWEET_BERRY_BUSH);
     }
 
     private static FeatureEvidence surfaceGlowLichenFeatureEvidence(
@@ -512,6 +620,25 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime {
     }
 
     private record TrackedSample(BlockPos position, net.minecraft.world.level.material.FluidState state) {}
+
+    private record Ecology(
+            int grassBlocks,
+            int soilBlocks,
+            int logBlocks,
+            int leafBlocks,
+            int plantBlocks) {
+        private static Ecology notRequested() {
+            return new Ecology(0, 0, 0, 0, 0);
+        }
+
+        private boolean legible() {
+            return grassBlocks > 0
+                    && soilBlocks > 0
+                    && logBlocks > 0
+                    && leafBlocks > 0
+                    && plantBlocks > 0;
+        }
+    }
 
     private record FeatureEvidence(int attempts, int successes) {
         private FeatureEvidence {
