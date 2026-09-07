@@ -428,7 +428,7 @@ public final class AuthorshipRegionalIsolationEvidenceCorpusCli {
             ProviderMorphologySpec morphology) {
         List<SkyIslandMorphologySpec> morphologies =
                 java.util.stream.IntStream.range(0, memberCount)
-                        .mapToObj(index -> morphology)
+                        .mapToObj(index -> (SkyIslandMorphologySpec) morphology)
                         .toList();
         SkyIslandGroupTemplate template =
                 new SkyIslandGroupTemplate(
