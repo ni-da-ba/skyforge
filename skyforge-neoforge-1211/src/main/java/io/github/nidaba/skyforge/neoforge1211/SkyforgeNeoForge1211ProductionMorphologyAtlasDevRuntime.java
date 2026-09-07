@@ -230,6 +230,7 @@ final class SkyforgeNeoForge1211ProductionMorphologyAtlasDevRuntime {
         int heightMismatches = 0;
         int landTopBlocks = 0;
         int grassTopBlocks = 0;
+        String firstMissingBoundary = "none";
         int minimumSurfaceY = Integer.MAX_VALUE;
         int maximumSurfaceY = Integer.MIN_VALUE;
         long digest = 0xcbf29ce484222325L;
@@ -273,6 +274,19 @@ final class SkyforgeNeoForge1211ProductionMorphologyAtlasDevRuntime {
                 BlockState underside = level.getBlockState(new BlockPos(x, range.minimumY(), z));
                 BlockState below = level.getBlockState(new BlockPos(x, range.minimumY() - 1, z));
 
+                if ((top.isAir() || underside.isAir()) && "none".equals(firstMissingBoundary)) {
+                    var topKey = BuiltInRegistries.BLOCK.getKey(top.getBlock());
+                    var undersideKey = BuiltInRegistries.BLOCK.getKey(underside.getBlock());
+                    firstMissingBoundary = "x=" + x
+                            + ",z=" + z
+                            + ",minY=" + range.minimumY()
+                            + ",maxY=" + range.maximumY()
+                            + ",thickness=" + (range.maximumY() - range.minimumY() + 1)
+                            + ",firstFreeY=" + firstFreeY
+                            + ",top=" + topKey
+                            + ",underside=" + undersideKey;
+                }
+
                 if (!top.isAir()) {
                     storedTopBlocks++;
                 }
@@ -313,6 +327,7 @@ final class SkyforgeNeoForge1211ProductionMorphologyAtlasDevRuntime {
                 heightMismatches,
                 landTopBlocks,
                 grassTopBlocks,
+                firstMissingBoundary,
                 minimumSurfaceY,
                 maximumSurfaceY,
                 digest));
@@ -345,6 +360,7 @@ final class SkyforgeNeoForge1211ProductionMorphologyAtlasDevRuntime {
             int heightMismatches,
             int landTopBlocks,
             int grassTopBlocks,
+            String firstMissingBoundary,
             int minimumSurfaceY,
             int maximumSurfaceY,
             long digest) {
@@ -359,10 +375,12 @@ final class SkyforgeNeoForge1211ProductionMorphologyAtlasDevRuntime {
                     || grassTopBlocks < 0) {
                 throw new IllegalArgumentException("negative SF-IMP-0082 surface evidence");
             }
+            Objects.requireNonNull(firstMissingBoundary, "firstMissingBoundary");
         }
 
         static SurfaceEvidence empty() {
-            return new SurfaceEvidence(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xcbf29ce484222325L);
+            return new SurfaceEvidence(
+                    0, 0, 0, 0, 0, 0, 0, 0, "none", 0, 0, 0xcbf29ce484222325L);
         }
 
         boolean valid() {
