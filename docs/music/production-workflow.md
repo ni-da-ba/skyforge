@@ -264,3 +264,33 @@ Track 06 corrected PERC mapping:
 - MIDI 53 — Suspended Cymbal.
 
 The previous 36/38/40/41 mapping was one octave too low and could produce complete silence on the Untuned Percussion preset.
+
+
+## Canonical-source write verification
+
+Canonical music-source persistence is now a gated operation.
+
+Before accepting any frozen MIDI repository write:
+
+- verify the source file SHA-256 before compression;
+- gzip the exact source bytes, without substituting another cue artifact;
+- decompress the repository artifact after write and re-check the source SHA-256;
+- verify conductor tempo and meter;
+- verify the 19-track schema and track-name order;
+- compare note-event counts for any lane intentionally changed;
+- for BBCSO PERC/TP lanes, record the exact patch plus absolute MIDI note numbers;
+- verify all non-target tracks are byte/structure-equivalent when the change is supposed to be surgical.
+
+A source-path match or filename is never sufficient evidence of identity.
+
+### Instrument-alignment gate
+
+For any cue using polymorphic percussion lanes, acceptance requires an explicit cue manifest stating:
+
+- DAW lane;
+- BBCSO preset;
+- intended instrument role;
+- absolute MIDI note number;
+- event count when practical.
+
+Do not infer BBCSO percussion notes from General MIDI conventions or DAW octave labels.
