@@ -121,37 +121,46 @@ Leading B0 arrangement:
 
 The craft reads as a single-engine aircraft even though the Create powerplant uses two Portable Engine blocks internally.
 
-### Propeller test ladder
+### Propeller governor and test ladder
 
-Further source inspection shows the Simulated Analog Transmission uses discrete redstone-derived ratios rather than an arbitrary continuous output.
+A canonical Bellanca need not use pre-Brass improvised ratio gearing. The selected Propeller Bearing itself requires a Brass Casing, so the intact GB-1A belongs after Brass/Precision Mechanism access.
 
-With a simple 32 -> 64 RPM first gear stage, representative attainable outputs include approximately:
+Use Create's **Rotation Speed Controller** as the leading propeller governor.
+
+Current Create source confirms:
+- target speed is directly configurable from `-maxRotationSpeed` to `+maxRotationSpeed`;
+- the controller is a Brass-era block (Brass Casing + Precision Mechanism);
+- Create already exposes `setTargetSpeed(int)` and `getTargetSpeed()` through its CC:Tweaked peripheral.
+
+B0 should therefore test a deliberate continuous governor ladder:
 
 ~~~text
-128.0 RPM
-146.3 RPM
-170.7 RPM
-204.8 RPM
-256.0 RPM
+128 RPM
+160 RPM
+192 RPM
+224 RPM
+256 RPM boundary
 ~~~
 
-For an 8-sail-power Propeller Bearing, current Aeronautics stress arithmetic gives approximately:
+For an 8-sail-power Propeller Bearing, current Aeronautics/Create stress arithmetic gives approximately:
 
 ~~~text
-128.0 RPM -> 2048 SU
-146.3 RPM -> 2341 SU
-170.7 RPM -> 2731 SU
-204.8 RPM -> 3277 SU
-256.0 RPM -> 4096 SU
+128 RPM -> 2048 SU
+160 RPM -> 2560 SU
+192 RPM -> 3072 SU
+224 RPM -> 3584 SU
+256 RPM -> 4096 SU
 ~~~
 
 Two ordinary Portable Engines provide a theoretical combined 4096 SU at their native 32 RPM under current Create stress scaling.
 
 Therefore:
-- 256 RPM is a boundary/full-capacity point and should not be assumed as normal operation;
-- ~170.7 RPM is a strong first cruise candidate;
-- ~204.8 RPM is a strong first takeoff/climb candidate;
-- actual useful settings remain subject to flight measurement.
+- 256 RPM consumes the full theoretical two-engine stress budget and is a boundary test, not a normal setting;
+- 160–192 RPM is the first cruise-search region;
+- 192–224 RPM is the first climb/takeoff-search region;
+- exact operating points must be selected from measured aircraft performance rather than paper arithmetic.
+
+The required large cogwheel / controller packaging must be included in the measured mass/CG budget.
 
 Record at each point:
 
@@ -161,6 +170,8 @@ Record at each point:
 - top/equilibrium speed;
 - handling;
 - fuel consumption.
+
+If the Rotation Speed Controller proves incompatible with a live assembled Sable sublevel, fall back to ordinary Create/Simulated discrete gearing; do not write a bespoke governor before that failure is demonstrated.
 
 ## Engine cutoff / powered soaring
 
@@ -278,7 +289,7 @@ Candidate prototype input:
 
 - Linked Typewriter / Redstone Link keyed control;
 - Steering Wheel for one suitable continuous axis where useful;
-- Throttle Lever / Analog Transmission for delivered propeller speed.
+- Rotation Speed Controller as the leading propeller governor; Throttle Lever/redstone may provide manual command translation where useful.
 
 Required control channels:
 
@@ -372,7 +383,7 @@ Do not solve a badly overweight craft by reflexively adding more engines/lift.
 
 ### C — propulsion
 
-- 128/146.3/170.7/204.8/256 RPM;
+- 128/160/192/224/256 RPM governor ladder;
 - stress;
 - acceleration;
 - equilibrium speed;
