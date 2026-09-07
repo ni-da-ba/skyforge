@@ -289,6 +289,18 @@ Machine assembly/physics first; human handling, landing, rough-field usefulness,
 
 Human play must verify discoverability and non-surprising redstone shutdown behavior after missing assembled/persistence machine gates close.
 
+## SUPERVISORY WATCH POLICY
+
+The project owner should not need to manually check whether producer agents are still moving. Audit owns the recurring repository-visible health check and should remain quiet unless intervention is required.
+
+Notification policy:
+
+- **No notification** for healthy convergence, ordinary CI latency, or intentional dormant/reserved work.
+- **Repository intervention without owner interruption** for stale-state comments, synchronization requests, targeted profiling requests, bounded recovery guidance, and Audit-ledger updates.
+- **Owner escalation** only for human Minecraft/visual/listening gates, high-level orchestration choices, repeated unchanged loop behavior after Audit intervention, or a session that must be abandoned/restarted because it is no longer converging.
+
+Current scheduled watchdog cadence: hourly condition-based checks. This schedule is an operational convenience, not an acceptance contract.
+
 ## AGENT / EXECUTION HEALTH WATCH
 
 Snapshot at AUDIT-0008 commencement from `main@5ababf52`. Re-evaluate from repository evidence rather than carrying these labels forward mechanically.
