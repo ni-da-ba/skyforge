@@ -1242,6 +1242,57 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0081 first issue #214 Minecraft carrier for exact AUTH-0083 member
+        // builtin-massif-small-seed-skyforge. Preparation keeps the production morphology intent
+        // exact while translating only suspension Y, then persists it for an ownership-only reopen.
+        create("productionMorphologyMassifPrepare") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("morphology-massif")
+            systemProperty("skyforge.dev.productionMorphologyMassif", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0081-production-morphology-massif")
+            systemProperty("skyforge.dev.acceptanceRadius", "12")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/production-morphology-massif/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionMorphologyMassifClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("morphology-massif")
+            systemProperty("skyforge.dev.productionMorphologyMassifViewer", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionMorphologyMassifViewerAcceptanceClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("morphology-massif")
+            systemProperty("skyforge.dev.productionMorphologyMassifViewer", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0081-production-morphology-massif-viewer")
+            systemProperty("skyforge.dev.acceptanceRadius", "12")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/production-morphology-massif/viewer.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -1614,6 +1665,7 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
         // C16: exact accepted computing stack, but the specimen exercises only real CC wireless
         // modem behavior. Skyforge adds no network implementation.
         create("waveC16WirelessEnvelopeServer") {
@@ -1855,6 +1907,7 @@ tasks.named("runWaveC15PortalLinkingAcceptanceServer").configure {
         }
     }
 }
+
 
 val waveC16WirelessServerProperties = """
     level-name=wave-c16-wireless
@@ -4845,4 +4898,165 @@ tasks.register("launchShowcaseEcology") {
     group = "application"
     description = "Rebuild the dedicated forest/taiga ecology specimen, then launch Minecraft into it for human review."
     dependsOn("runShowcaseEcologyPrepare", "runShowcaseEcologyClient")
+}
+
+
+val skyforgeProductionMorphologyMassifResultDirectory =
+    layout.buildDirectory.dir("acceptance/production-morphology-massif")
+val skyforgeProductionMorphologyMassifServerProperties = """
+    level-name=morphology-massif
+    level-seed=1405130932537311389
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=spectator
+    difficulty=peaceful
+    allow-flight=true
+    view-distance=12
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSkyforgeProductionMorphologyMassifDirectory() {
+    val directory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(skyforgeProductionMorphologyMassifServerProperties)
+}
+
+fun requireSkyforgeProductionMorphologyMassifPreparationPass() {
+    val file = skyforgeProductionMorphologyMassifResultDirectory.get().file("prepare.properties").asFile
+    check(file.isFile) { "Skyforge production morphology preparation result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    val claimed = properties.getProperty("sampledClaims")?.toIntOrNull() ?: 0
+    check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("memberId") == "builtin-massif-small-seed-skyforge"
+            && properties.getProperty("state") == "ADMITTED"
+            && properties.getProperty("observed") == properties.getProperty("required")
+            && properties.getProperty("pendingCatchup") == "0"
+            && properties.getProperty("minimumY") == "96"
+            && properties.getProperty("maximumY").toInt() < 320
+            && claimed > 0
+            && properties.getProperty("storedTop").toInt() == claimed
+            && properties.getProperty("airAbove").toInt() == claimed
+            && properties.getProperty("storedUnderside").toInt() == claimed
+            && properties.getProperty("airBelow").toInt() == claimed
+            && properties.getProperty("heightMismatches") == "0"
+            && properties.getProperty("landTop").toInt() > 0
+            && properties.getProperty("grassTop").toInt() > 0
+            && !properties.getProperty("surfaceDigest").isNullOrBlank()) {
+        val detail = properties.getProperty("failure") ?: properties.toString()
+        "Skyforge production morphology preparation did not PASS: $detail"
+    }
+}
+
+fun requireSkyforgeProductionMorphologyMassifViewerPass() {
+    val prepareFile = skyforgeProductionMorphologyMassifResultDirectory.get().file("prepare.properties").asFile
+    val viewerFile = skyforgeProductionMorphologyMassifResultDirectory.get().file("viewer.properties").asFile
+    check(prepareFile.isFile) { "Skyforge production morphology preparation evidence missing: $prepareFile" }
+    check(viewerFile.isFile) { "Skyforge production morphology viewer result missing: $viewerFile" }
+    val prepare = Properties()
+    val viewer = Properties()
+    prepareFile.inputStream().use(prepare::load)
+    viewerFile.inputStream().use(viewer::load)
+    val claimed = viewer.getProperty("viewerSampledClaims")?.toIntOrNull() ?: 0
+    check(viewer.getProperty("status") == "PASS"
+            && viewer.getProperty("viewerMemberId") == "builtin-massif-small-seed-skyforge"
+            && viewer.getProperty("viewerTerrainOwnershipRestored") == "true"
+            && viewer.getProperty("viewerMutationBindingsInert") == "true"
+            && viewer.getProperty("viewerClientPass") == "true"
+            && claimed > 0
+            && viewer.getProperty("viewerStoredTop").toInt() == claimed
+            && viewer.getProperty("viewerAirAbove").toInt() == claimed
+            && viewer.getProperty("viewerStoredUnderside").toInt() == claimed
+            && viewer.getProperty("viewerAirBelow").toInt() == claimed
+            && viewer.getProperty("viewerHeightMismatches") == "0"
+            && viewer.getProperty("viewerLandTop").toInt() > 0
+            && viewer.getProperty("viewerGrassTop").toInt() > 0
+            && viewer.getProperty("viewerSurfaceDigest") == prepare.getProperty("surfaceDigest")) {
+        val detail = viewer.getProperty("failure") ?: viewer.toString()
+        "Skyforge production morphology viewer did not PASS: $detail"
+    }
+}
+
+tasks.named("runProductionMorphologyMassifPrepare").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask and production-morphology filesystem orchestration are runtime-bound.",
+    )
+    doFirst {
+        delete(skyforgeProductionMorphologyMassifResultDirectory)
+        prepareSkyforgeProductionMorphologyMassifDirectory()
+    }
+    doLast {
+        requireSkyforgeProductionMorphologyMassifPreparationPass()
+    }
+}
+
+tasks.named("runProductionMorphologyMassifClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is interactive and intentionally not configuration-cache serialized.",
+    )
+    mustRunAfter("runProductionMorphologyMassifPrepare")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+        check(directory.resolve("saves/morphology-massif/level.dat").isFile) {
+            "Skyforge production morphology world is missing; prepare it first or use launchProductionMorphologyMassif."
+        }
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.named("runProductionMorphologyMassifViewerAcceptanceClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is an actual quick-play morphology acceptance process.",
+    )
+    mustRunAfter("runProductionMorphologyMassifPrepare")
+    doFirst {
+        requireSkyforgeProductionMorphologyMassifPreparationPass()
+        val directory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+        check(directory.resolve("saves/morphology-massif/level.dat").isFile) {
+            "Skyforge production morphology world is missing; prepare it before viewer acceptance."
+        }
+        delete(skyforgeProductionMorphologyMassifResultDirectory.get().file("viewer.properties").asFile)
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.register("productionMorphologyMassifPrepareVerify") {
+    group = "verification"
+    description = "Verify the first exact AUTH-0083 production Massif Minecraft carrier."
+    dependsOn("runProductionMorphologyMassifPrepare")
+    doLast {
+        requireSkyforgeProductionMorphologyMassifPreparationPass()
+        println(
+            "SF-IMP-0081 PRODUCTION MORPHOLOGY MASSIF PREPARATION PASS: exact AUTH-0083 member persisted.",
+        )
+    }
+}
+
+tasks.register("productionMorphologyMassifViewerVerify") {
+    group = "verification"
+    description = "Reopen the first production Massif in an actual client and verify persisted geometry."
+    dependsOn("runProductionMorphologyMassifViewerAcceptanceClient")
+    doLast {
+        requireSkyforgeProductionMorphologyMassifViewerPass()
+        println(
+            "SF-IMP-0081 PRODUCTION MORPHOLOGY MASSIF VIEWER PASS: sampled top/underside geometry survived reopen.",
+        )
+    }
+}
+
+tasks.register("launchProductionMorphologyMassif") {
+    group = "application"
+    description = "Rebuild the first AUTH-0083 production Massif carrier, then launch Minecraft for #214 review."
+    dependsOn("runProductionMorphologyMassifPrepare", "runProductionMorphologyMassifClient")
 }
