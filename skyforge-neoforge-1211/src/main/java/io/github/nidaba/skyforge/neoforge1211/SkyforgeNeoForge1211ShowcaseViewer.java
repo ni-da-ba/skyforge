@@ -57,7 +57,7 @@ final class SkyforgeNeoForge1211ShowcaseViewer {
             135.0f,
             18.0f,
             GameType.CREATIVE,
-            "Lower island surface: native surface adaptation and production ecology.");
+            "Lower forest surface: grass/soil plus persistent native trees and plants.");
     private static final Stop UPPER_SURFACE = new Stop(
             "upper_surface",
             36.0,
@@ -66,7 +66,7 @@ final class SkyforgeNeoForge1211ShowcaseViewer {
             -135.0f,
             18.0f,
             GameType.CREATIVE,
-            "Upper island surface: independently admitted/populated stacked volume.");
+            "Upper taiga surface: independent grass/soil, trees and plants in the stacked volume.");
     private static final Stop LOWER_CAVES = new Stop(
             "lower_caves",
             0.0,
@@ -93,7 +93,7 @@ final class SkyforgeNeoForge1211ShowcaseViewer {
             90.0f,
             24.0f,
             GameType.SPECTATOR,
-            "West half of the exact-volume biome split (minecraft:river).");
+            "Legacy west approach: upper taiga ecology from the human-facing showcase configuration.");
     private static final Stop EAST_BIOME = new Stop(
             "east_biome",
             52.0,
@@ -102,7 +102,7 @@ final class SkyforgeNeoForge1211ShowcaseViewer {
             -90.0f,
             24.0f,
             GameType.SPECTATOR,
-            "East half of the exact-volume biome split (minecraft:dripstone_caves).");
+            "Legacy east approach: upper taiga ecology from the human-facing showcase configuration.");
 
     private SkyforgeNeoForge1211ShowcaseViewer() {}
 
@@ -277,17 +277,17 @@ final class SkyforgeNeoForge1211ShowcaseViewer {
         player.sendSystemMessage(Component.literal(
                 "  /skyforge_showcase panorama      - stacked-volume establishing view"));
         player.sendSystemMessage(Component.literal(
-                "  /skyforge_showcase lower_surface - lower production surface/ecology"));
+                "  /skyforge_showcase lower_surface - lower forest ecology"));
         player.sendSystemMessage(Component.literal(
-                "  /skyforge_showcase upper_surface - upper production surface/ecology"));
+                "  /skyforge_showcase upper_surface - upper taiga ecology"));
         player.sendSystemMessage(Component.literal(
                 "  /skyforge_showcase lower_caves   - lower composed caves/interior"));
         player.sendSystemMessage(Component.literal(
                 "  /skyforge_showcase upper_caves   - upper composed caves/interior"));
         player.sendSystemMessage(Component.literal(
-                "  /skyforge_showcase west_biome    - river side of exact-volume biome split"));
+                "  /skyforge_showcase west_biome    - legacy west ecology approach"));
         player.sendSystemMessage(Component.literal(
-                "  /skyforge_showcase east_biome    - dripstone-caves side of biome split"));
+                "  /skyforge_showcase east_biome    - legacy east ecology approach"));
         return 1;
     }
 
