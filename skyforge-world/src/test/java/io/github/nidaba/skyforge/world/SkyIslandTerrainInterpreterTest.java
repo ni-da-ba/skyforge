@@ -36,7 +36,7 @@ final class SkyIslandTerrainInterpreterTest {
                     assertEquals(
                             interpreter.classify(x, y, z),
                             column.classify(y),
-                            () -> "column/direct mismatch at " + x + "," + y + "," + z);
+                            "column/direct mismatch at " + x + "," + y + "," + z);
                 }
             }
         }

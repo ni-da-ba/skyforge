@@ -44,8 +44,10 @@ final class SkyforgePhysicalVolumeCatchupService {
      *
      * <p>Only one exact volume is completed per call even when several vertically stacked volumes
      * share the chunk. This makes the bounded pump genuinely preemptible between independent
-     * volume writes. A failed realization at the first loaded pending key remains a deterministic
-     * barrier for this tick, preserving the canonical X/Z scheduling contract.
+     * volume writes. Native surface population is replayed only after the chunk has no remaining
+     * currently eligible terrain catch-up, preserving the historical terrain-before-population
+     * ordering across stacked volumes. A failed realization at the first loaded pending key remains
+     * a deterministic barrier for this tick, preserving the canonical X/Z scheduling contract.
      */
     private static boolean serviceOneTerrainCatchupChunk(ServerLevel level) {
         var chunkSource = level.getChunkSource();
@@ -68,7 +70,9 @@ final class SkyforgePhysicalVolumeCatchupService {
             if (completed <= 0) {
                 return false;
             }
-            SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
+            if (SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
+                SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
+            }
             return true;
         }
         return false;
