@@ -1,0 +1,42 @@
+{
+  "cue": "Track 02 — The Lord of Empty Miles",
+  "status": "frozen; BBCSO percussion repair accepted",
+  "tempo_bpm": 132,
+  "meter": "4/4",
+  "length_bars": 92,
+  "center": "E minor / altered-E",
+  "repository_source": "assets/music/source/frozen/track-02-the-lord-of-empty-miles-d4-2.mid.gz",
+  "source_provenance": {
+    "user_export_before_repair_sha256": "55994f79650df7d4dbda39f78d13df52a4dc01490164469416c4896716e0ef0b",
+    "percussion_repaired_audition_midi_sha256": "500763a02801c3cb61f45fba7505e8d26d6eb0087318a92516db586756f6daf2",
+    "canonical_persisted_midi_sha256": "79be46fd4ca2d712a727a571265d8521740148a550e05c04288cd14d5b9bf50d",
+    "canonical_gzip_sha256": "c705bf3a3e82a5e45002da04a7bdf0711bd02eeca0ccd7853b4d2fa5d9411826"
+  },
+  "conductor": {
+    "tempo_bpm": 132,
+    "meter": "4/4",
+    "key_signature_meta": "Em"
+  },
+  "track_12_percussion": {
+    "bbcso_preset": "Percussion -> Untuned Percussion",
+    "absolute_midi_map": [
+      {"note": 48, "instrument": "Bass Drum", "attacks": 97},
+      {"note": 50, "instrument": "Tenor Drum", "attacks": 26},
+      {"note": 71, "instrument": "Piatti", "attacks": 14}
+    ]
+  },
+  "track_13_tuned_percussion": {
+    "used": false
+  },
+  "accepted_render": {
+    "uploaded_name": "TLoEM_Fixed.wav",
+    "sha256": "d80a8e340f10f7bf046f8279ff061d225fd597f8e80c2521c86cc8da430f351c",
+    "sample_rate_hz": 44100,
+    "channels": 2,
+    "duration_seconds": 169.99984126984128,
+    "sample_peak_dbfs": -7.584657425949196,
+    "expected_92_bar_endpoint_seconds_at_132_bpm": 167.27272727272728,
+    "tail_seconds": 2.727113997114003
+  },
+  "verification_rule": "Decompress repository source and compare canonical_persisted_midi_sha256 before use."
+}

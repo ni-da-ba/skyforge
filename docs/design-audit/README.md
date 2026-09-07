@@ -123,6 +123,8 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Wave C5 soaring fauna prototype v0.1](wave-c5-soaring-fauna-prototype-v0.1.md)
 - [Wave C6 hawk thermal compatibility v0.1](wave-c6-hawk-thermal-compatibility-v0.1.md)
 - [Wave C7 Reliable Gliders shared lift v0.1](wave-c7-reliable-gliders-shared-lift-v0.1.md)
+- [Wave C18 stock turtle void-freight envelope](wave-c18-turtle-freight.md)
+- [Wave C19 stock mining-turtle extraction envelope](wave-c19-turtle-mining.md)
 - [Create: Big Cannons industrial integration audit v0.1](create-big-cannons-industrial-integration-audit-v0.1.md)
 - [Create: Big Cannons material access closure v0.1](create-big-cannons-material-access-closure-v0.1.md)
 - [Overworld realization audit v0.1](overworld-realization-audit-v0.1.md)
