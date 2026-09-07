@@ -131,6 +131,8 @@ boundaryError=NO_TICK_PROGRESS
 
 This proves measured route/ticking-envelope dependence, not an exact internal chunk-boundary error and not a production chunk-loader policy. The freight turtle moved 128 blocks with exact fuel delta and delivered 960 items; the unforced-route turtle stalled after 17 successful moves with exact fuel delta.
 
+One Audit gate-definition blocker remains on the repaired runtime: the explicit `STOPPED` branch currently accepts any stop reason after 1–47 successful moves. An unrelated obstruction/error could therefore satisfy the route-envelope gate. The observed `STALLED / NO_TICK_PROGRESS` specimen is valid evidence; before C18 acceptance, either constrain `STOPPED` to the intended loading/ticking boundary or independently prove the route unobstructed and classify only the intended stop.
+
 Dedicated C18, showcase persistence, and performance gates are green on the repaired head; repository CI was still running at this Audit boundary. In addition, current main has advanced through AUTH-0090 runtime/state, so final C18 acceptance still requires synchronization and fresh exact-head evidence. Aircraft-vs-turtle economics, dedicated chunk-loader progression, mining/farming throughput, Ender-storage combinations, and any nerf remain separate Content decisions.
 
 ### AUTH-0091 / PR #279 — freshwater habitat opportunity — in progress / unaccepted
@@ -210,7 +212,7 @@ Resolved hazards include the C11/C13 identifier collision, duplicate live-state 
 
 1. Continue auditing SF-IMP-0082 / PR #273 through its exact-head four-family prepare/reopen matrix and human #214 review; do not infer family acceptance from machine evidence alone.
 2. Track AUTH-0091 / PR #279 through owner exact-head acceptance; preserve normalized retained-freshwater opportunity as planning evidence rather than physical water depth/volume, fauna, agriculture/resource, or backend authority.
-3. Track C18 / PR #277 through current-main synchronization and final exact-head CI. Preserve the revised route/ticking-envelope interpretation; reject any leap to a production chunk-loader policy, exact internal chunk-boundary claim, or premature turtle nerf.
+3. Track C18 / PR #277 through tightening of the permissive `STOPPED` gate, current-main synchronization, and final exact-head CI. Preserve the revised route/ticking-envelope interpretation; reject unrelated stop reasons, any leap to a production chunk-loader policy, exact internal chunk-boundary claim, or premature turtle nerf.
 4. Track issue #267 as non-blocking Massif traversal evidence and issue #261 as non-blocking biome-envelope refinement.
 5. Re-audit C11 / PR #233 and Portable Engine #240 only after their declared synchronization/runtime prerequisites.
 6. Keep full #214 open for seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts after the built-in family tranche.
