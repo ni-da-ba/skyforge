@@ -71,5 +71,6 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeWaveC17GpsInfrastructureAcceptance.installFromSystemProperty();
         SkyforgeWaveC18TurtleFreightAcceptance.installFromSystemProperty();
         SkyforgeWaveC19TurtleMiningAcceptance.installFromSystemProperty();
+        SkyforgeWaveC21CreateResourceAuthorityAcceptance.installFromSystemProperty();
     }
 }
