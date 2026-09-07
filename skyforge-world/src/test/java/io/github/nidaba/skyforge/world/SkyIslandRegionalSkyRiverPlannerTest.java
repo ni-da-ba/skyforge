@@ -28,9 +28,6 @@ import org.junit.jupiter.api.Test;
 
 final class SkyIslandRegionalSkyRiverPlannerTest {
     private static final long AUTHORED_WORLD = 0x4155544830303934L;
-    private static final SkyIslandWorldVerticalReservation ADEQUATE_VERTICAL =
-            new SkyIslandWorldVerticalReservation(520.0, 320.0);
-
     @Test
     void singletonRegionDoesNotFabricateCrossIslandRiver() {
         Fixture singleton = fixture(94001L, 1, 0.0, 0.0, 0.0, 1.0);
@@ -278,8 +275,8 @@ final class SkyIslandRegionalSkyRiverPlannerTest {
                                 original,
                                 synthesis,
                                 new SkyIslandWorldVerticalReservation(
-                                        ADEQUATE_VERTICAL.downward() * scale,
-                                        ADEQUATE_VERTICAL.upward() * scale),
+                                        520.0 * scale,
+                                        320.0 * scale),
                                 SkyIslandSupportReplanMargin.ZERO);
         SkyIslandSupportConvergenceReport convergence =
                 new SkyIslandSupportConvergenceExecutor().executeOnce(proposal, registry);
