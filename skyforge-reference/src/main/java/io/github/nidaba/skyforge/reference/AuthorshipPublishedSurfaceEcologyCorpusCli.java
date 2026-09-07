@@ -352,9 +352,7 @@ public final class AuthorshipPublishedSurfaceEcologyCorpusCli {
         SkyIslandWorldVolume selectedVolume = publication.catalog().volumes().getFirst();
         SkyIslandAuthoredRealizationAssociation selected =
                 SkyIslandAuthoredRealizationAssociation.of(
-                        authored(
-                                selectedIslandKey,
-                                selectedVolume.compiledVolume().descriptor().nominalRadius()),
+                        authored(selectedIslandKey, selectedVolume),
                         selectedVolume);
 
         ArrayList<SkyIslandAuthoredRealizationAssociation> associations = new ArrayList<>();
@@ -364,9 +362,7 @@ public final class AuthorshipPublishedSurfaceEcologyCorpusCli {
                 publication.catalog().volumes().subList(
                         1, publication.catalog().volumes().size())) {
             associations.add(SkyIslandAuthoredRealizationAssociation.of(
-                    authored(
-                            selectedIslandKey + 100_000L + ordinal,
-                            other.compiledVolume().descriptor().nominalRadius()),
+                    authored(selectedIslandKey + 100_000L + ordinal, other),
                     other));
             ordinal++;
         }
@@ -390,16 +386,22 @@ public final class AuthorshipPublishedSurfaceEcologyCorpusCli {
                 realized.centerZ() + local.z());
     }
 
-    private static SkyIslandDescriptor authored(long islandKey, double radius) {
+    private static SkyIslandDescriptor authored(
+            long islandKey,
+            SkyIslandWorldVolume volume) {
         SkyIslandDescriptor base =
                 io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator.derive(
                         SkyIslandIdentity.of(AUTHORED_WORLD, 8L, 88L, islandKey));
+        var realized = volume.compiledVolume().descriptor();
+        var morphology = realized.hasSemanticMorphologyFamily()
+                ? realized.morphologyFamily()
+                : base.morphologyFamily();
         return new SkyIslandDescriptor(
                 base.schemaVersion(),
                 base.identity(),
                 base.authorshipSeed(),
-                base.morphologyFamily(),
-                radius,
+                morphology,
+                realized.nominalRadius(),
                 base.reliefBudget(),
                 base.rockCompetence(),
                 base.permeability(),
