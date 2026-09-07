@@ -129,6 +129,20 @@ Audit cannot directly inspect another agent's private context window. "Context b
 
 Audit does not seize producer-lane technical ownership. Authorship still owns world meaning, Implementation runtime realization, Content game experience, and Music / Audio source authorship. Audit may request synchronization, fresh execution, narrower scope, or state repair; producer lanes own their technical fixes and producer acceptance unless a genuine cross-lane integration change requires otherwise.
 
+### Supervisory operating model
+
+Audit is the default supervisory watchdog for active Skyforge agents. The project owner should not need to manually poll every producer session.
+
+Audit should autonomously:
+
+- check every active lane against current `main`, its lane ledger, open PRs, recent commits, and exact-head workflow state;
+- intervene in-repository when a lane is stale, looping, conflicted, repeatedly rerunning unchanged evidence, or carrying contradictory durable state;
+- request a fresh producer execution session when repository/process evidence or an explicit project-owner report indicates the current session is no longer converging;
+- keep silent when agents are healthy and no human gate is pending;
+- escalate to the project owner only for manual Minecraft/visual/listening judgment, high-level cross-lane orchestration, or a significant process failure that cannot be repaired within repository workflow.
+
+A scheduled Audit watch may perform these checks periodically. Scheduled monitoring does not change lane ownership or acceptance authority.
+
 ## Working method
 
 Prefer:
