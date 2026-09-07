@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot reconstructed:** `3f300346e598a6bc87a3a1468ec028bdee7eec0b`
+**Main snapshot reconstructed:** `01bde4fb96860d8ccfd17b4e6f9d9459c0e827fc`
 
 Read first:
 
@@ -55,13 +55,19 @@ The merged Bellanca documents in PR #238 are accepted **design state**, not acce
 
 ## IN PROGRESS
 
-### Agent-state lane migrations
+### Canonical agent-state consolidation
 
-Current `main` now owns the canonical durable-state namespace:
+During AUDIT-0001, PR **#244** merged a second live-state system under `docs/handoffs/` after `docs/agent-state/` had already landed on main.
 
-`docs/agent-state/`
+AUDIT-0001 resolves that split on this branch:
 
-Parallel PRs **#244** and **#245** began from the previous main and contain useful Implementation/Authorship lane-state material under `docs/handoffs/`. AUDIT has requested that they synchronize and migrate only their unique lane state into the canonical `docs/agent-state/` namespace instead of creating duplicate program charters/cross-lane contracts.
+- `docs/agent-state/` remains the single canonical live-state namespace;
+- the accepted Implementation lane state from #244 is migrated to `docs/agent-state/IMPLEMENTATION_STATE.md`;
+- duplicate live charter/contracts/Implementation files under `docs/handoffs/` are removed;
+- `docs/handoffs/` is restored to historical milestone-handoff storage;
+- root README points to one live-state system.
+
+PR **#245** has already recomposed its Authorship state into `docs/agent-state/AUTHORSHIP_STATE.md`, but remains unmerged and must still synchronize with whatever main results from this audit.
 
 ### Content C11 — PR #233
 
@@ -204,7 +210,7 @@ Human play must confirm the control interaction is intuitive and does not create
 ## KNOWN HAZARDS / TECHNICAL DEBT
 
 1. **Runtime overview drift.** Root `README.md` and `docs/architecture/Skyforge_Current_Runtime_Architecture.md` still describe SF-IMP-0057 as current even though `main` has accepted SF-IMP-0079.
-2. **Parallel durable-state namespaces.** PRs #244/#245 must converge into `docs/agent-state/`, not establish a second canonical state system.
+2. **Parallel durable-state namespaces.** #244 briefly created a second canonical system under `docs/handoffs/`; AUDIT-0001 consolidates it back into `docs/agent-state/`. Future lane migrations must extend that namespace rather than fork it.
 3. **Long-lived branch drift.** C11 and Portable Engine cutoff need current-main synchronization before acceptance.
 4. **Design/runtime ambiguity.** Detailed merged/open design documents must not be described as executable capability without their required evidence.
 5. **Manual-gate ambiguity.** Morphology corpus machinery is accepted; morphology aesthetics are not.
@@ -213,7 +219,7 @@ Human play must confirm the control interaction is intuitive and does not create
 ## ORDERED NEXT AUDIT WORK
 
 1. Reconcile stale root/current-runtime documentation to the actual SF-IMP-0079 boundary.
-2. Verify that #244/#245 converge into the canonical agent-state namespace.
+2. Verify that #245 and future lane migrations remain in the canonical agent-state namespace.
 3. Re-audit C11 after synchronization before it can be treated as accepted recipe closure.
 4. Review PR #242 only for cross-lane consistency; leave CONTENT ownership of the B0-A design/merge decision intact.
 5. Re-audit PR #240 after assembled-Sable and persistence evidence.
