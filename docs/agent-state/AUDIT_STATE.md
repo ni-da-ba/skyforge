@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Current reconciliation base:** `main@87d92c3204d6fdd482003fd78ae93632f42cd6b2`  
+**Current reconciliation base:** `main@6ac193a9b856bf69a1bfd83a8d8cb2d3df72893d`  
 **Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0008**
 
 Read first:
@@ -11,6 +11,7 @@ Read first:
 - [Program charter](PROGRAM_CHARTER.md)
 - [Cross-lane contracts](CROSS_LANE_CONTRACTS.md)
 - [Human strategy roadmap](HUMAN_STRATEGY_ROADMAP.md)
+- [Validation and evidence economy policy](VALIDATION_POLICY.md)
 - all current lane state files
 - current `main`, source/tests, merged history, open PRs, issues, and exact-head workflow evidence
 
@@ -35,7 +36,7 @@ Detailed historical evidence remains in merged Audit PRs, producer lane ledgers,
 | --- | --- | --- |
 | Implementation | **SF-IMP-0082** / PR #273 | **SF-IMP-0083 / issue #284 / draft PR #285** — remaining AUTH-0083 built-in seed/scale Minecraft matrix |
 | Authorship | **AUTH-0094** / PR #307, merge `2e9618ce` | No active accepted-number successor; old PR #303 is superseded by the accepted AUTH-0094 milestone collision |
-| Content / Experience | **C20** / PR #302, merge `0b76038a` | **PR #305** — producer-owned durable state repair, now requiring current-main recomposition |
+| Content / Experience | **C20** / PR #302, merge `0b76038a`; durable state repair PR #305 merged as `6ac193a9` | No active Content milestone at this snapshot |
 | Music / Audio | **MUS-0001** / PR #159, merge `0b3386ad` | **MUS-0002 / PR #304** — deterministic soundtrack source verifier; current exact-head CI green after source-integrity recovery |
 | Audit / Program Health | **AUDIT-0008** | supervisory watch plus Audit-owned stale design/readme PR hygiene (#298–#300 and superseded #309) |
 
@@ -45,28 +46,32 @@ Merged Bellanca design material remains design state, not accepted aircraft runt
 
 ### Implementation — SF-IMP-0083 / PR #285
 
-**Classification: WATCH / CONVERGING; integration drift is the remaining process hazard.**
+**Classification: WATCH / CONVERGING; evidence-saturation policy now narrows the remaining acceptance work.**
 
-Current head `4de6bc5cf789362bf50985eb616e192dc79e4bb7` has substantial information-bearing work after the earlier synchronous-warmup loop-risk episode. Exact-head evidence on this head is green, including:
+The branch has materially recovered from the earlier synchronous-warmup and one-tick catch-up
+pathologies. Current producer work has also substantially reduced its integration drift and PR #285 is
+mergeable, though main continues to move in parallel.
 
-- CI `34159829577` — PASS;
-- Skyforge Showcase Acceptance `34159829587` — PASS;
-- SF-IMP-0070 Performance Characterization `34159829556` — PASS;
-- retained C18 `34159829526` and C19 `34159829603` — PASS;
-- other retained current Content compatibility workflows — PASS where applicable.
+The project owner has now approved the canonical layered-validation policy in
+[VALIDATION_POLICY.md](VALIDATION_POLICY.md), and issue #284 has been updated accordingly:
 
-The earlier loop-risk was genuinely recovered: exact-column support/admission work, nonblocking bounded warmup, and manual/selectable-family characterization produced new technical information rather than unchanged retries.
+- keep exhaustive cheap deterministic corpus evidence for all 20 remaining built-in AUTH-0083 members;
+- do not require all 20 to repeat full Minecraft prepare/persistence/actual-client-reopen;
+- target a risk-selected new full-runtime set of roughly seven representatives, chosen from the cheap
+  support/profile evidence;
+- cover every family at a new scale, all seed classes across the selected set, MEDIUM family coverage,
+  at least two LARGE stress cases, Massif/Tableland, and any previously pathological fixture;
+- automatically widen the affected equivalence class if a representative reveals parameter-dependent
+  heterogeneity;
+- reuse expensive evidence across orthogonal main movement when the tested dependency surface is
+  unchanged and synchronized cheap CI is green.
 
-Current risk is now repository integration:
+Audit action posted on PR #285: stop extending toward a 20x full-lifecycle matrix unless new evidence
+demonstrates heterogeneity that actually requires it; converge the smallest current-main acceptance
+boundary.
 
-- branch is **35 commits ahead / 23 behind** `main@87d92c32`;
-- merge base remains `85a66369`;
-- GitHub reports PR #285 non-mergeable;
-- 20 changed files and a long producer sequence now require a clean acceptance boundary rather than further accumulation on stale integration history.
-
-Audit action posted: recompose/synchronize the bounded SF-IMP-0083 delta onto current main before extending acceptance or requesting #214 review; rerun required exact-head gates after synchronization; do not repeat unchanged expensive seed/scale prepares merely because main moved.
-
-No fresh-session restart is required at this point because the branch is still producing bounded, green evidence.
+No fresh-session restart is indicated while the producer follows this narrowed policy and continues
+producing bounded information gain.
 
 ### Authorship — AUTH-0094 accepted; old PR #303 superseded
 
@@ -78,15 +83,15 @@ Open PR #303 still uses the title/milestone `AUTH-0094` for floating-sky-river s
 
 This is a stale branch/milestone collision, not a stuck active Authorship session.
 
-### Content / Experience — C20 state repair / PR #305
+### Content / Experience — C20 accepted and durable state repaired
 
-**Classification: HEALTHY / WORK RECOVERABLE; durable-state repair is stale, not producer capability.**
+**Classification: HEALTHY / DORMANT after acceptance.**
 
-C20 itself is merged/accepted as PR #302 / `0b76038a`. Current cross-lane contracts already record the AUTH-0094→C20 handoff, but `CONTENT_STATE.md` on main still reports C19 as highest. PR #305 owns that narrow repair.
+C20 remains merged/accepted as PR #302 / `0b76038a`. The producer-owned durable-state repair PR #305
+has now merged as `6ac193a9`, so the prior C20 ledger lag is resolved.
 
-PR #305 is now **3 commits ahead / 13 behind** current main and GitHub reports it non-mergeable after rapid Authorship/shared-contract movement. Audit posted a synchronization directive: recompose the narrow Content-owned ledger/state delta onto current main without overwriting the newer AUTH-0094 contracts, then rerun the minimal exact-head state/CI gate.
-
-C18 and C19 are merged/accepted; their prior stale-session classifications are resolved. C11, Portable Engine cutoff, and Bellanca/C12 remain intentionally dormant/reserved rather than actively stuck.
+C11, Portable Engine cutoff, and Bellanca/C12 remain intentionally dormant/reserved rather than
+actively stuck.
 
 ### Music / Audio — MUS-0002 / PR #304
 
@@ -197,19 +202,22 @@ Repository comments posted in this watch:
 - PR #305 — recompose narrow C20 durable-state repair onto current main without overwriting accepted AUTH-0094 contracts.
 - PR #304 — verifier recovery is green/healthy; synchronize small main drift before merge and retain existing human gates.
 
-Human strategy escalation is now appropriate for **HS-01 implementation certification depth** and
-**HS-02 CI/characterization budget**. SF-IMP-0083 has produced useful technical recovery, but the
-amount of full-lifecycle evidence required by issue #284 is itself now a program-level acceptance
-policy question rather than a producer-only implementation detail.
+HS-01 and HS-02 are now **RESOLVED** by project-owner direction: layered/risk-equivalence validation,
+evidence portability across orthogonal synchronization, and tiered runtime budgets are canonical.
+The next strategy trigger is HS-03 once SF-IMP-0083 reaches a clean acceptance boundary.
 
 ## NEXT AUDIT WORK
 
-1. Track [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md). Notify Nicholas only when an OPEN
+1. Enforce [VALIDATION_POLICY.md](VALIDATION_POLICY.md) across active lanes: flag evidence saturation,
+   unnecessary expensive reruns after orthogonal main movement, and Cartesian heavy matrices that do
+   not retire distinct risk.
+2. Track [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md). Notify Nicholas only when an OPEN
    topic's trigger is met; persist decisions into the owning contracts/design state and mark them
    RESOLVED rather than repeatedly re-asking them.
-2. Re-check PR #285 after current-main synchronization. If it resumes repeated unchanged long prepares or conflict churn without new information, escalate to LOOP RISK and request a fresh Implementation execution session.
-3. Re-check PR #304 after synchronization; ordinary integration movement is not a health failure.
-4. Verify PR #305 repairs `CONTENT_STATE.md` against current main and preserves the accepted AUTH-0094→C20 contract.
+3. Re-check PR #285 for convergence under the narrowed ~7-representative full-runtime policy. Escalate
+   only if it returns to repeated expensive low-information work, branch churn, or new parameter
+   heterogeneity that is not being bounded.
+4. Re-check PR #304 after synchronization; ordinary integration movement is not a health failure.
 5. Ensure obsolete PR #303 is closed or explicitly re-reserved under a future non-conflicting Authorship milestone only when justified.
 6. Recompose or close stale Audit PRs #298–#300; close superseded #309 after this current-main reconciliation is opened.
 7. Continue to distinguish intentionally dormant C11/cutoff/Bellanca work from active stuck sessions.
