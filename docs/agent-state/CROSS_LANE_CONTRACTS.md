@@ -20,7 +20,7 @@
 | Authorship | `AUTH-0092` accepted: deterministic raw regional center-distance / nominal-radial-gap isolation evidence over exact AUTH-0087 provenance |
 | Implementation | `SF-IMP-0082` accepted: all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / #284 multi-seed/multi-scale built-in matrix in progress |
 | Content / Experience | `C18` accepted: stock turtle freight/ticking envelope measured and base capability retained; C11/C12 remain separately in progress/reserved |
-| Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 is draft/unmerged with branch-local cue/source freezes only |
+| Music / Audio | MUS-0001 / PR #159 synchronized to current `main` at merge candidate `ae23d17145ab4fb19417653991f36e0633f5a83b`; source/library audit and persistence repair complete; merge pending exact-head CI |
 | AUDIT | `AUDIT-0008` accepted: repository-visible agent/process convergence health is a durable supervisory responsibility |
 
 Use each lane state file and merged history for detail.
@@ -177,11 +177,12 @@ Cross-lane consequence: retain stock turtle movement/freight; no generic Skyforg
 
 Bootstrap computing remains tracked in #224.
 
-### Music / Audio — MUS-0001 — DRAFT / UNMERGED
+### Music / Audio — MUS-0001 — MERGE CANDIDATE / UNMERGED
 
-MUS-0001 / PR #159 is the current soundtrack-persistence branch. Its branch-local records include
-frozen/candidate musical decisions, but no Music milestone is repository-level accepted until the
-branch is synchronized, verified, and merged.
+MUS-0001 / PR #159 is the current soundtrack-persistence merge candidate. It has been synchronized
+onto current `main` with zero branch-behind commits at candidate `ae23d17145ab4fb19417653991f36e0633f5a83b`.
+Its source/library audit, Track 02 persistence repair, cue manifests, and Track 00 repair candidates are
+persisted. No Music milestone is repository-level accepted until exact-head CI passes and PR #159 merges.
 
 Current cross-lane ownership:
 
