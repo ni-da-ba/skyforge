@@ -3,8 +3,8 @@
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Main snapshot at latest Authorship acceptance:** `c739fe9a521e2c75f640bbfcf79eee6abd0298cf`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0091**
+**Main snapshot at latest Authorship acceptance:** `f7440b05279d7cb7f7f72c575e70d0e880ef184f`  
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0092**
 
 Read first:
 
@@ -230,29 +230,48 @@ Accepted invariants:
 
 Reference: `docs/authorship/AUTH-0091-freshwater-habitat-opportunity.md`.
 
+### AUTH-0092 — regional island isolation evidence
+
+PR #289 merged as `f7440b05279d7cb7f7f72c575e70d0e880ef184f`.
+
+Exact acceptance:
+
+- accepted head: `69a95f79e96272b200667ebab74ef5eb4d5ce7cb`;
+- synchronized base: `324373a1d981fc56a466f9d9ded842bdf6dc366d`;
+- CI PASS, run `34150119742`;
+- evidence artifact `10029142925`;
+- digest `sha256:d77a7fa5b930e72af13065fb24357cafbbcbfe271ce84a4562feadc188b45490`.
+
+Accepted invariants:
+
+- one exact AUTH-0087 published authored-realization binding is the only public profiling input;
+- canonical AUTH-0046 association provenance/order is retained for every published island;
+- horizontal center distance derives only from exact realized descriptor centers;
+- nominal radial gap is `max(0, centerDistance - radiusA - radiusB)` using exact matching AUTH-0046 authored/realized nominal radii;
+- selected peer is deterministic by smallest nominal radial gap, then center distance, then existing canonical association order;
+- one-island publications retain an empty nearest-neighbor relation and empty regional distance summaries rather than fabricating a peer;
+- substituted distance evidence fails closed;
+- uniform translation preserves the relation and uniform two-times horizontal scale doubles raw distances while preserving selected-peer identity;
+- nominal radial gap is planning evidence, not exact physical terrain-edge separation;
+- no isolated/not-isolated class, fauna/resource/settlement threshold, route cost, Minecraft range rule, or backend lifecycle enters the contract.
+
+Reference: `docs/authorship/AUTH-0092-regional-isolation-evidence.md`.
+
 ## IN PROGRESS
 
-No Authorship milestone is currently accepted beyond AUTH-0091.
+No Authorship milestone is currently in progress.
 
-Next development target: **AUTH-0092 — regional island isolation evidence**.
-
-Intended boundary:
-
-- consume exactly one accepted AUTH-0087 published authored-realization binding;
-- preserve canonical AUTH-0046 association provenance for every published island;
-- derive raw pairwise horizontal center distance only from exact realized descriptor centers;
-- derive nominal radial gap only from exact center distance and the accepted matching authored/realized nominal radii;
-- choose nearest-neighbor provenance deterministically with canonical association-order tie breaking;
-- represent a one-island region without fabricating a neighbor;
-- expose no isolated/not-isolated class, fauna/resource threshold, settlement policy, Minecraft distance rule, or backend lifecycle behavior.
+Do not open AUTH-0093 merely to continue semantic accumulation. Select the next milestone only from a
+concrete Bootstrap, fauna, resource, civilization, or other production consumer that demonstrates a
+missing backend-neutral cause.
 
 ## PROPOSED
 
 ### Later semantic priorities
 
-1. Use AUTH-0092 as raw regional isolation evidence; do not turn distance into an ecological class without a concrete consumer.
-2. A future cave/cliff habitat profile may summarize accepted AUTH-0024–0030 topology/exposure, but must not relabel semantic depth fractions as physical cave volume.
-3. Combine AUTH-0090 ecology, AUTH-0091 freshwater, AUTH-0092 isolation, geology, civilization/trade, and progression only when one concrete Bootstrap/resource or fauna consumer is ready.
+1. Use AUTH-0092 only as raw regional isolation evidence; any isolated/not-isolated class belongs to a concrete downstream consumer.
+2. A future cave/cliff habitat profile may summarize accepted AUTH-0024–0030 topology/exposure only if a concrete consumer needs it; semantic depth fractions are not physical cave volume.
+3. Combine AUTH-0090 ecology, AUTH-0091 freshwater, AUTH-0092 isolation, geology, civilization/trade, and progression only where one concrete Bootstrap/resource/fauna/civilization decision requires the combination.
 4. Add disturbance, predator-pressure, trophic-state, geothermal/volcanic, or other semantics only when design consumers require them.
 
 ## Architectural decisions / invariants
@@ -278,6 +297,7 @@ Implementation:
 - may consume AUTH-0089 as island-scale ecological opportunity evidence; it is not a spawn/carrying-capacity/resource contract;
 - may consume AUTH-0090 as area-weighted regional ecological opportunity evidence; it still assigns no species/resources/province class;
 - may consume AUTH-0091 as retained-freshwater habitat opportunity evidence; its area/depth quantities remain coarse/normalized planning semantics, not physical fluid volume;
+- may consume AUTH-0092 as raw regional center-distance/nominal-radial-gap evidence; it is not a physical terrain-edge, route-cost, gameplay-range, or ecological-isolation contract;
 - owns block-space realization, chunk lifecycle, fluid propagation/fencing, and live Minecraft proofs;
 - SF-IMP-0080 remains the accepted forest/taiga ecology showcase;
 - SF-IMP-0081 / SF-IMP-0082 accept all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / issue #284 owns the remaining built-in seed/scale matrix;
@@ -334,8 +354,7 @@ Human review still needs the AUTH-0083/AUTH-0084 reference + Minecraft matrices,
 
 ## Ordered next work
 
-1. Recompose existing AUTH-0092 regional island-isolation work onto current `main`; do not extend the stale branch in place.
-2. Reuse exact AUTH-0087 binding/association provenance and realized descriptor centers/radii; add no new spatial discovery or thresholds.
-3. Add acceptance-quality architecture/provenance evidence before proposing AUTH-0092 as merged/accepted.
-4. Prove deterministic nearest-neighbor selection, one-island empty-neighbor behavior, translation covariance, scale covariance, and exact-head CI/evidence.
-5. Keep SF-IMP-0083 / issue #284 seed-scale morphology work independently Implementation-owned.
+1. Reconstruct the next concrete Authorship consumer from current Content/Bootstrap/fauna/resource/civilization design before assigning AUTH-0093.
+2. If a real missing semantic cause is demonstrated, scope one narrow backend-neutral milestone around that cause and reuse accepted source semantics rather than inventing parallel thresholds.
+3. Do not convert AUTH-0092 raw distances into an ecological/gameplay class inside Authorship without an explicit consumer-owned decision boundary.
+4. Keep SF-IMP-0083 / issue #284 seed-scale morphology work independently Implementation-owned.
