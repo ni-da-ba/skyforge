@@ -52,7 +52,7 @@ jobs:
   acceptance:
     needs: unit-equivalence
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -97,12 +97,12 @@ jobs:
 
       - name: Prepare exact AUTH-0083 ${{ matrix.family }} seed/scale atlas
         if: steps.selection.outputs.selected == 'true'
-        timeout-minutes: 60
+        timeout-minutes: 20
         run: ./gradlew :skyforge-neoforge-1211:productionMorphologySeedScale${{ matrix.task }}PrepareVerify --stacktrace --no-configuration-cache
 
       - name: Reopen persisted ${{ matrix.family }} seed/scale atlas in actual client
         if: steps.selection.outputs.selected == 'true'
-        timeout-minutes: 20
+        timeout-minutes: 15
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: xvfb-run -a ./gradlew :skyforge-neoforge-1211:productionMorphologySeedScale${{ matrix.task }}ViewerVerify --stacktrace --no-configuration-cache
