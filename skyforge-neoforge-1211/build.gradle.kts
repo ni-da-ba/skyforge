@@ -1308,14 +1308,14 @@ neoForge {
         // finite chunk footprint into the acceptance harness, so no arbitrary square radius is used.
         for ((family, memberId) in skyforgeProductionMorphologyAtlasMembers) {
             val suffix = skyforgeMorphologyAtlasSuffix(family)
-            val gameDirectory =
+            val atlasGameDirectory =
                 layout.projectDirectory.dir("run-skyforge-production-morphology-atlas-$family")
             val worldName = "morphology-atlas-$family"
             val resultDirectory = "acceptance/production-morphology-atlas/$family"
 
             create("productionMorphologyAtlas${suffix}Prepare") {
                 server()
-                gameDirectory = gameDirectory.asFile
+                gameDirectory = atlasGameDirectory.asFile
                 programArgument("--nogui")
                 programArgument("--universe")
                 programArgument("saves")
@@ -1335,7 +1335,7 @@ neoForge {
 
             create("productionMorphologyAtlas${suffix}Client") {
                 client()
-                gameDirectory = gameDirectory.asFile
+                gameDirectory = atlasGameDirectory.asFile
                 programArgument("--quickPlaySingleplayer")
                 programArgument(worldName)
                 systemProperty("skyforge.dev.productionMorphologyAtlasViewerMember", memberId)
@@ -1344,7 +1344,7 @@ neoForge {
 
             create("productionMorphologyAtlas${suffix}ViewerAcceptanceClient") {
                 client()
-                gameDirectory = gameDirectory.asFile
+                gameDirectory = atlasGameDirectory.asFile
                 programArgument("--quickPlaySingleplayer")
                 programArgument(worldName)
                 systemProperty("skyforge.dev.productionMorphologyAtlasViewerMember", memberId)
