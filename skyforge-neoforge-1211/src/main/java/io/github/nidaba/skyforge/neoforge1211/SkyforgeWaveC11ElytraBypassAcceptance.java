@@ -68,6 +68,10 @@ final class SkyforgeWaveC11ElytraBypassAcceptance {
 
     private static void onServerStarted(ServerStartedEvent event) {
         level = event.getServer().overworld();
+        // Headless acceptance has no real player to load the arena. FireworkRocketItem delegates to
+        // Level.addFreshEntity, which requires the target chunk to be admitted before the rocket
+        // can become visible/tickable.
+        level.getChunkAt(new BlockPos(0, 120, 0));
         player = FakePlayerFactory.getMinecraft(level);
         player.setPos(0.0, 120.0, 0.0);
         player.setYRot(0.0F);
