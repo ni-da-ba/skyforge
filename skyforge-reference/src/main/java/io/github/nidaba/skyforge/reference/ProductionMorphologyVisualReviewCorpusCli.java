@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.reference;
 
 import io.github.nidaba.skyforge.reference.evidence.ProductionMorphologyDiagnostics;
+import io.github.nidaba.skyforge.reference.evidence.ProductionMorphologySurfaceCharacterDiagnostics;
 import io.github.nidaba.skyforge.reference.evidence.SuspendedVolumeEvidence;
 import io.github.nidaba.skyforge.reference.evidence.SuspendedVolumeEvidenceGenerator;
 import io.github.nidaba.skyforge.reference.evidence.SuspendedVolumeEvidenceWriter;
