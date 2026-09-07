@@ -68,7 +68,7 @@ AUDIT-0005 records repository-visible convergence after AUDIT-0004 without creat
 - SF-IMP-0081 / PR #265 is merged/accepted as the first exact AUTH-0083 Massif Minecraft carrier: accepted head `0e3dddae90a8af605dd959132ce865412e92e5c0`, runtime merge `bac972eb7e8d772a250d292602e109428d06514a`, Implementation state repair `0566c7909219a5281609da3445d8a082d0be02c6`, and shared-contract update `001bc7aa6dbd01d94d8a92023f8c5fc7831d3020`; first #214 human Massif review passed while full #214 remains open;
 - issue #267 records the non-blocking Massif traversal-cadence/lumpiness observation; do not flatten the accepted carrier from one specimen;
 - issue #269 reserves SF-IMP-0082 for Tableland, Spine, Basin, and Lobed using the generalized exact-carrier path;
-- SF-IMP-0082 / PR #273, Content C18 / PR #277, and AUTH-0090 / PR #276 are reviewed in-progress producer work. Audit found no cross-lane ownership blocker in their current contracts, but none is accepted by AUDIT-0005.
+- SF-IMP-0082 / PR #273 and Content C18 / PR #277 remain reviewed in-progress producer work. AUTH-0090 / PR #276 is merged/accepted and its durable state is repaired by PR #278.
 
 No producer-lane capability is created by AUDIT-0005.
 
@@ -158,6 +158,7 @@ Audited proposal head `797e0c54325b1f45d0aa6229124c3bb7e8727bda` remains cross-l
 - AUTH-0087 is the accepted exact publication↔authored-realization coverage gate before downstream authored material/ecology consumers; concrete Minecraft material/biome mapping remains Implementation-owned.
 - AUTH-0088 is the accepted exact published-volume/world-XZ surface-ecology projection; physical Y, quart-cell policy, Minecraft biome identity, placement, persistence, and lifecycle remain Implementation-owned.
 - AUTH-0089 is the accepted fixed island-scale ecological-opportunity summary; it is horizontal authored-habitat planning evidence, not species/spawn/carrying-capacity/resource/backend policy.
+- AUTH-0090 is the accepted exact regional aggregation of AUTH-0089 through AUTH-0087 provenance with horizontal-area weighting; it still assigns no species/resources/province class/backend behavior.
 - C14 accepts existing CC:Tweaked/Create: Avionics as a baseline programmable sensor/bounded-control substrate, not mature autopilot or a first-flight prerequisite.
 - C15 accepts ordinary-player 1:1 Nether portal linking/placement mechanics only; assembled contraption transfer, passengers/cargo, authored portal-site safety, terminal UX, and permanent cosmology remain separate.
 - C16 accepts the measured stock CC:Tweaked wireless envelope only: ordinary wireless remains bounded local/regional infrastructure; Ender Modems are a range/dimension bypass whose progression treatment remains Content-owned.
