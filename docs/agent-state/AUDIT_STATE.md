@@ -57,7 +57,7 @@ One non-blocking limitation remains: moving a short distance away from terrain m
 
 No producer-lane capability is created by AUDIT-0004.
 
-### Highest AUDIT milestone: AUDIT-0005 — post-ecology convergence audit
+### AUDIT-0005 — post-ecology convergence audit
 
 Accepted by the merge that places this update on `main`.
 
@@ -72,6 +72,53 @@ AUDIT-0005 records repository-visible convergence after AUDIT-0004 without creat
 
 No producer-lane capability is created by AUDIT-0005.
 
+### Highest AUDIT milestone: AUDIT-0006 — Music / Audio lane integration
+
+Accepted by the merge that places this update on `main`.
+
+AUDIT-0006 makes Music / Audio a first-class program lane for all future Audit reconstruction,
+contract, drift, persistence, and human-gate checks. It does not accept any musical cue or runtime
+audio behavior by itself.
+
+Audited MUS-0001 / PR #159 boundary at branch head `1825d3931125f37e8be48abc46b0b1b13ebf2ed2`:
+
+- MUS-0001 remains **draft / unmerged / non-mergeable** and was approximately 88 commits ahead /
+  1056 behind `main@993d3815` at this audit point;
+- no canonical `docs/agent-state/MUSIC_STATE.md` exists yet;
+- no current exact-head repository/source-verification CI exists for the Music branch;
+- Track 00 V2F.1 remains the canonical frozen source; two range-repair A/B candidates are explicitly
+  non-canonical pending human BBCSO audition;
+- Track 01 remains frozen and structural/range-clean, with Track-11 HC plugin-state provenance still
+  incomplete;
+- Track 02 / **The Lord of Empty Miles** has a corrected, checksum-pinned canonical BBCSO percussion
+  source and accepted repaired-render identity; its two one-semitone-over trumpet events remain a
+  declared non-blocking frozen-source exception;
+- Track 03 / **Count the Leagues** is frozen/complete at the 72-bar Second Horizon source;
+- Track 06 storm is compositionally frozen at Draft 02.3, but its exact accepted MIDI is missing and
+  must not be reconstructed from documentation or conversational memory;
+- the principal-theme motif is captured but the composition remains pending;
+- the PR description itself still contains obsolete Track-03 experiment state and must be reconciled
+  to the current cue slate before merge;
+- cue manifests are detailed, but source identity/instrument alignment is not yet protected by a
+  repository-executable verifier.
+
+Required MUS-0001 repository-acceptance gates:
+
+1. recompose onto current `main` without losing exact source/manifests/history;
+2. add a concise lane-owned `MUSIC_STATE.md` under `docs/agent-state/`;
+3. add deterministic source verification for canonical gzip/MIDI hashes, SMF structure, conductor
+   tempo/meter, canonical track order, documented BBCSO playable ranges, and cue-specific
+   PERC/TP/HC state/exception declarations;
+4. keep Track 06 explicitly non-canonical until the exact accepted Draft 02.3 MIDI is recovered;
+5. preserve Track 00's repair candidates as non-canonical until the human A/B listening gate;
+6. reconcile the PR summary to the actual current cue state;
+7. run exact-head repository/source verification after synchronization;
+8. keep large WAV masters outside ordinary Git until an explicit versioned artifact strategy exists.
+
+Cross-lane rule: musical authorship/source identity belongs to Music / Audio; world truth remains
+Authorship-owned, gameplay/experience meaning remains Content-owned, and Minecraft/adaptive playback
+runtime remains Implementation-owned. No runtime adaptive-music contract is accepted yet.
+
 ## CURRENT AUTHORITATIVE PROGRAM SNAPSHOT
 
 | Lane | Highest merged boundary |
@@ -80,8 +127,8 @@ No producer-lane capability is created by AUDIT-0005.
 | Authorship | **AUTH-0090** / PR #276 — exact area-weighted regional ecological-opportunity aggregation; durable state repaired by merged PR #278 |
 | Content / Experience | **C17** / PR #272 — stock GPS infrastructure topology; C18 turtle freight is in progress; C11/C12 remain separately in progress/reserved |
 | Showcase | cave/interior technical showcase accepted; ecology showcase accepted; first production Massif carrier machine- and human-accepted |
-| Music | no MUS milestone merged; PR #159 remains draft/unmerged |
-| AUDIT | **AUDIT-0005** by this state merge |
+| Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 remains draft/unmerged and requires synchronization/source-verification/state repair before repository acceptance |
+| AUDIT | **AUDIT-0006** by this governance merge |
 
 Merged Bellanca PR #238 remains accepted **design state**, not accepted aircraft runtime/flight behavior.
 
@@ -190,6 +237,15 @@ Passed for accepted SF-IMP-0080 and recorded before merge. Do not reopen for iss
 
 The SF-IMP-0081 Massif human tranche passed for silhouette/morphology/underside quality. Full #214 remains open for the other built-in families, multiple seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts. GitHub issue #214 had been incorrectly closed at the SF-IMP-0081 merge boundary; AUDIT reopened it to match the accepted ledgers and explicit first-tranche-only human decision. Issue #267 tracks Massif traversal cadence separately.
 
+### Music / Audio — OPEN listening / persistence gates
+
+- Track 00 BBCSO range repair requires human A/B audition; neither candidate is canonical.
+- Track 06 exact accepted Draft 02.3 MIDI must be recovered before canonical persistence.
+- HC/PERC/TP plugin-state-sensitive lanes require explicit reproducibility records where MIDI alone
+  is insufficient.
+- Runtime adaptive scoring remains unaccepted until explicit cross-lane state/transition contracts
+  and Implementation playback evidence exist.
+
 ### Bellanca / C12 — OPEN
 
 Machine assembly/physics first; human handling, landing, rough-field usefulness, glide feel, controls, and later silhouette/art review remain required.
@@ -201,19 +257,31 @@ Human play must verify discoverability and non-surprising redstone shutdown beha
 ## KNOWN HAZARDS / TECHNICAL DEBT
 
 1. **Biome presentation flight envelope / issue #261:** immediate-surface biome presentation can fall back to BASE_WORLD ambience away from owned terrain. Non-blocking for SF-IMP-0080; avoid claiming whole native biome columns as the fix.
-2. **Long-lived branch drift:** C11, Portable Engine cutoff, and Bellanca proposal require current-main synchronization before acceptance.
-3. **Production morphology:** underside quality is a first-class requirement; the first Massif underside passed, but do not extrapolate full #214 acceptance from one family.
-4. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
-5. **Performance:** do not restart local micro-optimization absent fresh realistic-scale profiling.
+2. **Long-lived branch drift:** C11, Portable Engine cutoff, Bellanca proposal, and MUS-0001 require current-main synchronization before acceptance.
+3. **Music source reproducibility:** MUS-0001 currently relies on manifests/audit prose without a repository-executable canonical MIDI/library-alignment gate; Track 06 canonical source is missing and Track 00 repair remains human-gated.
+4. **Production morphology:** underside quality is a first-class requirement; the first Massif underside passed, but do not extrapolate full #214 acceptance from one family.
+5. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
+6. **Performance:** do not restart local micro-optimization absent fresh realistic-scale profiling.
 
 Resolved hazards include the C11/C13 identifier collision, duplicate live-state namespaces, AUTH-0086/AUTH-0087/AUTH-0088 durable-state lag, C16 durable-state lag, SF-IMP-0080's compile/substrate/ecology-legibility blockers, and SF-IMP-0081's post-C16 synchronization plus temporary Implementation-ledger lag.
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Continue auditing SF-IMP-0082 / PR #273 through its exact-head four-family prepare/reopen matrix and human #214 review; do not infer family acceptance from machine evidence alone.
-2. Track AUTH-0091 / PR #279 through owner exact-head acceptance; preserve normalized retained-freshwater opportunity as planning evidence rather than physical water depth/volume, fauna, agriculture/resource, or backend authority.
-3. Track C18 / PR #277 through tightening of the permissive `STOPPED` gate, current-main synchronization, and final exact-head CI. Preserve the revised route/ticking-envelope interpretation; reject unrelated stop reasons, any leap to a production chunk-loader policy, exact internal chunk-boundary claim, or premature turtle nerf.
-4. Track issue #267 as non-blocking Massif traversal evidence and issue #261 as non-blocking biome-envelope refinement.
-5. Re-audit C11 / PR #233 and Portable Engine #240 only after their declared synchronization/runtime prerequisites.
-6. Keep full #214 open for seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts after the built-in family tranche.
-7. Update this ledger at each material merge, contract change, new hazard, or handoff.
+1. Continue auditing SF-IMP-0082 / PR #273 through its explicit four-family #214 human review; its
+   current machine atlas is green but cannot waive the visual/flight gate.
+2. Include Music / Audio in every future repository reconstruction. Track MUS-0001 / PR #159 through
+   current-main recomposition, MUSIC_STATE creation, executable source-integrity verification,
+   Track-00 A/B listening, Track-06 exact-source recovery, PR-state reconciliation, and exact-head CI.
+3. Track AUTH-0091 / PR #279 through its deterministic freshwater-profile repair and owner exact-head
+   acceptance; preserve normalized opportunity as non-physical planning evidence.
+4. Track C18 / PR #277 through tightening of the permissive `STOPPED` gate, current-main
+   synchronization, and final exact-head CI. Preserve the route/ticking-envelope interpretation and
+   reject premature turtle nerfs or production chunk-loader claims.
+5. Track issue #267 as non-blocking Massif traversal evidence and issue #261 as non-blocking
+   biome/ambient-envelope refinement; Audio may consume a later accepted ambient envelope but does
+   not own it.
+6. Re-audit C11 / PR #233 and Portable Engine #240 only after their declared
+   synchronization/runtime prerequisites.
+7. Keep full #214 open for seeds/scales, hybrids/providers, regional contexts, and later
+   material/ecology/hydrology contexts after the built-in family tranche.
+8. Update this ledger at each material merge, contract change, new hazard, or handoff.
