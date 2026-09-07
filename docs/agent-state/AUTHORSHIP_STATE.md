@@ -3,8 +3,8 @@
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot when reconstructed:** `cab1be65f370f3f81a6d8019ed3db23bcff6f49f`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0085**
+**Main snapshot at latest Authorship acceptance:** `a55e500c86f0baf910af809985956ac398742706`  
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0086**
 
 Read first:
 
@@ -75,34 +75,34 @@ Accepted invariants:
 
 Reference: `docs/authorship/AUTH-0085-native-spring-semantic-admission.md`.
 
-## IN PROGRESS
-
 ### AUTH-0086 — visible hydrologic realization intent
 
-PR #241, branch `auth/auth-0086-visible-hydrologic-realization-intent`.
+PR #241 merged as `a55e500c86f0baf910af809985956ac398742706`.
 
-Current pre-recomposition candidate:
+Exact acceptance:
 
-- head: `c987490e751cd4bd877d59eb082dcac0b7fd81e6`;
-- tested base: AUTH-0085 merge `335978905f5c5e235c07a114a653a3be24536c47`;
-- changed files: 11;
-- CI #1339 PASS, run `34071008077`;
-- evidence artifact `10000566779`;
-- digest `sha256:43ddedb6cb55e5dcba7a6c9bc580dafbadf0303de6a1516a99f01227d0ef6937`;
-- PR remains draft/unmerged.
+- accepted head: `0de4791f74d224d6f7b3611f833fe8c10c293018`;
+- synchronized base: `5d4a293d6c57e3db4a52ec33dabd8725bbd4b091`;
+- CI PASS, run `34077642262`;
+- evidence artifact `10002704618`;
+- digest `sha256:e647a1807bc42570e8a5eb2e8916636312778f058e91280e5df652e450e86a47`.
 
-Implemented contract:
+Accepted invariants:
 
-- one visible channel-water intent per accepted coherent naturalized channel path;
-- one retained-water intent per exact waterbody footprint + dry margin;
-- direct accepted drop mapping to cascade/waterfall/edge-discharge intent;
-- exact source/riparian/margin provenance;
-- omission, reorder, substitution, and cross-island composition rejected;
-- no new hydrologic thresholds;
-- 1280x720 architecture/provenance atlas plus count/provenance CSVs.
+- exactly one visible channel-water intent per accepted coherent naturalized channel path;
+- exactly one retained-water intent per accepted footprint + dry margin;
+- direct cascade/waterfall/edge-discharge mapping with no new threshold;
+- exact source/riparian/margin provenance and deterministic source ordering;
+- omitted, reordered, substituted, whole-plan cross-island, and mislabeled nested cross-island sources fail closed;
+- no Minecraft registry, placement, fluid update, scheduling, storage, or I/O behavior in `skyforge-world`;
+- 1280x720 architecture/provenance atlas plus count/provenance CSV evidence.
 
-Because `main` advanced after CI #1339, this candidate must be recomposed onto current `main` and
-receive a fresh exact-head CI pass before acceptance.
+Reference: `docs/authorship/AUTH-0086-visible-hydrologic-realization-intent.md`.
+
+## IN PROGRESS
+
+No Authorship milestone is currently accepted as in progress. The next candidate boundary is AUTH-0087
+only after the physical visible-hydrology responsibility split is made explicit.
 
 ## PROPOSED
 
@@ -149,7 +149,7 @@ Subject to morphology/hydrology findings:
 Implementation:
 
 - consumes AUTH-0085 for semantically valid native spring admission;
-- should consume AUTH-0086 only after merge/acceptance;
+- may consume accepted AUTH-0086 as the authoritative visible authored-hydrology intent contract;
 - owns block-space realization, chunk lifecycle, fluid propagation/fencing, and live Minecraft proofs;
 - issue #214 requires Minecraft rendering of AUTH-0083/AUTH-0084 deterministic handoff IDs.
 
@@ -204,10 +204,10 @@ Human review still needs the AUTH-0083/AUTH-0084 reference + Minecraft matrices,
 
 ## Ordered next work
 
-1. Land this Authorship state file in the canonical `docs/agent-state/` namespace.
-2. Recompose PR #241 onto the resulting current `main`.
-3. Require fresh exact-head CI and artifact evidence.
-4. Merge AUTH-0086 if the exact gate remains green.
-5. Update this file immediately at that merge boundary.
-6. Then resolve the physical visible-hydrology handoff using compiled column authority rather than
-   treating semantic water potentials as literal Y.
+1. Resolve the physical visible-hydrology responsibility split against existing compiled column authority.
+2. If a backend-neutral mapping contract is genuinely required, open AUTH-0087 with a concrete downstream
+   consumer and no naive semantic-potential-to-world-Y conversion.
+3. Otherwise hand AUTH-0086 directly to Implementation and move Authorship to geology-to-visible-palette
+   expression.
+4. Keep issue #214 as the independent human morphology gate; do not infer aesthetic acceptance from
+   hydrology architecture evidence.
