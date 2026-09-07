@@ -1242,6 +1242,57 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0081 first issue #214 Minecraft carrier for exact AUTH-0083 member
+        // builtin-massif-small-seed-skyforge. Preparation keeps the production morphology intent
+        // exact while translating only suspension Y, then persists it for an ownership-only reopen.
+        create("productionMorphologyMassifPrepare") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("morphology-massif")
+            systemProperty("skyforge.dev.productionMorphologyMassif", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0081-production-morphology-massif")
+            systemProperty("skyforge.dev.acceptanceRadius", "12")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/production-morphology-massif/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionMorphologyMassifClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("morphology-massif")
+            systemProperty("skyforge.dev.productionMorphologyMassifViewer", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionMorphologyMassifViewerAcceptanceClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("morphology-massif")
+            systemProperty("skyforge.dev.productionMorphologyMassifViewer", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0081-production-morphology-massif-viewer")
+            systemProperty("skyforge.dev.acceptanceRadius", "12")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/production-morphology-massif/viewer.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
