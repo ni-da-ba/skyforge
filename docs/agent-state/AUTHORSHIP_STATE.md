@@ -3,8 +3,8 @@
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot at latest Authorship acceptance:** `844ad6cd09a7cbe60529f1a7d43badc12a84a1e1`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0088**
+**Main snapshot at latest Authorship acceptance:** `badcfbf8f9cf102a1f6f8f7bd018183d84f74e37`  
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0089**
 
 Read first:
 
@@ -148,29 +148,54 @@ Accepted invariants:
 
 Reference: `docs/authorship/AUTH-0088-published-surface-ecology.md`.
 
-## IN PROGRESS
-
 ### AUTH-0089 — island ecological opportunity profile
 
-Stacked development branch: `auth/auth-0089-ecological-opportunity-profile`.
+PR #268 merged as `badcfbf8f9cf102a1f6f8f7bd018183d84f74e37`.
 
-Current work is **unaccepted** and must be recomposed onto current `main` before final verification.
+Exact acceptance:
+
+- accepted head: `07e8d110f12058c5165c86531ce4fd51e5f1ed10`;
+- synchronized base: `001bc7aa6dbd01d94d8a92023f8c5fc7831d3020`;
+- CI PASS, run `34085928791`;
+- evidence artifact `10005324952`;
+- digest `sha256:64ed8f812b54ba14f4a799841fabe94f3751cad17a29b3596606c23772992f79`.
+
+Accepted invariants:
+
+- one fixed 128×128 cell-center quadrature summarizes current authored-domain ecology for one placement-free island;
+- consumers cannot choose a competing sampling resolution;
+- manually constructed profiles must preserve the canonical resolution and exact owned-cell horizontal-area arithmetic;
+- ownership reuses the accepted current `interiority > 0` authored-domain rule;
+- all AUTH-0003 regimes are represented in the composition map and fractions normalize to one;
+- mean vegetation, saturation, and thermal opportunity are unchanged AUTH-0003 values;
+- radius-only scaling preserves normalized ecology composition while horizontal planning area scales by radius²;
+- horizontal area is authored-habitat planning evidence, not physical sloped terrain, Minecraft blocks, carrying capacity, or spawn budget;
+- no species, fauna-role, entity, resource, Minecraft-biome, compiled-terrain, or backend-lifecycle policy enters the contract.
+
+Reference: `docs/authorship/AUTH-0089-island-ecological-opportunity-profile.md`.
+
+## IN PROGRESS
+
+No Authorship milestone is currently accepted beyond AUTH-0089.
+
+Next development target: **AUTH-0090 — regional ecological opportunity aggregation**.
 
 Intended boundary:
 
-- fixed deterministic 128×128 local quadrature over current authored-domain ownership;
-- aggregate unchanged AUTH-0003 regime composition plus mean vegetation/saturation/thermal potentials;
-- expose horizontal authored-habitat planning area separately from normalized composition;
-- no species, role assignment, spawn count, carrying-capacity claim, resource ID, Minecraft biome, or backend state.
+- reuse one accepted AUTH-0058 regional publication plus AUTH-0087 exact association coverage;
+- profile every associated authored island through accepted AUTH-0089;
+- expose deterministic regional total horizontal authored-habitat area;
+- expose area-weighted AUTH-0003 regime composition and mean vegetation/saturation/thermal opportunity;
+- retain exact island/volume provenance in canonical association order;
+- add no species, spawn, carrying-capacity, resource-family, agricultural, settlement, Minecraft-biome, or backend realization threshold.
 
 ## PROPOSED
 
 ### Later semantic priorities
 
-1. Use AUTH-0089 only as island-scale ecological evidence; do not jump directly to entity spawning.
-2. Define explicit fauna habitat/role suitability only after remaining causes such as water volume/depth,
-   cave/cliff opportunity, isolation, disturbance, and trophic state are available.
-3. Continue deterministic Bootstrap Province convergence when concrete progression/resource inputs are ready.
+1. Use AUTH-0090 as regional ecological evidence for existing ecological-diversity and agricultural/resource-geography questions; do not convert it directly into resource or species IDs.
+2. Define fauna habitat/role suitability only after remaining causes such as water volume/depth, cave/cliff opportunity, isolation, disturbance, and trophic state are available.
+3. Define resource availability / Bootstrap completeness only when geology, ecology, hydrology, trade, and progression inputs can be evaluated together rather than letting ecology own progression.
 4. Add geothermal/volcanic semantics only if player/content design requires them.
 
 ## Architectural decisions / invariants
@@ -193,9 +218,11 @@ Implementation:
 - may consume accepted AUTH-0086 as the authoritative visible authored-hydrology intent contract;
 - may consume AUTH-0087 as the exact publication/authorship association gate before AUTH-0049 material composition;
 - may consume AUTH-0088 as the exact backend-neutral surface-ecology query for a named published volume and world X/Z;
+- may consume AUTH-0089 as island-scale ecological opportunity evidence; it is not a spawn/carrying-capacity/resource contract;
 - owns block-space realization, chunk lifecycle, fluid propagation/fencing, and live Minecraft proofs;
-- SF-IMP-0080 is now merged/accepted as the legible forest/taiga ecology showcase after machine and human review; it does not yet claim AUTH-0088 semantic-biome translation;
-- issue #214 requires Minecraft rendering of AUTH-0083/AUTH-0084 deterministic handoff IDs.
+- SF-IMP-0080 remains the accepted forest/taiga ecology showcase;
+- SF-IMP-0081 is the accepted first AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / issue #269 owns the remaining built-in morphology atlas;
+- issue #214 still requires the broader AUTH-0083/AUTH-0084 Minecraft family/regional review.
 
 Content / Experience:
 
@@ -248,8 +275,8 @@ Human review still needs the AUTH-0083/AUTH-0084 reference + Minecraft matrices,
 
 ## Ordered next work
 
-1. Merge this AUTH-0088 durable-state boundary.
-2. Recompose AUTH-0089 onto resulting current `main`.
-3. Verify fixed island-scale ecology aggregation, normalization, deterministic scale covariance, and evidence packaging.
-4. Merge AUTH-0089 only after fresh exact-head CI.
-5. Keep SF-IMP-0081 / issue #214 production morphology independent and Implementation-owned.
+1. Merge this AUTH-0089 durable-state boundary.
+2. Begin AUTH-0090 regional ecological opportunity aggregation from resulting current `main`.
+3. Reuse accepted AUTH-0058 regional publication identity, AUTH-0087 exact associations, and AUTH-0089 island profiles.
+4. Require deterministic area-weighted regional composition, exact provenance coverage, and fresh exact-head CI/evidence.
+5. Keep SF-IMP-0082 / issue #269 morphology work independently Implementation-owned.
