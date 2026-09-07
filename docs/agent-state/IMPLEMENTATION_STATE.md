@@ -3,8 +3,8 @@
 **Canonical lane:** IMPLEMENTATION  
 **Updated:** 2026-09-06  
 **Repository snapshot observed at migration:** `main@3f300346e598a6bc87a3a1468ec028bdee7eec0b`  
-**Highest merged Implementation milestone:** **SF-IMP-0080**  
-**SF-IMP-0080 merge:** PR #248, `e721b512d7aaf402d671b8d0c72db802f9bd0912`
+**Highest merged Implementation milestone:** **SF-IMP-0081**  
+**SF-IMP-0081 merge:** PR #265, `bac972eb7e8d772a250d292602e109428d06514a`
 
 Always verify current `main` before starting work; the snapshot above records the migration point, not a claim that other lanes stopped advancing afterward.
 
@@ -85,6 +85,35 @@ The required human #194 gate explicitly passed. The reviewer reported that both 
 
 A separate non-blocking presentation limitation was observed: moving a short distance away from the terrain can return the client-visible biome to BASE_WORLD ambience. This matches the intentionally narrow SF-IMP-0058 immediate-surface quart contract and is tracked as **issue #261**; it does not reopen #194 or weaken SF-IMP-0080 ecology acceptance.
 
+
+### SF-IMP-0081 — first exact AUTH-0083 production morphology Minecraft carrier
+
+SF-IMP-0081 (PR #265, merge `bac972eb7e8d772a250d292602e109428d06514a`) is **MERGED / ACCEPTED** as the first issue #214 Minecraft morphology tranche.
+
+The accepted carrier preserves exact AUTH-0083 member `builtin-massif-small-seed-skyforge`: canonical Skyforge seed, SMALL scale, built-in Massif provider, full bounded detail, full provider secondary morphology, and provider-neutral `SkyIslandMorphologySpecCompiler` compilation. Minecraft changes only suspension Y by an integer translation; the adapter proves the translated discrete support is a pure Y shift of the source specimen.
+
+Accepted implementation evidence:
+
+- translated suspension: **Y=216**;
+- exact integer support bounds: **X -184..184, Y 96..301, Z -162..162**;
+- exact support: **89,859** occupied integer X/Z columns within **281,961** certified scan columns;
+- physical admission: **ADMITTED, 528 / 528 observed/required chunks**;
+- pending catch-up: **0**;
+- sampled top/underside claims: **1,400**;
+- stored top / air above: **1,400 / 1,400**;
+- stored underside / air below: **1,400 / 1,400**;
+- exact height mismatches: **0**;
+- land-top samples: **1,343**;
+- grass-top samples: **1,014**;
+- sampled top range: **Y 217..301**;
+- deterministic sampled geometry digest: **11910236061391333683**;
+- mutation-inert actual-client reopen reproduced the same samples and identical digest;
+- exact synchronized repository build, current showcase, ecology, performance, retained Content/C16 wireless, and dedicated Massif acceptance all PASS.
+
+The first #214 human review explicitly passed the carrier/morphology-system gate: the pure island morphology and underside looked strong and coherent in-engine. This does **not** close issue #214; the broader family/seed/scale/hybrid/regional atlas remains required.
+
+A non-blocking gameplay-quality observation was recorded: this particular Massif felt notably lumpy, with frequent rises and falls that may not feel ideal for on-foot traversal. That is tracked separately as **issue #267** and should be evaluated across seeds/scales/families before retuning. It does not weaken SF-IMP-0081 acceptance.
+
 ## Architectural invariants
 
 - BASE_WORLD generation and Skyforge exact ownership remain distinct domains.
@@ -109,27 +138,24 @@ Read [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md). Most important near-ter
 
 ## IN PROGRESS
 
-### SF-IMP-0081 — first AUTH-0083 production morphology Minecraft carrier
+### SF-IMP-0082 — remaining built-in production morphology atlas
 
-Branch **`agent/sf-imp-0081-production-morphology-massif`** is the active Implementation work for the first issue #214 tranche.
+Issue **#269** is the active next Implementation milestone.
 
-The first carrier preserves exact AUTH-0083 member **`builtin-massif-small-seed-skyforge`**: canonical Skyforge seed, SMALL scale, built-in Massif provider, full bounded detail, full provider secondary morphology, and provider-neutral `SkyIslandMorphologySpecCompiler` compilation. Minecraft changes only the suspension elevation by an integer Y translation so the discrete shape is preserved inside the 1.21.1 build range.
+Generalize SF-IMP-0081's accepted exact-carrier architecture across the remaining AUTH-0083 SMALL / seed-skyforge built-in members:
 
-Implementation work in this tranche:
+- `builtin-tableland-small-seed-skyforge`;
+- `builtin-spine-small-seed-skyforge`;
+- `builtin-basin-small-seed-skyforge`;
+- `builtin-lobed-small-seed-skyforge`.
 
-- derive tight exact integer-voxel runtime bounds from the compiled morphology inside its certified provider support envelope, rather than paying whole-volume admission over the broad proof envelope;
-- native-surface-adapt the exact carrier onto the accepted land-backed deterministic base;
-- require whole-volume physical admission and zero deferred catch-up;
-- intentionally omit caves/ecology/interior mutation so the first #214 review sees unobscured morphology;
-- sample both top and underside boundaries against compiled exact-volume expectations;
-- persist the world and require an ownership-only actual-client reopen with an identical sampled geometry digest;
-- expose `above`, `approach`, `below`, and `orbit` guided stops for the first human #214 review.
+Do not copy-paste four family-specific runtimes. Prefer one reusable carrier fixture/runtime/viewer keyed by exact AUTH-0083 member identity, retaining tight integer support derivation, whole-volume admission, persistence/reopen digest proof, and guided above/approach/below/orbit review.
 
-No aesthetic thresholds are encoded. Automated acceptance is objective carrier correctness only; issue #214 remains a human visual/design gate.
+The #214 human gate remains required for the four-family tranche. Gameplay/traversal observations should be recorded independently from morphological correctness.
 
 ## PROPOSED / priority order
 
-1. **Production morphology era / #214.** Begin with one exact AUTH-0083 built-in specimen in Minecraft, then expand across Massif, Tableland, Spine, Basin, Lobed, scales/seeds, hybrids/provider composition, and AUTH-0084 regional contexts. Preserve reference member/context IDs in Minecraft evidence.
+1. **Production morphology era / #214.** SF-IMP-0081 has accepted the first exact Massif carrier. SF-IMP-0082 / #269 now expands the same mechanism across Tableland, Spine, Basin, and Lobed; after that, continue to multiple seeds/scales, hybrids/provider composition, and AUTH-0084 regional contexts. Preserve reference member/context IDs in Minecraft evidence.
 2. Add representative hybrids/provider composition, secondary morphology, bounded local detail, and regional/cluster composition through the current lifecycle.
 3. Connect authored materials/geology and then authored hydrology to concrete Minecraft realization.
 4. Reintegrate structures into the newest exact-volume lifecycle across surface, embedded, cliff/underside, detached, settlement/network, and structure-seeded modes.
@@ -147,7 +173,8 @@ Deprioritized performance follow-up: issue #219 (canonical nearest-first surface
 - README/current-runtime capability prose may lag the current SF-IMP boundary. This state file is canonical for lane status; architecture/review docs remain useful for the specific boundary they describe.
 - Production performance has improved greatly in the torture fixture but still needs realistic exploration-scale validation later.
 - Structure support was proved earlier but has not yet been fully reintegrated into the newest production exact-volume population lifecycle.
-- Underside morphology is a first-class requirement; current family-aware secondary geography is more developed topside than underside.
+- Underside morphology is a first-class requirement; the first Massif human review passed strongly, but the remaining families must still test whether primary+detail underside vocabulary is sufficient.
+- Issue #267 tracks a non-blocking traversal-quality concern from the first Massif: repeated local rises/falls may be too lumpy for comfortable on-foot exploration. Do not flatten the family from one specimen; evaluate across the broader atlas first.
 
 ## Verification procedures
 
@@ -183,16 +210,16 @@ Do not declare production morphology aesthetically accepted before this human ga
 
 ## Immediate recommended next work
 
-Begin **SF-IMP-0081** as the first issue #214 Minecraft production-morphology tranche.
+Begin **SF-IMP-0082 / issue #269** from merged SF-IMP-0081.
 
-Use the exact AUTH-0083 member identity `builtin-massif-small-seed-skyforge` as the first executable specimen. Preserve its canonical seed, physical scale, full bounded detail, full secondary morphology, and provider-neutral `SkyIslandMorphologySpecCompiler` path; only translate the suspension elevation into Minecraft's build range.
+Generalize the accepted first-carrier implementation rather than duplicating it. The next tranche should:
 
-The first tranche should:
+- express the remaining four AUTH-0083 SMALL / seed-skyforge built-in members through one reusable fixture/runtime abstraction;
+- preserve exact member IDs, seeds, scale, provider enrichment, and pure integer-Y translation proof;
+- derive tight exact integer support per member;
+- prove whole-volume admission, zero catch-up, top/underside exactness, persistence, and mutation-inert actual-client reopen per family;
+- expose family-selectable above / approach / below / orbit stops;
+- keep machine gates objective and reserve aesthetic/family/traversal judgments for human #214 review;
+- retain issue #267 as a gameplay tuning signal rather than mixing traversal comfort into morphology carrier correctness.
 
-- derive tight Minecraft integer-voxel support bounds from the compiled production morphology instead of paying physical-admission cost over a broad generic envelope;
-- realize the specimen through native-surface adaptation, whole-volume physical admission, deferred stable-chunk catch-up, persistence, and a mutation-inert actual-client reopen;
-- preserve a stable AUTH-0083 member ID in all evidence;
-- provide guided **above / horizon-approach / below / orbit-underneath** player views for the first #214 human review;
-- use machine gates only for objective realization failures (clipping, missing terrain, persistence mismatch, lifecycle violation). Do not invent aesthetic thresholds before correlating Minecraft views with AUTH-0083 diagnostics.
-
-After that carrier proof is green, expand the same mechanism across the other four built-in families before moving to hybrids/provider axes and AUTH-0084 regional scenes.
+After the four remaining families pass, decide whether to widen the next tranche to multiple seeds/scales or address any family-specific morphology defect exposed by human review before moving to hybrids/provider axes and AUTH-0084 regional scenes.
