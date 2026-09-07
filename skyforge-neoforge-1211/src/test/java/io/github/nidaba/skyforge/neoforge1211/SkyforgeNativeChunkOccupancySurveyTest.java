@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,6 +29,10 @@ final class SkyforgeNativeChunkOccupancySurveyTest {
                 new SkyforgeMinecraftBlockPalette());
         BlockPos owned = firstOwnedPosition(adapter, volume.id(), chunk);
         BlockPos columnMajorOwned = firstColumnMajorOwnedPosition(adapter, volume.id(), chunk);
+        assertNotEquals(
+                owned,
+                columnMajorOwned,
+                "fixture must exercise genuinely different Y-major and column-major discovery order");
         chunk.setBlockState(owned, Blocks.CHEST.defaultBlockState(), false);
         chunk.setBlockState(columnMajorOwned, Blocks.CHEST.defaultBlockState(), false);
 

@@ -1,24 +1,30 @@
 name: SF-IMP-0083 Morphology Seed-Scale Acceptance
 
 on:
-  pull_request:
-    paths:
-      - "skyforge-neoforge-1211/**"
-      - "skyforge-reference/**"
-      - "docs/showcase/production-morphology-seed-scale-matrix.md"
-      - ".github/workflows/sf-imp-0083-acceptance.yml"
   workflow_dispatch:
+    inputs:
+      family:
+        description: "Exact family atlas to characterize; use all only after a single-family run is healthy"
+        required: true
+        default: "tableland"
+        type: choice
+        options:
+          - tableland
+          - massif
+          - spine
+          - basin
+          - lobed
+          - all
 
 permissions:
   contents: read
 
 concurrency:
-  group: sf-imp-0083-acceptance-${{ github.event.pull_request.number || github.ref }}
+  group: sf-imp-0083-acceptance-${{ github.ref }}-${{ inputs.family }}
   cancel-in-progress: true
 
 jobs:
   unit-equivalence:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 285
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -45,7 +51,7 @@ jobs:
 
   acceptance:
     needs: unit-equivalence
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 285
+    if: inputs.family == 'all' || inputs.family == matrix.family
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     strategy:
