@@ -19,7 +19,7 @@
 | --- | --- |
 | Authorship | `AUTH-0086` merged on current `main` (visible authored-hydrology realization intent) |
 | Implementation | `SF-IMP-0079` merged before current Authorship work (post-cave vegetal routing) |
-| Content / Experience | C13 Elytra/firework bypass suppression accepted; C10 live 1:1 Nether-scale proof, C9 CC:Tweaked avionics substrate, and C8 glider-maintenance closure also accepted; C11/C12 remain separately in progress/reserved |
+| Content / Experience | C14 executable avionics capability accepted; C13 Elytra/firework suppression, C10 live 1:1 Nether-scale proof, C9 computing substrate, and C8 glider-maintenance closure also accepted; C11/C12 remain separately in progress/reserved |
 | AUDIT | AUDIT-0001 repository-state reconstruction / durable audit handoff accepted on `main` |
 
 Use each lane's own state file and git history for detail. Do not infer acceptance solely from an old
@@ -133,7 +133,15 @@ Computing is a first-class capability axis but is **not** a first-flight prerequ
 C9 / PR #230 accepts the runtime coexistence of CC:Tweaked 1.119.0 + Create: Avionics 0.5.2 with
 the retained Create/Sable/Aeronautics stack.
 
-Next contract questions are gameplay capability/bypass:
+C14 / PR #256, merge `b4b44c87509ee70b27ddbe20468d2d287cbd79f1`, accepts the existing
+Create: Avionics peripheral surface as the baseline programmable avionics sensor/bounded-control
+substrate. Real CraftOS computers discover and read live altitude state and drive the retained physical
+throttle through its upstream 0..15 clamp. The retained flight stack also initializes without the
+computing layer, so computers remain optional for manual and first flight. Other lanes should not add
+a duplicate generic aircraft telemetry/control API; thin Skyforge peripherals remain reserved for
+Skyforge-owned semantics not exposed upstream.
+
+Next contract questions are gameplay/bypass:
 
 - autopilot versus route/navigation gameplay;
 - turtles versus resource/freight geography;

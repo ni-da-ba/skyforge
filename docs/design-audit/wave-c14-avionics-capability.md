@@ -1,6 +1,6 @@
 # Wave C14 — executable avionics capability specimen
 
-**Status:** IN PROGRESS until the exact-head PR workflow is green and merged  
+**Status:** MERGED / ACCEPTED — PR #256, merge `b4b44c87509ee70b27ddbe20468d2d287cbd79f1`  
 **Issue:** #253  
 **Parent computing contract:** #227  
 **Parent vertical slice:** #224
@@ -90,3 +90,22 @@ repository CI
 
 The exact runtime PASS marker is emitted only after both real computers complete their Lua programs
 and Minecraft confirms the bounded throttle state physically.
+
+
+## Accepted evidence
+
+Exact synchronized runtime head: `dda6d1c6a98034c12931bcdcfcaf9fe70a9d03dd`.
+
+```text
+Wave C14 classpath A/B PASS
+flight-only baseline: dedicated-server ready without CC/Avionics
+lowHeight=80.5
+highHeight=120.5
+altitudeDelta=40.0
+throttle=0->9->0->15
+physicalLow=15
+physicalHigh=15
+```
+
+The same head passed Wave C9, C2/C3/C5/C6/C7/C10/C13 regressions, showcase acceptance,
+SF-IMP performance characterization, and repository CI before merge.

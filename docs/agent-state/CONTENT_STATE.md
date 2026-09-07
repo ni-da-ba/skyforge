@@ -3,7 +3,7 @@
 **Lane:** Content / Experience  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot before C13 merge:** `a55e500c86f0baf910af809985956ac398742706`
+**Main snapshot after C14 merge:** `b4b44c87509ee70b27ddbe20468d2d287cbd79f1`
 
 Read first:
 
@@ -13,7 +13,34 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest accepted executable Content milestone by identifier: C13
+### Highest accepted executable Content milestone by identifier: C14
+
+**C14 / PR #256**, merge `b4b44c87509ee70b27ddbe20468d2d287cbd79f1`; exact synchronized runtime head
+`dda6d1c6a98034c12931bcdcfcaf9fe70a9d03dd`.
+
+C14 closes the first executable C9 capability gap without adding a Skyforge computing API. The exact
+retained CC:Tweaked + Create: Avionics stack booted two real CraftOS computers, discovered real
+Simulated altitude-sensor and throttle-lever peripherals, and produced:
+
+```text
+lowHeight=80.5
+highHeight=120.5
+altitudeDelta=40.0
+throttle=0 -> 9 -> 0 -> 15
+physicalLow=15
+physicalHigh=15
+```
+
+The A/B baseline also reached dedicated-server ready state with the retained Create/Sable/Aeronautics
+flight stack and no CC:Tweaked/Create: Avionics. Existing Create: Avionics peripherals are therefore
+the accepted baseline programmable sensor/bounded-control substrate. Computing remains optional for
+manual/first flight, and thin Skyforge peripherals remain reserved for genuinely Skyforge-owned
+semantics unavailable upstream. C14 does not accept autopilot progression, turtle throughput,
+wireless/GPS balance, route/fleet automation UX, or a permanent optional-mod version lock.
+
+C11 and C12 remain separately reserved/in progress; numerical order does not imply their acceptance.
+
+### C13 — Elytra/firework bypass suppression
 
 **C13 / PR #247**, exact-head targeted acceptance `7ca8d8d6126d772320b696be73bf7084070f33cc`.
 
@@ -155,12 +182,12 @@ save/reload, two-engine behavior, and human ergonomics remain unaccepted.
 
 ## PROPOSED
 
-### Computing beyond the accepted C9 substrate
+### Computing beyond the accepted C14 capability surface
 
 Computing is a first-class capability axis, not a first-flight gate.
 
-C9 accepts CC:Tweaked + Create: Avionics as a viable runtime substrate. Next computing decisions are
-capability/bypass questions rather than basic loader compatibility:
+C9 accepts runtime coexistence and C14 accepts real upstream sensor/read plus bounded-control capability.
+Remaining computing decisions are gameplay/bypass questions rather than substrate or basic capability questions:
 
 - autopilot must not erase route planning/navigation gameplay;
 - turtles must not trivialize resource geography/freight;
@@ -262,6 +289,7 @@ Relevant focused workflows/commands:
 - `Wave C6 Hawk Thermal Compat`
 - `Wave C7 Glider Shared Lift`
 - `Wave C13 Elytra Bypass`
+- `Wave C14 Avionics Capability`
 - repository `CI`
 
 Detailed commands and evidence live in the corresponding `docs/design-audit/wave-c*.md`, Gradle run definitions,
@@ -270,12 +298,12 @@ workflow files, PRs, and tests.
 ## Ordered next work
 
 1. Do not duplicate active C11 PR #233; consume its live first-flight recipe result into #224 when accepted.
-2. Extend C9 from loader compatibility to computing capability/bypass acceptance (autopilot, telemetry, turtles, networking).
-3. Exercise C10 portal linking/placement and retained-mod compatibility before locking 1:1 Nether as final route policy.
+2. Exercise C10 portal linking/placement and retained-mod compatibility before locking 1:1 Nether as final route policy.
+3. Continue #227 computing **gameplay/bypass** audits only where evidence is available: turtles/resource geography, wireless/GPS infrastructure value, then mature autopilot progression.
 4. Coordinate #194 / PR #248 and begin Bootstrap Province acceptance as soon as a legible persistent land-biome fixture exists.
 5. Complete/accept #237 / PR #240, then execute the C12 Bellanca B0 specimen.
 6. Return to C1 industrial runtime evidence when the focused runtime window is available.
 
 Immediate recommendation for the next fresh Content agent:
 
-> Treat C13 Elytra suppression as mechanically closed. Avoid colliding with active C11/C12 work; next open Content lane is the C9 computing capability/bypass specimen, kept subordinate to #224 Bootstrap Province.
+> Treat C14 programmable avionics capability as mechanically closed. Avoid colliding with active C11/C12 work; the next clean executable Content target is C10 portal-linking/placement compatibility unless newer repository evidence opens a higher-priority Bootstrap Province dependency.
