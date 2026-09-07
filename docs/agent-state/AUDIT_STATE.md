@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot at latest AUDIT-0003 synchronization:** `9e8f11604ba55adeb8f1e95b5260472b421adc5e`
+**Main snapshot at AUDIT-0004 start:** `e7689121aee85c71573b971393d82823f3d86028`
 
 Read first:
 
@@ -26,7 +26,7 @@ Accepted boundary:
 - stale duplicate Content PR #225 was closed only after proving merged C8 / PR #229 behaviorally superseded it;
 - cross-lane milestone/progression collisions and manual gates were made explicit.
 
-### Highest AUDIT milestone: AUDIT-0003
+### Highest AUDIT milestone: AUDIT-0004
 
 PR **#249** merged as `d0e4329ed95088a38a5a0f8f2880736a34986616`.
 
@@ -59,6 +59,34 @@ This milestone records the next active-gate audit without taking over producer-l
 
 No runtime behavior or producer-lane acceptance is created by AUDIT-0003.
 
+### AUDIT-0004 — SF-IMP-0080 machine-ready / human-gate boundary
+
+Accepted by the merge that places this state update on `main`.
+
+Exact audited Implementation head: `4f3e65f73fb37b15e2dc6783cd19a4e96d22609f`.
+
+Machine evidence on that head is green:
+
+- repository CI run `34081000428`;
+- Skyforge Showcase Acceptance run `34081000377`, including the unchanged current-capability showcase and the separate ecology acceptance;
+- SF-IMP-0070 characterization run `34081000439`;
+- retained C2/C3/C5/C6/C7/C9/C10/C13/C14 compatibility gates.
+
+Dedicated ecology preparation proves:
+
+- lower FOREST: 37,684 substrate, 27,816 grass, 8,231 logs, 74,960 leaves, 1,884 plants;
+- lower native population: 1,376 attempted, 339 successful, 8 feature keys;
+- upper TAIGA: 39,077 substrate, 28,941 grass, 10,310 logs, 77,024 leaves, 1,760 plants;
+- upper native population: 1,602 attempted, 400 successful, 9 feature keys;
+- distinct forest/taiga native feature identity;
+- zero pending catch-up/biome-presentation obligations.
+
+Actual-client mutation-inert reopen also passes with persisted forest/taiga ecology and biome identity.
+
+This does **not** accept SF-IMP-0080. Current `main` advanced to AUDIT-0003 after the green Implementation head, so #248 must first synchronize to current main and rerun exact-head machine verification. If that remains green, the sole remaining acceptance gate is the explicit human-eye #194 ecology review.
+
+No runtime behavior or Implementation acceptance is created by AUDIT-0004.
+
 ## CURRENT AUTHORITATIVE PROGRAM SNAPSHOT
 
 | Lane | Highest merged boundary |
@@ -68,7 +96,7 @@ No runtime behavior or producer-lane acceptance is created by AUDIT-0003.
 | Content / Experience | **C14** / PR #256 — executable avionics capability; C11/C12 remain separately in progress/reserved |
 | Showcase | technical current-capability showcase + persisted client reopen accepted |
 | Music | no MUS milestone merged; PR #159 remains draft/unmerged |
-| AUDIT | **AUDIT-0003** by the active-gate audit merge that places this update on `main` |
+| AUDIT | **AUDIT-0004** by the SF-IMP-0080 machine-readiness audit merge that places this update on `main` |
 
 Merged Bellanca PR #238 is accepted **design state**, not accepted aircraft runtime/flight behavior.
 
@@ -76,19 +104,17 @@ Merged Bellanca PR #238 is accepted **design state**, not accepted aircraft runt
 
 ### Implementation land-biome legibility — issue #194 / PR #248
 
-PR **#248 / SF-IMP-0080** is active as a draft. Latest audited retry head: `4f3e65f73fb37b15e2dc6783cd19a4e96d22609f`.
+PR **#248 / SF-IMP-0080** is active and non-draft but remains unaccepted. Exact audited green head: `4f3e65f73fb37b15e2dc6783cd19a4e96d22609f`.
 
 Evidence progression:
 
 - the literal-`\\n` registration compile blocker is fixed;
-- `611a85f9` reached runtime and failed with `SF-IMP-0080 lower biome produced no meaningful native surface population`;
-- that failure occurred only after both exact volumes were ADMITTED, catch-up/biome-presentation pending sets were empty, and completed native-result counts exactly equaled expected surface obligations;
-- Implementation therefore treated the original native-surface seed as an invalid human-facing substrate choice rather than revisiting admission/result-cardinality machinery;
-- the current retry uses documented Java 1.21 land-backed seed `1405130932537311389`, retains attempted/successful/feature-key failure diagnostics, and is cleanly synchronized to `main@9e8f1160`.
+- `611a85f9` reached runtime and proved the original native-surface seed unsuitable when lower FOREST produced no meaningful native population after exact lifecycle obligations completed;
+- the land-backed seed `1405130932537311389` resolves that substrate failure;
+- dedicated ecology preparation and actual-client reopen are green with substantial forest/taiga substrate, grass, logs, leaves, plants, successful native features, and distinct feature identity;
+- the unchanged current-capability showcase, SF-IMP-0070 characterization, repository CI, and retained compatibility gates are green on `4f3e65f7`.
 
-Automated acceptance for the retry is pending. No human #194 review is actionable until the machine ecology/showcase/performance/reopen gates are green.
-
-Current design boundary if the retry passes:
+Current `main` is now one Audit-state merge ahead of that green head. Before acceptance, #248 must synchronize to current main and rerun the exact-head machine matrix. Once that synchronized head is green, the next gate is manual rather than another implementation claim:
 
 - the accepted current-capability cave/interior showcase remains unchanged;
 - the ecology specimen reuses broad TABLELAND land geometry plus forest/taiga identity through modern whole-volume admission, deferred catch-up, exact-volume native surface population, durable biome presentation, save/reopen, and a mutation-inert actual-client viewer;
@@ -140,9 +166,15 @@ AUDIT found the proposal cross-lane consistent: it remains the later Brass-era B
 
 ### #194 — land-biome/ecology legibility
 
-PR #248 is the active draft SF-IMP-0080 vehicle. Its new separate ecology showcase preserves the compact cave/interior showcase and must first pass the machine gates described above.
+PR #248 is the active non-draft SF-IMP-0080 vehicle. Its separate ecology showcase has passed the full machine matrix on audited head `4f3e65f7`, but that head predates current `main` by the AUDIT-0003 state merge. Synchronize and rerun exact-head verification first.
 
-Human review must still see persistent soil/grass, trees/foliage, surface plants, meaningful forest/taiga distinction, plausibly attached vegetation, and no obvious save/reopen visual defect. Do not merge/accept SF-IMP-0080 before that review is explicitly recorded.
+Then run:
+
+```text
+gradlew.bat :skyforge-neoforge-1211:launchShowcaseEcology --no-configuration-cache
+```
+
+Human review must visibly confirm land substrate, trees/foliage, non-tree surface plants, meaningful forest-versus-taiga distinction, plausible vegetation attachment, and no obvious persistence defect at `/skyforge_ecology lower_forest` and `/skyforge_ecology upper_taiga`. Do not merge/accept SF-IMP-0080 before that review is explicitly recorded.
 
 ### #214 — production morphology quality
 
@@ -158,7 +190,7 @@ Human play must verify interaction discoverability and that neighboring redstone
 
 ## KNOWN HAZARDS / TECHNICAL DEBT
 
-1. **SF-IMP-0080 ecology retry remains unproven:** `611a85f9` established that the original native-surface seed yields no meaningful lower-FOREST population after lifecycle obligations complete. Current synchronized retry `4f3e65f7` uses a land-backed seed and better diagnostics, but machine ecology/showcase/performance/reopen evidence is still pending.
+1. **SF-IMP-0080 final-head/human gate:** machine ecology/reopen/showcase/performance/CI evidence is green on `4f3e65f7`, but current main advanced afterward. #248 must synchronize and rerun exact-head verification; if still green, #194 human visual review is the remaining acceptance gate.
 2. **AUTH-0087 state lag:** AUTH-0087 is merged on main, but the Authorship lane summary still reports AUTH-0086 until PR #257 lands. Repository history/source/tests are authoritative during that gap.
 3. **Long-lived branch drift:** C11 and Portable Engine cutoff require current-main synchronization before acceptance.
 4. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
@@ -174,9 +206,10 @@ Resolved hazards:
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Re-audit SF-IMP-0080 / PR #248 when the current land-backed retry finishes its ecology/showcase/performance/reopen gates; if machine evidence is green, require the #194 human-eye ecology review before acceptance.
-2. Track Authorship PR #257 until the accepted AUTH-0087 boundary is durable in the lane ledger/shared contracts; do not duplicate its owner-file edits.
+1. Re-audit SF-IMP-0080 / PR #248 after it synchronizes to current main and reruns the exact-head machine matrix. If green, require the #194 human-eye ecology review before merge/acceptance.
+2. Track Authorship PR #257 until the accepted AUTH-0087 boundary is durable in the lane ledger/shared contracts; its current synchronized repair head must pass exact-head verification before merge.
 3. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
 4. Re-audit PR #240 after assembled-Sable + persistence evidence.
-5. Continue checking future lane-state migrations remain under `docs/agent-state/`.
-6. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
+5. Review new Content milestones only for cross-lane contract effects; producer-lane acceptance remains owner-gated.
+6. Continue checking future lane-state migrations remain under `docs/agent-state/`.
+7. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
