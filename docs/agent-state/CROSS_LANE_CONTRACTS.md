@@ -20,7 +20,7 @@
 | Authorship | `AUTH-0093` accepted: normalized Iron/Copper/Zinc geological opportunity over exact AUTH-0033 mineral-bearing structural provenance |
 | Implementation | `SF-IMP-0082` accepted: all five SMALL / seed-skyforge built-in AUTH-0083 Minecraft carriers; SF-IMP-0083 / #284 multi-seed/multi-scale built-in matrix in progress |
 | Content / Experience | `C18` accepted: stock turtle freight/ticking envelope measured and base capability retained; C11/C12 remain separately in progress/reserved |
-| Music / Audio | MUS-0001 / PR #159 synchronized to current `main`; source/library audit and persistence repair complete; merge pending exact-head CI |
+| Music / Audio | `MUS-0001` accepted in `0b3386ad74ef610f49d9d3e8050e5a701f5e2cbd`: durable score/source lane, canonical manifests, BBCSO/library audit, Track 02 persistence repair, and explicit remaining human/source-recovery gates |
 | AUDIT | `AUDIT-0008` accepted: repository-visible agent/process convergence health is a durable supervisory responsibility |
 
 Use each lane state file and merged history for detail.
@@ -185,12 +185,9 @@ Cross-lane consequence: retain stock turtle movement/freight; no generic Skyforg
 
 Bootstrap computing remains tracked in #224.
 
-### Music / Audio — MUS-0001 — MERGE CANDIDATE / UNMERGED
+### Music / Audio — MUS-0001 — ACCEPTED
 
-MUS-0001 / PR #159 is the current soundtrack-persistence merge candidate. The branch has been
-synchronized onto current `main`; source/library audit, Track 02 persistence repair, cue manifests,
-and Track 00 repair candidates are persisted. No Music milestone is repository-level accepted until
-exact-head CI passes and PR #159 merges.
+MUS-0001 / PR #159 merged as `0b3386ad74ef610f49d9d3e8050e5a701f5e2cbd` after exact-head CI passed. The accepted boundary establishes durable Music / Audio lane state, canonical source/checksum persistence, BBCSO/library alignment guardrails, Track 02 persistence repair, Track 00 repair candidates, and explicit remaining manual/source-recovery gates.
 
 Current cross-lane ownership:
 
