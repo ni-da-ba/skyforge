@@ -87,6 +87,11 @@ final class SkyforgePhysicalVolumeAdmissionLedger {
         return Set.copyOf(requireEntry(volumeId).requiredChunkKeys);
     }
 
+    /** Whether this chunk actually belongs to the ledger's finite required evidence footprint. */
+    synchronized boolean requiresChunk(SkyIslandWorldVolumeId volumeId, long chunkKey) {
+        return requireEntry(volumeId).requiredChunkKeys.contains(chunkKey);
+    }
+
     synchronized Observation snapshot(SkyIslandWorldVolumeId volumeId) {
         return snapshot(volumeId, requireEntry(volumeId), false);
     }

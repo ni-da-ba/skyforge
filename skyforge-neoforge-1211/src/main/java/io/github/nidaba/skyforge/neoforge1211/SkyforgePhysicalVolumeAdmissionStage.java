@@ -105,9 +105,20 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                 chunk.getPos(),
                 chunk.getMinBuildHeight(),
                 chunk.getHeight());
+        long chunkKey = chunk.getPos().toLong();
         synchronized (binding) {
             for (var volume : binding.catalog().query(chunkBounds.worldBounds())) {
                 SkyIslandWorldVolumeId volumeId = volume.id();
+                // Catalog bounds are intentionally conservative. An exact-footprint admission
+                // ledger may therefore exclude a bounds-intersecting chunk that contains no owned
+                // Skyforge solid coordinate. Such a chunk cannot contain an occupancy conflict and
+                // must not be submitted as evidence to the narrower ledger.
+                if (!binding.ledger().requiresChunk(volumeId, chunkKey)) {
+                    SkyforgeRuntimePerformanceMetrics.recordSample(
+                            "admission.boundsOnlyChunkSkipped",
+                            1L);
+                    continue;
+                }
                 SkyforgePhysicalVolumeAdmissionState before = binding.ledger().state(volumeId);
                 if (before == SkyforgePhysicalVolumeAdmissionState.REJECTED
                         || before == SkyforgePhysicalVolumeAdmissionState.ADMITTED) {
