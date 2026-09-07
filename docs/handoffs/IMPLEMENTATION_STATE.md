@@ -2,7 +2,7 @@
 
 **Canonical lane:** IMPLEMENTATION  
 **Updated:** 2026-09-06  
-**Repository snapshot observed at migration:** `main@335978905f5c5e235c07a114a653a3be24536c47`  
+**Repository snapshot observed at migration:** `main@3f300346e598a6bc87a3a1468ec028bdee7eec0b`  
 **Highest merged Implementation milestone:** **SF-IMP-0079**  
 **SF-IMP-0079 merge:** PR #236, `91da8370a9c8078758b355a7ca4bd5f66531df6b`
 
