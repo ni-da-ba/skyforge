@@ -2,6 +2,8 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
@@ -15,6 +17,7 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.List;
+import java.util.OptionalInt;
 import net.minecraft.world.level.ChunkPos;
 import org.junit.jupiter.api.Test;
 
@@ -73,11 +76,92 @@ final class SkyforgeNeoForge1211ChunkAdapterTest {
                 SkyIslandTerrainProfile.reference(),
                 new SkyforgeMinecraftBlockPalette());
 
+        ChunkPos distantPos = new ChunkPos(100, 100);
+        assertFalse(adapter.hasCandidateVolume(distantPos, MINIMUM_Y, 32));
+        assertTrue(adapter.hasCandidateVolume(new ChunkPos(0, 0), MINIMUM_Y, HEIGHT));
+
         MinecraftChunkMaterialization distant =
-                adapter.materialize(new ChunkPos(100, 100), MINIMUM_Y, 32);
+                adapter.materialize(distantPos, MINIMUM_Y, 32);
 
         assertEquals(0, distant.candidateVolumeReferences());
         assertEquals(0, distant.solidBlockCount());
+    }
+
+    @Test
+    void exactOwnershipQueriesPreserveKnownVolumeAndSingleVolumeForeignIsolation() {
+        SkyIslandWorldCatalog catalog = catalog();
+        SkyIslandWorldVolumeId volumeId = catalog.volumes().getFirst().id();
+        SkyforgeNeoForge1211ChunkAdapter adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+
+        assertTrue(adapter.isSolidOwnedBy(volumeId, 0, 320, 0));
+        assertFalse(adapter.isSolidOwnedByOtherVolume(volumeId, 0, 320, 0));
+
+        SkyIslandWorldVolumeId unknown = new SkyIslandWorldVolumeId(
+                ROOT_SEED,
+                "unknown",
+                0,
+                0,
+                ROOT_SEED ^ 0x554e4b4e4f574eL);
+        assertFalse(adapter.isSolidOwnedBy(unknown, 0, 320, 0));
+    }
+
+    @Test
+    void exactVolumeFirstFreeHeightMatchesHistoricalFullSpanOwnershipScan() {
+        SkyIslandWorldCatalog catalog = catalog();
+        SkyIslandWorldVolumeId volumeId = catalog.volumes().getFirst().id();
+        SkyforgeNeoForge1211ChunkAdapter adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+
+        assertEquals(
+                manualFirstFreeHeight(adapter, volumeId, 0, 0, -64, 640),
+                adapter.firstFreeHeight(volumeId, 0, 0, -64, 640));
+        assertEquals(
+                manualFirstFreeHeight(adapter, volumeId, 40, -24, 250, 120),
+                adapter.firstFreeHeight(volumeId, 40, -24, 250, 120));
+        assertEquals(
+                manualFirstFreeHeight(adapter, volumeId, 255, 255, -64, 640),
+                adapter.firstFreeHeight(volumeId, 255, 255, -64, 640));
+    }
+
+    @Test
+    void exactVolumeFirstFreeHeightReturnsEmptyForDisjointRequestedSpan() {
+        SkyIslandWorldCatalog catalog = catalog();
+        SkyIslandWorldVolumeId volumeId = catalog.volumes().getFirst().id();
+        SkyforgeNeoForge1211ChunkAdapter adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+
+        assertEquals(
+                OptionalInt.empty(),
+                adapter.firstFreeHeight(volumeId, 0, 0, -64, 64));
+        assertEquals(
+                OptionalInt.empty(),
+                adapter.firstFreeHeight(volumeId, 0, 0, 600, 32));
+    }
+
+    @Test
+    void exactVolumeFirstFreeHeightStillRejectsUnknownVolume() {
+        SkyIslandWorldCatalog catalog = catalog();
+        SkyforgeNeoForge1211ChunkAdapter adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        SkyIslandWorldVolumeId unknown = new SkyIslandWorldVolumeId(
+                ROOT_SEED,
+                "unknown-height-query",
+                0,
+                0,
+                ROOT_SEED ^ 0x484549474854L);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> adapter.firstFreeHeight(unknown, 0, 0, -64, 640));
     }
 
     @Test
@@ -112,6 +196,14 @@ final class SkyforgeNeoForge1211ChunkAdapterTest {
         assertEquals(1, upper.candidateVolumeReferences());
         assertTrue(lower.solidBlockCount() > 0);
         assertTrue(upper.solidBlockCount() > 0);
+        assertTrue(adapter.isSolidOwnedBy(lowerId, 0, 236, 0));
+        assertTrue(adapter.isSolidOwnedBy(upperId, 0, 356, 0));
+        assertFalse(
+                adapter.isSolidOwnedByOtherVolume(lowerId, 0, 236, 0),
+                "upper volume must not claim the lower suspension sample");
+        assertTrue(
+                adapter.isSolidOwnedByOtherVolume(lowerId, 0, 356, 0),
+                "upper volume must be visible as a foreign owner at its suspension sample");
         assertEquals(
                 lower.solidBlockCount() + upper.solidBlockCount(),
                 composite.solidBlockCount(),
@@ -120,6 +212,22 @@ final class SkyforgeNeoForge1211ChunkAdapterTest {
                 lower.blockKeys(),
                 adapter.materialize(lowerId, chunkPos, 176, 256).blockKeys(),
                 "deferred exact-volume rematerialization must be deterministic");
+    }
+
+    private static OptionalInt manualFirstFreeHeight(
+            SkyforgeNeoForge1211ChunkAdapter adapter,
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ,
+            int minimumY,
+            int height) {
+        int maximumYExclusive = Math.addExact(minimumY, height);
+        for (int worldY = maximumYExclusive - 1; worldY >= minimumY; worldY--) {
+            if (adapter.isSolidOwnedBy(volumeId, worldX, worldY, worldZ)) {
+                return OptionalInt.of(worldY + 1);
+            }
+        }
+        return OptionalInt.empty();
     }
 
     private static boolean contains(

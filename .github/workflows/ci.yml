@@ -210,6 +210,187 @@ jobs:
           test -f skyforge-reference/build/evidence/authorship-reservation-preflight-v1/index.html
           test -f skyforge-reference/build/evidence/authorship-reservation-preflight-v1/atlas.png
           test -f skyforge-reference/build/evidence/authorship-reservation-preflight-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-reservation-requirement-synthesis-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-reservation-requirement-synthesis-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-reservation-requirement-synthesis-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-reservation-requirement-synthesis-v1/replan.csv
+          test -f skyforge-reference/build/evidence/authorship-immutable-replan-proposal-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-immutable-replan-proposal-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-immutable-replan-proposal-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-immutable-replan-proposal-v1/boundary.csv
+          test -f skyforge-reference/build/evidence/authorship-one-shot-convergence-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-one-shot-convergence-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-one-shot-convergence-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-one-shot-convergence-v1/attempts.csv
+          test -f skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/binding.csv
+          test -f skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/attempts.csv
+          test -f skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/binding.csv
+          test -f skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/version.csv
+          test -f skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/regional.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-view-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-view-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-view-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-view-v1/view.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-view-v1/query.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-view-v1/replacement.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-view-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/binding.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/activation.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/replacement.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/version.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-binding-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-binding-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-binding-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-binding-v1/capture.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-binding-v1/validation.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-binding-v1/query.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-snapshot-binding-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-prepared-work-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-prepared-work-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-prepared-work-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-prepared-work-v1/identity.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-prepared-work-v1/proof.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-prepared-work-v1/validation.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-ticket-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-ticket-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-ticket-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-ticket-v1/ticket.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-ticket-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-v1/acknowledgement.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-set-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-set-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-set-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-set-v1/set.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-set-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-v1/checkpoint.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-binding-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-binding-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-binding-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-binding-v1/binding.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-binding-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/prepared.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/ticket.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/acknowledgement.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/set.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/checkpoint.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-binding-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-binding-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-binding-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-binding-v1/binding.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-binding-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-v1/prepared.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/ticket.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-v1/acknowledgement.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-set-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-set-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-set-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-set-v1/set.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-set-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-v1/checkpoint.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-binding-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-binding-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-binding-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-binding-v1/binding.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-binding-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-v1/prepared.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/ticket.csv
+          test -f skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/failures.csv
+          test -f skyforge-reference/build/evidence/authorship-native-spring-semantic-admission-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-native-spring-semantic-admission-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-native-spring-semantic-admission-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-native-spring-semantic-admission-v1/positions.csv
+          test -f skyforge-reference/build/evidence/authorship-visible-hydrologic-realization-intent-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-visible-hydrologic-realization-intent-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-visible-hydrologic-realization-intent-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-visible-hydrologic-realization-intent-v1/provenance.csv
+          test -f skyforge-reference/build/evidence/authorship-published-authored-realization-binding-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-authored-realization-binding-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-authored-realization-binding-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-authored-realization-binding-v1/coverage.csv
+          test -f skyforge-reference/build/evidence/authorship-published-surface-ecology-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-published-surface-ecology-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-published-surface-ecology-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-published-surface-ecology-v1/exact.csv
+          test -f skyforge-reference/build/evidence/authorship-published-surface-ecology-v1/regimes.csv
+          test -f skyforge-reference/build/evidence/authorship-ecological-opportunity-profile-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-ecological-opportunity-profile-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-ecological-opportunity-profile-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-ecological-opportunity-profile-v1/profiles.csv
+          test -f skyforge-reference/build/evidence/authorship-regional-ecological-opportunity-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-regional-ecological-opportunity-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-regional-ecological-opportunity-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-regional-ecological-opportunity-v1/islands.csv
+          test -f skyforge-reference/build/evidence/authorship-regional-ecological-opportunity-v1/regional.csv
+          test -f skyforge-reference/build/evidence/authorship-freshwater-habitat-opportunity-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-freshwater-habitat-opportunity-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-freshwater-habitat-opportunity-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-freshwater-habitat-opportunity-v1/profiles.csv
+          test -f skyforge-reference/build/evidence/authorship-regional-isolation-evidence-v1/index.html
+          test -f skyforge-reference/build/evidence/authorship-regional-isolation-evidence-v1/atlas.png
+          test -f skyforge-reference/build/evidence/authorship-regional-isolation-evidence-v1/manifest.csv
+          test -f skyforge-reference/build/evidence/authorship-regional-isolation-evidence-v1/islands.csv
+          test -f skyforge-reference/build/evidence/authorship-regional-isolation-evidence-v1/profiles.csv
 
       - name: Publish compact evidence review bundle
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -385,6 +566,114 @@ jobs:
             skyforge-reference/build/evidence/authorship-reservation-preflight-v1/**/*.png
             skyforge-reference/build/evidence/authorship-reservation-preflight-v1/**/*.html
             skyforge-reference/build/evidence/authorship-reservation-preflight-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-reservation-requirement-synthesis-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-reservation-requirement-synthesis-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-reservation-requirement-synthesis-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-immutable-replan-proposal-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-immutable-replan-proposal-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-immutable-replan-proposal-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-one-shot-convergence-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-one-shot-convergence-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-one-shot-convergence-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-accepted-convergence-compilation-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-compiled-world-publication-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-view-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-view-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-view-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-snapshot-activation-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-snapshot-binding-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-snapshot-binding-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-snapshot-binding-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-prepared-work-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-prepared-work-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-prepared-work-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-ticket-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-ticket-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-ticket-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-set-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-set-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-set-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-binding-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-binding-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-binding-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-ticket-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-acknowledgement-set-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-binding-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-binding-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-binding-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-set-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-set-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-acknowledgement-set-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-binding-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-binding-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-binding-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-world-commit-acknowledgement-checkpoint-consumption-outcome-checkpoint-consumption-outcome-checkpoint-consumption-ticket-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-native-spring-semantic-admission-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-native-spring-semantic-admission-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-native-spring-semantic-admission-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-visible-hydrologic-realization-intent-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-visible-hydrologic-realization-intent-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-visible-hydrologic-realization-intent-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-authored-realization-binding-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-authored-realization-binding-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-authored-realization-binding-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-published-surface-ecology-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-published-surface-ecology-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-published-surface-ecology-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-ecological-opportunity-profile-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-ecological-opportunity-profile-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-ecological-opportunity-profile-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-regional-ecological-opportunity-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-regional-ecological-opportunity-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-regional-ecological-opportunity-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-freshwater-habitat-opportunity-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-freshwater-habitat-opportunity-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-freshwater-habitat-opportunity-v1/**/*.csv
+            skyforge-reference/build/evidence/authorship-regional-isolation-evidence-v1/**/*.png
+            skyforge-reference/build/evidence/authorship-regional-isolation-evidence-v1/**/*.html
+            skyforge-reference/build/evidence/authorship-regional-isolation-evidence-v1/**/*.csv
           if-no-files-found: error
           retention-days: 7
           compression-level: 9

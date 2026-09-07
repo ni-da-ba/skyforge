@@ -1,0 +1,87 @@
+name: Wave C9 Computing Avionics
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wave-c9-computing-avionics.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/wave-c9-mods.properties"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/WaveC9ComputingResourceTest.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wave-c9-computing-avionics-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-and-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Verify computing pins and run wiring
+        run: ./gradlew :skyforge-neoforge-1211:test --tests '*WaveC9ComputingResourceTest' --no-configuration-cache
+
+      - name: Resolve exact computing/avionics classpath
+        run: ./gradlew :skyforge-neoforge-1211:waveC9ResolvePinnedMods --no-configuration-cache
+
+      - name: Headless CC:Tweaked + Avionics flight-stack smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wave-c9-computing-avionics.log"
+          setsid ./gradlew :skyforge-neoforge-1211:runWaveC9ComputingAvionicsServer --no-configuration-cache >"${log}" 2>&1 &
+          pid=$!
+          ready=0
+          avionics=0
+          computercraft=0
+
+          for _ in $(seq 1 120); do
+            grep -Fq "Done (" "${log}" 2>/dev/null && ready=1 || true
+            grep -Fqi "create_avionics" "${log}" 2>/dev/null && avionics=1 || true
+            grep -Fqi "computercraft" "${log}" 2>/dev/null && computercraft=1 || true
+            if [[ "${ready}" -eq 1 && "${avionics}" -eq 1 && "${computercraft}" -eq 1 ]]; then
+              break
+            fi
+            if ! kill -0 "${pid}" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          if [[ "${ready}" -eq 1 && "${avionics}" -eq 1 && "${computercraft}" -eq 1 ]]; then
+            echo "PASS Wave C9: CC:Tweaked + Create: Avionics + retained flight stack reached server-ready state"
+            kill -TERM -- "-${pid}" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-${pid}" 2>/dev/null || true
+            wait "${pid}" 2>/dev/null || true
+            exit 0
+          fi
+
+          echo "FAIL Wave C9 computing/avionics smoke"
+          cat "${log}"
+          kill -TERM -- "-${pid}" 2>/dev/null || true
+          sleep 1
+          kill -KILL -- "-${pid}" 2>/dev/null || true
+          wait "${pid}" 2>/dev/null || true
+          exit 1

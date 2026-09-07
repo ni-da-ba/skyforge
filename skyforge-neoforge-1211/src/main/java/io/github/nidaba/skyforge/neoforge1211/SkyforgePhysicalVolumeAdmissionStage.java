@@ -4,6 +4,8 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -82,7 +84,10 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                     continue;
                 }
 
-                var observation = binding.ledger().observe(SkyforgeNativeChunkOccupancySurvey.survey(volumeId, chunk));
+                var survey = SkyforgeRuntimePerformanceMetrics.measure(
+                        "admission.nativeOccupancySurvey",
+                        () -> SkyforgeNativeChunkOccupancySurvey.survey(volumeId, chunk));
+                var observation = binding.ledger().observe(survey);
                 if (observation.state() == SkyforgePhysicalVolumeAdmissionState.PLANNED) {
                     PendingRealization pending = new PendingRealization(
                             volumeId,
@@ -144,6 +149,36 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         return admittedOwner;
     }
 
+    /**
+     * Returns whether direct composite terrain realization can currently produce an authorized write.
+     *
+     * <p>When admission is absent, historical direct-realization behavior is preserved. With
+     * admission active, at least one exact candidate volume intersecting the chunk must already be
+     * ADMITTED. PLANNED candidates have already retained immutable deferred catch-up evidence during
+     * observation, so projecting them immediately would only perform work the writer must reject.
+     * Mixed states remain safe: one ADMITTED candidate keeps the historical composite writer path,
+     * where PLANNED coordinates are still fenced by {@link #allowsWriteAt(int, int, int)}.
+     */
+    static boolean allowsDirectRealization(ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return true;
+        }
+        MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(
+                chunk.getPos(),
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+        synchronized (binding) {
+            for (var volume : binding.catalog().query(chunkBounds.worldBounds())) {
+                if (binding.ledger().admitted(volume.id())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /** Exact-volume population is valid only after physical admission has become terminal ADMITTED. */
     static boolean allowsPopulation(SkyIslandWorldVolumeId volumeId) {
         Objects.requireNonNull(volumeId, "volumeId");
@@ -171,6 +206,32 @@ final class SkyforgePhysicalVolumeAdmissionStage {
             throw new IllegalStateException("no physical Skyforge volume-admission stage is installed");
         }
         return binding.ledger().snapshot(volumeId);
+    }
+
+    /** Exact finite chunk footprint already owned by the physical-admission ledger. */
+    static Set<Long> requiredChunkKeys(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            throw new IllegalStateException("no physical Skyforge volume-admission stage is installed");
+        }
+        return binding.ledger().requiredChunkKeys(volumeId);
+    }
+
+    /** Whether one exact admitted volume/chunk still owes deferred terrain realization. */
+    static boolean hasPendingCatchup(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos chunkPos) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return false;
+        }
+        synchronized (binding) {
+            Map<Long, PendingRealization> byChunk = binding.pendingByVolume().get(volumeId);
+            return byChunk != null && byChunk.containsKey(chunkPos.toLong());
+        }
     }
 
     /** Eligible deferred writes for one already-available chunk. Returned records remain pending. */
@@ -210,7 +271,7 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                 }
             }
         }
-        return Set.copyOf(keys);
+        return orderedChunkKeys(keys);
     }
 
     /** All loaded-on-demand chunk keys that still owe persistent exact-volume biome presentation. */
@@ -227,7 +288,27 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                 }
             }
         }
-        return Set.copyOf(keys);
+        return orderedChunkKeys(keys);
+    }
+
+    /**
+     * Canonical chunk scheduling order for deferred production work.
+     *
+     * <p>Admission evidence can arrive through HashMap-backed ledgers and Minecraft chunk callbacks
+     * in different orders across otherwise identical JVM runs. Production mutation order must not
+     * inherit that incidental ordering because native population/carvers can observe already-written
+     * neighboring state. Sort by chunk X/Z before exposing any bounded catch-up iteration.
+     */
+    static Set<Long> orderedChunkKeys(Iterable<Long> chunkKeys) {
+        Objects.requireNonNull(chunkKeys, "chunkKeys");
+        List<Long> ordered = new ArrayList<>();
+        for (Long key : chunkKeys) {
+            ordered.add(Objects.requireNonNull(key, "chunk key"));
+        }
+        ordered.sort(Comparator
+                .comparingInt((Long key) -> ChunkPos.getX(key))
+                .thenComparingInt(key -> ChunkPos.getZ(key)));
+        return Collections.unmodifiableSet(new LinkedHashSet<>(ordered));
     }
 
     /** Exact admitted volumes that still owe biome presentation in one already-available chunk. */

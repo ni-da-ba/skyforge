@@ -30,6 +30,9 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    // Static development-resource guards must resolve module-local fixtures independently of
+    // whichever repository directory a CI workflow chooses as the Test task working directory.
+    systemProperty("skyforge.test.projectDirectory", layout.projectDirectory.asFile.absolutePath)
     // FML initializes the tested mod before JUnit can report individual tests. Keep bootstrap
     // diagnostics visible so a required worldgen mixin failure is actionable in CI rather than
     // collapsing into Gradle's outer InvocationTargetException.
@@ -45,6 +48,267 @@ tasks.withType<Test>().configureEach {
 // source set is attached to the local ModDev mod below but is not part of Java's production jar,
 // keeping temporary world presets and UI tags out of distributable Skyforge artifacts.
 val development = sourceSets.create("development")
+
+
+// External NeoForge mods must live on a run source set's runtime classpath to be discovered as mods.
+// AdditionalRuntimeClasspath is the legacy *library* classpath and is therefore insufficient for
+// Fowl Play/A4MC runtime acceptance on Minecraft 1.21.1.
+val waveC5Runtime = sourceSets.create("waveC5Runtime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
+
+// Wave C7 keeps Reliable Gliders + A4MC isolated from both production Skyforge and the C5/C6 bird
+// stack. Optional APIs are consumed reflectively, but FML still requires the candidate jars on a
+// real run source-set runtime classpath so they are discovered as NeoForge mods.
+val waveC7Runtime = sourceSets.create("waveC7Runtime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
+
+// Wave C9 isolates the computing/avionics specimen from production and from other content waves.
+// These jars must be discovered as NeoForge mods, not ordinary legacy libraries.
+val waveC9Runtime = sourceSets.create("waveC9Runtime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
+// C14 adds an explicit flight-only A/B baseline. It reuses the exact C9 flight substrate but omits
+// CC:Tweaked and Create: Avionics so the capability specimen also proves computing remains optional.
+val waveC14FlightBaselineRuntime = sourceSets.create("waveC14FlightBaselineRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
+// C15 keeps the accepted 1:1 Nether datapack under the retained flight stack while exercising
+// vanilla portal search/placement. No portal-overhaul mod is introduced.
+val waveC15PortalRuntime = sourceSets.create("waveC15PortalRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
+
+// Wave C13 performs a black-box baseline-vs-suppressed Elytra test. Only the suppressed run loads
+// the pinned No More Elytra Boosting jar; ordinary Skyforge and the baseline acceptance stay vanilla.
+val waveC13Runtime = sourceSets.create("waveC13Runtime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
+val waveC9PinFile = layout.projectDirectory.file("wave-c9-mods.properties")
+val waveC9Pins = Properties().apply {
+    waveC9PinFile.asFile.inputStream().use(::load)
+}
+
+fun waveC9Pin(mod: String, field: String): String =
+    requireNotNull(waveC9Pins.getProperty("$mod.$field")) {
+        "missing Wave C9 pin: $mod.$field in " + waveC9PinFile.asFile
+    }
+
+check(waveC9Pin("minecraft", "version") == "1.21.1") {
+    "Wave C9 is defined only for Minecraft 1.21.1"
+}
+check(waveC9Pin("neoforge", "version") == "21.1.249") {
+    "Wave C9 NeoForge pin must match the adapter runtime"
+}
+
+// Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
+// immutable Modrinth version IDs live in one small lock manifest so the development specimen can
+// be reproduced without making these R&D candidates production dependencies.
+val waveC1PinFile = layout.projectDirectory.file("wave-c1-mods.properties")
+val waveC1Pins = Properties().apply {
+    waveC1PinFile.asFile.inputStream().use(::load)
+}
+
+fun waveC1Pin(mod: String, field: String): String =
+    requireNotNull(waveC1Pins.getProperty("$mod.$field")) {
+        "missing Wave C1 pin: $mod.$field in " + waveC1PinFile.asFile
+    }
+
+check(waveC1Pin("minecraft", "version") == "1.21.1") {
+    "Wave C1 is defined only for Minecraft 1.21.1"
+}
+check(waveC1Pin("neoforge", "version") == "21.1.249") {
+    "Wave C1 NeoForge pin must match the adapter runtime"
+}
+
+val waveC1BaselineMods = listOf(
+    "create",
+    "rpl",
+    "createbigcannons",
+    "createaddition",
+    "jei",
+)
+val waveC1MetallurgyMods = waveC1BaselineMods + "createmetallurgy"
+val waveC1PropulsionMods = waveC1BaselineMods + listOf(
+    "sable",
+    "aeronautics",
+    "createpropulsion",
+)
+val waveC1IntegratedMods = (waveC1MetallurgyMods + listOf(
+    "sable",
+    "aeronautics",
+    "createpropulsion",
+)).distinct()
+
+val waveC1RunMods = linkedMapOf(
+    "waveC1BaselineClient" to waveC1BaselineMods,
+    "waveC1MetallurgyClient" to waveC1MetallurgyMods,
+    "waveC1PropulsionClient" to waveC1PropulsionMods,
+    "waveC1IntegratedClient" to waveC1IntegratedMods,
+)
+
+    
+// Wave C2 is a focused mobility-integrity specimen. It keeps the personal-mobility candidate and
+// the exact server-side Elytra-boost suppression dependency isolated from production Skyforge and
+// from the Wave C1 industrial specimen.
+val waveC2PinFile = layout.projectDirectory.file("wave-c2-mods.properties")
+val waveC2Pins = Properties().apply {
+    waveC2PinFile.asFile.inputStream().use(::load)
+}
+
+fun waveC2Pin(mod: String, field: String): String =
+    requireNotNull(waveC2Pins.getProperty("$mod.$field")) {
+        "missing Wave C2 pin: $mod.$field in " + waveC2PinFile.asFile
+    }
+
+check(waveC2Pin("minecraft", "version") == "1.21.1") {
+    "Wave C2 is defined only for Minecraft 1.21.1"
+}
+check(waveC2Pin("neoforge", "version") == "21.1.249") {
+    "Wave C2 NeoForge pin must match the adapter runtime"
+}
+
+val waveC2PersonalMods = listOf(
+    "reliablegliders",
+    "noelytraboost",
+)
+val waveC2RunMods = linkedMapOf(
+    "waveC2PersonalMobilityClient" to waveC2PersonalMods,
+    "waveC2IntegratedMobilityClient" to waveC2PersonalMods,
+)
+// The integrated profile intentionally reuses Wave C1's already-audited pins for the minimum
+// powered-aircraft comparison substrate rather than duplicating those coordinates in the C2 lock.
+val waveC2IntegratedC1Mods = listOf(
+    "create",
+    "sable",
+    "aeronautics",
+    "jei",
+)
+
+
+//
+// Wave C3 isolates atmosphere authority from presentation content. Aerodynamics4MC publishes its
+// core runtime and Create Aeronautics compatibility addon as separate files under one Modrinth
+// project, so each is resolved in its own configuration and then attached as a file collection.
+// This prevents Gradle's normal module conflict resolution from collapsing the two version IDs.
+val waveC3PinFile = layout.projectDirectory.file("wave-c3-mods.properties")
+val waveC3Pins = Properties().apply {
+    waveC3PinFile.asFile.inputStream().use(::load)
+}
+
+fun waveC3Pin(component: String, field: String): String =
+    requireNotNull(waveC3Pins.getProperty("$component.$field")) {
+        "missing Wave C3 pin: $component.$field in " + waveC3PinFile.asFile
+    }
+
+check(waveC3Pin("minecraft", "version") == "1.21.1") {
+    "Wave C3 is defined only for Minecraft 1.21.1"
+}
+check(waveC3Pin("neoforge", "version") == "21.1.249") {
+    "Wave C3 NeoForge pin must match the adapter runtime"
+}
+
+val waveC3AeroCoreArtifact = configurations.create("waveC3AeroCoreArtifact") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+val waveC3AeroCompatArtifact = configurations.create("waveC3AeroCompatArtifact") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
+val waveC3FlightStackMods = listOf(
+    "create",
+    "sable",
+    "aeronautics",
+    "jei",
+)
+val waveC3AtmosphereRuns = listOf(
+    "waveC3AtmosphereCoreClient",
+    "waveC3AtmosphereCoreServer",
+    "waveC3AircraftWindClient",
+    "waveC3AircraftWindServer",
+    "waveC3WindTunnelClient",
+    "waveC3WindTunnelServer",
+)
+val waveC3CompatRuns = listOf(
+    "waveC3AircraftWindClient",
+    "waveC3AircraftWindServer",
+    "waveC3WindTunnelClient",
+    "waveC3WindTunnelServer",
+)
+val waveC3WindTunnelRuns = listOf(
+    "waveC3WindTunnelClient",
+    "waveC3WindTunnelServer",
+)
+
+
+//
+// Wave C5 tests the reuse-first soaring-fauna substrate. Fowl Play remains an optional runtime
+// candidate: the production adapter must not require it merely for Skyforge to boot.
+val waveC5PinFile = layout.projectDirectory.file("wave-c5-mods.properties")
+val waveC5Pins = Properties().apply {
+    waveC5PinFile.asFile.inputStream().use(::load)
+}
+
+fun waveC5Pin(mod: String, field: String): String =
+    requireNotNull(waveC5Pins.getProperty("$mod.$field")) {
+        "missing Wave C5 pin: $mod.$field in " + waveC5PinFile.asFile
+    }
+
+check(waveC5Pin("minecraft", "version") == "1.21.1") {
+    "Wave C5 is defined only for Minecraft 1.21.1"
+}
+check(waveC5Pin("neoforge", "version") == "21.1.249") {
+    "Wave C5 NeoForge pin must match the adapter runtime"
+}
+
+val waveC5BirdStackMods = listOf(
+    "fowlplay",
+    "smartbrainlib",
+    "yacl",
+)
+
+val skyforgeProductionMorphologyAtlasMembers = linkedMapOf(
+    "tableland" to "builtin-tableland-small-seed-skyforge",
+    "spine" to "builtin-spine-small-seed-skyforge",
+    "basin" to "builtin-basin-small-seed-skyforge",
+    "lobed" to "builtin-lobed-small-seed-skyforge",
+)
+
+fun skyforgeMorphologyAtlasSuffix(family: String): String =
+    family.substring(0, 1).uppercase() + family.substring(1)
 
 neoForge {
     version = "21.1.249"
@@ -687,6 +951,415 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0068 production admitted-volume composed-cave lifecycle proof.
+        create("productionComposedCaveAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0068-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCave", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-composed-cave-a")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0068/production-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionComposedCaveAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0068-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCave", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-composed-cave-b")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0068/production-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionComposedCaveAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0068-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCaveReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-composed-cave-reload")
+            systemProperty(
+                "skyforge.dev.productionComposedCaveExpectedResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0068/production-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0068/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionComposedCaveAcceptanceStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0068-auto-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCaveStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0068-production-composed-cave-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0068/stacked.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // SF-IMP-0069 production post-cave native interior population. The mixed-biome exact
+        // volume resolves river on one side and dripstone caves on the other so the production
+        // scheduler can exercise accepted LAKES, local geology, ores, cave decoration and springs
+        // without any feature-ID forcing.
+        create("productionInteriorPopulationAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0069-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionInteriorPopulation", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0069-production-interior-a")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0069/production-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionInteriorPopulationAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0069-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionInteriorPopulation", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0069-production-interior-b")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0069/production-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionInteriorPopulationAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0069-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionInteriorPopulationReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0069-production-interior-reload")
+            systemProperty(
+                "skyforge.dev.productionInteriorPopulationExpectedResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0069/production-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0069/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionInteriorPopulationAcceptanceStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0069-auto-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionInteriorPopulationStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0069-production-interior-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0069/stacked.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // SF-IMP-0070 characterizes the same accepted stacked production path with aggregate,
+        // opt-in stage timers. No production scheduling or mutation policy changes in this run.
+        create("performanceCharacterizationStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0070-performance-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionInteriorPopulationStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0070-performance-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty("skyforge.dev.performanceMetrics", "true")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0070/stacked.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Current-capability developer showcase. Preparation deliberately reuses the accepted
+        // SF-IMP-0069 stacked production runtime unchanged, but writes into a stable presentation
+        // world. The viewer restores only deterministic compiled terrain ownership for persisted
+        // fluid fencing; all mutation lifecycle bindings remain inert.
+        create("showcasePrepare") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("showcase")
+            systemProperty("skyforge.dev.productionInteriorPopulationStacked", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "skyforge-current-capability-showcase")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/showcase/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("showcaseClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("showcase")
+            systemProperty("skyforge.dev.showcaseViewer", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Automated reopen proof for the exact human-viewer lifecycle. It uses the prepared world,
+        // restores only immutable compiled terrain ownership, forces a persisted generated-fluid
+        // tick, proves all mutation lifecycles remain inert, and closes the quick-play client.
+        create("showcaseViewerAcceptanceClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("showcase")
+            systemProperty("skyforge.dev.showcaseViewer", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "skyforge-current-capability-showcase-viewer")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "120")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/showcase/viewer.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Dedicated SF-IMP-0080 land-ecology specimen. The broad forest/taiga TABLELAND pair is
+        // separate from the compact cave/interior showcase and exercises modern admission,
+        // deferred surface population, persistent biome presentation, save, and actual-client reopen.
+        create("showcaseEcologyPrepare") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-showcase-ecology").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("ecology")
+            systemProperty("skyforge.dev.showcaseEcology", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0080-showcase-ecology")
+            systemProperty("skyforge.dev.acceptanceRadius", "9")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/showcase-ecology/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("showcaseEcologyClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-showcase-ecology").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("ecology")
+            systemProperty("skyforge.dev.showcaseEcologyViewer", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("showcaseEcologyViewerAcceptanceClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-showcase-ecology").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("ecology")
+            systemProperty("skyforge.dev.showcaseEcologyViewer", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0080-showcase-ecology-viewer")
+            systemProperty("skyforge.dev.acceptanceRadius", "9")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/showcase-ecology/viewer.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // SF-IMP-0081 first issue #214 Minecraft carrier for exact AUTH-0083 member
+        // builtin-massif-small-seed-skyforge. Preparation keeps the production morphology intent
+        // exact while translating only suspension Y, then persists it for an ownership-only reopen.
+        create("productionMorphologyMassifPrepare") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("morphology-massif")
+            systemProperty("skyforge.dev.productionMorphologyMassif", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0081-production-morphology-massif")
+            systemProperty("skyforge.dev.acceptanceRadius", "12")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/production-morphology-massif/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionMorphologyMassifClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("morphology-massif")
+            systemProperty("skyforge.dev.productionMorphologyMassifViewer", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("productionMorphologyMassifViewerAcceptanceClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("morphology-massif")
+            systemProperty("skyforge.dev.productionMorphologyMassifViewer", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0081-production-morphology-massif-viewer")
+            systemProperty("skyforge.dev.acceptanceRadius", "12")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/production-morphology-massif/viewer.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // SF-IMP-0082 generalizes the accepted exact AUTH-0083 carrier across the remaining
+        // built-in SMALL / seed-skyforge members. The runtime installs each member's explicit
+        // finite chunk footprint into the acceptance harness, so no arbitrary square radius is used.
+        for ((family, memberId) in skyforgeProductionMorphologyAtlasMembers) {
+            val suffix = skyforgeMorphologyAtlasSuffix(family)
+            val atlasGameDirectory =
+                layout.projectDirectory.dir("run-skyforge-production-morphology-atlas-$family")
+            val worldName = "morphology-atlas-$family"
+            val resultDirectory = "acceptance/production-morphology-atlas/$family"
+
+            create("productionMorphologyAtlas${suffix}Prepare") {
+                server()
+                gameDirectory = atlasGameDirectory.asFile
+                programArgument("--nogui")
+                programArgument("--universe")
+                programArgument("saves")
+                programArgument("--world")
+                programArgument(worldName)
+                systemProperty("skyforge.dev.productionMorphologyAtlasMember", memberId)
+                systemProperty("skyforge.dev.acceptanceHarness", "true")
+                systemProperty("skyforge.dev.acceptanceMode", "server")
+                systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0082-$family")
+                systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+                systemProperty(
+                    "skyforge.dev.acceptanceResultFile",
+                    layout.buildDirectory.file("$resultDirectory/prepare.properties").get().asFile.absolutePath,
+                )
+                taskBefore(tasks.named(development.processResourcesTaskName))
+            }
+
+            create("productionMorphologyAtlas${suffix}Client") {
+                client()
+                gameDirectory = atlasGameDirectory.asFile
+                programArgument("--quickPlaySingleplayer")
+                programArgument(worldName)
+                systemProperty("skyforge.dev.productionMorphologyAtlasViewerMember", memberId)
+                taskBefore(tasks.named(development.processResourcesTaskName))
+            }
+
+            create("productionMorphologyAtlas${suffix}ViewerAcceptanceClient") {
+                client()
+                gameDirectory = atlasGameDirectory.asFile
+                programArgument("--quickPlaySingleplayer")
+                programArgument(worldName)
+                systemProperty("skyforge.dev.productionMorphologyAtlasViewerMember", memberId)
+                systemProperty("skyforge.dev.acceptanceHarness", "true")
+                systemProperty("skyforge.dev.acceptanceMode", "client")
+                systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0082-$family-viewer")
+                systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "300")
+                systemProperty(
+                    "skyforge.dev.acceptanceResultFile",
+                    layout.buildDirectory.file("$resultDirectory/viewer.properties").get().asFile.absolutePath,
+                )
+                taskBefore(tasks.named(development.processResourcesTaskName))
+            }
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -854,11 +1527,537 @@ neoForge {
             systemProperty("skyforge.dev.undergroundPlacementStacked", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+
+        // Wave C1 content-integration specimens. External engineering mods are attached only to
+        // these runs through ModDevGradle's per-run AdditionalRuntimeClasspath configurations.
+        // This prevents R&D dependencies from leaking into normal Skyforge implementation proofs.
+        create("waveC1BaselineClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c1-baseline").asFile
+            systemProperty("skyforge.dev.waveC1Profile", "baseline")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC1MetallurgyClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c1-metallurgy").asFile
+            systemProperty("skyforge.dev.waveC1Profile", "metallurgy")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC1PropulsionClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c1-propulsion").asFile
+            systemProperty("skyforge.dev.waveC1Profile", "propulsion")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC1IntegratedClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c1-integrated").asFile
+            systemProperty("skyforge.dev.waveC1Profile", "integrated")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // Wave C2 personal-mobility specimen: the early glider plus server-side Elytra rocket
+        // suppression, with no Create/Aeronautics stack present. This isolates personal traversal.
+        create("waveC2PersonalMobilityClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c2-personal-mobility").asFile
+            systemProperty("skyforge.dev.waveC2Profile", "personal")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Wave C2 integrated comparison: the same personal mobility rules plus the minimum
+        // Create/Sable/Aeronautics substrate needed to compare low-throughput soaring against
+        // powered two-way logistics without bringing CBC/Metallurgy/Propulsion into the specimen.
+        create("waveC2IntegratedMobilityClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c2-integrated-mobility").asFile
+            systemProperty("skyforge.dev.waveC2Profile", "integrated")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // Wave C3 authority-isolation profile. No Create/Aeronautics or official A4MC content addon:
+        // this run answers only whether the server-authoritative atmosphere runtime is viable.
+        create("waveC3AtmosphereCoreClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-atmosphere-core").asFile
+            systemProperty("skyforge.dev.waveC3Profile", "atmosphere-core")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC3AtmosphereCoreServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-atmosphere-core-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC3Profile", "atmosphere-core-server")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // A4MC core + its dedicated Create Aeronautics compatibility jar over Skyforge's already
+        // pinned minimum flight substrate. This is the actual relative-airflow candidate.
+        create("waveC3AircraftWindClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-aircraft-wind").asFile
+            systemProperty("skyforge.dev.waveC3Profile", "aircraft-wind")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC3AircraftWindServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-aircraft-wind-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC3Profile", "aircraft-wind-server")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Development measurement profile. Wind Tunnel is not atmosphere authority and is not a
+        // production dependency candidate here; it supplies controlled airflow and force readback
+        // so headwind/crosswind/updraft cases can become numerical acceptance rather than eyeballing.
+        create("waveC3WindTunnelClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-wind-tunnel").asFile
+            systemProperty("skyforge.dev.waveC3Profile", "wind-tunnel")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC3WindTunnelServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-wind-tunnel-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC3Profile", "wind-tunnel-server")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // Wave C5 keeps the bird/AI stack isolated while reusing the already accepted A4MC core.
+        // The first gate is intentionally headless: prove Fowl Play + SBL + YACL + A4MC can coexist
+        // on the dedicated server before any thermal-soaring compatibility code is admitted.
+        create("waveC5SoaringFaunaServer") {
+            server()
+            sourceSet.set(waveC5Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c5-soaring-fauna-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC5Profile", "soaring-fauna")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // Wave C6 exercises the actual optional hawk/A4MC compatibility controller. The same
+        // retained bird stack is used; the system property activates Skyforge's otherwise inert
+        // reflection bridge and event hooks.
+        create("waveC6HawkThermalServer") {
+            server()
+            sourceSet.set(waveC5Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC6SoaringFauna", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        create("waveC6HawkThermalAcceptanceServer") {
+            server()
+            sourceSet.set(waveC5Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-acceptance-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC6SoaringFauna", "true")
+            systemProperty("skyforge.dev.waveC6Acceptance", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // Wave C7 completes the player-facing half of the shared-lift seam: the existing Reliable
+        // Gliders state/physics run first, then Skyforge reads trusted A4MC lift in EntityTickEvent.Post.
+        create("waveC7GliderLiftServer") {
+            server()
+            sourceSet.set(waveC7Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c7-glider-lift-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC7GliderLift", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC7GliderLiftAcceptanceServer") {
+            server()
+            sourceSet.set(waveC7Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c7-glider-lift-acceptance-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC7GliderLift", "true")
+            systemProperty("skyforge.dev.waveC7Acceptance", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // Wave C9 asks only whether the retained flight substrate and an existing CC:Tweaked
+        // avionics integration form a viable computing foundation. No Skyforge peripheral exists.
+        create("waveC9ComputingAvionicsServer") {
+            server()
+            sourceSet.set(waveC9Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c9-computing-avionics-server").asFile
+            programArgument("--nogui")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // C14 A/B baseline: the retained Create/Sable/Aeronautics stack without computing mods.
+        create("waveC14FlightBaselineServer") {
+            server()
+            sourceSet.set(waveC14FlightBaselineRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c14-flight-baseline-server").asFile
+            programArgument("--nogui")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // C14 capability run: exact C9 computing stack plus a black-box real-computer specimen.
+        create("waveC14AvionicsCapabilityServer") {
+            server()
+            sourceSet.set(waveC9Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c14-avionics-capability-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC14AvionicsCapability", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // C15: live vanilla portal destination search/creation with the C10 1:1 datapack and
+        // retained Create/Sable/Aeronautics runtime.
+        create("waveC15PortalLinkingAcceptanceServer") {
+            server()
+            sourceSet.set(waveC15PortalRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c15-portal-linking-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC15PortalLinking", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // C16: exact accepted computing stack, but the specimen exercises only real CC wireless
+        // modem behavior. Skyforge adds no network implementation.
+        create("waveC16WirelessEnvelopeServer") {
+            server()
+            sourceSet.set(waveC9Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c16-wireless-envelope-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC16WirelessEnvelope", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // Wave C10 loads the standalone C2 Nether-scale datapack into a disposable first-boot
+        // world and asserts the final live DimensionType rather than trusting JSON inspection.
+        create("waveC10NetherScaleAcceptanceServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c10-nether-scale-acceptance-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC10NetherScaleAcceptance", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // C13 baseline: vanilla 1.21.1 Elytra/firework behavior with no suppression mod loaded.
+        create("waveC13VanillaElytraAcceptanceServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wave-c13-elytra-baseline-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC13ElytraAcceptance", "baseline")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // C13 suppressed: identical acceptance with only the exact pinned no-boost mod added.
+        create("waveC13SuppressedElytraAcceptanceServer") {
+            server()
+            sourceSet.set(waveC13Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c13-elytra-suppressed-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC13ElytraAcceptance", "suppressed")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
     }
 
     unitTest {
         enable()
         testedMod.set(mods.named("skyforge"))
+    }
+}
+
+val waveC3SmokeServerProperties = """
+    level-name=wave-c3-smoke
+    level-seed=600300
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareWaveC3SmokeServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(waveC3SmokeServerProperties)
+}
+
+mapOf(
+    "runWaveC3AtmosphereCoreServer" to "run-wave-c3-atmosphere-core-server",
+    "runWaveC3AircraftWindServer" to "run-wave-c3-aircraft-wind-server",
+    "runWaveC3WindTunnelServer" to "run-wave-c3-wind-tunnel-server",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareWaveC3SmokeServerDirectory(relativePath)
+        }
+    }
+}
+
+
+val waveC5SmokeServerProperties = """
+    level-name=wave-c5-smoke
+    level-seed=600500
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC5SoaringFaunaServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c5-soaring-fauna-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC5SmokeServerProperties)
+    }
+}
+
+
+tasks.named("runWaveC6HawkThermalServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC5SmokeServerProperties)
+    }
+}
+
+
+tasks.named("runWaveC6HawkThermalAcceptanceServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-acceptance-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC5SmokeServerProperties)
+    }
+}
+
+
+val waveC7SmokeServerProperties = """
+    level-name=wave-c7-smoke
+    level-seed=600700
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+mapOf(
+    "runWaveC7GliderLiftServer" to "run-wave-c7-glider-lift-server",
+    "runWaveC7GliderLiftAcceptanceServer" to "run-wave-c7-glider-lift-acceptance-server",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            val directory = layout.projectDirectory.dir(relativePath).asFile
+            delete(directory)
+            directory.mkdirs()
+            directory.resolve("eula.txt").writeText("eula=true\n")
+            directory.resolve("server.properties").writeText(waveC7SmokeServerProperties)
+        }
+    }
+}
+
+
+val waveC9SmokeServerProperties = """
+    level-name=wave-c9-smoke
+    level-seed=600900
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC9ComputingAvionicsServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c9-computing-avionics-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC9SmokeServerProperties)
+    }
+}
+
+val waveC14ServerProperties = """
+    level-name=wave-c14
+    level-seed=601400
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+mapOf(
+    "runWaveC14FlightBaselineServer" to "run-wave-c14-flight-baseline-server",
+    "runWaveC14AvionicsCapabilityServer" to "run-wave-c14-avionics-capability-server",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            val directory = layout.projectDirectory.dir(relativePath).asFile
+            delete(directory)
+            directory.mkdirs()
+            directory.resolve("eula.txt").writeText("eula=true\n")
+            directory.resolve("server.properties").writeText(waveC14ServerProperties)
+        }
+    }
+}
+
+val waveC15PortalServerProperties = """
+    level-name=wave-c15-portal
+    level-seed=601500
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC15PortalLinkingAcceptanceServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c15-portal-linking-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC15PortalServerProperties)
+
+        val sourcePack =
+            layout.projectDirectory.dir("src/development/wave-c2-nether-scale-datapack").asFile
+        val targetPack =
+            directory.resolve("wave-c15-portal/datapacks/skyforge-nether-scale")
+        copy {
+            from(sourcePack)
+            into(targetPack)
+        }
+    }
+}
+
+
+val waveC16WirelessServerProperties = """
+    level-name=wave-c16-wireless
+    level-seed=601600
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC16WirelessEnvelopeServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c16-wireless-envelope-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC16WirelessServerProperties)
+    }
+}
+
+
+val waveC10NetherScaleServerProperties = """
+    level-name=wave-c10-nether-scale
+    level-seed=601000
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC10NetherScaleAcceptanceServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c10-nether-scale-acceptance-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC10NetherScaleServerProperties)
+
+        val sourcePack =
+            layout.projectDirectory.dir("src/development/wave-c2-nether-scale-datapack").asFile
+        val targetPack =
+            directory.resolve("wave-c10-nether-scale/datapacks/skyforge-nether-scale")
+        copy {
+            from(sourcePack)
+            into(targetPack)
+        }
+    }
+}
+
+
+val waveC13ElytraServerProperties = """
+    level-name=wave-c13-elytra
+    level-seed=601100
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+mapOf(
+    "runWaveC13VanillaElytraAcceptanceServer" to "run-wave-c13-elytra-baseline-server",
+    "runWaveC13SuppressedElytraAcceptanceServer" to "run-wave-c13-elytra-suppressed-server",
+).forEach { (taskName, relativePath) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            val directory = layout.projectDirectory.dir(relativePath).asFile
+            delete(directory)
+            directory.mkdirs()
+            directory.resolve("eula.txt").writeText("eula=true\n")
+            directory.resolve("server.properties").writeText(waveC13ElytraServerProperties)
+        }
     }
 }
 
@@ -915,7 +2114,9 @@ tasks.named("runNativeCarverAcceptanceReloadClient").configure {
         val directory = layout.projectDirectory.dir("run-sf-imp-0061-auto-b").asFile
         directory.resolve("options.txt").writeText(
             "onboardAccessibility:false\n"
-                + "narrator:0\n",
+                + "narrator:0\n"
+                + "renderDistance:12\n"
+                + "simulationDistance:8\n",
         )
     }
 }
@@ -2373,6 +3574,558 @@ tasks.register("sfImp0067Acceptance") {
     finalizedBy("sfImp0067AcceptanceVerify")
 }
 
+val sfImp0068AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0068")
+val sfImp0068AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=600068
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=7
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSfImp0068AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(sfImp0068AcceptanceServerProperties)
+}
+
+fun requireSfImp0068AcceptancePass(resultName: String) {
+    val file = sfImp0068AcceptanceResultDirectory.get().file("$resultName.properties").asFile
+    check(file.isFile) { "SF-IMP-0068 acceptance result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS") {
+        val detail = properties.getProperty("failure")
+            ?: "status=${properties.getProperty("status")}"
+        "SF-IMP-0068 acceptance case $resultName did not PASS: $detail"
+    }
+}
+
+listOf(
+    Triple("runProductionComposedCaveAcceptanceA", "run-sf-imp-0068-auto-a", "production-a"),
+    Triple("runProductionComposedCaveAcceptanceB", "run-sf-imp-0068-auto-b", "production-b"),
+    Triple("runProductionComposedCaveAcceptanceStacked", "run-sf-imp-0068-auto-stacked", "stacked"),
+).forEach { (taskName, relativePath, resultName) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareSfImp0068AcceptanceServerDirectory(relativePath)
+        }
+        doLast {
+            requireSfImp0068AcceptancePass(resultName)
+        }
+    }
+}
+
+tasks.named("runProductionComposedCaveAcceptanceA").configure {
+    doFirst {
+        delete(sfImp0068AcceptanceResultDirectory)
+    }
+}
+tasks.named("runProductionComposedCaveAcceptanceB").configure {
+    mustRunAfter("runProductionComposedCaveAcceptanceA")
+}
+tasks.named("runProductionComposedCaveAcceptanceReloadClient").configure {
+    mustRunAfter("runProductionComposedCaveAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-sf-imp-0068-auto-b").asFile
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+    doLast {
+        requireSfImp0068AcceptancePass("reload")
+    }
+}
+tasks.named("runProductionComposedCaveAcceptanceStacked").configure {
+    mustRunAfter("runProductionComposedCaveAcceptanceReloadClient")
+}
+tasks.named("runComposedCaveAcceptanceA").configure {
+    mustRunAfter("runProductionComposedCaveAcceptanceStacked")
+}
+
+tasks.register("sfImp0068AcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic SF-IMP-0068 production composed-cave lifecycle evidence."
+    doLast {
+        fun load0068(name: String): Properties {
+            val file = sfImp0068AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0068 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+        fun load0067(name: String): Properties {
+            val file = sfImp0067AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0067 regression result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        val first = load0068("production-a")
+        val second = load0068("production-b")
+        val reload = load0068("reload")
+        val stacked = load0068("stacked")
+        val composed0067 = load0067("composed-a")
+
+        for ((name, result) in listOf(
+            "production-a" to first,
+            "production-b" to second,
+            "reload" to reload,
+            "stacked" to stacked,
+            "sf-imp-0067-composed" to composed0067,
+        )) {
+            check(result.getProperty("status") == "PASS") { "$name did not report PASS: $result" }
+        }
+
+        for (key in listOf(
+            "islandKey",
+            "nativeBiome",
+            "initialTotal",
+            "initialPending",
+            "initialCompleted",
+            "requiredChunks",
+            "finalPending",
+            "finalCompleted",
+            "resultChunks",
+            "emptyChunks",
+            "nativeChangedBlocks",
+            "nativeSuccessfulCalls",
+            "nativeOnlyAir",
+            "nativeRejectedWrites",
+            "nativeMappedOutsideTarget",
+            "nativeTransformDigest",
+            "nativeCarveDigest",
+            "authoredPositive",
+            "authoredBasePositive",
+            "authoredExposurePositive",
+            "authoredUnsafe",
+            "authoredChangedBlocks",
+            "authoredChangedDigest",
+            "authoredProvenanceDigest",
+            "finalAuthoredAir",
+            "nativeOnlyPos",
+            "mouthPos",
+            "outwardPos",
+            "baseCavePos",
+            "composedDigest",
+        )) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "SF-IMP-0068 deterministic evidence changed for $key: A=" +
+                    first.getProperty(key) + " B=" + second.getProperty(key)
+            }
+        }
+
+        val required = first.getProperty("requiredChunks").toInt()
+        check(first.getProperty("islandKey") == "1471"
+                && first.getProperty("nativeBiome") == "minecraft:taiga"
+                && first.getProperty("productionStage") == "true"
+                && first.getProperty("admittedBeforeCompletion") == "true"
+                && first.getProperty("terrainCatchupEmptyBeforeCompletion") == "true"
+                && first.getProperty("monotonicPending") == "true"
+                && first.getProperty("noReplay") == "true"
+                && required > 0
+                && first.getProperty("initialTotal").toInt() == required
+                && first.getProperty("initialPending").toInt() == required
+                && first.getProperty("initialCompleted") == "0"
+                && first.getProperty("finalPending") == "0"
+                && first.getProperty("finalCompleted").toInt() == required
+                && first.getProperty("resultChunks").toInt() > 0
+                && first.getProperty("nativeChangedBlocks").toInt() > 0
+                && first.getProperty("nativeSuccessfulCalls").toInt() > 0
+                && first.getProperty("nativeOnlyAir").toInt() > 0
+                && first.getProperty("nativeRejectedWrites") == "0"
+                && first.getProperty("nativeMappedOutsideTarget") == "0"
+                && first.getProperty("authoredPositive").toInt() > 0
+                && first.getProperty("authoredBasePositive").toInt() > 0
+                && first.getProperty("authoredExposurePositive").toInt() > 0
+                && first.getProperty("authoredUnsafe") == "0"
+                && first.getProperty("finalAuthoredAir") == first.getProperty("authoredPositive")) {
+            "SF-IMP-0068 production lifecycle evidence incomplete: $first"
+        }
+
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("mutationBindingsAbsent") == "true"
+                && reload.getProperty("persistedNativeOnlyPos") == first.getProperty("nativeOnlyPos")
+                && reload.getProperty("clientNativeOnlyPos") == first.getProperty("nativeOnlyPos")
+                && reload.getProperty("persistedNativeOnlyState") == "Block{minecraft:air}"
+                && reload.getProperty("clientNativeOnlyState") == "Block{minecraft:air}"
+                && reload.getProperty("persistedMouthState") == "Block{minecraft:air}"
+                && reload.getProperty("clientMouthState") == "Block{minecraft:air}"
+                && reload.getProperty("persistedOutwardState") == "Block{minecraft:air}"
+                && reload.getProperty("clientOutwardState") == "Block{minecraft:air}"
+                && reload.getProperty("persistedBaseState") == "Block{minecraft:air}"
+                && reload.getProperty("clientBaseState") == "Block{minecraft:air}") {
+            "SF-IMP-0068 save/reload or ClientLevel persistence failed: $reload"
+        }
+
+        check(stacked.getProperty("lowerRequired").toInt() > 0
+                && stacked.getProperty("upperRequired").toInt() > 0
+                && stacked.getProperty("lowerCompleted") == stacked.getProperty("lowerRequired")
+                && stacked.getProperty("upperCompleted") == stacked.getProperty("upperRequired")
+                && stacked.getProperty("lowerFinalPending") == "0"
+                && stacked.getProperty("upperFinalPending") == "0"
+                && stacked.getProperty("lowerNativeChanged").toInt() > 0
+                && stacked.getProperty("upperNativeChanged").toInt() > 0
+                && stacked.getProperty("lowerAuthoredPositive").toInt() > 0
+                && stacked.getProperty("upperAuthoredPositive").toInt() > 0
+                && stacked.getProperty("lowerUnsafe") == "0"
+                && stacked.getProperty("upperUnsafe") == "0"
+                && stacked.getProperty("lowerAnchorY") != stacked.getProperty("upperAnchorY")
+                && stacked.getProperty("independentLedgers") == "true"
+                && stacked.getProperty("foreignVolumePreserved") == "true"
+                && stacked.getProperty("monotonicPending") == "true"
+                && stacked.getProperty("noReplay") == "true") {
+            "SF-IMP-0068 stacked production isolation failed: $stacked"
+        }
+
+        check(composed0067.getProperty("nativeTransformDigest") == "95c046280c7f1c11"
+                && composed0067.getProperty("nativeCarveDigest") == "c277e3af5030dd01"
+                && composed0067.getProperty("authoredChangedDigest") == "6d2120967a6c73bd"
+                && composed0067.getProperty("authoredProvenanceDigest") == "3032a41620c93935"
+                && composed0067.getProperty("composedDigest") == "911b02f4fe5b0518"
+                && composed0067.getProperty("nativeOnlyAir") == "584"
+                && composed0067.getProperty("authoredUnsafe") == "0"
+                && composed0067.getProperty("finalUnion") == "true") {
+            "SF-IMP-0067 standalone regression gate failed: $composed0067"
+        }
+
+        println(
+            "SF-IMP-0068 AUTOMATED ACCEPTANCE PASS: obligations="
+                + first.getProperty("requiredChunks")
+                + ", nativeChanged=" + first.getProperty("nativeChangedBlocks")
+                + ", nativeOnlyAir=" + first.getProperty("nativeOnlyAir")
+                + ", authoredPositive=" + first.getProperty("authoredPositive")
+                + ", composedDigest=" + first.getProperty("composedDigest")
+                + ", reloadServerClient=true, stackedIndependent=true"
+                + ", sfImp0067Digest=" + composed0067.getProperty("composedDigest"),
+        )
+    }
+}
+
+tasks.register("sfImp0068Acceptance") {
+    group = "verification"
+    description = "Run complete deterministic SF-IMP-0068 production composed-cave acceptance."
+    dependsOn(
+        "runProductionComposedCaveAcceptanceA",
+        "runProductionComposedCaveAcceptanceB",
+        "runProductionComposedCaveAcceptanceReloadClient",
+        "runProductionComposedCaveAcceptanceStacked",
+        "runComposedCaveAcceptanceA",
+    )
+    finalizedBy("sfImp0068AcceptanceVerify")
+}
+
+
+tasks.register("waveC1ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve the exact optional-mod artifacts used by the Wave C1 development runs through ModDevGradle resolvable legacy classpaths."
+    inputs.file(waveC1PinFile)
+
+    doLast {
+        waveC1RunMods.forEach { (runName, mods) ->
+            val configurationName = "${runName}LegacyClasspath"
+            val files = configurations.getByName(configurationName)
+                .resolvedConfiguration
+                .resolvedArtifacts
+                .map { it.file.name }
+                .sorted()
+            println("Wave C1 $runName")
+            println("  requested=" + mods.joinToString(", "))
+            files.forEach { println("  resolved=$it") }
+        }
+    }
+}
+
+
+tasks.register("waveC2ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve the exact optional-mod artifacts used by the Wave C2 mobility runs through ModDevGradle resolvable legacy classpaths."
+    inputs.file(waveC2PinFile)
+    inputs.file(waveC1PinFile)
+
+    doLast {
+        waveC2RunMods.forEach { (runName, c2Mods) ->
+            val configurationName = "${runName}LegacyClasspath"
+            val requested = if (runName == "waveC2IntegratedMobilityClient") {
+                c2Mods + waveC2IntegratedC1Mods
+            } else {
+                c2Mods
+            }
+            val files = configurations.getByName(configurationName)
+                .resolvedConfiguration
+                .resolvedArtifacts
+                .map { it.file.name }
+                .sorted()
+            println("Wave C2 $runName")
+            println("  requested=" + requested.joinToString(", "))
+            files.forEach { println("  resolved=$it") }
+        }
+    }
+}
+
+
+tasks.register("waveC3ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve the exact Wave C3 atmosphere-authority artifacts and isolated run classpaths."
+    inputs.file(waveC3PinFile)
+    inputs.file(waveC1PinFile)
+
+    doLast {
+        val coreFiles = waveC3AeroCoreArtifact.files.map { it.name }.sorted()
+        val compatFiles = waveC3AeroCompatArtifact.files.map { it.name }.sorted()
+        check(coreFiles.isNotEmpty()) { "Wave C3 Aerodynamics4MC core artifact did not resolve" }
+        check(compatFiles.isNotEmpty()) { "Wave C3 Aerodynamics4MC compat artifact did not resolve" }
+        check(coreFiles.toSet().intersect(compatFiles.toSet()).isEmpty()) {
+            "Wave C3 core/compat artifact resolution collapsed onto the same file: core=$coreFiles compat=$compatFiles"
+        }
+        println("Wave C3 isolated Aerodynamics4MC artifacts")
+        coreFiles.forEach { println("  core=$it") }
+        compatFiles.forEach { println("  compat=$it") }
+
+        waveC3AtmosphereRuns.forEach { runName ->
+            val files = configurations.getByName("${runName}LegacyClasspath")
+                .files
+                .map { it.name }
+                .sorted()
+            println("Wave C3 $runName")
+            files.forEach { println("  resolved=$it") }
+        }
+    }
+}
+
+
+tasks.register("waveC5ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve the exact Wave C5 soaring-fauna runtime specimen."
+    inputs.file(waveC5PinFile)
+    inputs.file(waveC3PinFile)
+
+    doLast {
+        val files = waveC5Runtime.runtimeClasspath.files
+            .map { it.name }
+            .sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return "${parts[1]}-${parts[2]}"
+        }
+
+        val requiredTokens = mapOf(
+            "Fowl Play" to artifactToken(waveC5Pin("fowlplay", "coordinate")),
+            "SmartBrainLib" to artifactToken(waveC5Pin("smartbrainlib", "coordinate")),
+            "YACL" to artifactToken(waveC5Pin("yacl", "coordinate")),
+            "Aerodynamics4MC core" to artifactToken(waveC3Pin("aerodynamics4mcCore", "coordinate")),
+        )
+        requiredTokens.forEach { (label, token) ->
+            check(files.any { it.contains(token) }) {
+                "Wave C5 missing $label artifact token '$token': $files"
+            }
+        }
+
+        println("Wave C5 soaring-fauna classpath")
+        files.forEach { println("  resolved=$it") }
+    }
+}
+
+
+tasks.register("waveC6ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve and assert the exact Wave C6 hawk-thermal run classpath."
+    inputs.file(waveC5PinFile)
+    inputs.file(waveC3PinFile)
+
+    doLast {
+        val files = waveC5Runtime.runtimeClasspath.files
+            .map { it.name }
+            .sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return "${parts[1]}-${parts[2]}"
+        }
+
+        val requiredTokens = mapOf(
+            "Fowl Play" to artifactToken(waveC5Pin("fowlplay", "coordinate")),
+            "SmartBrainLib" to artifactToken(waveC5Pin("smartbrainlib", "coordinate")),
+            "YACL" to artifactToken(waveC5Pin("yacl", "coordinate")),
+            "Aerodynamics4MC core" to artifactToken(waveC3Pin("aerodynamics4mcCore", "coordinate")),
+        )
+        requiredTokens.forEach { (label, token) ->
+            check(files.any { it.contains(token) }) {
+                "Wave C6 missing $label artifact token '$token': $files"
+            }
+        }
+
+        println("Wave C6 hawk-thermal classpath")
+        files.forEach { println("  resolved=$it") }
+    }
+}
+
+
+tasks.register("waveC7ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve and assert the exact Wave C7 Reliable Gliders + A4MC runtime."
+    inputs.file(waveC2PinFile)
+    inputs.file(waveC3PinFile)
+
+    doLast {
+        val files = waveC7Runtime.runtimeClasspath.files
+            .map { it.name }
+            .sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return "${parts[1]}-${parts[2]}"
+        }
+
+        val requiredTokens = mapOf(
+            "Reliable Gliders" to artifactToken(waveC2Pin("reliablegliders", "coordinate")),
+            "Aerodynamics4MC core" to artifactToken(waveC3Pin("aerodynamics4mcCore", "coordinate")),
+        )
+        requiredTokens.forEach { (label, token) ->
+            check(files.any { it.contains(token) }) {
+                "Wave C7 missing $label artifact token '$token': $files"
+            }
+        }
+
+        println("Wave C7 glider shared-lift classpath")
+        files.forEach { println("  resolved=$it") }
+    }
+}
+
+
+tasks.register("waveC9ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve and assert the exact Wave C9 CC:Tweaked + Create: Avionics runtime."
+    inputs.file(waveC1PinFile)
+    inputs.file(waveC9PinFile)
+
+    doLast {
+        val files = waveC9Runtime.runtimeClasspath.files
+            .map { it.name }
+            .sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return "${parts[1]}-${parts[2]}"
+        }
+
+        val requiredTokens = mapOf(
+            "Create" to artifactToken(waveC1Pin("create", "coordinate")),
+            "Sable" to artifactToken(waveC1Pin("sable", "coordinate")),
+            "Create Aeronautics" to artifactToken(waveC1Pin("aeronautics", "coordinate")),
+            "CC:Tweaked" to artifactToken(waveC9Pin("cctweaked", "coordinate")),
+            "Create: Avionics" to artifactToken(waveC9Pin("createavionics", "coordinate")),
+        )
+        requiredTokens.forEach { (label, token) ->
+            check(files.any { it.contains(token) }) {
+                "Wave C9 missing $label artifact token '$token': $files"
+            }
+        }
+
+        println("Wave C9 computing/avionics classpath")
+        files.forEach { println("  resolved=$it") }
+    }
+}
+
+
+tasks.register("waveC14ResolvePinnedMods") {
+    group = "verification"
+    description = "Assert C14 flight-only baseline versus exact C9 computing capability classpaths."
+    inputs.file(waveC1PinFile)
+    inputs.file(waveC9PinFile)
+
+    doLast {
+        val baselineFiles = waveC14FlightBaselineRuntime.runtimeClasspath.files.map { it.name }.sorted()
+        val capabilityFiles = waveC9Runtime.runtimeClasspath.files.map { it.name }.sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '" + coordinate + "'" }
+            return parts[1] + "-" + parts[2]
+        }
+
+        val flightTokens = listOf("create", "sable", "aeronautics").associateWith {
+            artifactToken(waveC1Pin(it, "coordinate"))
+        }
+        flightTokens.forEach { (label, token) ->
+            check(baselineFiles.any { it.contains(token) }) {
+                "C14 baseline missing " + label + " artifact token '" + token + "': " + baselineFiles
+            }
+            check(capabilityFiles.any { it.contains(token) }) {
+                "C14 capability missing " + label + " artifact token '" + token + "': " + capabilityFiles
+            }
+        }
+
+        val ccToken = artifactToken(waveC9Pin("cctweaked", "coordinate"))
+        val avionicsToken = artifactToken(waveC9Pin("createavionics", "coordinate"))
+        check(baselineFiles.none { it.contains(ccToken) || it.contains(avionicsToken) }) {
+            "C14 flight baseline leaked computing integration: " + baselineFiles
+        }
+        check(capabilityFiles.any { it.contains(ccToken) } && capabilityFiles.any { it.contains(avionicsToken) }) {
+            "C14 capability runtime is missing exact C9 computing integration: " + capabilityFiles
+        }
+
+        println("Wave C14 classpath A/B PASS: flight-only baseline excludes CC/Avionics; capability reuses exact C9 pins")
+    }
+}
+
+tasks.register("waveC15ResolvePinnedMods") {
+    group = "verification"
+    description = "Assert C15 uses the exact retained flight substrate without a portal overhaul mod."
+    inputs.file(waveC1PinFile)
+
+    doLast {
+        val files = waveC15PortalRuntime.runtimeClasspath.files.map { it.name }.sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '" + coordinate + "'" }
+            return parts[1] + "-" + parts[2]
+        }
+
+        listOf("create", "sable", "aeronautics").forEach { mod ->
+            val token = artifactToken(waveC1Pin(mod, "coordinate"))
+            check(files.any { it.contains(token) }) {
+                "C15 portal runtime missing retained " + mod + " artifact token '" + token + "': " + files
+            }
+        }
+
+        println("Wave C15 runtime classpath PASS: exact retained Create/Sable/Aeronautics substrate present")
+    }
+}
+
+tasks.register("waveC13ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve and assert the exact C13 Elytra-suppression runtime."
+    inputs.file(waveC2PinFile)
+
+    doLast {
+        val files = waveC13Runtime.runtimeClasspath.files.map { it.name }.sorted()
+        val coordinate = waveC2Pin("noelytraboost", "coordinate")
+        val parts = coordinate.split(":")
+        check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+        val token = "${parts[1]}-${parts[2]}"
+        check(files.any { it.contains(token) }) {
+            "Wave C13 missing No More Elytra Boosting artifact token '$token': $files"
+        }
+        println("Wave C13 suppressed-Elytra classpath")
+        files.forEach { println("  resolved=$it") }
+    }
+}
+
+
 dependencies {
     api(project(":skyforge-world"))
 
@@ -2389,6 +4142,147 @@ dependencies {
     add("jarJar", project(":skyforge-recipes"))
     add("jarJar", project(":skyforge-world"))
 
+
+    // ModDevGradle creates a per-run <runName>AdditionalRuntimeClasspath configuration. On
+    // Minecraft 1.21.1, mod jars placed there are discovered by FML while remaining isolated from
+    // every other development/acceptance run.
+    waveC1RunMods.forEach { (runName, mods) ->
+        mods.forEach { mod ->
+            add(
+                "${runName}AdditionalRuntimeClasspath",
+                waveC1Pin(mod, "coordinate"),
+            )
+        }
+    }
+
+
+    // Wave C2 optional dependencies remain run-scoped. The integrated comparison reuses only the
+    // minimum C1-pinned Create/Sable/Aeronautics/JEI substrate.
+    waveC2RunMods.forEach { (runName, mods) ->
+        mods.forEach { mod ->
+            add(
+                "${runName}AdditionalRuntimeClasspath",
+                waveC2Pin(mod, "coordinate"),
+            )
+        }
+    }
+    waveC2IntegratedC1Mods.forEach { mod ->
+        add(
+            "waveC2IntegratedMobilityClientAdditionalRuntimeClasspath",
+            waveC1Pin(mod, "coordinate"),
+        )
+    }
+
+
+    // Resolve A4MC core and Create Aeronautics compatibility files independently because Modrinth
+    // exposes both under the same project/module identity but different version IDs.
+    add("waveC3AeroCoreArtifact", waveC3Pin("aerodynamics4mcCore", "coordinate"))
+    add("waveC3AeroCompatArtifact", waveC3Pin("aerodynamics4mcCompat", "coordinate"))
+
+    // Every C3 profile receives the core atmosphere authority.
+    waveC3AtmosphereRuns.forEach { runName ->
+        add(
+            "${runName}AdditionalRuntimeClasspath",
+            files(waveC3AeroCoreArtifact),
+        )
+    }
+
+    // Aircraft profiles reuse the current C1-pinned flight substrate; the compat addon is kept
+    // separate from A4MC core so both jars reach FML.
+    waveC3CompatRuns.forEach { runName ->
+        waveC3FlightStackMods.forEach { mod ->
+            add(
+                "${runName}AdditionalRuntimeClasspath",
+                waveC1Pin(mod, "coordinate"),
+            )
+        }
+        add(
+            "${runName}AdditionalRuntimeClasspath",
+            files(waveC3AeroCompatArtifact),
+        )
+    }
+
+    // Wind Tunnel is a test instrument only. Its source-built LDLib floor is pinned explicitly
+    // because Modrinth Maven does not carry transitive dependency metadata.
+    waveC3WindTunnelRuns.forEach { runName ->
+        add(
+            "${runName}AdditionalRuntimeClasspath",
+            waveC3Pin("windTunnel", "coordinate"),
+        )
+        add(
+            "${runName}AdditionalRuntimeClasspath",
+            waveC3Pin("ldlib", "coordinate"),
+        )
+    }
+
+
+    // C5/C6 external mods belong on the isolated run source set's runtime classpath so FML
+    // discovers them as NeoForge mods rather than treating them as legacy Java libraries.
+    waveC5BirdStackMods.forEach { mod ->
+        add(
+            waveC5Runtime.runtimeOnlyConfigurationName,
+            waveC5Pin(mod, "coordinate"),
+        )
+    }
+    add(
+        waveC5Runtime.runtimeOnlyConfigurationName,
+        files(waveC3AeroCoreArtifact),
+    )
+
+
+    // C7's player-mobility specimen contains only Reliable Gliders and the already accepted A4MC
+    // atmosphere core. It deliberately excludes the Fowl Play stack and No More Elytra Boosting.
+    add(
+        waveC7Runtime.runtimeOnlyConfigurationName,
+        waveC2Pin("reliablegliders", "coordinate"),
+    )
+    add(
+        waveC7Runtime.runtimeOnlyConfigurationName,
+        files(waveC3AeroCoreArtifact),
+    )
+
+
+    // Computing substrate: reuse the minimum retained flight stack plus CC:Tweaked and the existing
+    // Create: Avionics integration. Aeronautics' bundled distribution supplies Simulated.
+    listOf("create", "sable", "aeronautics").forEach { mod ->
+        add(
+            waveC9Runtime.runtimeOnlyConfigurationName,
+            waveC1Pin(mod, "coordinate"),
+        )
+    }
+    add(
+        waveC9Runtime.runtimeOnlyConfigurationName,
+        waveC9Pin("cctweaked", "coordinate"),
+    )
+    add(
+        waveC9Runtime.runtimeOnlyConfigurationName,
+        waveC9Pin("createavionics", "coordinate"),
+    )
+
+
+    // C14 A/B baseline: same retained flight substrate as C9, deliberately without CC/Avionics.
+    listOf("create", "sable", "aeronautics").forEach { mod ->
+        add(
+            waveC14FlightBaselineRuntime.runtimeOnlyConfigurationName,
+            waveC1Pin(mod, "coordinate"),
+        )
+    }
+
+    // C15 uses the same exact retained flight substrate while exercising vanilla portal mechanics.
+    listOf("create", "sable", "aeronautics").forEach { mod ->
+        add(
+            waveC15PortalRuntime.runtimeOnlyConfigurationName,
+            waveC1Pin(mod, "coordinate"),
+        )
+    }
+
+    // C13's suppressed run contains exactly the pinned server-side no-boost mod. The baseline run
+    // deliberately uses the ordinary source set and therefore has vanilla Elytra/firework behavior.
+    add(
+        waveC13Runtime.runtimeOnlyConfigurationName,
+        waveC2Pin("noelytraboost", "coordinate"),
+    )
+
     testImplementation(project(":skyforge-recipes"))
 
     // ModDevGradle's FML-aware JUnit launcher is currently proven against JUnit Platform 5.
@@ -2397,4 +4291,1048 @@ dependencies {
     testImplementation(enforcedPlatform("org.junit:junit-bom:5.14.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+
+val sfImp0069AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0069")
+val sfImp0069AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=600068
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=7
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSfImp0069AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(sfImp0069AcceptanceServerProperties)
+}
+
+fun requireSfImp0069AcceptancePass(resultName: String) {
+    val file = sfImp0069AcceptanceResultDirectory.get().file("$resultName.properties").asFile
+    check(file.isFile) { "SF-IMP-0069 acceptance result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS") {
+        val detail = properties.getProperty("failure")
+            ?: "status=" + properties.getProperty("status")
+        "SF-IMP-0069 acceptance case $resultName did not PASS: $detail"
+    }
+}
+
+listOf(
+    Triple("runProductionInteriorPopulationAcceptanceA", "run-sf-imp-0069-auto-a", "production-a"),
+    Triple("runProductionInteriorPopulationAcceptanceB", "run-sf-imp-0069-auto-b", "production-b"),
+    Triple("runProductionInteriorPopulationAcceptanceStacked", "run-sf-imp-0069-auto-stacked", "stacked"),
+).forEach { (taskName, relativePath, resultName) ->
+    tasks.named(taskName).configure {
+        doFirst {
+            prepareSfImp0069AcceptanceServerDirectory(relativePath)
+        }
+        doLast {
+            requireSfImp0069AcceptancePass(resultName)
+        }
+    }
+}
+
+tasks.named("runProductionInteriorPopulationAcceptanceA").configure {
+    doFirst {
+        delete(sfImp0069AcceptanceResultDirectory)
+    }
+}
+tasks.named("runProductionInteriorPopulationAcceptanceB").configure {
+    mustRunAfter("runProductionInteriorPopulationAcceptanceA")
+}
+tasks.named("runProductionInteriorPopulationAcceptanceReloadClient").configure {
+    mustRunAfter("runProductionInteriorPopulationAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-sf-imp-0069-auto-b").asFile
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+    doLast {
+        requireSfImp0069AcceptancePass("reload")
+    }
+}
+tasks.named("runProductionInteriorPopulationAcceptanceStacked").configure {
+    mustRunAfter("runProductionInteriorPopulationAcceptanceReloadClient")
+}
+
+tasks.register("sfImp0069AcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic SF-IMP-0069 production native interior evidence."
+    doLast {
+        fun load0069(name: String): Properties {
+            val file = sfImp0069AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing SF-IMP-0069 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+
+        val first = load0069("production-a")
+        val second = load0069("production-b")
+        val reload = load0069("reload")
+        val stacked = load0069("stacked")
+        for ((name, result) in listOf(
+            "production-a" to first,
+            "production-b" to second,
+            "reload" to reload,
+            "stacked" to stacked,
+        )) {
+            check(result.getProperty("status") == "PASS") { "$name did not report PASS: $result" }
+        }
+
+        for (key in listOf(
+            "islandKey",
+            "requiredChunks",
+            "initialInteriorTotal",
+            "initialInteriorPending",
+            "finalInteriorPending",
+            "finalInteriorCompleted",
+            "resultChunks",
+            "emptyChunks",
+            "biomes",
+            "phaseDigest",
+            "lakesAttempted",
+            "lakesSuccessful",
+            "localModificationsAttempted",
+            "localModificationsSuccessful",
+            "oresAttempted",
+            "oresSuccessful",
+            "decorationAttempted",
+            "decorationSuccessful",
+            "springsAttempted",
+            "springsSuccessful",
+            "trackedFluids",
+            "fluidDigest",
+            "sampleFluidPos",
+            "sampleFluidState",
+            "scheduledOutsideOwner",
+            "rejectedBoundaryWrites",
+            "successfulFeatureKeys",
+        )) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "SF-IMP-0069 deterministic evidence changed for $key: A=" +
+                    first.getProperty(key) + " B=" + second.getProperty(key)
+            }
+        }
+
+        val required = first.getProperty("requiredChunks").toInt()
+        check(first.getProperty("productionStage") == "true"
+                && first.getProperty("islandKey") == "1471"
+                && required > 0
+                && first.getProperty("initialInteriorTotal").toInt() == required
+                && first.getProperty("initialInteriorPending").toInt() == required
+                && first.getProperty("finalInteriorPending") == "0"
+                && first.getProperty("finalInteriorCompleted").toInt() == required
+                && first.getProperty("resultChunks").toInt() > 0
+                && first.getProperty("cavesCompleteBeforeInterior") == "true"
+                && first.getProperty("monotonicPending") == "true"
+                && first.getProperty("noReplay") == "true"
+                && first.getProperty("biomes").contains("minecraft:river")
+                && first.getProperty("biomes").contains("minecraft:dripstone_caves")
+                && first.getProperty("lakesAttempted").toInt() > 0
+                && first.getProperty("lakesSuccessful").toInt() > 0
+                && first.getProperty("localModificationsAttempted").toInt() > 0
+                && first.getProperty("localModificationsSuccessful").toInt() > 0
+                && first.getProperty("oresAttempted").toInt() > 0
+                && first.getProperty("oresSuccessful").toInt() > 0
+                && first.getProperty("decorationAttempted").toInt() > 0
+                && first.getProperty("decorationSuccessful").toInt() > 0
+                && first.getProperty("springsAttempted").toInt() > 0
+                && first.getProperty("springsSuccessful").toInt() > 0
+                && first.getProperty("trackedFluids").toInt() > 0
+                && first.getProperty("scheduledOutsideOwner") == "0"
+                && first.getProperty("rejectedBoundaryWrites") == "0") {
+            "SF-IMP-0069 production interior evidence incomplete: $first"
+        }
+
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("mutationBindingsAbsent") == "true"
+                && reload.getProperty("persistedFluidPos") == second.getProperty("sampleFluidPos")
+                && reload.getProperty("persistedInitialFluidState") == second.getProperty("sampleFluidState")
+                && reload.getProperty("clientFluidPos") == reload.getProperty("persistedFluidPos")
+                && reload.getProperty("clientFluidState") == reload.getProperty("persistedFluidState")
+                && reload.getProperty("persistedTrackedPositions").toInt() > 0
+                && reload.getProperty("reloadPropagationTicks").toInt() > 0
+                && reload.getProperty("scheduledOutsideOwner") == "0"
+                && reload.getProperty("rejectedBoundaryWrites") == "0") {
+            "SF-IMP-0069 reload/client evidence incomplete: $reload"
+        }
+
+        check(stacked.getProperty("lowerRequired").toInt() > 0
+                && stacked.getProperty("upperRequired").toInt() > 0
+                && stacked.getProperty("lowerCompleted") == stacked.getProperty("lowerRequired")
+                && stacked.getProperty("upperCompleted") == stacked.getProperty("upperRequired")
+                && stacked.getProperty("lowerResultChunks").toInt() > 0
+                && stacked.getProperty("upperResultChunks").toInt() > 0
+                && stacked.getProperty("lowerSuccessful").toInt() > 0
+                && stacked.getProperty("upperSuccessful").toInt() > 0
+                && stacked.getProperty("lowerTrackedFluids").toInt() > 0
+                && stacked.getProperty("upperTrackedFluids").toInt() > 0
+                && stacked.getProperty("lowerSampleY") != stacked.getProperty("upperSampleY")
+                && stacked.getProperty("lowerFinalPending") == "0"
+                && stacked.getProperty("upperFinalPending") == "0"
+                && stacked.getProperty("independentLedgers") == "true"
+                && stacked.getProperty("foreignFluidRejected") == "true"
+                && stacked.getProperty("cavesCompleteBeforeInterior") == "true"
+                && stacked.getProperty("monotonicPending") == "true"
+                && stacked.getProperty("noReplay") == "true") {
+            "SF-IMP-0069 stacked production evidence incomplete: $stacked"
+        }
+
+        println(
+            "SF-IMP-0069 AUTOMATED ACCEPTANCE PASS: obligations=$required" +
+                ", phaseDigest=" + first.getProperty("phaseDigest") +
+                ", lakes=" + first.getProperty("lakesSuccessful") +
+                ", localModifications=" + first.getProperty("localModificationsSuccessful") +
+                ", ores=" + first.getProperty("oresSuccessful") +
+                ", decoration=" + first.getProperty("decorationSuccessful") +
+                ", springs=" + first.getProperty("springsSuccessful"),
+        )
+    }
+}
+
+
+val sfImp0070PerformanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0070")
+
+tasks.named("runPerformanceCharacterizationStacked").configure {
+    doFirst {
+        delete(sfImp0070PerformanceResultDirectory)
+        prepareSfImp0069AcceptanceServerDirectory("run-sf-imp-0070-performance-stacked")
+    }
+    doLast {
+        val file = sfImp0070PerformanceResultDirectory.get().file("stacked.properties").asFile
+        check(file.isFile) { "SF-IMP-0070 performance result missing: $file" }
+        val properties = Properties()
+        file.inputStream().use(properties::load)
+        check(properties.getProperty("status") == "PASS") {
+            val detail = properties.getProperty("failure") ?: properties.toString()
+            "SF-IMP-0070 production fixture did not PASS: $detail"
+        }
+    }
+}
+
+tasks.register("sfImp0070PerformanceVerify") {
+    group = "verification"
+    description = "Verify stage-resolved SF-IMP-0070 production performance evidence."
+    dependsOn("runPerformanceCharacterizationStacked")
+    doLast {
+        val file = sfImp0070PerformanceResultDirectory.get().file("stacked.properties").asFile
+        val properties = Properties()
+        file.inputStream().use(properties::load)
+
+        val requiredMetrics = listOf(
+            "perf.processElapsedNanos",
+            "perf.acceptance.warmOriginFootprint.totalNanos",
+            "perf.catchup.composedCavePump.totalNanos",
+            "perf.admission.nativeOccupancySurvey.totalNanos",
+            "perf.terrain.realize.totalNanos",
+            "perf.terrain.noCandidatePrefilter.totalNanos",
+            "perf.terrain.plannedDirectProjectionSkipped.totalNanos",
+            "perf.terrain.realizeDeferred.totalNanos",
+            "perf.terrain.deferred.materialize.totalNanos",
+            "perf.terrain.deferred.adaptSurface.totalNanos",
+            "perf.terrain.deferred.solidCount.totalNanos",
+            "perf.terrain.deferred.write.totalNanos",
+            "perf.terrain.deferred.completeCatchup.totalNanos",
+            "perf.surfacePopulation.coordinator.totalNanos",
+            "perf.surfacePopulation.findSurface.totalNanos",
+            "perf.surfacePopulation.phase.VEGETAL_DECORATION.totalNanos",
+            "perf.caves.authoredPreflight.totalNanos",
+            "perf.caves.nativeCarver.totalNanos",
+            "perf.caves.authoredCommit.totalNanos",
+            "perf.interior.LAKES.totalNanos",
+            "perf.interior.LOCAL_MODIFICATIONS.totalNanos",
+            "perf.interior.UNDERGROUND_ORES.totalNanos",
+            "perf.interior.UNDERGROUND_DECORATION.totalNanos",
+            "perf.interior.FLUID_SPRINGS.totalNanos",
+        )
+        for (key in requiredMetrics) {
+            val value = properties.getProperty(key)?.toLongOrNull()
+            check(value != null && value > 0L) {
+                "SF-IMP-0070 missing/nonpositive performance metric $key: $value"
+            }
+        }
+
+        check(properties.getProperty("lowerCompleted") == properties.getProperty("lowerRequired")
+                && properties.getProperty("upperCompleted") == properties.getProperty("upperRequired")
+                && properties.getProperty("independentLedgers") == "true"
+                && properties.getProperty("foreignFluidRejected") == "true"
+                && properties.getProperty("cavesCompleteBeforeInterior") == "true"
+                && properties.getProperty("noReplay") == "true") {
+            "SF-IMP-0070 timing run lost SF-IMP-0069 correctness evidence: $properties"
+        }
+
+        val admissionVerticalSamples =
+            properties.getProperty("perf.admission.occupancySurveyVerticalSamples.samples").toLong()
+        val admissionVerticalTotal =
+            properties.getProperty("perf.admission.occupancySurveyVerticalSamples.total").toLong()
+        val admissionVerticalMax =
+            properties.getProperty("perf.admission.occupancySurveyVerticalSamples.max").toLong()
+        check(admissionVerticalSamples == 392L
+                && admissionVerticalTotal == 39_592L
+                && admissionVerticalMax == 101L) {
+            "SF-IMP-0073 admission survey Y clamp evidence changed: " +
+                "samples=$admissionVerticalSamples, total=$admissionVerticalTotal, max=$admissionVerticalMax"
+        }
+
+        val heightQueryVerticalSamples =
+            properties.getProperty("perf.terrain.firstFreeHeightVerticalSamples.samples").toLong()
+        val heightQueryVerticalTotal =
+            properties.getProperty("perf.terrain.firstFreeHeightVerticalSamples.total").toLong()
+        val heightQueryVerticalMax =
+            properties.getProperty("perf.terrain.firstFreeHeightVerticalSamples.max").toLong()
+        check(heightQueryVerticalSamples >= 100_352L
+                && heightQueryVerticalTotal > 0L
+                && heightQueryVerticalMax <= 101L) {
+            "SF-IMP-0076 bounded height-query evidence changed: " +
+                "samples=$heightQueryVerticalSamples, total=$heightQueryVerticalTotal, max=$heightQueryVerticalMax"
+        }
+
+        val deferredVerticalSamples =
+            properties.getProperty("perf.terrain.deferredVerticalSamples.samples").toLong()
+        val deferredVerticalTotal =
+            properties.getProperty("perf.terrain.deferredVerticalSamples.total").toLong()
+        val deferredVerticalMax =
+            properties.getProperty("perf.terrain.deferredVerticalSamples.max").toLong()
+        check(deferredVerticalSamples == 390L
+                && deferredVerticalTotal == 39_390L
+                && deferredVerticalMax == 101L) {
+            "SF-IMP-0075 deferred exact-volume Y clamp evidence changed: " +
+                "samples=$deferredVerticalSamples, total=$deferredVerticalTotal, max=$deferredVerticalMax"
+        }
+
+        val deferredSubphases = listOf(
+            "materialize",
+            "adaptSurface",
+            "solidCount",
+            "write",
+            "completeCatchup",
+        )
+        for (subphase in deferredSubphases) {
+            val calls = properties.getProperty("perf.terrain.deferred.$subphase.calls").toLong()
+            check(calls == 390L) {
+                "SF-IMP-0077 deferred subphase call count changed: subphase=$subphase, calls=$calls"
+            }
+        }
+
+        val deferredSubphaseSummary = deferredSubphases.joinToString(",") { subphase ->
+            val totalNanos = properties.getProperty("perf.terrain.deferred.$subphase.totalNanos").toLong()
+            "$subphase=" + (totalNanos / 1_000_000.0) + "ms"
+        }
+
+        val terrainRealizeCalls = properties.getProperty("perf.terrain.realize.calls").toLong()
+        val plannedProjectionSkips =
+            properties.getProperty("perf.terrain.plannedDirectProjectionSkipped.calls").toLong()
+        check(terrainRealizeCalls == 1L && plannedProjectionSkips == 195L) {
+            "SF-IMP-0074 planned candidate projection gate changed: " +
+                "terrainRealizeCalls=$terrainRealizeCalls, plannedProjectionSkips=$plannedProjectionSkips"
+        }
+
+        val cavePreflightCalls = properties.getProperty("perf.caves.authoredPreflight.calls").toLong()
+        val cavePumpCalls = properties.getProperty("perf.catchup.composedCavePump.calls").toLong()
+        check(cavePumpCalls > 0L && cavePreflightCalls >= cavePumpCalls * 4L) {
+            "SF-IMP-0071 cave catch-up did not materially batch micro-steps: " +
+                "preflightCalls=$cavePreflightCalls, pumpCalls=$cavePumpCalls"
+        }
+
+        val elapsedMs = properties.getProperty("perf.processElapsedNanos").toLong() / 1_000_000.0
+        val warmupMs = properties.getProperty("perf.acceptance.warmOriginFootprint.totalNanos").toLong() / 1_000_000.0
+        println(
+            "SF-IMP-0070 PERFORMANCE CHARACTERIZATION PASS: processMs=$elapsedMs, warmupMs=$warmupMs, " +
+                "terrainRealizeCalls=$terrainRealizeCalls, plannedProjectionSkips=$plannedProjectionSkips, " +
+                "admissionYTotal=$admissionVerticalTotal, admissionYMax=$admissionVerticalMax, " +
+                "deferredYTotal=$deferredVerticalTotal, deferredYMax=$deferredVerticalMax, " +
+                "heightQueryYTotal=$heightQueryVerticalTotal, heightQueryYMax=$heightQueryVerticalMax, " +
+                "deferredSubphases=[$deferredSubphaseSummary], " +
+                "cavePreflightCalls=$cavePreflightCalls, cavePumpCalls=$cavePumpCalls, " +
+                "metrics=" + requiredMetrics.size,
+        )
+    }
+}
+
+val skyforgeShowcaseResultDirectory = layout.buildDirectory.dir("acceptance/showcase")
+val skyforgeShowcaseServerProperties = """
+    level-name=showcase
+    level-seed=600068
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    allow-flight=true
+    view-distance=7
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSkyforgeShowcaseDirectory() {
+    val directory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(skyforgeShowcaseServerProperties)
+}
+
+fun requireSkyforgeShowcasePreparationPass() {
+    val file = skyforgeShowcaseResultDirectory.get().file("prepare.properties").asFile
+    check(file.isFile) { "Skyforge showcase preparation result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS") {
+        val detail = properties.getProperty("failure") ?: "status=" + properties.getProperty("status")
+        "Skyforge showcase preparation did not PASS: $detail"
+    }
+    check(properties.getProperty("lowerCompleted") == properties.getProperty("lowerRequired")
+            && properties.getProperty("upperCompleted") == properties.getProperty("upperRequired")
+            && properties.getProperty("lowerResultChunks").toInt() > 0
+            && properties.getProperty("upperResultChunks").toInt() > 0
+            && properties.getProperty("lowerSuccessful").toInt() > 0
+            && properties.getProperty("upperSuccessful").toInt() > 0
+            && properties.getProperty("lowerTrackedFluids").toInt() > 0
+            && properties.getProperty("upperTrackedFluids").toInt() > 0
+            && properties.getProperty("independentLedgers") == "true"
+            && properties.getProperty("foreignFluidRejected") == "true"
+            && properties.getProperty("cavesCompleteBeforeInterior") == "true"
+            && properties.getProperty("noReplay") == "true") {
+        "Skyforge showcase preparation evidence is incomplete: $properties"
+    }
+}
+
+fun requireSkyforgeShowcaseViewerPass() {
+    val file = skyforgeShowcaseResultDirectory.get().file("viewer.properties").asFile
+    check(file.isFile) { "Skyforge showcase viewer result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("viewerTerrainOwnershipRestored") == "true"
+            && properties.getProperty("viewerMutationBindingsInert") == "true"
+            && properties.getProperty("viewerGeneratedFluidPropagation") == "true"
+            && properties.getProperty("viewerClientPass") == "true") {
+        val detail = properties.getProperty("failure") ?: properties.toString()
+        "Skyforge showcase viewer did not PASS: $detail"
+    }
+}
+
+tasks.named("runShowcasePrepare").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask and showcase filesystem orchestration are intentionally runtime-bound.",
+    )
+    doFirst {
+        delete(skyforgeShowcaseResultDirectory)
+        prepareSkyforgeShowcaseDirectory()
+    }
+    doLast {
+        requireSkyforgeShowcasePreparationPass()
+    }
+}
+
+tasks.named("runShowcaseClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is interactive and intentionally not configuration-cache serialized.",
+    )
+    mustRunAfter("runShowcasePrepare")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
+        check(directory.resolve("saves/showcase/level.dat").isFile) {
+            "Skyforge showcase world is missing; run runShowcasePrepare first or use launchShowcase."
+        }
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.named("runShowcaseViewerAcceptanceClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is an actual quick-play client acceptance process.",
+    )
+    mustRunAfter("runShowcasePrepare")
+    doFirst {
+        requireSkyforgeShowcasePreparationPass()
+        val directory = layout.projectDirectory.dir("run-skyforge-showcase").asFile
+        check(directory.resolve("saves/showcase/level.dat").isFile) {
+            "Skyforge showcase world is missing; prepare it before viewer acceptance."
+        }
+        delete(skyforgeShowcaseResultDirectory.get().file("viewer.properties").asFile)
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.register("showcasePrepareVerify") {
+    group = "verification"
+    description = "Verify that the deterministic current-capability showcase world prepared successfully."
+    dependsOn("runShowcasePrepare")
+    doLast {
+        requireSkyforgeShowcasePreparationPass()
+        println(
+            "SKYFORGE SHOWCASE PREPARATION PASS: persisted stacked production world is ready for human review.",
+        )
+    }
+}
+
+tasks.register("showcaseViewerVerify") {
+    group = "verification"
+    description = "Reopen the prepared showcase in an actual quick-play client and verify persisted-fluid safety."
+    dependsOn("runShowcaseViewerAcceptanceClient")
+    doLast {
+        requireSkyforgeShowcaseViewerPass()
+        println(
+            "SKYFORGE SHOWCASE VIEWER PASS: persisted world reopened with ownership-only fluid fencing.",
+        )
+    }
+}
+
+tasks.register("launchShowcase") {
+    group = "application"
+    description = "Rebuild the deterministic Skyforge showcase world, then launch Minecraft directly into it."
+    dependsOn("runShowcasePrepare", "runShowcaseClient")
+}
+
+val skyforgeShowcaseEcologyResultDirectory = layout.buildDirectory.dir("acceptance/showcase-ecology")
+val skyforgeShowcaseEcologyServerProperties = """
+    level-name=ecology
+    // Land-backed deterministic base: Java 1.21 seed with a broad plains surface around (0,0).
+    // Native-surface adaptation therefore exercises Minecraft-owned grass/dirt representation
+    // instead of inheriting an ocean-floor gravel/sand top that cannot host forest/taiga ecology.
+    level-seed=1405130932537311389
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    allow-flight=true
+    view-distance=10
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSkyforgeShowcaseEcologyDirectory() {
+    val directory = layout.projectDirectory.dir("run-skyforge-showcase-ecology").asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(skyforgeShowcaseEcologyServerProperties)
+}
+
+fun requireSkyforgeShowcaseEcologyPreparationPass() {
+    val file = skyforgeShowcaseEcologyResultDirectory.get().file("prepare.properties").asFile
+    check(file.isFile) { "Skyforge ecology showcase preparation result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("lowerState") == "ADMITTED"
+            && properties.getProperty("upperState") == "ADMITTED"
+            && properties.getProperty("lowerObserved") == properties.getProperty("lowerRequired")
+            && properties.getProperty("upperObserved") == properties.getProperty("upperRequired")
+            && properties.getProperty("lowerPopulationChunks") == properties.getProperty("lowerExpectedPopulationChunks")
+            && properties.getProperty("upperPopulationChunks") == properties.getProperty("upperExpectedPopulationChunks")
+            && properties.getProperty("lowerSuccessful").toInt() > 0
+            && properties.getProperty("upperSuccessful").toInt() > 0
+            && properties.getProperty("distinctFeatureIdentity") == "true"
+            && properties.getProperty("lowerSubstrate").toInt() > 0
+            && properties.getProperty("lowerLogs").toInt() > 0
+            && properties.getProperty("lowerLeaves").toInt() > 0
+            && properties.getProperty("lowerPlants").toInt() > 0
+            && properties.getProperty("upperSubstrate").toInt() > 0
+            && properties.getProperty("upperLogs").toInt() > 0
+            && properties.getProperty("upperLeaves").toInt() > 0
+            && properties.getProperty("upperPlants").toInt() > 0
+            && properties.getProperty("persistentBiomePresentation") == "true"
+            && properties.getProperty("pendingCatchup") == "0"
+            && properties.getProperty("pendingBiomePresentation") == "0") {
+        val detail = properties.getProperty("failure") ?: properties.toString()
+        "Skyforge ecology showcase preparation did not PASS: $detail"
+    }
+}
+
+fun requireSkyforgeShowcaseEcologyViewerPass() {
+    val file = skyforgeShowcaseEcologyResultDirectory.get().file("viewer.properties").asFile
+    check(file.isFile) { "Skyforge ecology showcase viewer result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("viewerTerrainOwnershipRestored") == "true"
+            && properties.getProperty("viewerMutationBindingsInert") == "true"
+            && properties.getProperty("viewerPersistentForest") == "true"
+            && properties.getProperty("viewerPersistentTaiga") == "true"
+            && properties.getProperty("viewerLowerSubstrate").toInt() > 0
+            && properties.getProperty("viewerLowerLogs").toInt() > 0
+            && properties.getProperty("viewerLowerLeaves").toInt() > 0
+            && properties.getProperty("viewerLowerPlants").toInt() > 0
+            && properties.getProperty("viewerUpperSubstrate").toInt() > 0
+            && properties.getProperty("viewerUpperLogs").toInt() > 0
+            && properties.getProperty("viewerUpperLeaves").toInt() > 0
+            && properties.getProperty("viewerUpperPlants").toInt() > 0
+            && properties.getProperty("viewerClientPass") == "true") {
+        val detail = properties.getProperty("failure") ?: properties.toString()
+        "Skyforge ecology showcase viewer did not PASS: $detail"
+    }
+}
+
+tasks.named("runShowcaseEcologyPrepare").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask and ecology-showcase filesystem orchestration are intentionally runtime-bound.",
+    )
+    doFirst {
+        delete(skyforgeShowcaseEcologyResultDirectory)
+        prepareSkyforgeShowcaseEcologyDirectory()
+    }
+    doLast {
+        requireSkyforgeShowcaseEcologyPreparationPass()
+    }
+}
+
+tasks.named("runShowcaseEcologyClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is interactive and intentionally not configuration-cache serialized.",
+    )
+    mustRunAfter("runShowcaseEcologyPrepare")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-skyforge-showcase-ecology").asFile
+        check(directory.resolve("saves/ecology/level.dat").isFile) {
+            "Skyforge ecology showcase world is missing; run runShowcaseEcologyPrepare first or use launchShowcaseEcology."
+        }
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.named("runShowcaseEcologyViewerAcceptanceClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is an actual quick-play ecology acceptance process.",
+    )
+    mustRunAfter("runShowcaseEcologyPrepare")
+    doFirst {
+        requireSkyforgeShowcaseEcologyPreparationPass()
+        val directory = layout.projectDirectory.dir("run-skyforge-showcase-ecology").asFile
+        check(directory.resolve("saves/ecology/level.dat").isFile) {
+            "Skyforge ecology showcase world is missing; prepare it before viewer acceptance."
+        }
+        delete(skyforgeShowcaseEcologyResultDirectory.get().file("viewer.properties").asFile)
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.register("showcaseEcologyPrepareVerify") {
+    group = "verification"
+    description = "Verify the persisted SF-IMP-0080 forest/taiga ecology specimen."
+    dependsOn("runShowcaseEcologyPrepare")
+    doLast {
+        requireSkyforgeShowcaseEcologyPreparationPass()
+        println(
+            "SF-IMP-0080 SHOWCASE ECOLOGY PREPARATION PASS: persisted forest/taiga world is ready for human review.",
+        )
+    }
+}
+
+tasks.register("showcaseEcologyViewerVerify") {
+    group = "verification"
+    description = "Reopen the SF-IMP-0080 ecology world in an actual client and verify persistence."
+    dependsOn("runShowcaseEcologyViewerAcceptanceClient")
+    doLast {
+        requireSkyforgeShowcaseEcologyViewerPass()
+        println(
+            "SF-IMP-0080 SHOWCASE ECOLOGY VIEWER PASS: persisted land ecology survived mutation-inert actual-client reopen.",
+        )
+    }
+}
+
+tasks.register("launchShowcaseEcology") {
+    group = "application"
+    description = "Rebuild the dedicated forest/taiga ecology specimen, then launch Minecraft into it for human review."
+    dependsOn("runShowcaseEcologyPrepare", "runShowcaseEcologyClient")
+}
+
+
+val skyforgeProductionMorphologyMassifResultDirectory =
+    layout.buildDirectory.dir("acceptance/production-morphology-massif")
+val skyforgeProductionMorphologyMassifServerProperties = """
+    level-name=morphology-massif
+    level-seed=1405130932537311389
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=spectator
+    difficulty=peaceful
+    allow-flight=true
+    view-distance=12
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSkyforgeProductionMorphologyMassifDirectory() {
+    val directory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(skyforgeProductionMorphologyMassifServerProperties)
+}
+
+fun requireSkyforgeProductionMorphologyMassifPreparationPass() {
+    val file = skyforgeProductionMorphologyMassifResultDirectory.get().file("prepare.properties").asFile
+    check(file.isFile) { "Skyforge production morphology preparation result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    val claimed = properties.getProperty("sampledClaims")?.toIntOrNull() ?: 0
+    check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("memberId") == "builtin-massif-small-seed-skyforge"
+            && properties.getProperty("state") == "ADMITTED"
+            && properties.getProperty("observed") == properties.getProperty("required")
+            && properties.getProperty("pendingCatchup") == "0"
+            && properties.getProperty("minimumY") == "96"
+            && properties.getProperty("maximumY").toInt() < 320
+            && claimed > 0
+            && properties.getProperty("storedTop").toInt() == claimed
+            && properties.getProperty("airAbove").toInt() == claimed
+            && properties.getProperty("storedUnderside").toInt() == claimed
+            && properties.getProperty("airBelow").toInt() == claimed
+            && properties.getProperty("heightMismatches") == "0"
+            && properties.getProperty("landTop").toInt() > 0
+            && properties.getProperty("grassTop").toInt() > 0
+            && !properties.getProperty("surfaceDigest").isNullOrBlank()) {
+        val detail = properties.getProperty("failure") ?: properties.toString()
+        "Skyforge production morphology preparation did not PASS: $detail"
+    }
+}
+
+fun requireSkyforgeProductionMorphologyMassifViewerPass() {
+    val prepareFile = skyforgeProductionMorphologyMassifResultDirectory.get().file("prepare.properties").asFile
+    val viewerFile = skyforgeProductionMorphologyMassifResultDirectory.get().file("viewer.properties").asFile
+    check(prepareFile.isFile) { "Skyforge production morphology preparation evidence missing: $prepareFile" }
+    check(viewerFile.isFile) { "Skyforge production morphology viewer result missing: $viewerFile" }
+    val prepare = Properties()
+    val viewer = Properties()
+    prepareFile.inputStream().use(prepare::load)
+    viewerFile.inputStream().use(viewer::load)
+    val claimed = viewer.getProperty("viewerSampledClaims")?.toIntOrNull() ?: 0
+    check(viewer.getProperty("status") == "PASS"
+            && viewer.getProperty("viewerMemberId") == "builtin-massif-small-seed-skyforge"
+            && viewer.getProperty("viewerTerrainOwnershipRestored") == "true"
+            && viewer.getProperty("viewerMutationBindingsInert") == "true"
+            && viewer.getProperty("viewerClientPass") == "true"
+            && claimed > 0
+            && viewer.getProperty("viewerStoredTop").toInt() == claimed
+            && viewer.getProperty("viewerAirAbove").toInt() == claimed
+            && viewer.getProperty("viewerStoredUnderside").toInt() == claimed
+            && viewer.getProperty("viewerAirBelow").toInt() == claimed
+            && viewer.getProperty("viewerHeightMismatches") == "0"
+            && viewer.getProperty("viewerLandTop").toInt() > 0
+            && viewer.getProperty("viewerGrassTop").toInt() > 0
+            && viewer.getProperty("viewerSurfaceDigest") == prepare.getProperty("surfaceDigest")) {
+        val detail = viewer.getProperty("failure") ?: viewer.toString()
+        "Skyforge production morphology viewer did not PASS: $detail"
+    }
+}
+
+tasks.named("runProductionMorphologyMassifPrepare").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask and production-morphology filesystem orchestration are runtime-bound.",
+    )
+    doFirst {
+        delete(skyforgeProductionMorphologyMassifResultDirectory)
+        prepareSkyforgeProductionMorphologyMassifDirectory()
+    }
+    doLast {
+        requireSkyforgeProductionMorphologyMassifPreparationPass()
+    }
+}
+
+tasks.named("runProductionMorphologyMassifClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is interactive and intentionally not configuration-cache serialized.",
+    )
+    mustRunAfter("runProductionMorphologyMassifPrepare")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+        check(directory.resolve("saves/morphology-massif/level.dat").isFile) {
+            "Skyforge production morphology world is missing; prepare it first or use launchProductionMorphologyMassif."
+        }
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.named("runProductionMorphologyMassifViewerAcceptanceClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is an actual quick-play morphology acceptance process.",
+    )
+    mustRunAfter("runProductionMorphologyMassifPrepare")
+    doFirst {
+        requireSkyforgeProductionMorphologyMassifPreparationPass()
+        val directory = layout.projectDirectory.dir("run-skyforge-production-morphology-massif").asFile
+        check(directory.resolve("saves/morphology-massif/level.dat").isFile) {
+            "Skyforge production morphology world is missing; prepare it before viewer acceptance."
+        }
+        delete(skyforgeProductionMorphologyMassifResultDirectory.get().file("viewer.properties").asFile)
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.register("productionMorphologyMassifPrepareVerify") {
+    group = "verification"
+    description = "Verify the first exact AUTH-0083 production Massif Minecraft carrier."
+    dependsOn("runProductionMorphologyMassifPrepare")
+    doLast {
+        requireSkyforgeProductionMorphologyMassifPreparationPass()
+        println(
+            "SF-IMP-0081 PRODUCTION MORPHOLOGY MASSIF PREPARATION PASS: exact AUTH-0083 member persisted.",
+        )
+    }
+}
+
+tasks.register("productionMorphologyMassifViewerVerify") {
+    group = "verification"
+    description = "Reopen the first production Massif in an actual client and verify persisted geometry."
+    dependsOn("runProductionMorphologyMassifViewerAcceptanceClient")
+    doLast {
+        requireSkyforgeProductionMorphologyMassifViewerPass()
+        println(
+            "SF-IMP-0081 PRODUCTION MORPHOLOGY MASSIF VIEWER PASS: sampled top/underside geometry survived reopen.",
+        )
+    }
+}
+
+tasks.register("launchProductionMorphologyMassif") {
+    group = "application"
+    description = "Rebuild the first AUTH-0083 production Massif carrier, then launch Minecraft for #214 review."
+    dependsOn("runProductionMorphologyMassifPrepare", "runProductionMorphologyMassifClient")
+}
+
+
+val skyforgeProductionMorphologyAtlasServerProperties = """
+    level-seed=1405130932537311389
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=spectator
+    difficulty=peaceful
+    allow-flight=true
+    view-distance=12
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun skyforgeProductionMorphologyAtlasResultDirectory(family: String) =
+    layout.buildDirectory.dir("acceptance/production-morphology-atlas/$family")
+
+fun skyforgeProductionMorphologyAtlasGameDirectory(family: String) =
+    layout.projectDirectory.dir("run-skyforge-production-morphology-atlas-$family").asFile
+
+fun prepareSkyforgeProductionMorphologyAtlasDirectory(family: String) {
+    val directory = skyforgeProductionMorphologyAtlasGameDirectory(family)
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(
+        "level-name=morphology-atlas-$family\n" + skyforgeProductionMorphologyAtlasServerProperties,
+    )
+}
+
+fun requireSkyforgeProductionMorphologyAtlasPreparationPass(
+    family: String,
+    memberId: String,
+) {
+    val file =
+        skyforgeProductionMorphologyAtlasResultDirectory(family).get().file("prepare.properties").asFile
+    check(file.isFile) { "Skyforge production morphology atlas preparation result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    val claimed = properties.getProperty("sampledClaims")?.toIntOrNull() ?: 0
+    val footprint = properties.getProperty("footprintChunks")?.toIntOrNull() ?: 0
+    val required = properties.getProperty("required")?.toIntOrNull() ?: 0
+    check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("memberId") == memberId
+            && properties.getProperty("family") == family
+            && properties.getProperty("state") == "ADMITTED"
+            && properties.getProperty("observed") == properties.getProperty("required")
+            && footprint > 0
+            && footprint == required
+            && properties.getProperty("pendingCatchup") == "0"
+            && properties.getProperty("minimumY") == "96"
+            && properties.getProperty("maximumY").toInt() < 320
+            && claimed > 0
+            && properties.getProperty("storedTop").toInt() == claimed
+            && properties.getProperty("airAbove").toInt() == claimed
+            && properties.getProperty("storedUnderside").toInt() == claimed
+            && properties.getProperty("airBelow").toInt() == claimed
+            && properties.getProperty("heightMismatches") == "0"
+            && properties.getProperty("landTop").toInt() > 0
+            && properties.getProperty("grassTop").toInt() > 0
+            && !properties.getProperty("surfaceDigest").isNullOrBlank()) {
+        val detail = properties.getProperty("failure") ?: properties.toString()
+        "Skyforge production morphology atlas $family preparation did not PASS: $detail"
+    }
+}
+
+fun requireSkyforgeProductionMorphologyAtlasViewerPass(
+    family: String,
+    memberId: String,
+) {
+    val directory = skyforgeProductionMorphologyAtlasResultDirectory(family).get()
+    val prepareFile = directory.file("prepare.properties").asFile
+    val viewerFile = directory.file("viewer.properties").asFile
+    check(prepareFile.isFile) { "Skyforge morphology atlas preparation evidence missing: $prepareFile" }
+    check(viewerFile.isFile) { "Skyforge morphology atlas viewer result missing: $viewerFile" }
+
+    val prepare = Properties()
+    val viewer = Properties()
+    prepareFile.inputStream().use(prepare::load)
+    viewerFile.inputStream().use(viewer::load)
+    val claimed = viewer.getProperty("viewerSampledClaims")?.toIntOrNull() ?: 0
+    check(viewer.getProperty("status") == "PASS"
+            && viewer.getProperty("viewerMemberId") == memberId
+            && viewer.getProperty("viewerFamily") == family
+            && viewer.getProperty("viewerTerrainOwnershipRestored") == "true"
+            && viewer.getProperty("viewerMutationBindingsInert") == "true"
+            && viewer.getProperty("viewerClientPass") == "true"
+            && viewer.getProperty("viewerFootprintChunks") == prepare.getProperty("footprintChunks")
+            && claimed > 0
+            && viewer.getProperty("viewerStoredTop").toInt() == claimed
+            && viewer.getProperty("viewerAirAbove").toInt() == claimed
+            && viewer.getProperty("viewerStoredUnderside").toInt() == claimed
+            && viewer.getProperty("viewerAirBelow").toInt() == claimed
+            && viewer.getProperty("viewerHeightMismatches") == "0"
+            && viewer.getProperty("viewerLandTop").toInt() > 0
+            && viewer.getProperty("viewerGrassTop").toInt() > 0
+            && viewer.getProperty("viewerSurfaceDigest") == prepare.getProperty("surfaceDigest")) {
+        val detail = viewer.getProperty("failure") ?: viewer.toString()
+        "Skyforge production morphology atlas $family viewer did not PASS: $detail"
+    }
+}
+
+val skyforgeProductionMorphologyAtlasPrepareTasks = mutableListOf<String>()
+val skyforgeProductionMorphologyAtlasViewerTasks = mutableListOf<String>()
+
+for ((family, memberId) in skyforgeProductionMorphologyAtlasMembers) {
+    val suffix = skyforgeMorphologyAtlasSuffix(family)
+    val prepareRun = "runProductionMorphologyAtlas${suffix}Prepare"
+    val clientRun = "runProductionMorphologyAtlas${suffix}Client"
+    val viewerRun = "runProductionMorphologyAtlas${suffix}ViewerAcceptanceClient"
+    val prepareVerify = "productionMorphologyAtlas${suffix}PrepareVerify"
+    val viewerVerify = "productionMorphologyAtlas${suffix}ViewerVerify"
+    val launch = "launchProductionMorphologyAtlas$suffix"
+
+    tasks.named(prepareRun).configure {
+        notCompatibleWithConfigurationCache(
+            "NeoForge ModDev RunGameTask and morphology-atlas filesystem orchestration are runtime-bound.",
+        )
+        doFirst {
+            delete(skyforgeProductionMorphologyAtlasResultDirectory(family))
+            prepareSkyforgeProductionMorphologyAtlasDirectory(family)
+        }
+        doLast {
+            requireSkyforgeProductionMorphologyAtlasPreparationPass(family, memberId)
+        }
+    }
+
+    tasks.named(clientRun).configure {
+        notCompatibleWithConfigurationCache(
+            "NeoForge ModDev RunGameTask is interactive and intentionally not configuration-cache serialized.",
+        )
+        mustRunAfter(prepareRun)
+        doFirst {
+            val directory = skyforgeProductionMorphologyAtlasGameDirectory(family)
+            check(directory.resolve("saves/morphology-atlas-$family/level.dat").isFile) {
+                "Skyforge morphology atlas $family world is missing; prepare it first or use $launch."
+            }
+            directory.resolve("options.txt").writeText(
+                "onboardAccessibility:false\n"
+                    + "narrator:0\n",
+            )
+        }
+    }
+
+    tasks.named(viewerRun).configure {
+        notCompatibleWithConfigurationCache(
+            "NeoForge ModDev RunGameTask is an actual quick-play morphology-atlas acceptance process.",
+        )
+        mustRunAfter(prepareRun)
+        doFirst {
+            requireSkyforgeProductionMorphologyAtlasPreparationPass(family, memberId)
+            val directory = skyforgeProductionMorphologyAtlasGameDirectory(family)
+            check(directory.resolve("saves/morphology-atlas-$family/level.dat").isFile) {
+                "Skyforge morphology atlas $family world is missing before viewer acceptance."
+            }
+            delete(
+                skyforgeProductionMorphologyAtlasResultDirectory(family).get()
+                    .file("viewer.properties").asFile,
+            )
+            directory.resolve("options.txt").writeText(
+                "onboardAccessibility:false\n"
+                    + "narrator:0\n",
+            )
+        }
+    }
+
+    tasks.register(prepareVerify) {
+        group = "verification"
+        description = "Verify exact AUTH-0083 $family production morphology carrier."
+        dependsOn(prepareRun)
+        doLast {
+            requireSkyforgeProductionMorphologyAtlasPreparationPass(family, memberId)
+            println("SF-IMP-0082 ${family.uppercase()} PREPARATION PASS: $memberId")
+        }
+    }
+
+    tasks.register(viewerVerify) {
+        group = "verification"
+        description = "Reopen persisted AUTH-0083 $family carrier and verify exact geometry."
+        dependsOn(viewerRun)
+        doLast {
+            requireSkyforgeProductionMorphologyAtlasViewerPass(family, memberId)
+            println("SF-IMP-0082 ${family.uppercase()} VIEWER PASS: $memberId")
+        }
+    }
+
+    tasks.register(launch) {
+        group = "application"
+        description = "Rebuild AUTH-0083 $family carrier, then launch Minecraft for #214 review."
+        dependsOn(prepareRun, clientRun)
+    }
+
+    skyforgeProductionMorphologyAtlasPrepareTasks += prepareVerify
+    skyforgeProductionMorphologyAtlasViewerTasks += viewerVerify
+}
+
+tasks.register("productionMorphologyAtlasPrepareVerify") {
+    group = "verification"
+    description = "Verify all four remaining AUTH-0083 built-in production morphology carriers."
+    dependsOn(skyforgeProductionMorphologyAtlasPrepareTasks)
+}
+
+tasks.register("productionMorphologyAtlasViewerVerify") {
+    group = "verification"
+    description = "Actual-client persistence verification for all four remaining morphology carriers."
+    dependsOn(skyforgeProductionMorphologyAtlasViewerTasks)
 }

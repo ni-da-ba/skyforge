@@ -1,0 +1,56 @@
+name: SF-IMP-0070 Performance Characterization
+
+on:
+  pull_request:
+    paths:
+      - "skyforge-neoforge-1211/**"
+      - ".github/workflows/sf-imp-0070-performance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-imp-0070-performance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  characterization:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Compile and unit-test instrumentation
+        timeout-minutes: 8
+        run: ./gradlew :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:test --stacktrace --no-configuration-cache
+
+      - name: Characterize accepted stacked production path
+        timeout-minutes: 35
+        run: ./gradlew :skyforge-neoforge-1211:sfImp0070PerformanceVerify --stacktrace --no-configuration-cache
+
+      - name: Publish performance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sf-imp-0070-performance-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0070/*.properties
+            skyforge-neoforge-1211/run-sf-imp-0070-performance-stacked/logs/*.log

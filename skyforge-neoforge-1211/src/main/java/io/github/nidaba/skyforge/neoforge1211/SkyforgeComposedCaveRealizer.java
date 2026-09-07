@@ -1,6 +1,8 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandCompiledVolumeColumnField;
 import io.github.nidaba.skyforge.world.SkyIslandExteriorConnectedCaveVolumeField;
+import io.github.nidaba.skyforge.world.SkyIslandRealizedExteriorConnectedCaveVolumeField;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import java.util.Objects;
 import net.minecraft.core.BlockPos;
@@ -44,6 +46,65 @@ final class SkyforgeComposedCaveRealizer {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(biomeSample, "biomeSample");
 
+        var realizedAuthoredField = new SkyIslandRealizedExteriorConnectedCaveVolumeField(
+                authoredField,
+                new SkyIslandCompiledVolumeColumnField(volume.compiledVolume()));
+        return realize(
+                level,
+                generator,
+                biomeResolver,
+                volume,
+                realizedAuthoredField,
+                SkyforgeExteriorConnectedCaveSpatialIndex.create(authoredField),
+                chunk,
+                biomeSample,
+                nativeTargetMinimumY,
+                nativeTargetMaximumY);
+    }
+
+    static Result realize(
+            ServerLevel level,
+            NoiseBasedChunkGenerator generator,
+            SkyforgeExactVolumeBiomeResolver biomeResolver,
+            SkyIslandWorldVolume volume,
+            SkyIslandRealizedExteriorConnectedCaveVolumeField realizedAuthoredField,
+            LevelChunk chunk,
+            BlockPos biomeSample,
+            int nativeTargetMinimumY,
+            int nativeTargetMaximumY) {
+        return realize(
+                level,
+                generator,
+                biomeResolver,
+                volume,
+                realizedAuthoredField,
+                SkyforgeExteriorConnectedCaveSpatialIndex.create(realizedAuthoredField.semanticField()),
+                chunk,
+                biomeSample,
+                nativeTargetMinimumY,
+                nativeTargetMaximumY);
+    }
+
+    static Result realize(
+            ServerLevel level,
+            NoiseBasedChunkGenerator generator,
+            SkyforgeExactVolumeBiomeResolver biomeResolver,
+            SkyIslandWorldVolume volume,
+            SkyIslandRealizedExteriorConnectedCaveVolumeField realizedAuthoredField,
+            SkyforgeExteriorConnectedCaveSpatialIndex spatialIndex,
+            LevelChunk chunk,
+            BlockPos biomeSample,
+            int nativeTargetMinimumY,
+            int nativeTargetMaximumY) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(generator, "generator");
+        Objects.requireNonNull(biomeResolver, "biomeResolver");
+        Objects.requireNonNull(volume, "volume");
+        Objects.requireNonNull(realizedAuthoredField, "realizedAuthoredField");
+        Objects.requireNonNull(spatialIndex, "spatialIndex");
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(biomeSample, "biomeSample");
+
         var nativeResult = SkyforgeNativeCarverRunner.carveAir(
                 level,
                 generator,
@@ -57,7 +118,8 @@ final class SkyforgeComposedCaveRealizer {
         var authoredResult = SkyforgeExteriorConnectedCaveRealizer.realize(
                 level,
                 volume,
-                authoredField,
+                realizedAuthoredField,
+                spatialIndex,
                 chunk);
         if (!authoredResult.accepted()) {
             throw new IllegalStateException(
@@ -66,6 +128,52 @@ final class SkyforgeComposedCaveRealizer {
                             + ", firstUnsafe=" + authoredResult.firstUnsafePosition());
         }
 
+        return new Result(nativeResult, authoredResult);
+    }
+
+    static Result realizePrepared(
+            ServerLevel level,
+            NoiseBasedChunkGenerator generator,
+            SkyforgeExactVolumeBiomeResolver biomeResolver,
+            SkyIslandWorldVolume volume,
+            SkyforgeExteriorConnectedCavePreparationCursor.Prepared preparedAuthored,
+            LevelChunk chunk,
+            BlockPos biomeSample,
+            int nativeTargetMinimumY,
+            int nativeTargetMaximumY) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(generator, "generator");
+        Objects.requireNonNull(biomeResolver, "biomeResolver");
+        Objects.requireNonNull(volume, "volume");
+        Objects.requireNonNull(preparedAuthored, "preparedAuthored");
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(biomeSample, "biomeSample");
+        if (preparedAuthored.unsafePositiveSamples() > 0) {
+            throw new IllegalStateException(
+                    "AUTH-0030 authored preflight rejected before native carving: unsafePositiveSamples="
+                            + preparedAuthored.unsafePositiveSamples()
+                            + ", firstUnsafe=" + preparedAuthored.firstUnsafePosition());
+        }
+
+        var nativeResult = SkyforgeNativeCarverRunner.carveAir(
+                level,
+                generator,
+                biomeResolver,
+                volume.id(),
+                chunk,
+                biomeSample,
+                nativeTargetMinimumY,
+                nativeTargetMaximumY);
+
+        var authoredResult = SkyforgeExteriorConnectedCaveRealizer.commitPrepared(
+                level,
+                volume,
+                preparedAuthored,
+                chunk);
+        if (!authoredResult.accepted()) {
+            throw new IllegalStateException(
+                    "prepared AUTH-0030 authored pass rejected after native carving");
+        }
         return new Result(nativeResult, authoredResult);
     }
 

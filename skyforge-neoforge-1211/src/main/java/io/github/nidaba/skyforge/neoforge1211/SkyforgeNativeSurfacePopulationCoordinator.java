@@ -38,7 +38,11 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
         Objects.requireNonNull(plan, "plan");
         Objects.requireNonNull(chunkPos, "chunkPos");
 
+        long findSurfaceStart = SkyforgeRuntimePerformanceMetrics.start();
         Optional<SurfaceSample> surface = findSurface(level, plan.volumeId(), chunkPos);
+        SkyforgeRuntimePerformanceMetrics.recordSince(
+                "surfacePopulation.findSurface",
+                findSurfaceStart);
         if (surface.isEmpty()) {
             return new Result(plan.volumeId(), chunkPos, false, List.of());
         }
@@ -54,15 +58,21 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
                 continue;
             }
 
-            var nativeResult = SkyforgeNativeBiomePopulationRunner.populateStep(
-                    level,
-                    generator,
-                    plan.biomeResolver(),
-                    plan.volumeId(),
-                    chunkPos,
-                    new BlockPos(sample.x(), sample.firstFreeY(), sample.z()),
-                    phase,
-                    plan.maximumAttachmentDepth());
+            var route = phase == GenerationStep.Decoration.VEGETAL_DECORATION
+                    ? SkyforgeNativeVegetalFeatureRoute.SURFACE_ECOLOGY
+                    : SkyforgeNativeVegetalFeatureRoute.ALL;
+            var nativeResult = SkyforgeRuntimePerformanceMetrics.measure(
+                    "surfacePopulation.phase." + phase.name(),
+                    () -> SkyforgeNativeBiomePopulationRunner.populateStep(
+                            level,
+                            generator,
+                            plan.biomeResolver(),
+                            plan.volumeId(),
+                            chunkPos,
+                            new BlockPos(sample.x(), sample.firstFreeY(), sample.z()),
+                            phase,
+                            plan.maximumAttachmentDepth(),
+                            route));
             CachedPhase created = new CachedPhase(
                     sample,
                     plan.maximumAttachmentDepth(),
@@ -79,7 +89,16 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
         return completed.size();
     }
 
-    private static Optional<SurfaceSample> findSurface(
+    synchronized List<SkyforgeNativeBiomePopulationRunner.Result> completedNativeResults(
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return completed.entrySet().stream()
+                .filter(entry -> entry.getKey().volumeId().equals(volumeId))
+                .map(entry -> entry.getValue().result())
+                .toList();
+    }
+
+    static Optional<SurfaceSample> findSurface(
             WorldGenLevel level,
             SkyIslandWorldVolumeId volumeId,
             ChunkPos chunkPos) {

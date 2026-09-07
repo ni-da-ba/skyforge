@@ -157,6 +157,113 @@ final class SkyforgeNeoForge1211SurfaceStageTest {
         assertFalse(SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation());
     }
 
+    @Test
+    void activeStageSkipsProjectionForChunkWithoutSkyforgeCandidates() throws Exception {
+        ChunkPos chunkPos = new ChunkPos(100, 100);
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+        BlockPos sentinel = new BlockPos(chunkPos.getMinBlockX(), 64, chunkPos.getMinBlockZ());
+        chunk.setBlockState(sentinel, Blocks.GOLD_BLOCK.defaultBlockState(), false);
+
+        SkyforgeNeoForge1211ChunkAdapter adapter = SkyforgeNeoForge1211DevRuntime.adapter();
+        Optional<MinecraftChunkWriteResult> result;
+        try (AutoCloseable activeBinding = SkyforgeNeoForge1211SurfaceStage.install(
+                adapter,
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(activeBinding);
+            assertFalse(SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk));
+            result = SkyforgeNeoForge1211SurfaceStage.realize(chunk);
+        }
+
+        assertTrue(result.isPresent());
+        assertEquals(0, result.orElseThrow().assignedBlockCount());
+        assertEquals(0, result.orElseThrow().solidBlockCount());
+        assertEquals(0, result.orElseThrow().candidateVolumeReferences());
+        assertEquals(Blocks.GOLD_BLOCK.defaultBlockState(), chunk.getBlockState(sentinel));
+    }
+
+    @Test
+    void plannedCandidateRetainsCatchupEvidenceWithoutDoomedDirectProjection() throws Exception {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
+        var volumeId = fixture.volume().id();
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                fixture.catalog(),
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+
+        Optional<MinecraftChunkWriteResult> result;
+        try (AutoCloseable admission = SkyforgePhysicalVolumeAdmissionStage.install(fixture.catalog());
+                AutoCloseable terrain = SkyforgeNeoForge1211SurfaceStage.install(
+                        adapter,
+                        new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(admission);
+            assertNotNull(terrain);
+            assertTrue(SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk));
+            result = SkyforgeNeoForge1211SurfaceStage.realize(chunk);
+
+            assertEquals(
+                    SkyforgePhysicalVolumeAdmissionState.PLANNED,
+                    SkyforgePhysicalVolumeAdmissionStage.snapshot(volumeId).state());
+            assertFalse(SkyforgePhysicalVolumeAdmissionStage.allowsDirectRealization(chunk));
+            assertTrue(
+                    SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId)
+                            .contains(chunkPos.toLong()),
+                    "planned candidate must retain immutable deferred-realization evidence");
+        }
+
+        assertTrue(result.isPresent());
+        assertEquals(0, result.orElseThrow().assignedBlockCount());
+        assertEquals(0, result.orElseThrow().solidBlockCount());
+        assertEquals(0, result.orElseThrow().candidateVolumeReferences());
+    }
+
+    @Test
+    void boundedExactVolumeMaterializationMatchesFullHeightProjection() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
+        var volume = fixture.volume();
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                fixture.catalog(),
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+
+        var range = SkyforgeNeoForge1211SurfaceStage.boundedVerticalRange(chunk, volume.bounds());
+        var full = adapter.materialize(
+                volume.id(),
+                chunkPos,
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+        var bounded = adapter.materialize(
+                volume.id(),
+                chunkPos,
+                range.minimumY(),
+                range.height());
+
+        assertTrue(range.height() > 0);
+        assertTrue(range.height() < chunk.getHeight());
+        for (int worldY = chunk.getMinBuildHeight(); worldY < chunk.getMaxBuildHeight(); worldY++) {
+            for (int localZ = 0; localZ < 16; localZ++) {
+                for (int localX = 0; localX < 16; localX++) {
+                    var fullKey = full.blockKeyAt(localX, worldY, localZ);
+                    if (worldY >= range.minimumY() && worldY < range.maximumYExclusive()) {
+                        assertEquals(
+                                fullKey,
+                                bounded.blockKeyAt(localX, worldY, localZ),
+                                "bounded exact-volume projection must equal historical full-height projection");
+                    } else {
+                        assertEquals(
+                                SkyforgeMinecraftBlockPalette.AIR,
+                                fullKey,
+                                "conservative exact-volume bounds must contain every solid projection");
+                    }
+                }
+            }
+        }
+        assertEquals(full.solidBlockCount(), bounded.solidBlockCount());
+    }
+
     private static MaterializedPosition highestSolid(MinecraftChunkMaterialization materialization) {
         for (int worldY = materialization.minimumY() + materialization.height() - 1;
                 worldY >= materialization.minimumY();

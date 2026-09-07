@@ -39,6 +39,27 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void unsupportedFallingNativeSurfaceCannotEraseOneVoxelSkyforgeFringe() {
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        chunk.setBlockState(new BlockPos(0, 64, 0), Blocks.SAND.defaultBlockState(), false);
+
+        MinecraftChunkMaterialization original = materialization(chunk);
+        MinecraftChunkMaterialization adapted =
+                new MinecraftNativeSurfaceTopAdapter().adapt(chunk, original);
+
+        ResourceLocation sand = ResourceLocation.withDefaultNamespace("sand");
+        assertEquals(
+                sand,
+                adapted.blockKeyAt(0, 200, 0),
+                "falling native material remains valid when the Skyforge top has solid support");
+        assertEquals(
+                SkyforgeMinecraftBlockPalette.STONE,
+                adapted.blockKeyAt(0, 150, 0),
+                "a one-voxel elevated fringe must retain stable Skyforge representation instead of inheriting unsupported sand");
+        assertEquals(original.solidBlockCount(), adapted.solidBlockCount());
+    }
+
+    @Test
     void preDecorationSnapshotCannotMistakeLaterVegetationForNativeTerrainMaterial() {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
         chunk.setBlockState(new BlockPos(0, 64, 0), Blocks.GRASS_BLOCK.defaultBlockState(), false);

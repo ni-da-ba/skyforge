@@ -4,6 +4,7 @@ import io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume;
 import io.github.nidaba.skyforge.recipes.skyisland.SkyIslandMorphologyProviderRegistry;
 import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandArchipelagoGroupPlan;
 import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandArchipelagoPlan;
+import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandArchipelagoRequest;
 import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandGroupMemberPlan;
 import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandMorphologySpecCompiler;
 import java.util.ArrayList;
@@ -128,6 +129,63 @@ public final class SkyIslandWorldCatalogCompiler {
     }
 
     /**
+     * Compiles one AUTH-0056 ACCEPTED_ONE_PASS convergence report into a fully certified world
+     * support bundle exactly once.
+     */
+    public SkyIslandAcceptedConvergenceCompilation compileAcceptedConvergenceOnce(
+            SkyIslandSupportConvergenceReport convergence,
+            SkyIslandMorphologyProviderRegistry registry) {
+        return new SkyIslandAcceptedConvergenceCompiler()
+                .compileOnce(convergence, registry);
+    }
+
+    /**
+     * Executes one complete AUTH-0055 candidate exactly once and reports AUTH-0056 convergence.
+     *
+     * <p>This method does not retry, adjust margins, or compile world volumes.
+     */
+    public SkyIslandSupportConvergenceReport executeSupportAwareReplanOnce(
+            SkyIslandSupportReplanProposal proposal,
+            SkyIslandMorphologyProviderRegistry registry) {
+        return new SkyIslandSupportConvergenceExecutor().executeOnce(proposal, registry);
+    }
+
+    /**
+     * Builds an AUTH-0055 immutable re-plan proposal from matching original intent, exact plan,
+     * AUTH-0054 synthesis, current vertical reservation, and explicit author margin.
+     *
+     * <p>The builder validates provenance by replaying the original request only. It does not
+     * execute the candidate request.
+     */
+    public SkyIslandSupportReplanProposal proposeSupportAwareReplan(
+            SkyIslandArchipelagoRequest originalRequest,
+            SkyIslandArchipelagoPlan originalPlan,
+            SkyIslandSupportReservationRequirementSynthesis synthesis,
+            SkyIslandWorldVerticalReservation originalVerticalReservation,
+            SkyIslandSupportReplanMargin authorMargin) {
+        return new SkyIslandSupportReplanProposalBuilder()
+                .propose(
+                        originalRequest,
+                        originalPlan,
+                        synthesis,
+                        originalVerticalReservation,
+                        authorMargin);
+    }
+
+    /**
+     * Synthesizes AUTH-0054 admission-safe reservation minima for the exact deterministic plan.
+     *
+     * <p>The result is advisory and immutable. Applying larger horizontal/group reservations
+     * requires constructing a fresh planning request and re-running deterministic placement.
+     */
+    public SkyIslandSupportReservationRequirementSynthesis synthesizeSupportReservationRequirements(
+            SkyIslandArchipelagoPlan plan,
+            SkyIslandMorphologyProviderRegistry registry) {
+        return new SkyIslandSupportReservationRequirementSynthesizer()
+                .synthesize(plan, registry);
+    }
+
+    /**
      * Evaluates AUTH-0053 support/reservation admission without compiling procedural graphs.
      */
     public SkyIslandSupportReservationPreflightReport preflightSupportReservations(
@@ -141,6 +199,10 @@ public final class SkyIslandWorldCatalogCompiler {
     /**
      * Compiles a fully proof-backed world catalog only after AUTH-0053 accepts every exact member
      * and consumed reservation assumption.
+     *
+     * <p>Preflight runs before primary/full-volume compilation. Provider support certification may
+     * still construct a secondary-factor contribution in order to consume its declared analytical
+     * envelope.
      */
     public SkyIslandWorldCatalogSupportBundle compileProofBacked(
             SkyIslandArchipelagoPlan plan,
