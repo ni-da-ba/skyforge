@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
@@ -114,6 +115,37 @@ final class SkyIslandEcologicalOpportunityProfilerTest {
         assertEquals(
                 SkyIslandEcologicalOpportunityProfile.class,
                 publicProfiles[0].getReturnType());
+    }
+
+    @Test
+    void profileEnvelopeRejectsAlternateResolutionOrForgedArea() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(89005L, 8L, 89L, 5L));
+        SkyIslandEcologicalOpportunityProfile valid =
+                new SkyIslandEcologicalOpportunityProfiler().profile(descriptor);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandEcologicalOpportunityProfile(
+                        descriptor,
+                        SkyIslandEcologicalOpportunityProfiler.SAMPLES_PER_AXIS / 2,
+                        valid.ownedCellCount(),
+                        valid.horizontalOwnedAreaEstimate(),
+                        valid.meanVegetationPotential(),
+                        valid.meanSaturationPotential(),
+                        valid.meanThermalSuitability(),
+                        valid.regimeFractions()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandEcologicalOpportunityProfile(
+                        descriptor,
+                        SkyIslandEcologicalOpportunityProfiler.SAMPLES_PER_AXIS,
+                        valid.ownedCellCount(),
+                        valid.horizontalOwnedAreaEstimate() + 1.0,
+                        valid.meanVegetationPotential(),
+                        valid.meanSaturationPotential(),
+                        valid.meanThermalSuitability(),
+                        valid.regimeFractions()));
     }
 
     @Test
