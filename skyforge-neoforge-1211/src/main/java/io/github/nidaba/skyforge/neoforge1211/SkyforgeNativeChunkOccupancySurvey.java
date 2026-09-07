@@ -75,21 +75,36 @@ final class SkyforgeNativeChunkOccupancySurvey {
                         solidCandidatePositions,
                         (long) columnSolidPositions);
 
-                for (int y = minimumY; y <= maximumY; y++) {
-                    cursor.set(x, y, z);
-                    BlockState nativeState = chunk.getBlockState(cursor);
-                    if (nativeState.isAir()) {
+                int y = minimumY;
+                while (y <= maximumY) {
+                    int sectionIndex = chunk.getSectionIndex(y);
+                    int sectionMaximumY = Math.min(
+                            maximumY,
+                            chunk.getSectionYFromSectionIndex(sectionIndex) * 16 + 15);
+                    if (chunk.getSection(sectionIndex).hasOnlyAir()) {
+                        SkyforgeRuntimePerformanceMetrics.recordSample(
+                                "admission.occupancySurveyAirSectionSkippedPositions",
+                                (long) sectionMaximumY - y + 1L);
+                        y = sectionMaximumY + 1;
                         continue;
                     }
-                    occupiedNativePositions++;
-                    BlockPos immutablePos = cursor.immutable();
-                    Conflict candidate = new Conflict(
-                            immutablePos,
-                            nativeState,
-                            chunk.getBlockEntity(immutablePos) != null);
-                    if (firstConflict == null
-                            || precedesHistoricalScan(candidate.position(), firstConflict.position())) {
-                        firstConflict = candidate;
+
+                    for (; y <= sectionMaximumY; y++) {
+                        cursor.set(x, y, z);
+                        BlockState nativeState = chunk.getBlockState(cursor);
+                        if (nativeState.isAir()) {
+                            continue;
+                        }
+                        occupiedNativePositions++;
+                        BlockPos immutablePos = cursor.immutable();
+                        Conflict candidate = new Conflict(
+                                immutablePos,
+                                nativeState,
+                                chunk.getBlockEntity(immutablePos) != null);
+                        if (firstConflict == null
+                                || precedesHistoricalScan(candidate.position(), firstConflict.position())) {
+                            firstConflict = candidate;
+                        }
                     }
                 }
             }
