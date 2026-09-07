@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `a55e500c86f0baf910af809985956ac398742706`
+**Repository snapshot when updated:** `04fb6dab33cf80e8b82b42fc9d0fc7837cce31c4`
 
 ## Program-wide invariants
 
@@ -17,7 +17,7 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0086` merged on current `main` (visible authored-hydrology realization intent) |
+| Authorship | `AUTH-0087` merged on current `main` (published authored-realization binding) |
 | Implementation | `SF-IMP-0079` merged before current Authorship work (post-cave vegetal routing) |
 | Content / Experience | C13 Elytra/firework bypass suppression accepted; C10 live 1:1 Nether-scale proof, C9 CC:Tweaked avionics substrate, and C8 glider-maintenance closure also accepted; C11/C12 remain separately in progress/reserved |
 | AUDIT | AUDIT-0001 repository-state reconstruction / durable audit handoff accepted on `main` |
@@ -52,6 +52,28 @@ The adapter owns physical rasterization, block/fluid identity, exact-volume muta
 fluid lifecycle. It must not substitute native springs or invent a second hydrology planner. Any
 backend-neutral physicalization added later must use compiled column authority rather than treating
 normalized semantic hydrology potentials as literal world-space Y.
+
+### MERGED / ACCEPTED — AUTH-0087 published authored-realization binding
+
+AUTH-0087 / PR #254 merged as `04fb6dab33cf80e8b82b42fc9d0fc7837cce31c4`.
+
+Downstream consumers may pair an accepted AUTH-0058 publication with an explicit AUTH-0046 association
+catalog only through exact root/count/volume-value coverage. Missing, extra, substituted, or foreign-root
+sets fail closed; no spatial/seed/order inference is allowed.
+
+Immediate consequences:
+
+- Implementation may use the proven association set to drive accepted AUTH-0049 material composition;
+- concrete Minecraft material binding and mutation remain Implementation-owned;
+- Authorship may reuse the same exact binding for surface ecology without creating a second publication
+  association protocol.
+
+### IN PROGRESS — AUTH-0088 published surface ecology
+
+The Authorship branch `auth/auth-0088-published-surface-ecology` is unaccepted. Its intended seam is
+exact published volume ID + world X/Z -> AUTH-0003 ecology, gated by compiled horizontal support and
+current authored-domain ownership. Minecraft biome keys, physical Y presentation, and quart-cell policy
+remain Implementation-owned.
 
 ### MERGED / ACCEPTED — current Implementation capability relevant to Authorship
 
