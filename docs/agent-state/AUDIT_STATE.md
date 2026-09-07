@@ -111,9 +111,20 @@ Acceptance still requires the full exact-head four-family machine matrix and the
 
 ### Content C18 / PR #277 — stock turtle void-freight envelope
 
-Draft/in progress. The black-box fixture uses real CraftOS turtle movement/refuel/drop calls. It distinguishes a deliberately fixture-forced loaded 64-block corridor from a separate actually-unloaded adjacent-chunk boundary where stock `turtle.forward()` must fail without fuel consumption.
+Draft/in progress with a **blocking fixture-precondition failure** on current head `9005c0e0`.
 
-Audit found no production chunk-loader policy in C18. Its acceptance claim must remain bounded to measured cargo, fuel, cadence, and loaded-world dependence; aircraft-vs-turtle economics, mining/farming throughput, Ender-storage combinations, and any nerf remain later Content decisions.
+The black-box design remains appropriately scoped: real CraftOS turtle movement/refuel/drop calls, a deliberately fixture-forced loaded freight corridor, and a separate intended unloaded-boundary case. Audit found no production chunk-loader policy in the code.
+
+However dedicated run `34088462995` failed before exercising stock `turtle.forward()` at the unloaded boundary:
+
+```text
+could not establish loaded-start/unloaded-target turtle boundary;
+startLoaded=true targetLoaded=true
+```
+
+Therefore C18 currently proves neither success nor failure of the intended unloaded-chunk movement boundary. The owner must establish a genuinely unloaded adjacent destination while the current turtle chunk is live, preserve the fail-closed precondition check, and rerun exact-head evidence. Do not infer unload state from distance/geometry alone and do not weaken the gate.
+
+Even after repair, the acceptance claim must remain bounded to measured cargo, fuel, cadence, and loaded-world dependence; aircraft-vs-turtle economics, mining/farming throughput, Ender-storage combinations, and any nerf remain later Content decisions.
 
 ### AUTH-0090 / PR #276 — regional ecological opportunity aggregation
 
@@ -179,7 +190,7 @@ Resolved hazards include the C11/C13 identifier collision, duplicate live-state 
 
 1. Continue auditing SF-IMP-0082 / PR #273 through its exact-head four-family prepare/reopen matrix and human #214 review; do not infer family acceptance from machine evidence alone.
 2. Track AUTH-0090 / PR #276 only for contract/ownership drift until Authorship exact-head acceptance is complete.
-3. Track C18 / PR #277 as a capability/economics measurement; reject any leap from fixture-loaded turtle freight to an accepted production chunk-loader policy or premature turtle nerf.
+3. Track C18 / PR #277 through repair of its loaded-start/unloaded-target fixture precondition; require a genuine unloaded-boundary proof before any capability/economics interpretation, and reject any leap to production chunk-loader policy or premature turtle nerf.
 4. Track issue #267 as non-blocking Massif traversal evidence and issue #261 as non-blocking biome-envelope refinement.
 5. Re-audit C11 / PR #233 and Portable Engine #240 only after their declared synchronization/runtime prerequisites.
 6. Keep full #214 open for seeds/scales, hybrids/providers, regional contexts, and later material/ecology/hydrology contexts after the built-in family tranche.
