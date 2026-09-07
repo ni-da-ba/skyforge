@@ -140,18 +140,31 @@ Read [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md). Most important near-ter
 
 ### SF-IMP-0082 — remaining built-in production morphology atlas
 
-Issue **#269** is the active next Implementation milestone.
+Issue **#269**, branch **`agent/sf-imp-0082-production-morphology-atlas`**, draft PR **#273** are the active Implementation work.
 
-Generalize SF-IMP-0081's accepted exact-carrier architecture across the remaining AUTH-0083 SMALL / seed-skyforge built-in members:
+The tranche generalizes SF-IMP-0081's accepted carrier across exact AUTH-0083 SMALL / seed-skyforge built-ins:
 
 - `builtin-tableland-small-seed-skyforge`;
 - `builtin-spine-small-seed-skyforge`;
 - `builtin-basin-small-seed-skyforge`;
 - `builtin-lobed-small-seed-skyforge`.
 
-Do not copy-paste four family-specific runtimes. Prefer one reusable carrier fixture/runtime/viewer keyed by exact AUTH-0083 member identity, retaining tight integer support derivation, whole-volume admission, persistence/reopen digest proof, and guided above/approach/below/orbit review.
+Current architecture:
 
-The #214 human gate remains required for the four-family tranche. Gameplay/traversal observations should be recorded independently from morphological correctness.
+- one reusable atlas fixture keyed by exact member ID/family rather than four copied runtimes;
+- exact AUTH-0083 source descriptor reconstruction: canonical Skyforge seed, SMALL scale, full provider detail + secondary morphology through the production compiler;
+- pure integer suspension-Y translation with discrete support parity proof;
+- reusable tight integer-voxel support derivation from the accepted provider certificate;
+- development-only acceptance harness extension for an explicit finite chunk-key footprint, avoiding arbitrary radius inflation for wider Spine/Lobed support;
+- one shared server carrier and one shared ownership-only viewer selected by member property;
+- objective top/underside sampling, boundary-air checks, native land representation, deterministic digest, save/reopen, and actual-client persistence;
+- parameterized ModDev prepare/client/viewer runs and aggregate verification targets;
+- four-way Showcase Acceptance CI matrix for Tableland / Spine / Basin / Lobed;
+- guided `above`, `approach`, `below`, `orbit` human review.
+
+No cave/ecology/interior mutation is installed in this morphology gate. No aesthetic thresholds are encoded.
+
+Automated exact-head verification and the required four-family #214 human gate remain pending. Do not merge or accept SF-IMP-0082 before both are recorded.
 
 ## PROPOSED / priority order
 
