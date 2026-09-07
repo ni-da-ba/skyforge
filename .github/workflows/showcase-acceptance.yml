@@ -2,7 +2,7 @@ name: Skyforge Showcase Acceptance
 
 on:
   schedule:
-    - cron: "47 8 * * *"
+    - cron: "47 8 * * 1"
   workflow_dispatch:
 
 permissions:
