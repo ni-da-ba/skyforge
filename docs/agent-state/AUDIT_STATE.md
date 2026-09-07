@@ -80,6 +80,19 @@ AUTH-0086 is now merged. It projects every accepted authored naturalized channel
 
 It does not define Minecraft block/fluid identities, block-space rasterization, fluid ticks, scheduling, or placement. Implementation owns that downstream realization and must consume the accepted plan rather than invent a competing hydrology planner.
 
+### AUTH-0087 authored-material publication binding — PR #254
+
+Draft AUTH-0087 binds one exact accepted compiled-world publication to an explicit authored-realization association catalog before exposing the already accepted AUTH-0049 material composer.
+
+Current contract is backend-neutral and fail-closed:
+
+- publication/realization root identity and exact published-volume coverage are required;
+- missing, extra, substituted, or foreign-root associations are rejected;
+- no new geology/material threshold, backend material identity, Minecraft type, placement, or lifecycle behavior is introduced;
+- concrete BlockState/material binding and exact-volume mutation remain Implementation-owned.
+
+This removes a producer-side identity/coverage ambiguity for later material realization, but it does not preempt the current Implementation order: #194 ecology legibility and representative production morphology remain ahead of concrete authored materials/geology in the canonical Implementation state.
+
 ### Content first-flight recipe proof — PR #233
 
 Existing **C11** identity. Branch requires current-main synchronization and fresh focused evidence before acceptance. Preserve the distinction between this crude pre-Brass bootstrap aircraft and the later Brass-era Bellanca.
