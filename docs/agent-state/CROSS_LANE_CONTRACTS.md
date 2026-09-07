@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Repository snapshot after AUTH-0094 acceptance:** `2e9618ce170a107e4e9fe88d80a26e5b537209ab`
+**Repository snapshot after AUTH-0095 acceptance:** `0185274ade7a07e890cbaba9d4601404748e89c0`
 
 Detailed milestone evidence belongs in lane ledgers, milestone docs, tests, workflows, and merged PRs.
 This file records only coordination boundaries another lane must preserve.
@@ -19,7 +19,7 @@ This file records only coordination boundaries another lane must preserve.
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0094` accepted: exact published-region Iron/Copper/Zinc opportunity inventory for C20 scope planning |
+| Authorship | `AUTH-0095` accepted: threshold-free scale-normalized surface-character diagnostics over the exact AUTH-0083 built-in matrix |
 | Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / #284 owns remaining AUTH-0083 built-in seed/scale Minecraft matrix |
 | Content / Experience | `C20` merged on current history: Iron/Copper/Zinc availability/guarantee policy over AUTH-0093; C11/C12 remain separately in progress/reserved |
 | Music / Audio | `MUS-0001` accepted in `0b3386ad74ef610f49d9d3e8050e5a701f5e2cbd` with canonical score/source persistence and remaining human/source-recovery gates |
@@ -81,6 +81,23 @@ Ownership after AUTH-0094:
 - **Authorship:** exact geology/opportunity/provenance inventory;
 - **Implementation:** ore/block/tag identity, deposit geometry/count/volume/grade/accessibility, placement/worldgen, persistence, and lifecycle.
 
+### AUTH-0095 — morphology surface-character diagnostics — ACCEPTED
+
+AUTH-0095 / PR #313 merged as `0185274ade7a07e890cbaba9d4601404748e89c0` from exact-head candidate `1b1e1fc259b49dced2e8245bfdee803e5bd3440c`.
+
+For the exact 25 built-in AUTH-0083 seed/scale specimens, Authorship now exposes threshold-free,
+scale-normalized upper-surface character evidence: global relief/statistical spread, gradient and
+curvature quantiles, fixed normalized-lag relief, and complete local-window relief distributions.
+The evidence reuses the exact AUTH-0083 generation pass and member provenance.
+
+Cross-lane consequences:
+
+- SF-IMP-0083 / #284 may consume these metrics alongside the matching Minecraft carriers;
+- #267/#283 human review may use them to distinguish systemic short-period relief / plateau-identity problems from specimen-specific observations;
+- AUTH-0095 does **not** define walkability, plateau/bench membership, lumpiness classes, or aesthetic pass/fail thresholds;
+- Authorship must not retune Massif/Tableland until the matching Minecraft matrix and human review justify a family-level change;
+- Implementation still owns block-space traversal/carrier/persistence/runtime evidence.
+
 ## Morphology / Minecraft realization
 
 ### SF-IMP-0080 — visible land ecology — ACCEPTED
@@ -91,7 +108,7 @@ Legible forest/taiga Minecraft ecology passed persistence/reopen and project-own
 
 All five SMALL / seed-skyforge built-in AUTH-0083 families have exact Minecraft carrier/persistence evidence. SF-IMP-0083 / #284 owns the remaining built-in seed/scale matrix.
 
-Issue #214 remains the broader human morphology/regional gate. #267 tracks Massif traversal lumpiness; #283 tracks Tableland-vs-Massif separation. Do not tune a family from one seed/scale.
+Issue #214 remains the broader human morphology/regional gate. #267 tracks Massif traversal lumpiness; #283 tracks Tableland-vs-Massif separation. AUTH-0095 now supplies the backend-neutral distribution/spatial-scale diagnostics for that comparison, but it does not replace the Minecraft/human gate or authorize tuning by itself.
 
 ## Active Content / Bootstrap contracts
 
