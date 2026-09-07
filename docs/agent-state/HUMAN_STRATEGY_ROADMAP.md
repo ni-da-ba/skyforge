@@ -14,6 +14,65 @@ lanes, acceptance philosophy, scope, or the intended player experience.
 Audit should watch the trigger for each open topic and surface it when the decision becomes timely.
 Do not interrupt the project owner merely because an item exists.
 
+## Audit evidence-saturation doctrine
+
+The project owner explicitly assigns Audit responsibility for catching situations where Skyforge is
+testing too much and proceeding too little.
+
+For any expensive or repeated validation step, Audit should ask:
+
+> **What materially distinct failure mode or acceptance uncertainty does this next test retire?**
+
+If the answer is not concrete, the burden shifts toward moving forward rather than accumulating more
+evidence.
+
+### Preferred validation hierarchy
+
+```text
+EXHAUSTIVE CHEAP CONTRACT EVIDENCE
+    identity / deterministic compilation / support / invariants / unit properties
+
+REPRESENTATIVE FULL-RUNTIME EVIDENCE
+    expensive Minecraft lifecycle / persistence / reopen / integration paths
+
+TARGETED EXPANSION
+    only when a family, scale, provider, subsystem, or observed failure exercises a distinct risk
+
+HUMAN SAMPLE REVIEW
+    visual / traversal / listening / gameplay judgments on a deliberately representative corpus
+```
+
+Do not automatically multiply an expensive lifecycle test by every deterministic parameter point when
+those points share the same backend path.
+
+### Evidence saturation signals
+
+Audit should intervene when one or more are true:
+
+- repeated specimens prove the same invariant through the same codepath without new failures;
+- CI/runtime cost is increasing faster than information gained;
+- an acceptance matrix grows because the corpus is large rather than because the backend risk is
+  heterogeneous;
+- a producer keeps extending test coverage after the milestone's original risk has been retired;
+- full-client/reopen or soak evidence is repeated where cheaper deterministic evidence already proves
+  parameter variation and representative runtime evidence proves the lifecycle;
+- branch drift, merge churn, or CI reruns begin consuming more work than the feature itself;
+- further polishing of an isolated subsystem delays first integration with the next major world/game
+  system.
+
+The response is not to lower correctness standards. Prefer:
+
+1. name the remaining uncertainty;
+2. choose the cheapest evidence that can falsify it;
+3. sample representative full-runtime cases;
+4. reserve exhaustive heavy matrices for demonstrated heterogeneity or release/soak purposes;
+5. close the milestone once its stated risk is retired;
+6. move to the next highest product/integration risk.
+
+This doctrine is a program-health rule. Producer lanes should not need to request permission each time
+Audit identifies clear evidence saturation; Audit may recommend narrowing/splitting the gate, while
+the human owner retains final authority over major acceptance-policy changes.
+
 ## Escalation rule
 
 For each open strategy topic:
@@ -97,7 +156,7 @@ progression layered onto mechanical competence rather than mandatory bootstrap k
 
 ## HS-01 — Implementation certification depth and "good enough" boundary
 
-**Status:** **DISCUSS NOW**
+**Status:** **DISCUSS NOW — default direction is layered certification unless human review overrides**
 
 **Why now:** SF-IMP-0083 / issue #284 currently requires all 20 remaining built-in AUTH-0083
 seed/scale specimens to receive exact Minecraft evidence including admission, persistence, digest, and
@@ -132,6 +191,12 @@ Choose the long-term acceptance philosophy for large deterministic corpora:
 ### Audit recommendation
 
 Prefer **B, with C-style separation of heavy visual atlas work from ordinary acceptance**.
+
+The project owner has explicitly agreed that over-testing is a real process risk and that Audit owns
+detecting it. This does not unilaterally rewrite issue #284's acceptance criteria, but it establishes
+the default policy that the next human discussion should decide whether the current 20-member
+full-lifecycle requirement should be reduced or split rather than assuming exhaustive repetition is
+automatically desirable.
 
 The accepted SF-IMP-0081/0082 work already indicates one generic exact-carrier architecture serves
 multiple families. Repeating actual-client persistence for every parameter specimen has diminishing
@@ -459,6 +524,54 @@ Do not let that proof delay the first complete Minecraft game realization.
 cheap to prove earlier.
 
 ---
+
+## Workflow improvements to apply program-wide
+
+### 1. Predeclare the risk retired by each milestone
+
+Every milestone should state a small set of concrete uncertainties it exists to retire. Acceptance
+work added later must either map to one of those uncertainties or identify a newly discovered blocker.
+
+### 2. Separate routine CI from heavy characterization
+
+Routine pull-request CI should remain fast enough to encourage frequent integration. Large Minecraft
+atlases, soak tests, visual corpora, and multi-client matrices should be deliberate milestone or manual
+workflows rather than automatic consequences of every branch update.
+
+### 3. Prefer representative runtime coverage over Cartesian-product testing
+
+If many specimens share one backend path, prove parameter-space breadth cheaply and lifecycle
+correctness on representative boundary/typical cases. Expand only after a discrepant specimen or a
+genuinely different path appears.
+
+### 4. Heavy tests require a current integration candidate
+
+Do not intentionally launch expensive characterization from a materially stale/non-mergeable branch
+unless the purpose of the run is specifically diagnostic and the result is explicitly non-acceptance
+evidence.
+
+### 5. Establish acceptance boundaries before branch accumulation becomes the work
+
+When a producer has accumulated substantial useful work but main has moved materially, checkpoint,
+recompose, and close a bounded milestone rather than allowing synchronization churn to dominate the
+session.
+
+### 6. Optimize for integration risk, not subsystem completeness
+
+After a subsystem has credible correctness, prefer integrating it with the next major world/game
+system. Bugs discovered at morphology × geology × hydrology × structures × ecology boundaries are
+more valuable to find than polishing isolated morphology indefinitely.
+
+### 7. Maintain a small WIP surface
+
+Each lane should normally have one active acceptance milestone plus explicitly dormant/reserved work.
+Old PRs should be merged, closed, or clearly superseded instead of remaining ambiguous parallel
+authorities.
+
+### 8. Human reviews should answer product questions, not certify machine invariants
+
+Human time should be spent on silhouette, traversal, gameplay feel, progression, music, readability,
+and design choices. Deterministic identity/persistence invariants belong to automation.
 
 ## Automated roadmap policy
 
