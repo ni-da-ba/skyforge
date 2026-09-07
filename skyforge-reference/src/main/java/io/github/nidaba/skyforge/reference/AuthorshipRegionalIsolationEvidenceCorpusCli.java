@@ -12,6 +12,7 @@ import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandArchipel
 import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandGroupRole;
 import io.github.nidaba.skyforge.recipes.skyisland.archipelago.SkyIslandGroupTemplate;
 import io.github.nidaba.skyforge.recipes.skyisland.group.ProviderMorphologySpec;
+import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandMorphologySpec;
 import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandGroupLayout;
 import io.github.nidaba.skyforge.world.SkyIslandAcceptedConvergenceCompilation;
 import io.github.nidaba.skyforge.world.SkyIslandAcceptedConvergenceCompiler;
@@ -425,7 +426,7 @@ public final class AuthorshipRegionalIsolationEvidenceCorpusCli {
             double centerZ,
             double scale,
             ProviderMorphologySpec morphology) {
-        List<ProviderMorphologySpec> morphologies =
+        List<SkyIslandMorphologySpec> morphologies =
                 java.util.stream.IntStream.range(0, memberCount)
                         .mapToObj(index -> morphology)
                         .toList();
