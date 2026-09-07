@@ -51,7 +51,7 @@ Accepted by the merge that places this state update on `main`.
 
 This milestone records the next active-gate audit without taking over producer-lane implementation:
 
-- SF-IMP-0080 / PR #248 compile blocker at `dc5cccc3` was repaired by head `611a85f93e51effde30eeb13a872128fb0ffad9c`; the specimen now reaches runtime ecology preparation and fails because the lower FOREST volume produces no meaningful native surface-population evidence after exact admission/catch-up/result-cardinality obligations complete;
+- SF-IMP-0080 / PR #248 compile blocker at `dc5cccc3` was repaired by `611a85f9`; that head reached runtime ecology preparation and proved the original deterministic native-surface substrate invalid when lower FOREST produced no meaningful native population after exact admission/catch-up/result-cardinality obligations completed. Current audited retry `4f3e65f73fb37b15e2dc6783cd19a4e96d22609f` uses documented land-backed seed `1405130932537311389`, preserves detailed population diagnostics, and is synchronized to `main@9e8f1160`; automated acceptance is pending;
 - AUTH-0087 / PR #254 merged as `04fb6dab33cf80e8b82b42fc9d0fc7837cce31c4`; Audit found no ownership blocker in the exact publication↔authored-realization gate, while lane-state/cross-lane acceptance recording is being handled by Authorship PR #257;
 - C14 / PR #256 merged as `b4b44c87509ee70b27ddbe20468d2d287cbd79f1` after its exact head `dda6d1c6a98034c12931bcdcfcaf9fe70a9d03dd` passed repository/retained-stack gates; Content then recorded the accepted C14 boundary in durable state as `9e8f1160`. It proves existing CC:Tweaked/Create: Avionics altitude/throttle capability without creating a Skyforge avionics authority or first-flight prerequisite;
 - Bellanca B0-A docs / PR #242 audited head `797e0c54325b1f45d0aa6229124c3bb7e8727bda` remain cross-lane consistent design state, but the branch is based on old main and live C12 Sable assembly/physics/flight evidence remains authoritative;
@@ -76,15 +76,19 @@ Merged Bellanca PR #238 is accepted **design state**, not accepted aircraft runt
 
 ### Implementation land-biome legibility — issue #194 / PR #248
 
-PR **#248 / SF-IMP-0080** is active as a draft. Latest audited head: `611a85f93e51effde30eeb13a872128fb0ffad9c`.
+PR **#248 / SF-IMP-0080** is active as a draft. Latest audited retry head: `4f3e65f73fb37b15e2dc6783cd19a4e96d22609f`.
 
-The earlier literal-`\\n` registration compile blocker is fixed. On `611a85f9`, the retained compatibility matrix reaches runtime and multiple gates are already green. Dedicated ecology acceptance now fails later in `SkyforgeNeoForge1211ShowcaseEcologyDevRuntime.populationEvidence` with:
+Evidence progression:
 
-> `SF-IMP-0080 lower biome produced no meaningful native surface population`
+- the literal-`\\n` registration compile blocker is fixed;
+- `611a85f9` reached runtime and failed with `SF-IMP-0080 lower biome produced no meaningful native surface population`;
+- that failure occurred only after both exact volumes were ADMITTED, catch-up/biome-presentation pending sets were empty, and completed native-result counts exactly equaled expected surface obligations;
+- Implementation therefore treated the original native-surface seed as an invalid human-facing substrate choice rather than revisiting admission/result-cardinality machinery;
+- the current retry uses documented Java 1.21 land-backed seed `1405130932537311389`, retains attempted/successful/feature-key failure diagnostics, and is cleanly synchronized to `main@9e8f1160`.
 
-The assertion occurs only after both exact volumes are ADMITTED, catch-up/biome-presentation pending sets are empty, and completed native-result counts exactly equal expected surface obligations. The current blocker is therefore lower-FOREST native surface-population meaning/evidence, not physical admission or result cardinality.
+Automated acceptance for the retry is pending. No human #194 review is actionable until the machine ecology/showcase/performance/reopen gates are green.
 
-Current design boundary once that behavioral blocker is repaired:
+Current design boundary if the retry passes:
 
 - the accepted current-capability cave/interior showcase remains unchanged;
 - the ecology specimen reuses broad TABLELAND land geometry plus forest/taiga identity through modern whole-volume admission, deferred catch-up, exact-volume native surface population, durable biome presentation, save/reopen, and a mutation-inert actual-client viewer;
@@ -154,7 +158,7 @@ Human play must verify interaction discoverability and that neighboring redstone
 
 ## KNOWN HAZARDS / TECHNICAL DEBT
 
-1. **SF-IMP-0080 ecology population blocker:** audited head `611a85f9` passes compilation and reaches runtime, but lower FOREST native surface-population evidence is empty/non-meaningful after exact surface obligations complete; final ecology counts and persistence/reopen acceptance remain downstream.
+1. **SF-IMP-0080 ecology retry remains unproven:** `611a85f9` established that the original native-surface seed yields no meaningful lower-FOREST population after lifecycle obligations complete. Current synchronized retry `4f3e65f7` uses a land-backed seed and better diagnostics, but machine ecology/showcase/performance/reopen evidence is still pending.
 2. **AUTH-0087 state lag:** AUTH-0087 is merged on main, but the Authorship lane summary still reports AUTH-0086 until PR #257 lands. Repository history/source/tests are authoritative during that gap.
 3. **Long-lived branch drift:** C11 and Portable Engine cutoff require current-main synchronization before acceptance.
 4. **Design/runtime ambiguity:** merged/open design documents are not executable capability without required runtime evidence.
@@ -170,7 +174,7 @@ Resolved hazards:
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Re-audit SF-IMP-0080 / PR #248 after the lower-FOREST population blocker is repaired, the branch is synchronized with current main, and ecology/showcase/performance gates are green; do not waive the #194 human-eye ecology gate.
+1. Re-audit SF-IMP-0080 / PR #248 when the current land-backed retry finishes its ecology/showcase/performance/reopen gates; if machine evidence is green, require the #194 human-eye ecology review before acceptance.
 2. Track Authorship PR #257 until the accepted AUTH-0087 boundary is durable in the lane ledger/shared contracts; do not duplicate its owner-file edits.
 3. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
 4. Re-audit PR #240 after assembled-Sable + persistence evidence.
