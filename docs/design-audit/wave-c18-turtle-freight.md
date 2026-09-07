@@ -1,6 +1,9 @@
 # Wave C18 — stock turtle void-freight envelope
 
-**Status:** IN PROGRESS until exact-head runtime acceptance is green and merged  
+**Status:** MERGED / ACCEPTED  
+**PR:** #277  
+**Merge:** `1c7e24a0e37c4ade8aa5a8943f65017d2300248b`  
+**Accepted runtime head:** `9ce39a797ea337fe2f152bc5168ba4d6715c578a`  
 **Issue:** #275  
 **Parent computing contract:** #227  
 **Parent vertical slice:** #224
@@ -84,3 +87,25 @@ turtles.
 
 Still separate: mining/farming throughput, dedicated chunk-loader progression, Ender storage
 combinations, autopilot, and final aircraft-versus-turtle economics.
+## Accepted result
+
+Final current-main runtime evidence:
+
+```text
+outboundMoves=64
+returnMoves=64
+fuelStart=160
+fuelEnd=32
+delivered=960
+elapsedTicks=1164
+boundaryOutcome=STALLED
+boundaryMoves=17
+boundaryFuelStart=80
+boundaryFuelEnd=63
+boundaryError=NO_TICK_PROGRESS
+```
+
+Decision: **KEEP** the stock turtle movement/freight capability. C18 does not justify a generic
+Skyforge turtle nerf or replacement. Route loading is still infrastructure, and the separate
+mining/farming, dedicated chunk-loader, Ender-storage, autopilot, and final aircraft-economics
+questions remain open.
