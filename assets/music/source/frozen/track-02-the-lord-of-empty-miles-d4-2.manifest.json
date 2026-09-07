@@ -10,11 +10,12 @@
     "user_export_before_repair_sha256": "55994f79650df7d4dbda39f78d13df52a4dc01490164469416c4896716e0ef0b",
     "percussion_repaired_audition_midi_sha256": "500763a02801c3cb61f45fba7505e8d26d6eb0087318a92516db586756f6daf2",
     "canonical_persisted_midi_sha256": "79be46fd4ca2d712a727a571265d8521740148a550e05c04288cd14d5b9bf50d",
-    "canonical_gzip_sha256": "7c1eb6ca930e67c10580b5fb48fc2191edca6fdd4fe73f34cf7cdcab67e22cf5"
+    "canonical_gzip_sha256": "157f256c3734e32d395b52e73fba238f297daeab24d082c89228183a5c11dd46"
   },
   "conductor": {
     "tempo_bpm": 132,
     "meter": "4/4",
+    "ticks_per_beat": 960,
     "key_signature_meta": "Em"
   },
   "track_12_percussion": {
