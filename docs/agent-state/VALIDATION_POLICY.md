@@ -274,6 +274,11 @@ Use:
 The exhaustive 20-member in-engine atlas may remain a later/manual regression or presentation asset if
 useful; it should not block the next production-world system once the carrier risk is retired.
 
+## Current CI-economy follow-up
+
+Issue #319 owns the immediate workflow-level cleanup: split accepted heavy showcase/performance proofs
+from broad routine NeoForge PR fan-out while preserving change-impact-aware representative coverage.
+
 ## Audit enforcement
 
 Audit should flag:
