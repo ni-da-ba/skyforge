@@ -217,6 +217,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
         Objects.requireNonNull(server, "server");
         Objects.requireNonNull(reason, "reason");
         EVIDENCE.put("failure", reason);
+        record(SkyforgeRuntimePerformanceMetrics.evidence());
         complete("FAIL");
         completionRequested = true;
         server.halt(false);
