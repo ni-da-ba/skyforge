@@ -431,7 +431,8 @@ final class SkyforgeNeoForge1211ShowcaseEcologyDevRuntime {
         }
         if (attempted == 0 || successful == 0 || featureKeys.isEmpty()) {
             throw new IllegalStateException(
-                    "SF-IMP-0080 " + label + " biome produced no meaningful native surface population");
+                    "SF-IMP-0080 " + label + " biome produced no meaningful native surface population: attempted="
+                            + attempted + ", successful=" + successful + ", featureKeys=" + featureKeys);
         }
         return new PopulationEvidence(expectedBiome, attempted, successful, Set.copyOf(featureKeys));
     }
