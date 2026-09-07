@@ -56,15 +56,17 @@ Merged Bellanca PR #238 is accepted **design state**, not accepted aircraft runt
 
 ## IN PROGRESS / UNMERGED
 
-### Implementation land-biome legibility — issue #194
+### Implementation land-biome legibility — issue #194 / PR #248
 
-Issue **#194** remains open. PR **#248 / SF-IMP-0080** explored a forest/taiga human-facing showcase specimen but is now **closed without merge**.
+PR **#248 / SF-IMP-0080** is active again as a draft after replacing its failed compact-showcase prototype with a separate ecology showcase.
 
-The required claim is unchanged:
+Current design boundary:
 
-- machine acceptance is necessary but insufficient;
-- a future Implementation attempt must preserve the accepted stacked production lifecycle;
-- issue #194 remains open until a human can visibly confirm persistent land surface, trees/foliage, plants, meaningful biome distinction, and no obvious new placement/persistence defect.
+- the accepted current-capability cave/interior showcase remains unchanged;
+- the ecology specimen reuses broad TABLELAND land geometry plus forest/taiga identity through modern whole-volume admission, deferred catch-up, exact-volume native surface population, durable biome presentation, save/reopen, and a mutation-inert actual-client viewer;
+- dedicated ecology acceptance requires persistent land substrate, logs/leaves, non-tree plants, successful native population, and distinct forest/taiga feature identity;
+- repository CI, existing showcase acceptance, dedicated ecology acceptance/reopen, and SF-IMP-0070 characterization remain required machine gates;
+- machine acceptance is necessary but insufficient: issue #194 remains open until the explicit human ecology review passes.
 
 Do not conflate this with production morphology aesthetics; issue #214 remains separate.
 
@@ -86,7 +88,7 @@ Existing **C11** identity. Branch requires current-main synchronization and fres
 
 The initial C11 identity collision discovered during AUDIT-0001 is resolved. Content has explicitly reassigned this work to **C13**, preserving PR #233 as C11 and issue #239 as C12.
 
-Current branch remains draft/unmerged. AUDIT has verified the milestone-identity correction only; runtime acceptance remains Content-owned.
+The branch is now non-draft but remains unmerged. It uses black-box baseline/suppressed Elytra-firework runtime evidence and currently targets a base older than current main, so final acceptance still requires synchronization/exact-head verification under Content ownership. AUDIT has verified milestone identity and scope only, not runtime acceptance.
 
 ### Portable Engine cutoff — PR #240 / issue #237
 
@@ -109,7 +111,9 @@ CONTENT-owned proposed documentation. Build evidence does not substitute for C12
 
 ### #194 — land-biome/ecology legibility
 
-Human review must see persistent soil/grass, trees/foliage, surface plants, and meaningful biome distinction. PR #248 closed without merge, so there is currently no accepted or active SF-IMP-0080 implementation vehicle.
+PR #248 is the active draft SF-IMP-0080 vehicle. Its new separate ecology showcase preserves the compact cave/interior showcase and must first pass the machine gates described above.
+
+Human review must still see persistent soil/grass, trees/foliage, surface plants, meaningful forest/taiga distinction, plausibly attached vegetation, and no obvious save/reopen visual defect. Do not merge/accept SF-IMP-0080 before that review is explicitly recorded.
 
 ### #214 — production morphology quality
 
@@ -138,8 +142,9 @@ Resolved hazards:
 
 ## ORDERED NEXT AUDIT WORK
 
-1. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
-2. Track the next Implementation attempt on issue #194 without waiving the human-eye ecology gate.
+1. Track active SF-IMP-0080 / PR #248 without waiving the #194 human-eye ecology gate.
+2. Re-audit C11 / PR #233 only after its owner synchronizes and reruns focused evidence.
 3. Re-audit PR #240 after assembled-Sable + persistence evidence.
-4. Continue checking future lane-state migrations remain under `docs/agent-state/`.
-5. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
+4. Re-check C13 / PR #247 only after current-main synchronization and exact-head acceptance evidence.
+5. Continue checking future lane-state migrations remain under `docs/agent-state/`.
+6. Update this ledger at each material audit merge, contract change, new hazard, or handoff.
