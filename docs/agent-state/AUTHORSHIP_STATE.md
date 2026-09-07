@@ -3,8 +3,8 @@
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Main snapshot at latest Authorship acceptance:** `2e9618ce170a107e4e9fe88d80a26e5b537209ab`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0094**
+**Main snapshot at latest Authorship acceptance:** `0185274ade7a07e890cbaba9d4601404748e89c0`  
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0095**
 
 Read first:
 
@@ -150,13 +150,42 @@ Accepted invariants:
 
 Reference: `docs/authorship/AUTH-0094-regional-base-metal-opportunity-inventory.md`.
 
+### AUTH-0095 — morphology surface-character diagnostics
+
+PR #313 / merge `0185274ade7a07e890cbaba9d4601404748e89c0`.
+
+Concrete consumers: SF-IMP-0083 / #284 and human morphology follow-ups #267/#283 require broader
+multi-seed/multi-scale evidence before any Massif/Tableland retuning.
+
+Exact acceptance:
+
+- accepted head `1b1e1fc259b49dced2e8245bfdee803e5bd3440c`;
+- synchronized base `28b55a609cfeb69b271b75b348ed59270f03bd76`;
+- full repository CI `34166827820` PASS;
+- scoped evidence workflow `34166827821` PASS;
+- evidence artifact `10034435628`;
+- digest `sha256:d2fdedbaa1e73850d7efc509e8172cd2acdf128b8e97854e2d81649a9c5fce9d`.
+
+Accepted invariants:
+
+- AUTH-0095 reuses exactly the 25 built-in AUTH-0083 member IDs/specs/seeds/scales and the same production compiler;
+- the canonical AUTH-0083 97x97 horizontal review grid gives exact adjacent spacing `R/24` at every physical scale;
+- upper-surface relief and standard deviation are normalized by nominal radius;
+- central-gradient and curvature distributions are deterministic and scale-covariant;
+- fixed normalized lag evidence spans `R/24`, `R/12`, `R/6`, and `R/3`;
+- complete 3x3 / 5x5 / 9x9 local-window relief distributions provide multi-scale surface-character evidence;
+- no walkability, plateau, bench, lumpiness, or aesthetic pass/fail threshold enters Authorship;
+- the new `surface-character.csv` is emitted from the exact existing AUTH-0083 generation pass rather than a competing morphology corpus.
+
+Reference: `docs/authorship/AUTH-0095-morphology-surface-character-diagnostics.md`.
+
 ## IN PROGRESS
 
 No Authorship milestone is currently in progress.
 
-Do not assign AUTH-0095 merely to continue the resource sequence. C20 now has the accepted regional
-Authorship inventory it requested. Open another Authorship milestone only when a concrete retained
-consumer demonstrates another missing backend-neutral cause.
+AUTH-0095 closes the morphology-measurement gap requested by SF-IMP-0083/#284 and #267/#283. Do not
+assign AUTH-0096 merely to continue morphology work: family tuning requires the matching Minecraft
+matrix plus human review, and another semantic milestone requires a concrete retained consumer.
 
 ## ACTIVE CROSS-LANE BOUNDARIES
 
@@ -170,7 +199,9 @@ consumer demonstrates another missing backend-neutral cause.
 
 Implementation may consume AUTH-0093/0094 only after Content resource policy is applied. It owns all
 concrete deposits, blocks/tags, quantities, accessibility, placement/worldgen, persistence, and chunk
-lifecycle. Existing SF-IMP-0083 / issue #284 morphology work remains independently Implementation-owned.
+lifecycle. SF-IMP-0083 / issue #284 may consume AUTH-0095 as the backend-neutral surface-character measurement
+seam for the exact built-in seed/scale matrix. Minecraft carrier/persistence/runtime evidence remains
+Implementation-owned, and AUTH-0095 does not itself authorize morphology-family retuning.
 
 ### Ecology / fauna / civilization
 
@@ -221,11 +252,13 @@ Issue #214 remains open for production morphology review, including:
 - above/approach/below Minecraft views and representative flight routes;
 - decision on whether an underside-secondary vocabulary is needed.
 
-AUTH-0094 introduces no new human/manual gate.
+AUTH-0095 introduces no new independent human/manual gate; it supplies measurement evidence to the
+already-open #214/#267/#283 review. Any Massif/Tableland tuning decision still requires that human
+comparison against the matching SF-IMP-0083 Minecraft matrix.
 
 ## Ordered next work
 
-1. Let Content/Bootstrap consume AUTH-0094 in executable C20-aware scope selection/replanning.
-2. Do not add deposit scale, grade, accessibility, or quantity to Authorship unless a concrete downstream contract shows those require semantic authorship rather than Content/Implementation policy.
-3. Reconstruct the next missing semantic cause from current production consumers before assigning AUTH-0095.
-4. Keep SF-IMP-0083 / #284 and issue #214 independently owned by Implementation/human review.
+1. Hand AUTH-0095 surface-character evidence to SF-IMP-0083 / #284 and correlate it with the matching Minecraft seed/scale matrix plus #214/#267/#283 human review.
+2. Do not retune Massif/Tableland from reference diagnostics alone; only open evidence-backed tuning after the consumer review identifies a systemic family issue.
+3. Let Content/Bootstrap continue consuming AUTH-0094 for C20-aware resource scope selection/replanning.
+4. Reconstruct the next missing semantic cause from current production consumers before assigning AUTH-0096.
