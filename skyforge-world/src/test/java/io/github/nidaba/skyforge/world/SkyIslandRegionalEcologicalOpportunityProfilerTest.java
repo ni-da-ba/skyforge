@@ -249,13 +249,13 @@ final class SkyIslandRegionalEcologicalOpportunityProfilerTest {
                         "auth90",
                         SkyIslandGroupRole.ANCHOR,
                         descriptor(),
-                        420.0,
+                        360.0,
                         48.0,
                         0.0,
                         List.of(morphology, morphology, morphology),
                         new SkyIslandGroupLayout.Chain(
-                                0.15, 360.0, 0.0, 0.0, 0.0, 0.0),
-                        900.0);
+                                0.15, 800.0, 0.0, 0.0, 0.0, 0.0),
+                        1_400.0);
         return new SkyIslandArchipelagoRequest(
                 rootSeed,
                 0.0,
