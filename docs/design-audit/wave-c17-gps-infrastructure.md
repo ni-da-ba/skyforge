@@ -1,7 +1,10 @@
 # Wave C17 — CC:Tweaked GPS infrastructure topology
 
-**Status:** IN PROGRESS until exact-head runtime acceptance is green and merged  
+**Status:** MERGED / ACCEPTED  
 **Issue:** #270  
+**PR:** #272  
+**Merge:** `65bd49a4e349f16bab8b796aa5b1a1e6dd72a7cc`  
+**Final synchronized runtime head:** `9373c307ef6bc79a64643ad0d958f5a09ebe1c9c`  
 **Parent computing contract:** #227  
 **Parent vertical slice:** #224
 
@@ -51,3 +54,15 @@ If the specimen passes:
 - no generic Skyforge GPS/network implementation is justified.
 
 C17 does not select final tower spacing, Ender recipe/progression gating, turtle navigation/economics, autopilot behavior, or Bootstrap Province structure placement.
+
+
+## Accepted runtime evidence
+
+```text
+noHostFound=false
+normalNearFound=true  normalNear=16,64,16
+normalFarFound=false
+enderRemoteFound=true enderRemote=512,80,272
+```
+
+Final exact-head verification also passed retained C10/C13/C14/C15/C16, repository CI, current showcase persistence/reopen jobs, and performance characterization after synchronization to accepted AUTH-0089.
