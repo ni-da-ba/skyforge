@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot before AUDIT-0002 merge:** `5d4a293d6c57e3db4a52ec33dabd8725bbd4b091`
+**Main snapshot before AUDIT-0002 merge:** `a55e500c86f0baf910af809985956ac398742706`
 
 Read first:
 
@@ -46,7 +46,7 @@ No cross-lane ownership contract changes.
 | Lane | Highest merged boundary |
 | --- | --- |
 | Implementation | **SF-IMP-0079** / PR #236 — cave-dependent vegetation routed post-cave |
-| Authorship | **AUTH-0085** / PR #234 — native spring semantic admission |
+| Authorship | **AUTH-0086** / PR #241 — visible hydrologic realization intent |
 | Content / Experience | **C10** / PR #232 — live 1:1 Nether coordinate-scale proof |
 | Showcase | technical current-capability showcase + persisted client reopen accepted |
 | Music | no MUS milestone merged; PR #159 remains draft/unmerged |
@@ -72,9 +72,11 @@ Do not conflate this with production morphology aesthetics; issue #214 remains s
 
 PR **#245** is now **merged** as `5d4a293d`. The canonical live namespace remains `docs/agent-state/`; Authorship added `AUTHORSHIP_STATE.md` and extended the shared charter/contracts without recreating the deprecated live authority under `docs/handoffs/`.
 
-### AUTH-0086 — PR #241
+### Authorship visible hydrology — AUTH-0086 / PR #241
 
-Backend-neutral visible-hydrologic realization intent remains draft/in progress. Implementation must not independently create a competing authored-hydrology planner.
+AUTH-0086 is now merged. It projects every accepted authored naturalized channel, retained-waterbody footprint, and channel-drop event into deterministic backend-neutral visible-water intents while preserving exact source identity, riparian relationships, dry waterbody margins, and cross-island isolation.
+
+It does not define Minecraft block/fluid identities, block-space rasterization, fluid ticks, scheduling, or placement. Implementation owns that downstream realization and must consume the accepted plan rather than invent a competing hydrology planner.
 
 ### Content first-flight recipe proof — PR #233
 
@@ -100,7 +102,7 @@ CONTENT-owned proposed documentation. Build evidence does not substitute for C12
 - Bootstrap first powered aircraft remains distinct from the later Giuseppe Bellanca GB-1A.
 - Performance optimization is evidence-gated: SF-IMP-0070 measured first, 0071–0077 removed identified pathologies, and issue #219 remains conditional on fresh profiling.
 - AUTH-0085 supplies semantic admission for native WATER springs from authored cave + aquifer evidence; Implementation retains native execution, fluid propagation/provenance/fencing, persistence, and lifecycle.
-- AUTH-0086 is a producer contract in progress, not Minecraft block placement.
+- AUTH-0086 is the accepted producer contract for one-for-one visible channel, retained-water, cascade, waterfall, and edge-discharge intent; it is not Minecraft block placement.
 - Machine correctness cannot waive explicit visual/play gates.
 
 ## MANUAL VERIFICATION REQUIRED

@@ -223,10 +223,9 @@ The Minecraft implementation must consume backend-neutral authored meaning throu
 
 Current relevant contracts include:
 
-- Authorship through **AUTH-0085**, including native WATER-spring semantic admission from authored cave + aquifer evidence;
-- **AUTH-0086** in progress for backend-neutral visible hydrologic realization intent.
+- Authorship through **AUTH-0086**: AUTH-0085 admits supplemental native WATER springs from authored cave + aquifer evidence, while AUTH-0086 projects accepted surface channels, retained waterbodies, cascades, waterfalls, and edge discharge into exact backend-neutral visible-water intents.
 
-Vanilla fluid springs are not equivalent to authored channels, waterfalls, retained waterbodies, or surface hydrology. Implementation should not create a second hydrology planner while AUTH-0086 is active.
+Vanilla fluid springs are not equivalent to authored channels, waterfalls, retained waterbodies, or surface hydrology. Implementation must consume AUTH-0086's accepted one-for-one intent plan and preserve its provenance/dry-margin semantics rather than create a second hydrology planner.
 
 ## Current showcase role
 

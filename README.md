@@ -59,7 +59,7 @@ The accepted Minecraft integration through **SF-IMP-0079** includes:
 
 The current Implementation frontier is **issue #194: expose a visibly legible persistent land-biome/ecology specimen for human review**. The compact technical showcase is intentionally not the production morphology target. After #194, the planned implementation era is representative production morphology through the accepted exact-volume lifecycle, with issue #214 as the human visual/flight-quality gate.
 
-Backend-neutral Authorship has independently advanced to **AUTH-0085**; Content / Experience has executable acceptance through **C10**. See the live lane-state files for their current boundaries and in-progress work.
+Backend-neutral Authorship has independently advanced through **AUTH-0086** visible-hydrologic realization intent; Content / Experience has executable acceptance through **C10**. See the live lane-state files for current boundaries and in-progress work.
 
 Skyforge is pre-release: it is not yet packaged as a general-purpose player-facing mod, and no stable API compatibility is promised.
 
