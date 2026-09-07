@@ -50,7 +50,7 @@ final class AuthorshipRegionalEcologicalOpportunityCorpusTest {
 
         String html = Files.readString(output.resolve("index.html"));
         assertTrue(html.contains("AUTH-0089"));
-        assertTrue(html.contains("area-weighted"));
+        assertTrue(html.contains("Area-weighted"));
         assertTrue(html.contains("no species"));
     }
 }
