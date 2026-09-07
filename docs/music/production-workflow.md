@@ -283,6 +283,24 @@ Before accepting any frozen MIDI repository write:
 
 A source-path match or filename is never sufficient evidence of identity.
 
+### Automated canonical-source gate
+
+MUS-0002 adds `tools/verify_music_sources.py` plus the dedicated `Music Source Integrity` GitHub Actions workflow.
+
+For the currently canonical persisted cues, CI now mechanically enforces:
+
+- gzip decompression and accepted uncompressed SHA-256 identity;
+- Standard MIDI File format 1, 480 PPQ, conductor + 19 instrument tracks;
+- canonical instrument-lane ordering;
+- accepted conductor tempo and meter;
+- declared-unused PERC/TP lanes remaining note-empty;
+- the exact accepted Track 02 Untuned Percussion absolute-note counts;
+- stability of the already-documented Track 00 and Track 02 range-exception counts.
+
+The automated gate is intentionally narrower than DAW/render acceptance. It cannot prove BBCSO plugin preset state that is absent from MIDI, and it must never infer Harp versus Celeste or silently repair known range exceptions.
+
+Any new canonical cue source must be added to the verifier at the same time it is promoted into the canonical source inventory.
+
 ### Instrument-alignment gate
 
 For any cue using polymorphic percussion lanes, acceptance requires an explicit cue manifest stating:
