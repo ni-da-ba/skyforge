@@ -243,3 +243,34 @@ Preserve all non-percussion composition and controller work.
 
 The existing frozen render remains canonical until the corrected percussion version is auditioned in BBCSO. If the repaired layer strengthens physical danger without obscuring the accepted motif / brass / panic hierarchy, promote the corrected source. Otherwise retain the frozen render and treat the percussion repair as optional.
 
+
+
+## Source-persistence defect discovered during percussion repair
+
+While preparing the BBCSO percussion-repaired MIDI, the repository artifact
+`assets/music/source/frozen/track-02-the-lord-of-empty-miles-d4-2.mid.gz`
+was decompressed and verified.
+
+It does **not** contain the documented Track 02 canonical MIDI. Its decompressed SHA-256 is:
+
+`beb0c9d7d5625c7764207d140cce6b5496bbf1ad0803b2f0d78c26ce3cde9695`
+
+which is the frozen Track 00 / *A Windborne Fantasia* source hash, not the documented Track 02 hash:
+
+`73aa596990090b22d250d994714e24bc3162eba5a04b5a70bf7c36ace8a5ef28`
+
+Therefore the repository's Track 02 frozen binary is a mislabeled persistence artifact and must **not** be used to manufacture a repaired dragon MIDI.
+
+The repair must be applied to the actual final Track 02 source exported from the accepted Sonar session:
+
+`The_Lord_of_Empty_Miles_Draft4_2_FULL_HORN_TRANSITION_SMOOTHED.mid`
+
+Once recovered, apply only the documented PERC role map:
+
+- legacy 36 -> BBCSO 48 / Bass Drum;
+- legacy 41 -> BBCSO 50 / Tenor Drum;
+- legacy 49 -> BBCSO 71 / Piatti;
+
+with Track 12 routed to Percussion -> Untuned Percussion.
+
+After user audition, replace the mislabeled repository artifact with the verified corrected source and update its SHA-256.
