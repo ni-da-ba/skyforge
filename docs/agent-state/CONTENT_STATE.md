@@ -3,7 +3,7 @@
 **Lane:** Content / Experience  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Main snapshot after C18 merge:** `1c7e24a0e37c4ade8aa5a8943f65017d2300248b`
+**Main snapshot after C19 merge:** `97c9e1accf0a243ddc892fbf1fc424825b0c244e`
 
 Read first:
 
@@ -13,7 +13,33 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest accepted executable Content milestone: C18
+### Highest accepted executable Content milestone: C19
+
+**C19 / PR #292**, merge `97c9e1accf0a243ddc892fbf1fc424825b0c244e`; final synchronized runtime head `4c6bfe67f07e5c80650c23d8a697615588a02a9a`.
+
+C19 measures real stock CC:Tweaked mining-turtle extraction and loaded/ticking-route dependence on the retained C9 computing stack:
+
+```text
+digs=96
+outboundMoves=96  returnMoves=96
+fuelStart=240      fuelEnd=48
+delivered=96       elapsedTicks=2377
+boundaryOutcome=STALLED  boundaryDigs=17  boundaryMoves=17
+boundaryFuelStart=80     boundaryFuelEnd=63
+boundaryError=NO_TICK_PROGRESS
+```
+
+Accepted interpretation:
+
+- stock mining-turtle base capability is **KEEP**; C19 does not justify a generic Skyforge mining-turtle nerf or replacement;
+- a real normal turtle with the stock diamond-pickaxe upgrade can extract a deterministic vanilla ore corridor, physically return, and deliver the recovered material with exact movement/fuel accounting;
+- the mining upgrade does not change C18's infrastructure boundary: an otherwise-unforced 48-block mining route stalled after 17 successful dig/move cycles;
+- resource geography is not erased merely by stock turtle digging because turtles still require physical deployment to authored deposits plus fuel, ticking/loading, and physical cargo handling;
+- farming throughput, quarry/branch-mining patterns, dedicated chunk-loader progression, Ender-storage combinations, ore abundance, mature fleet automation, and final aircraft-vs-turtle economics remain separate Content decisions.
+
+Final exact-head verification passed C10/C13/C14/C15/C16/C17/C18/C19, repository CI, the complete current Showcase Acceptance matrix, and SF-IMP-0070 performance characterization. The exact C19 runtime result reproduced before and after current-main synchronization around AUTH-0092.
+
+### C18
 
 **C18 / PR #277**, merge `1c7e24a0e37c4ade8aa5a8943f65017d2300248b`; final synchronized runtime head `9ce39a797ea337fe2f152bc5168ba4d6715c578a`.
 
@@ -150,16 +176,18 @@ Stationary retained-stack evidence exists. Assembled-Sable, save/reload, two-eng
 
 - AUTH-0088 is accepted: exact published-volume/world-XZ surface-ecology projection, with no Minecraft biome/Y policy.
 - AUTH-0089 is accepted: deterministic island ecological opportunity aggregation without species/spawn/resource/backend policy.
+- AUTH-0092 is accepted: raw deterministic regional nearest-peer center-distance / nominal-radial-gap isolation evidence without gameplay classification.
+- AUTH-0093 is accepted: normalized Iron/Copper/Zinc geological opportunity subordinate to exact mineral-bearing structural host support; Content owns availability classes, bootstrap guarantees, trade/salvage, and resource progression policy.
 - SF-IMP-0080 is accepted: legible forest/taiga ecology showcase.
 - SF-IMP-0081 and SF-IMP-0082 are accepted for all five SMALL / seed-skyforge built-in morphology carriers; SF-IMP-0083 / issue #284 owns the remaining multi-seed/multi-scale built-in matrix, while #267 and #283 separately track tuning concerns.
 
 ## PROPOSED / OPEN CONTENT QUESTIONS
 
-### Computing after C18
+### Computing after C19
 
-C9/C14/C16/C17/C18 now establish substrate, real avionics capability, wireless-envelope behavior, GPS infrastructure topology, and the base turtle freight/ticking envelope. Remaining questions are gameplay/bypass questions only:
+C9/C14/C16/C17/C18/C19 now establish substrate, real avionics capability, wireless-envelope behavior, GPS infrastructure topology, the base turtle freight/ticking envelope, and base mining extraction behavior. Remaining questions are gameplay/bypass questions only:
 
-- turtle mining/farming throughput, dedicated chunk-loader progression, Ender-storage combinations, and final aircraft-vs-turtle economics;
+- turtle farming throughput, quarry/branch-mining patterns, dedicated chunk-loader progression, Ender-storage combinations, and final aircraft-vs-turtle economics;
 - GPS tower spacing/placement and how visibly navigation infrastructure appears in #224;
 - Ender Modem progression gating;
 - autopilot versus route-planning/navigation gameplay;
@@ -221,15 +249,17 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 - `Wave C16 Wireless Envelope`
 - `Wave C17 GPS Infrastructure`
 - `Wave C18 Turtle Freight`
+- `Wave C19 Turtle Mining`
 - `Skyforge Showcase Acceptance`
 - repository `CI`
 
 ## Ordered next work
 
 1. Do not duplicate active C11/C12 work; consume their results into #224 when accepted.
-2. Check whether C19 is already claimed before reserving a new milestone.
-3. Prefer the next narrow #227 executable bypass specimen among the still-open turtle questions: mining/farming throughput or dedicated chunk-loader/Ender-storage combinations. Do not nerf turtles without measured substitution evidence.
-4. Continue Bootstrap Province acceptance now that ecology visibility, GPS topology, and the base turtle freight envelope are closed; treat final GPS placement and mature computing examples as province design.
-5. Complete/accept #237 / PR #240 before C12 powered-soaring closure.
-6. Keep assembled-aircraft Nether transfer separate from accepted ordinary-player C15 mechanics.
-7. Return to C1 industrial runtime evidence when a focused runtime window is practical.
+2. Check whether C20 is already claimed before reserving a new milestone.
+3. Consume the new AUTH-0093 Iron/Copper/Zinc geological-opportunity handoff into a narrow Content-owned availability/bootstrap/resource-geography contract. Do not invent Minecraft deposits or backend placement policy; Implementation owns realization.
+4. Resume the remaining #227 turtle questions afterward: farming throughput, quarry/branch-mining scale, or dedicated chunk-loader/Ender-storage combinations. Do not nerf turtles without measured substitution evidence.
+5. Continue Bootstrap Province acceptance now that ecology visibility, GPS topology, base turtle freight, base mining extraction, and base-metal geological opportunity are available; use AUTH-0093 to make regional specialization concrete without reintroducing first-flight soft locks.
+6. Complete/accept #237 / PR #240 before C12 powered-soaring closure.
+7. Keep assembled-aircraft Nether transfer separate from accepted ordinary-player C15 mechanics.
+8. Return to C1 industrial runtime evidence when a focused runtime window is practical.
