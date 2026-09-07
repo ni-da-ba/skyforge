@@ -18,7 +18,7 @@
 | Lane | Repository-visible boundary |
 | --- | --- |
 | Authorship | `AUTH-0088` accepted: published surface-ecology projection; AUTH-0089 in progress only |
-| Implementation | `SF-IMP-0080` accepted: legible forest/taiga ecology showcase; SF-IMP-0081 / #214 morphology review in progress |
+| Implementation | `SF-IMP-0081` accepted: first exact AUTH-0083 Massif Minecraft carrier; SF-IMP-0082 / #269 remaining built-in morphology atlas in progress |
 | Content / Experience | `C16` accepted: bounded Wireless Modem / universal Ender Modem envelope; C11/C12 remain separately in progress/reserved |
 | AUDIT | AUDIT durable reconstruction/reconciliation remains the program-state review layer |
 
@@ -50,9 +50,11 @@ Authorship is aggregating placement-free ecology regime composition and broad en
 
 The forest/taiga showcase passed machine persistence/reopen gates and project-owner human visual review. This proves legible Minecraft land ecology, not yet AUTH-0003-to-Minecraft-biome semantic translation. Issue #194 is closed; #261 is a non-blocking short-distance ambience/presentation follow-up.
 
-### SF-IMP-0081 / issue #214 — morphology quality — MANUAL GATE
+### SF-IMP-0081 / issue #214 — morphology quality — FIRST TRANCHE ACCEPTED
 
-Implementation must preserve deterministic handoff IDs for above/approach/below views and flight routes. The project-owner review determines whether current underside morphology is sufficient or requires additional authored vocabulary.
+SF-IMP-0081 / PR #265 merged as `bac972eb7e8d772a250d292602e109428d06514a`. The first exact AUTH-0083 Massif carrier passed machine persistence/reopen and project-owner human review; its pure morphology and underside were accepted as strong. Issue #214 remains open for the broader atlas.
+
+SF-IMP-0082 / #269 expands the same exact-ID carrier architecture to Tableland, Spine, Basin, and Lobed. Preserve deterministic handoff IDs and above/approach/below/orbit review. Issue #267 separately tracks Massif traversal lumpiness and must not be conflated with carrier correctness.
 
 ## Active coordination contracts
 
