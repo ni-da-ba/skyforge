@@ -104,24 +104,32 @@ final class SkyforgePortableEngineCutoffAcceptance {
             level.setBlock(CUTOFF_POWER_POS, Blocks.AIR.defaultBlockState(), 3);
             tick.invoke(blockEntity);
 
-            int startedBurn = asInt(getBurnTime.invoke(blockEntity));
-            if (startedBurn <= 0) {
-                fail("restart did not begin queued fuel burn; burnTime=" + startedBurn);
+            int ignitionBurn = asInt(getBurnTime.invoke(blockEntity));
+            if (ignitionBurn <= 0) {
+                fail("restart did not begin queued fuel burn; burnTime=" + ignitionBurn);
             }
             ItemStack afterStart = (ItemStack) getItem.invoke(inventory, 0);
             assertInt("restart consumes exactly one queued fuel item", 1, afterStart.getCount());
-            assertAbsFloat("restart restores normal generator output", 32.0f, getGeneratedSpeed.invoke(blockEntity));
+
+            // Simulated computes its isLit local before loading a newly queued fuel item, so a cold
+            // Portable Engine has an upstream one-tick ignition delay. Preserve and characterize it.
+            assertFloat("cold ignition first tick remains unpowered", 0.0f, getGeneratedSpeed.invoke(blockEntity));
+            tick.invoke(blockEntity);
+            int runningBurn = ignitionBurn - 1;
+            assertInt("second ignition tick begins countdown", runningBurn, getBurnTime.invoke(blockEntity));
+            assertAbsFloat("second ignition tick restores normal generator output", 32.0f, getGeneratedSpeed.invoke(blockEntity));
 
             // 5. Re-cut a running engine, then resume from the exact preserved timer.
             level.setBlock(CUTOFF_POWER_POS, Blocks.REDSTONE_BLOCK.defaultBlockState(), 3);
             for (int i = 0; i < 5; i++) {
                 tick.invoke(blockEntity);
             }
-            assertInt("second cutoff preserves exact timer", startedBurn, getBurnTime.invoke(blockEntity));
+            assertInt("second cutoff preserves exact timer", runningBurn, getBurnTime.invoke(blockEntity));
 
             level.setBlock(CUTOFF_POWER_POS, Blocks.AIR.defaultBlockState(), 3);
             tick.invoke(blockEntity);
-            assertInt("restart resumes countdown", startedBurn - 1, getBurnTime.invoke(blockEntity));
+            assertInt("restart resumes countdown", runningBurn - 1, getBurnTime.invoke(blockEntity));
+            assertAbsFloat("warm restart restores generator output", 32.0f, getGeneratedSpeed.invoke(blockEntity));
 
             LOGGER.log(
                     System.Logger.Level.INFO,
@@ -129,8 +137,9 @@ final class SkyforgePortableEngineCutoffAcceptance {
                             + " defaultBurn=99"
                             + " cutoffBurn=100"
                             + " queuedFuelPreserved=2"
-                            + " restartBurn=" + startedBurn
-                            + " resumedBurn=" + (startedBurn - 1));
+                            + " ignitionBurn=" + ignitionBurn
+                            + " runningBurn=" + runningBurn
+                            + " resumedBurn=" + (runningBurn - 1));
         } catch (ReflectiveOperationException failure) {
             Throwable cause = failure instanceof InvocationTargetException invocation
                     ? invocation.getCause()
