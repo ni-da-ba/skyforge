@@ -1,6 +1,5 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
-import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -18,6 +17,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
  * Black-box C11 acceptance for vanilla-vs-suppressed Elytra firework propulsion.
@@ -32,23 +32,43 @@ final class SkyforgeWaveC11ElytraBypassAcceptance {
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeWaveC11ElytraBypassAcceptance.class.getName());
 
+    private enum Phase {
+        IDLE,
+        BOOST_SETTLE,
+        ORDINARY_SETTLE,
+        COMPLETE
+    }
+
+    private static String mode;
+    private static ServerLevel level;
+    private static FakePlayer player;
+    private static AABB rocketArea;
+    private static Phase phase = Phase.IDLE;
+    private static long phaseStartTick;
+    private static int boostRocketCount;
+    private static double boostDelta;
+    private static boolean fallFlyingAfterAttempt;
+    private static int ordinaryBefore;
+
     private SkyforgeWaveC11ElytraBypassAcceptance() {}
 
     static void installFromSystemProperty() {
-        String mode = System.getProperty(MODE_PROPERTY, "").trim();
-        if (mode.isEmpty()) {
+        String configured = System.getProperty(MODE_PROPERTY, "").trim();
+        if (configured.isEmpty()) {
             return;
         }
-        if (!mode.equals("baseline") && !mode.equals("suppressed")) {
-            throw new IllegalArgumentException("unknown Wave C11 acceptance mode: " + mode);
+        if (!configured.equals("baseline") && !configured.equals("suppressed")) {
+            throw new IllegalArgumentException("unknown Wave C11 acceptance mode: " + configured);
         }
 
-        NeoForge.EVENT_BUS.addListener(
-                (ServerStartedEvent event) -> run(event.getServer().overworld(), mode));
+        mode = configured;
+        NeoForge.EVENT_BUS.addListener(SkyforgeWaveC11ElytraBypassAcceptance::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(SkyforgeWaveC11ElytraBypassAcceptance::onServerTickPost);
     }
 
-    private static void run(ServerLevel level, String mode) {
-        FakePlayer player = FakePlayerFactory.getMinecraft(level);
+    private static void onServerStarted(ServerStartedEvent event) {
+        level = event.getServer().overworld();
+        player = FakePlayerFactory.getMinecraft(level);
         player.setPos(0.0, 120.0, 0.0);
         player.setYRot(0.0F);
         player.setXRot(0.0F);
@@ -57,12 +77,12 @@ final class SkyforgeWaveC11ElytraBypassAcceptance {
         player.startFallFlying();
 
         if (!player.isFallFlying()) {
-            fail(mode, "vanilla Elytra fall-flying state did not remain active");
+            fail("vanilla Elytra fall-flying state did not remain active");
             return;
         }
 
-        AABB rocketArea = new AABB(-16.0, 96.0, -16.0, 16.0, 144.0, 16.0);
-        discardRockets(level, rocketArea);
+        rocketArea = new AABB(-16.0, 96.0, -16.0, 16.0, 144.0, 16.0);
+        discardRockets();
 
         player.setDeltaMovement(Vec3.ZERO);
         ItemStack boostRocket = new ItemStack(Items.FIREWORK_ROCKET);
@@ -80,56 +100,62 @@ final class SkyforgeWaveC11ElytraBypassAcceptance {
                         + " result="
                         + boostUseResult.getResult());
 
-        List<FireworkRocketEntity> boostRockets =
-                level.getEntitiesOfClass(FireworkRocketEntity.class, rocketArea);
-        for (int tick = 0; tick < 5; tick++) {
-            for (FireworkRocketEntity rocket : List.copyOf(boostRockets)) {
-                if (!rocket.isRemoved()) {
-                    rocket.tick();
-                }
-            }
+        phase = Phase.BOOST_SETTLE;
+        phaseStartTick = level.getGameTime();
+    }
+
+    private static void onServerTickPost(ServerTickEvent.Post event) {
+        if (phase == Phase.IDLE || phase == Phase.COMPLETE || level == null || player == null) {
+            return;
         }
 
-        double boostDelta = player.getDeltaMovement().length();
-        int attachedCandidateCount = boostRockets.size();
-        boolean fallFlyingAfterAttempt = player.isFallFlying();
+        long elapsed = level.getGameTime() - phaseStartTick;
+        if (phase == Phase.BOOST_SETTLE && elapsed >= 5L) {
+            evaluateBoostAndLaunchOrdinaryFirework();
+        } else if (phase == Phase.ORDINARY_SETTLE && elapsed >= 2L) {
+            evaluateOrdinaryFireworkAndPass();
+        }
+    }
+
+    private static void evaluateBoostAndLaunchOrdinaryFirework() {
+        boostRocketCount = level.getEntitiesOfClass(FireworkRocketEntity.class, rocketArea).size();
+        boostDelta = player.getDeltaMovement().length();
+        fallFlyingAfterAttempt = player.isFallFlying();
 
         if (mode.equals("baseline")) {
             if (boostDelta < BASELINE_MIN_BOOST_DELTA) {
                 fail(
-                        mode,
                         "vanilla baseline did not produce material rocket propulsion; delta="
                                 + boostDelta
                                 + " rockets="
-                                + attachedCandidateCount);
+                                + boostRocketCount);
                 return;
             }
         } else if (boostDelta > SUPPRESSED_MAX_BOOST_DELTA) {
             fail(
-                    mode,
                     "suppressed run still produced Elytra rocket propulsion; delta="
                             + boostDelta
                             + " rockets="
-                            + attachedCandidateCount);
+                            + boostRocketCount);
             return;
         }
 
         if (!fallFlyingAfterAttempt) {
-            fail(mode, "suppression disabled Elytra flight instead of only rocket propulsion");
+            fail("suppression disabled Elytra flight instead of only rocket propulsion");
             return;
         }
 
-        discardRockets(level, rocketArea);
+        discardRockets();
 
-        // Ordinary firework launch must remain available for signaling/celebration/crossbow-adjacent
-        // vanilla uses. Exercise the normal block-use path while the player is not fall-flying.
+        // Ordinary firework launch must remain available for signaling/celebration and other
+        // non-propulsion vanilla uses. Exercise the block-use path while not fall-flying.
         player.stopFallFlying();
         BlockPos launchBlock = new BlockPos(0, 119, 0);
         level.setBlockAndUpdate(launchBlock, Blocks.STONE.defaultBlockState());
 
         ItemStack ordinaryRocket = new ItemStack(Items.FIREWORK_ROCKET);
         player.setItemInHand(InteractionHand.MAIN_HAND, ordinaryRocket);
-        int ordinaryBefore = level.getEntitiesOfClass(FireworkRocketEntity.class, rocketArea).size();
+        ordinaryBefore = level.getEntitiesOfClass(FireworkRocketEntity.class, rocketArea).size();
         BlockHitResult hit = new BlockHitResult(
                 new Vec3(0.5, 120.0, 0.5),
                 Direction.UP,
@@ -138,13 +164,19 @@ final class SkyforgeWaveC11ElytraBypassAcceptance {
         UseOnContext context =
                 new UseOnContext(level, player, InteractionHand.MAIN_HAND, ordinaryRocket, hit);
         ordinaryRocket.useOn(context);
-        int ordinaryAfter = level.getEntitiesOfClass(FireworkRocketEntity.class, rocketArea).size();
 
+        phase = Phase.ORDINARY_SETTLE;
+        phaseStartTick = level.getGameTime();
+    }
+
+    private static void evaluateOrdinaryFireworkAndPass() {
+        int ordinaryAfter = level.getEntitiesOfClass(FireworkRocketEntity.class, rocketArea).size();
         if (ordinaryAfter <= ordinaryBefore) {
-            fail(mode, "ordinary block-launched firework no longer spawns");
+            fail("ordinary block-launched firework no longer spawns");
             return;
         }
 
+        phase = Phase.COMPLETE;
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "WAVE_C11_"
@@ -152,21 +184,22 @@ final class SkyforgeWaveC11ElytraBypassAcceptance {
                         + " PASS boostDelta="
                         + boostDelta
                         + " boostRockets="
-                        + attachedCandidateCount
+                        + boostRocketCount
                         + " fallFlying="
                         + fallFlyingAfterAttempt
                         + " ordinaryRockets="
                         + (ordinaryAfter - ordinaryBefore));
     }
 
-    private static void discardRockets(ServerLevel level, AABB area) {
+    private static void discardRockets() {
         for (FireworkRocketEntity rocket :
-                level.getEntitiesOfClass(FireworkRocketEntity.class, area)) {
+                level.getEntitiesOfClass(FireworkRocketEntity.class, rocketArea)) {
             rocket.discard();
         }
     }
 
-    private static void fail(String mode, String reason) {
+    private static void fail(String reason) {
+        phase = Phase.COMPLETE;
         String marker = "WAVE_C11_" + mode.toUpperCase() + " FAIL " + reason;
         LOGGER.log(System.Logger.Level.ERROR, marker);
         throw new IllegalStateException("Wave C11 Elytra acceptance failed: " + reason);
