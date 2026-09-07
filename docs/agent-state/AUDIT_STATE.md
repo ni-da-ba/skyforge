@@ -141,7 +141,7 @@ Parallel producer state is preserved rather than rewritten. AUDIT-0007 only reco
 | Lane | Highest merged boundary |
 | --- | --- |
 | Implementation | **SF-IMP-0082** / PR #273 — all five SMALL / seed-skyforge built-in carriers accepted; **SF-IMP-0083 / #284 / draft PR #285** profiles and then realizes the remaining 20 built-in seed/scale specimens |
-| Authorship | **AUTH-0090** accepted; **AUTH-0091 / draft PR #279** is recomposed onto `main@fad6b175` at head `fbebcf5d` with fresh exact-head CI in progress |
+| Authorship | **AUTH-0090** accepted; **AUTH-0091 / draft PR #279** is recomposed onto `main@fad6b175` at head `fbebcf5d` with the fresh exact-head matrix green, pending Authorship-owned acceptance/merge |
 | Content / Experience | **C17** accepted; C18 / draft PR #277 remains machine-green on its tested head but is now diverged from current main and requires resynchronization before acceptance; C11/C12 remain separately in progress/reserved |
 | Showcase | cave/interior and ecology showcases accepted; all five SMALL / seed-skyforge built-in morphology carriers have passed the current machine/human tranche |
 | Music / Audio | no MUS milestone merged; MUS-0001 / PR #159 remains draft/unmerged and requires synchronization/source-verification/state repair before repository acceptance |
@@ -210,7 +210,7 @@ AUTH-0091 is now concrete draft PR #279. Audit reviewed current production seman
 - radius-only scaling preserves normalized topology/depth while coarse area scales by radius²;
 - retained source candidates are not double-counted because the accepted footprint planner partitions candidate seeds exactly once across overlap groups.
 
-Physical water volume/metres, fauna roles/carrying capacity, agriculture/resources, Minecraft fluid/biome identity, and backend lifecycle remain outside the contract. AUTH-0091 has since recomposed onto authoritative `main@fad6b17575b25437a18c52a352ebd566acdb52b5` at head `fbebcf5defa8a69a304216422d28d1bcb0e0d639`. Fresh exact-head acceptance run `34139804616` is in progress; Authorship acceptance remains pending that evidence.
+Physical water volume/metres, fauna roles/carrying capacity, agriculture/resources, Minecraft fluid/biome identity, and backend lifecycle remain outside the contract. AUTH-0091 has since recomposed onto authoritative `main@fad6b17575b25437a18c52a352ebd566acdb52b5` at head `fbebcf5defa8a69a304216422d28d1bcb0e0d639`. Fresh exact-head acceptance run `34139804616` and retained repository/showcase/performance/Content compatibility checks are green with no failures. Authorship acceptance/merge remains producer-owned and pending.
 
 ### C11 — live pre-Brass first-flight recipe surface — PR #233
 
