@@ -341,7 +341,40 @@ simulated:white_symmetric_sail[axis=z]
 
 Nominal: 4 blades, 2 sail blocks/blade, 8 sail power.
 
-### 7.3 Propeller glue boundary
+### 7.3 Propeller preassembly requirement
+
+The PROP_CHILD must exist as an actual controlled Create BearingContraption **before the main Physics Assembler fires**.
+
+Reason:
+
+- MAIN_BODY glue correctly stops at the Propeller Bearing;
+- a static, unassembled blade cluster at Z=-9 is therefore not guaranteed to belong to the main Sable moved set;
+- Simulated explicitly flattens controlled Create contraptions whose controller blocks are already included in the main assembly.
+
+Ground assembly procedure:
+
+~~~text
+1. build/glue PROP_CHILD
+2. supply the Propeller Bearing any small nonzero governed speed
+3. confirm the bearing is running / blades are a Create contraption
+4. activate the main Physics Assembler
+5. Simulated flattens PROP_CHILD into the Sable moved block set
+6. after main assembly, allow the Propeller Bearing to reassemble PROP_CHILD
+~~~
+
+A governor target as low as ~1 RPM is a leading assembly-mode candidate; exact minimum usable value is a live UX matter rather than a flight-performance setting.
+
+### 7.4 Why four blades are assembly-robust
+
+Create's current `StructureTransform` constructor rounds a controlled contraption's arbitrary bearing angle to the nearest 90-degree block rotation when converting it back to block positions.
+
+The proposed four-blade cross is invariant under a 90-degree rotation.
+
+Therefore an 8-sail four-blade prop can be flattened during main Sable assembly without requiring the player to stop it at an exact visual angle.
+
+This is a strong upstream-derived reason to prefer the four-blade cross over a two- or three-blade asymmetric propeller for GB-1A.
+
+### 7.5 Propeller glue boundary
 
 Allowed:
 - hub <-> blade internal glue;
@@ -613,9 +646,19 @@ Build:
 
 Keep the aircraft stationary and grid-aligned.
 
+### Phase 0.5 — preassemble the propeller
+
+Before the main Physics Assembler:
+
+1. fuel/energize at least one valid power source;
+2. command a small nonzero propeller RPM;
+3. confirm Propeller Bearing has assembled PROP_CHILD as a ControlledContraptionEntity.
+
+Do not main-assemble with PROP_CHILD merely sitting as static loose blocks in front of an unpowered bearing.
+
 ### Phase 1 — main Physics Assembler
 
-Activate the Physics Assembler.
+Activate the Physics Assembler while the Propeller Bearing owns its controlled propeller contraption.
 
 Expected result:
 - all MAIN_BODY blocks move into one Sable sublevel;
@@ -696,6 +739,9 @@ Correct heavy-component placement before adding cosmetic shell.
 ### B0-A3 — prop lifecycle
 
 Prove:
+- an unassembled static prop is correctly rejected as an unsafe assembly procedure or otherwise characterized;
+- low-RPM preassembly creates the expected ControlledContraptionEntity;
+- fourfold prop geometry survives Simulated's quarter-turn StructureTransform flattening;
 - prop blade cluster survives main assembly lifecycle;
 - Propeller Bearing can create its nested Create contraption on the Sable sublevel;
 - 128 RPM operation works;
@@ -706,6 +752,22 @@ Prove:
 At controlled forward velocity, prove whether create:white_sail[facing=up] supplies the intended upward body force.
 
 If the sign hypothesis is wrong, fix block orientation, not Sable physics.
+
+### B0-A4b — dual-engine cooperation
+
+Because the two Portable Engines face inward from opposite sides of the same X-axis network, prove them in sequence:
+
+1. left engine alone;
+2. right engine alone;
+3. both engines together.
+
+Record:
+- network direction;
+- generated speed;
+- stress capacity;
+- whether upstream movement-direction auto-correction changes either engine's setting.
+
+Do not assume two 64-SU generators sum cleanly until the live kinetic network says they do.
 
 ### B0-A5 — engine cutoff
 
