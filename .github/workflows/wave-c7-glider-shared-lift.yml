@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - ".github/workflows/wave-c7-glider-shared-lift.yml"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c2-mods.properties"
       - "skyforge-neoforge-1211/wave-c3-mods.properties"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeA4mcLiftBridge.java"
@@ -12,6 +11,10 @@ on:
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeGliderLiftCoupling.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC7GliderLiftDevRuntime.java"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeGliderLiftCouplingTest.java"
+  push:
+    branches: [main]
+    paths:
+      - "skyforge-neoforge-1211/build.gradle.kts"
   workflow_dispatch:
 
 permissions:
