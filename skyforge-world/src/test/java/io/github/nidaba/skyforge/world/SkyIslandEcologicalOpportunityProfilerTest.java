@@ -7,6 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandEcologyRegime;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 final class SkyIslandEcologicalOpportunityProfilerTest {
@@ -93,6 +97,23 @@ final class SkyIslandEcologicalOpportunityProfilerTest {
                     Math.abs(first.regimeFraction(regime) - second.regimeFraction(regime)) > 1.0e-9;
         }
         assertTrue(continuousDiffers || compositionDiffers);
+    }
+
+    @Test
+    void publicProfilerUsesOneFixedResolutionContract() {
+        Method[] publicProfiles = Arrays.stream(
+                        SkyIslandEcologicalOpportunityProfiler.class.getDeclaredMethods())
+                .filter(method -> Modifier.isPublic(method.getModifiers()))
+                .filter(method -> method.getName().equals("profile"))
+                .toArray(Method[]::new);
+
+        assertEquals(1, publicProfiles.length);
+        assertEquals(
+                List.of(SkyIslandDescriptor.class),
+                List.of(publicProfiles[0].getParameterTypes()));
+        assertEquals(
+                SkyIslandEcologicalOpportunityProfile.class,
+                publicProfiles[0].getReturnType());
     }
 
     @Test
