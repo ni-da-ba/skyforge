@@ -23,8 +23,9 @@ public record SkyIslandEcologicalOpportunityProfile(
 
     public SkyIslandEcologicalOpportunityProfile {
         descriptor = Objects.requireNonNull(descriptor, "descriptor");
-        if (samplesPerAxis <= 0) {
-            throw new IllegalArgumentException("samplesPerAxis must be positive");
+        if (samplesPerAxis != SkyIslandEcologicalOpportunityProfiler.SAMPLES_PER_AXIS) {
+            throw new IllegalArgumentException(
+                    "samplesPerAxis must equal the canonical AUTH-0089 quadrature resolution");
         }
         if (ownedCellCount <= 0L) {
             throw new IllegalArgumentException("ownedCellCount must be positive");
@@ -32,6 +33,13 @@ public record SkyIslandEcologicalOpportunityProfile(
         if (!Double.isFinite(horizontalOwnedAreaEstimate) || horizontalOwnedAreaEstimate <= 0.0) {
             throw new IllegalArgumentException(
                     "horizontalOwnedAreaEstimate must be finite and positive");
+        }
+        double cellWidth = (2.0 * descriptor.nominalRadius()) / samplesPerAxis;
+        double expectedHorizontalArea = ownedCellCount * (cellWidth * cellWidth);
+        if (Double.doubleToLongBits(horizontalOwnedAreaEstimate)
+                != Double.doubleToLongBits(expectedHorizontalArea)) {
+            throw new IllegalArgumentException(
+                    "horizontalOwnedAreaEstimate must match owned cells at the canonical quadrature");
         }
         requireNormalized("meanVegetationPotential", meanVegetationPotential);
         requireNormalized("meanSaturationPotential", meanSaturationPotential);
