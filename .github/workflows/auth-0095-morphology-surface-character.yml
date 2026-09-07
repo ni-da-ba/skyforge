@@ -50,16 +50,17 @@ jobs:
 
       - name: Verify exact AUTH-0083 built-in surface-character output
         run: |
-          FILE=skyforge-reference/build/evidence/production-morphology-visual-review-v1/surface-character.csv
+          DIR=skyforge-reference/build/evidence/production-morphology-visual-review-v1
+          FILE="$DIR/surface-character.csv"
+          HANDOFF="$DIR/minecraft-handoff.csv"
           test -f "$FILE"
+          test -f "$HANDOFF"
           test "$(wc -l < "$FILE")" -eq 26
-          test "$(grep -c '^builtin-massif-' "$FILE")" -eq 5
-          test "$(grep -c '^builtin-tableland-' "$FILE")" -eq 5
-          test "$(grep -c '^builtin-spine-' "$FILE")" -eq 5
-          test "$(grep -c '^builtin-basin-' "$FILE")" -eq 5
-          test "$(grep -c '^builtin-lobed-' "$FILE")" -eq 5
-          test "$(grep -c '^hybrid-' "$FILE" || true)" -eq 0
-          test "$(grep -c '^provider-' "$FILE" || true)" -eq 0
+          cut -d, -f1 "$HANDOFF" | grep '^builtin-' | sort > /tmp/auth95-expected.txt
+          tail -n +2 "$FILE" | cut -d, -f1 | sort > /tmp/auth95-actual.txt
+          test "$(wc -l < /tmp/auth95-expected.txt)" -eq 25
+          test "$(wc -l < /tmp/auth95-actual.txt)" -eq 25
+          diff -u /tmp/auth95-expected.txt /tmp/auth95-actual.txt
 
       - name: Publish AUTH-0095 evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
