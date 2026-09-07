@@ -177,11 +177,25 @@ final class SkyIslandPublishedSurfaceEcologyResolverTest {
                     SkyIslandLocalPosition local = new SkyIslandLocalPosition(x, z);
                     if (columns.columnAt(local).isPresent()
                             && interiority.sample(local) == 0.0) {
+                        List<SkyIslandAuthoredRealizationAssociation> associations =
+                                new java.util.ArrayList<>();
+                        associations.add(association);
+                        int ordinal = 1;
+                        for (SkyIslandWorldVolume other :
+                                publication.catalog().volumes().subList(
+                                        1, publication.catalog().volumes().size())) {
+                            associations.add(SkyIslandAuthoredRealizationAssociation.of(
+                                    authored(
+                                            key + 20_000L + ordinal,
+                                            other.compiledVolume().descriptor().nominalRadius()),
+                                    other));
+                            ordinal++;
+                        }
                         SkyIslandAuthoredRealizationCatalog catalog =
                                 new SkyIslandAuthoredRealizationCatalog(
                                         AUTHORED_WORLD,
                                         publication.catalog().rootSeed(),
-                                        List.of(association));
+                                        associations);
                         return new FringeFixture(
                                 new Fixture(
                                         new SkyIslandPublishedAuthoredRealizationBinding(
@@ -230,19 +244,33 @@ final class SkyIslandPublishedSurfaceEcologyResolverTest {
     private static Fixture fixture(long rootSeed, long authoredIslandKey) {
         SkyIslandCompiledWorldPublication publication = new SkyIslandCompiledWorldPublisher()
                 .publish(acceptedCompilation(rootSeed), 1L);
-        SkyIslandWorldVolume volume = publication.catalog().volumes().getFirst();
-        SkyIslandDescriptor authored = authored(
+        SkyIslandWorldVolume selectedVolume = publication.catalog().volumes().getFirst();
+        SkyIslandDescriptor selectedAuthored = authored(
                 authoredIslandKey,
-                volume.compiledVolume().descriptor().nominalRadius());
-        SkyIslandAuthoredRealizationAssociation association =
-                SkyIslandAuthoredRealizationAssociation.of(authored, volume);
+                selectedVolume.compiledVolume().descriptor().nominalRadius());
+        SkyIslandAuthoredRealizationAssociation selectedAssociation =
+                SkyIslandAuthoredRealizationAssociation.of(selectedAuthored, selectedVolume);
+
+        List<SkyIslandAuthoredRealizationAssociation> associations = new java.util.ArrayList<>();
+        associations.add(selectedAssociation);
+        int ordinal = 1;
+        for (SkyIslandWorldVolume volume : publication.catalog().volumes().subList(
+                1, publication.catalog().volumes().size())) {
+            associations.add(SkyIslandAuthoredRealizationAssociation.of(
+                    authored(
+                            authoredIslandKey + 10_000L + ordinal,
+                            volume.compiledVolume().descriptor().nominalRadius()),
+                    volume));
+            ordinal++;
+        }
+
         SkyIslandAuthoredRealizationCatalog catalog = new SkyIslandAuthoredRealizationCatalog(
                 AUTHORED_WORLD,
                 publication.catalog().rootSeed(),
-                List.of(association));
+                associations);
         return new Fixture(
                 new SkyIslandPublishedAuthoredRealizationBinding(publication, catalog),
-                association);
+                selectedAssociation);
     }
 
     private static SkyIslandDescriptor authored(long islandKey, double radius) {
