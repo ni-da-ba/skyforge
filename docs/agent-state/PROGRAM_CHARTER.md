@@ -123,7 +123,12 @@ Owns repository-wide convergence assurance and agent/workflow health:
 - independently check producer acceptance evidence, manual gates, stale state, and cross-lane drift;
 - monitor execution health using repository-visible signals such as branch divergence, repeated failure/rework without new information, contradictory or lagging handoffs, abandoned branch growth, repeated resynchronization churn, and long commit sequences without a meaningful acceptance boundary;
 - flag when a producer should stop extending a stale execution branch, checkpoint durable state, and restart from a fresh session/current-main reconstruction;
-- distinguish intentional dormant/reserved work from an actively stuck or looping agent.
+- distinguish intentional dormant/reserved work from an actively stuck or looping agent;
+- detect **evidence saturation**: situations where repeated testing is no longer retiring materially
+  distinct risk and is delaying integration/progress; require expensive validation to name the
+  uncertainty it retires, prefer cheap exhaustive contract evidence plus representative full-runtime
+  evidence, and recommend narrowing/splitting over-broad gates when additional repetitions have low
+  information gain.
 
 Audit cannot directly inspect another agent's private context window. "Context blowup" is therefore treated as an evidence-based process-risk inference from repository behavior and explicit user/session reports, not as hidden-state knowledge.
 
@@ -152,6 +157,26 @@ DESIGN -> EXECUTABLE SPECIMEN -> TEST/PLAY -> DECISION
 ```
 
 over indefinite audit expansion.
+
+Testing exists to retire named risk. Once a milestone's material uncertainty is credibly retired,
+prefer integration with the next major system over exhaustive repetition of the same invariant across
+a larger parameter corpus.
+
+The canonical validation policy is [VALIDATION_POLICY.md](VALIDATION_POLICY.md). Its default program
+rule is:
+
+~~~text
+cheap deterministic evidence -> exhaustive where practical
+expensive full-runtime evidence -> representative by risk-equivalence class
+sampled failure -> widen the affected class
+orthogonal main movement -> reuse portable expensive evidence
+retired standalone risk -> integrate the next major system
+~~~
+
+Producer acceptance should not require a Cartesian product of expensive lifecycle tests merely because
+a deterministic parameter corpus is large. Conversely, representative sampling is never allowed to
+hide a discovered parameter-dependent defect; sampled failures automatically expand coverage until the
+failure domain is understood.
 
 Sparse, coherent world composition is preferred to solving weak geography with content density.
 
