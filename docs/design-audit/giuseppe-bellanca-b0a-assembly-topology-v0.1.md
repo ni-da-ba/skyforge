@@ -227,15 +227,15 @@ These are optional for the first assembly-only proof but included in the packagi
 
 ### 5.3 Wing pylon
 
-At minimum, connect keel to carry-through through the center:
+Connect keel to carry-through through the center:
 
 ~~~text
-(0,2,0)
-(0,3,0)
-(0,4,0) <- carry-through
+(0,2,0) minecraft:spruce_planks
+(0,3,0) minecraft:spruce_planks
+(0,4,0) <- existing carry-through
 ~~~
 
-Use low-mass wooden structure only after live assembly proves the intended glued/support path. Full planks are the safe B0-A fallback.
+These two full planks are now part of the B0-A manifest. This intentionally favors deterministic structural capture over shaving 0.5 kpg before the first measured specimen.
 
 ---
 
@@ -507,6 +507,55 @@ Likely remedies, in order:
 
 Treat glue as part of aircraft architecture.
 
+### 13.0 Upstream Super Glue limitation
+
+NeoForge's default block `canStickTo` behavior only makes genuinely sticky blocks such as slime/honey stick by default. Ordinary adjacent planks, sails and machinery are **not** a sufficient aircraft assembly contract.
+
+Create 6.0.10's Super Glue selection UI also limits the distance between its two selected block positions to less than 24 blocks.
+
+The 27-block Bellanca wing therefore cannot safely be treated as one manually selected tip-to-tip glue region.
+
+B0-A must use **multiple overlapping glue domains**.
+
+Leading generated/manual-equivalent glue volumes:
+
+~~~text
+G-WING-PORT
+  X -13..+2
+  Y 4
+  Z -1..+1
+
+G-WING-STARBOARD
+  X -2..+13
+  Y 4
+  Z -1..+1
+
+G-FUSELAGE
+  X -1..+1
+  Y 1..4
+  Z -8..+5
+
+G-TAIL-ROOT
+  X 0
+  Y 1..3
+  Z +4..+6
+
+G-PROP
+  X -2..+2
+  Y 1..5
+  Z -9
+~~~
+
+The two wing domains overlap the center carry-through. G-FUSELAGE overlaps the carry-through/pylon and G-TAIL-ROOT, producing one connected MAIN_BODY glue graph.
+
+G-PROP is deliberately isolated on Z=-9 and cannot include the Propeller Bearing at Z=-8.
+
+When control children are added, their own glue volumes must remain entirely outside the corresponding main-body hinge plane.
+
+For automated fixture generation, these may be instantiated directly as equivalent SuperGlueEntity bounding boxes rather than requiring manual selection clicks.
+
+
+
 ### MAIN_BODY
 
 May be mutually glued as necessary:
@@ -610,7 +659,7 @@ Source-backed nominal block masses:
 - most unspecified machinery: default 1.0 unless its datapack says otherwise;
 - Simulated Swivel Bearing explicitly: 1.0.
 
-For the proposed B0-A wing + simple skeleton + powerplant, the first paper estimate is roughly **40–45 kpg before full controls, landing gear, cabin shell, seats, instruments and cargo**.
+For the proposed B0-A wing + simple skeleton + powerplant, including the now-explicit two-block pylon, the first paper estimate remains roughly **41–45 kpg before full controls, landing gear, cabin shell, seats, instruments and cargo**.
 
 This is only a planning estimate.
 
