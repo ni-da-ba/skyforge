@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Repository snapshot when updated:** `dfb439b9b33b24327cd5f110dabee6e51cb8a491`
+**Repository snapshot when updated:** `844ad6cd09a7cbe60529f1a7d43badc12a84a1e1`
 
 ## Program-wide invariants
 
@@ -17,7 +17,7 @@
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0087` merged on current `main` (published authored-realization binding) |
+| Authorship | `AUTH-0088` merged on current `main` (published surface ecology projection) |
 | Implementation | `SF-IMP-0080` merged on current `main` (legible forest/taiga ecology showcase) |
 | Content / Experience | C15 ordinary-player 1:1 Nether portal linking/placement accepted; C14 executable avionics capability, C13 Elytra/firework suppression, C10 live 1:1 Nether-scale registry proof, C9 computing substrate, and C8 glider-maintenance closure also accepted; C11/C12 remain separately in progress/reserved |
 | AUDIT | AUDIT-0001 repository-state reconstruction / durable audit handoff accepted on `main` |
@@ -68,11 +68,21 @@ Immediate consequences:
 - Authorship may reuse the same exact binding for surface ecology without creating a second publication
   association protocol.
 
-### IN PROGRESS — AUTH-0088 published surface ecology
+### MERGED / ACCEPTED — AUTH-0088 published surface ecology
 
-Draft PR #262 is unaccepted. Its intended seam is exact published volume ID + world X/Z -> AUTH-0003
-ecology, gated by compiled horizontal support and current authored-domain ownership. Minecraft biome
-keys, physical Y presentation, and quart-cell policy remain Implementation-owned.
+AUTH-0088 / PR #262 merged as `844ad6cd09a7cbe60529f1a7d43badc12a84a1e1`.
+
+A downstream adapter may query unchanged AUTH-0003 ecology for one exact published volume id + world X/Z
+only through the AUTH-0087 explicit association, strict compiled horizontal support, and current authored
+ownership. Unknown volume identity, empty physical support, and physical-but-native-unowned fringe fail
+closed. Physical Y, Minecraft biome keys, quart-cell presentation, persistence, and atmospheric biome
+envelopes remain Implementation-owned.
+
+### IN PROGRESS — AUTH-0089 island ecological opportunity profile
+
+Authorship is preparing an island-scale placement-free aggregation of AUTH-0003 regime composition,
+mean vegetation/saturation/thermal potentials, and horizontal authored-habitat planning area. It does
+not assign species, spawn counts, carrying capacity, resources, or backend biome identity.
 
 ### MERGED / ACCEPTED — current Implementation capability relevant to Authorship
 
@@ -124,7 +134,7 @@ Aerodynamics4MC is the leading single atmosphere authority.
 
 SF-IMP-0080 has now passed its automated ecology/showcase/reopen/performance gates and the project-owner human visual review, and is merged on current main. This proves legible forest/taiga land ecology, not AUTH-0003 semantic-biome translation.
 
-Authorship/environment semantics determine viable niches and population opportunity.
+Authorship/environment semantics determine viable niches and population opportunity. AUTH-0088 now provides the exact published surface-ecology query; AUTH-0089 is preparing island-scale ecological opportunity evidence without species or spawn decisions.
 Content maps retained species into those niches.
 Atmosphere may alter behavior (for example thermal soaring) but must not independently create population.
 
