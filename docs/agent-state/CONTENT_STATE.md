@@ -3,7 +3,7 @@
 **Lane:** Content / Experience  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-06 (America/Chicago)  
-**Main snapshot after C16 merge:** `d63f7c712355fb421c909f7bbdc74465a88522e6`
+**Main snapshot after C17 merge:** `65bd49a4e349f16bab8b796aa5b1a1e6dd72a7cc`
 
 Read first:
 
@@ -13,7 +13,30 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest accepted executable Content milestone: C16
+### Highest accepted executable Content milestone: C17
+
+**C17 / PR #272**, merge `65bd49a4e349f16bab8b796aa5b1a1e6dd72a7cc`; final synchronized runtime head `9373c307ef6bc79a64643ad0d958f5a09ebe1c9c`.
+
+C17 proves the stock CC:Tweaked GPS layer remains infrastructure-dependent under ordinary radio range:
+
+```text
+noHostFound=false
+normalNearFound=true  normalNear=16,64,16
+normalFarFound=false
+enderRemoteFound=true enderRemote=512,80,272
+```
+
+Accepted interpretation:
+
+- ordinary GPS is KEEP: it requires deployed non-collinear GPS hosts within the bounded Wireless Modem envelope;
+- GPS towers/beacons can provide legible aviation/navigation infrastructure without a bespoke Skyforge GPS system;
+- Ender-backed GPS inherits C16's mature-bypass status because it removes the ordinary range constraint;
+- final tower spacing/placement, Ender progression gating, turtle economics, and autopilot remain separate gameplay decisions;
+- Skyforge must not add a duplicate generic GPS/network implementation while the retained CC surface remains sufficient.
+
+Final exact-head verification passed C10/C13/C14/C15/C16/C17, repository CI, all current showcase persistence/reopen jobs including ecology and Massif morphology, and SF-IMP-0070 performance characterization. The branch was synchronized twice around accepted SF-IMP-0081 and AUTH-0089 before merge.
+
+### C16
 
 **C16 / PR #264**, merge `d63f7c712355fb421c909f7bbdc74465a88522e6`; exact synchronized runtime head `03418c4e941bc394989ca4269a1fbff3fc40cab7`.
 
@@ -101,18 +124,18 @@ Stationary retained-stack evidence exists. Assembled-Sable, save/reload, two-eng
 ### Authorship / Implementation dependencies
 
 - AUTH-0088 is accepted: exact published-volume/world-XZ surface-ecology projection, with no Minecraft biome/Y policy.
-- AUTH-0089 is in progress only: island ecological opportunity profile, no species/spawn decisions.
+- AUTH-0089 is accepted: deterministic island ecological opportunity aggregation without species/spawn/resource/backend policy.
 - SF-IMP-0080 is accepted: legible forest/taiga ecology showcase.
-- SF-IMP-0081 / issue #214 remains the human morphology-quality gate.
+- SF-IMP-0081 is accepted for the Massif carrier/human tranche; SF-IMP-0082 / #269 is expanding the remaining built-in morphology atlas, while #267 separately tracks Massif traversal lumpiness.
 
 ## PROPOSED / OPEN CONTENT QUESTIONS
 
-### Computing after C16
+### Computing after C17
 
-C9/C14/C16 now establish substrate, real avionics capability, and wireless-envelope behavior. Remaining questions are gameplay/bypass questions only:
+C9/C14/C16/C17 now establish substrate, real avionics capability, wireless-envelope behavior, and GPS infrastructure topology. Remaining questions are gameplay/bypass questions only:
 
 - turtles versus resource geography and freight value;
-- GPS host placement / navigation infrastructure;
+- GPS tower spacing/placement and how visibly navigation infrastructure appears in #224;
 - Ender Modem progression gating;
 - autopilot versus route-planning/navigation gameplay;
 - thin Skyforge peripherals only for genuinely Skyforge-owned semantics absent upstream.
@@ -171,15 +194,16 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 - `Wave C14 Avionics Capability`
 - `Wave C15 Portal Linking`
 - `Wave C16 Wireless Envelope`
+- `Wave C17 GPS Infrastructure`
 - `Skyforge Showcase Acceptance`
 - repository `CI`
 
 ## Ordered next work
 
 1. Do not duplicate active C11/C12 work; consume their results into #224 when accepted.
-2. Check whether C17 is already claimed before reserving any new milestone.
-3. If unclaimed and executable, prefer the next narrow #227 gameplay/bypass specimen: turtles versus resource geography/freight, or GPS/navigation infrastructure if that is more directly testable.
-4. Begin more of Bootstrap Province acceptance now that SF-IMP-0080 has cleared the land-ecology visibility gate, without waiting on the non-blocking #261 ambience follow-up.
+2. Check whether C18 is already claimed before reserving any new milestone.
+3. Prefer the next narrow #227 executable bypass specimen: turtles versus resource geography/freight value. Do not nerf turtles without measured substitution evidence.
+4. Begin more of Bootstrap Province acceptance now that SF-IMP-0080 has cleared land-ecology visibility and C17 has closed the GPS topology question; treat final GPS tower placement as province design, not a substrate uncertainty.
 5. Complete/accept #237 / PR #240 before C12 powered-soaring closure.
 6. Keep assembled-aircraft Nether transfer separate from accepted ordinary-player C15 mechanics.
 7. Return to C1 industrial runtime evidence when a focused runtime window is practical.
