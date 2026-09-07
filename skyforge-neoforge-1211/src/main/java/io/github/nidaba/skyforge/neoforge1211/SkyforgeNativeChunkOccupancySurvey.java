@@ -28,7 +28,100 @@ final class SkyforgeNativeChunkOccupancySurvey {
         SkyforgeRuntimePerformanceMetrics.recordSample(
                 "admission.occupancySurveyVerticalSamples",
                 range.height());
-        return surveyRange(volumeId, chunk, range.minimumY(), range.maximumYExclusive());
+        return surveyDiscreteColumns(volumeId, chunk, range);
+    }
+
+    /**
+     * Scans only exact discrete Skyforge solid columns while preserving the historical evidence
+     * contract. The accepted compiled-volume model defines each occupied horizontal column as one
+     * continuous interval between its first and last integer solid samples, so reclassifying every
+     * interior Y is redundant for physical occupancy admission.
+     */
+    private static Result surveyDiscreteColumns(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkAccess chunk,
+            VerticalRange boundedRange) {
+        int minimumX = chunk.getPos().getMinBlockX();
+        int minimumZ = chunk.getPos().getMinBlockZ();
+        int ownedSolids = 0;
+        int occupiedNativePositions = 0;
+        long solidCandidatePositions = 0L;
+        Conflict firstConflict = null;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int z = minimumZ + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                int x = minimumX + localX;
+                var optionalRange =
+                        SkyforgeNeoForge1211SurfaceStage.integerSolidRange(volumeId, x, z);
+                if (optionalRange.isEmpty()) {
+                    continue;
+                }
+                var exactRange = optionalRange.orElseThrow();
+                int minimumY = Math.max(boundedRange.minimumY(), exactRange.minimumY());
+                int maximumY = Math.min(
+                        boundedRange.maximumYExclusive() - 1,
+                        exactRange.maximumY());
+                if (maximumY < minimumY) {
+                    continue;
+                }
+
+                int columnSolidPositions = Math.addExact(
+                        Math.subtractExact(maximumY, minimumY),
+                        1);
+                ownedSolids = Math.addExact(ownedSolids, columnSolidPositions);
+                solidCandidatePositions = Math.addExact(
+                        solidCandidatePositions,
+                        (long) columnSolidPositions);
+
+                for (int y = minimumY; y <= maximumY; y++) {
+                    cursor.set(x, y, z);
+                    BlockState nativeState = chunk.getBlockState(cursor);
+                    if (nativeState.isAir()) {
+                        continue;
+                    }
+                    occupiedNativePositions++;
+                    BlockPos immutablePos = cursor.immutable();
+                    Conflict candidate = new Conflict(
+                            immutablePos,
+                            nativeState,
+                            chunk.getBlockEntity(immutablePos) != null);
+                    if (firstConflict == null
+                            || precedesHistoricalScan(candidate.position(), firstConflict.position())) {
+                        firstConflict = candidate;
+                    }
+                }
+            }
+        }
+
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "admission.occupancySurveyRectangularCandidatePositions",
+                Math.multiplyExact((long) boundedRange.height(), 16L * 16L));
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "admission.occupancySurveySolidCandidatePositions",
+                solidCandidatePositions);
+
+        return new Result(
+                volumeId,
+                chunk.getPos().toLong(),
+                ownedSolids,
+                occupiedNativePositions,
+                Optional.ofNullable(firstConflict));
+    }
+
+    /**
+     * Historical survey order is Y, then Z, then X. The optimized column traversal may discover a
+     * later conflict first, so retain the exact legacy first-conflict identity explicitly.
+     */
+    private static boolean precedesHistoricalScan(BlockPos candidate, BlockPos current) {
+        if (candidate.getY() != current.getY()) {
+            return candidate.getY() < current.getY();
+        }
+        if (candidate.getZ() != current.getZ()) {
+            return candidate.getZ() < current.getZ();
+        }
+        return candidate.getX() < current.getX();
     }
 
     /**
