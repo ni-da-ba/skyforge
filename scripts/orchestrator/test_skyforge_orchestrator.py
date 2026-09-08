@@ -80,18 +80,80 @@ class EventFilterTests(unittest.TestCase):
         )
         self.assertFalse(d.actionable)
 
-    def test_audit_comment_wakes(self):
+    def test_audit_comment_wakes_with_structured_restart_directive(self):
+        body = (
+            "AUDIT — RESTART RECOMMENDED (Content / Experience, hosted wake). "
+            "Preserve PR #401 at head `091a2decaf81bebc9e9161e8b04e291c2831d9b0`. "
+            "Fresh-worker objective: reuse portable evidence, record C12 B0-A1/B0-A2 acceptance, "
+            "and close/merge #401 cleanly."
+        )
         d = orch.classify_event(
             "issue_comment",
             {
                 "action": "created",
-                "issue": {"number": 285},
-                "comment": {"body": "AUDIT: RESTART RECOMMENDED", "user": {"login": "ni-da-ba"}},
+                "issue": {"number": 401},
+                "comment": {
+                    "id": 5588330240,
+                    "created_at": "2026-09-08T16:18:09Z",
+                    "body": body,
+                    "user": {"login": "ni-da-ba"},
+                },
             },
         )
         self.assertTrue(d.actionable)
-        self.assertEqual(d.pr_number, 285)
+        self.assertEqual(d.pr_number, 401)
         self.assertEqual(d.action, "audit_signal")
+        self.assertEqual(d.signal_kind, "restart_recommended")
+        self.assertEqual(d.signal_text, body)
+        self.assertEqual(d.source_id, "5588330240")
+        self.assertEqual(d.observed_at, "2026-09-08T16:18:09Z")
+
+    def test_human_gate_signal_is_structured(self):
+        d = orch.classify_event(
+            "issue_comment",
+            {
+                "action": "created",
+                "issue": {"number": 358},
+                "comment": {
+                    "id": 99,
+                    "body": "AUDIT HUMAN_GATE: morphology review required",
+                    "user": {"login": "ni-da-ba"},
+                },
+            },
+        )
+        self.assertTrue(d.actionable)
+        self.assertEqual(d.signal_kind, "human_gate")
+
+    def test_classifier_prompt_preserves_restart_text_and_does_not_offer_pr_updated_at(self):
+        event = orch.EventDecision(
+            True,
+            "Audit/watchdog orchestration signal",
+            "issue_comment",
+            action="audit_signal",
+            pr_number=401,
+            observed_at="2026-09-08T16:18:09+00:00",
+            source_id="5588330240",
+            signal_kind="restart_recommended",
+            signal_text="AUDIT — RESTART RECOMMENDED. Fresh-worker objective: finish #401.",
+        )
+        prompt = orch._classifier_prompt(
+            [event],
+            {
+                "main": "abc",
+                "open_prs": [
+                    {
+                        "number": 401,
+                        "isDraft": True,
+                        "headRefOid": "091a2decaf81bebc9e9161e8b04e291c2831d9b0",
+                    }
+                ],
+            },
+        )
+        self.assertIn('"signal_kind": "restart_recommended"', prompt)
+        self.assertIn("RESTART RECOMMENDED", prompt)
+        self.assertIn("Fresh-worker objective: finish #401", prompt)
+        self.assertIn("2026-09-08T16:18:09+00:00", prompt)
+        self.assertIn("updatedAt is not producer-liveness evidence", prompt)
 
     def test_manual_command_wakes(self):
         d = orch.classify_event(
@@ -417,6 +479,29 @@ class DurableStateTests(unittest.TestCase):
             observed_at="2026-09-08T01:05:00+00:00",
         )
         self.assertEqual(orch._event_key(first), orch._event_key(second))
+
+    def test_distinct_audit_comments_with_same_text_do_not_collapse(self):
+        first = orch.EventDecision(
+            True,
+            "Audit/watchdog orchestration signal",
+            "issue_comment",
+            action="audit_signal",
+            pr_number=401,
+            source_id="100",
+            signal_kind="restart_recommended",
+            signal_text="AUDIT: RESTART RECOMMENDED",
+        )
+        second = orch.EventDecision(
+            True,
+            "Audit/watchdog orchestration signal",
+            "issue_comment",
+            action="audit_signal",
+            pr_number=401,
+            source_id="101",
+            signal_kind="restart_recommended",
+            signal_text="AUDIT: RESTART RECOMMENDED",
+        )
+        self.assertNotEqual(orch._event_key(first), orch._event_key(second))
 
     def test_pending_events_are_durable_and_deduplicated(self):
         with tempfile.TemporaryDirectory() as tmp:
