@@ -1,0 +1,32 @@
+{
+  "cue": "Track 00 — A Windborne Fantasia",
+  "candidate": "V2F2A — peak handoff",
+  "status": "non-canonical repair candidate; human BBCSO A/B required before promotion",
+  "source": "assets/music/source/repair-candidates/track-00-v2f2a-peak-handoff-range-repair.mid.gz",
+  "uncompressed_midi_sha256": "c8de531cba73d058ca02a8b58b444617596a09d888bd7cf7132601141121ca73",
+  "base_source": "assets/music/source/frozen/track-00-a-windborne-fantasia-v2f1.mid.gz",
+  "base_uncompressed_midi_sha256": "beb0c9d7d5625c7764207d140cce6b5496bbf1ad0803b2f0d78c26ce3cde9695",
+  "midi": {
+    "type": 1,
+    "ticks_per_beat": 480,
+    "tempo_bpm": 104,
+    "meter": "6/8",
+    "instrument_tracks": 19,
+    "conductor_track_index": 0
+  },
+  "expected_mutated_track_indices": [6, 7, 17, 18],
+  "base_range_exceptions": [
+    {
+      "track_index": 6,
+      "notes": {"78": 4, "81": 4, "83": 2},
+      "reason": "Accepted V2F.1 horn crest contains ten notes above the BBCSO Discover Horns a4 F5 ceiling."
+    },
+    {
+      "track_index": 17,
+      "notes": {"47": 3},
+      "reason": "Accepted V2F.1 contains three Viola B2 note-ons below the BBCSO Discover Viola C3 floor."
+    }
+  ],
+  "candidate_range_exceptions": [],
+  "human_gate": "Audition bars 55-61 at 104 BPM / 6/8 in BBCSO Discover against accepted V2F.1 before any canonical promotion."
+}
