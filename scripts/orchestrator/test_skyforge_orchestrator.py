@@ -523,6 +523,29 @@ class DurableStateTests(unittest.TestCase):
             self.assertEqual(pending["stage"], "handoff")
             self.assertEqual(pending["worker_summary"], "tests passed")
 
+    def test_protected_handoff_safety_pauses_without_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            with mock.patch.object(
+                o,
+                "_changed_paths",
+                return_value=[".github/workflows/ci.yml"],
+            ), mock.patch.object(o, "_post_gate") as post_gate:
+                with self.assertRaisesRegex(RuntimeError, "safety-paused"):
+                    o._handoff_changes(
+                        "Implementation",
+                        "unsafe test",
+                        "codex/implementation-test",
+                        77,
+                        "done",
+                    )
+
+            self.assertTrue(o.is_paused())
+            self.assertEqual(o.state.data["paused_by"], "controller-safety")
+            post_gate.assert_called_once()
+            message = post_gate.call_args.args[0]["human_message"]
+            self.assertIn("No autonomous commit/push occurred", message)
+
     def test_handoff_reuses_existing_open_pr_after_interruption(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
