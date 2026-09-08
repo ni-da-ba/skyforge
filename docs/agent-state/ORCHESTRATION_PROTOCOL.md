@@ -505,9 +505,14 @@ instead of clearing the durable restart event as if recovery had been proven. Cl
 rotate the persistent Luna parent thread automatically so superseded liveness policy cannot survive a
 control-plane deployment as conversational inertia.
 
-If Codex reaches a human gate, it posts a controller-marked GitHub gate comment and stops. The
-controller ignores its own comment to prevent recursive wakeups; Audit remains responsible for
-bringing the gate to the project owner.
+If Codex reaches a human gate, it posts a controller-marked GitHub gate comment and stops. Human
+gates are surfaced once per current target-PR head by default: durable local gate records suppress
+repeat notifications, and on first observation the controller may seed suppression from an existing
+controller gate comment posted after the current PR head commit. A genuinely new PR head may resurface
+the gate. This implements the "owner is asked once" contract without making the controller infer
+semantic equivalence from message wording. The controller ignores its own comments to prevent recursive
+wakeups; Audit remains responsible for bringing the gate to the project owner and for detecting a new
+human decision when repository state itself has not changed.
 
 ### Local and hosted transports
 
@@ -609,13 +614,22 @@ state, not a reason to discard work.
 Persist counters sufficient to evaluate issue #349 by accepted-progress economics, including at least:
 events seen/filtered/actionable, classifier attempts/NOOPs, Luna-worker attempts, Terra-worker attempts,
 aggregate worker attempts/handoffs/resumes, retry/Codex blocks, restart replays, managed merges,
-pause/resume commands, protected-path rejections, bounded-scope rejections, and safety pauses.
+pause/resume commands, human-gate posts/duplicate suppressions, controller runtime-refresh
+requests/completions, protected-path rejections, bounded-scope rejections, and safety pauses.
 
 A bounded worker may edit lane-owned source/tests/docs but may not autonomously rewrite the control
 plane that defines its own authority. The hosted controller checkout remains a stable `main` checkout;
 each bounded worker runs in a separate ignored Git linked worktree under the controller state directory.
 This separation is a reliability boundary: a dirty, interrupted, or safety-paused worker must not pin
 the service process to stale worker-branch control-plane code.
+
+The running hosted process must also not remain indefinitely on stale in-memory controller Python after
+`main` advances. After `sync_main()`, if the synchronized range changes
+`scripts/orchestrator/*.py`, the controller records a durable runtime-refresh request and exits with a
+failure status so the existing systemd `Restart=on-failure` contract reloads the new Python. The
+pending-event journal is preserved and replayed by the replacement process. Documentation-only movement
+does not require a process recycle. Changes to pinned dependencies/installer semantics remain an
+explicit deployment boundary; the controller does not autonomously install packages.
 
 A classifier-selected narrow edit scope is also enforced by the controller at handoff; a worker cannot
 broaden its own allowlist. Before controller handoff, reject worker changes under
