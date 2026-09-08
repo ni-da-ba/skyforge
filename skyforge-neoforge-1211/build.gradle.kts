@@ -1849,6 +1849,18 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
+        // C12 B0-A1/A2: exact 105-block MAIN_BODY through the real Physics Assembler, then
+        // authoritative Sable mass/center-of-mass measurement.
+        create("waveC12BellancaB0AssemblyServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c12-bellanca-b0-assembly").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC12BellancaB0Assembly", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // C14 A/B baseline: the retained Create/Sable/Aeronautics stack without computing mods.
         create("waveC14FlightBaselineServer") {
             server()
@@ -2285,6 +2297,30 @@ tasks.named("runPortableEngineCutoffSableAcceptanceServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(portableEngineCutoffSableServerProperties)
+    }
+}
+
+
+val waveC12BellancaB0AssemblyServerProperties = """
+    level-name=wave-c12-bellanca-b0-assembly
+    level-seed=601200
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC12BellancaB0AssemblyServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c12-bellanca-b0-assembly").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC12BellancaB0AssemblyServerProperties)
     }
 }
 
