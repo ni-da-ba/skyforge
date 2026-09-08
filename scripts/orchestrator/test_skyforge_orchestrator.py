@@ -1,6 +1,7 @@
 import importlib.util
 import pathlib
 import sys
+import tempfile
 import unittest
 
 MODULE_PATH = pathlib.Path(__file__).with_name("skyforge_orchestrator.py")
@@ -133,6 +134,110 @@ class ClassifierJsonTests(unittest.TestCase):
 {"decision":"DISPATCH","reason":"work"}
 ```''')
         self.assertEqual(value["decision"], "DISPATCH")
+
+
+class FailurePolicyTests(unittest.TestCase):
+    def test_quota_failure_is_long_backoff(self):
+        kind, delay = orch._codex_failure_policy(RuntimeError("Usage limit reached for Codex"))
+        self.assertEqual(kind, "quota")
+        self.assertGreaterEqual(delay, 60)
+
+    def test_rate_limit_failure_is_shorter_backoff(self):
+        kind, delay = orch._codex_failure_policy(RuntimeError("429 rate limit exceeded"))
+        self.assertEqual(kind, "rate_limit")
+        self.assertGreaterEqual(delay, 30)
+
+    def test_unknown_failure_is_transient(self):
+        kind, delay = orch._codex_failure_policy(RuntimeError("socket disappeared"))
+        self.assertEqual(kind, "transient")
+        self.assertGreaterEqual(delay, 30)
+
+
+class DurableStateTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=999,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+        )
+
+    def test_event_state_round_trip(self):
+        event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+        restored = orch.EventDecision.from_state(event.to_state())
+        self.assertEqual(restored, event)
+        self.assertEqual(orch._event_key(restored), orch._event_key(event))
+
+    def test_pending_events_are_durable_and_deduplicated(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            o = self.make_orchestrator(root)
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o._persist_pending_events([event, event])
+            self.assertEqual(o._pending_events(), [event])
+
+            reloaded = self.make_orchestrator(root)
+            self.assertEqual(reloaded._pending_events(), [event])
+
+    def test_new_event_invalidates_cached_decision_when_no_worker_active(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            first = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o._persist_pending_events([first])
+            o._cache_decision({"decision": "NOOP", "reason": "idle"}, [first])
+            self.assertIsNotNone(o._decision_record())
+
+            second = orch.EventDecision(True, "main advanced", "push", head_sha="def456")
+            o._persist_pending_events([second])
+            self.assertIsNone(o._decision_record())
+
+    def test_new_event_preserves_inflight_worker_decision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            first = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o._persist_pending_events([first])
+            o._cache_decision({"decision": "DISPATCH", "lane": "Audit", "reason": "work"}, [first])
+            o.state.data["pending_worker"] = {"branch": "codex/audit-test"}
+            o.state.save()
+
+            second = orch.EventDecision(True, "main advanced", "push", head_sha="def456")
+            o._persist_pending_events([second])
+            self.assertIsNotNone(o._decision_record())
+
+    def test_completed_decision_removes_only_its_event_batch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            first = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            second = orch.EventDecision(True, "main advanced", "push", head_sha="def456")
+            o._persist_pending_events([first])
+            o._cache_decision({"decision": "DISPATCH", "lane": "Audit", "reason": "work"}, [first])
+            o.state.data["pending_worker"] = {"branch": "codex/audit-test"}
+            o.state.save()
+            o._persist_pending_events([second])
+
+            o._clear_completed_decision()
+            self.assertEqual(o._pending_events(), [second])
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_local_budget_blocks_without_spending_beyond_limit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            old = orch.os.environ.get("SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY")
+            orch.os.environ["SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY"] = "1"
+            try:
+                o._consume_budget("worker")
+                with self.assertRaises(orch.RetryBlocked) as ctx:
+                    o._consume_budget("worker")
+                self.assertEqual(ctx.exception.kind, "local_budget")
+                self.assertEqual(o.state.data["worker_calls_today"], 1)
+            finally:
+                if old is None:
+                    orch.os.environ.pop("SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY", None)
+                else:
+                    orch.os.environ["SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY"] = old
 
 
 if __name__ == "__main__":
