@@ -196,3 +196,13 @@ tasks.register<JavaExec>("authorshipDirectionalSurfaceAccessCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/authorship-directional-surface-access-v1").get().asFile.absolutePath)
 }
+
+
+tasks.register<JavaExec>("authorshipPetroleumSystemOpportunityCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0098 petroleum-system geological-opportunity evidence package."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.AuthorshipPetroleumSystemOpportunityCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/authorship-petroleum-system-opportunity-v1").get().asFile.absolutePath)
+}
