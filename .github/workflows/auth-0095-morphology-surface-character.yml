@@ -5,9 +5,12 @@ on:
     paths:
       - ".github/workflows/auth-0095-morphology-surface-character.yml"
       - "docs/authorship/AUTH-0095-morphology-surface-character-diagnostics.md"
+      - "docs/authorship/AUTH-0101-morphology-surface-character-comparisons.md"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/ProductionMorphologyVisualReviewCorpusCli.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/evidence/ProductionMorphologySurfaceCharacterDiagnostics.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/evidence/ProductionMorphologySurfaceCharacterComparison.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/evidence/ProductionMorphologySurfaceCharacterDiagnosticsTest.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/evidence/ProductionMorphologySurfaceCharacterComparisonTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/volume/ProductionMorphologyVisualReviewCorpus.java"
   workflow_dispatch:
 
@@ -40,10 +43,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
-      - name: Verify AUTH-0095 diagnostics
+      - name: Verify AUTH-0095 diagnostics and AUTH-0101 comparisons
         run: |
           ./gradlew :skyforge-reference:test \
             --tests '*ProductionMorphologySurfaceCharacterDiagnosticsTest' \
+            --tests '*ProductionMorphologySurfaceCharacterComparisonTest' \
             --tests '*ProductionMorphologyVisualReviewCorpusTest' \
             :skyforge-reference:productionMorphologyVisualReviewCorpus \
             --no-configuration-cache
@@ -53,8 +57,10 @@ jobs:
           DIR=skyforge-reference/build/evidence/production-morphology-visual-review-v1
           FILE="$DIR/surface-character.csv"
           HANDOFF="$DIR/minecraft-handoff.csv"
+          COMPARISONS="$DIR/surface-character-comparisons.csv"
           test -f "$FILE"
           test -f "$HANDOFF"
+          test -f "$COMPARISONS"
           awk -F, 'NR > 1 && $2 == "BUILT_IN" { print $1 }' "$HANDOFF" | sort > /tmp/auth95-expected.txt
           tail -n +2 "$FILE" | cut -d, -f1 | sort > /tmp/auth95-actual.txt
           echo "surface rows including header: $(wc -l < "$FILE")"
@@ -64,6 +70,11 @@ jobs:
           test "$(wc -l < /tmp/auth95-expected.txt)" -eq 25
           test "$(wc -l < /tmp/auth95-actual.txt)" -eq 25
           diff -u /tmp/auth95-expected.txt /tmp/auth95-actual.txt
+          test "$(wc -l < "$COMPARISONS")" -eq 5
+          grep -Fx 'massif-vs-tableland-medium-seed-min,builtin-massif-medium-seed-min,builtin-tableland-medium-seed-min' <(cut -d, -f1-3 "$COMPARISONS")
+          grep -Fx 'massif-vs-tableland-medium-seed-zero,builtin-massif-medium-seed-zero,builtin-tableland-medium-seed-zero' <(cut -d, -f1-3 "$COMPARISONS")
+          grep -Fx 'massif-vs-tableland-medium-seed-skyforge,builtin-massif-medium-seed-skyforge,builtin-tableland-medium-seed-skyforge' <(cut -d, -f1-3 "$COMPARISONS")
+          grep -Fx 'massif-medium-vs-large-seed-skyforge,builtin-massif-medium-seed-skyforge,builtin-massif-large-seed-skyforge' <(cut -d, -f1-3 "$COMPARISONS")
 
       - name: Publish AUTH-0095 evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -71,6 +82,7 @@ jobs:
           name: auth-0095-morphology-surface-character-${{ github.sha }}
           path: |
             skyforge-reference/build/evidence/production-morphology-visual-review-v1/surface-character.csv
+            skyforge-reference/build/evidence/production-morphology-visual-review-v1/surface-character-comparisons.csv
             skyforge-reference/build/evidence/production-morphology-visual-review-v1/summary.csv
             skyforge-reference/build/evidence/production-morphology-visual-review-v1/minecraft-handoff.csv
           if-no-files-found: error
