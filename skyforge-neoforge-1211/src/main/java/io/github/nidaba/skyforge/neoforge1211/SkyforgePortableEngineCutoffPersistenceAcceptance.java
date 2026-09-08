@@ -43,10 +43,12 @@ final class SkyforgePortableEngineCutoffPersistenceAcceptance {
             throw new IllegalArgumentException(
                     ENABLE_PROPERTY + " must be 'prepare' or 'verify', got '" + phase + "'");
         }
-        NeoForge.EVENT_BUS.addListener(event -> onServerStarted(event, phase));
+        NeoForge.EVENT_BUS.addListener(
+                SkyforgePortableEngineCutoffPersistenceAcceptance::onServerStarted);
     }
 
-    private static void onServerStarted(ServerStartedEvent event, String phase) {
+    private static void onServerStarted(ServerStartedEvent event) {
+        String phase = System.getProperty(ENABLE_PROPERTY, "").trim();
         ServerLevel level = event.getServer().overworld();
         try {
             level.getChunk(ENGINE_POS.getX() >> 4, ENGINE_POS.getZ() >> 4);
@@ -104,7 +106,7 @@ final class SkyforgePortableEngineCutoffPersistenceAcceptance {
                 comparatorOutput(engineBlock, level));
 
         blockEntity.setChanged();
-        boolean saved = event.getServer().saveEverything();
+        boolean saved = event.getServer().saveEverything(false, true, true);
         assertTrue("server reported world save success", saved);
 
         LOGGER.log(
@@ -194,11 +196,19 @@ final class SkyforgePortableEngineCutoffPersistenceAcceptance {
         return blockEntity;
     }
 
-    private static int comparatorOutput(Block engineBlock, ServerLevel level) {
-        return engineBlock.getAnalogOutputSignal(
+    private static int comparatorOutput(Block engineBlock, ServerLevel level)
+            throws ReflectiveOperationException {
+        Method comparator = publicMethod(
+                engineBlock,
+                "getAnalogOutputSignal",
+                net.minecraft.world.level.block.state.BlockState.class,
+                net.minecraft.world.level.Level.class,
+                BlockPos.class);
+        return asInt(comparator.invoke(
+                engineBlock,
                 level.getBlockState(ENGINE_POS),
                 level,
-                ENGINE_POS);
+                ENGINE_POS));
     }
 
     private static Method publicMethod(Object target, String name, Class<?>... parameterTypes)
