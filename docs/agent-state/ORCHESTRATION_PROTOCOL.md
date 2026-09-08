@@ -494,6 +494,13 @@ head/commit, genuinely attributable Actions progress, or an already controller-m
 Otherwise the bounded fresh-worker objective is dispatched. This prevents the watchdog comment that
 declares a producer stale from accidentally making that same producer look recently active.
 
+The controller additionally guards trusted restart NOOPs against immutable target state. If the target
+PR remains open at the signal-time head, the first NOOP receives one constrained reclassification that
+must choose bounded DISPATCH or a real HUMAN_GATE. A second unsupported NOOP becomes a HUMAN_GATE
+instead of clearing the durable restart event as if recovery had been proven. Classifier-policy changes
+rotate the persistent Luna parent thread automatically so superseded liveness policy cannot survive a
+control-plane deployment as conversational inertia.
+
 If Codex reaches a human gate, it posts a controller-marked GitHub gate comment and stops. The
 controller ignores its own comment to prevent recursive wakeups; Audit remains responsible for
 bringing the gate to the project owner.
