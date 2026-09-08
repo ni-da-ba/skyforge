@@ -96,6 +96,67 @@ Player-created or heavily modified enclosed spawn environment. Should approach v
 
 Encounter-specific systems with their own semantics and budgets.
 
+## Airspace population and hostile aircraft
+
+Skyforge should treat inhabited sky as a population domain in its own right rather than leaving the
+air empty except for occasional flying mobs.
+
+The preferred long-term distinction is:
+
+```text
+ECOLOGICAL_AIR
+    soaring birds / adapted fauna / rare predators
+
+CIVILIAN_AIR
+    cargo traffic / couriers / balloons / ordinary aircraft
+
+FACTION_AIR
+    patrols / scouts / interceptors / gunships / raiders
+
+ANOMALOUS_AIR
+    rare exceptional aerial threats
+```
+
+Hostile faction aircraft are therefore not primarily boss encounters. In appropriate controlled,
+contested, military, or raider airspace they may fill part of the encounter role that ordinary
+Minecraft would otherwise express through hostile flying mobs.
+
+This should still be semantically governed rather than implemented as unrestricted entity spawning.
+A useful future realization model is:
+
+```text
+regional faction / traffic / threat state
+        |
+        v
+eligible near-player airspace encounter
+        |
+        +--> materialize real aircraft / crew / contraption
+        |
+        +--> patrol / investigate / intercept / disengage
+        |
+        v
+fold back to coarse world state when safely outside active simulation
+```
+
+The world should not simulate large persistent physics fleets in unloaded regions merely to imply
+traffic. Coarse civilization/faction state owns far-field plausibility; concrete vehicles are
+materialized where they can be seen, encountered, altered, captured, destroyed, or otherwise matter
+to play.
+
+Hostile aircraft should normally be attributed to the existing `FACTION` provenance domain rather
+than consuming the ambient-monster budget. This preserves separate density controls for terrestrial
+ambient monsters, ecological aerial life, ordinary civilian traffic, and organized hostile aviation.
+
+Design goals:
+
+- make the sky feel inhabited without making it crowded;
+- let faction-controlled airspace become visible before direct combat;
+- use aircraft as territorial/civilizational expression, not generic random monsters;
+- prefer the same physical aviation substrate available to players where feasible;
+- allow damaged/captured/wrecked aircraft to become persistent Minecraft objects when player action
+  makes them consequential;
+- keep background traffic sparse enough that negative space and long-distance vistas remain intact.
+
 ## Farm compatibility
 
 Do **not** use either of these simplistic policies:
