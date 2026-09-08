@@ -119,6 +119,26 @@ export SKYFORGE_WORKER_MODEL="<available balanced Codex model>"
 Do not make Sol the default. Escalate difficult work manually or through future policy only when the
 lower-cost worker fails to produce information-bearing progress.
 
+### Local usage guardrails
+
+The pilot also has hard call-count ceilings independent of the Codex account's own allowance:
+
+```text
+classifier attempts / UTC day = 48
+worker attempts / UTC day     = 8
+```
+
+Override them only deliberately:
+
+```bash
+export SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY=48
+export SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY=8
+```
+
+These are safety ceilings rather than dollar accounting. The local state also records attempt,
+NOOP/handoff, retry-block, restart-replay, and recovery counters so issue #349 can evaluate accepted
+progress against model usage before any broader deployment.
+
 ## Event policy
 
 No Codex turn is created for:
@@ -200,13 +220,46 @@ It stores:
 - persistent Luna parent thread id;
 - parent turn count;
 - last dispatch time;
-- controller-managed branch/PR ownership.
+- controller-managed branch/PR ownership;
+- a durable, deduplicated pending-event journal;
+- a cached classifier decision tied to the event batch it consumed;
+- interrupted worker branch identity;
+- quota/rate/authentication/controller retry state;
+- daily call-budget counters and pilot metrics.
+
+Actionable webhooks are journaled **before** the HTTP handler returns success. A process crash or Codex
+failure therefore cannot silently consume the wake.
+
+If Luna succeeds but Terra is interrupted, the classifier decision and worker branch are retained so
+the next attempt can continue the bounded objective without paying to rediscover it. New repository
+events are retained separately and are classified after the interrupted objective reaches its handoff.
 
 The parent thread rotates after 24 useful turns by default. The new thread reconstructs from GitHub and
 `AGENTS.md`, preventing an indefinitely growing orchestration conversation from becoming another
 source of context drag.
 
 Terra workers are intentionally fresh/bounded threads.
+
+### Codex-limit and failure recovery
+
+Model-call failures are classified conservatively:
+
+- quota/usage-limit failures: default one-hour circuit-breaker backoff;
+- rate/capacity failures: default five-minute backoff;
+- authentication failures: default one-hour backoff;
+- unknown model/controller failures: default five-minute fail-closed backoff;
+- local daily call-budget exhaustion: retry after the next UTC-day reset.
+
+Backoff durations can be overridden with the corresponding
+`SKYFORGE_ORCHESTRATOR_*_BACKOFF_SECONDS` variables.
+
+While blocked, incoming actionable events are still journaled but **do not start Codex**. When the
+breaker expires, the controller reconstructs against current repository state. After a process restart,
+pending non-worker decisions are deliberately reclassified; an actual interrupted worker is resumed on
+its recorded branch so partial work is not discarded.
+
+The hourly Audit watchdog remains the independent path for a prolonged outage or a human decision that
+should not wait for the retry timer.
 
 ## Auto-merge pilot stage
 
