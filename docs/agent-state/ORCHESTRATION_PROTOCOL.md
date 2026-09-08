@@ -501,6 +501,48 @@ A useful work event normally costs:
 This should be materially more usage-efficient than scheduled polling when repository activity is
 bursty.
 
+### Durable failure / quota semantics
+
+An actionable webhook is not considered consumed merely because the in-memory dispatcher received it.
+The local controller must journal the event batch before acknowledging it and clear that journal only
+after the corresponding orchestration decision reaches a terminal handoff.
+
+The recovery invariant is:
+
+```text
+repository event
+    -> durable local journal
+    -> classifier decision
+    -> optional durable worker branch
+    -> terminal NOOP / gate / PR handoff / managed merge
+    -> clear only the consumed event keys
+```
+
+If Codex is unavailable because of account allowance, rate/capacity, authentication, or a transient
+SDK/App-Server failure, the controller fails closed: preserve the event/decision/worker state, open a
+bounded local circuit breaker, and accept/coalesce later events without starting more Codex turns.
+When the breaker expires, reconstruct from current repository truth before continuation. An interrupted
+worker with partial local changes is resumed on its recorded branch rather than discarded.
+
+A fresh event invalidates a cached non-worker classifier decision because repository truth may have
+changed. A genuinely in-flight worker decision remains stable until its bounded handoff completes;
+later events remain queued for a subsequent classification.
+
+### Local cost ceiling and telemetry
+
+The pilot has conservative controller-side call ceilings in addition to whatever account-level Codex
+allowance applies. Defaults are 48 classifier attempts and 8 worker attempts per UTC day; both are
+environment-overridable. Reaching the local ceiling is a normal blocked state, not a reason to discard
+work.
+
+Persist counters sufficient to evaluate issue #349 by accepted-progress economics, including at least:
+events seen/filtered/actionable, classifier attempts/NOOPs, worker attempts/handoffs/resumes,
+retry/Codex blocks, restart replays, and managed merges.
+
+Do not interpret these counters as token or dollar accounting unless the SDK exposes authoritative
+usage fields. Their purpose is to detect runaway wakeups, low-value dispatch, and poor accepted-progress
+yield before the pilot is expanded.
+
 ### Rollback
 
 Stopping the local process disables the entire event-driven layer. GitHub state, ordinary producer
