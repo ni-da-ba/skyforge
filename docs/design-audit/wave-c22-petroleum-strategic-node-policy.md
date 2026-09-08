@@ -4,7 +4,8 @@
 **Issue:** #357  
 **Predecessor:** C21 / PR #315  
 **Authorship producer:** AUTH-0098 / PR #335  
-**Parent vertical slice:** #224
+**Parent vertical slice:** #224  
+**Synchronization base:** `568b681100f89a136c8e5029291e36568fac84d2`
 
 ## Purpose
 
