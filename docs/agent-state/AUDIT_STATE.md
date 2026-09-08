@@ -3,8 +3,8 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-08 (America/Chicago)  
-**Current full-program reconciliation base:** `main@64391d8b021568e03e5a4d6877348fab518082fb`  
-**Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0016**
+**Current full-program reconciliation base:** `main@7316248526b46a330fe34c3b271d1e381207c2c8`  
+**Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0017**
 
 Read first: [PROGRAM_CHARTER.md](PROGRAM_CHARTER.md), [VALIDATION_POLICY.md](VALIDATION_POLICY.md), [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md), [ORCHESTRATION_PROTOCOL.md](ORCHESTRATION_PROTOCOL.md), [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md), current lane ledgers, current `main`, open PRs/issues, source/tests, merged history, and exact-head workflow evidence. Repository evidence overrides stale conversation or older snapshots.
 
@@ -28,9 +28,9 @@ AUDIT-0001 through AUDIT-0008 established repository-first reconstruction, manua
 
 **AUDIT-0016** accepted once-per-head human-gate surfacing and hosted runtime self-refresh from PR #412 / merge `64391d8b`. Exact head `9c45b7a2350c36ee804b6d05dfe1693409fef4cc` passed Orchestrator Smoke run `34284105024` (66/66 controller tests plus supporting hosted/report/auth suites) and repository CI run `34284105099`. Persistent PR human gates are now deduplicated by current target head/state and may seed from an already-visible controller gate; a changed target head can resurface the gate. When the live service synchronizes across a changed `scripts/orchestrator/skyforge_orchestrator.py`, it durably records a refresh request and exits non-zero so systemd reloads the new runtime and replays retained events. Test/report/docs-only movement does not recycle the service, and dependency changes remain an explicit deployment boundary.
 
+**AUDIT-0017** accepted repository-visible, model-free hosted status reporting from PR #414 / merge `73162485`. Exact head `a5e765ec65cafefb420aad07eaf72f4a62b3e2be` passed Orchestrator Smoke run `34286300083` and repository CI run `34286299999`. Trusted `/skyforge-status` is a deterministic zero-Codex control that reports non-secret live controller state back to the issuing issue/PR, including loaded runtime head and checkout head; `/healthz` now exposes the loaded runtime head as well. The controller-authored status reply is self-filtered and cannot recurse.
 
-
-Hosted activation remains **VERIFIED** in issue #369, but the currently deployed host is **PAUSED / ONE-TIME RECOVERY REQUIRED** after a pre-AUDIT-0015 shared-worktree worker reproduced already-merged C12 PR #401, touched the protected `.github/**` surface, and safety-paused on branch `codex/content-20260908-182029`. Audit verified that the host's entire 11-file dirty delta is exactly the now-merged #401 file set, so no unique producer work needs salvage. Repository code is repaired by AUDIT-0015; the host must discard that duplicate local delta, return the service checkout to current `main`, clear only the stale pending-worker/cached-decision plus pause/backoff flags while preserving queued events/metrics, and restart. Safety remains auto-merge OFF and API-billing fallback OFF.
+Hosted activation remains **VERIFIED** in issue #369. The pre-AUDIT-0015 C12 duplicate-worker incident is recovered: the duplicate #401 delta was discarded without losing unique work, the durable event journal was preserved, and the service/controller checkout was returned to a safe state. A provider reboot on 2026-09-08 proved both services restart successfully: Caddy and `skyforge-orchestrator.service` became active, the controller listened on `127.0.0.1:3000`, local and public `/healthz` returned HTTP 200, GitHub webhook deliveries returned 202, startup reconciliation observed remote `main@7316248526`, and 11 durable pending events were restored. However that reboot loaded a pre-#414 checkout: the live controller treated `/skyforge-status` as an ordinary comment. The remaining deployment step is therefore a guarded service stop plus clean `main` fast-forward to current `origin/main`, followed by service restart and `/skyforge-status` verification. Safety remains auto-merge OFF and API-billing fallback OFF.
 
 ## CURRENT PROGRAM SNAPSHOT
 
@@ -41,7 +41,7 @@ Hosted activation remains **VERIFIED** in issue #369, but the currently deployed
 | Content / Experience | **C26** plus late **C12 B0-A1/B0-A2** acceptance; C11 and #237 machine seams retained | #401 merged; powered-aircraft lifecycle and #237 ergonomics remain downstream | **HEALTHY / ACCEPTED; HUMAN GATE REMAINS** |
 | Music / Audio | **MUS-0005** | source/plugin recovery and Track-06 source/listening only | **HEALTHY / DORMANT pending source/human work** |
 | Presentation | **PRES-0004** plus accepted runtime-capture infrastructure #362 | PRES-0005 explanatory graphics #385 | **HEALTHY / HUMAN GATE** |
-| Audit | **AUDIT-0016** | final one-time live-runtime reload; value watch #378; negative-space/liveness watchdog | **REPO FIX MERGED / DEPLOYMENT VERIFY** |
+| Audit | **AUDIT-0017** | guarded live checkout fast-forward; value watch #378; negative-space/liveness watchdog | **REPO FIX MERGED / LIVE RUNTIME STALE** |
 
 ## ACTIVE CONVERGENCE HEALTH
 
@@ -73,11 +73,11 @@ The hosted recovery worker that woke from the earlier RESTART signal recreated t
 
 ### Audit — hosted orchestration
 
-**REPOSITORY FIX MERGED / FINAL LIVE-RUNTIME VERIFY REQUIRED.** The legacy C12 shared-worktree incident has been manually recovered: the exact duplicate #401 delta was verified and discarded, the controller checkout returned cleanly to current `main`, stale pending-worker/decision/breaker state was retired while the durable event journal was preserved, startup reconciliation added one current-state event, and the supported `/skyforge-resume` path returned the host to `paused=false` with `pending_worker=false`.
+**HOST HEALTHY / CHECKOUT FAST-FORWARD REQUIRED.** The legacy C12 shared-worktree incident is recovered. A subsequent bounded provider reboot proved the systemd/Caddy boot path, public HTTPS health, signed webhook delivery, startup reconciliation, and durable replay journal are all functioning. The replacement process restored 11 pending events and observed remote `main@7316248526`.
 
-AUDIT-0015 prevents future worker branches from pinning the service checkout. AUDIT-0016 now also prevents future merged controller-runtime fixes from remaining stale in memory and suppresses repeated current-head HUMAN_GATE notifications. Because AUDIT-0016 itself was merged after the recovered process started, one final bounded service reload is still required to load `64391d8b` (or later current `main`). Before that reload, require a clean controller checkout and no pending worker; preserve the event journal/telemetry. After restart, verify `main`, clean status, HTTPS health, no stale breaker, and that any retained events are replayed/current-state classified.
+The remaining defect is narrower: systemd reloaded the controller from a stale local checkout, so the live process still lacks AUDIT-0017's `/skyforge-status` handler even though remote `main` contains it. This is not a webhook or provider-network failure; post-reboot issue-comment and workflow-run deliveries return 202, and `/healthz` returns 200. Before modifying state, require `pending_worker=false`, controller branch `main`, and a clean checkout. Then stop the service, fast-forward the checkout to current `origin/main`, restart, and use `/skyforge-status` to prove `runtime_head == checkout_head == current main`. Preserve the 11-event durable journal, counters, telemetry, and any legitimate pending decision. If a worker is pending or the checkout is dirty, abort and inspect rather than forcing the update.
 
-Issue #378 remains the model-free hosted value watch. New telemetry distinguishes actual human-gate posts from duplicate suppressions and runtime-refresh requests from completions. Auto-merge remains off.
+AUDIT-0015 prevents worker branches from pinning the service checkout. AUDIT-0016 provides self-refresh after a running process reaches `sync_main()`. AUDIT-0017 closes the operator-observability gap so future stale-runtime diagnosis does not depend on SSH. Issue #378 remains the model-free hosted value watch. Auto-merge remains off.
 
 ## VALIDATION / EVIDENCE ECONOMY
 
@@ -109,13 +109,13 @@ Issue #378 remains the model-free hosted value watch. New telemetry distinguishe
 - Presentation #385: **HEALTHY / HUMAN GATE**; silence is expected while waiting on qualitative review.
 - Authorship: **INTENTIONALLY DORMANT**, not stale.
 - Music: **INTENTIONALLY DORMANT pending source/human work**, not stale.
-- Hosted controller: **RECOVERED / FINAL AUDIT-0016 RUNTIME RELOAD REQUIRED**. The legacy dirty worker is retired and the service is resumed on clean `main`; one final reload must load the newly merged self-refresh/gate-dedupe runtime. Audit continues to own negative space, silence, stale-session replacement, evidence saturation, and race detection.
+- Hosted controller: **HEALTHY TRANSPORT / STALE LOCAL CHECKOUT**. Reboot, HTTPS health, signed webhook delivery, startup reconciliation, and durable event restoration are proven; one guarded clean-main fast-forward/restart is required to load AUDIT-0017 and make future runtime state repository-visible. Audit continues to own negative space, silence, stale-session replacement, evidence saturation, and race detection.
 
 ## NEXT AUDIT WORK
 
 1. Hold #358 at the ready human gate; prevent further broad morphology testing until #214/#267/#283 review supplies a concrete uncertainty.
 2. Surface HS-03 and HS-04 to Nicholas; preserve the solved SF-IMP-0083 carrier/runtime boundary even if narrow tuning is requested.
-3. Perform the final bounded AUDIT-0016 live-runtime reload only when `pending_worker=false`; update the clean controller checkout to current `origin/main`, restart the service, and verify the loaded runtime/current branch/HTTPS health plus retained-event replay. Future controller-runtime merges should then self-refresh automatically.
+3. Complete the guarded host checkout fast-forward only when `pending_worker=false`, branch=`main`, and the controller checkout is clean; stop the service, fast-forward to current `origin/main`, restart, and verify `/skyforge-status` reports matching `runtime_head`, `checkout_head`, and current `main` with no stale breaker. Preserve the durable event journal/telemetry.
 4. Keep Authorship dormant until a concrete consumer proves a missing neutral-world semantic.
 5. Keep PRES-0005 and #237 ergonomics visible as ready human gates without substituting more machine evidence.
 6. Keep HS-06 visible before concrete Bootstrap resource guarantees are locked and HS-05 before final Bootstrap Province implementation begins.
