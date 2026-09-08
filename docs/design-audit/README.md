@@ -130,6 +130,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Wave C20 AUTH-0093 base-metal availability policy](wave-c20-base-metal-availability.md)
 - [Wave C21 Create resource-worldgen authority A/B](wave-c21-create-resource-authority.md)
 - [Wave C22 AUTH-0098 petroleum strategic-node policy](wave-c22-petroleum-strategic-node-policy.md)
+- [Wave C23 petroleum strategic-node province feasibility](wave-c23-petroleum-province-feasibility.md)
 - [Create: Big Cannons industrial integration audit v0.1](create-big-cannons-industrial-integration-audit-v0.1.md)
 - [Create: Big Cannons material access closure v0.1](create-big-cannons-material-access-closure-v0.1.md)
 - [Overworld realization audit v0.1](overworld-realization-audit-v0.1.md)
