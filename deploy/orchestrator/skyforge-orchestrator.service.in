@@ -1,0 +1,21 @@
+[Unit]
+Description=Skyforge event-driven Codex orchestrator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@@USER@@
+WorkingDirectory=@@ROOT@@
+Environment=HOME=@@HOME@@
+EnvironmentFile=/etc/skyforge-orchestrator/env
+ExecStart=@@VENV_PYTHON@@ @@ROOT@@/scripts/orchestrator/skyforge_orchestrator.py --root @@ROOT@@ --repo ni-da-ba/skyforge --bind 127.0.0.1 --port 3000 --require-webhook-secret --startup-reconcile
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+KillSignal=SIGINT
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
