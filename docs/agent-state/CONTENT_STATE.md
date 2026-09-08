@@ -3,7 +3,7 @@
 **Lane:** Content / Experience  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Highest accepted Content boundary:** C21 / PR #315
+**Highest accepted Content boundary:** C22 / PR #360
 
 Read first:
 
@@ -13,7 +13,44 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest accepted executable Content milestone: C21
+### Highest accepted executable Content milestone: C22
+
+**C22 / PR #360** binds accepted AUTH-0098 petroleum-system geological opportunity to the first
+executable backend-neutral petroleum gameplay policy:
+
+```text
+availability                 STRATEGIC_NODE
+progression                   R3_MATURE_INDUSTRY
+first-flight critical         false
+ordinary-province guarantee   none
+alternative access            bounded trade/salvage
+mature industrial supply      primary extraction or logistics required
+regional node selection       AUTH-0100 regional inventory
+```
+
+Accepted interpretation:
+
+- ordinary provinces may legitimately contain no petroleum;
+- petroleum remains explicitly outside first-flight/bootstrap closure;
+- geological eligibility is exactly AUTH-0098 nonzero `peakSystemOpportunity()`;
+- unchanged AUTH-0098 `meanSystemOpportunity()` may rank already-eligible candidates only;
+- no opportunity magnitude becomes reserves, grade, pressure, deposit scale, extraction rate,
+  gameplay rarity, or placement weight;
+- bounded trade/salvage may introduce or bridge petroleum use but does not replace mature industrial
+  extraction/logistics;
+- an intentionally petroleum-bearing strategic-node province must select/re-plan around eligible
+  authored geology rather than inject petroleum into zero-opportunity islands;
+- AUTH-0100 / PR #361 supplies the exact canonical regional inventory C22 requested;
+- final petroleum-node selection must not be inferred from geological rank alone if route, site,
+  civilization, or service requirements require additional accepted evidence;
+- Implementation remains owner of concrete petroleum identity, deposit geometry/count/volume,
+  extraction, pumpjack/refinery realization, placement, persistence, and lifecycle.
+
+Exact synchronized verification on head `fa3d5daab452fe35689939a7704d05f37ef7cb52` passed Wave C22
+Petroleum Content Policy run `34184590388`, Wave C20 Base Metal Content Policy regression run
+`34184590386`, and repository CI run `34184590376`. No Minecraft manual run or visual gate applies.
+
+### C21
 
 **C21 / PR #315** proves that the pinned Create 6.0.10 resource assets are separable from its broad
 generic Overworld placement authority.
@@ -234,7 +271,7 @@ Stationary retained-stack evidence exists. Assembled-Sable, save/reload, two-eng
 - AUTH-0093 is accepted: normalized Iron/Copper/Zinc geological opportunity subordinate to exact mineral-bearing structural host support; Content owns availability classes, bootstrap guarantees, trade/salvage, and resource progression policy.
 - AUTH-0094 is accepted: exact published-region inventory of every canonical AUTH-0093 island profile, including eligible-island lists and threshold-free mean-opportunity ranking; C20 owns scope selection/replanning and guarantee satisfaction.
 - AUTH-0096 and AUTH-0097 are accepted: threshold-free local surface-site and directional-access evidence are available for later Content structure/civilization site policy; neither selects a gameplay role.
-- AUTH-0098 is accepted: petroleum-system geological opportunity is available for later Content progression/availability policy; no petroleum Content guarantee or availability class is accepted yet.
+- AUTH-0098 is consumed by C22; AUTH-0100 / PR #361 supplies the canonical regional petroleum opportunity inventory C22 requested. Petroleum remains STRATEGIC_NODE / R3 mature industry with no ordinary-province hard guarantee.
 - SF-IMP-0080 is accepted: legible forest/taiga ecology showcase.
 - SF-IMP-0081 and SF-IMP-0082 are accepted for all five SMALL / seed-skyforge built-in morphology carriers; SF-IMP-0083 / issue #284 owns the remaining multi-seed/multi-scale built-in matrix, while #267 and #283 separately track tuning concerns.
 
@@ -328,10 +365,10 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 
 1. Do not duplicate active C11/C12 work; consume their results into #224 when accepted.
 2. Hand C21's exact-volume resource-authority contract to Implementation: filter competing Create Zinc/striated generic feature execution only inside explicit Skyforge-owned population, never by a packaged BASE_WORLD-wide override.
-3. Consume AUTH-0094 + C20 when selecting/replanning concrete starting-cluster and post-flight-province scopes, then let Implementation realize Iron/Copper/Zinc deposits under that clean authority seam.
-4. Check C22 ownership before reserving the next Content resource/progression milestone. AUTH-0098 petroleum opportunity is now available, but no petroleum availability/guarantee policy is accepted yet.
+3. Consume AUTH-0100 under C22 in the next Content petroleum-province requirement/evaluation boundary; do not invent frequency, reserves, literal deposits, or make geological rank the entire selection policy.
+4. If that concrete planner exposes a missing route/site/civilization world cause, hand only that specific evidence gap back to Authorship; otherwise keep further petroleum work in Content/Implementation.
 5. Resume the remaining #227 turtle questions afterward: farming throughput, quarry/branch-mining scale, or dedicated chunk-loader/Ender-storage combinations. Do not nerf turtles without measured substitution evidence.
-6. Continue Bootstrap Province acceptance with C20's guaranteed Iron and post-flight Copper/Zinc semantics; exact quantities remain downstream of accepted C11/C12 aircraft closure.
+6. Continue Bootstrap Province acceptance with C20's guaranteed Iron and post-flight Copper/Zinc semantics; exact quantities remain downstream of accepted C11/C12 aircraft closure and HS-06 remains the human gate before locking the starting recipe.
 7. Complete/accept #237 / PR #240 before C12 powered-soaring closure.
 8. Keep assembled-aircraft Nether transfer separate from accepted ordinary-player C15 mechanics.
 9. Return to C1 industrial runtime evidence when a focused runtime window is practical.
