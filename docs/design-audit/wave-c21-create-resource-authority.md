@@ -1,6 +1,6 @@
 # Wave C21 — Create resource-worldgen authority A/B
 
-**Status:** IN PROGRESS until synchronized runtime/CI evidence is green and merged  
+**Status:** MERGED / ACCEPTED when PR #315 lands after exact-head gates  
 **Issue:** #306  
 **Predecessor:** C20 / PR #302  
 **Authorship inputs:** AUTH-0093 and AUTH-0094  
@@ -125,7 +125,11 @@ C21 is accepted only if:
 3. Zinc ore, deepslate Zinc ore, and Crimsite remain registered in both modes;
 4. production resources contain no global C21 override;
 5. dedicated C21 workflow passes on the exact synchronized head;
-6. repository CI and relevant retained integration regressions pass;
+6. repository CI and the targeted C17 retained regression pass on the synchronized merge candidate;
 7. shared state records the exact-volume-only Implementation handoff.
+
+The retained C21 workflow triggers directly on C21-owned files and pins. Broad shared build/entrypoint
+changes retrigger it once after landing on `main`, avoiding retained compatibility fan-out across
+unrelated pull requests.
 
 No human visual gate is required for this authority-control milestone.

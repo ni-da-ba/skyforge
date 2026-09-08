@@ -21,7 +21,7 @@ This file records only coordination boundaries another lane must preserve.
 | --- | --- |
 | Authorship | `AUTH-0098` accepted: petroleum-system geological opportunity over exact AUTH-0033 provenance; AUTH-0097 remains the site-access handoff and AUTH-0095 the morphology-diagnostic handoff |
 | Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / #284 owns remaining AUTH-0083 built-in seed/scale Minecraft matrix |
-| Content / Experience | `C20` merged on current history: Iron/Copper/Zinc availability/guarantee policy over AUTH-0093; C11/C12 remain separately in progress/reserved |
+| Content / Experience | `C21` / PR #315: retained Create Zinc/striated assets are separated from generic Overworld placement authority; exact-volume filtering is Implementation-owned; C11/C12 remain separately in progress/reserved |
 | Music / Audio | `MUS-0002` accepted in `30b5202fec3ae07b0720b42eb8d7770c3c463843`: canonical soundtrack source integrity is machine-gated in normal CI; human listening/CWP recovery gates remain explicit |
 | AUDIT | `AUDIT-0008` accepted: repository-visible process/convergence health remains supervisory responsibility |
 
@@ -219,6 +219,20 @@ Hard guarantees must select/re-plan an eligible authored scope rather than injec
 AUTH-0094 is now the exact regional inventory seam C20 may consume for that selection/replanning work.
 
 AUTH-0098 separately supplies island-scale petroleum-system geological opportunity for later R3 policy. No regional petroleum availability/guarantee policy is accepted yet.
+
+### C21 — Create resource-worldgen authority control — ACCEPTED
+
+C21 / PR #315 proves the pinned Create 6.0.10 Zinc/striated assets are separable from the two broad
+generic Overworld biome modifiers `create:zinc_ore` and `create:striated_ores_overworld`.
+
+Production ownership after C21:
+
+- vanilla Iron/Copper and Create Zinc identities/assets remain the preferred retained resource identities unless later executable evidence rejects them;
+- the C21 `neoforge:none` datapack is validation-only and must not be packaged as a global override;
+- ordinary `BASE_WORLD` generation retains native Create behavior;
+- **Implementation** owns narrow feature admission/filtering only inside explicit Skyforge-owned exact-volume population, using the existing biome-population / placed-feature execution seam;
+- **Implementation** owns concrete AUTH-0093/0094 + C20 deposit geometry, count, grade, quantity, accessibility, placement, persistence, and lifecycle;
+- C21 does not itself realize deposits or convert AUTH-0093/0094 opportunity into physical ore quantity.
 
 ## Atmosphere / mobility
 

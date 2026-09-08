@@ -4,12 +4,15 @@ on:
   pull_request:
     paths:
       - ".github/workflows/wave-c21-create-resource-authority.yml"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c9-mods.properties"
-      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC21CreateResourceAuthorityAcceptance.java"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/WaveC21CreateResourceAuthorityResourceTest.java"
       - "docs/design-audit/wave-c21-create-resource-authority.md"
+  push:
+    branches: [main]
+    paths:
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
   workflow_dispatch:
 
 permissions:
