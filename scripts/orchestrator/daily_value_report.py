@@ -419,7 +419,8 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"| Total worker attempts | {worker_attempts} |",
         f"| Worker handoffs | {d.get('worker_handoffs', 0)} ({pct(handoff_yield)} yield) |",
         f"| Worker no-change | {d.get('worker_no_change', 0)} ({pct(no_change_rate)}) |",
-        f"| Human gates | {d.get('human_gates', 0)} |",
+        f"| Human gates posted | {d.get('human_gates', 0)} |",
+        f"| Duplicate human gates suppressed | {d.get('human_gate_duplicates_suppressed', 0)} |",
         f"| Worker scope rejects | {d.get('worker_scope_rejections', 0)} |",
         f"| Protected-path rejects | {d.get('worker_protected_path_rejections', 0)} |",
         f"| Safety pauses | {d.get('safety_pauses', 0)} |",
@@ -427,6 +428,8 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"| Dispatch failures | {d.get('dispatch_failures', 0)} |",
         f"| Pause / resume commands | {d.get('pause_commands', 0)} / {d.get('resume_commands', 0)} |",
         f"| Controller starts | {d.get('controller_starts', 0)} |",
+        f"| Runtime refresh requests / completions | "
+        f"{d.get('runtime_restarts_requested', 0)} / {d.get('runtime_restart_completions', 0)} |",
         f"| Startup reconciliations | {d.get('startup_reconciliations', 0)} |",
         f"| Mean actionable-event → classifier latency | "
         f"{'n/a' if avg_dispatch_seconds is None else f'{avg_dispatch_seconds:.1f}s'} |",
