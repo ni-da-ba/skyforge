@@ -1,8 +1,8 @@
 # Skyforge Music / Audio State
 
-**Status:** MUS-0001 MERGED / ACCEPTED; MUS-0002 IN PROGRESS  
+**Status:** MERGED / ACCEPTED — MUS-0002  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Accepted merge:** `0b3386ad74ef610f49d9d3e8050e5a701f5e2cbd`
+**Accepted merge:** `30b5202fec3ae07b0720b42eb8d7770c3c463843`
 
 ## Authority
 
@@ -19,11 +19,18 @@ Conversation is supplementary only.
 
 ## Highest repository-level accepted milestone
 
-`MUS-0001` / PR #159 is **MERGED / ACCEPTED** as
-`0b3386ad74ef610f49d9d3e8050e5a701f5e2cbd`.
+`MUS-0002` / PR #304 is **MERGED / ACCEPTED** as
+`30b5202fec3ae07b0720b42eb8d7770c3c463843`.
 
-The exact-head PR CI passed before the squash merge. This is the first repository-level accepted
-Music / Audio milestone.
+Acceptance evidence:
+
+- synchronized merge candidate `df779c6cf11b83caf00f16d941f8037cdd6febba` was zero commits behind current `main`;
+- exact-head normal CI run `34173135366` passed, including the Music source-integrity step;
+- the squash merge landed on `main` as `30b5202fec3ae07b0720b42eb8d7770c3c463843`;
+- post-merge `main` CI run `34173486633` executed and passed the Music source-integrity step.
+
+MUS-0002 turns the MUS-0001 persistence/library rules into an executable repository gate while
+preserving the Audit lane's CI evidence-economy policy.
 
 ## Current accepted musical state on `main`
 
@@ -66,8 +73,7 @@ Music / Audio milestone.
 1. close Track 00 repair through human A/B;
 2. recover HC state for frozen cues;
 3. recover and audit exact Track 06 Draft 02.3 MIDI;
-4. complete MUS-0002 automated music-source verification and merge it after exact-head CI;
-5. only then resume principal-theme composition.
+4. only then resume principal-theme composition.
 
 ## Cross-lane boundary
 
@@ -81,7 +87,7 @@ Implementation responsibilities respectively.
 
 ## MUS-0002 — automated source verification
 
-**Status:** IN PROGRESS
+**Status:** ACCEPTED
 
 MUS-0002 converts the 2026-09-07 source/library audit from documentation-only policy into executable repository health.
 
@@ -100,3 +106,14 @@ The verifier at `scripts/music/verify_music_sources.py` is intentionally standar
 - no accidental large WAV assets under ordinary Git music assets.
 
 Known frozen exceptions are data, not suppressions: Track 00's horn/viola defects and Track 02's two C#6 trumpet events must match their manifest exactly or CI fails.
+
+
+### MUS-0002 accepted boundary
+
+The repository now automatically rejects canonical Music source drift that machines can prove:
+invalid MIDI/gzip artifacts, manifest/source hash mismatch, track-order or conductor metadata drift,
+undeclared BBCSO ordinary-lane range violations, missing special-lane provenance, PERC/TP mapping
+mismatch, and accidental ordinary-Git WAV storage.
+
+The verifier is impact-gated inside normal CI. It runs for Music source/verifier changes and
+conservative manual/unknown-base cases rather than creating unrelated CI fan-out.
