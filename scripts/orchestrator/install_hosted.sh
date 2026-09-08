@@ -12,6 +12,7 @@ VENV="$STATE_DIR/venv"
 VENV_PYTHON="$VENV/bin/python"
 CONFIG_DIR="/etc/skyforge-orchestrator"
 ENV_FILE="$CONFIG_DIR/env"
+VALUE_ENV_FILE="$CONFIG_DIR/value.env"
 SERVICE_FILE="/etc/systemd/system/skyforge-orchestrator.service"
 VALUE_SERVICE_FILE="/etc/systemd/system/skyforge-value-report.service"
 VALUE_TIMER_FILE="/etc/systemd/system/skyforge-value-report.timer"
@@ -85,7 +86,8 @@ tmp_service="$(mktemp)"
 tmp_value_service="$(mktemp)"
 tmp_caddy="$(mktemp)"
 tmp_env="$(mktemp)"
-trap 'rm -f "$tmp_service" "$tmp_value_service" "$tmp_caddy" "$tmp_env"' EXIT
+tmp_value_env="$(mktemp)"
+trap 'rm -f "$tmp_service" "$tmp_value_service" "$tmp_caddy" "$tmp_env" "$tmp_value_env"' EXIT
 
 python3 - "$ROOT" "$SERVICE_USER" "$SERVICE_HOME" "$VENV_PYTHON" >"$tmp_service" <<'PY'
 from pathlib import Path
@@ -134,14 +136,19 @@ SKYFORGE_STARTUP_RECONCILE=1
 SKYFORGE_ORCHESTRATOR_AUTO_MERGE=0
 SKYFORGE_WEBHOOK_SECRET=$SKYFORGE_WEBHOOK_SECRET
 SKYFORGE_HOST_ACTIVATED_AT=$HOST_ACTIVATED_AT
-SKYFORGE_DROPLET_HOURLY_USD=$SKYFORGE_DROPLET_HOURLY_USD
-SKYFORGE_VALUE_REPORT_ISSUE=$SKYFORGE_VALUE_REPORT_ISSUE
 SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY=${SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY:-48}
 SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY=${SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY:-8}
 EOF
 
+cat >"$tmp_value_env" <<EOF
+SKYFORGE_HOST_ACTIVATED_AT=$HOST_ACTIVATED_AT
+SKYFORGE_DROPLET_HOURLY_USD=$SKYFORGE_DROPLET_HOURLY_USD
+SKYFORGE_VALUE_REPORT_ISSUE=$SKYFORGE_VALUE_REPORT_ISSUE
+EOF
+
 sudo install -d -m 0700 "$CONFIG_DIR"
 sudo install -m 0600 "$tmp_env" "$ENV_FILE"
+sudo install -m 0644 "$tmp_value_env" "$VALUE_ENV_FILE"
 sudo install -m 0644 "$tmp_service" "$SERVICE_FILE"
 sudo install -m 0644 "$tmp_value_service" "$VALUE_SERVICE_FILE"
 sudo install -m 0644 deploy/orchestrator/skyforge-value-report.timer "$VALUE_TIMER_FILE"
