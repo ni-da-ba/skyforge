@@ -12,7 +12,7 @@ ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
 REPO="ni-da-ba/skyforge"
-ENV_FILE="/etc/skyforge-orchestrator/env"
+VALUE_ENV_FILE="/etc/skyforge-orchestrator/value.env"
 CADDY_FILE="/etc/caddy/Caddyfile"
 VENV_PYTHON="$ROOT/.skyforge-orchestrator/venv/bin/python"
 
@@ -35,11 +35,11 @@ fi
 
 hourly="${SKYFORGE_DROPLET_HOURLY_USD:-}"
 issue="${SKYFORGE_VALUE_REPORT_ISSUE:-378}"
-if [[ -f "$ENV_FILE" ]]; then
+if [[ -f "$VALUE_ENV_FILE" ]]; then
   if [[ -z "$hourly" ]]; then
-    hourly="$(sudo sed -n 's/^SKYFORGE_DROPLET_HOURLY_USD=//p' "$ENV_FILE" | head -n 1)"
+    hourly="$(sed -n 's/^SKYFORGE_DROPLET_HOURLY_USD=//p' "$VALUE_ENV_FILE" | head -n 1)"
   fi
-  stored_issue="$(sudo sed -n 's/^SKYFORGE_VALUE_REPORT_ISSUE=//p' "$ENV_FILE" | head -n 1)"
+  stored_issue="$(sed -n 's/^SKYFORGE_VALUE_REPORT_ISSUE=//p' "$VALUE_ENV_FILE" | head -n 1)"
   if [[ -n "$stored_issue" ]]; then
     issue="$stored_issue"
   fi
