@@ -15,6 +15,8 @@ AUDIT-0001 through AUDIT-0008 established repository-first reconstruction, manua
 
 **AUDIT-0009** accepts quota-safe/restart-safe local event-driven orchestration reliability from PR #364, merged as `f859f5acfbb299de85a32cea08a7481dd9098a40`. Exact-head Orchestrator Smoke `34185291157` PASS and ordinary CI `34185291184` PASS at `3535232d62ea24accf62ae031166b3cafac96fb9`.
 
+**AUDIT-0010 / PR #374 is IN PROGRESS.** It promotes the accepted controller to one always-on host with signed GitHub webhook delivery, persistent delivery de-duplication, startup/offline repository reconciliation, health reporting, systemd restart-on-boot, and trusted-HTTPS deployment packaging. Repository acceptance requires exact-head Orchestrator Smoke + ordinary CI; operational acceptance additionally requires one live hosted health/signed-delivery/manual-wake/reboot check. Auto-merge and API-billing fallback remain out of scope.
+
 Presentation is now a canonical program lane. It consumes accepted project truth and owns external communication/showcase packaging; it does not own producer acceptance.
 
 ## CURRENT PROGRAM SNAPSHOT
@@ -26,7 +28,7 @@ Presentation is now a canonical program lane. It consumes accepted project truth
 | Content / Experience | **C21** / #315 + C17 fixture maintenance #341 / merge `741e16ec` | no new bounded Content milestone | **HEALTHY / ACCEPTED** |
 | Music / Audio | **MUS-0003** / #331 | human listening/source-recovery gates | **HEALTHY / DORMANT pending human/source work** |
 | Presentation | **PRES-0003** / #351 / merge `aee9508d` | PRES-0004 / #355 + #348 image enrichment | **WATCH / REPEATED ACCEPTANCE-BOOKKEEPING LAG** |
-| Audit | **AUDIT-0009** / #364 / merge `f859f5ac` | local pilot activation + issue #349 telemetry; hourly supervision | **HEALTHY / PILOT READY** |
+| Audit | **AUDIT-0009** / #364 / merge `f859f5ac` | **AUDIT-0010 / #374** always-on hosted orchestration | **WATCH / ACTIVE; HOSTED ACTIVATION** |
 
 Open producer/program PRs at this reconciliation: Presentation #355 and Audit #352. Audit reconciliation #356 is state-only.
 
