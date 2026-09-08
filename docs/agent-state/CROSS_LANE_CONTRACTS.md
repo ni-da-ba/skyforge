@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Repository snapshot after AUTH-0095 acceptance:** `0185274ade7a07e890cbaba9d4601404748e89c0`
+**Repository snapshot after AUTH-0096 acceptance:** `3fa34d5c30d7d89f48179cdcde6d6b4fb1740d40`
 
 Detailed milestone evidence belongs in lane ledgers, milestone docs, tests, workflows, and merged PRs.
 This file records only coordination boundaries another lane must preserve.
@@ -19,7 +19,7 @@ This file records only coordination boundaries another lane must preserve.
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0095` accepted: threshold-free scale-normalized surface-character diagnostics over the exact AUTH-0083 built-in matrix |
+| Authorship | `AUTH-0096` accepted: exact local surface-site capability evidence over AUTH-0046 provenance; AUTH-0095 remains the morphology-diagnostic handoff |
 | Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / #284 owns remaining AUTH-0083 built-in seed/scale Minecraft matrix |
 | Content / Experience | `C20` merged on current history: Iron/Copper/Zinc availability/guarantee policy over AUTH-0093; C11/C12 remain separately in progress/reserved |
 | Music / Audio | `MUS-0002` accepted in `30b5202fec3ae07b0720b42eb8d7770c3c463843`: canonical soundtrack source integrity is machine-gated in normal CI; human listening/CWP recovery gates remain explicit |
@@ -98,6 +98,35 @@ Cross-lane consequences:
 - Authorship must not retune Massif/Tableland until the matching Minecraft matrix and human review justify a family-level change;
 - Implementation still owns block-space traversal/carrier/persistence/runtime evidence.
 
+### AUTH-0096 — local surface-site capability evidence — ACCEPTED
+
+AUTH-0096 / PR #318 merged as `3fa34d5c30d7d89f48179cdcde6d6b4fb1740d40`.
+
+For one exact AUTH-0046 authored-realization association, downstream planners may now inspect every
+canonical accepted watershed anchor with:
+
+- exact-realization physical surface presence and normalized upper offset;
+- complete 3x3 / 5x5 / 9x9 physical support and normalized local relief;
+- mean cardinal grade;
+- authored interiority and normalized flow accumulation;
+- retained-waterbody, shoreline/depth, waterbody-margin, riparian, coherent-channel, and hydrologic
+  terrain-response context.
+
+The profile preserves exact watershed identity/order and introduces no site-classification threshold.
+
+Cross-lane consequences:
+
+- **Content / Experience** may define neutral structure/civilization requirements, thresholds, and
+  selection policy over this evidence;
+- **Implementation** must still prove each concrete Minecraft/mod structure's exact geometry,
+  orientation, support/clearance, terrain accommodation, mutation, persistence, and lifecycle;
+- AUTH-0096 does **not** mean an island/anchor supports a village, airfield, dungeon, dock, or any
+  other named role;
+- exact realized physical evidence must not be treated as translation-invariant because accepted
+  planar detail signals sample world X/Z;
+- no concrete structure roll, progression guarantee, settlement density, faction state, or loot
+  policy is created by AUTH-0096.
+
 ## Morphology / Minecraft realization
 
 ### SF-IMP-0080 — visible land ecology — ACCEPTED
@@ -165,7 +194,7 @@ Remaining work includes assembled contraption/passenger/cargo transfer, authored
 
 ## Structures / civilization
 
-Content defines gameplay role/reuse/history/service semantics; Authorship supplies site/environment evidence; Implementation owns realization modes and lifecycle. Progression-critical structures must remain obtainable and cannot rely on lucky structure rolls unless the world recipe guarantees them.
+Content defines gameplay role/reuse/history/service semantics; Authorship supplies site/environment evidence; Implementation owns realization modes and lifecycle. AUTH-0096 is the current accepted local surface-site evidence seam, not site selection or concrete structure proof. Progression-critical structures must remain obtainable and cannot rely on lucky structure rolls unless the world recipe guarantees them.
 
 ## Computing / automation
 

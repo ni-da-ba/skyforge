@@ -3,8 +3,8 @@
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Main snapshot at latest Authorship acceptance:** `0185274ade7a07e890cbaba9d4601404748e89c0`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0095**
+**Main snapshot at latest Authorship acceptance:** `3fa34d5c30d7d89f48179cdcde6d6b4fb1740d40`  
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0096**
 
 Read first:
 
@@ -179,13 +179,60 @@ Accepted invariants:
 
 Reference: `docs/authorship/AUTH-0095-morphology-surface-character-diagnostics.md`.
 
+### AUTH-0096 — local surface-site capability evidence
+
+PR #318 / merge `3fa34d5c30d7d89f48179cdcde6d6b4fb1740d40`.
+
+Concrete consumer: Bootstrap Province #224 and the staged structure-site-capability design require
+backend-neutral local place evidence before Content selects civilization/structure roles and before
+Implementation performs exact concrete geometry admission.
+
+Acceptance evidence:
+
+- final synchronized AUTH-0096 head `2657da3d4040fbb1e1dd164e738eb0c8a3b6781c`;
+- final scoped evidence workflow `34174463114` PASS;
+- final evidence artifact `10036782901`;
+- digest `sha256:7d90ac548679d86e61e098ea74650318ad99e599d90c680a427894b6f6317af9`;
+- full repository CI `34169136662` PASS on corrected AUTH-0096 code at
+  `6984769b6c1ff7c17d36a221e914f09dfb4e141b`;
+- that full-CI evidence remained portable under `VALIDATION_POLICY.md` because subsequent main
+  movement changed only orthogonal docs/workflows/music state while the AUTH-0096 code/test blobs and
+  behavioral dependency surface remained unchanged; synchronized scoped evidence was rerun on the
+  final head.
+
+Accepted invariants:
+
+- public profiling input is exactly one AUTH-0046 `SkyIslandAuthoredRealizationAssociation`;
+- the exact accepted 49x49 watershed lattice, canonical cell identity/order, and spacing `R/24`
+  are retained;
+- every anchor reports descriptive exact-realization physical support/relief plus already-accepted
+  authored hydrology/interiority context without a second planning grid;
+- 3x3 / 5x5 / 9x9 support and relief, cardinal grade, flow, retained-waterbody, shoreline,
+  waterbody-margin, riparian, coherent-channel, and hydrologic-response evidence remain raw
+  measurements rather than site pass/fail policy;
+- exact physical evidence is tied to the exact realized placement: accepted planar detail signals
+  sample world X/Z, so Authorship must not infer translation invariance for realized fine terrain;
+- no village/airfield/dungeon/buildable/walkable classification, civilization role, structure tier,
+  progression policy, Minecraft identity, or exact structure admission enters Authorship.
+
+Ownership after AUTH-0096:
+
+- **Authorship:** deterministic backend-neutral local world/site evidence and provenance;
+- **Content / Experience:** structure/civilization roles, semantic requirement thresholds, progression,
+  route/service meaning, and site selection policy;
+- **Implementation:** concrete structure identity/geometry/orientation, exact physical admission,
+  terrain accommodation, mutation, persistence, and lifecycle.
+
+Reference: `docs/authorship/AUTH-0096-local-surface-site-capability.md`.
+
 ## IN PROGRESS
 
 No Authorship milestone is currently in progress.
 
-AUTH-0095 closes the morphology-measurement gap requested by SF-IMP-0083/#284 and #267/#283. Do not
-assign AUTH-0096 merely to continue morphology work: family tuning requires the matching Minecraft
-matrix plus human review, and another semantic milestone requires a concrete retained consumer.
+AUTH-0096 closes the first surface-site evidence gap required by Bootstrap/structure reintegration. Do not
+assign AUTH-0097 merely to enumerate every conceptual site-capability field. Add cliff/underside,
+interior/cave, access, regional-composition, or other semantics only when a retained consumer requires
+them. Morphology family tuning still requires the matching Minecraft matrix plus human review.
 
 ## ACTIVE CROSS-LANE BOUNDARIES
 
@@ -194,6 +241,7 @@ matrix plus human review, and another semantic milestone requires a concrete ret
 - C20 is accepted and may consume AUTH-0094 to inspect/select/re-plan published scopes around eligible Iron/Copper/Zinc geology.
 - Iron availability/starting-cluster closure and Copper/Zinc post-flight-province guarantees remain Content-owned.
 - AUTH-0094 does not prove that a specific generated province satisfies C20; executable province planning/acceptance is downstream.
+- AUTH-0096 now supplies exact local surface-site evidence for Bootstrap civilization/structure requirement matching; Content still owns role requirements, thresholds, selection, and progression meaning.
 
 ### Implementation
 
@@ -202,12 +250,15 @@ concrete deposits, blocks/tags, quantities, accessibility, placement/worldgen, p
 lifecycle. SF-IMP-0083 / issue #284 may consume AUTH-0095 as the backend-neutral surface-character measurement
 seam for the exact built-in seed/scale matrix. Minecraft carrier/persistence/runtime evidence remains
 Implementation-owned, and AUTH-0095 does not itself authorize morphology-family retuning.
+Implementation may also consume an AUTH-0096-selected candidate only after Content supplies a concrete
+requirement/pairing; exact structure geometry/admission and terrain accommodation remain Implementation-owned.
 
 ### Ecology / fauna / civilization
 
 AUTH-0089/0090/0091/0092 remain evidence inputs, not spawn/carrying-capacity/faction/province policy.
-Add cave/cliff, disturbance, predator-pressure, trophic, civilization-history, geothermal, petroleum,
-or other semantics only when a concrete consumer proves a gap.
+AUTH-0096 is now an additional local site/environment evidence input for structure/civilization work,
+not a settlement or faction policy. Add cave/cliff, disturbance, predator-pressure, trophic,
+civilization-history, geothermal, petroleum, or other semantics only when a concrete consumer proves a gap.
 
 ## Architectural invariants
 
@@ -222,7 +273,7 @@ or other semantics only when a concrete consumer proves a gap.
 
 ## Known hazards
 
-- Parallel lane merges frequently move `main`; exact-head Authorship acceptance requires recomposition and rerun when that happens.
+- Parallel lane merges frequently move `main`; follow `VALIDATION_POLICY.md`: inspect dependency-surface impact, preserve expensive evidence across demonstrably orthogonal movement, and rerun the cheapest synchronized gate that can falsify the remaining risk rather than chasing timestamps.
 - Some other lane ledgers may lag merged history; current `main`, merged PRs, tests, and cross-lane contracts remain authoritative.
 - AUTH-0083/AUTH-0084 prove review machinery, not final visual quality.
 - No accepted geothermal/volcanic semantics currently exist.
@@ -234,12 +285,13 @@ For Authorship changes:
 
 1. keep neutral modules free of Minecraft/NeoForge imports;
 2. run targeted semantic/provenance tests and a declared evidence entry point;
-3. run repository CI on the exact candidate head;
+3. run routine repository CI on a current integration candidate when the change affects shared code;
 4. record exact workflow/artifact/digest evidence;
 5. re-check `main` immediately before merge;
-6. if `main` moved, recompose and rerun exact-head verification;
-7. merge with an expected-head lock;
-8. update this ledger and cross-lane contracts at the merge boundary.
+6. if `main` moved, classify whether the tested dependency surface changed;
+7. recompose and rerun affected verification when needed, but preserve expensive evidence across
+   demonstrably orthogonal movement per `VALIDATION_POLICY.md` and require synchronized cheap/current-head evidence;
+8. merge with an expected-head lock and update this ledger/cross-lane contracts.
 
 ## MANUAL VERIFICATION REQUIRED
 
@@ -256,9 +308,17 @@ AUTH-0095 introduces no new independent human/manual gate; it supplies measureme
 already-open #214/#267/#283 review. Any Massif/Tableland tuning decision still requires that human
 comparison against the matching SF-IMP-0083 Minecraft matrix.
 
+AUTH-0096 introduces no new independent human/manual gate. Human judgment begins only after Content
+selects concrete civilization/structure requirements and Implementation presents player-facing sites.
+
 ## Ordered next work
 
-1. Hand AUTH-0095 surface-character evidence to SF-IMP-0083 / #284 and correlate it with the matching Minecraft seed/scale matrix plus #214/#267/#283 human review.
-2. Do not retune Massif/Tableland from reference diagnostics alone; only open evidence-backed tuning after the consumer review identifies a systemic family issue.
-3. Let Content/Bootstrap continue consuming AUTH-0094 for C20-aware resource scope selection/replanning.
-4. Reconstruct the next missing semantic cause from current production consumers before assigning AUTH-0096.
+1. Let Content/Bootstrap consume AUTH-0096 for concrete surface-site requirement matching in #224.
+2. Do not promote the working civilization/structure design documents into new Authorship semantics
+   until a retained executable consumer identifies the next missing backend-neutral cause; surface
+   evidence alone does not justify a regional wrapper, site class, or settlement policy.
+3. Keep AUTH-0095 handed to SF-IMP-0083/#284. Current Implementation remains in targeted Tableland
+   runtime recovery, so #267/#283 morphology retuning is not yet justified.
+4. Return to morphology only when the synchronized Minecraft matrix plus #214 human review identifies
+   a systemic family-level change; otherwise continue the next concrete Bootstrap-owned semantic gap.
+
