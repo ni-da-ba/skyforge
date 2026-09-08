@@ -147,6 +147,30 @@ Classification:
 
 A restarted producer reconstructs from current main, canonical lane state, validation policy, cross-lane contracts, source/tests, and merged history rather than conversational history.
 
+## EVENT-DRIVEN CODEX PILOT
+
+Issue #349 / PR #352 owns the local event-driven Codex orchestration experiment.
+
+Role split:
+
+~~~text
+positive repository activity/state change
+    -> local filtered SDK/App-Server controller
+
+negative space / silence / dead producer / evidence saturation
+    -> hourly Audit watchdog
+~~~
+
+Audit remains the independent supervisor and human-facing hourly reporting layer. The controller must
+not replace watchdog liveness detection because absence of producer activity cannot create a webhook.
+
+Material Audit comments such as RESTART RECOMMENDED / LOOP RISK are intended to wake the controller
+through the issue-comment event path. Conversely, controller-managed work must not be duplicated by
+Audit merely because it is a Codex branch; inspect information-bearing progress normally.
+
+The pilot is local/reversible, uses a dedicated clone, filters/debounces events before Codex startup,
+uses a low-cost classifier plus at most one bounded worker, and leaves auto-merge disabled initially.
+
 ## NEXT AUDIT WORK
 
 1. Watch #338 for bounded merge; once landed, direct #285 retirement/recomposition rather than further extending the historical 53-commit branch.
