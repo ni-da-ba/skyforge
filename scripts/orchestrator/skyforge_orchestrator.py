@@ -1126,8 +1126,20 @@ class Orchestrator:
         forbidden = [p for p in paths if self._worker_path_forbidden(p)]
         if forbidden:
             self._metric("worker_protected_path_rejections")
+            self.set_paused(True, actor="controller-safety")
+            self._post_gate(
+                {
+                    "pr_number": managed_pr,
+                    "human_message": (
+                        "SAFETY PAUSE: a hosted worker modified protected control-plane/private paths "
+                        f"{forbidden}. No autonomous commit/push occurred. Inspect or discard the local "
+                        "changes on the hosted worker branch, then use /skyforge-resume only after the "
+                        "worktree is safe."
+                    ),
+                }
+            )
             raise RuntimeError(
-                "Worker touched protected control-plane/private paths; refusing autonomous handoff: "
+                "Worker touched protected control-plane/private paths; controller safety-paused: "
                 f"{forbidden}"
             )
 
