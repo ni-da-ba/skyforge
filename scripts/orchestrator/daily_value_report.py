@@ -250,13 +250,13 @@ def _load_recent_reports(
     report_dir: Path,
     days: int = 7,
     *,
-    exclude_date: str | None = None,
+    exclude_stem: str | None = None,
 ) -> list[dict[str, Any]]:
     reports: list[dict[str, Any]] = []
     paths = [
         path
         for path in sorted(report_dir.glob("*.json"))
-        if path.stem != exclude_date
+        if path.stem != exclude_stem
     ]
     for path in paths[-days:]:
         try:
@@ -408,10 +408,11 @@ def build_report(
 
     report_dir = root / STATE_DIR / REPORTS_DIR
     report_date_central = now.astimezone(CENTRAL).date().isoformat()
+    report_id = start.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     recent = _load_recent_reports(
         report_dir,
         days=6,
-        exclude_date=report_date_central,
+        exclude_stem=report_id,
     )
 
     period_hours = max(0.0, (now - start).total_seconds() / 3600.0)
@@ -420,6 +421,7 @@ def build_report(
     cumulative_cost = cumulative_hours * hourly_usd if hourly_usd is not None else None
 
     proto = {
+        "report_id": report_id,
         "captured_at": now.isoformat(),
         "period_start": start.isoformat(),
         "period_end": now.isoformat(),
@@ -601,7 +603,7 @@ def main() -> int:
 
     report_dir = state_dir / REPORTS_DIR
     report_dir.mkdir(parents=True, exist_ok=True)
-    stem = report["report_date_central"]
+    stem = report["report_id"]
     json_path = report_dir / f"{stem}.json"
     md_path = report_dir / f"{stem}.md"
     _atomic_json(json_path, report)
