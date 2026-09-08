@@ -23,12 +23,30 @@ if [[ "${#SKYFORGE_WEBHOOK_SECRET}" -lt 32 ]]; then
   exit 1
 fi
 
+if command -v apt-get >/dev/null 2>&1; then
+  missing=0
+  for command in git gh python3 caddy curl; do
+    if ! command -v "$command" >/dev/null 2>&1; then
+      missing=1
+    fi
+  done
+  if [[ "$missing" == "1" ]] || ! python3 -m venv --help >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git gh python3-venv caddy curl
+  fi
+fi
+
 for command in git gh python3 sudo caddy curl; do
   if ! command -v "$command" >/dev/null 2>&1; then
-    echo "Required command is missing: $command" >&2
+    echo "Required command is missing after bootstrap: $command" >&2
     exit 1
   fi
 done
+
+if command -v ufw >/dev/null 2>&1 && sudo ufw status | grep -q '^Status: active'; then
+  sudo ufw allow 80/tcp >/dev/null
+  sudo ufw allow 443/tcp >/dev/null
+fi
 
 if ! gh auth status >/dev/null 2>&1; then
   echo "GitHub CLI is not authenticated for the service user. Run: gh auth login" >&2
