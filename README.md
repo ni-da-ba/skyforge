@@ -49,7 +49,7 @@ The backend-neutral engine provides:
 - explicit authored-to-realized identity/provenance rather than rediscovery from seed, position, or iteration order;
 - island-local ecology, hydrology, cave, geology/material, and other semantic evidence that remains attached to the exact authored island;
 - higher-order regional composition that can aggregate or relate multiple islands through explicit provenance while preserving each member's independent identity;
-- accepted regional ecological opportunity, freshwater habitat, raw inter-island isolation/gap evidence, normalized Iron/Copper/Zinc geological opportunity, exact regional base-metal opportunity inventory, and scale-covariant built-in morphology surface-character diagnostics through **AUTH-0095**.
+- accepted regional ecological opportunity, freshwater habitat, raw inter-island isolation/gap evidence, normalized Iron/Copper/Zinc geological opportunity, exact regional base-metal opportunity inventory, scale-covariant built-in morphology surface-character diagnostics, and local surface-site capability evidence through **AUTH-0096**.
 
 The accepted Minecraft/NeoForge lifecycle through **SF-IMP-0082** includes:
 
