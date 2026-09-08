@@ -46,6 +46,7 @@ jobs:
           python -m py_compile scripts/orchestrator/skyforge_orchestrator.py
           python -m py_compile scripts/orchestrator/run_pilot.py
           python -m py_compile scripts/orchestrator/daily_value_report.py
+          python -m py_compile scripts/orchestrator/verify_main_protection.py
 
       - name: Check hosted shell syntax
         run: |
@@ -59,3 +60,5 @@ jobs:
         run: |
           python -m unittest scripts/orchestrator/test_skyforge_orchestrator.py
           python -m unittest scripts/orchestrator/test_daily_value_report.py
+          python -m unittest scripts/orchestrator/test_verify_main_protection.py
+          python -m unittest scripts/orchestrator/test_decommission_contract.py
