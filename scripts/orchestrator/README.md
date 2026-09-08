@@ -289,6 +289,7 @@ It stores:
 - parent turn count;
 - last dispatch time;
 - controller-managed branch/PR ownership;
+- durable human-gate surfacing records keyed to current PR state;
 - a durable, deduplicated pending-event journal;
 - a cached classifier decision tied to the event batch it consumed;
 - interrupted worker branch identity;
@@ -315,7 +316,7 @@ The parent thread rotates after 24 useful turns by default. The new thread recon
 `AGENTS.md`, preventing an indefinitely growing orchestration conversation from becoming another
 source of context drag.
 
-Terra workers are intentionally fresh/bounded threads.
+Bounded Luna and Terra workers are intentionally fresh threads; only the lightweight classifier parent is persistent.
 
 Before controller handoff, worker changes are rejected if they touch the orchestration/control plane:
 `scripts/orchestrator/**`, `deploy/orchestrator/**`, `.github/**`, `AGENTS.md`, or canonical
@@ -340,6 +341,18 @@ While blocked, incoming actionable events are still journaled but **do not start
 breaker expires, the controller reconstructs against current repository state. After a process restart,
 pending non-worker decisions are deliberately reclassified; an actual interrupted worker is resumed on
 its recorded branch so partial work is not discarded.
+
+Human-gate comments are once-per-current-PR-head by default. Before posting, the controller checks
+durable local gate state and can seed that state from an existing controller gate comment posted after
+the current PR head commit. Rewording the same gate therefore does not repeatedly notify the owner; a
+new PR head may legitimately surface the gate again.
+
+When `sync_main()` advances across a changed `scripts/orchestrator/*.py` file, the running process
+durably records a runtime-refresh request and exits non-zero. The hosted systemd unit's
+`Restart=on-failure` then reloads the synchronized Python from stable `main`, and the replacement
+process replays the retained event journal. Documentation-only movement does not restart the process.
+Dependency/installer changes remain an explicit deployment concern rather than an automatic package
+installation.
 
 The hourly Audit watchdog remains the independent path for a prolonged outage or a human decision that
 should not wait for the retry timer.
