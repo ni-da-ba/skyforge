@@ -517,7 +517,8 @@ ChatGPT device-code authentication is stored for that service user. No API-key b
 introduced.
 
 Before hosted activation, server-side GitHub protection for `main` must be verifiably active:
-pull requests and status checks are required, while force-push and branch deletion are blocked.
+pull requests and status checks are required, force-push and branch deletion are blocked, and the
+protection applies to administrators so owner-authenticated host credentials cannot bypass `main`.
 The installer verifies applicable rulesets or classic branch protection and refuses activation if
 this invariant cannot be established.
 
