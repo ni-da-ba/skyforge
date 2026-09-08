@@ -18,17 +18,21 @@ GitHub repository webhook
 ```
 
 The controller itself remains bound to `127.0.0.1:3000`. Caddy is the only public listener.
+Issue-comment wakes and remote controls are accepted only from explicitly trusted GitHub actors; the
+default pilot trust set is `ni-da-ba`. External/fork PR and workflow payloads are filtered before
+Codex.
 
 ## Host prerequisites
 
-Use a dedicated Linux host/remote Codex workspace. The service account needs:
+Use a dedicated Linux host/remote Codex workspace. **Do not run the service as root**; the installer
+refuses root execution. The non-root sudo service account needs:
 
 - a dedicated clone of `ni-da-ba/skyforge`;
 - Python 3 with `venv`;
 - `git`;
 - authenticated `gh` with permission to push branches, open PRs/comments, and administer this
   repository webhook;
-- Codex CLI/SDK authenticated with the intended ChatGPT account;
+- the pinned Codex Python SDK authenticated with the intended ChatGPT account;
 - Caddy;
 - `curl`;
 - `sudo` for initial service installation.
@@ -47,17 +51,33 @@ if its dependency is acceptable; do not weaken GitHub SSL verification.
 
 ## One-time authentication
 
-As the service user:
+As the service user, create/install the hosted virtualenv, then authenticate GitHub and the pinned
+Codex SDK:
 
 ```bash
 gh auth login
-codex login --device-auth
 gh auth status
-codex login status
+python3 -m venv .skyforge-orchestrator/venv
+.skyforge-orchestrator/venv/bin/pip install -r scripts/orchestrator/requirements.txt
+.skyforge-orchestrator/venv/bin/python scripts/orchestrator/codex_auth.py --device-login
 ```
 
-Device authentication allows the browser approval to happen on another machine while the credential
-is stored on the host. Do not place ChatGPT/Codex tokens or GitHub tokens in the repository.
+The SDK prints a device verification URL and code, so browser approval can happen on another device
+while the credential is stored for the service user. No API-key billing fallback is configured.
+
+## GitHub main-protection activation gate
+
+Before the hosted service can start, GitHub must enforce the minimum unattended-operation contract on
+`main`:
+
+- pull requests required;
+- required status checks enabled;
+- force pushes blocked;
+- branch deletion blocked.
+
+`scripts/orchestrator/verify_main_protection.py` checks applicable rulesets first and classic branch
+protection second. The installer fails closed if this cannot be verified. Do not bypass this gate to
+save setup time.
 
 ## Install
 
@@ -79,7 +99,8 @@ The installer:
 5. waits for the trusted `/healthz` endpoint;
 6. creates or updates one GitHub repository webhook with the exact event allowlist.
 
-It does **not** enable autonomous merge or API-key billing fallback.
+It does **not** enable autonomous merge or API-key billing fallback. First-week hosted defaults are
+24 Luna classifier attempts and 4 Terra worker attempts per UTC day.
 
 ## Reboot/offline semantics
 
@@ -95,6 +116,19 @@ every webhook that may have been missed while the host was offline.
 
 This is intentionally conservative. A reboot after ordinary online activity can cause one extra Luna
 classification, but repository work is not silently missed.
+
+## Trusted remote pause / resume
+
+From any issue or pull request, `ni-da-ba` may post exactly:
+
+```text
+/skyforge-pause
+/skyforge-resume
+```
+
+These commands are deterministic and spend zero model turns. Pause keeps receiving and journaling
+actionable repository events but starts no new Codex dispatch. Resume drains the retained batch.
+Untrusted commenters cannot invoke orchestration, Audit wake tokens, pause, or resume.
 
 ## Health
 
@@ -157,6 +191,7 @@ wake Luna. The reporter imports no Codex SDK and spends zero model turns.
 Each report records:
 
 - actual elapsed host hours multiplied by the selected Droplet's configured hourly rate;
+- a host CPU-load / available-memory / disk-utilization snapshot for right-sizing evidence;
 - events seen / filtered / actionable / duplicate / signature-rejected;
 - manual `/skyforge-orchestrate` wakes separately from Audit/watchdog wakes;
 - mean actionable-event-to-classifier dispatch latency;
@@ -204,7 +239,8 @@ Host-side cancellation is intentionally explicit and reversible:
 
 That command:
 
-1. writes/posts one final value report;
+1. attempts to write/post one final value report; if posting fails, it preserves a local failure record
+   **and continues teardown** so telemetry failure cannot trap continuing cost;
 2. removes the matching GitHub repository webhook;
 3. stops/disables the daily report timer;
 4. stops/disables the orchestrator;
