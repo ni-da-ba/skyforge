@@ -40,9 +40,17 @@ jobs:
         run: |
           python -m py_compile scripts/orchestrator/skyforge_orchestrator.py
           python -m py_compile scripts/orchestrator/run_pilot.py
+          python -m py_compile scripts/orchestrator/daily_value_report.py
 
-      - name: Check hosted installer syntax
-        run: bash -n scripts/orchestrator/install_hosted.sh
+      - name: Check hosted shell syntax
+        run: |
+          bash -n scripts/orchestrator/install_hosted.sh
+          bash -n scripts/orchestrator/decommission_hosted.sh
+
+      - name: Validate daily timer expression
+        run: systemd-analyze calendar "$(sed -n 's/^OnCalendar=//p' deploy/orchestrator/skyforge-value-report.timer)"
 
       - name: Run deterministic orchestration tests
-        run: python -m unittest scripts/orchestrator/test_skyforge_orchestrator.py
+        run: |
+          python -m unittest scripts/orchestrator/test_skyforge_orchestrator.py
+          python -m unittest scripts/orchestrator/test_daily_value_report.py
