@@ -1,6 +1,6 @@
 # Wave C25 — Create: Diesel Generators petroleum-authority A/B
 
-**Status:** IN PROGRESS  
+**Status:** ACCEPTED merge candidate  
 **Issue:** #376  
 **Predecessor:** C24 / PR #373  
 **Petroleum policy inputs:** C22-C24 + AUTH-0098/AUTH-0100  
@@ -134,3 +134,37 @@ C25 defines no:
 8. state records the downstream Implementation petroleum-source-adapter boundary.
 
 No Minecraft human-eye or manual play gate applies to C25.
+
+
+## Accepted candidate evidence
+
+Exact C25 code head `c8e2c3976bc3670f19d1e05880075d7781917e38` passed:
+
+- Wave C25 Diesel Petroleum Authority run `34187671861`;
+- repository CI run `34187671841`.
+
+Live A/B markers:
+
+```text
+BASELINE
+normalOilDisabled=false
+highOilDisabled=false
+crudeOil=true
+pumpjackHole=true
+distillationTank=true
+dieselEngine=true
+kubejs=false
+
+SUPPRESSED
+normalOilDisabled=true
+highOilDisabled=true
+crudeOil=true
+pumpjackHole=true
+distillationTank=true
+dieselEngine=true
+kubejs=false
+```
+
+Representative upstream native base-oil calls also returned zero in the suppressed run. Main movement
+after the tested base touched only Audit/Presentation orchestration/capture files, outside the C25
+dependency surface.

@@ -3,7 +3,7 @@
 **Lane:** Content / Experience  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Highest accepted Content boundary:** C24 / PR #373
+**Highest accepted Content boundary:** C25 / PR #377
 
 Read first:
 
@@ -13,7 +13,49 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest accepted executable Content milestone: C24
+### Highest accepted executable Content milestone: C25
+
+**C25 / PR #377** proves that the pinned Create: Diesel Generators petroleum machinery/fluid stack can
+remain available while its independent native chunk-noise petroleum geography is disabled.
+
+Accepted runtime split:
+
+```text
+Create: Diesel Generators machinery / crude / refining / engines    KEEP
+native per-chunk Perlin/biome petroleum authority                   SUPPRESS GLOBALLY
+AUTH-0098/AUTH-0100 + C22-C24                                      SKYFORGE MEANING
+literal petroleum source / depletion / pumpjack bridge              IMPLEMENTATION
+```
+
+Accepted interpretation:
+
+- baseline isolated runtime reads upstream `DISABLE_NORMAL_OIL_CHUNKS=false` and
+  `DISABLE_HIGH_OIL_CHUNKS=false`;
+- suppressed isolated runtime reads both flags as true;
+- representative upstream `OilChunksSavedData.getBaseOilAmount(...)` queries return zero under
+  suppression;
+- `createdieselgenerators:crude_oil`, Pumpjack Hole, Distillation Tank, and Diesel Engine remain
+  registered in both modes;
+- KubeJS is deliberately absent from the specimen, so the optional CDG oilAmount listener cannot
+  replace the tested native config path;
+- the validation TOML exists only inside the disposable C25 suppressed world and is not packaged;
+- unlike C21's Create-Zinc authority split, petroleum native authority is globally incompatible with
+  C22/C23 strategic-node semantics and should remain suppressed in production;
+- upstream chunk noise, biome tags, persistent `cdg_oil_chunks` native generation semantics, and
+  default bedrock pumpjack termination are retained-mod mechanics, not Skyforge petroleum meaning;
+- C25 does not choose the production adapter technique and does not justify adding KubeJS merely for
+  its optional petroleum event;
+- **Implementation** now owns the narrow petroleum-source/depletion/pumpjack bridge from accepted
+  AUTH-0100 + C22-C24 semantics into retained Diesel Generators machinery, including literal source
+  geometry/quantity/pressure/depletion, exact surface/subsurface alignment, persistence, and lifecycle.
+
+Exact code-head verification passed Wave C25 Diesel Petroleum Authority run `34187671861` and
+repository CI run `34187671841`. Live markers proved BASELINE
+`normalOilDisabled=false highOilDisabled=false` and SUPPRESSED
+`normalOilDisabled=true highOilDisabled=true` with retained assets in both modes. No Minecraft
+manual or human visual gate applies.
+
+### C24
 
 **C24 / PR #373** consumes accepted C23 + AUTH-0096/AUTH-0097 to nominate coarse petroleum
 infrastructure candidates without introducing a new Authorship threshold or selecting a final site.
@@ -450,9 +492,9 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 
 1. Do not duplicate active C11/C12 work; consume their results into #224 when accepted.
 2. Hand C21's exact-volume resource-authority contract to Implementation: filter competing Create Zinc/striated generic feature execution only inside explicit Skyforge-owned population, never by a packaged BASE_WORLD-wide override.
-3. Build the next petroleum Content boundary from C24: derive concrete extraction/refinery/freight requirement envelopes from actual retained/bespoke assets and gameplay roles, then test those requirements against accepted C24 candidate evidence.
-4. Request new Authorship evidence only if a concrete requirement cannot be evaluated from existing AUTH-0096/AUTH-0097 evidence; do not add another petroleum wrapper, ranking layer, or intuitive site threshold.
-5. Keep literal petroleum deposits, extraction mechanics, exact structure geometry/orientation/admission, neighboring obstruction, worldgen, persistence, and lifecycle in Implementation.
+3. Hand C25's petroleum-authority contract to Implementation: keep Diesel Generators machinery but suppress its native chunk-oil geography globally and prove the narrow Skyforge-owned source/depletion/pumpjack adapter over AUTH-0100 + C22-C24.
+4. Continue the petroleum Content asset audit only from hard retained-machine constraints: e.g. Pumpjack assembly composition/4-16 arm span and Distillation Tank multiblock limits. Do not promote Ponder layouts or intuitive footprints into terrain thresholds.
+5. Request new Authorship evidence only if a concrete retained-machine requirement cannot be evaluated from existing AUTH-0096/AUTH-0097 evidence; do not add another petroleum wrapper or ranking layer.
 6. Resume the remaining #227 turtle questions afterward: farming throughput, quarry/branch-mining scale, or dedicated chunk-loader/Ender-storage combinations. Do not nerf turtles without measured substitution evidence.
 7. Continue Bootstrap Province acceptance with C20's guaranteed Iron and post-flight Copper/Zinc semantics; exact quantities remain downstream of accepted C11/C12 aircraft closure and HS-06 remains the human gate before locking the starting recipe.
 8. Complete/accept #237 / PR #240 before C12 powered-soaring closure.
