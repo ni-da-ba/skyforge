@@ -1,7 +1,7 @@
 # Skyforge sound-library / MIDI audit — 2026-09-07
 
 **Scope:** accepted/frozen score sources, BBCSO Discover alignment, source persistence, and plugin-state portability  
-**Result:** mixed; no widespread corruption, but several concrete defects/gaps were found before Track 06 closeout
+**Result:** mixed; no widespread corruption. Track 00 range repair is closed by MUS-0004; HC provenance and Track 06 source recovery remain open
 
 ## Audit method
 
@@ -24,25 +24,28 @@ No accepted musical source was silently rewritten as part of this audit.
 
 | Cue | Source identity | Track/order | Tempo/meter | BBCSO range | Color/percussion state | Disposition |
 | --- | --- | --- | --- | --- | --- | --- |
-| Track 00 — A Windborne Fantasia | PASS | PASS | PASS with doc clarification: MIDI 104 BPM, 6/8 | **FAIL / repair candidate** | HC state not self-describing | controlled A/B before declaring reproduction-clean |
+| Track 00 — A Windborne Fantasia | PASS after MUS-0004 promotion | PASS | PASS: MIDI 104 BPM, 6/8 | PASS after V2F2A peak-handoff repair | HC state not self-describing | canonical MIDI repaired; HC provenance still open |
 | Track 01 — Rambling Through the Gentle Blue | PASS | PASS | PASS: 96 BPM, 4/4 | PASS | HC state not self-describing | musically clean; record HC preset when CWP available |
 | Track 02 — The Lord of Empty Miles | PASS after repaired persistence | PASS | PASS: 132 BPM, 4/4 | PASS except 2 Trumpet C#6 events | PERC verified: Untuned Percussion, 48/50/71 map | frozen; 2-note exception logged |
 | Track 03 — Count the Leagues | PASS | PASS | PASS: 76 BPM, 3/4 | PASS | HC state not self-describing | musically clean; record HC preset when CWP available |
 | Track 06 — storm | **MISSING canonical source** | cannot verify exact accepted final MIDI | documented 144 BPM, 4/4 | cannot complete | documented PERC Untuned + TP Glockenspiel | recover exact Draft 02.3 MIDI before persistence |
 | Principal-theme motif | source JSON present | not orchestrated | capture-grid metadata only | n/a | n/a | protected source; no orchestral audit yet |
 
-## Track 00 — concrete range defects
+## Track 00 — range defects resolved by MUS-0004
 
-The persisted source itself is the documented V2F.1 MIDI and its checksum matches.
+The original V2F.1 source was verified as the documented pre-repair identity and remains preserved as historical reference. It contained:
 
-However:
+- ten Horn note-ons in bars 57-60 above the BBCSO Discover Horns F5 ceiling;
+- three Viola B2 note-ons below the BBCSO Discover Viola C3 floor.
 
-- ten Horn note-ons in bars 57-60 exceed the BBCSO Discover Horns a4 ceiling F5;
-- three Viola B2 note-ons fall one semitone below the BBCSO Discover Viola floor C3.
+MUS-0003 machine-qualified two orchestration repairs. On 2026-09-07 the project owner explicitly selected the conservative V2F2A peak-handoff version for finalization. MUS-0004 promotes that exact source as canonical:
 
-The horn events are concentrated in the formal **horn crest**, so this is not harmless dead metadata. The likely correct repair is orchestration-specific, not mechanical. A blind octave shift is prohibited.
+- uncompressed SHA-256 `c8de531cba73d058ca02a8b58b444617596a09d888bd7cf7132601141121ca73`;
+- all ordinary-lane BBCSO ranges clean;
+- only HN, TPT, VLA and VLC differ from V2F.1;
+- V2F.1 remains historical reference and V2F2B remains noncanonical alternate.
 
-The source remains frozen until a controlled A/B preserves the accepted contour and role.
+This closes Track 00 note-range maintenance. Track 11 Harp/Celeste plugin-state provenance remains a separate reproducibility gap.
 
 ## Track 01 — clean MIDI, incomplete plugin-state provenance
 
@@ -122,12 +125,11 @@ The reusable 19-track schema remains valid, but it is a routing schema, not a co
 - Track 00 exact MIDI tempo recorded as 104 BPM;
 - HC plugin-state guardrail added;
 - per-instrument playable-range gate added;
-- no accepted MIDI note data changed during the audit.
+- no accepted MIDI note data changed during the original audit; MUS-0004 later promoted the explicitly selected Track 00 V2F2A repair.
 
 ## Required maintenance before new composition
 
-1. Build and audition a controlled Track 00 range-repair A/B.
-2. Recover/record Track 11 Harp/Celeste state from original CWP files when available; this is a reproducibility task, not a reason to rewrite accepted music.
-3. Recover the exact accepted Track 06 Draft 02.3 MIDI and persist it only after the full verification gate.
-4. Leave Track 01 and Track 03 musical note data untouched.
-5. Leave Track 02 untouched unless a future re-render justifies the two-note trumpet A/B.
+1. Recover/record Track 11 Harp/Celeste state from original CWP files when available; this is a reproducibility task, not a reason to rewrite accepted music.
+2. Recover the exact accepted Track 06 Draft 02.3 MIDI and persist it only after the full verification gate.
+3. Leave Track 01 and Track 03 musical note data untouched.
+4. Leave Track 02 untouched unless a future re-render justifies the two-note trumpet A/B.
