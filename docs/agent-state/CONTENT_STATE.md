@@ -136,6 +136,11 @@ Accepted interpretation:
 
 Final exact-head verification passed C10/C13/C14/C15/C16/C17, repository CI, all current showcase persistence/reopen jobs including ecology and Massif morphology, and SF-IMP-0070 performance characterization. The branch was synchronized twice around accepted SF-IMP-0081 and AUTH-0089 before merge.
 
+Verification-reliability maintenance after C21: the C17 runtime fixture later reproduced a transient
+Ender-locator startup miss while a same-head rerun passed. The fixture now boots the GPS host
+constellations for 60 server ticks before powering locators, removing the host/locator startup race
+without changing C17's accepted topology, modem semantics, or stock CraftOS API boundary.
+
 ### C16
 
 **C16 / PR #264**, merge `d63f7c712355fb421c909f7bbdc74465a88522e6`; exact synchronized runtime head `03418c4e941bc394989ca4269a1fbff3fc40cab7`.
