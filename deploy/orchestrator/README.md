@@ -147,7 +147,7 @@ The timer:
 ```text
 skyforge-value-report.timer
     -> scripts/orchestrator/daily_value_report.py
-    -> .skyforge-orchestrator/reports/YYYY-MM-DD.{json,md}
+    -> .skyforge-orchestrator/reports/<period-start-UTC>.{json,md}
     -> controller-marked comment on issue #378
 ```
 
