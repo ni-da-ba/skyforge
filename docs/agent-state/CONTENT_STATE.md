@@ -485,8 +485,23 @@ Exact strengthened-head verification passed Portable Engine Cutoff Persistence r
 stationary cutoff regression `34193038285`, retained C11 regression `34193038301`, and repository
 CI `34193038286`.
 
-Issue #237 remains **open**. Assembled-Sable behavior, two-engine together/independent control, and
-human ergonomics remain unaccepted.
+PR #397 accepts the real assembled-Sable/two-engine machine boundary:
+
+- Simulated's own `assembleFromSingleBlock` moves the specimen into a real Sable `ServerSubLevel`;
+- both configured Portable Engines, one shared Create shaft, and both redstone controls are retained
+  inside that exact returned sublevel;
+- both engine cutoff modes and exact pre-assembly burn counters survive assembly;
+- together CUT freezes both counters and produces zero output;
+- together RUN resumes exact counters and normal 32-RPM output;
+- engine A and engine B can each be cut/restarted independently while the other continues running;
+- repeated together CUT/restart remains stable.
+
+Exact synchronized-head verification passed Portable Engine Cutoff Sable run `34215553782`,
+Portable Engine Cutoff Persistence `34215553812`, stationary Portable Engine Cutoff
+`34215553718`, retained C11 `34215553709`, and repository CI `34215553710`.
+
+Issue #237 remains **open only for acceptance item #10: the human ergonomics / unexpected
+neighbor-redstone shutdown play gate**. Machine acceptance items #1-#9 are now satisfied.
 
 ### Authorship / Implementation dependencies
 
@@ -589,8 +604,13 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 
 ## Ordered next work
 
-1. Continue issue #237 from accepted stationary/persistence PRs #389/#392 into the real assembled-Sable two-engine together/independent gate. Preserve the narrow Simulated-only compatibility scope; do not infer mobile behavior from stationary ticks.
-2. Proceed with C12 / issue #239 executable Bellanca B0 using accepted C11 direct recipe closure and the #237 cutoff seam as it becomes mobile/persistent; do not claim final powered-soaring closure before #237's mobile gates.
+1. Proceed with C12 / issue #239 executable Bellanca B0. C11 direct recipe closure and #237's
+   stationary, CUT/RUN persistence, and real assembled-Sable/two-engine machine seams are now
+   available. Recompose historical PR #242 only as source-constrained topology/manifest input and
+   replace its paper mass/CG assumptions with live Sable evidence.
+2. Surface issue #237 acceptance item #10 as a bounded human play gate: verify the opt-in control is
+   understandable/intended and ordinary neighboring aircraft redstone does not cause surprising
+   shutdown. Do not accumulate more machine evidence for #237 unless that play gate exposes a defect.
 3. Hand C21's exact-volume resource-authority contract to Implementation: filter competing Create Zinc/striated generic feature execution only inside explicit Skyforge-owned population, never by a packaged BASE_WORLD-wide override.
 4. Track Implementation issue #387 as the consumer of C25+C26: keep Diesel Generators machinery, suppress native chunk oil globally, and realize the narrow Skyforge source/depletion/pumpjack bridge only inside C23-eligible petroleum provinces and exact C26 nonzero AUTH-0098 local support.
 5. Do not add another petroleum Authorship wrapper for retained-machine block geometry; Pumpjack 4-16 arm span and Distillation Tank dimensions remain Implementation geometry unless a concrete backend-neutral cause is demonstrated missing.

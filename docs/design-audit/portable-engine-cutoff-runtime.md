@@ -221,3 +221,53 @@ The acceptance must prove, at the relocated sublevel block entities:
 8. a final together CUT/restart remains repeatable.
 
 This is a headless compatibility gate, not the human ergonomics/flight-feel gate.
+
+
+## Accepted assembled-Sable/two-engine evidence
+
+Exact synchronized code head `d041eeee96bee538ac17a6027b6fd636fab3eb40` passed:
+
+- Portable Engine Cutoff Sable run `34215553782`;
+- Portable Engine Cutoff Persistence regression `34215553812`;
+- stationary Portable Engine Cutoff regression `34215553718`;
+- retained C11 recipe regression `34215553709`;
+- repository CI run `34215553710`.
+
+The live mobile marker was:
+
+```text
+PORTABLE_ENGINE_CUTOFF_SABLE_ACCEPTANCE PASS
+subLevel=ServerSubLevel
+virtualA=false
+virtualB=false
+startA=1000
+startB=1200
+finalA=996
+finalB=1196
+sharedShaft=true
+independentA=true
+independentB=true
+together=true
+```
+
+This uses Simulated's real assembly path and relocated block entities in the exact returned Sable
+server sublevel. It accepts issue #237 machine items #6 and #7 and, together with PRs #389/#392,
+completes machine acceptance items #1-#9.
+
+## Remaining human gate
+
+Issue #237 stays open for acceptance item #10 only.
+
+The owner/play check should answer:
+
+1. Is sneak-use with a Redstone Torch an understandable, intentional way to opt an engine into
+   redstone cutoff?
+2. Is the enabled/disabled feedback clear enough during aircraft setup?
+3. Once configured, is it obvious which redstone signal is commanding CUT versus ordinary nearby
+   aircraft circuitry?
+4. Can normal neighboring redstone arrangements create surprising engine shutdown in realistic
+   aircraft packaging?
+5. Does together/independent shutdown/restart feel predictable enough for power-off glide/restart?
+
+This is a control-ergonomics gate. More stationary/mobile machine permutations do not substitute for
+it unless play reveals a specific compatibility defect.
