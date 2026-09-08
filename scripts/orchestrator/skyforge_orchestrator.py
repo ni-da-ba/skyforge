@@ -4,6 +4,7 @@
 This process is intentionally local-only and reversible:
 - GitHub webhook events are forwarded to localhost by gh webhook forward.
 - The controller filters/debounces events before any Codex turn is created.
+- Actionable events are journaled before the webhook returns.
 - A low-cost Codex classifier decides whether bounded work is actionable.
 - A bounded Codex worker edits/tests only in a dedicated clone.
 - The controller, not the model, performs git/gh network writes.
@@ -16,13 +17,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import queue
 import re
 import subprocess
 import threading
 import time
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Iterable
@@ -34,6 +34,11 @@ DEFAULT_PORT = 3000
 DEFAULT_DEBOUNCE_SECONDS = 25
 DEFAULT_MIN_DISPATCH_SECONDS = 120
 DEFAULT_MAX_PARENT_TURNS = 24
+DEFAULT_MAX_CLASSIFIER_CALLS_PER_DAY = 48
+DEFAULT_MAX_WORKER_CALLS_PER_DAY = 8
+DEFAULT_QUOTA_BACKOFF_SECONDS = 3600
+DEFAULT_RATE_LIMIT_BACKOFF_SECONDS = 300
+DEFAULT_TRANSIENT_BACKOFF_SECONDS = 300
 
 ACTIVE_RUN_STATUSES = {"queued", "in_progress", "requested", "waiting", "pending"}
 AUDIT_WAKE_TOKENS = (
@@ -91,9 +96,10 @@ Work only on the supplied objective. Do not expand into unrelated cleanup. Do no
 product-strategy gate. Do not repeat expensive evidence unless the prompt identifies the distinct
 uncertainty it retires. Reuse portable evidence under VALIDATION_POLICY.md.
 
-Make local source/test/doc changes and run appropriate local verification. Leave the worktree clean of
-generated junk. Do not create or amend git commits; the controller handles commit/push after reviewing
-the worktree state.
+Make local source/test/doc changes and run appropriate local verification. Preserve and inspect any
+partial changes already present from an interrupted prior attempt before editing further. Leave the
+worktree clean of generated junk. Do not create or amend git commits; the controller handles
+commit/push after reviewing the worktree state.
 
 At completion, give a concise final response with:
 - what changed;
@@ -122,6 +128,25 @@ class EventDecision:
             bits.append(self.head_sha[:10])
         bits.append(self.reason)
         return " | ".join(bits)
+
+    def to_state(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @staticmethod
+    def from_state(value: dict[str, Any]) -> "EventDecision":
+        return EventDecision(
+            actionable=bool(value.get("actionable")),
+            reason=str(value.get("reason") or ""),
+            event=str(value.get("event") or ""),
+            action=value.get("action"),
+            head_sha=value.get("head_sha"),
+            pr_number=value.get("pr_number"),
+        )
+
+
+def _event_key(value: EventDecision | dict[str, Any]) -> str:
+    payload = value.to_state() if isinstance(value, EventDecision) else value
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
 
 def classify_event(event: str, payload: dict[str, Any]) -> EventDecision:
@@ -227,6 +252,26 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _utc_day() -> str:
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def _seconds_until_next_utc_day() -> int:
+    now = datetime.now(timezone.utc)
+    tomorrow = datetime.combine(now.date() + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+    return max(60, int((tomorrow - now).total_seconds()))
+
+
+def _env_int(name: str, default: int, *, minimum: int = 0) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return max(minimum, int(raw))
+    except ValueError:
+        return default
+
+
 def _clean_json_object(text: str) -> dict[str, Any]:
     raw = text.strip()
     fenced = re.match(r"^\`\`\`(?:json)?\s*(.*?)\s*\`\`\`$", raw, re.S | re.I)
@@ -242,6 +287,62 @@ def _clean_json_object(text: str) -> dict[str, Any]:
     return value
 
 
+class RetryBlocked(RuntimeError):
+    def __init__(self, kind: str, retry_after_seconds: int, message: str) -> None:
+        super().__init__(message)
+        self.kind = kind
+        self.retry_after_seconds = max(1, int(retry_after_seconds))
+
+
+def _codex_failure_policy(exc: Exception) -> tuple[str, int]:
+    """Map opaque SDK/App-Server failures into conservative retry classes.
+
+    The SDK surface may change exception classes, so the pilot intentionally avoids a hard dependency
+    on private exception types and uses the stable human-readable failure text as the compatibility
+    boundary. Unknown model-call failures are treated as transient and never discard durable work.
+    """
+    text = f"{type(exc).__name__}: {exc}".lower()
+    quota_tokens = (
+        "insufficient_quota",
+        "usage limit",
+        "quota",
+        "credits exhausted",
+        "credit balance",
+        "weekly limit",
+        "daily limit",
+        "limit reached",
+    )
+    rate_tokens = (
+        "rate limit",
+        "too many requests",
+        "429",
+        "capacity",
+        "overloaded",
+    )
+    auth_tokens = (
+        "authentication",
+        "unauthorized",
+        "invalid api key",
+        "401",
+        "403",
+    )
+    if any(token in text for token in quota_tokens):
+        return "quota", _env_int(
+            "SKYFORGE_ORCHESTRATOR_QUOTA_BACKOFF_SECONDS", DEFAULT_QUOTA_BACKOFF_SECONDS, minimum=60
+        )
+    if any(token in text for token in rate_tokens):
+        return "rate_limit", _env_int(
+            "SKYFORGE_ORCHESTRATOR_RATE_BACKOFF_SECONDS", DEFAULT_RATE_LIMIT_BACKOFF_SECONDS, minimum=30
+        )
+    if any(token in text for token in auth_tokens):
+        return "authentication", _env_int(
+            "SKYFORGE_ORCHESTRATOR_AUTH_BACKOFF_SECONDS", DEFAULT_QUOTA_BACKOFF_SECONDS, minimum=60
+        )
+    return "transient", _env_int(
+        "SKYFORGE_ORCHESTRATOR_TRANSIENT_BACKOFF_SECONDS", DEFAULT_TRANSIENT_BACKOFF_SECONDS, minimum=30
+    )
+
+
 class LocalState:
     def __init__(self, root: Path) -> None:
         self.dir = root / STATE_DIR
@@ -253,6 +354,16 @@ class LocalState:
             "last_dispatch_epoch": 0.0,
             "managed": {},
             "last_events": [],
+            "pending_events": [],
+            "pending_decision": None,
+            "pending_worker": None,
+            "blocked_until_epoch": 0.0,
+            "blocked_kind": None,
+            "blocked_reason": None,
+            "metrics": {},
+            "budget_day": _utc_day(),
+            "classifier_calls_today": 0,
+            "worker_calls_today": 0,
         }
         if self.path.exists():
             try:
@@ -287,7 +398,7 @@ class Orchestrator:
         self.max_parent_turns = max_parent_turns
         self.auto_merge = auto_merge
         self.state = LocalState(root)
-        self.events: "queue.Queue[EventDecision]" = queue.Queue()
+        self._state_lock = threading.RLock()
         self._timer_lock = threading.Lock()
         self._timer: threading.Timer | None = None
         self._dispatch_lock = threading.Lock()
@@ -307,37 +418,193 @@ class Orchestrator:
                 raise RuntimeError(f"Git {key} is required in the dedicated clone before autonomous commits")
         _run(["gh", "auth", "status"], cwd=self.root, timeout=30)
 
-    def enqueue(self, event: EventDecision) -> None:
-        if not event.actionable:
-            print(f"[orchestrator] ignored: {event.summary()}", flush=True)
-            return
-        self.events.put(event)
-        print(f"[orchestrator] queued: {event.summary()}", flush=True)
+    def _metric(self, name: str, amount: int = 1) -> None:
+        with self._state_lock:
+            metrics = self.state.data.setdefault("metrics", {})
+            metrics[name] = int(metrics.get(name) or 0) + amount
+            self.state.save()
+
+    def _reset_daily_budget_if_needed(self) -> None:
+        today = _utc_day()
+        if self.state.data.get("budget_day") != today:
+            self.state.data["budget_day"] = today
+            self.state.data["classifier_calls_today"] = 0
+            self.state.data["worker_calls_today"] = 0
+
+    def _consume_budget(self, kind: str) -> None:
+        with self._state_lock:
+            self._reset_daily_budget_if_needed()
+            if kind == "classifier":
+                key = "classifier_calls_today"
+                limit = _env_int(
+                    "SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY",
+                    DEFAULT_MAX_CLASSIFIER_CALLS_PER_DAY,
+                    minimum=1,
+                )
+            elif kind == "worker":
+                key = "worker_calls_today"
+                limit = _env_int(
+                    "SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY",
+                    DEFAULT_MAX_WORKER_CALLS_PER_DAY,
+                    minimum=1,
+                )
+            else:
+                raise ValueError(f"unknown budget kind: {kind}")
+            used = int(self.state.data.get(key) or 0)
+            if used >= limit:
+                raise RetryBlocked(
+                    "local_budget",
+                    _seconds_until_next_utc_day(),
+                    f"local {kind} daily call budget exhausted ({used}/{limit})",
+                )
+            self.state.data[key] = used + 1
+            metrics = self.state.data.setdefault("metrics", {})
+            metric_key = f"{kind}_attempts"
+            metrics[metric_key] = int(metrics.get(metric_key) or 0) + 1
+            self.state.save()
+
+    def _pending_events(self) -> list[EventDecision]:
+        with self._state_lock:
+            values = self.state.data.get("pending_events") or []
+            return [EventDecision.from_state(v) for v in values if isinstance(v, dict)]
+
+    def _persist_pending_events(self, events: Iterable[EventDecision]) -> None:
+        with self._state_lock:
+            current = [v for v in (self.state.data.get("pending_events") or []) if isinstance(v, dict)]
+            by_key = {_event_key(v): v for v in current}
+            added = False
+            for event in events:
+                payload = event.to_state()
+                key = _event_key(payload)
+                if key not in by_key:
+                    by_key[key] = payload
+                    added = True
+            self.state.data["pending_events"] = list(by_key.values())[-100:]
+            if added and not self.state.data.get("pending_worker"):
+                self.state.data["pending_decision"] = None
+            self.state.save()
+
+    def _decision_record(self) -> dict[str, Any] | None:
+        value = self.state.data.get("pending_decision")
+        return value if isinstance(value, dict) else None
+
+    def _cache_decision(self, decision: dict[str, Any], events: list[EventDecision]) -> None:
+        with self._state_lock:
+            self.state.data["pending_decision"] = {
+                "decision": decision,
+                "event_keys": [_event_key(e) for e in events],
+                "captured_at": _utc_now(),
+            }
+            self.state.save()
+
+    def _clear_completed_decision(self) -> None:
+        with self._state_lock:
+            record = self._decision_record() or {}
+            completed = set(record.get("event_keys") or [])
+            pending = [v for v in (self.state.data.get("pending_events") or []) if isinstance(v, dict)]
+            if completed:
+                pending = [v for v in pending if _event_key(v) not in completed]
+            else:
+                pending = []
+            self.state.data["pending_events"] = pending
+            self.state.data["pending_decision"] = None
+            self.state.data["pending_worker"] = None
+            self.state.save()
+        if pending:
+            self._schedule_pending(1)
+
+    def _set_retry_block(self, kind: str, seconds: int, reason: str) -> None:
+        until = time.time() + max(1, int(seconds))
+        with self._state_lock:
+            previous = float(self.state.data.get("blocked_until_epoch") or 0.0)
+            self.state.data["blocked_until_epoch"] = max(previous, until)
+            self.state.data["blocked_kind"] = kind
+            self.state.data["blocked_reason"] = reason[:2000]
+            metrics = self.state.data.setdefault("metrics", {})
+            metrics["retry_blocks"] = int(metrics.get("retry_blocks") or 0) + 1
+            if kind in {"quota", "rate_limit", "authentication"}:
+                metrics["codex_blocks"] = int(metrics.get("codex_blocks") or 0) + 1
+            self.state.save()
+        self._schedule_pending(max(1, int(self.state.data["blocked_until_epoch"] - time.time())))
+
+    def _blocked_remaining(self) -> int:
+        with self._state_lock:
+            remaining = int(float(self.state.data.get("blocked_until_epoch") or 0.0) - time.time())
+            if remaining <= 0:
+                if self.state.data.get("blocked_kind") is not None:
+                    self.state.data["blocked_until_epoch"] = 0.0
+                    self.state.data["blocked_kind"] = None
+                    self.state.data["blocked_reason"] = None
+                    self.state.save()
+                return 0
+            return remaining
+
+    def _schedule_pending(self, delay_seconds: int | float) -> None:
+        delay = max(0.1, float(delay_seconds))
         with self._timer_lock:
             if self._timer is not None:
                 self._timer.cancel()
-            self._timer = threading.Timer(self.debounce_seconds, self._drain_and_dispatch)
+            self._timer = threading.Timer(delay, self._drain_and_dispatch)
             self._timer.daemon = True
             self._timer.start()
 
+    def resume_pending(self) -> None:
+        pending = self._pending_events()
+        if not pending:
+            return
+        with self._state_lock:
+            if self.state.data.get("pending_decision") and not self.state.data.get("pending_worker"):
+                self.state.data["pending_decision"] = None
+                self.state.save()
+        self._metric("restart_replays")
+        remaining = self._blocked_remaining()
+        self._schedule_pending(remaining if remaining else 1)
+        print(
+            f"[orchestrator] restored {len(pending)} durable pending event(s) after restart",
+            flush=True,
+        )
+
+    def enqueue(self, event: EventDecision) -> None:
+        self._metric("events_seen")
+        if not event.actionable:
+            self._metric("events_filtered")
+            print(f"[orchestrator] ignored: {event.summary()}", flush=True)
+            return
+        self._metric("events_actionable")
+        self._persist_pending_events([event])
+        print(f"[orchestrator] journaled: {event.summary()}", flush=True)
+        remaining = self._blocked_remaining()
+        self._schedule_pending(remaining if remaining else self.debounce_seconds)
+
     def _drain_and_dispatch(self) -> None:
-        collected: list[EventDecision] = []
-        while True:
-            try:
-                collected.append(self.events.get_nowait())
-            except queue.Empty:
-                break
-        if not collected:
+        pending = self._pending_events()
+        if not pending:
             return
         with self._dispatch_lock:
             try:
-                self.dispatch(collected)
+                self.dispatch(pending)
+            except RetryBlocked as exc:
+                print(
+                    f"[orchestrator] {exc.kind} block: {exc}; retry in {exc.retry_after_seconds}s",
+                    flush=True,
+                )
+                self._set_retry_block(exc.kind, exc.retry_after_seconds, str(exc))
             except Exception as exc:
+                self._metric("dispatch_failures")
+                delay = _env_int(
+                    "SKYFORGE_ORCHESTRATOR_TRANSIENT_BACKOFF_SECONDS",
+                    DEFAULT_TRANSIENT_BACKOFF_SECONDS,
+                    minimum=30,
+                )
                 print(f"[orchestrator] dispatch error: {type(exc).__name__}: {exc}", flush=True)
+                self._set_retry_block("controller_error", delay, f"{type(exc).__name__}: {exc}")
 
     def _worktree_clean(self) -> bool:
         out = _run(["git", "status", "--porcelain"], cwd=self.root).stdout.strip()
         return not out
+
+    def _current_branch(self) -> str:
+        return _run(["git", "branch", "--show-current"], cwd=self.root).stdout.strip()
 
     def sync_main(self) -> None:
         if not self._worktree_clean():
@@ -400,28 +667,43 @@ class Orchestrator:
             "recent_runs": runs,
             "recent_commits": log,
             "controller_managed": self.state.data.get("managed", {}),
+            "orchestrator_metrics": self.state.data.get("metrics", {}),
         }
 
     def _codex_classifier(self, prompt: str) -> dict[str, Any]:
-        from openai_codex import Codex, Sandbox  # lazy: ignored events cost no SDK startup
+        self._consume_budget("classifier")
+        try:
+            from openai_codex import Codex, Sandbox
 
-        parent_model = os.environ.get("SKYFORGE_ORCHESTRATOR_MODEL", "gpt-5.6-luna")
-        parent_effort = os.environ.get("SKYFORGE_ORCHESTRATOR_REASONING", "low")
-        thread_id = self.state.data.get("parent_thread_id")
-        turns = int(self.state.data.get("parent_turns") or 0)
+            parent_model = os.environ.get("SKYFORGE_ORCHESTRATOR_MODEL", "gpt-5.6-luna")
+            parent_effort = os.environ.get("SKYFORGE_ORCHESTRATOR_REASONING", "low")
+            thread_id = self.state.data.get("parent_thread_id")
+            turns = int(self.state.data.get("parent_turns") or 0)
 
-        with Codex() as codex:
-            if thread_id and turns < self.max_parent_turns:
-                try:
-                    thread = codex.thread_resume(
-                        thread_id,
-                        cwd=str(self.root),
-                        model=parent_model,
-                        config={"model_reasoning_effort": parent_effort},
-                        sandbox=Sandbox.read_only,
-                        developer_instructions=CLASSIFIER_INSTRUCTIONS,
-                    )
-                except Exception:
+            with Codex() as codex:
+                if thread_id and turns < self.max_parent_turns:
+                    try:
+                        thread = codex.thread_resume(
+                            thread_id,
+                            cwd=str(self.root),
+                            model=parent_model,
+                            config={"model_reasoning_effort": parent_effort},
+                            sandbox=Sandbox.read_only,
+                            developer_instructions=CLASSIFIER_INSTRUCTIONS,
+                        )
+                    except Exception as exc:
+                        kind, retry = _codex_failure_policy(exc)
+                        if kind in {"quota", "rate_limit", "authentication"}:
+                            raise RetryBlocked(kind, retry, f"classifier resume failed: {exc}") from exc
+                        thread = codex.thread_start(
+                            cwd=str(self.root),
+                            model=parent_model,
+                            config={"model_reasoning_effort": parent_effort},
+                            sandbox=Sandbox.read_only,
+                            developer_instructions=CLASSIFIER_INSTRUCTIONS,
+                        )
+                        turns = 0
+                else:
                     thread = codex.thread_start(
                         cwd=str(self.root),
                         model=parent_model,
@@ -430,38 +712,41 @@ class Orchestrator:
                         developer_instructions=CLASSIFIER_INSTRUCTIONS,
                     )
                     turns = 0
-            else:
-                thread = codex.thread_start(
-                    cwd=str(self.root),
-                    model=parent_model,
-                    config={"model_reasoning_effort": parent_effort},
-                    sandbox=Sandbox.read_only,
-                    developer_instructions=CLASSIFIER_INSTRUCTIONS,
-                )
-                turns = 0
 
-            result = thread.run(prompt, sandbox=Sandbox.read_only)
-            self.state.data["parent_thread_id"] = thread.id
-            self.state.data["parent_turns"] = turns + 1
-            self.state.save()
-            return _clean_json_object(result.final_response)
+                result = thread.run(prompt, sandbox=Sandbox.read_only)
+                self.state.data["parent_thread_id"] = thread.id
+                self.state.data["parent_turns"] = turns + 1
+                self.state.save()
+                return _clean_json_object(result.final_response)
+        except RetryBlocked:
+            raise
+        except Exception as exc:
+            kind, retry = _codex_failure_policy(exc)
+            raise RetryBlocked(kind, retry, f"classifier call failed: {exc}") from exc
 
     def _worker(self, prompt: str) -> str:
-        from openai_codex import Codex, Sandbox
+        self._consume_budget("worker")
+        try:
+            from openai_codex import Codex, Sandbox
 
-        model = os.environ.get("SKYFORGE_WORKER_MODEL", "gpt-5.6-terra")
-        effort = os.environ.get("SKYFORGE_WORKER_REASONING", "medium")
-        with Codex() as codex:
-            thread = codex.thread_start(
-                cwd=str(self.root),
-                model=model,
-                config={"model_reasoning_effort": effort},
-                sandbox=Sandbox.workspace_write,
-                developer_instructions=WORKER_INSTRUCTIONS,
-                ephemeral=True,
-            )
-            result = thread.run(prompt, sandbox=Sandbox.workspace_write)
-            return result.final_response
+            model = os.environ.get("SKYFORGE_WORKER_MODEL", "gpt-5.6-terra")
+            effort = os.environ.get("SKYFORGE_WORKER_REASONING", "medium")
+            with Codex() as codex:
+                thread = codex.thread_start(
+                    cwd=str(self.root),
+                    model=model,
+                    config={"model_reasoning_effort": effort},
+                    sandbox=Sandbox.workspace_write,
+                    developer_instructions=WORKER_INSTRUCTIONS,
+                    ephemeral=True,
+                )
+                result = thread.run(prompt, sandbox=Sandbox.workspace_write)
+                return result.final_response
+        except RetryBlocked:
+            raise
+        except Exception as exc:
+            kind, retry = _codex_failure_policy(exc)
+            raise RetryBlocked(kind, retry, f"worker call failed: {exc}") from exc
 
     def _managed_branch(self, lane: str) -> dict[str, Any] | None:
         value = (self.state.data.get("managed") or {}).get(lane)
@@ -493,6 +778,45 @@ class Orchestrator:
                 pass
         return branch, None
 
+    def _resume_or_prepare_worker(
+        self, lane: str, source_pr: int | None, objective: str
+    ) -> tuple[str, int | None]:
+        pending = self.state.data.get("pending_worker")
+        if isinstance(pending, dict) and pending.get("branch"):
+            branch = str(pending["branch"])
+            managed_pr = pending.get("managed_pr")
+            current = self._current_branch()
+            if current != branch:
+                if not self._worktree_clean():
+                    raise RuntimeError(
+                        f"Interrupted worker has dirty worktree on {current!r}; expected {branch!r}. "
+                        "Manual inspection required before autonomous recovery."
+                    )
+                local_exists = _run(
+                    ["git", "show-ref", "--verify", f"refs/heads/{branch}"],
+                    cwd=self.root,
+                    check=False,
+                ).returncode == 0
+                if local_exists:
+                    _run(["git", "checkout", branch], cwd=self.root)
+                else:
+                    _run(["git", "fetch", "origin", branch], cwd=self.root, timeout=120)
+                    _run(["git", "checkout", "-B", branch, f"origin/{branch}"], cwd=self.root)
+            self._metric("worker_resumes")
+            return branch, managed_pr
+
+        branch, managed_pr = self._prepare_worker_branch(lane, source_pr)
+        with self._state_lock:
+            self.state.data["pending_worker"] = {
+                "lane": lane,
+                "branch": branch,
+                "managed_pr": managed_pr,
+                "objective": objective,
+                "started_at": _utc_now(),
+            }
+            self.state.save()
+        return branch, managed_pr
+
     def _changed_paths(self) -> list[str]:
         output = _run(["git", "status", "--porcelain"], cwd=self.root).stdout.splitlines()
         paths: list[str] = []
@@ -515,6 +839,7 @@ class Orchestrator:
     ) -> None:
         paths = self._changed_paths()
         if not paths:
+            self._metric("worker_no_change")
             print(f"[orchestrator] worker made no repository changes for {lane}", flush=True)
             return
 
@@ -565,6 +890,7 @@ class Orchestrator:
             "updated_at": _utc_now(),
         }
         self.state.save()
+        self._metric("worker_handoffs")
         print(f"[orchestrator] handed off {lane} on {branch} / PR #{pr_number}", flush=True)
 
     def _post_gate(self, decision: dict[str, Any]) -> None:
@@ -578,6 +904,7 @@ class Orchestrator:
                 cwd=self.root,
                 timeout=60,
             )
+            self._metric("human_gates")
         except Exception as exc:
             print(f"[orchestrator] could not post human gate: {exc}", flush=True)
 
@@ -616,61 +943,79 @@ class Orchestrator:
         _run(["gh", "pr", "merge", str(pr_number), "--repo", self.repo, "--merge"], cwd=self.root, timeout=120)
         self.state.data.setdefault("managed", {}).pop(lane, None)
         self.state.save()
+        self._metric("managed_merges")
         print(f"[orchestrator] merged managed PR #{pr_number}", flush=True)
 
     def dispatch(self, events: list[EventDecision]) -> None:
-        # Ignore workflow completion until all runs on that exact head are terminal.
-        heads = {e.head_sha for e in events if e.event == "workflow_run" and e.head_sha}
-        for head in heads:
-            if not self.workflows_quiescent(head):
-                return
+        remaining = self._blocked_remaining()
+        if remaining:
+            self._schedule_pending(remaining)
+            return
 
         now = time.time()
         last = float(self.state.data.get("last_dispatch_epoch") or 0.0)
         if now - last < self.min_dispatch_seconds:
             remaining = max(1, int(self.min_dispatch_seconds - (now - last)))
-            for event in events:
-                self.events.put(event)
             print(
-                f"[orchestrator] minimum dispatch interval not elapsed; retrying coalesced batch in {remaining}s",
+                f"[orchestrator] minimum dispatch interval not elapsed; retrying durable batch in {remaining}s",
                 flush=True,
             )
-            with self._timer_lock:
-                if self._timer is not None:
-                    self._timer.cancel()
-                self._timer = threading.Timer(remaining, self._drain_and_dispatch)
-                self._timer.daemon = True
-                self._timer.start()
+            self._schedule_pending(remaining)
             return
 
-        self.sync_main()
-        snap = self.snapshot()
-        summaries = [e.summary() for e in events]
-        self.state.data["last_events"] = summaries[-20:]
-        self.state.save()
+        record = self._decision_record()
+        pending_worker = self.state.data.get("pending_worker")
 
-        prompt = (
-            "A filtered Skyforge repository event batch is actionable.\n\n"
-            "EVENTS:\n- " + "\n- ".join(summaries) + "\n\n"
-            "COMPACT REPOSITORY SNAPSHOT:\n" + json.dumps(snap, indent=2)[:24000] + "\n\n"
-            "Read AGENTS.md and the compact Audit state as needed. Return only the required JSON decision."
-        )
-        decision = self._codex_classifier(prompt)
-        self.state.data["last_dispatch_epoch"] = now
-        self.state.save()
+        if not (record and isinstance(pending_worker, dict)):
+            heads = {e.head_sha for e in events if e.event == "workflow_run" and e.head_sha}
+            for head in heads:
+                if not self.workflows_quiescent(head):
+                    self._schedule_pending(max(30, self.debounce_seconds))
+                    return
+            self.sync_main()
+
+        if record:
+            decision = record.get("decision")
+            if not isinstance(decision, dict):
+                decision = None
+        else:
+            decision = None
+
+        if decision is None:
+            snap = self.snapshot()
+            summaries = [e.summary() for e in events]
+            self.state.data["last_events"] = summaries[-20:]
+            self.state.save()
+            prompt = (
+                "A filtered Skyforge repository event batch is actionable.\n\n"
+                "EVENTS:\n- " + "\n- ".join(summaries) + "\n\n"
+                "COMPACT REPOSITORY SNAPSHOT:\n" + json.dumps(snap, indent=2)[:24000] + "\n\n"
+                "Read AGENTS.md and the compact Audit state as needed. Return only the required JSON decision."
+            )
+            decision = self._codex_classifier(prompt)
+            self.state.data["last_dispatch_epoch"] = now
+            self.state.save()
+            self._cache_decision(decision, events)
+        else:
+            self._metric("cached_decision_reuses")
+
         kind = str(decision.get("decision") or "NOOP").upper()
         lane = decision.get("lane")
         print(f"[orchestrator] classifier decision: {kind} lane={lane} reason={decision.get('reason')}", flush=True)
 
         if kind == "NOOP":
+            self._metric("classifier_noops")
+            self._clear_completed_decision()
             return
         if kind == "HUMAN_GATE":
             self._post_gate(decision)
+            self._clear_completed_decision()
             return
         if kind == "MERGE":
             if not isinstance(lane, str):
                 raise RuntimeError("MERGE decision missing lane")
             self._merge_managed(lane, decision.get("pr_number"))
+            self._clear_completed_decision()
             return
         if kind != "DISPATCH":
             raise RuntimeError(f"Unknown classifier decision: {kind}")
@@ -682,7 +1027,7 @@ class Orchestrator:
         if not objective or not stop_boundary:
             raise RuntimeError("DISPATCH requires objective and stop_boundary")
 
-        branch, managed_pr = self._prepare_worker_branch(lane, decision.get("pr_number"))
+        branch, managed_pr = self._resume_or_prepare_worker(lane, decision.get("pr_number"), objective)
         worker_prompt = f"""Bounded objective:
 {objective}
 
@@ -695,13 +1040,15 @@ Existing portable evidence:
 Source PR or issue context:
 {decision.get("pr_number") or "N/A"}
 
-The outer controller checked out branch {branch}. If a prior producer PR is relevant, its origin ref may
-be available locally for comparison, but do not blindly merge stale history.
+The outer controller has selected branch {branch}. This may be a resumed interrupted worker branch;
+inspect and preserve any partial work already present before changing it. If a prior producer PR is
+relevant, its origin ref may be available locally for comparison, but do not blindly merge stale history.
 
 Work only until the stop boundary. Persist the bounded result as local file changes and tests. Do not
 commit, push, open/merge PRs, or use network access."""
         worker_summary = self._worker(worker_prompt)
         self._handoff_changes(lane, objective, branch, managed_pr, worker_summary)
+        self._clear_completed_decision()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -769,6 +1116,7 @@ def main() -> int:
         f"for {args.repo}; auto_merge={args.auto_merge}",
         flush=True,
     )
+    orchestrator.resume_pending()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
