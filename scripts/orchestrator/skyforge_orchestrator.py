@@ -110,6 +110,10 @@ MERGE may be selected only for a controller-managed PR whose required machine ev
 green and whose repository policy has no remaining human/product gate.
 """
 
+CLASSIFIER_POLICY_FINGERPRINT = hashlib.sha256(
+    CLASSIFIER_INSTRUCTIONS.encode("utf-8")
+).hexdigest()
+
 WORKER_INSTRUCTIONS = """You are a bounded Skyforge repository worker.
 
 Read AGENTS.md, PROGRAM_CHARTER.md, VALIDATION_POLICY.md, the relevant lane state,
@@ -425,6 +429,54 @@ def _classifier_prompt(events: list[EventDecision], snapshot: dict[str, Any]) ->
     )
 
 
+def _restart_signal_events(events: Iterable[EventDecision]) -> list[EventDecision]:
+    return [
+        event
+        for event in events
+        if event.action == "audit_signal" and event.signal_kind == "restart_recommended"
+    ]
+
+
+def _restart_signal_expected_head(event: EventDecision) -> str | None:
+    text = event.signal_text or ""
+    match = re.search(r"\bhead\s+[`'\"]?([0-9a-f]{40})\b", text, re.I)
+    if match:
+        return match.group(1).lower()
+    candidates = re.findall(r"\b[0-9a-f]{40}\b", text, re.I)
+    if len(candidates) == 1:
+        return candidates[0].lower()
+    return None
+
+
+def _restart_noop_has_post_signal_evidence(
+    events: Iterable[EventDecision], snapshot: dict[str, Any]
+) -> bool:
+    restarts = _restart_signal_events(events)
+    if not restarts:
+        return True
+    open_prs = snapshot.get("open_prs") or []
+    by_number = {
+        int(pr.get("number")): pr
+        for pr in open_prs
+        if isinstance(pr, dict) and pr.get("number") is not None
+    }
+    for event in restarts:
+        if event.pr_number is None:
+            return False
+        current = by_number.get(int(event.pr_number))
+        # A target that is no longer open has materially changed after the watchdog handoff.
+        if current is None:
+            continue
+        expected_head = _restart_signal_expected_head(event)
+        current_head = str(current.get("headRefOid") or "").lower()
+        # Without an immutable signal-time head we cannot prove recovery from PR metadata alone.
+        if not expected_head or not current_head:
+            return False
+        if current_head == expected_head:
+            return False
+    return True
+
+
 class RetryBlocked(RuntimeError):
     def __init__(self, kind: str, retry_after_seconds: int, message: str) -> None:
         super().__init__(message)
@@ -490,6 +542,7 @@ class LocalState:
         self.data: dict[str, Any] = {
             "parent_thread_id": None,
             "parent_turns": 0,
+            "classifier_policy_fingerprint": None,
             "last_dispatch_epoch": 0.0,
             "managed": {},
             "last_events": [],
@@ -527,6 +580,22 @@ class LocalState:
             tmp.replace(self.path)
 
 
+def _ensure_classifier_policy_state(state: LocalState) -> None:
+    stored = state.data.get("classifier_policy_fingerprint")
+    if stored == CLASSIFIER_POLICY_FINGERPRINT:
+        return
+    had_parent = bool(state.data.get("parent_thread_id"))
+    state.data["parent_thread_id"] = None
+    state.data["parent_turns"] = 0
+    state.data["classifier_policy_fingerprint"] = CLASSIFIER_POLICY_FINGERPRINT
+    if had_parent:
+        metrics = state.data.setdefault("metrics", {})
+        metrics["classifier_policy_rotations"] = int(
+            metrics.get("classifier_policy_rotations") or 0
+        ) + 1
+    state.save()
+
+
 class Orchestrator:
     def __init__(
         self,
@@ -557,6 +626,7 @@ class Orchestrator:
         if not self.trusted_actors:
             raise RuntimeError("At least one trusted GitHub actor is required")
         self.state = LocalState(root)
+        _ensure_classifier_policy_state(self.state)
         self._state_lock = threading.RLock()
         self._timer_lock = threading.Lock()
         self._timer: threading.Timer | None = None
@@ -1373,6 +1443,43 @@ class Orchestrator:
                 self.state.save()
             prompt = _classifier_prompt(events, snap)
             decision = self._codex_classifier(prompt)
+            if (
+                str(decision.get("decision") or "NOOP").upper() == "NOOP"
+                and _restart_signal_events(events)
+                and not _restart_noop_has_post_signal_evidence(events, snap)
+            ):
+                self._metric("restart_noop_rechecks")
+                guarded_prompt = (
+                    prompt
+                    + "\n\nRESTART NOOP GUARD:\n"
+                    + "Your previous NOOP conflicts with a trusted RESTART RECOMMENDED signal and "
+                    + "the compact snapshot does not prove post-signal producer recovery by immutable "
+                    + "head/closure evidence. Re-evaluate once. Choose DISPATCH with the directive's "
+                    + "bounded lane/objective/stop boundary, or HUMAN_GATE if a real human/product "
+                    + "boundary prevents execution. Do not return NOOP merely because the PR is open, "
+                    + "draft, recently commented on, or has unchanged checks."
+                )
+                decision = self._codex_classifier(guarded_prompt)
+                if str(decision.get("decision") or "NOOP").upper() == "NOOP":
+                    restart = _restart_signal_events(events)[0]
+                    self._metric("restart_noop_escalations")
+                    decision = {
+                        "decision": "HUMAN_GATE",
+                        "lane": None,
+                        "pr_number": restart.pr_number,
+                        "objective": None,
+                        "stop_boundary": None,
+                        "reusable_evidence": restart.signal_text,
+                        "reason": (
+                            "Trusted RESTART RECOMMENDED remained NOOP after guarded reclassification "
+                            "without immutable post-signal recovery evidence."
+                        ),
+                        "human_message": (
+                            "Hosted restart classifier could not reconcile the trusted stale-producer "
+                            "handoff after one guarded reclassification. Review the target before any "
+                            "further autonomous dispatch."
+                        ),
+                    }
             with self._state_lock:
                 self.state.data["last_dispatch_epoch"] = now
                 self.state.save()

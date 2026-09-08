@@ -264,6 +264,72 @@ class EventFilterTests(unittest.TestCase):
         self.assertFalse(d.actionable)
 
 
+class RestartNoopGuardTests(unittest.TestCase):
+    def restart_event(self):
+        return orch.EventDecision(
+            True,
+            "Audit/watchdog orchestration signal",
+            "issue_comment",
+            action="audit_signal",
+            pr_number=401,
+            observed_at="2026-09-08T16:18:09+00:00",
+            source_id="5588330240",
+            signal_kind="restart_recommended",
+            signal_text=(
+                "AUDIT — RESTART RECOMMENDED. Preserve PR #401 at head "
+                "`091a2decaf81bebc9e9161e8b04e291c2831d9b0`."
+            ),
+        )
+
+    def test_unchanged_open_head_does_not_support_restart_noop(self):
+        snapshot = {
+            "open_prs": [
+                {
+                    "number": 401,
+                    "headRefOid": "091a2decaf81bebc9e9161e8b04e291c2831d9b0",
+                }
+            ]
+        }
+        self.assertFalse(
+            orch._restart_noop_has_post_signal_evidence([self.restart_event()], snapshot)
+        )
+
+    def test_changed_head_supports_restart_noop_reconsideration(self):
+        snapshot = {
+            "open_prs": [
+                {
+                    "number": 401,
+                    "headRefOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                }
+            ]
+        }
+        self.assertTrue(
+            orch._restart_noop_has_post_signal_evidence([self.restart_event()], snapshot)
+        )
+
+    def test_closed_target_supports_restart_noop_reconsideration(self):
+        self.assertTrue(
+            orch._restart_noop_has_post_signal_evidence(
+                [self.restart_event()], {"open_prs": []}
+            )
+        )
+
+    def test_restart_without_signal_time_head_cannot_be_silently_nooped(self):
+        event = self.restart_event()
+        event = orch.replace(event, signal_text="AUDIT — RESTART RECOMMENDED.")
+        snapshot = {
+            "open_prs": [
+                {
+                    "number": 401,
+                    "headRefOid": "091a2decaf81bebc9e9161e8b04e291c2831d9b0",
+                }
+            ]
+        }
+        self.assertFalse(
+            orch._restart_noop_has_post_signal_evidence([event], snapshot)
+        )
+
+
 class ClassifierJsonTests(unittest.TestCase):
     def test_plain_json(self):
         value = orch._clean_json_object('{"decision":"NOOP","reason":"idle"}')
@@ -398,6 +464,27 @@ class HostedTransportTests(unittest.TestCase):
                 "docs/agent-state/IMPLEMENTATION_STATE.md"
             )
         )
+
+    def test_classifier_policy_change_rotates_persistent_parent_thread(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            state = orch.LocalState(root)
+            state.data["parent_thread_id"] = "stale-thread"
+            state.data["parent_turns"] = 7
+            state.data["classifier_policy_fingerprint"] = "old-policy"
+            state.save()
+
+            o = self.make_orchestrator(root)
+            self.assertIsNone(o.state.data["parent_thread_id"])
+            self.assertEqual(o.state.data["parent_turns"], 0)
+            self.assertEqual(
+                o.state.data["classifier_policy_fingerprint"],
+                orch.CLASSIFIER_POLICY_FINGERPRINT,
+            )
+            self.assertEqual(
+                o.state.data["metrics"].get("classifier_policy_rotations"),
+                1,
+            )
 
     def test_first_week_local_budget_defaults_are_conservative(self):
         self.assertEqual(orch.DEFAULT_MAX_CLASSIFIER_CALLS_PER_DAY, 24)
