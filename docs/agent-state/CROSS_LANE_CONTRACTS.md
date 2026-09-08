@@ -21,7 +21,7 @@ This file records only coordination boundaries another lane must preserve.
 | --- | --- |
 | Authorship | `AUTH-0100` accepted: exact regional AUTH-0098 petroleum-system opportunity inventory over AUTH-0087 provenance; AUTH-0097 remains the site-access handoff and AUTH-0095 the morphology-diagnostic handoff |
 | Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / #284 owns remaining AUTH-0083 built-in seed/scale Minecraft matrix |
-| Content / Experience | `C22` / PR #360 accepted candidate: petroleum is STRATEGIC_NODE / R3 mature industry with no ordinary-province hard guarantee; AUTH-0100 supplies the requested regional inventory |
+| Content / Experience | `C23` / PR #367 accepted candidate: AUTH-0100 now drives deterministic petroleum-province feasibility/replan without selecting a final site; next Content seam is petroleum infrastructure-role matching over accepted site/access evidence |
 | Music / Audio | `MUS-0002` accepted in `30b5202fec3ae07b0720b42eb8d7770c3c463843`: canonical soundtrack source integrity is machine-gated in normal CI; human listening/CWP recovery gates remain explicit |
 | AUDIT | `AUDIT-0008` accepted: repository-visible process/convergence health remains supervisory responsibility |
 
@@ -283,6 +283,28 @@ frequency, multi-factor selection/replanning, trade/salvage, route pressure, and
 not reinterpret AUTH-0098/AUTH-0100 opportunity as reserves, grade, pressure, physical volume,
 deposit count, extraction rate, or Minecraft placement weight, and geological rank alone must not
 silently become final route/site/civilization selection policy.
+
+### C23 — petroleum strategic-node province feasibility — ACCEPTED
+
+C23 / PR #367 consumes C22 + AUTH-0100 without adding another Authorship threshold:
+
+- `ORDINARY_PROVINCE` always returns `NO_PETROLEUM_REQUIREMENT`;
+- an intentional `PETROLEUM_STRATEGIC_NODE` returns `REPLAN_REQUIRED` only when exact AUTH-0100
+  eligible coverage is zero;
+- nonzero exact AUTH-0100 eligible coverage returns `CANDIDATES_AVAILABLE`;
+- canonical and ranked candidate lists are exact AUTH-0100 pass-throughs;
+- the C23 API exposes no selected island.
+
+Therefore AUTH-0100 is sufficient for province geological feasibility and no new petroleum Authorship
+producer is justified by C23.
+
+The next petroleum Content work should define explicit extraction/refinery/freight infrastructure-role
+requirements and first attempt to consume accepted AUTH-0096 local surface-site plus AUTH-0097
+directional-access evidence. A further Authorship milestone is justified only if that concrete matcher
+demonstrates a specific missing backend-neutral world cause.
+
+Implementation remains owner of literal deposits, quantity/pressure/depletion/extraction, concrete
+structure geometry/admission, Minecraft/mod identity, worldgen, persistence, and lifecycle.
 
 ## Atmosphere / mobility
 
