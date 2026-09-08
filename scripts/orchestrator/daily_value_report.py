@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -280,12 +281,83 @@ def _money(value: float | None) -> str:
     return "unknown" if value is None else f"${value:.2f}"
 
 
+def _parse_meminfo(text: str) -> dict[str, int | float | None]:
+    values: dict[str, int] = {}
+    for line in text.splitlines():
+        if ":" not in line:
+            continue
+        key, raw = line.split(":", 1)
+        parts = raw.strip().split()
+        if not parts:
+            continue
+        try:
+            amount = int(parts[0])
+        except ValueError:
+            continue
+        multiplier = 1024 if len(parts) > 1 and parts[1].lower() == "kb" else 1
+        values[key] = amount * multiplier
+
+    total = values.get("MemTotal")
+    available = values.get("MemAvailable")
+    used_pct = None
+    if total and available is not None:
+        used_pct = max(0.0, min(100.0, (total - available) / total * 100.0))
+    return {
+        "memory_total_bytes": total,
+        "memory_available_bytes": available,
+        "memory_used_pct": used_pct,
+    }
+
+
+def collect_host_resources(root: Path) -> dict[str, Any]:
+    cpu_count = os.cpu_count() or 1
+    try:
+        load1, load5, load15 = os.getloadavg()
+    except (AttributeError, OSError):
+        load1 = load5 = load15 = None
+
+    memory: dict[str, Any] = {
+        "memory_total_bytes": None,
+        "memory_available_bytes": None,
+        "memory_used_pct": None,
+    }
+    try:
+        memory.update(_parse_meminfo(Path("/proc/meminfo").read_text()))
+    except (FileNotFoundError, PermissionError, OSError):
+        pass
+
+    disk = shutil.disk_usage(root)
+    disk_used_pct = (disk.used / disk.total * 100.0) if disk.total else None
+    return {
+        "cpu_count": cpu_count,
+        "load_1m": load1,
+        "load_5m": load5,
+        "load_15m": load15,
+        "load_1m_per_cpu": (load1 / cpu_count) if load1 is not None else None,
+        **memory,
+        "disk_total_bytes": disk.total,
+        "disk_used_bytes": disk.used,
+        "disk_free_bytes": disk.free,
+        "disk_used_pct": disk_used_pct,
+    }
+
+
+def _fmt_metric(value: Any, spec: str, *, suffix: str = "") -> str:
+    if value is None:
+        return "n/a"
+    try:
+        return format(float(value), spec) + suffix
+    except (TypeError, ValueError):
+        return "n/a"
+
+
 def _render_markdown(report: dict[str, Any]) -> str:
     d = report["metric_deltas"]
     prs = report["controller_prs"]
     trailing = report["trailing_window"]
     cost = report["cost"]
     signal = report["evaluation"]
+    host = report.get("host_resources") or {}
 
     classifier_attempts = int(d.get("classifier_attempts") or 0)
     worker_attempts = int(d.get("worker_attempts") or 0)
@@ -343,6 +415,12 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"| Startup reconciliations | {d.get('startup_reconciliations', 0)} |",
         f"| Mean actionable-event → classifier latency | "
         f"{'n/a' if avg_dispatch_seconds is None else f'{avg_dispatch_seconds:.1f}s'} |",
+        "",
+        "### Host resource snapshot",
+        "",
+        f"- CPU load (1m / logical CPU): **{_fmt_metric(host.get('load_1m_per_cpu'), '.2f')}**",
+        f"- Memory used: **{_fmt_metric(host.get('memory_used_pct'), '.1f', suffix='%')}**",
+        f"- Disk used: **{_fmt_metric(host.get('disk_used_pct'), '.1f', suffix='%')}**",
         "",
         "### Controller PR evidence",
         "",
@@ -435,6 +513,7 @@ def build_report(
             "cumulative_hours": cumulative_hours,
             "cumulative_estimate_usd": cumulative_cost,
         },
+        "host_resources": collect_host_resources(root),
     }
 
     window = recent + [proto]
