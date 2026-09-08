@@ -146,6 +146,30 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return completed;
     }
 
+    /**
+     * Services at most one eligible exact-volume terrain record for one already-available chunk.
+     *
+     * <p>The eligible list is refreshed from the same admission-stage iteration used by
+     * {@link #serviceCatchup(ChunkAccess)}. Returning after the first successful realization makes
+     * one scheduler quantum correspond to one exact (volume, chunk) mutation instead of every
+     * vertically stacked volume in that chunk. Repeated calls therefore preserve the historical
+     * per-chunk iteration order while allowing the outer elapsed-time guard to yield between
+     * independent exact volumes.
+     */
+    static int serviceOneCatchup(ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return 0;
+        }
+        for (var pending : SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos())) {
+            if (realizeDeferred(binding, chunk, pending)) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+
     private static boolean realizeDeferred(
             RuntimeBinding binding,
             ChunkAccess chunk,
@@ -182,18 +206,33 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                     adaptStart);
         }
 
-        long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
-        int expectedSolidBlocks = materialization.solidBlockCount();
-        SkyforgeRuntimePerformanceMetrics.recordSince(
-                "terrain.deferred.solidCount",
-                solidCountStart);
+        boolean exactAdmissionFastPath =
+                SkyforgePhysicalVolumeAdmissionStage.canUseExactDeferredWriteFastPath(
+                        pending,
+                        chunk,
+                        range.minimumY(),
+                        range.height());
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.deferredExactAdmissionFastPath",
+                exactAdmissionFastPath ? 1L : 0L);
+
+        int expectedSolidBlocks = -1;
+        if (!exactAdmissionFastPath) {
+            long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
+            expectedSolidBlocks = materialization.solidBlockCount();
+            SkyforgeRuntimePerformanceMetrics.recordSince(
+                    "terrain.deferred.solidCount",
+                    solidCountStart);
+        }
 
         long writeStart = SkyforgeRuntimePerformanceMetrics.start();
-        MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
+        MinecraftChunkWriteResult result = exactAdmissionFastPath
+                ? binding.writer().writeAdmittedExactSolidOverlay(chunk, materialization)
+                : binding.writer().writeSolidOverlay(chunk, materialization);
         SkyforgeRuntimePerformanceMetrics.recordSince(
                 "terrain.deferred.write",
                 writeStart);
-        if (result.solidBlockCount() != expectedSolidBlocks) {
+        if (!exactAdmissionFastPath && result.solidBlockCount() != expectedSolidBlocks) {
             // Another exact volume still owns at least one blocked coordinate. Keep the record
             // pending until all owners have terminal admission decisions.
             return false;
@@ -303,6 +342,25 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         Objects.requireNonNull(volumeId, "volumeId");
         RuntimeBinding binding = ACTIVE.get();
         return binding == null ? Optional.empty() : binding.adapter().volumeBounds(volumeId);
+    }
+
+    /**
+     * Returns the exact discrete solid interval for one runtime-bound island column.
+     *
+     * <p>The interval comes from the accepted compiled support bridge and is therefore suitable for
+     * physical-admission scans that need occupancy, not terrain-role classification.
+     */
+    static Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> integerSolidRange(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            throw new IllegalStateException(
+                    "exact column support requires an active Skyforge terrain binding");
+        }
+        return binding.adapter().integerSolidRange(volumeId, worldX, worldZ);
     }
 
     static Optional<List<SurfaceSupportAssessment>> assessSurfaceSupport(SurfaceSupportRequirements requirements) {

@@ -10,6 +10,59 @@ import org.junit.jupiter.api.Test;
 
 final class SkyforgePhysicalVolumeCatchupServiceTest {
     @Test
+    void terrainPumpStopsAtHardChunkCap() {
+        var calls = new AtomicInteger();
+
+        var result = SkyforgePhysicalVolumeCatchupService.pumpTerrainCatchupChunks(
+                () -> {
+                    calls.incrementAndGet();
+                    return true;
+                },
+                () -> 0L,
+                2,
+                8L);
+
+        assertEquals(2, result.workedQuanta());
+        assertEquals(2, calls.get());
+    }
+
+    @Test
+    void terrainPumpAlwaysAllowsOneSlowChunkThenYields() {
+        var calls = new AtomicInteger();
+        LongSupplier clock = clock(0L, 20L, 20L);
+
+        var result = SkyforgePhysicalVolumeCatchupService.pumpTerrainCatchupChunks(
+                () -> {
+                    calls.incrementAndGet();
+                    return true;
+                },
+                clock,
+                64,
+                8L);
+
+        assertEquals(1, result.workedQuanta());
+        assertEquals(1, calls.get());
+        assertEquals(20L, result.elapsedNanos());
+    }
+
+    @Test
+    void terrainPumpStopsWhenCanonicalChunkCannotProgress() {
+        var calls = new AtomicInteger();
+
+        var result = SkyforgePhysicalVolumeCatchupService.pumpTerrainCatchupChunks(
+                () -> {
+                    calls.incrementAndGet();
+                    return false;
+                },
+                () -> 0L,
+                64,
+                8L);
+
+        assertEquals(0, result.workedQuanta());
+        assertEquals(1, calls.get());
+    }
+
+    @Test
     void cavePumpStopsAtHardQuantumCap() {
         var calls = new AtomicInteger();
 
