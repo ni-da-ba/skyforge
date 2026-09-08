@@ -1,0 +1,63 @@
+{
+  "cue": "Track 00 — A Windborne Fantasia",
+  "revision": "V2F2A — peak handoff",
+  "status": "accepted external BBCSO reference render; not a final GAME or OST master",
+  "canonical_midi": {
+    "source": "assets/music/source/frozen/track-00-a-windborne-fantasia-v2f2a-peak-handoff.mid.gz",
+    "uncompressed_sha256": "c8de531cba73d058ca02a8b58b444617596a09d888bd7cf7132601141121ca73",
+    "tempo_bpm": 104,
+    "meter": "6/8",
+    "bars": 72,
+    "midi_end_seconds": 124.71873337083333
+  },
+  "artifact": {
+    "supplied_filename": "Patched_Fantasia(1).wav",
+    "storage": "external; exact WAV not committed to ordinary Git",
+    "sha256": "c43d9d7425627d75d8c76c5fa627185f3dadf9c0075acdab1672f5efded59664",
+    "bytes": 45068352,
+    "format": "WAV",
+    "sample_subtype": "32-bit float",
+    "sample_rate_hz": 44100,
+    "channels": 2,
+    "frames": 5633032,
+    "duration_seconds": 127.73315192743765
+  },
+  "timing_verification": {
+    "result": "pass",
+    "tempo_bpm": 104,
+    "meter": "6/8",
+    "musical_endpoint_seconds": 124.71873337083333,
+    "render_tail_seconds": 3.01441855660432,
+    "note": "Render duration and onset alignment match the canonical 104 BPM MIDI."
+  },
+  "audio_metrics": {
+    "integrated_lufs": -20.4,
+    "loudness_range_lu": 16.6,
+    "true_peak_dbtp": -2.3,
+    "sample_peak_dbfs": -2.3328007524745433,
+    "clipped_samples": 0,
+    "invalid_samples": 0
+  },
+  "qualitative_gate": {
+    "result": "accepted",
+    "focus": "bars 55-61 repaired horn/trumpet crest and handoff",
+    "findings": [
+      "no dropout or broken transition",
+      "peak-handoff trumpet entries remain integrated with the horn-led crest",
+      "horn-to-flute departure remains intact",
+      "ending and reverb decay complete cleanly"
+    ]
+  },
+  "master_status": {
+    "reference_render_accepted": true,
+    "game_master_accepted": false,
+    "ost_master_accepted": false,
+    "reason": "This render proves the canonical repair but remains approximately 1.3 dB below the existing GAME-master loudness/true-peak target."
+  },
+  "rejected_predecessor": {
+    "supplied_filename": "Patched_Fantasia.wav",
+    "sha256": "a92b3eede389f24eb9a7b8ffe7efbd805c7aa7f5059db18a9b76b3835ed3314f",
+    "duration_seconds": 112.0,
+    "reason": "Rendered at 120 BPM rather than canonical 104 BPM."
+  }
+}
