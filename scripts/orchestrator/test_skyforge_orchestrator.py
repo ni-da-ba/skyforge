@@ -888,5 +888,116 @@ class FrugalRoutingTests(unittest.TestCase):
             self.assertEqual(health["terra_worker_calls_today"], 1)
 
 
+class WorkerWorktreeIsolationTests(unittest.TestCase):
+    def make_repository(self, base: pathlib.Path) -> pathlib.Path:
+        origin = base / "origin.git"
+        root = base / "repo"
+        root.mkdir()
+        orch._run(["git", "init", "--bare", str(origin)], cwd=base)
+        orch._run(["git", "init", "-b", "main"], cwd=root)
+        orch._run(["git", "config", "user.name", "Skyforge Test"], cwd=root)
+        orch._run(["git", "config", "user.email", "skyforge-test@example.invalid"], cwd=root)
+        (root / ".gitignore").write_text(".skyforge-orchestrator/\n")
+        (root / "README.md").write_text("test\n")
+        orch._run(["git", "add", ".gitignore", "README.md"], cwd=root)
+        orch._run(["git", "commit", "-m", "initial"], cwd=root)
+        orch._run(["git", "remote", "add", "origin", str(origin)], cwd=root)
+        orch._run(["git", "push", "-u", "origin", "main"], cwd=root)
+        return root
+
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=999,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+        )
+
+    def test_prepare_worker_keeps_controller_checkout_on_main(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_repository(pathlib.Path(tmp))
+            o = self.make_orchestrator(root)
+
+            branch, managed_pr, worktree = o._prepare_worker_branch("Content", None)
+            try:
+                self.assertIsNone(managed_pr)
+                self.assertNotEqual(worktree.resolve(), root.resolve())
+                self.assertEqual(o._current_branch(), "main")
+                self.assertEqual(o._current_branch(worktree), branch)
+                self.assertTrue(o._worktree_clean())
+                self.assertTrue(o._worktree_clean(worktree))
+            finally:
+                o._retire_worker_worktree(worktree)
+
+    def test_pending_worker_records_isolated_worktree_for_restart(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_repository(pathlib.Path(tmp))
+            o = self.make_orchestrator(root)
+
+            branch, managed_pr, worktree = o._resume_or_prepare_worker(
+                "Content",
+                None,
+                "bounded test objective",
+                "TERRA",
+                None,
+            )
+            try:
+                pending = o.state.data["pending_worker"]
+                self.assertEqual(pending["branch"], branch)
+                self.assertEqual(pending["managed_pr"], managed_pr)
+                self.assertEqual(pathlib.Path(pending["worktree"]).resolve(), worktree.resolve())
+
+                reloaded = self.make_orchestrator(root)
+                resumed_branch, resumed_pr, resumed_worktree = reloaded._resume_or_prepare_worker(
+                    "Content",
+                    None,
+                    "bounded test objective",
+                    "TERRA",
+                    None,
+                )
+                self.assertEqual(resumed_branch, branch)
+                self.assertEqual(resumed_pr, managed_pr)
+                self.assertEqual(resumed_worktree.resolve(), worktree.resolve())
+                self.assertEqual(reloaded._current_branch(), "main")
+            finally:
+                o.state.data["pending_worker"] = None
+                o.state.save()
+                o._retire_worker_worktree(worktree)
+
+    def test_protected_worker_change_safety_pauses_without_dirtying_controller_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_repository(pathlib.Path(tmp))
+            o = self.make_orchestrator(root)
+            branch, _, worktree = o._prepare_worker_branch("Content", None)
+            bad = worktree / ".github" / "workflows" / "unsafe.yml"
+            bad.parent.mkdir(parents=True)
+            bad.write_text("name: unsafe\n")
+
+            try:
+                with mock.patch.object(o, "_post_gate") as post_gate:
+                    with self.assertRaises(orch.SafetyPause):
+                        o._handoff_changes(
+                            "Content",
+                            "bounded test objective",
+                            branch,
+                            None,
+                            "worker summary",
+                            None,
+                            worktree,
+                        )
+
+                self.assertTrue(o.is_paused())
+                self.assertEqual(o._current_branch(), "main")
+                self.assertTrue(o._worktree_clean())
+                self.assertFalse(o._worktree_clean(worktree))
+                post_gate.assert_called_once()
+            finally:
+                orch._run(["git", "reset", "--hard"], cwd=worktree)
+                orch._run(["git", "clean", "-fd"], cwd=worktree)
+                o._retire_worker_worktree(worktree)
+
+
 if __name__ == "__main__":
     unittest.main()
