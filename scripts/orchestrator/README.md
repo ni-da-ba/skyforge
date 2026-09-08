@@ -91,14 +91,24 @@ reviewing `AGENTS.md` and the repository configuration.
 
 ## Start the pilot
 
+Cross-platform (recommended, including Windows):
+
+```text
+python scripts/orchestrator/run_pilot.py
+```
+
+On Unix-like systems the original shell runner remains available:
+
 ```bash
 ./scripts/orchestrator/run_pilot.sh
 ```
 
-On first start the runner creates an ignored local virtualenv under
-`.skyforge-orchestrator/venv` and installs `openai-codex`.
+On first start either runner creates an ignored local virtualenv under
+`.skyforge-orchestrator/venv` and installs `openai-codex`. The Python launcher uses argument-array
+subprocesses rather than shell quoting, so repository paths containing spaces are supported on Windows
+and Unix-like systems.
 
-The process binds only to `127.0.0.1`.
+The process binds only to `127.0.0.1`. Stopping the launcher also terminates the local controller.
 
 ### Model routing
 
