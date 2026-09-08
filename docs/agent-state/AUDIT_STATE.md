@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-08 (America/Chicago)  
-**Current full-program reconciliation base:** `main@41a17f25b20a72e26b5fc747829ea052a3f34205`  
+**Current full-program reconciliation base:** `main@13b453284dca429da3e78bb3d5d9fe3be9dee627`  
 **Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0012**
 
 Read first: [PROGRAM_CHARTER.md](PROGRAM_CHARTER.md), [VALIDATION_POLICY.md](VALIDATION_POLICY.md), [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md), [ORCHESTRATION_PROTOCOL.md](ORCHESTRATION_PROTOCOL.md), [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md), current lane ledgers, current `main`, open PRs/issues, source/tests, merged history, and exact-head workflow evidence. Repository evidence overrides stale conversation or older snapshots.
@@ -18,36 +18,40 @@ AUDIT-0001 through AUDIT-0008 established repository-first reconstruction, manua
 
 **AUDIT-0011** accepted model-free hosted value telemetry and reversible operations from PR #380 / merge `3b8b42d4`. Daily KEEP / REWORK / CANCEL_CANDIDATE reporting is advisory only; paid infrastructure is never automatically destroyed or expanded by Audit.
 
-**AUDIT-0012** accepted final hosted pre-flight hardening from PR #391 / merge `8ddd07cb`. Exact-head Orchestrator Smoke `34192310121` PASS and CI `34192310126` PASS. No live DigitalOcean activation evidence exists yet; issue #369 still has no hosted activation report and issue #378 has no new daily value report.
+**AUDIT-0012** accepted final hosted pre-flight hardening from PR #391 / merge `8ddd07cb`. PR #395 / merge `d719a677` subsequently tightened the activation guard so main protection must apply to administrators/owner-authenticated host credentials as well as requiring PR/status checks and blocking force-push/deletion. No live DigitalOcean activation evidence exists yet.
 
 ## CURRENT PROGRAM SNAPSHOT
 
 | Lane | Highest accepted boundary | Current active work | Health / liveness |
 | --- | --- | --- | --- |
-| Implementation | **SF-IMP-0082** plus bounded SF-IMP-0083 runtime support #338 | SF-IMP-0083 morphology recovery #358 | **WATCH / RESTART RECOMMENDED** |
+| Implementation | **SF-IMP-0082** plus bounded SF-IMP-0083 runtime support #338 | SF-IMP-0083 #358 machine-complete, awaiting #214/#267/#283 review | **HEALTHY / HUMAN GATE** |
 | Authorship | **AUTH-0100** | none | **HEALTHY / DORMANT pending consumer** |
-| Content / Experience | **C26**; later C11 capability recomposed/accepted #386 | Portable Engine compatibility #392 after stationary #389 | **WATCH / RESTART RECOMMENDED** |
+| Content / Experience | **C26**; later C11 recipe proof and #237 stationary/persistence/mobile compatibility accepted | C12 B0-A assembly + live Sable mass #398 | **RUNNING_EXTERNAL / DIAGNOSTIC REPAIR** |
 | Music / Audio | **MUS-0005** | source/plugin recovery and Track-06 source/listening only | **HEALTHY / DORMANT pending source/human work** |
 | Presentation | **PRES-0004** plus accepted runtime-capture infrastructure #362 | PRES-0005 explanatory graphics #385 | **HEALTHY / HUMAN GATE** |
-| Audit | **AUDIT-0012** | hosted activation #369; value log #378 | **WATCH / REPOSITORY ACCEPTED; HOST INACTIVE** |
+| Audit | **AUDIT-0012** | hosted activation #369; value log #378 | **WATCH / HOST INACTIVE** |
 
 ## ACTIVE CONVERGENCE HEALTH
 
 ### Implementation — SF-IMP-0083
 
-**WATCH / RESTART RECOMMENDED.** PR #358 remains the durable active work boundary. Cheap deterministic AUTH-0083 coverage is exhaustive; expensive runtime proof is representative. The affected runtime class is the high-footprint/high-solid deferred-realization resource path after Tableland and Basin heap failures. Spine MEDIUM/seed-min and Massif LARGE/seed-skyforge remain portable successful prepare + actual-client reopen evidence. Run `34192207651` was selector-only with characterization skipped and is not runtime evidence.
+**HEALTHY / HUMAN GATE.** PR #358 has recovered from the prior stale-session boundary and now satisfies the exact criterion Audit set for clearing `RESTART RECOMMENDED`.
 
-The prior producer was expected to diagnose the Basin/Tableland resource class before another broad run. No information-bearing commit, PR update, or Actions movement occurred across the next full watchdog interval after that selector-only run. Audit posted `RESTART RECOMMENDED` on #358. Preserve the PR, successful Spine/Massif evidence, Basin/Tableland artifacts/logs, and head `b3195c1e`. A fresh worker should reconstruct from current main and canonical state/contracts, diagnose/correct the smallest relevant resource-pressure seam, prove it on the smallest affected representative, and widen only if that corrected sample fails. Do not synchronize merely for numerical behind-count. Another materially unchanged broad heavy rerun before diagnosis is **LOOP RISK**.
+The branch performed information-bearing resource-path diagnosis/correction after Tableland/Basin heap failures, then completed deliberate representative lifecycle run `34215626713`: **7/7 PASS** for prepare plus persisted actual-client reopen across Tableland MEDIUM, Massif MEDIUM, Massif LARGE, Spine MEDIUM, Spine LARGE, Lobed MEDIUM, and Basin MEDIUM. The previously affected Tableland/Basin class is therefore revalidated. Exhaustive cheap deterministic coverage remains in CI for all 20 remaining AUTH-0083 built-ins. The verified code head also passed repository CI and retained C11/C21/Portable Engine compatibility gates; the current PR head is documentation-only over that verified code boundary.
+
+This is the policy-approved SF-IMP-0083 machine boundary. Do **not** launch more broad morphology characterization merely to accumulate evidence. Machine evidence is saturated unless human review identifies a concrete new uncertainty. #358 remains unmerged because qualitative #214/#267/#283 review is mandatory.
+
+The prior `RESTART RECOMMENDED` comments remain historical evidence of the stale producer generation; the current branch has now produced substantive recovery and no competing replacement path exists, so there is no duplicate/race classification.
 
 ### Authorship — AUTH-0100
 
-**HEALTHY / DORMANT.** AUTH-0100 is highest accepted. C23-C26 consumed existing regional/local petroleum and site/access evidence without proving another missing backend-neutral semantic. Do not invent a successor until a concrete consumer demonstrates a missing world cause.
+**HEALTHY / DORMANT.** AUTH-0100 is highest accepted. Existing petroleum/site/access evidence continues to satisfy current consumers. Do not invent a successor until a concrete consumer demonstrates a missing backend-neutral world cause.
 
-### Content / Experience — C26 plus compatibility work
+### Content / Experience — C26 plus first-flight compatibility / C12
 
-**WATCH / RESTART RECOMMENDED.** C26 remains highest canonical Content ledger boundary. C11 was later recomposed and accepted as a direct live recipe-surface proof only.
+**RUNNING_EXTERNAL / DIAGNOSTIC REPAIR.** The earlier #392 stale-session intervention converged successfully. CUT/RUN persistence/comparator proof merged as `7302e786`; assembled real-Sable two-engine cutoff proof then merged through #397 / main `13b45328`. Issue #237 machine items #1-#9 are accepted across stationary, persistence, and mobile/two-engine behavior. The remaining #237 redstone-ergonomics question is human/manual.
 
-Portable Engine PR #392 reached a bounded green exact-head persistence/comparator boundary at `d9106949`: Persistence `34193038291` PASS, Cutoff `34193038285` PASS, retained C11 `34193038301` PASS, and CI `34193038286` PASS. It then produced no information-bearing repository or Actions movement across the next full watchdog interval despite having no human gate. Audit posted `RESTART RECOMMENDED` on #392. Preserve the PR and its three-boot persistence/comparator evidence. A fresh worker should determine whether relevant newer-main movement changes the claim; if not, reuse the existing green evidence and close/merge the bounded persistence acceptance. Keep assembled-Sable behavior, two-engine independence, and human ergonomics separate.
+Draft C12 PR #398 is now the active executable first-aircraft boundary. Its first exact-head live B0-A assembly/mass workflow is information-bearing: unit/scope wiring, C11, stationary cutoff, persistence, Sable cutoff, and ordinary CI are green, while the dedicated B0-A runtime fails when reflective Sable-container inspection loads client-only `ClientLevel` on a dedicated server. Treat this as a bounded dedicated-server-safe acceptance-harness/access defect, not evidence against B0-A topology or mass. Repair that seam and rerun the focused C12 gate only; do not replay unrelated accepted compatibility matrices unless a corrected run exposes a distinct dependency failure.
 
 ### Music / Audio — MUS-0005
 
@@ -59,46 +63,49 @@ Portable Engine PR #392 reached a bounded green exact-head persistence/comparato
 
 ### Audit — hosted orchestration
 
-**WATCH / REPOSITORY ACCEPTED; HOST INACTIVE.** AUDIT-0012 is accepted repository/deployment infrastructure. Issue #369 still has zero hosted activation comments/evidence; issue #378 has no new daily report. Therefore no KEEP / REWORK / CANCEL_CANDIDATE economics classification is valid. No controller-owned `codex/*` PR race is currently visible. Because the host is inactive, Audit restart comments are durable cross-execution handoffs but do not constitute hosted wakes.
+**WATCH / REPOSITORY ACCEPTED; HOST INACTIVE.** AUDIT-0012 plus #395 pre-activation safety maintenance are accepted. Issue #369 still has no live hosted activation report (`/healthz`, signed delivery, manual wake, reboot survival). Issue #378 has no new daily value report after the pre-host baseline, so no KEEP / REWORK / CANCEL_CANDIDATE economics classification is valid. No controller-owned `codex/*` PR race is visible. Auto-merge remains off.
+
+Obsolete Audit reconciliation #396 was closed unmerged because it encoded the retired #358 restart classification and pre-#397 Content state.
 
 ## VALIDATION / EVIDENCE ECONOMY
 
 - Cheap deterministic contract evidence remains broad/exhaustive where practical.
 - Expensive lifecycle/persistence/client evidence remains representative by risk-equivalence class.
-- SF-IMP-0083 failures widen only the affected high-footprint/high-solid deferred-realization class until diagnosis bounds it.
-- Successful Spine and Massif runtime specimens remain portable evidence; selector-only/skipped runs are not evidence.
-- Portable Engine #392 has already retired its bounded persistence/comparator risk; do not accumulate more stationary persistence permutations merely to refresh evidence.
-- Orthogonal main movement does not invalidate expensive evidence when the dependency surface is unchanged and synchronized cheap CI is green.
+- SF-IMP-0083 has now completed the approved representative expensive boundary after targeted failure widening and repair: 7/7 representative lifecycle PASS plus exhaustive cheap all-20 coverage. Further broad machine morphology runs are **evidence saturation** absent a human-discovered defect.
+- The repaired Tableland/Basin resource-path evidence plus successful ordinary/stress representatives may be reused across orthogonal movement when the dependency surface is unchanged and cheap synchronized CI remains green.
+- Portable Engine stationary, persistence, and assembled-two-engine machine risks are accepted; do not repeat them merely because later C12 work advances.
+- C12 #398 should rerun only its focused failed live assembly/mass risk after the dedicated-server access repair; retained green gates need no manual fan-out.
 - Music Track-00 and Presentation PRES-0005 are saturated for machine evidence; remaining risks are source/human.
+- Numerical behind-count, bookkeeping-only motion, selector-only runs, or unchanged reruns are not producer-health evidence.
 
 ## HUMAN / MANUAL / STRATEGY GATES
 
 - #194 ecology: **PASSED / CLOSED**.
-- #214 production morphology / HS-03 / HS-04: **OPEN, NOT READY** pending SF-IMP-0083 runtime-resource convergence and a clean representative review corpus.
+- **#214 production morphology: READY HUMAN GATE.** SF-IMP-0083 now supplies the synchronized multi-seed/scale representative corpus required for review.
+- **HS-03: AT TRIGGER.** Decide the post-built-in morphology pivot: Audit recommends one representative hybrid plus one external-provider/backend smoke, then pivot into integrated geology/materials -> hydrology -> structures/ecology rather than deeply extending isolated morphology certification.
+- **HS-04: AT TRIGGER.** Review family identity and production terrain doctrine, especially Massif traversal cadence/local lumpiness and Tableland-vs-Massif separation. Current roadmap north star: most traversable land should not be mountainous; dramatic relief should emerge from quieter geography.
 - PRES-0005: **READY HUMAN GATE** for communication quality.
+- Portable Engine #237 redstone ergonomics: **READY HUMAN/MANUAL GATE** after machine items #1-#9 merged; evaluate whether cutoff/control packaging is intuitive and whether neighboring redstone creates unacceptable shutdown behavior in the real C12 control package.
 - Track-00 A/B: **CLOSED by MUS-0005**. Track-06/source-plugin recovery remains open.
-- Portable Engine #237 human redstone ergonomics: **OPEN**, outside #392's bounded persistence claim.
 - **HS-06 remains AT TRIGGER.** Before Bootstrap resource realization locks the starting experience Nicholas must decide time-to-glider/powered-flight, retry margin, geographic guarantee scope, Copper/Zinc geology vs guaranteed trade/salvage, first-civilization guarantee, and onboarding explicitness. Bootstrap closure may not depend on a lucky loot roll.
-- HS-05 should be surfaced before final Bootstrap Province implementation begins.
+- **HS-05** must be surfaced before final Bootstrap Province implementation begins; C12 engineering work may proceed without silently choosing alpha scope.
 
 ## PRODUCER SESSION LIVENESS
 
-- Implementation #358: **STALE SESSION / RESTART RECOMMENDED** after a full watchdog interval with no information-bearing repository/Actions movement following the prior diagnosis directive. Durable PR evidence is preserved.
-- Content/compatibility #392: **STALE SESSION / RESTART RECOMMENDED** after a full watchdog interval with no information-bearing repository/Actions movement after exact-head green acceptance evidence. Durable PR evidence is preserved.
+- Implementation #358: **RECOVERED / HUMAN GATE.** The prior stale generation produced the required information-bearing diagnosis/correction and new runtime evidence; `RESTART RECOMMENDED` is cleared. No competing replacement branch is visible.
+- Content #398: **RUNNING_EXTERNAL.** New code/PR/Actions movement is information-bearing; first live failure produced a narrow dedicated-server diagnosis. Do not race with another worker.
 - Presentation #385: **HEALTHY / HUMAN GATE**; silence is expected while waiting on qualitative review.
 - Authorship: **INTENTIONALLY DORMANT**, not stale.
 - Music: **INTENTIONALLY DORMANT pending source/human work**, not stale.
 - Hosted controller: **INACTIVE / UNPROVEN**; silence is not health evidence.
 
-Bookkeeping-only motion and selector-only workflow passes do not prove liveness. Numerical behind-count is non-actionable by itself.
-
 ## NEXT AUDIT WORK
 
-1. Watch for a fresh Implementation worker to reconstruct #358 and perform targeted Basin/Tableland resource-path diagnosis; escalate `LOOP RISK` only on another materially unchanged broad heavy rerun before diagnosis.
-2. Watch for a fresh Content/Compatibility worker to close #392's already-green bounded persistence/comparator acceptance without expanding scope.
-3. Preserve all stale-worker branches until unique work is merged, deliberately parked, or superseded by a cleaner current-main path; flag DUPLICATE/RACE RISK if an abandoned producer later resumes competing work.
+1. Hold #358 at the ready human gate; prevent further broad morphology testing until #214/#267/#283 review supplies a concrete uncertainty.
+2. Surface HS-03 and HS-04 to Nicholas now; preserve the solved SF-IMP-0083 carrier/runtime boundary even if narrow morphology tuning is requested.
+3. Supervise C12 #398 as one bounded live assembly/mass diagnostic; expect a dedicated-server-safe access repair and one focused rerun rather than broad compatibility replay.
 4. Keep Authorship dormant until a concrete consumer proves a missing neutral-world semantic.
-5. Surface PRES-0005 when Nicholas is available for the bounded human communication review.
-6. Keep HS-06 visible before concrete Bootstrap resource guarantees are locked.
+5. Keep PRES-0005 and #237 ergonomics visible as ready human gates without substituting more machine evidence.
+6. Keep HS-06 visible before concrete Bootstrap resource guarantees are locked and HS-05 before final Bootstrap Province implementation begins.
 7. Treat hosted orchestration as inactive until #369 has live activation evidence; inspect #378 only when a new value report appears. Keep auto-merge off and existing safety ceilings intact.
 8. Continue hourly supervision for stale sessions, duplicate/race risk, evidence saturation, relevant contract drift, and ready human gates.
