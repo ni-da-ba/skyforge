@@ -19,8 +19,8 @@ This file records only coordination boundaries another lane must preserve.
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0100` accepted: exact regional AUTH-0098 petroleum-system opportunity inventory over AUTH-0087 provenance; AUTH-0097 remains the site-access handoff and AUTH-0095 the morphology-diagnostic handoff |
-| Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / #284 owns remaining AUTH-0083 built-in seed/scale Minecraft matrix |
+| Authorship | `AUTH-0101` accepted: threshold-free exact AUTH-0095 cross-specimen comparisons for #267/#283; AUTH-0100 remains the petroleum regional-inventory handoff and AUTH-0097 the site-access handoff |
+| Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / PR #358 is machine-ready on the remaining built-in matrix and awaiting #214/#267/#283 human review |
 | Content / Experience | `C26` / PR #382 accepted candidate: exact nonzero AUTH-0098 cells/columns bound local petroleum-source admission; C25+C26 now hand the narrow Skyforge petroleum source/depletion/pumpjack bridge to Implementation |
 | Music / Audio | `MUS-0002` accepted in `30b5202fec3ae07b0720b42eb8d7770c3c463843`: canonical soundtrack source integrity is machine-gated in normal CI; human listening/CWP recovery gates remain explicit |
 | AUDIT | `AUDIT-0008` accepted: repository-visible process/convergence health remains supervisory responsibility |
@@ -207,6 +207,34 @@ Acceptance evidence: full repository CI `34184025685` PASS; scoped AUTH-0100
 `34184025741` PASS; artifact `10039893811`; digest
 `sha256:0259a2c772533e0b2c0c0b96453e04176e7f55e751bf75657902f65bcfde0cbb`.
 
+### AUTH-0101 — morphology surface-character comparative evidence — ACCEPTED
+
+AUTH-0101 / PR #402 merged as `28393616a8be298ffb1692c294db6c6cddc9d069` from candidate
+`4ae5ffd51010b4bcc45d3bb729d3484341e47b26`.
+
+AUTH-0101 reuses the exact AUTH-0095 diagnostics from the accepted AUTH-0083 production morphology
+review pass and emits only signed `candidate - baseline` deltas for the live #267/#283 comparisons:
+
+- Massif MEDIUM -> Tableland MEDIUM at seed-min;
+- Massif MEDIUM -> Tableland MEDIUM at seed-zero;
+- Massif MEDIUM -> Tableland MEDIUM at seed-skyforge;
+- Massif MEDIUM -> Massif LARGE at seed-skyforge.
+
+Cross-lane consequences:
+
+- **Authorship** owns the exact threshold-free comparison evidence;
+- **Implementation** owns Minecraft block-space realization and traversal consequences;
+- **human #214/#267/#283 review** still owns whether Massif is acceptably traversable, whether
+  Tableland is sufficiently distinct, and whether any morphology tuning is warranted;
+- normalized Massif MEDIUM/LARGE Authorship deltas remain scale-covariant, so an observed human
+  scale-dependent traversal change must not be misattributed to changed normalized authored intent;
+- AUTH-0101 adds no aggregate score, walkability/plateau/lumpiness classification, aesthetic verdict,
+  or morphology retune.
+
+Acceptance evidence: repository CI `34238485165` PASS; shared AUTH-0095/AUTH-0101 morphology
+evidence workflow `34238485301` PASS; artifact `10060939982`; digest
+`sha256:3715f70b6afb68b3e9f21187e89bc253f8971f3128b50c8fd909edf397163950`.
+
 ## Morphology / Minecraft realization
 
 ### SF-IMP-0080 — visible land ecology — ACCEPTED
@@ -217,7 +245,7 @@ Legible forest/taiga Minecraft ecology passed persistence/reopen and project-own
 
 All five SMALL / seed-skyforge built-in AUTH-0083 families have exact Minecraft carrier/persistence evidence. SF-IMP-0083 / #284 owns the remaining built-in seed/scale matrix.
 
-Issue #214 remains the broader human morphology/regional gate. #267 tracks Massif traversal lumpiness; #283 tracks Tableland-vs-Massif separation. AUTH-0095 now supplies the backend-neutral distribution/spatial-scale diagnostics for that comparison, but it does not replace the Minecraft/human gate or authorize tuning by itself.
+Issue #214 remains the broader human morphology/regional gate. #267 tracks Massif traversal lumpiness; #283 tracks Tableland-vs-Massif separation. AUTH-0095 supplies per-specimen backend-neutral distribution/spatial-scale diagnostics and AUTH-0101 supplies the exact compact cross-specimen comparison rows. Neither replaces the Minecraft/human gate or authorizes tuning by itself.
 
 ## Active Content / Bootstrap contracts
 

@@ -2,9 +2,9 @@
 
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
-**Updated:** 2026-09-07 (America/Chicago)  
-**Main snapshot at latest Authorship acceptance:** `35b9b420d338415105237e56317580535808178a`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0100**
+**Updated:** 2026-09-08 (America/Chicago)  
+**Main snapshot at latest Authorship acceptance:** `28393616a8be298ffb1692c294db6c6cddc9d069`  
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0101**
 
 Read first:
 
@@ -353,6 +353,49 @@ Accepted invariants:
 
 Reference: `docs/authorship/AUTH-0100-regional-petroleum-system-opportunity-inventory.md`.
 
+### AUTH-0101 — morphology surface-character comparative evidence
+
+PR #402 / merge `28393616a8be298ffb1692c294db6c6cddc9d069`.
+
+Concrete consumers: SF-IMP-0083 / PR #358 is machine-ready at the #214 human gate, while #267 asks
+for Massif traversal-cadence classification and #283 asks for direct Tableland-vs-Massif separation
+across the accepted seed/scale evidence.
+
+Exact acceptance:
+
+- accepted head `4ae5ffd51010b4bcc45d3bb729d3484341e47b26`;
+- full repository CI `34238485165` PASS;
+- shared AUTH-0095/AUTH-0101 morphology evidence workflow `34238485301` PASS;
+- evidence artifact `10060939982`;
+- digest `sha256:3715f70b6afb68b3e9f21187e89bc253f8971f3128b50c8fd909edf397163950`.
+
+Accepted invariants:
+
+- AUTH-0101 adds no new specimen, seed, scale, sampling grid, morphology metric, random source, or
+  Minecraft carrier;
+- comparison inputs are the exact in-memory AUTH-0095 diagnostics from the accepted AUTH-0083
+  production morphology visual-review pass;
+- every comparison delta is exactly `candidate - baseline`;
+- fixed #283 rows compare Massif MEDIUM -> Tableland MEDIUM at seed-min, seed-zero, and
+  seed-skyforge;
+- the fixed #267 row compares Massif MEDIUM -> Massif LARGE at seed-skyforge;
+- every normalized AUTH-0095 surface-character measurement is exposed independently; no composite
+  score or family ranking exists;
+- normalized Massif MEDIUM/LARGE Authorship deltas collapse to numerical scale-covariance tolerance,
+  so a later human block-space traversal difference must not be misdescribed as changed normalized
+  Authorship intent;
+- no walkability threshold, plateau/bench classifier, lumpiness score, aesthetic verdict,
+  better/worse ranking, morphology retune, or Minecraft block-step interpretation enters Authorship.
+
+Ownership after AUTH-0101:
+
+- **Authorship:** exact threshold-free comparative morphology evidence and any later tuning only if a
+  concrete human/Implementation finding demonstrates an authored-intent defect;
+- **Implementation:** exact Minecraft carrier/block-space realization and traversal consequences;
+- **Human #214/#267/#283 review:** the actual family-quality, traversal, and tuning judgment.
+
+Reference: `docs/authorship/AUTH-0101-morphology-surface-character-comparisons.md`.
+
 ## IN PROGRESS
 
 No Authorship milestone is currently in progress.
@@ -369,19 +412,21 @@ concrete-consumer premise is not supported by the authoritative Bootstrap state:
 
 - issue #224 does not require an early cave/resource-learning site;
 - the issue #224 Authorship handoff explicitly says a cliff/interior/cave capability should be added
-  only if the first executable Bootstrap site/route planner proves that accepted evidence is
-  insufficient;
-- no such Content planner has been opened; the current accepted Content boundary is C21 resource
-  authority, and Audit records the Bootstrap/resource follow-on as not yet opened.
+  only if an executable structure/site planner proves that accepted evidence is insufficient;
+- later Content has advanced through C26 and C12 is active, but C24 explicitly found AUTH-0096/0097
+  sufficient for coarse petroleum infrastructure candidates and C26 explicitly found AUTH-0098
+  sufficient for local petroleum admission; neither creates a cave/interior consumer;
+- no current executable consumer demonstrates that the accepted cave topology/geometry/exposure
+  APIs are insufficient for a concrete role.
 
 Preserve AUTH-0099 as an unaccepted historical numbering gap. If a future executable consumer proves
 that cave-system capability evidence is genuinely missing, reconstruct the requirement from current
 `main` and assign the next available Authorship milestone rather than reviving this stale branch.
 
-AUTH-0100 now closes the concrete C22 regional petroleum-inventory request. Do not add literal
-petroleum deposits, reserves, strategic-node frequency, additional petroleum wrappers, cliff/underside,
-interior/cave, regional-composition, or other semantic layers merely for completeness. Morphology
-family tuning still requires the matching Minecraft matrix plus human review.
+AUTH-0101 now closes the compact comparison-evidence gap for #267/#283. Do not retune morphology
+from machine evidence alone and do not add literal petroleum deposits, additional petroleum wrappers,
+cliff/underside, interior/cave, regional-composition, or other semantic layers merely for completeness.
+Morphology family tuning still requires the matching Minecraft matrix plus human review.
 
 ## ACTIVE CROSS-LANE BOUNDARIES
 
@@ -401,9 +446,10 @@ family tuning still requires the matching Minecraft matrix plus human review.
 
 Implementation may consume AUTH-0093/0094 only after Content resource policy is applied. It owns all
 concrete deposits, blocks/tags, quantities, accessibility, placement/worldgen, persistence, and chunk
-lifecycle. SF-IMP-0083 / issue #284 may consume AUTH-0095 as the backend-neutral surface-character measurement
-seam for the exact built-in seed/scale matrix. Minecraft carrier/persistence/runtime evidence remains
-Implementation-owned, and AUTH-0095 does not itself authorize morphology-family retuning.
+lifecycle. SF-IMP-0083 / issue #284 may consume AUTH-0095 as the backend-neutral per-specimen surface-character
+measurement seam and AUTH-0101 as the compact exact comparison layer for #267/#283. Minecraft
+carrier/persistence/runtime evidence remains Implementation-owned, and neither AUTH-0095 nor
+AUTH-0101 authorizes morphology-family retuning.
 Implementation may consume an AUTH-0096/AUTH-0097-selected candidate only after Content supplies a concrete
 requirement/pairing; exact orientation, 3D clearance, structure geometry/admission, neighboring obstruction,
 and terrain accommodation remain Implementation-owned.
@@ -462,9 +508,10 @@ Issue #214 remains open for production morphology review, including:
 - above/approach/below Minecraft views and representative flight routes;
 - decision on whether an underside-secondary vocabulary is needed.
 
-AUTH-0095 introduces no new independent human/manual gate; it supplies measurement evidence to the
-already-open #214/#267/#283 review. Any Massif/Tableland tuning decision still requires that human
-comparison against the matching SF-IMP-0083 Minecraft matrix.
+AUTH-0095/AUTH-0101 introduce no new independent human/manual gate; they supply per-specimen and
+cross-specimen measurement evidence to the already-open #214/#267/#283 review. Any Massif/Tableland
+tuning decision still requires that human comparison against the matching SF-IMP-0083 Minecraft
+matrix.
 
 AUTH-0096/AUTH-0097 introduce no new independent human/manual gate. Human judgment begins only after
 Content selects concrete civilization/structure requirements and Implementation presents player-facing
@@ -472,13 +519,13 @@ sites/approaches.
 
 ## Ordered next work
 
-1. Hand AUTH-0100 to C22 / issue #357 as the exact regional petroleum geological-inventory seam.
-   Do not add further petroleum Authorship semantics unless Content or Implementation demonstrates a
-   new backend-neutral cause gap.
-2. Let Content/Bootstrap continue consuming AUTH-0096 + AUTH-0097 for concrete site/access requirements.
-3. Reconstruct the next missing backend-neutral cause before assigning AUTH-0101 or later. AUTH-0099
-   remains an unaccepted historical gap; do not enumerate cave/geothermal/civilization/
+1. Hand AUTH-0101 to #267/#283 and the SF-IMP-0083/#214 review as compact comparative evidence.
+   Do not treat the comparison file as a substitute for human traversal/family-quality judgment.
+2. If #214/#267/#283 identifies a concrete authored-intent morphology defect, reconstruct the narrow
+   tuning requirement from that finding before assigning AUTH-0102 or later; otherwise leave
+   morphology unchanged.
+3. Let Content/Bootstrap continue consuming AUTH-0096 + AUTH-0097 for concrete site/access requirements
+   and Implementation consume AUTH-0098/AUTH-0100 only through accepted Content petroleum policy.
+4. AUTH-0099 remains an unaccepted historical gap. Do not enumerate cave/geothermal/civilization/
    exceptional-phenomenon semantics without an executable consumer.
-4. Keep AUTH-0095 handed to SF-IMP-0083/#284. Do not retune Massif/Tableland until the synchronized
-   Minecraft matrix plus #214/#267/#283 human review demonstrates a systemic family issue.
 
