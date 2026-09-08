@@ -22,6 +22,25 @@ class MetricDeltaTests(unittest.TestCase):
         self.assertEqual(deltas["worker_handoffs"], 1)
 
 
+class HostResourceTests(unittest.TestCase):
+    def test_parse_meminfo_computes_available_memory_usage(self):
+        values = report._parse_meminfo(
+            "MemTotal:        2048000 kB\n"
+            "MemAvailable:    1024000 kB\n"
+        )
+        self.assertEqual(values["memory_total_bytes"], 2048000 * 1024)
+        self.assertEqual(values["memory_available_bytes"], 1024000 * 1024)
+        self.assertAlmostEqual(values["memory_used_pct"], 50.0)
+
+    def test_collect_host_resources_returns_disk_and_cpu_shape(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            values = report.collect_host_resources(pathlib.Path(tmp))
+            self.assertGreaterEqual(values["cpu_count"], 1)
+            self.assertIn("load_1m_per_cpu", values)
+            self.assertGreater(values["disk_total_bytes"], 0)
+            self.assertGreaterEqual(values["disk_used_pct"], 0.0)
+
+
 class ControllerPrTests(unittest.TestCase):
     def test_controller_pr_period_and_overnight_classification(self):
         start = datetime(2026, 9, 8, 0, 0, tzinfo=timezone.utc)
@@ -144,6 +163,8 @@ class BuildReportTests(unittest.TestCase):
             self.assertEqual(value["metric_deltas"]["worker_attempts"], 1)
             self.assertAlmostEqual(value["cost"]["period_estimate_usd"], 0.24, places=6)
             self.assertAlmostEqual(value["cost"]["cumulative_estimate_usd"], 0.24, places=6)
+            self.assertIn("host_resources", value)
+            self.assertIn("disk_used_pct", value["host_resources"])
 
 
 if __name__ == "__main__":
