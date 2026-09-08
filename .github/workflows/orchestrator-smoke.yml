@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "scripts/orchestrator/**"
+      - "deploy/orchestrator/**"
       - "AGENTS.md"
       - "docs/agent-state/ORCHESTRATION_PROTOCOL.md"
       - ".github/workflows/orchestrator-smoke.yml"
@@ -12,6 +13,7 @@ on:
     branches: [main]
     paths:
       - "scripts/orchestrator/**"
+      - "deploy/orchestrator/**"
       - "AGENTS.md"
       - "docs/agent-state/ORCHESTRATION_PROTOCOL.md"
       - ".github/workflows/orchestrator-smoke.yml"
@@ -39,5 +41,8 @@ jobs:
           python -m py_compile scripts/orchestrator/skyforge_orchestrator.py
           python -m py_compile scripts/orchestrator/run_pilot.py
 
-      - name: Run deterministic event-filter tests
+      - name: Check hosted installer syntax
+        run: bash -n scripts/orchestrator/install_hosted.sh
+
+      - name: Run deterministic orchestration tests
         run: python -m unittest scripts/orchestrator/test_skyforge_orchestrator.py
