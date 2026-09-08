@@ -996,6 +996,93 @@ class FrugalRoutingTests(unittest.TestCase):
             self.assertEqual(health["terra_worker_calls_today"], 1)
 
 
+class ControllerSelfRefreshTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=999,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+        )
+
+    @staticmethod
+    def completed(args, stdout=""):
+        return orch.subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
+    def test_sync_main_requests_restart_only_when_controller_python_changed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.runtime_head = "oldhead"
+
+            def fake_run(args, **kwargs):
+                if args[:3] == ["git", "rev-parse", "HEAD"]:
+                    return self.completed(args, "newhead\n")
+                if args[:3] == ["git", "diff", "--name-only"]:
+                    return self.completed(
+                        args,
+                        "scripts/orchestrator/skyforge_orchestrator.py\n"
+                        "docs/agent-state/AUDIT_STATE.md\n",
+                    )
+                return self.completed(args)
+
+            with mock.patch.object(o, "_worktree_clean", return_value=True), \
+                    mock.patch.object(orch, "_run", side_effect=fake_run), \
+                    mock.patch.object(o, "_request_runtime_restart") as restart:
+                o.sync_main()
+
+            restart.assert_called_once_with(
+                "oldhead",
+                "newhead",
+                ["scripts/orchestrator/skyforge_orchestrator.py"],
+            )
+            self.assertEqual(o.runtime_head, "newhead")
+
+    def test_sync_main_does_not_restart_for_orchestrator_docs_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.runtime_head = "oldhead"
+
+            def fake_run(args, **kwargs):
+                if args[:3] == ["git", "rev-parse", "HEAD"]:
+                    return self.completed(args, "newhead\n")
+                if args[:3] == ["git", "diff", "--name-only"]:
+                    return self.completed(args, "scripts/orchestrator/README.md\n")
+                return self.completed(args)
+
+            with mock.patch.object(o, "_worktree_clean", return_value=True), \
+                    mock.patch.object(orch, "_run", side_effect=fake_run), \
+                    mock.patch.object(o, "_request_runtime_restart") as restart:
+                o.sync_main()
+
+            restart.assert_not_called()
+            self.assertEqual(o.runtime_head, "newhead")
+
+    def test_runtime_restart_request_is_durable_before_exit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            with mock.patch.object(orch.os, "_exit") as exit_process:
+                o._request_runtime_restart(
+                    "oldhead",
+                    "newhead",
+                    ["scripts/orchestrator/skyforge_orchestrator.py"],
+                )
+
+            exit_process.assert_called_once_with(75)
+            request = o.state.data["runtime_restart_requested"]
+            self.assertEqual(request["from_head"], "oldhead")
+            self.assertEqual(request["to_head"], "newhead")
+            self.assertEqual(
+                request["changed_paths"],
+                ["scripts/orchestrator/skyforge_orchestrator.py"],
+            )
+            self.assertEqual(
+                o.state.data["metrics"].get("runtime_restarts_requested"),
+                1,
+            )
+
+
 class WorkerWorktreeIsolationTests(unittest.TestCase):
     def make_repository(self, base: pathlib.Path) -> pathlib.Path:
         origin = base / "origin.git"
