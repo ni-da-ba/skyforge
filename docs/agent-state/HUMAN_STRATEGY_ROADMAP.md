@@ -185,6 +185,42 @@ cutoffs:
 
 Heavy acceptance work is not rerun solely because unrelated documentation/state moved on main.
 
+
+### HS-R10 — morphology capacity, control, selection, and realization are separate
+
+**Resolved direction:** production tuning must not shrink Skyforge's neutral terrain capacity merely because some valid terrain is poor for ordinary traversal or for a particular gameplay role.
+
+The project separates four questions:
+
+1. **Capacity:** can the backend-neutral morphology system express the terrain character at all?
+2. **Control:** does Authorship know how to request that character deliberately through stable semantic controls / recipes?
+3. **Selection:** does Content choose that recipe for an appropriate world/gameplay role and production distribution?
+4. **Realization:** does Implementation reproduce the requested neutral terrain faithfully in Minecraft and expose its concrete block-space consequences?
+
+Ownership:
+
+- **Authorship** owns expressive morphology capacity, semantic control axes, recipe/control-response evidence, deterministic examples, and the Morphology Control Atlas. Authorship does not classify terrain as good/bad gameplay or encode Minecraft traversal rules.
+- **Content / Experience** owns terrain-role requirements, suitability, production recipe selection/distribution, and progression/world-role policy.
+- **Implementation** owns backend fidelity, discretization, block-space traversal consequences, lifecycle, persistence, and backend-introduced artifacts.
+- **Human review** owns aesthetic/gameplay-quality judgment when technical ownership is not itself defective.
+
+Fault triage:
+
+```text
+neutral shape/control response wrong or not deliberately reproducible -> Authorship
+neutral shape correct, but selected for the wrong gameplay/world role  -> Content
+neutral shape correct, backend realization distorts it                 -> Implementation
+technical stack correct, desired look/feel/distribution still disputed -> Human gate
+```
+
+A lumpy, awkward, or hostile specimen may remain valid generator capacity even when it is rejected as a starting-area or ordinary-traversal recipe. Prefer changing production recipe selection or a specific semantic recipe over deleting expressive capability.
+
+Canonical coordination contract:
+`docs/agent-state/CROSS_LANE_CONTRACTS.md#Morphology-capacity-control-selection-and-realization`
+
+Authorship control artifact:
+`docs/authorship/MORPHOLOGY_CONTROL_ATLAS.md`
+
 ---
 
 # OPEN HUMAN STRATEGY TOPICS
