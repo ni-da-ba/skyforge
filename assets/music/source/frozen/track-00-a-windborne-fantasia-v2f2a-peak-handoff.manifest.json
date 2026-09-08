@@ -1,0 +1,32 @@
+{
+  "cue": "Track 00 — A Windborne Fantasia",
+  "status": "frozen; MUS-0004 V2F2A peak-handoff range repair selected for canonical promotion",
+  "source": "assets/music/source/frozen/track-00-a-windborne-fantasia-v2f2a-peak-handoff.mid.gz",
+  "uncompressed_midi_sha256": "c8de531cba73d058ca02a8b58b444617596a09d888bd7cf7132601141121ca73",
+  "midi": {
+    "type": 1,
+    "ticks_per_beat": 480,
+    "tempo_bpm": 104,
+    "meter": "6/8",
+    "instrument_tracks": 19,
+    "conductor_track_index": 0
+  },
+  "library_audit": {
+    "ordinary_track_order": "verified",
+    "range_status": "clean after MUS-0004 peak-handoff repair",
+    "known_range_exceptions": [],
+    "track_11_hc_state": "not recoverable from MIDI alone; verify Harp/Celeste technique from source CWP before reproduction-clean status",
+    "track_12_perc_used": false,
+    "track_13_tp_used": false,
+    "range_exceptions": []
+  },
+  "source_provenance": {
+    "repair_candidate": "V2F2A — peak handoff",
+    "promoted_from": "assets/music/source/repair-candidates/track-00-v2f2a-peak-handoff-range-repair.mid.gz",
+    "base_source": "assets/music/source/frozen/track-00-a-windborne-fantasia-v2f1.mid.gz",
+    "base_uncompressed_midi_sha256": "beb0c9d7d5625c7764207d140cce6b5496bbf1ad0803b2f0d78c26ce3cde9695",
+    "selection_authority": "project-owner explicit disposition on 2026-09-07",
+    "mutated_track_indices": [6, 7, 17, 18]
+  },
+  "guardrail": "This is the canonical Track 00 MIDI after MUS-0004. Preserve V2F.1 as historical reference; future source changes require a new explicit revision and qualitative disposition."
+}

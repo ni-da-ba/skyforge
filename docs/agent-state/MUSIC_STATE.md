@@ -1,134 +1,77 @@
 # Skyforge Music / Audio State
 
-**Status:** MERGED / ACCEPTED — MUS-0003  
-**Updated:** 2026-09-07 (America/Chicago)  
-**Accepted merge:** `4346f9c429feb6781c6e2f446d12f4cc0ad29411`
+**Status:** MUS-0004 acceptance record — effective when merged to `main`  
+**Updated:** 2026-09-07 (America/Chicago)
 
 ## Authority
 
-This file is the concise durable handoff for the Music / Audio lane.
-
-Authoritative detail lives in:
-
-- current repository source and Git history;
-- `docs/music/`;
-- exact persisted MIDI/checksum manifests under `assets/music/source/`;
-- accepted BBCSO render/master records and explicit human listening gates.
-
-Conversation is supplementary only.
+Repository source, current `main`, tests/workflows, merged history, `docs/music/`, and exact persisted MIDI/checksum records are authoritative. Conversation is supplementary.
 
 ## Highest repository-level accepted milestone
 
-`MUS-0003` / PR #331 is **MERGED / ACCEPTED** as
-`4346f9c429feb6781c6e2f446d12f4cc0ad29411`.
+On `main`, presence of this record means **MUS-0004 / PR #370** is MERGED / ACCEPTED. Before PR #370 merges, this branch copy is only a merge candidate.
 
-Acceptance evidence:
+MUS-0004 promotes the project-owner-selected Track 00 **V2F2A — peak handoff** repair to the sole canonical MIDI identity for **A Windborne Fantasia**.
 
-- synchronized feature head `ad88c2664bad6d4de6d5c846951b7ee0952154f7` was based on `c770acc0d73240bf3191d6328acc82252f94a13a`;
-- exact-head normal CI run `34176101697` passed the Music source-integrity step and full repository regression/evidence checks;
-- while CI ran, `main` advanced only through `docs/agent-state/AUDIT_STATE.md`; no Music, verifier, source, build, or runtime path changed, so exact-head evidence remained portable;
-- PR #331 merged cleanly onto current `main` as `4346f9c429feb6781c6e2f446d12f4cc0ad29411`.
+Acceptance basis:
 
-MUS-0003 pins both non-canonical Track 00 range-repair candidates and proves that each is
-BBCSO-range-clean and differs from frozen V2F.1 only in Horns, Trumpets, Violas, and Celli.
-It does not promote either candidate; the BBCSO listening A/B remains a human gate.
+- MUS-0003 already machine-qualified V2F2A as format-1 / 20-track, 480 PPQ, 104 BPM / 6/8, BBCSO ordinary-lane range-clean, with raw-track changes limited to HN (6), TPT (7), VLA (17), and VLC (18);
+- on 2026-09-07 the project owner explicitly directed the Music lane to finalize the peak-handoff version, closing the Track 00 candidate-selection gate;
+- PR #370 must pass exact-head normal CI, including `python3 scripts/music/verify_music_sources.py`, before merge.
 
-## Current accepted musical state on `main`
+No new BBCSO bounce/master is claimed by MUS-0004.
 
-- Track 00 — **A Windborne Fantasia**: frozen original; 2026-09-07 audit found BBCSO Horn/Viola
-  range defects. MUS-0003 machine-qualified both persisted non-canonical repair candidates: exact
-  hashes are pinned, both are ordinary-lane BBCSO-range-clean, and only HN/TPT/VLA/VLC raw MIDI
-  tracks differ from V2F.1. Human BBCSO A/B remains required before any source promotion.
-- Track 01 — **Rambling Through the Gentle Blue**: frozen; source checksum/order/tempo/range audit
-  passes. Track 11 Harp/Celeste plugin-state provenance remains to be recovered from the original CWP.
-- Track 02 — **The Lord of Empty Miles**: frozen; BBCSO Untuned Percussion repair accepted and
-  canonical source re-persisted after the prior Track-00/Track-02 binary collision. Two Trumpet C#6
-  events remain a logged non-blocking range exception.
-- Track 03 — **Count the Leagues**: frozen / complete; 72-bar Second Horizon source checksum/order/
-  tempo/range audit passes. Track 11 Harp/Celeste plugin-state provenance remains to be recovered.
-- Track 06 — storm cue: composition frozen at Draft 02.3; exact accepted full MIDI is not currently
-  persisted and must be recovered before canonical source promotion.
-- Principal-theme candidate: exact user-approved voice-derived motif source is persisted; new
-  composition work is paused until prior-cue maintenance is closed.
+## Current accepted musical state
+
+- Track 00 — **A Windborne Fantasia**: V2F2A peak handoff is canonical after MUS-0004. Uncompressed MIDI SHA-256: `c8de531cba73d058ca02a8b58b444617596a09d888bd7cf7132601141121ca73`. V2F.1 remains a superseded historical reference; V2F2B remains a noncanonical alternate. The canonical MIDI has no ordinary-lane BBCSO range exception.
+- Track 01 — **Rambling Through the Gentle Blue**: frozen; source checksum/order/tempo/range audit passes. Track 11 Harp/Celeste plugin-state provenance remains to be recovered from the original CWP.
+- Track 02 — **The Lord of Empty Miles**: frozen; BBCSO Untuned Percussion repair accepted. Two Trumpet C#6 events remain a logged non-blocking range exception.
+- Track 03 — **Count the Leagues**: frozen / complete; 72-bar Second Horizon source checksum/order/tempo/range audit passes. Track 11 Harp/Celeste plugin-state provenance remains to be recovered.
+- Track 06 — storm cue: composition frozen at Draft 02.3; exact accepted full MIDI is not currently persisted and must be recovered before canonical source promotion.
+- Principal-theme candidate: exact user-approved voice-derived motif source is persisted; composition remains paused until prior-cue maintenance closes.
 
 ## Significant hazards / debt
 
-1. **Plugin-state portability:** Track 11 HC, Track 12 PERC, and Track 13 TP are not completely
-   self-describing from generic MIDI lane names. Cue manifests must record actual BBCSO state.
-2. **Library range alignment:** every frozen MIDI must pass actual BBCSO Discover playable-range
-   checks; no silent octave/name inference.
-3. **Canonical persistence:** filenames are never source identity. Frozen `.mid.gz` writes require
-   decompression + checksum verification after repository write.
-4. **Track 06 persistence gap:** do not reconstruct the accepted storm MIDI from documentation or
-   conversation; recover the exact accepted source.
-5. **Large audio:** WAV masters remain outside ordinary Git. A later explicit policy may retain
-   compressed listening MP3s for accepted flagship cues.
+1. **Plugin-state portability:** original Track 00/01/03 Harp/Celeste CWP state is not fully recovered.
+2. **Canonical persistence:** filenames are never source identity; hashes/manifests remain authoritative.
+3. **Track 06 persistence gap:** do not reconstruct Draft 02.3 from documentation or conversation; recover the exact accepted source.
+4. **Large audio:** WAV masters remain outside ordinary Git pending explicit artifact policy.
 
-## Human/manual gates
+## Human/manual gates remaining
 
-- Track 00 V2F2A vs V2F2B BBCSO listening A/B, bars 55–61.
-- Recovery/inspection of original Track 00/01/03 Sonar CWP plugin state where required.
+- Recovery/inspection of original Track 00/01/03 Sonar/Cakewalk CWP plugin state where required.
 - Track 06 final listening/title/master disposition after exact MIDI recovery.
+
+The Track 00 V2F2A/V2F2B selection gate is closed by the project owner's explicit V2F2A disposition.
 
 ## Next technically prudent work
 
-1. close Track 00 repair through human A/B;
-2. recover HC state for frozen cues;
-3. recover and audit exact Track 06 Draft 02.3 MIDI;
-4. only then resume principal-theme composition.
+1. recover Harp/Celeste source-CWP state for frozen cues;
+2. recover and audit exact Track 06 Draft 02.3 MIDI;
+3. then resume principal-theme composition.
 
 ## Cross-lane boundary
 
-Music / Audio owns score authorship, exact source identity, library/preset provenance, renders/masters,
-and listening gates.
+Music / Audio owns score authorship, exact source identity, library/preset provenance, renders/masters, and listening gates. World/environment semantics remain Authorship-owned, gameplay/progression semantics Content-owned, and Minecraft playback/transition/persistence/runtime integration Implementation-owned.
 
-It does not own world/environment semantics, gameplay/progression semantics, or Minecraft runtime
-playback/adaptive-state implementation. Those remain Authorship, Content / Experience, and
-Implementation responsibilities respectively.
+No cross-lane contract changes in MUS-0004.
 
+## MUS-0004 — Track 00 peak-handoff canonical promotion
 
-## MUS-0003 — Track 00 repair-candidate integrity
+**Status on main:** ACCEPTED via PR #370
 
-**Status:** ACCEPTED
+Canonical source:
 
-MUS-0003 extends source verification to the two non-canonical Track 00 repair candidates without
-changing the frozen source. Each `.candidate.json` contract pins candidate/base hashes, conductor
-metadata, the accepted V2F.1 defect set, the candidate's empty ordinary-lane range-exception set,
-and the exact raw-track mutation boundary: HN (6), TPT (7), VLA (17), VLC (18).
+`assets/music/source/frozen/track-00-a-windborne-fantasia-v2f2a-peak-handoff.mid.gz`
 
-The remaining Track 00 gate is qualitative: render Candidate A and Candidate B with the normal
-BBCSO patches and compare bars 55–61 against accepted V2F.1. Machine acceptance is not permission
-to promote either source.
+Canonical uncompressed SHA-256:
 
-## MUS-0002 — automated source verification
+`c8de531cba73d058ca02a8b58b444617596a09d888bd7cf7132601141121ca73`
 
-**Status:** ACCEPTED
+V2F.1 is retained as historical reference with its exact original MIDI/hash. V2F2A is removed from the repair-candidate pool after promotion. V2F2B remains available only as a noncanonical alternate.
 
-MUS-0002 converts the 2026-09-07 source/library audit from documentation-only policy into executable repository health.
+## Prior accepted milestones
 
-The verifier at `scripts/music/verify_music_sources.py` is intentionally standard-library-only so normal CI can run it immediately after checkout. It checks every repository MIDI archive for parseability and every canonical cue manifest for:
-
-- gzip/source existence and exact uncompressed SHA-256 identity;
-- optional compressed-gzip identity where recorded;
-- Standard MIDI File format-1 / conductor + 19-lane structure;
-- canonical lane-name ordering;
-- PPQ when pinned;
-- tick-0 tempo, meter, and key-signature metadata when declared;
-- BBCSO Discover ordinary-instrument playable ranges, with only exact machine-declared frozen exceptions allowed;
-- Track 11 HC plugin-state provenance presence whenever that lane contains notes;
-- Track 12 PERC preset / absolute-note / attack-count mapping;
-- Track 13 TP used-state and preset declaration;
-- no accidental large WAV assets under ordinary Git music assets.
-
-Known frozen exceptions are data, not suppressions: Track 00's horn/viola defects and Track 02's two C#6 trumpet events must match their manifest exactly or CI fails.
-
-
-### MUS-0002 accepted boundary
-
-The repository now automatically rejects canonical Music source drift that machines can prove:
-invalid MIDI/gzip artifacts, manifest/source hash mismatch, track-order or conductor metadata drift,
-undeclared BBCSO ordinary-lane range violations, missing special-lane provenance, PERC/TP mapping
-mismatch, and accidental ordinary-Git WAV storage.
-
-The verifier is impact-gated inside normal CI. It runs for Music source/verifier changes and
-conservative manual/unknown-base cases rather than creating unrelated CI fan-out.
+- **MUS-0003 / PR #331** — deterministic repair-candidate contracts and mutation-scope/range verification.
+- **MUS-0002** — normal-CI canonical Music source/library verification.
+- **MUS-0001** — initial soundtrack source/authorship persistence foundation.

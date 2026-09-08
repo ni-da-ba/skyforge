@@ -1,7 +1,7 @@
 {
   "cue": "Track 00 — A Windborne Fantasia",
   "candidate": "V2F2B — continuous brass crest",
-  "status": "non-canonical repair candidate; human BBCSO A/B required before promotion",
+  "status": "retained non-canonical alternate after V2F2A canonical selection",
   "source": "assets/music/source/repair-candidates/track-00-v2f2b-continuous-brass-crest-range-repair.mid.gz",
   "uncompressed_midi_sha256": "79d3ae690cf8aaf785ad0e31bef2e85f92ddfa3a3ac8cd2fe7c81b5d3c74d375",
   "base_source": "assets/music/source/frozen/track-00-a-windborne-fantasia-v2f1.mid.gz",
@@ -28,5 +28,5 @@
     }
   ],
   "candidate_range_exceptions": [],
-  "human_gate": "Audition bars 55-61 at 104 BPM / 6/8 in BBCSO Discover against accepted V2F.1 before any canonical promotion."
+  "human_gate": "Closed for the current repair decision: project owner selected V2F2A on 2026-09-07. Reopen only if V2F2A is explicitly rejected in a later qualitative review."
 }
