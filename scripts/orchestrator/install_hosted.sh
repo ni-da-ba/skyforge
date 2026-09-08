@@ -54,7 +54,7 @@ if command -v apt-get >/dev/null 2>&1; then
   fi
 fi
 
-for command in git gh python3 sudo caddy curl codex; do
+for command in git gh python3 sudo caddy curl; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "Required command is missing after bootstrap: $command" >&2
     exit 1
@@ -68,11 +68,6 @@ fi
 
 if ! gh auth status >/dev/null 2>&1; then
   echo "GitHub CLI is not authenticated for the service user. Run: gh auth login" >&2
-  exit 1
-fi
-
-if ! codex login status >/dev/null 2>&1; then
-  echo "Codex is not authenticated for the service user. Run: codex login --device-auth" >&2
   exit 1
 fi
 
@@ -96,6 +91,12 @@ if [[ ! -x "$VENV_PYTHON" ]]; then
   python3 -m venv "$VENV"
   "$VENV_PYTHON" -m pip install --upgrade pip
   "$VENV_PYTHON" -m pip install -r scripts/orchestrator/requirements.txt
+fi
+
+if ! "$VENV_PYTHON" scripts/orchestrator/codex_auth.py >/dev/null 2>&1; then
+  echo "Codex ChatGPT authentication is not active for the service user." >&2
+  echo "Run: $VENV_PYTHON scripts/orchestrator/codex_auth.py --device-login" >&2
+  exit 1
 fi
 
 tmp_service="$(mktemp)"
