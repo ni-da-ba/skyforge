@@ -218,9 +218,19 @@ def _atomic_json(path: Path, value: dict[str, Any]) -> None:
     tmp.replace(path)
 
 
-def _load_recent_reports(report_dir: Path, days: int = 7) -> list[dict[str, Any]]:
+def _load_recent_reports(
+    report_dir: Path,
+    days: int = 7,
+    *,
+    exclude_date: str | None = None,
+) -> list[dict[str, Any]]:
     reports: list[dict[str, Any]] = []
-    for path in sorted(report_dir.glob("*.json"))[-days:]:
+    paths = [
+        path
+        for path in sorted(report_dir.glob("*.json"))
+        if path.stem != exclude_date
+    ]
+    for path in paths[-days:]:
         try:
             value = json.loads(path.read_text())
             if isinstance(value, dict):
@@ -342,7 +352,12 @@ def build_report(
     controller_prs = _controller_prs(prs, start, now)
 
     report_dir = root / STATE_DIR / REPORTS_DIR
-    recent = _load_recent_reports(report_dir, days=6)
+    report_date_central = now.astimezone(CENTRAL).date().isoformat()
+    recent = _load_recent_reports(
+        report_dir,
+        days=6,
+        exclude_date=report_date_central,
+    )
 
     period_hours = max(0.0, (now - start).total_seconds() / 3600.0)
     cumulative_hours = max(0.0, (now - activated).total_seconds() / 3600.0)
@@ -353,7 +368,7 @@ def build_report(
         "captured_at": now.isoformat(),
         "period_start": start.isoformat(),
         "period_end": now.isoformat(),
-        "report_date_central": now.astimezone(CENTRAL).date().isoformat(),
+        "report_date_central": report_date_central,
         "metric_deltas": deltas,
         "controller_prs": controller_prs,
         "cost": {
@@ -513,11 +528,6 @@ def main() -> int:
     markdown = _render_markdown(report)
     md_path.write_text(markdown)
 
-    # Advance the baseline only after both durable report artifacts exist.
-    report_state["last_report_at"] = now.isoformat()
-    report_state["last_metrics"] = dict(state.get("metrics") or {})
-    _atomic_json(report_state_path, report_state)
-
     if not args.no_post:
         try:
             _run(
@@ -532,6 +542,13 @@ def main() -> int:
         except Exception as exc:
             print(f"[value-report] GitHub post failed after local report persistence: {exc}")
             return 2
+
+    # Advance the accounting baseline only after the local artifacts exist and, when enabled,
+    # the visible GitHub summary has posted successfully. A transient post failure is retryable
+    # without losing the period's counter deltas.
+    report_state["last_report_at"] = now.isoformat()
+    report_state["last_metrics"] = dict(state.get("metrics") or {})
+    _atomic_json(report_state_path, report_state)
 
     print(markdown, end="")
     return 0
