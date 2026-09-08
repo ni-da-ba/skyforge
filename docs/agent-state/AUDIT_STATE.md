@@ -107,6 +107,30 @@ Human-strategy roadmap:
 
 No current producer session meets the repository-evidence threshold for restart. There is no active unchanged-rerun loop, long-running timeout churn, or producer merge-conflict cycle. #352's multiple smoke runs correspond to information-bearing head changes and remain green; if commit/CI churn continues after the implementation delta stabilizes without a clean acceptance boundary, Audit should escalate from WATCH to LOOP RISK.
 
+## EVENT-DRIVEN CODEX PILOT
+
+Issue #349 / PR #352 owns the local event-driven Codex orchestration experiment.
+
+Role split:
+
+~~~text
+positive repository activity/state change
+    -> local filtered SDK/App-Server controller
+
+negative space / silence / dead producer / evidence saturation
+    -> hourly Audit watchdog
+~~~
+
+Audit remains the independent supervisor and human-facing hourly reporting layer. The controller must
+not replace watchdog liveness detection because absence of producer activity cannot create a webhook.
+
+Material Audit comments such as RESTART RECOMMENDED / LOOP RISK are intended to wake the controller
+through the issue-comment event path. Conversely, controller-managed work must not be duplicated by
+Audit merely because it is a Codex branch; inspect information-bearing progress normally.
+
+The pilot is local/reversible, uses a dedicated clone, filters/debounces events before Codex startup,
+uses a low-cost classifier plus at most one bounded worker, and leaves auto-merge disabled initially.
+
 ## NEXT AUDIT WORK
 
 1. Watch for a fresh current-main morphology-only SF-IMP-0083 branch and targeted Tableland diagnosis; unchanged heavy reruns escalate to LOOP RISK.

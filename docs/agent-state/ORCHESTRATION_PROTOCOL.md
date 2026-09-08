@@ -186,15 +186,15 @@ The orchestrator should fill these fields from repository evidence, not from mem
 
 ### Cadence
 
-Recommended starting cadence:
+**Preferred pilot:** event-driven local dispatch under Section 15. In that mode, there is no periodic
+Codex heartbeat while the controller is running; filtered GitHub events wake the persistent Luna
+classifier only when repository state may be actionable.
 
-- active development: roughly every **2 hours**;
-- known short CI wait: next useful wake after the expected evidence window rather than frequent polling;
-- all lanes dormant/human-gated: reduce cadence substantially or pause;
-- urgent merge/recovery: temporary shorter cadence only while it is actually information-bearing.
+**Fallback:** if the local event receiver is unavailable, use a single Codex heartbeat roughly every
+two hours during active development. Reduce/pause it when lanes are dormant/human-gated.
 
-Codex thread automations may be configured to stop once the specified condition/gate is reached.
-Cadence should be increased only when the expected value of another wake exceeds its usage cost.
+Do not combine a two-hour Codex heartbeat with the event-driven controller unless deliberately testing
+fallback behavior; that would pay twice for the same orchestration.
 
 ## 9. Liveness
 
@@ -276,11 +276,12 @@ Do not immediately move every Skyforge lane to autonomous Codex execution.
 Pilot:
 
 1. install this repository harness;
-2. create **one Codex orchestrator thread automation**;
-3. run the orchestrator itself on Luna at low/normal effort where available;
-4. allow it to dispatch at most one Implementation or Content task per wake initially, preferring Terra
-   for routine bounded work and escalating to Sol only when justified;
-5. keep hourly Audit reporting;
+2. run the event-driven local SDK/App-Server pilot in Section 15; use the two-hour thread heartbeat
+   only as fallback when that receiver is unavailable;
+3. run the orchestration classifier on Luna at low effort where available;
+4. allow at most one bounded worker dispatch per event batch initially, preferring Terra for routine
+   work and escalating to Sol only when justified;
+5. keep hourly Audit reporting as an independent liveness/negative-space supervisor;
 6. compare for several milestones:
    - manual prompts/restarts required;
    - agentic usage consumed;
@@ -381,13 +382,126 @@ At the end of each useful wake, leave a concise summary:
 Do not produce a long general project summary unless a human gate or serious process failure requires it.
 ~~~
 
-### Suggested pilot schedule
+### Suggested fallback schedule
 
-Start with one heartbeat approximately every **2 hours** while active development is underway.
+Use the heartbeat prompt only when the event-driven local controller is unavailable. In that fallback
+mode, start around every **2 hours** during active development and pause/reduce it when all producer
+lanes are DORMANT/HUMAN_GATE.
 
-If the thread-automation UI supports a condition/end rule, stop or substantially reduce the cadence
-when all producer lanes are DORMANT/HUMAN_GATE. Increase cadence only temporarily for a merge/recovery
-sequence where another wake is likely to have actionable evidence.
+The ordinary hourly Audit report remains the visibility/liveness layer; Codex is reserved for
+dispatching repository work.
 
-The ordinary hourly Audit report remains the higher-frequency visibility/liveness layer; Codex is
-reserved for dispatching repository work.
+
+## 15. Event-driven local SDK/App-Server pilot
+
+### Rationale
+
+The two-hour heartbeat is intentionally conservative but still spends a Codex turn to discover that
+nothing changed. The preferred pilot is event-driven:
+
+~~~text
+GitHub event
+    -> deterministic local filter/debounce
+    -> no call if irrelevant
+    -> persistent Luna classifier if potentially actionable
+    -> fresh bounded Terra worker only for DISPATCH
+    -> controller-owned git/gh handoff
+    -> CI
+    -> next completion event
+~~~
+
+OpenAI's Python Codex SDK is the automation surface. It controls the local Codex runtime/App Server
+and exposes explicit thread start/resume. Skyforge therefore does not implement App Server JSON-RPC
+directly.
+
+### Security and authority split
+
+The model is not given unattended GitHub/network authority in the pilot.
+
+- Luna: read-only local classifier.
+- Terra: workspace-write local edits/tests for one bounded objective.
+- outer deterministic controller: fetch/checkout/commit/non-force-push/draft-PR operations.
+
+This avoids depending on sandbox-network behavior and creates a narrow audit boundary around external
+writes.
+
+Auto-merge is disabled initially. If later enabled, it applies only to PRs recorded as
+controller-managed in ignored local state and only after visible checks are terminal/green. No force
+push, history rewrite, branch deletion, secret management, repository administration, purchase, or
+credential action belongs in autonomous pilot scope.
+
+### Event allowlist
+
+Potential wakes:
+
+- push to `main`;
+- PR closed/reopened/ready-for-review/draft transition;
+- workflow-run completion after all runs for the exact head are quiescent;
+- Audit/restart/loop-risk/human-gate comments;
+- manual `/skyforge-orchestrate`.
+
+Ignored before Codex startup:
+
+- non-main pushes;
+- PR synchronize;
+- ordinary comments;
+- PR opened before first CI completion;
+- non-completed workflow notifications;
+- controller-authored comments.
+
+Events are debounced and subject to a minimum dispatch interval.
+
+### Watchdog relationship
+
+The event-driven controller and hourly Audit watchdog are deliberately **not replacements for one
+another**.
+
+~~~text
+positive activity / state change
+    -> webhook controller
+
+negative space / silence / dead producer
+    -> hourly Audit watchdog
+~~~
+
+A webhook cannot fire because a producer stopped doing anything. The watchdog therefore retains
+liveness detection, evidence-saturation supervision, hourly human-facing summaries, and human-gate
+escalation.
+
+When Audit posts a material GitHub comment such as RESTART RECOMMENDED or LOOP RISK, that comment
+becomes an actionable webhook and can wake Codex immediately. Thus Audit diagnoses; the event
+controller may execute the bounded recovery.
+
+If Codex reaches a human gate, it posts a controller-marked GitHub gate comment and stops. The
+controller ignores its own comment to prevent recursive wakeups; Audit remains responsible for
+bringing the gate to the project owner.
+
+### Local-only first phase
+
+The initial implementation is under `scripts/orchestrator/` and binds only localhost. GitHub CLI
+webhook forwarding is a development/test transport, not production infrastructure.
+
+The controller requires a **dedicated clone**. Local state and its virtualenv live under the ignored
+`.skyforge-orchestrator/` directory.
+
+If the pilot demonstrates favorable accepted-progress/usage economics, the next step is a small real
+HTTPS webhook receiver with GitHub signature validation using the same deterministic filter. Do not
+build that deployment layer before issue #349 shows the pilot is worth keeping.
+
+### Usage accounting
+
+Ignored events cost no Codex turn because `openai_codex` is imported lazily only after deterministic
+filtering and CI-quiescence checks.
+
+A useful work event normally costs:
+- one low-cost Luna classification turn;
+- zero worker turns for NOOP/HUMAN_GATE;
+- one Terra turn for a bounded DISPATCH.
+
+This should be materially more usage-efficient than scheduled polling when repository activity is
+bursty.
+
+### Rollback
+
+Stopping the local process disables the entire event-driven layer. GitHub state, ordinary producer
+chats, CI, validation policy, and hourly Audit continue unchanged.
