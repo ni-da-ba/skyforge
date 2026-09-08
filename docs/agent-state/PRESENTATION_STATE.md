@@ -2,7 +2,7 @@
 
 **Canonical lane:** PRESENTATION  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Status:** PRES-0003 in progress under issue #347  
+**Status:** PRES-0003 ready for acceptance under issue #347  
 **Highest merged Presentation milestone:** **PRES-0002**  
 **PRES-0002 merge:** PR #350, `08bc6ff65da5f49f499a3ce16d4fceaf474aa216`
 
@@ -66,15 +66,15 @@ Accepted artifacts:
 
 Exact-head CI run #1776 passed before merge. PRES-0002 creates no producer technical claim or cross-lane contract.
 
-## IN PROGRESS
+## READY FOR ACCEPTANCE
 
 ### PRES-0003 — flagship 90-second demo narrative
 
-Issue #347. Branch `presentation/pres-0003-flagship-demo`.
+Issue #347. PR #351. Branch `presentation/pres-0003-flagship-demo`.
 
-Current artifact:
+Candidate artifact:
 
-- `docs/presentation/demos/flagship-90-second-demo.md` — exact ~90-second shot/narration/on-screen-text/evidence map for a nontechnical-first demo.
+- `docs/presentation/demos/flagship-90-second-demo.md` — exact ~90-second shot/narration/on-screen-text/evidence map for a nontechnical-first demo, plus accepted viewer/capture choreography and an optional technical branch.
 
 Core sequence:
 
@@ -88,15 +88,28 @@ meaning
 -> clearly labeled Bootstrap Province direction
 ```
 
-The storyboard consumes the PRES-0002 claim registry and the accepted SF-IMP-0080/0081/0082 viewer choreography. Issue #348 tracks canonical still acquisition.
+The narrative consumes the PRES-0002 claim registry and accepted SF-IMP-0080/0081/0082 viewer choreography. Exact-head CI run #1778 passed on the current PRES-0003 candidate.
 
-Inspection of the retained SF-IMP-0082 Showcase Acceptance artifacts found acceptance properties/logs but no image captures, so Presentation must not substitute generated or fabricated runtime visuals. Reuse existing accepted viewer worlds/commands or the cheapest valid capture path rather than rerunning the expensive morphology matrix solely for screenshots.
+**Acceptance boundary:** PRES-0003 accepts the demo narrative architecture, evidence map, shot order, and capture specification. It does **not** claim that the final edited media package or canonical screenshot set exists.
+
+Issue #348 remains a non-blocking presentation asset follow-up for canonical runtime stills. Retained Showcase Acceptance artifacts contain acceptance properties/logs but no screenshots; generated/concept images may be used only as explicitly labeled explanatory art and never as runtime evidence.
 
 ## NEXT
 
 ### PRES-0004 — portfolio/showcase package
 
-Follow PRES-0003 once the flagship story has canonical runtime images. Prefer reusable high-signal artifacts over presentation volume.
+After PRES-0003 merges, build a compact portfolio-facing reviewer path that reuses the accepted claim registry and flagship demo narrative. Prefer one high-signal project page/package over multiple redundant artifacts.
+
+The package should explain:
+
+- what Skyforge is in one sentence;
+- why the architecture is technically nontrivial;
+- what is already accepted and demonstrable;
+- what evidence a technical reviewer can inspect;
+- what remains roadmap rather than current capability;
+- the user's role using authorship language that remains accurate for AI-assisted multi-agent development.
+
+Issue #348 remains available as a later visual enrichment task and should not block PRES-0004 source work.
 
 ## Current communication hazards
 
@@ -110,4 +123,4 @@ Follow PRES-0003 once the flagship story has canonical runtime images. Prefer re
 
 ## Recommended next work
 
-Complete PRES-0003 by acquiring the small canonical capture set from issue #348, insert those visuals into the flagship storyboard/demo package, verify every frame against `current-claims.md`, then merge the bounded narrative package before beginning PRES-0004.
+Merge PRES-0003 after its ready-state documentation gate, then begin PRES-0004 from current `main`. Keep #348 as a separate asset-enrichment follow-up rather than a blocker on the narrative/portfolio source architecture.
