@@ -119,18 +119,22 @@ every webhook that may have been missed while the host was offline.
 This is intentionally conservative. A reboot after ordinary online activity can cause one extra Luna
 classification, but repository work is not silently missed.
 
-## Trusted remote pause / resume
+## Trusted remote control / status
 
 From any issue or pull request, `ni-da-ba` may post exactly:
 
 ```text
 /skyforge-pause
 /skyforge-resume
+/skyforge-status
 ```
 
 These commands are deterministic and spend zero model turns. Pause keeps receiving and journaling
 actionable repository events but starts no new Codex dispatch. Resume drains the retained batch.
-Untrusted commenters cannot invoke orchestration, Audit wake tokens, pause, or resume.
+Status posts a controller-marked, non-secret snapshot back to the issuing issue/PR, including loaded
+runtime head, checkout head, pause/breaker state, queued-event count, worker state, and daily Luna/Terra
+counters. The status reply is filtered from orchestration input and cannot recurse. Untrusted commenters
+cannot invoke orchestration, Audit wake tokens, pause, resume, or status.
 
 ## Health
 
@@ -138,8 +142,8 @@ Untrusted commenters cannot invoke orchestration, Audit wake tokens, pause, or r
 GET /healthz
 ```
 
-returns non-secret operational state including pending-event count, circuit-breaker state, daily call
-counters, managed-PR count, and last startup reconciliation time.
+returns non-secret operational state including loaded runtime head, pending-event count, circuit-breaker
+state, daily call counters, managed-PR count, and last startup reconciliation time.
 
 Useful commands:
 
