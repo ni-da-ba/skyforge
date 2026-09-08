@@ -1,6 +1,6 @@
 # Wave C11 — live pre-Brass first-flight recipe surface
 
-**Status:** RECOMPOSED / IN PROGRESS  
+**Status:** ACCEPTED merge candidate  
 **Historical draft:** PR #233, closed as reserved historical work by AUDIT dormant-branch cleanup  
 **Parent:** #224 Bootstrap Province  
 **Downstream:** C12 / issue #239
@@ -98,3 +98,30 @@ recipe-runtime capability. It does not extend the stale integration head.
 8. Content state records C11 accepted without weakening HS-06 or claiming transitive BOM closure.
 
 No Minecraft human-eye/manual play gate applies to C11 itself.
+
+
+## Accepted candidate evidence
+
+Exact recomposed code head `8cef137fa0fc617e9c79ef0c3e3c0005137f86c6` passed:
+
+- Wave C11 First Flight Recipe Runtime run `34189656148`;
+- repository CI run `34189656149`.
+
+The live RecipeManager emitted nine accepted recipe paths. The critical engine path was:
+
+```text
+simulated:engine_assembly
+    <- simulated:sequenced_assembly/engine_assembly[create:iron_sheet]
+
+simulated:red_portable_engine
+    <- create:iron_sheet
+     + simulated:engine_assembly
+     + minecraft:blast_furnace
+```
+
+A follow-up audit of the upstream Simulated engine-assembly JSON confirmed its sequence contains only
+cutting and pressing of the transitional engine assembly after the iron-plate input; it does not hide
+a Brass/petroleum deployer ingredient.
+
+C11 therefore accepts the **direct** pre-Brass/pre-petroleum recipe surface only. Transitive BOM,
+quantities, guarantees, aircraft viability, and HS-06 remain open.

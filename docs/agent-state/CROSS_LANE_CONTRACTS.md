@@ -231,7 +231,41 @@ spawn -> survival foothold -> Create workshop -> cheap glider -> shared thermals
 -> mature skyborne civilization evidence
 ```
 
-First powered flight remains pre-Brass/pre-petroleum unless executable recipe closure disproves it.
+C11 / PR #386 now proves the current retained Create/Sable/Aeronautics stack has a direct live
+recipe surface for the nine essential first-aircraft/workshop outputs without a hard Brass or
+petroleum prerequisite.
+
+This does **not** close transitive raw-material quantities, guaranteed acquisition paths, adhesive or
+fuel supply, aircraft viability, time-to-flight, or HS-06 first-hours decisions. Therefore the
+Bootstrap target remains pre-Brass/pre-petroleum, now with direct recipe evidence rather than
+assumption.
+
+### C11 — live pre-Brass/pre-petroleum first-flight recipe surface — ACCEPTED LATE
+
+PR #386 recomposes historical draft PR #233 from current `main`; #233 remains closed as reserved
+historical work.
+
+Accepted live outputs:
+
+```text
+simulated:physics_assembler
+simulated:engine_assembly
+simulated:red_portable_engine
+aeronautics:andesite_propeller
+simulated:steering_wheel
+simulated:swivel_bearing
+simulated:white_symmetric_sail
+create:mechanical_press
+create:mechanical_saw
+```
+
+Every output has at least one direct live recipe path with an early alternative. The Simulated engine
+assembly starts from iron sheet and its audited sequence performs cutting/pressing only; no hidden
+Brass/petroleum deployer step was found.
+
+C11 is recipe-surface evidence only. C12 owns assembled aircraft viability; HS-06 still owns
+first-hours quantity/guarantee/player-experience decisions. Late C11 acceptance does not supersede
+higher-numbered accepted Content milestones.
 
 ### C20 — base-metal availability and guarantees — ACCEPTED
 
@@ -435,7 +469,13 @@ No adaptive-music runtime/state-machine contract is currently accepted. Large WA
 
 ## Bellanca / mature utility aircraft
 
-The Bellanca B0 must be a real Sable/Create Aeronautics contraption with useful power-off flight. Issue #237 / draft PR #240 tracks Portable Engine cutoff work. Assembled-Sable, save/reload, two-engine behavior, and human ergonomics remain unaccepted; C12 remains reserved for the executable B0.
+The Bellanca B0 must be a real Sable/Create Aeronautics contraption with useful power-off flight.
+C11 direct recipe-surface closure is accepted via PR #386.
+
+Portable Engine cutoff issue #237 remains open. Historical draft PR #240 was closed by AUDIT as
+reserved historical work, not rejected; continuation must be recomposed from current `main`.
+Assembled-Sable, save/reload, two-engine behavior, and human ergonomics remain unaccepted; C12 /
+issue #239 remains reserved for the executable B0.
 
 ## Handoff discipline
 
