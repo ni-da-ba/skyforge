@@ -80,6 +80,10 @@ Use a separate clone so an autonomous checkout can never disturb normal interact
 git clone https://github.com/ni-da-ba/skyforge.git skyforge-orchestrator
 cd skyforge-orchestrator
 git pull --ff-only
+
+# Configure a normal commit identity if this clone does not inherit one.
+git config user.name "Skyforge Codex Orchestrator"
+git config user.email "<your GitHub commit email>"
 ```
 
 If the Codex runtime asks whether to trust this repository, trust only this known Skyforge clone after
