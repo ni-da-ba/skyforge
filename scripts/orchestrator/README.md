@@ -220,7 +220,13 @@ It should continue to:
 - post material Audit interventions to GitHub.
 
 An Audit comment containing terms such as `RESTART RECOMMENDED`, `LOOP RISK`, or
-`/skyforge-orchestrate` is itself an actionable webhook event.
+`/skyforge-orchestrate` is itself an actionable webhook event. Trusted Audit directives are preserved
+as structured classifier input, including their exact bounded objective and signal timestamp; they are
+not reduced to a generic "Audit signal." A `RESTART RECOMMENDED` directive is authoritative that the
+prior producer was stale at that instant. PR/issue `updatedAt` is never sufficient evidence of producer
+recovery because comments and bookkeeping mutate it; only information-bearing post-signal evidence
+such as a new producer head/commit, attributable Actions movement, or an already-managed recovery may
+suppress the fresh-worker dispatch.
 
 If Codex reaches a human gate, the local controller posts a
 `[skyforge-orchestrator] HUMAN_GATE` comment. Its own comment is ignored by the webhook filter to
