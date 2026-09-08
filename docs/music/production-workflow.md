@@ -351,7 +351,7 @@ MUS-0002 makes the canonical-source persistence rules executable through:
 python3 scripts/music/verify_music_sources.py
 ```
 
-The verifier uses only the Python standard library and is run by normal repository CI immediately after checkout.
+The verifier uses only the Python standard library and is run by normal repository CI immediately after change-impact classification when Music source/verifier state is affected. Manual dispatches and unknown comparison bases conservatively enable the gate; unrelated documentation-only changes do not.
 
 It parses all persisted `.mid` and `.mid.gz` artifacts for structural validity. For every canonical `*.manifest.json`, it additionally enforces:
 
