@@ -15,6 +15,8 @@ The hourly ChatGPT Audit watchdog remains independent and detects silence/livene
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -39,6 +41,7 @@ DEFAULT_MAX_WORKER_CALLS_PER_DAY = 8
 DEFAULT_QUOTA_BACKOFF_SECONDS = 3600
 DEFAULT_RATE_LIMIT_BACKOFF_SECONDS = 300
 DEFAULT_TRANSIENT_BACKOFF_SECONDS = 300
+DEFAULT_MAX_SEEN_DELIVERIES = 512
 
 ACTIVE_RUN_STATUSES = {"queued", "in_progress", "requested", "waiting", "pending"}
 AUDIT_WAKE_TOKENS = (
@@ -272,6 +275,13 @@ def _env_int(name: str, default: int, *, minimum: int = 0) -> int:
         return default
 
 
+def verify_webhook_signature(secret: str | None, payload: bytes, signature: str | None) -> bool:
+    if not secret or not signature or not signature.startswith("sha256="):
+        return False
+    expected = "sha256=" + hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
 def _clean_json_object(text: str) -> dict[str, Any]:
     raw = text.strip()
     fenced = re.match(r"^\`\`\`(?:json)?\s*(.*?)\s*\`\`\`$", raw, re.S | re.I)
@@ -365,6 +375,10 @@ class LocalState:
             "budget_day": _utc_day(),
             "classifier_calls_today": 0,
             "worker_calls_today": 0,
+            "seen_deliveries": [],
+            "reconcile_fingerprint": None,
+            "reconcile_snapshot": None,
+            "last_reconcile_at": None,
         }
         if self.path.exists():
             try:
@@ -392,6 +406,9 @@ class Orchestrator:
         min_dispatch_seconds: int,
         max_parent_turns: int,
         auto_merge: bool,
+        webhook_secret: str | None = None,
+        require_webhook_secret: bool = False,
+        startup_reconcile: bool = False,
     ) -> None:
         self.root = root
         self.repo = repo
@@ -399,6 +416,9 @@ class Orchestrator:
         self.min_dispatch_seconds = min_dispatch_seconds
         self.max_parent_turns = max_parent_turns
         self.auto_merge = auto_merge
+        self.webhook_secret = webhook_secret or os.environ.get("SKYFORGE_WEBHOOK_SECRET")
+        self.require_webhook_secret = require_webhook_secret
+        self.startup_reconcile = startup_reconcile
         self.state = LocalState(root)
         self._state_lock = threading.RLock()
         self._timer_lock = threading.Lock()
@@ -419,6 +439,128 @@ class Orchestrator:
             if not value:
                 raise RuntimeError(f"Git {key} is required in the dedicated clone before autonomous commits")
         _run(["gh", "auth", "status"], cwd=self.root, timeout=30)
+        if self.require_webhook_secret:
+            if not self.webhook_secret:
+                raise RuntimeError(
+                    "Hosted webhook mode requires SKYFORGE_WEBHOOK_SECRET."
+                )
+            if len(self.webhook_secret) < 32:
+                raise RuntimeError(
+                    "SKYFORGE_WEBHOOK_SECRET must be at least 32 characters in hosted mode."
+                )
+
+    def delivery_seen(self, delivery_id: str | None) -> bool:
+        if not delivery_id:
+            return False
+        with self._state_lock:
+            return delivery_id in (self.state.data.get("seen_deliveries") or [])
+
+    def record_delivery(self, delivery_id: str | None) -> None:
+        if not delivery_id:
+            return
+        with self._state_lock:
+            values = [
+                str(value)
+                for value in (self.state.data.get("seen_deliveries") or [])
+                if value
+            ]
+            if delivery_id not in values:
+                values.append(delivery_id)
+            self.state.data["seen_deliveries"] = values[-DEFAULT_MAX_SEEN_DELIVERIES:]
+            self.state.save()
+
+    def health_snapshot(self) -> dict[str, Any]:
+        with self._state_lock:
+            return {
+                "status": "ok",
+                "repo": self.repo,
+                "pending_events": len(self.state.data.get("pending_events") or []),
+                "pending_worker": bool(self.state.data.get("pending_worker")),
+                "blocked_kind": self.state.data.get("blocked_kind"),
+                "blocked_until_epoch": float(self.state.data.get("blocked_until_epoch") or 0.0),
+                "classifier_calls_today": int(self.state.data.get("classifier_calls_today") or 0),
+                "worker_calls_today": int(self.state.data.get("worker_calls_today") or 0),
+                "managed_prs": len(self.state.data.get("managed") or {}),
+                "last_reconcile_at": self.state.data.get("last_reconcile_at"),
+            }
+
+    def _remote_reconcile_snapshot(self) -> dict[str, Any]:
+        remote = _run(
+            ["git", "ls-remote", "origin", "refs/heads/main"],
+            cwd=self.root,
+            timeout=60,
+        ).stdout.strip()
+        main_sha = remote.split()[0] if remote else None
+        prs = _json_cmd(
+            [
+                "gh", "pr", "list",
+                "--repo", self.repo,
+                "--state", "open",
+                "--limit", "50",
+                "--json",
+                "number,title,isDraft,headRefName,updatedAt,mergeStateStatus",
+            ],
+            cwd=self.root,
+            timeout=60,
+        )
+        runs = _json_cmd(
+            [
+                "gh", "run", "list",
+                "--repo", self.repo,
+                "--limit", "35",
+                "--json",
+                "databaseId,name,status,conclusion,headSha,headBranch,event,updatedAt",
+            ],
+            cwd=self.root,
+            timeout=60,
+        )
+        return {
+            "main": main_sha,
+            "open_prs": sorted(prs, key=lambda item: int(item.get("number") or 0)),
+            "recent_runs": sorted(
+                runs,
+                key=lambda item: int(item.get("databaseId") or 0),
+                reverse=True,
+            ),
+        }
+
+    @staticmethod
+    def _reconcile_fingerprint(snapshot: dict[str, Any]) -> str:
+        encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    def startup_reconcile_repository(self) -> None:
+        snapshot = self._remote_reconcile_snapshot()
+        fingerprint = self._reconcile_fingerprint(snapshot)
+        with self._state_lock:
+            previous = self.state.data.get("reconcile_fingerprint")
+            self.state.data["reconcile_fingerprint"] = fingerprint
+            self.state.data["reconcile_snapshot"] = snapshot
+            self.state.data["last_reconcile_at"] = _utc_now()
+            self.state.save()
+
+        if not previous:
+            self._metric("startup_reconcile_baselines")
+            print("[orchestrator] established first hosted startup reconciliation baseline", flush=True)
+            return
+        if previous == fingerprint:
+            self._metric("startup_reconcile_noops")
+            print("[orchestrator] startup reconciliation found no repository-state change", flush=True)
+            return
+
+        self._metric("startup_reconciliations")
+        self.enqueue(
+            EventDecision(
+                True,
+                "repository state changed since previous controller startup",
+                "reconcile",
+                head_sha=snapshot.get("main"),
+            )
+        )
+        print(
+            "[orchestrator] startup reconciliation journaled current repository state after offline change",
+            flush=True,
+        )
 
     def _metric(self, name: str, amount: int = 1) -> None:
         with self._state_lock:
@@ -1101,6 +1243,20 @@ commit, push, open/merge PRs, or use network access."""
 class Handler(BaseHTTPRequestHandler):
     orchestrator: Orchestrator
 
+    def _respond_json(self, status: int, payload: dict[str, Any]) -> None:
+        body = json.dumps(payload, sort_keys=True).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self) -> None:  # noqa: N802
+        if self.path != "/healthz":
+            self.send_error(404)
+            return
+        self._respond_json(200, self.orchestrator.health_snapshot())
+
     def do_POST(self) -> None:  # noqa: N802
         if self.path != "/webhook":
             self.send_error(404)
@@ -1108,20 +1264,48 @@ class Handler(BaseHTTPRequestHandler):
         try:
             size = int(self.headers.get("Content-Length") or "0")
             if size <= 0 or size > 5_000_000:
-                self.send_error(400, "invalid payload size")
+                self._respond_json(400, {"error": "invalid payload size"})
                 return
-            payload = json.loads(self.rfile.read(size))
+
+            raw = self.rfile.read(size)
+            if self.orchestrator.require_webhook_secret:
+                signature = self.headers.get("X-Hub-Signature-256")
+                if not verify_webhook_signature(
+                    self.orchestrator.webhook_secret,
+                    raw,
+                    signature,
+                ):
+                    self.orchestrator._metric("webhook_signature_rejections")
+                    self._respond_json(403, {"error": "invalid webhook signature"})
+                    return
+
+            delivery_id = self.headers.get("X-GitHub-Delivery")
+            if self.orchestrator.delivery_seen(delivery_id):
+                self.orchestrator._metric("duplicate_deliveries")
+                self._respond_json(200, {"accepted": False, "duplicate": True})
+                return
+
+            payload = json.loads(raw.decode("utf-8"))
+            repository = payload.get("repository") or {}
+            full_name = repository.get("full_name")
+            if full_name and full_name != self.orchestrator.repo:
+                self._respond_json(400, {"error": "repository mismatch"})
+                return
+
             event = self.headers.get("X-GitHub-Event") or ""
             decision = classify_event(event, payload)
             self.orchestrator.enqueue(decision)
-            body = json.dumps({"accepted": decision.actionable, "reason": decision.reason}).encode()
-            self.send_response(202)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            # Record only after enqueue has durably journaled any actionable event.
+            self.orchestrator.record_delivery(delivery_id)
+            self._respond_json(
+                202,
+                {"accepted": decision.actionable, "reason": decision.reason},
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+            self._respond_json(400, {"error": str(exc)})
         except Exception as exc:
-            self.send_error(400, str(exc))
+            print(f"[webhook] handler error: {type(exc).__name__}: {exc}", flush=True)
+            self._respond_json(500, {"error": "internal webhook error"})
 
     def log_message(self, fmt: str, *args: Any) -> None:
         print(f"[webhook] {fmt % args}", flush=True)
@@ -1131,6 +1315,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--repo", default=REPO)
+    parser.add_argument(
+        "--bind",
+        default=os.environ.get("SKYFORGE_ORCHESTRATOR_BIND", "127.0.0.1"),
+    )
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--debounce-seconds", type=int, default=DEFAULT_DEBOUNCE_SECONDS)
     parser.add_argument("--min-dispatch-seconds", type=int, default=DEFAULT_MIN_DISPATCH_SECONDS)
@@ -1140,6 +1328,18 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         default=os.environ.get("SKYFORGE_ORCHESTRATOR_AUTO_MERGE") == "1",
         help="Allow controller-managed PRs to merge after classifier + green checks. Off by default.",
+    )
+    parser.add_argument(
+        "--require-webhook-secret",
+        action="store_true",
+        default=os.environ.get("SKYFORGE_REQUIRE_WEBHOOK_SECRET") == "1",
+        help="Reject webhook deliveries without a valid GitHub HMAC-SHA256 signature.",
+    )
+    parser.add_argument(
+        "--startup-reconcile",
+        action="store_true",
+        default=os.environ.get("SKYFORGE_STARTUP_RECONCILE") == "1",
+        help="Compare current GitHub state with the prior startup baseline and synthesize one wake if changed.",
     )
     return parser.parse_args()
 
@@ -1154,15 +1354,27 @@ def main() -> int:
         min_dispatch_seconds=args.min_dispatch_seconds,
         max_parent_turns=args.max_parent_turns,
         auto_merge=args.auto_merge,
+        require_webhook_secret=args.require_webhook_secret,
+        startup_reconcile=args.startup_reconcile,
     )
     orchestrator.validate_environment()
     Handler.orchestrator = orchestrator
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
+    server = ThreadingHTTPServer((args.bind, args.port), Handler)
     print(
-        f"[orchestrator] listening on http://127.0.0.1:{args.port}/webhook "
-        f"for {args.repo}; auto_merge={args.auto_merge}",
+        f"[orchestrator] listening on http://{args.bind}:{args.port}/webhook "
+        f"for {args.repo}; auto_merge={args.auto_merge}; "
+        f"signed_webhooks={args.require_webhook_secret}; startup_reconcile={args.startup_reconcile}",
         flush=True,
     )
+    if orchestrator.startup_reconcile:
+        try:
+            orchestrator.startup_reconcile_repository()
+        except Exception as exc:
+            orchestrator._metric("startup_reconcile_failures")
+            print(
+                f"[orchestrator] startup reconciliation failed closed: {type(exc).__name__}: {exc}",
+                flush=True,
+            )
     orchestrator.resume_pending()
     try:
         server.serve_forever()
