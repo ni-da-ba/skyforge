@@ -1,6 +1,6 @@
 # Wave C26 — local AUTH-0098 petroleum source admission
 
-**Status:** IN PROGRESS  
+**Status:** ACCEPTED merge candidate  
 **Issue:** #381  
 **Predecessor:** C25 / PR #377  
 **Authorship input:** AUTH-0098  
@@ -122,3 +122,16 @@ Implementation owns:
 8. state records the Implementation local-source realization handoff and no new Authorship producer.
 
 No Minecraft manual or visual gate applies to C26.
+
+
+## Accepted candidate evidence
+
+Exact C26 code head `145968506f7e2bf9e0b84afb2a24d1af18fe7fa0` passed:
+
+- Wave C26 Local Petroleum Source Admission run `34188611055`;
+- Wave C20 Base Metal Content Policy regression run `34188611005`;
+- repository CI run `34188611029`.
+
+The accepted result is intentionally narrow: AUTH-0098 already supplies sufficient local
+petroleum-system evidence for source admission. No new Authorship producer is required at this
+boundary.

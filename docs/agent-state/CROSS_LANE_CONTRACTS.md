@@ -1,7 +1,7 @@
 # Skyforge Cross-Lane Contracts
 
 **Status:** Canonical concise coordination state  
-**Updated:** 2026-09-07 (America/Chicago)  
+**Updated:** 2026-09-08 (America/Chicago)  
 **Repository snapshot after AUTH-0100 acceptance:** `35b9b420d338415105237e56317580535808178a`
 
 Detailed milestone evidence belongs in lane ledgers, milestone docs, tests, workflows, and merged PRs.
@@ -21,7 +21,7 @@ This file records only coordination boundaries another lane must preserve.
 | --- | --- |
 | Authorship | `AUTH-0100` accepted: exact regional AUTH-0098 petroleum-system opportunity inventory over AUTH-0087 provenance; AUTH-0097 remains the site-access handoff and AUTH-0095 the morphology-diagnostic handoff |
 | Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / #284 owns remaining AUTH-0083 built-in seed/scale Minecraft matrix |
-| Content / Experience | `C25` / PR #377 accepted candidate: retain Create: Diesel Generators machinery but globally suppress its independent chunk-oil geography; Implementation owns the narrow Skyforge petroleum source/depletion/pumpjack bridge |
+| Content / Experience | `C26` / PR #382 accepted candidate: exact nonzero AUTH-0098 cells/columns bound local petroleum-source admission; C25+C26 now hand the narrow Skyforge petroleum source/depletion/pumpjack bridge to Implementation |
 | Music / Audio | `MUS-0002` accepted in `30b5202fec3ae07b0720b42eb8d7770c3c463843`: canonical soundtrack source integrity is machine-gated in normal CI; human listening/CWP recovery gates remain explicit |
 | AUDIT | `AUDIT-0008` accepted: repository-visible process/convergence health remains supervisory responsibility |
 
@@ -352,6 +352,28 @@ C25 does not choose that adapter technique and defines no deposit geometry, quan
 depletion curve, final infrastructure site, or Minecraft placement. The adapter must preserve exact
 Skyforge volume ownership, C23 petroleum-province eligibility, C24 infrastructure intent, persistence,
 and lifecycle.
+
+### C26 — local AUTH-0098 petroleum source admission — ACCEPTED
+
+C26 / PR #382 closes the local geological-admission rule required by the C25 adapter:
+
+- AUTH-0098 `systemOpportunity() == 0` is locally ineligible;
+- AUTH-0098 `systemOpportunity() > 0` is locally admissible for downstream literal-source
+  realization consideration;
+- eligible cells preserve exact AUTH-0098 source order/provenance;
+- eligible x/z source columns contain only admissible cells and preserve first canonical occurrence
+  order;
+- no selected source, final pumpjack anchor, or magnitude-derived physical quantity is exposed.
+
+Therefore C22/C23 petroleum-island eligibility is not permission to realize petroleum arbitrarily
+elsewhere on the island. Implementation must realize any literal source only within exact C26 local
+support while also preserving C24 extraction-interface intent and exact Skyforge volume ownership.
+
+AUTH-0098 already provides the required local evidence. **No new Authorship petroleum producer is
+justified by C26.**
+
+Implementation remains owner of literal source selection, geometry/count, quantity/pressure/depletion,
+exact pumpjack/source alignment and compatibility adapter, persistence, and lifecycle.
 
 ## Atmosphere / mobility
 
