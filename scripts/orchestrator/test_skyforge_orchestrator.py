@@ -3,6 +3,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 MODULE_PATH = pathlib.Path(__file__).with_name("skyforge_orchestrator.py")
 SPEC = importlib.util.spec_from_file_location("skyforge_orchestrator", MODULE_PATH)
@@ -250,6 +251,47 @@ class DurableStateTests(unittest.TestCase):
             finally:
                 if o._timer is not None:
                     o._timer.cancel()
+
+    def test_worker_handoff_stage_is_durable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            o = self.make_orchestrator(root)
+            o.state.data["pending_worker"] = {
+                "lane": "Audit",
+                "branch": "codex/audit-test",
+                "stage": "editing",
+            }
+            o.state.save()
+
+            o._mark_worker_handoff("tests passed")
+            reloaded = self.make_orchestrator(root)
+            pending = reloaded.state.data["pending_worker"]
+            self.assertEqual(pending["stage"], "handoff")
+            self.assertEqual(pending["worker_summary"], "tests passed")
+
+    def test_handoff_reuses_existing_open_pr_after_interruption(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.state.data["pending_worker"] = {
+                "lane": "Audit",
+                "branch": "codex/audit-test",
+                "stage": "handoff",
+                "worker_summary": "done",
+            }
+            o.state.save()
+
+            def fake_run(args, **kwargs):
+                if args[:3] == ["git", "rev-list", "--count"]:
+                    return orch.subprocess.CompletedProcess(args, 0, stdout="1\n", stderr="")
+                return orch.subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+            with mock.patch.object(o, "_changed_paths", return_value=[]), \
+                    mock.patch.object(orch, "_run", side_effect=fake_run), \
+                    mock.patch.object(orch, "_json_cmd", return_value=[{"number": 77}]):
+                o._handoff_changes("Audit", "durable handoff", "codex/audit-test", None, "done")
+
+            self.assertEqual(o.state.data["managed"]["Audit"]["pr_number"], 77)
+            self.assertEqual(o.state.data["managed"]["Audit"]["branch"], "codex/audit-test")
 
     def test_local_budget_blocks_without_spending_beyond_limit(self):
         with tempfile.TemporaryDirectory() as tmp:
