@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Current reconciliation base:** `main@aee9508d2648859079c17487505ccd0a6d48b59f`  
+**Current reconciliation base:** `main@741e16ecd359db5ce433c93ebf49095fd61f2753`  
 **Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0008**
 
 Read first: [PROGRAM_CHARTER.md](PROGRAM_CHARTER.md), [VALIDATION_POLICY.md](VALIDATION_POLICY.md), [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md), [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md), current lane ledgers, current `main`, open PRs/issues, source/tests, merged history, and exact-head workflow evidence. Repository evidence overrides stale conversation or older snapshots.
@@ -20,12 +20,12 @@ Presentation is now a canonical program lane. It consumes accepted project truth
 | --- | --- | --- | --- |
 | Implementation | **SF-IMP-0082**; bounded SF-IMP-0083 runtime support #338 merged as `3f6e27bd` | fresh morphology-only SF-IMP-0083 recovery not yet opened | **HEALTHY / RECOVERY BOUNDARY RESET** |
 | Authorship | **AUTH-0098** / #335 | none; historical AUTH-0099 cave-site branch parked/unaccepted | **HEALTHY / DORMANT pending consumer** |
-| Content / Experience | **C21** / #315 | C17 fixture-readiness maintenance #341 | **WATCH / CONVERGING** |
+| Content / Experience | **C21** / #315 + C17 fixture maintenance #341 / merge `741e16ec` | no new bounded Content milestone | **HEALTHY / ACCEPTED** |
 | Music / Audio | **MUS-0003** / #331 | human listening/source-recovery gates | **HEALTHY / DORMANT pending human/source work** |
-| Presentation | **PRES-0003** / #351 / merge `aee9508d` | #348 image enrichment; next portfolio source work | **WATCH / REPEATED ACCEPTANCE-BOOKKEEPING LAG** |
-| Audit | **AUDIT-0008** + governance above | event-driven orchestration pilot #352 + hourly supervision | **HEALTHY / ACTIVE** |
+| Presentation | **PRES-0003** / #351 / merge `aee9508d` | PRES-0004 / #355 + #348 image enrichment | **WATCH / REPEATED ACCEPTANCE-BOOKKEEPING LAG** |
+| Audit | **AUDIT-0008** + governance above | event-driven orchestration pilot #352 + hourly supervision | **WATCH / ACTIVE; SAME-STATE-FILE RACE IDENTIFIED** |
 
-Open PRs at this reconciliation: Content #341 and Audit #352. Audit reconciliation PR is bookkeeping only.
+Open producer/program PRs at this reconciliation: Presentation #355 and Audit #352. Audit reconciliation #356 is state-only.
 
 ## ACTIVE CONVERGENCE HEALTH
 
@@ -39,29 +39,43 @@ The unresolved diagnostic evidence remains the deliberately sampled Tableland pr
 
 **HEALTHY / DORMANT pending consumer.** AUTH-0098 remains highest accepted. Current main records `auth/auth-0099-cave-site-capability` as **PARKED / NOT ACCEPTED** because its claimed concrete Bootstrap consumer does not exist. Preserve AUTH-0099 as a historical numbering gap; do not revive it without a newly demonstrated executable consumer.
 
-### Content — C21 accepted + C17 maintenance #341
+### Content — C17 maintenance accepted without matrix expansion
 
-**WATCH / CONVERGING.** PR #341 (`6c968d90`) is a one-commit fixture-scheduling reliability repair for already-accepted C17; it does not reopen GPS/modem gameplay semantics. Exact-head Wave C17 GPS Infrastructure `34179998761` PASS and CI `34179998668` PASS. GitHub reported the candidate non-mergeable after main moved. Audit directed one current-main recompose and only C17 + ordinary CI; do not replay the historical retained matrix unless those focused gates expose a new dependency failure.
+**HEALTHY / ACCEPTED.** PR #341 was a one-commit fixture-scheduling reliability repair for already-accepted C17 and did not reopen GPS/modem gameplay semantics. Exact-head Wave C17 GPS Infrastructure `34179998761` PASS and CI `34179998668` PASS. It merged as `741e16ecd359db5ce433c93ebf49095fd61f2753` without expanding into the historical retained Showcase/Content matrix. This is the intended validation-economy result.
 
 ### Music / Audio — MUS-0003
 
 **HEALTHY / DORMANT pending human/source work.** Both Track-00 repair candidates are machine-qualified but non-canonical. Remaining gates are Track-00 V2F2A/V2F2B BBCSO listening, required original-CWP plugin-state recovery/inspection, and exact Track-06 Draft 02.3 MIDI recovery followed by listening/master disposition. More machine validation does not retire those qualitative/source risks.
 
-### Presentation — PRES-0003 merged, state bookkeeping still one step behind
+### Presentation — PRES-0003 accepted; bookkeeping pattern requires repair
 
-**WATCH / REPEATED ACCEPTANCE-BOOKKEEPING LAG.** PRES-0001 established the lane; PRES-0002 / #350 merged as `08bc6ff6`; PRES-0003 / #351 has now merged as `aee9508d` with exact-head CI `34183378971` PASS. PRES-0003 accepts the demo narrative architecture/evidence map/capture specification; #348 is a separate non-blocking source-image enrichment task and generated/concept art must not be presented as runtime evidence.
+**WATCH / REPEATED ACCEPTANCE-BOOKKEEPING LAG.** PRES-0002 / #350 merged as `08bc6ff6`; PRES-0003 / #351 merged as `aee9508d` with exact-head CI `34183378971` PASS. PRES-0003 accepts the demo narrative architecture/evidence map/capture specification. #348 is a separate non-blocking image-enrichment task; generated/concept art must not be presented as runtime evidence.
 
-Canonical `PRESENTATION_STATE.md` still says PRES-0003 is READY FOR ACCEPTANCE / highest merged PRES-0002. This repeats the one-milestone ledger lag left after #350. Audit directed a bounded state-only repair and an atomic-bookkeeping rule for future Presentation acceptance rather than deferring the correction to PRES-0004. This is bookkeeping churn, not a reason to reopen PRES-0003 technical evidence.
+Canonical `PRESENTATION_STATE.md` on main still says PRES-0003 is READY FOR ACCEPTANCE / highest merged PRES-0002. This repeats the one-milestone lag left after #350. New PRES-0004 / #355 currently repairs PRES-0003 state while beginning the next milestone, repeating the same coupling. Audit directed a bounded accepted-state repair independent of PRES-0004 and an atomic-bookkeeping rule for future Presentation acceptance. This is a durable-state convergence issue, not a reason to reopen accepted Presentation evidence.
 
 ### Audit — event-driven orchestration pilot #352
 
-**HEALTHY / ACTIVE.** PR #352 (`52e028ba`) implements the local event-driven Codex pilot under issue #349. It is mergeable; Orchestrator Smoke `34183388875` PASS and ordinary CI `34183388872` is in progress at this reconciliation. The pilot keeps the hourly Audit watchdog as the independent silence/liveness/human-facing layer. Do not treat pilot CI or orchestration activity as producer milestone acceptance.
+**WATCH / ACTIVE; SAME-STATE-FILE RACE IDENTIFIED.** PR #352 implements the local event-driven Codex pilot under issue #349. Its latest observed head `86facda8` is 15 commits ahead of its base; Orchestrator Smoke `34183511309` PASS and ordinary CI `34183511319` was in progress at reconciliation. Earlier CI cancellation corresponded to head movement, not an unchanged rerun.
+
+#352 also modifies `AUDIT_STATE.md` from the pre-#338/#285/PRES/C17 snapshot while hourly Audit reconciliation #356 modifies the same file from current state. Audit directed #352 to keep pilot semantics authoritative in `ORCHESTRATION_PROTOCOL.md`/pilot docs and drop or reapply only still-needed state notes after the current reconciliation, preventing a same-lane merge/reversion race.
+
+Event-driven role split remains:
+
+~~~text
+positive repository activity/state change
+    -> local filtered SDK/App-Server controller
+
+negative space / silence / dead producer / evidence saturation
+    -> hourly Audit watchdog
+~~~
+
+The watchdog remains independent because absence of producer activity cannot itself create a repository webhook.
 
 ## LEDGER / HANDOFF DRIFT
 
 `CROSS_LANE_CONTRACTS.md` remains technically useful but its compact lane snapshot lags merged history at least for Music (lists MUS-0002 rather than MUS-0003) and does not enumerate Presentation. `IMPLEMENTATION_STATE.md` also predates #338 merge/#285 retirement. Current main, merged PRs, producer ledgers, and the Program Charter outrank those stale snapshot rows until bounded bookkeeping refreshes occur. Do not infer changed technical contracts solely from this lag.
 
-Presentation's repeated one-milestone acceptance-state lag is the only current bookkeeping pattern that warrants active intervention; Audit has commented on #351 accordingly.
+Presentation's repeated one-milestone acceptance-state lag and the temporary #352/#356 same-file Audit race are the only current bookkeeping patterns requiring active intervention.
 
 ## VALIDATION / EVIDENCE ECONOMY
 
@@ -69,8 +83,8 @@ Presentation's repeated one-milestone acceptance-state lag is the only current b
 - Expensive lifecycle/persistence/client evidence remains representative by risk-equivalence class.
 - The old Tableland failure widens only Tableland/pathological-runtime evidence; unrelated families are not replayed merely to compensate.
 - #338 was accepted as bounded generic runtime support without inheriting #214 morphology characterization.
-- #341 requires synchronized C17 + ordinary CI only, not the historical Content/Showcase matrix.
-- PRES-0003 is documentation/presentation evidence; #348 asks for authentic captures, not more runtime acceptance testing.
+- C17 maintenance #341 converged on focused C17 + ordinary CI only; the historical matrix was correctly not replayed.
+- PRES-0003/PRES-0004 are documentation/presentation boundaries; #348 asks for authentic captures, not more runtime acceptance testing.
 - Orthogonal main movement does not invalidate portable expensive evidence when relevant dependency surfaces are unchanged and synchronized cheap gates are green.
 
 ## HUMAN / MANUAL GATES
@@ -91,14 +105,14 @@ Human-strategy roadmap:
 
 ## PRODUCER SESSION LIVENESS
 
-No current producer session meets the repository-evidence threshold for restart. There is no active unchanged-rerun loop, timeout churn, or merge-conflict cycle. Substantive repository movement during this watch shows active execution. Bookkeeping-only movement does not by itself prove producer health, but the current active PRs also contain bounded technical/presentation deltas and informative workflow evidence.
+No current producer session meets the repository-evidence threshold for restart. There is no active unchanged-rerun loop, long-running timeout churn, or producer merge-conflict cycle. #352's multiple smoke runs correspond to information-bearing head changes and remain green; if commit/CI churn continues after the implementation delta stabilizes without a clean acceptance boundary, Audit should escalate from WATCH to LOOP RISK.
 
 ## NEXT AUDIT WORK
 
-1. Watch #341 for one current-main recompose and focused C17 + ordinary CI; intervene if it expands into historical fan-out.
-2. Watch for a fresh current-main morphology-only SF-IMP-0083 branch and targeted Tableland diagnosis; unchanged heavy reruns escalate to LOOP RISK.
-3. Keep Authorship dormant after AUTH-0098 and AUTH-0099 parked unless a concrete consumer appears.
-4. Require Presentation acceptance bookkeeping to catch up independently of PRES-0004; do not reopen accepted PRES-0003 evidence.
-5. Watch #352 exact-head CI and keep orchestration pilot acceptance separate from producer acceptance.
+1. Watch for a fresh current-main morphology-only SF-IMP-0083 branch and targeted Tableland diagnosis; unchanged heavy reruns escalate to LOOP RISK.
+2. Keep Authorship dormant after AUTH-0098 and AUTH-0099 parked unless a concrete consumer appears.
+3. Require Presentation accepted-state bookkeeping to catch up independently of PRES-0004; do not reopen accepted PRES-0003 evidence.
+4. Watch #352 exact-head CI and same-file race resolution; keep pilot acceptance separate from producer acceptance.
+5. Track cross-lane/Implementation ledger lag as bookkeeping debt without treating it as changed technical contracts.
 6. Prevent the next concrete Bootstrap resource-realization milestone from silently bypassing HS-06.
 7. Continue hourly supervision and notify separately for LOOP RISK, restart recommendation, ready human gate, serious repository/process failure, or triggered strategy decision.
