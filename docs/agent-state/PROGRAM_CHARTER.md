@@ -17,6 +17,9 @@ A fresh agent must reconstruct state from this charter, its lane state, cross-la
 PRs/commits, and current source/tests. Conversational recollection may help during a session but does
 not supersede repository evidence.
 
+Root `AGENTS.md` is the short agent-facing map into these canonical documents. Keep it concise:
+progressive disclosure is preferred to injecting the entire project manual into every worker context.
+
 ## Long-range objective
 
 Skyforge is a deterministic, backend-neutral procedural world-synthesis system whose first complete
@@ -161,6 +164,12 @@ Audit should autonomously:
 - escalate to the project owner only for manual Minecraft/visual/listening judgment, high-level cross-lane orchestration, or a significant process failure that cannot be repaired within repository workflow.
 
 A scheduled Audit watch may perform these checks periodically. Scheduled monitoring does not change lane ownership or acceptance authority.
+
+When agentic coding automation is used, follow [ORCHESTRATION_PROTOCOL.md](ORCHESTRATION_PROTOCOL.md):
+prefer one lightweight orchestrator heartbeat over one continuously scheduled worker per lane; use
+progressive-disclosure state reads, dispatch only bounded actionable work, avoid CI polling and idle
+wakeups, and stop autonomous continuation at human/product/permission gates. GitHub remains the
+cross-execution handoff channel.
 
 ### Producer-session liveness rule
 
