@@ -126,6 +126,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Wave C6 hawk thermal compatibility v0.1](wave-c6-hawk-thermal-compatibility-v0.1.md)
 - [Wave C7 Reliable Gliders shared lift v0.1](wave-c7-reliable-gliders-shared-lift-v0.1.md)
 - [Wave C11 live pre-Brass first-flight recipe surface](wave-c11-first-flight-recipe-runtime.md)
+- [Portable Engine redstone cutoff runtime recomposition](portable-engine-cutoff-runtime.md)
 - [Wave C18 stock turtle void-freight envelope](wave-c18-turtle-freight.md)
 - [Wave C19 stock mining-turtle extraction envelope](wave-c19-turtle-mining.md)
 - [Wave C20 AUTH-0093 base-metal availability policy](wave-c20-base-metal-availability.md)

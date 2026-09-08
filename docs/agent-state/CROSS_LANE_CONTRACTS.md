@@ -472,10 +472,15 @@ No adaptive-music runtime/state-machine contract is currently accepted. Large WA
 The Bellanca B0 must be a real Sable/Create Aeronautics contraption with useful power-off flight.
 C11 direct recipe-surface closure is accepted via PR #386.
 
-Portable Engine cutoff issue #237 remains open. Historical draft PR #240 was closed by AUDIT as
-reserved historical work, not rejected; continuation must be recomposed from current `main`.
-Assembled-Sable, save/reload, two-engine behavior, and human ergonomics remain unaccepted; C12 /
-issue #239 remains reserved for the executable B0.
+Portable Engine cutoff issue #237 remains open. Historical draft PR #240 remains closed as reserved
+evidence. PR #389 accepts the stationary compatibility seam on the C11 flight-only runtime:
+default behavior unchanged; opted-in redstone cutoff yields zero output, preserves active burn time
+and queued fuel, and resumes exact upstream ignition/countdown behavior.
+
+Still unaccepted for #237: save/reload, comparator/display coherence, assembled-Sable behavior,
+two-engine together/independent behavior, and human ergonomics. C12 / issue #239 may consume the
+stationary seam for engineering work, but final powered-soaring closure must wait for the relevant
+mobile/persistence gates.
 
 ## Handoff discipline
 
