@@ -2,7 +2,7 @@
 
 **Canonical lane:** PRESENTATION  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Status:** PRES-0004 in progress under issue #354  
+**Status:** PRES-0004 ready for acceptance under issue #354 / PR #355  
 **Highest merged Presentation milestone:** **PRES-0003**  
 **PRES-0003 merge:** PR #351, `aee9508d2648859079c17487505ccd0a6d48b59f`
 
@@ -53,7 +53,7 @@ Exact-head CI run #1781 passed before merge.
 
 Acceptance is the **narrative/evidence architecture**, not a claim that final edited media exists. Issue #348 remains a non-blocking asset-enrichment follow-up for canonical runtime stills. Generated/concept art may never substitute for current-capability runtime evidence.
 
-## IN PROGRESS
+## READY FOR ACCEPTANCE
 
 ### PRES-0004 — flagship portfolio/reviewer package
 
@@ -103,4 +103,4 @@ This is visual enrichment for PRES-0003/PRES-0004, not a blocker on their source
 
 ## Recommended next work
 
-Complete PRES-0004's flagship project page and recruiter/interview compression, verify every present-tense statement against `current-claims.md`, then merge the bounded portfolio package. Keep #348 as later visual enrichment unless a cheap canonical capture path appears.
+Merge PRES-0004 after its exact-head documentation gate. After that, Presentation should not invent another milestone merely to remain active. The remaining concrete Presentation work is issue #348 canonical runtime still acquisition when a cheap valid capture path exists, plus claim/artifact refreshes triggered by material producer milestones.
