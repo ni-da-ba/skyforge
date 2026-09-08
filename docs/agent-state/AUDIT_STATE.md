@@ -3,8 +3,8 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-08 (America/Chicago)  
-**Current full-program reconciliation base:** `main@2c71c64acc57d1a9360ced02b12caeb8296b6a7b`  
-**Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0012**
+**Current full-program reconciliation base:** `main@d2a0c6eec030fec458885e4527ddc990132672b3`  
+**Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0015**
 
 Read first: [PROGRAM_CHARTER.md](PROGRAM_CHARTER.md), [VALIDATION_POLICY.md](VALIDATION_POLICY.md), [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md), [ORCHESTRATION_PROTOCOL.md](ORCHESTRATION_PROTOCOL.md), [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md), current lane ledgers, current `main`, open PRs/issues, source/tests, merged history, and exact-head workflow evidence. Repository evidence overrides stale conversation or older snapshots.
 
@@ -20,7 +20,14 @@ AUDIT-0001 through AUDIT-0008 established repository-first reconstruction, manua
 
 **AUDIT-0012** accepted final hosted pre-flight hardening from PR #391 / merge `8ddd07cb`. PR #395 / merge `d719a677` subsequently tightened the activation guard so main protection must apply to administrators/owner-authenticated host credentials as well as requiring PR/status checks and blocking force-push/deletion.
 
-Hosted activation is now **VERIFIED** in issue #369. The DigitalOcean pilot passed protected-main installation, HTTPS `/healthz`, signed webhook delivery, exactly-once trusted manual wake, self-comment recursion suppression, controlled reboot, service/timer restart, and startup reconciliation. Safety remains auto-merge OFF, API-billing fallback OFF, and first-week ceilings of 24 Luna / 4 Terra calls per day.
+**AUDIT-0013** accepted trusted restart-directive durability from PR #405 / merge `1d9da626` and the guarded restart-NOOP/classifier-policy-rotation repair from PR #406 / merge `f4347445`. A trusted watchdog restart can no longer be neutralized by its own bookkeeping motion or stale classifier thread policy.
+
+**AUDIT-0014** accepted frugal tiered routing and controller-enforced worker scope from PR #408 / merge `40742484`: Luna handles tightly scoped docs/state/evidence reconciliation, Terra handles substantive source/runtime/debugging work, both remain bounded by explicit controller authority, and safety pauses no longer also create a misleading transient `controller_error` breaker.
+
+**AUDIT-0015** accepted hosted controller/worker checkout isolation from PR #410 / merge `d2a0c6ee`. Exact head `acd6b4d7f3e6c9797351658470c9fe0c1a111f18` passed Orchestrator Smoke and repository CI. Bounded workers now execute in ignored linked worktrees while the service/controller checkout remains on stable `main`; interrupted and safety-paused worker worktrees remain replayable/inspectable without pinning the service to stale worker-branch control-plane code. The same milestone also repaired the AUDIT-0014 hosted-value Markdown row-concatenation regression.
+
+
+Hosted activation remains **VERIFIED** in issue #369, but the currently deployed host is **PAUSED / ONE-TIME RECOVERY REQUIRED** after a pre-AUDIT-0015 shared-worktree worker reproduced already-merged C12 PR #401, touched the protected `.github/**` surface, and safety-paused on branch `codex/content-20260908-182029`. Audit verified that the host's entire 11-file dirty delta is exactly the now-merged #401 file set, so no unique producer work needs salvage. Repository code is repaired by AUDIT-0015; the host must discard that duplicate local delta, return the service checkout to current `main`, clear only the stale pending-worker/cached-decision plus pause/backoff flags while preserving queued events/metrics, and restart. Safety remains auto-merge OFF and API-billing fallback OFF.
 
 ## CURRENT PROGRAM SNAPSHOT
 
@@ -28,10 +35,10 @@ Hosted activation is now **VERIFIED** in issue #369. The DigitalOcean pilot pass
 | --- | --- | --- | --- |
 | Implementation | **SF-IMP-0082** plus bounded SF-IMP-0083 runtime support #338 | SF-IMP-0083 #358 machine-complete, awaiting #214/#267/#283 review | **HEALTHY / HUMAN GATE** |
 | Authorship | **AUTH-0101** | none | **HEALTHY / DORMANT pending consumer** |
-| Content / Experience | **C26**; later C11 recipe proof and #237 stationary/persistence/mobile compatibility accepted | C12 B0-A1/B0-A2 #401 exact-head green; stale producer replacement requested | **RESTART / HOSTED WAKE POSTED** |
+| Content / Experience | **C26** plus late **C12 B0-A1/B0-A2** acceptance; C11 and #237 machine seams retained | #401 merged; powered-aircraft lifecycle and #237 ergonomics remain downstream | **HEALTHY / ACCEPTED; HUMAN GATE REMAINS** |
 | Music / Audio | **MUS-0005** | source/plugin recovery and Track-06 source/listening only | **HEALTHY / DORMANT pending source/human work** |
 | Presentation | **PRES-0004** plus accepted runtime-capture infrastructure #362 | PRES-0005 explanatory graphics #385 | **HEALTHY / HUMAN GATE** |
-| Audit | **AUDIT-0012** | hosted value watch #378; negative-space/liveness watchdog | **HEALTHY / HOST ACTIVE** |
+| Audit | **AUDIT-0015** | one-time hosted recovery; value watch #378; negative-space/liveness watchdog | **RECOVERY REQUIRED / REPO FIX MERGED** |
 
 ## ACTIVE CONVERGENCE HEALTH
 
@@ -47,16 +54,11 @@ AUTH-0101 is now accepted and supplies threshold-free comparison evidence for #2
 
 ### Content / Experience — C12 B0-A1/B0-A2
 
-**RESTART / HOSTED WAKE POSTED.** Historical PR #398 is parked. Fresh current-main PR #401 repaired the C12 acceptance harness and reached an exact-head all-green boundary at `091a2decaf81bebc9e9161e8b04e291c2831d9b0`:
+**MERGED / ACCEPTED.** PR #401 merged as `eabfddfe7a2847cc3e909414d3afa8ed71936b35`. Exact acceptance head `091a2decaf81bebc9e9161e8b04e291c2831d9b0` had already passed Wave C12 Bellanca B0 Assembly, retained C11 First Flight Recipe Runtime, Portable Engine cutoff/persistence/Sable-cutoff regressions, and repository CI.
 
-- Wave C12 Bellanca B0 Assembly: PASS;
-- retained C11 First Flight Recipe Runtime: PASS;
-- Portable Engine cutoff / persistence / Sable cutoff: PASS;
-- ordinary CI: PASS.
+The accepted live specimen proves one real 105-block `MAIN_BODY` assembly plus authoritative finite/positive Sable mass and XYZ COM with the required lateral symmetry/review threshold. AUTH-0101 and later main movement remain orthogonal, so the expensive assembly/mass evidence is portable under `VALIDATION_POLICY.md`; no duplicate live-assembly rerun is justified merely for a newer SHA.
 
-The live specimen proved one real 105-block MAIN_BODY assembly and authoritative Sable mass/COM. Propeller child lifecycle, lift, propulsion, controls, landing gear, taxi/flight, and power-off glide remain explicitly deferred.
-
-After that clean acceptance boundary, the producer generation produced no information-bearing commit, PR-state change, or Actions movement across the next watchdog interval. Audit classified **RESTART RECOMMENDED**, preserved #401/evidence, prohibited revival of parked #398 and unnecessary live-assembly reruns, and posted a fresh hosted wake after #369 activation. The bounded fresh-worker objective is to reconstruct from current GitHub state, verify AUTH-0101/main movement is orthogonal, reuse portable expensive evidence, record C12 B0-A1/B0-A2 acceptance/lane state, and close/merge #401 cleanly.
+The hosted recovery worker that woke from the earlier RESTART signal recreated the already-merged #401 delta locally instead of recognizing the durable source-PR work, then crossed the protected workflow boundary. That is an orchestration incident, not a Content regression. Historical #398 remains parked. PROP_CHILD lifecycle, lift, propulsion, controls, landing gear, taxi/flight, power-off glide/restart, and #237 human ergonomics remain explicitly downstream.
 
 ### Music / Audio — MUS-0005
 
@@ -68,11 +70,11 @@ After that clean acceptance boundary, the producer generation produced no inform
 
 ### Audit — hosted orchestration
 
-**HEALTHY / HOST ACTIVE; VALUE WATCH JUST STARTED.** Issue #369 now contains live hosted activation evidence. Initial activation consumed one trusted manual wake exactly once, produced a correct HUMAN_GATE classifier outcome, launched zero Terra workers, ignored its own controller comment, survived reboot, and restored reconciliation state with no pending work.
+**REPOSITORY FIX MERGED / HOST RECOVERY REQUIRED.** AUDIT-0013/0014 repaired restart semantics, classifier-policy rotation, frugal Luna/Terra routing, scoped worker authority, and safety-pause semantics. AUDIT-0015 / PR #410 then removed the structural shared-checkout hazard exposed by the C12 incident: the service stays on `main`, workers use isolated linked worktrees, dirty safety-paused work is retained outside the controller checkout, and successful handoff cleanup occurs only after durable event/worker state is cleared.
 
-Issue #378 now records the hosted value-period start at `$0.01786/hour` for the 1 vCPU / 2 GB Droplet. Initial sample: 2 Luna classifier attempts (including conservative reboot reconciliation), 0 Terra attempts, 0 controller-managed PRs, no quota/auth/capacity block, no dispatch failure, one correct HUMAN_GATE outcome. This sample is too small for KEEP / REWORK / CANCEL_CANDIDATE; longitudinal model-free reporting remains required.
+The pre-fix host is still paused with a legacy pending worker and 10 queued events. Its dirty 11-file delta exactly matches merged PR #401, so Audit authorizes one bounded manual discard/recovery of that duplicate local work. Preserve the queued event journal, counters, delivery de-duplication state, and reconcile fingerprint; clear only the stale worker/decision and obsolete pause/backoff state before restart. After recovery, verify `/healthz`, controller branch `main`, clean controller status, no pending worker, and ordinary draining/reclassification of retained events.
 
-No controller-owned `codex/*` PR race is visible at this reconciliation. Auto-merge remains off.
+Issue #378 remains the model-free hosted value watch. Do not classify KEEP / REWORK / CANCEL_CANDIDATE from the activation sample or this single recovery incident alone; measure post-recovery accepted-progress yield. Auto-merge remains off.
 
 ## VALIDATION / EVIDENCE ECONOMY
 
@@ -100,19 +102,19 @@ No controller-owned `codex/*` PR race is visible at this reconciliation. Auto-me
 ## PRODUCER SESSION LIVENESS
 
 - Implementation #358: **HEALTHY / HUMAN GATE**. No duplicate replacement path is visible.
-- Content #401: **STALE GENERATION / RESTART RECOMMENDED**. Durable work is preserved; post-activation hosted wake has been posted. #398 remains parked.
+- Content #401: **MERGED / ACCEPTED**. The stale-generation restart objective is retired; #398 remains parked and no worker should recreate #401 solely to copy its evidence.
 - Presentation #385: **HEALTHY / HUMAN GATE**; silence is expected while waiting on qualitative review.
 - Authorship: **INTENTIONALLY DORMANT**, not stale.
 - Music: **INTENTIONALLY DORMANT pending source/human work**, not stale.
-- Hosted controller: **ACTIVE / VERIFIED**. It is an accelerator, not an Audit replacement; Audit continues to own negative space, silence, stale-session replacement, evidence saturation, and race detection.
+- Hosted controller: **PAUSED / MANUAL RECOVERY REQUIRED** on the legacy shared-worker checkout; AUDIT-0015 is merged and removes that hazard for subsequent workers. Audit continues to own negative space, silence, stale-session replacement, evidence saturation, and race detection.
 
 ## NEXT AUDIT WORK
 
 1. Hold #358 at the ready human gate; prevent further broad morphology testing until #214/#267/#283 review supplies a concrete uncertainty.
 2. Surface HS-03 and HS-04 to Nicholas; preserve the solved SF-IMP-0083 carrier/runtime boundary even if narrow tuning is requested.
-3. Watch the hosted controller response to the post-activation #401 `RESTART RECOMMENDED` wake. Preserve #401 exact-head evidence and reject duplicate/competing stale #398 work.
+3. Complete the bounded one-time host recovery from the legacy shared-worktree C12 duplicate; verify clean `main`, healthy HTTPS, `pending_worker=false`, preserved queued-event journal, and successful current-state reclassification before treating the hosted controller as active again.
 4. Keep Authorship dormant until a concrete consumer proves a missing neutral-world semantic.
 5. Keep PRES-0005 and #237 ergonomics visible as ready human gates without substituting more machine evidence.
 6. Keep HS-06 visible before concrete Bootstrap resource guarantees are locked and HS-05 before final Bootstrap Province implementation begins.
-7. Inspect each new #378 model-free daily value report once; track controller PR yield, Terra handoffs/no-change, Luna NOOP rate, actionable-event latency, quota/capacity blocks, overnight contribution, overall Skyforge activity, and estimated host cost. Do not classify KEEP / REWORK / CANCEL_CANDIDATE from the activation sample alone.
+7. Inspect each new #378 model-free daily value report once; track controller PR yield, Luna-worker/Terra-worker handoffs and no-change outcomes, classifier NOOP rate, safety/scope rejects, actionable-event latency, quota/capacity blocks, overnight contribution, overall Skyforge activity, and estimated host cost. Do not classify KEEP / REWORK / CANCEL_CANDIDATE from the activation sample alone.
 8. Continue hourly supervision for stale sessions, duplicate/race risk, evidence saturation, relevant contract drift, and ready human gates.

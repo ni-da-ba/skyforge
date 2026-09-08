@@ -406,7 +406,8 @@ GitHub event
     -> deterministic local filter/debounce
     -> no call if irrelevant
     -> persistent Luna classifier if potentially actionable
-    -> fresh bounded Terra worker only for DISPATCH
+    -> fresh bounded Luna worker for scoped low-risk reconciliation
+       OR fresh bounded Terra worker for substantive implementation/debugging
     -> controller-owned git/gh handoff
     -> CI
     -> next completion event
@@ -420,9 +421,10 @@ directly.
 
 The model is not given unattended GitHub/network authority in the pilot.
 
-- Luna: read-only local classifier.
-- Terra: workspace-write local edits/tests for one bounded objective.
-- outer deterministic controller: fetch/checkout/commit/non-force-push/draft-PR operations.
+- Luna classifier: read-only local classification.
+- Luna worker: workspace-write only for controller-scoped low-risk docs/state/evidence reconciliation.
+- Terra worker: workspace-write for one bounded substantive source/runtime/debugging objective.
+- outer deterministic controller: fetch/sync/worktree/commit/non-force-push/draft-PR operations.
 
 This avoids depending on sandbox-network behavior and creates a narrow audit boundary around external
 writes.
@@ -598,9 +600,10 @@ later events remain queued for a subsequent classification.
 ### Local cost ceiling and telemetry
 
 The pilot has conservative controller-side call ceilings in addition to whatever account-level Codex
-allowance applies. The first hosted evaluation defaults are **24 classifier attempts and 4 worker
-attempts per UTC day**; both are environment-overridable. Raise them only after issue #378 shows that
-useful work is being left queued at favorable yield. Reaching the local ceiling is a normal blocked
+allowance applies. The first hosted evaluation defaults are **24 total Luna calls** per UTC day
+(classifier + scoped Luna worker combined) and **4 Terra worker attempts** per UTC day; both ceilings
+are environment-overridable. Raise them only after issue #378 shows that useful work is being left
+queued at favorable yield. Reaching the local ceiling is a normal blocked
 state, not a reason to discard work.
 
 Persist counters sufficient to evaluate issue #349 by accepted-progress economics, including at least:
@@ -638,7 +641,7 @@ The report must distinguish:
 
 - overall Skyforge repository activity from controller-owned `codex/*` PR activity;
 - manual `/skyforge-orchestrate` wakes from Audit/watchdog wakes;
-- classifier attempts/NOOPs from Terra attempts/handoffs/no-change outcomes;
+- classifier attempts/NOOPs, scoped Luna-worker attempts, Terra-worker attempts, and aggregate worker handoffs/no-change outcomes;
 - actionable-event-to-classifier latency;
 - ordinary human gates from controller/reliability failures;
 - quota/rate/authentication blocking from useful worker throughput;
