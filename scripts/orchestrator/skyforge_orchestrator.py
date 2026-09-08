@@ -567,6 +567,7 @@ class LocalState:
             "classifier_policy_fingerprint": None,
             "last_dispatch_epoch": 0.0,
             "managed": {},
+            "human_gate_records": {},
             "last_events": [],
             "pending_events": [],
             "pending_decision": None,
@@ -1555,10 +1556,108 @@ class Orchestrator:
         self._metric("worker_handoffs")
         print(f"[orchestrator] handed off {lane} on {branch} / PR #{pr_number}", flush=True)
 
+    @staticmethod
+    def _parse_github_time(value: Any) -> datetime | None:
+        if not value:
+            return None
+        text = str(value).strip()
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+
+    def _human_gate_identity(
+        self,
+        decision: dict[str, Any],
+    ) -> tuple[str, str, str, bool]:
+        pr = decision.get("pr_number")
+        lane = str(decision.get("lane") or "program").strip().lower() or "program"
+        if isinstance(pr, int):
+            target = str(pr)
+            key = f"pr:{pr}:{lane}"
+            try:
+                info = _json_cmd(
+                    [
+                        "gh", "pr", "view", target,
+                        "--repo", self.repo,
+                        "--json", "headRefOid,state,commits,comments",
+                    ],
+                    cwd=self.root,
+                    timeout=60,
+                )
+                head = str(info.get("headRefOid") or "unknown")
+                state = str(info.get("state") or "unknown").upper()
+                token = f"{head}:{state}"
+
+                commits = info.get("commits") or []
+                head_time = None
+                if commits:
+                    last = commits[-1] or {}
+                    head_time = self._parse_github_time(
+                        last.get("committedDate") or last.get("authoredDate")
+                    )
+                prior_gate_after_head = False
+                if head_time is not None:
+                    for comment in info.get("comments") or []:
+                        body = str((comment or {}).get("body") or "")
+                        if SELF_COMMENT_MARKER not in body or "HUMAN_GATE" not in body:
+                            continue
+                        created = self._parse_github_time((comment or {}).get("createdAt"))
+                        if created is not None and created >= head_time:
+                            prior_gate_after_head = True
+                            break
+                return key, token, target, prior_gate_after_head
+            except Exception as exc:
+                print(
+                    f"[orchestrator] could not inspect PR #{pr} for gate deduplication: {exc}",
+                    flush=True,
+                )
+                return key, "unknown", target, False
+
+        target = "349"
+        message = str(
+            decision.get("human_message")
+            or decision.get("reason")
+            or "Human gate reached"
+        )
+        normalized = re.sub(r"[^a-z0-9]+", " ", message.lower()).strip()
+        digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+        return f"issue:{target}:{lane}", digest, target, False
+
     def _post_gate(self, decision: dict[str, Any]) -> None:
         message = str(decision.get("human_message") or decision.get("reason") or "Human gate reached")
-        pr = decision.get("pr_number")
-        target = str(pr) if isinstance(pr, int) else "349"
+        key, token, target, already_visible = self._human_gate_identity(decision)
+
+        with self._state_lock:
+            records = self.state.data.setdefault("human_gate_records", {})
+            prior = records.get(key)
+            if isinstance(prior, dict) and prior.get("token") == token:
+                self._metric("human_gate_duplicates_suppressed")
+                print(
+                    f"[orchestrator] human gate already surfaced for {key} at state {token}; suppressing duplicate",
+                    flush=True,
+                )
+                return
+            if already_visible:
+                records[key] = {
+                    "token": token,
+                    "target": target,
+                    "seeded_from_github": True,
+                    "recorded_at": _utc_now(),
+                }
+                self.state.save()
+                self._metric("human_gate_duplicates_suppressed")
+                print(
+                    f"[orchestrator] existing controller human gate already covers {key} at state {token}; suppressing duplicate",
+                    flush=True,
+                )
+                return
+
         body = f"{SELF_COMMENT_MARKER} HUMAN_GATE\n\n{message[:5000]}"
         try:
             _run(
@@ -1566,6 +1665,15 @@ class Orchestrator:
                 cwd=self.root,
                 timeout=60,
             )
+            with self._state_lock:
+                records = self.state.data.setdefault("human_gate_records", {})
+                records[key] = {
+                    "token": token,
+                    "target": target,
+                    "seeded_from_github": False,
+                    "recorded_at": _utc_now(),
+                }
+                self.state.save()
             self._metric("human_gates")
         except Exception as exc:
             print(f"[orchestrator] could not post human gate: {exc}", flush=True)
