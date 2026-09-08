@@ -86,6 +86,8 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 
 - [Ecology and fauna](ecology-and-fauna.md)
 - [Atmosphere, aviation, navigation, and horizon](atmosphere-aviation-navigation.md)
+- [Exceptional regional phenomena v0.1](exceptional-regional-phenomena-v0.1.md)
+- [Aircraft reuse, automation, and capture governance v0.1](aircraft-reuse-automation-and-capture-governance-v0.1.md)
 - [Threats, hostile spawning, and farm compatibility](threats-and-spawn-governance.md)
 - [Structures, dungeons, settlements, and realization modes](structures-and-realization-modes.md)
 - [Structure realization contract v0.1](structure-realization-contract-v0.1.md)

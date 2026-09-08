@@ -140,6 +140,27 @@ Design goal:
 
 > Flight should unlock economic geography, not merely sightseeing.
 
+## Generated-aircraft acquisition boundary
+
+The presence of civilian or faction aircraft in the world must not make the P2 engineering transition
+optional.
+
+Before the player has reliable personal flight:
+
+- ordinary generated traffic is not assumed to be capture-eligible intact;
+- salvage may accelerate construction, but should not normally hand over a complete reusable aircraft;
+- visible mature aviation may teach the target capability without becoming a free substitute for
+  building it.
+
+After P2, intact capture/repair of selected aircraft can become valid exploration or combat reward
+because the player has already demonstrated the underlying flight capability.
+
+This is a content/progression rule, not a requirement for magical ownership locks. Prefer airborne
+traffic, physical risk, incomplete/manual-control retrofit, bounded salvage, and state-specific vehicle
+variants before bespoke protection.
+
+See [Aircraft Reuse, Automation, and Capture Governance v0.1](aircraft-reuse-automation-and-capture-governance-v0.1.md).
+
 ## Post-flight capability rule
 
 After P2, progression should be evaluated as a branching capability graph rather than a strict ore ladder.
