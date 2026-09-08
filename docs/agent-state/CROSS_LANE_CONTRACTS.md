@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Repository snapshot after AUTH-0098 acceptance:** `73ab18406cd49a2134438e171f42f1f41f0a8543`
+**Repository snapshot after AUTH-0100 acceptance:** `35b9b420d338415105237e56317580535808178a`
 
 Detailed milestone evidence belongs in lane ledgers, milestone docs, tests, workflows, and merged PRs.
 This file records only coordination boundaries another lane must preserve.
@@ -19,9 +19,9 @@ This file records only coordination boundaries another lane must preserve.
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0098` accepted: petroleum-system geological opportunity over exact AUTH-0033 provenance; AUTH-0097 remains the site-access handoff and AUTH-0095 the morphology-diagnostic handoff |
+| Authorship | `AUTH-0100` accepted: exact regional AUTH-0098 petroleum-system opportunity inventory over AUTH-0087 provenance; AUTH-0097 remains the site-access handoff and AUTH-0095 the morphology-diagnostic handoff |
 | Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / #284 owns remaining AUTH-0083 built-in seed/scale Minecraft matrix |
-| Content / Experience | `C21` / PR #315: retained Create Zinc/striated assets are separated from generic Overworld placement authority; exact-volume filtering is Implementation-owned; C11/C12 remain separately in progress/reserved |
+| Content / Experience | `C21` accepted; C22 / issue #357 / draft PR #360 is in progress and fixes later-game petroleum to R3/STRATEGIC_NODE while requesting AUTH-0100 for intentional petroleum-province selection |
 | Music / Audio | `MUS-0002` accepted in `30b5202fec3ae07b0720b42eb8d7770c3c463843`: canonical soundtrack source integrity is machine-gated in normal CI; human listening/CWP recovery gates remain explicit |
 | AUDIT | `AUDIT-0008` accepted: repository-visible process/convergence health remains supervisory responsibility |
 
@@ -178,6 +178,35 @@ Cross-lane consequences:
 - nonzero AUTH-0098 opportunity is not a literal recoverable deposit or guarantee;
 - no reserves, volume, pressure, grade, frequency, or Minecraft/mod placement is implied.
 
+### AUTH-0100 — regional petroleum-system opportunity inventory — ACCEPTED
+
+AUTH-0100 / PR #361 merged as `35b9b420d338415105237e56317580535808178a` from candidate
+`7a062cf2459febd9fc5d9a77e4aa7a72adaf372e`.
+
+One exact AUTH-0087 published region now inventories every canonical AUTH-0098 island profile with
+exact association provenance. It exposes:
+
+- raw geological eligibility exactly at `peakSystemOpportunity() > 0`;
+- eligible-island count/list in canonical association order;
+- descriptive descending ranking by unchanged AUTH-0098 `meanSystemOpportunity()`;
+- canonical association order as the exact-tie behavior.
+
+Cross-lane consequences:
+
+- **Content C22 / issue #357 / PR #360** owns R3/STRATEGIC_NODE availability, strategic-node
+  frequency, petroleum-bearing province selection/replanning, no ordinary-province hard guarantee,
+  bounded trade/salvage, progression, and route/freight meaning;
+- **Authorship** owns only exact regional AUTH-0098 geological coverage/provenance and descriptive
+  ordering;
+- **Implementation** owns concrete petroleum identity, deposit geometry/count/thickness/volume,
+  extraction/depletion/pressure, pumpjack/refinery realization, worldgen, persistence, and lifecycle;
+- AUTH-0100 does not select a strategic node, guarantee petroleum, infer reserves/industrial supply,
+  or authorize a literal deposit from nonzero opportunity.
+
+Acceptance evidence: full repository CI `34184025685` PASS; scoped AUTH-0100
+`34184025741` PASS; artifact `10039893811`; digest
+`sha256:0259a2c772533e0b2c0c0b96453e04176e7f55e751bf75657902f65bcfde0cbb`.
+
 ## Morphology / Minecraft realization
 
 ### SF-IMP-0080 — visible land ecology — ACCEPTED
@@ -233,6 +262,22 @@ Production ownership after C21:
 - **Implementation** owns narrow feature admission/filtering only inside explicit Skyforge-owned exact-volume population, using the existing biome-population / placed-feature execution seam;
 - **Implementation** owns concrete AUTH-0093/0094 + C20 deposit geometry, count, grade, quantity, accessibility, placement, persistence, and lifecycle;
 - C21 does not itself realize deposits or convert AUTH-0093/0094 opportunity into physical ore quantity.
+
+### C22 — petroleum strategic-node policy — IN PROGRESS / issue #357 / draft PR #360
+
+The executable Content policy currently fixes:
+
+- availability: `STRATEGIC_NODE`;
+- progression: `R3_MATURE_INDUSTRY`;
+- first-flight criticality: `false`;
+- ordinary-province petroleum hard guarantee: none;
+- alternative access: bounded trade/salvage only;
+- mature industrial supply: primary extraction or logistics required;
+- intentional petroleum-bearing province selection: canonical AUTH-0100 regional inventory required.
+
+AUTH-0100 satisfies only that regional geological-evidence request. C22 remains the policy owner and
+must not reinterpret AUTH-0098/AUTH-0100 opportunity as reserves, grade, pressure, physical volume,
+deposit count, extraction rate, or Minecraft placement weight.
 
 ## Atmosphere / mobility
 

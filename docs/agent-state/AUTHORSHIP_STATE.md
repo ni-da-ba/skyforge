@@ -3,8 +3,8 @@
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Main snapshot at latest Authorship acceptance:** `73ab18406cd49a2134438e171f42f1f41f0a8543`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0098**
+**Main snapshot at latest Authorship acceptance:** `35b9b420d338415105237e56317580535808178a`  
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0100**
 
 Read first:
 
@@ -311,6 +311,48 @@ Ownership after AUTH-0098:
 
 Reference: `docs/authorship/AUTH-0098-petroleum-system-geological-opportunity.md`.
 
+### AUTH-0100 — regional petroleum-system opportunity inventory
+
+PR #361 / merge `35b9b420d338415105237e56317580535808178a`.
+
+Concrete consumer: CONTENT C22 / issue #357 / draft PR #360 fixes petroleum to later
+R3/STRATEGIC_NODE mature-industry geography, explicitly keeps first-flight criticality false, and
+requires complete canonical regional AUTH-0098 evidence when intentionally selecting/replanning a
+petroleum-bearing strategic-node province.
+
+Exact acceptance:
+
+- accepted head `7a062cf2459febd9fc5d9a77e4aa7a72adaf372e`;
+- full repository CI `34184025685` PASS;
+- scoped AUTH-0100 workflow `34184025741` PASS;
+- evidence artifact `10039893811`;
+- digest `sha256:0259a2c772533e0b2c0c0b96453e04176e7f55e751bf75657902f65bcfde0cbb`;
+- AUTH-0096 regression `34184025719` PASS;
+- AUTH-0097 regression `34184025703` PASS;
+- AUTH-0098 regression `34184025696` PASS.
+
+Accepted invariants:
+
+- public input is exactly one AUTH-0087 published authored-realization binding;
+- every canonical AUTH-0046 association is profiled through AUTH-0098 from its exact authored
+  descriptor;
+- complete association/profile coverage and canonical order are retained; missing/reordered/
+  substituted entries fail closed;
+- geological eligibility is exactly the existing AUTH-0098 zero/nonzero boundary
+  (`peakSystemOpportunity() > 0`) with no new threshold;
+- eligible islands are descriptively ranked by unchanged AUTH-0098
+  `meanSystemOpportunity()`; exact ties retain canonical association order;
+- opportunity is not summed or relabeled as reserves, quantity, grade, pressure, industrial supply,
+  accessibility, or site selection;
+- C22 remains owner of R3/STRATEGIC_NODE availability, strategic-node frequency, province
+  selection/replanning, no ordinary-province hard guarantee, bounded trade/salvage, progression, and
+  route/freight meaning;
+- Implementation remains owner of concrete petroleum identity, deposit geometry/count/thickness/
+  volume, extraction/depletion/pressure, pumpjack/refinery realization, worldgen, persistence, and
+  lifecycle.
+
+Reference: `docs/authorship/AUTH-0100-regional-petroleum-system-opportunity-inventory.md`.
+
 ## IN PROGRESS
 
 No Authorship milestone is currently in progress.
@@ -336,10 +378,10 @@ Preserve AUTH-0099 as an unaccepted historical numbering gap. If a future execut
 that cave-system capability evidence is genuinely missing, reconstruct the requirement from current
 `main` and assign the next available Authorship milestone rather than reviving this stale branch.
 
-AUTH-0098 therefore remains the highest accepted Authorship boundary. Do not add a regional petroleum
-wrapper, literal petroleum deposit, cliff/underside, interior/cave, regional-composition, or other
-semantic layer merely for completeness. Morphology family tuning still requires the matching
-Minecraft matrix plus human review.
+AUTH-0100 now closes the concrete C22 regional petroleum-inventory request. Do not add literal
+petroleum deposits, reserves, strategic-node frequency, additional petroleum wrappers, cliff/underside,
+interior/cave, regional-composition, or other semantic layers merely for completeness. Morphology
+family tuning still requires the matching Minecraft matrix plus human review.
 
 ## ACTIVE CROSS-LANE BOUNDARIES
 
@@ -350,6 +392,10 @@ Minecraft matrix plus human review.
 - AUTH-0094 does not prove that a specific generated province satisfies C20; executable province planning/acceptance is downstream.
 - AUTH-0096 supplies exact local surface-site evidence for Bootstrap civilization/structure requirement matching.
 - AUTH-0097 adds exact local directional support/edge evidence for roles needing access/approach context; Content still owns role thresholds, ranking, selection, and progression meaning.
+- C22 / issue #357 / draft PR #360 is the concrete petroleum-policy consumer. AUTH-0100 now supplies
+  exact published-region AUTH-0098 eligible coverage and descriptive ranking; Content still owns
+  STRATEGIC_NODE frequency, petroleum-bearing province selection/replanning, guarantees, trade/salvage,
+  progression, and route/freight meaning.
 
 ### Implementation
 
@@ -426,11 +472,12 @@ sites/approaches.
 
 ## Ordered next work
 
-1. Hand AUTH-0098 to Content as the island-scale petroleum geological-opportunity producer. Do not
-   add a regional petroleum inventory until a concrete Content province-selection policy requires it.
+1. Hand AUTH-0100 to C22 / issue #357 as the exact regional petroleum geological-inventory seam.
+   Do not add further petroleum Authorship semantics unless Content or Implementation demonstrates a
+   new backend-neutral cause gap.
 2. Let Content/Bootstrap continue consuming AUTH-0096 + AUTH-0097 for concrete site/access requirements.
-3. Reconstruct the next missing backend-neutral cause before assigning AUTH-0100 or later. AUTH-0099
-   is preserved as an unaccepted historical gap; do not enumerate cave/geothermal/civilization/
+3. Reconstruct the next missing backend-neutral cause before assigning AUTH-0101 or later. AUTH-0099
+   remains an unaccepted historical gap; do not enumerate cave/geothermal/civilization/
    exceptional-phenomenon semantics without an executable consumer.
 4. Keep AUTH-0095 handed to SF-IMP-0083/#284. Do not retune Massif/Tableland until the synchronized
    Minecraft matrix plus #214/#267/#283 human review demonstrates a systemic family issue.
