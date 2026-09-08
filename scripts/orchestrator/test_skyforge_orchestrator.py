@@ -1048,7 +1048,11 @@ class ControllerSelfRefreshTests(unittest.TestCase):
                 if args[:3] == ["git", "rev-parse", "HEAD"]:
                     return self.completed(args, "newhead\n")
                 if args[:3] == ["git", "diff", "--name-only"]:
-                    return self.completed(args, "scripts/orchestrator/README.md\n")
+                    return self.completed(
+                        args,
+                        "scripts/orchestrator/test_skyforge_orchestrator.py\n"
+                        "scripts/orchestrator/README.md\n",
+                    )
                 return self.completed(args)
 
             with mock.patch.object(o, "_worktree_clean", return_value=True), \
