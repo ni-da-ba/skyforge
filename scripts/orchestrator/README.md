@@ -347,7 +347,7 @@ durable local gate state and can seed that state from an existing controller gat
 the current PR head commit. Rewording the same gate therefore does not repeatedly notify the owner; a
 new PR head may legitimately surface the gate again.
 
-When `sync_main()` advances across a changed `scripts/orchestrator/*.py` file, the running process
+When `sync_main()` advances across a changed `scripts/orchestrator/skyforge_orchestrator.py` runtime, the running process
 durably records a runtime-refresh request and exits non-zero. The hosted systemd unit's
 `Restart=on-failure` then reloads the synchronized Python from stable `main`, and the replacement
 process replays the retained event journal. Documentation-only movement does not restart the process.
