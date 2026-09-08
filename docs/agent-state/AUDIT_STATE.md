@@ -4,8 +4,8 @@
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
 **Current full-program reconciliation base:** `main@741e16ecd359db5ce433c93ebf49095fd61f2753`  
-**Latest Audit acceptance observed at:** `main@0b657264265204207b585a07d36698cf108b30d9`  
-**Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0010**
+**Latest Audit acceptance observed at:** `main@3b8b42d41e79c6f886ba763fa2f854897e4e39ef`  
+**Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0011**
 
 Read first: [PROGRAM_CHARTER.md](PROGRAM_CHARTER.md), [VALIDATION_POLICY.md](VALIDATION_POLICY.md), [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md), [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md), current lane ledgers, current `main`, open PRs/issues, source/tests, merged history, and exact-head workflow evidence. Repository evidence overrides stale conversation or older snapshots.
 
@@ -17,7 +17,7 @@ AUDIT-0001 through AUDIT-0008 established repository-first reconstruction, manua
 
 **AUDIT-0010** accepts the repository/deployment boundary for always-on hosted orchestration from PR #374, merged as `0b657264265204207b585a07d36698cf108b30d9`. Exact-head Orchestrator Smoke `34186996643` PASS and ordinary CI `34186996647` PASS at `7db67db2d6875a5a0e2a65c28dacefc00d70e4c9`. The code/deployment contract is therefore MERGED / ACCEPTED. **Operational activation remains pending** one live hosted health/signed-delivery/manual-wake/reboot check on the DigitalOcean node. Auto-merge and API-billing fallback remain out of scope.
 
-**AUDIT-0011 / issue #378 / PR #380 is IN PROGRESS.** It adds the pre-activation economic and reversibility contract: model-free daily cost/yield reports, project-relative controller contribution, manual-vs-Audit wake provenance, actionable-event dispatch latency, conservative KEEP/REWORK/CANCEL-CANDIDATE advisory, and final-report-first host decommission. This milestone does not authorize automatic cancellation or provider self-destruction.
+**AUDIT-0011** accepts the pre-activation economic and reversibility contract from issue #378 / PR #380, merged as `3b8b42d41e79c6f886ba763fa2f854897e4e39ef`. Exact-head Orchestrator Smoke `34188634661` PASS and ordinary CI `34188634653` PASS at `ad7ec196dcbe6d38d1a5ab749915f5d4a2dfcd2d`. Hosted operation must now emit model-free daily cost/yield reports, compare controller contribution with overall Skyforge activity, distinguish manual and Audit wakes, measure dispatch latency, and retain a final-report-first teardown path. The reporter is isolated from the webhook secret. KEEP/REWORK/CANCEL-CANDIDATE is advisory only; no automatic cancellation or provider self-destruction is authorized.
 
 Presentation is now a canonical program lane. It consumes accepted project truth and owns external communication/showcase packaging; it does not own producer acceptance.
 
@@ -30,7 +30,7 @@ Presentation is now a canonical program lane. It consumes accepted project truth
 | Content / Experience | **C21** / #315 + C17 fixture maintenance #341 / merge `741e16ec` | no new bounded Content milestone | **HEALTHY / ACCEPTED** |
 | Music / Audio | **MUS-0003** / #331 | human listening/source-recovery gates | **HEALTHY / DORMANT pending human/source work** |
 | Presentation | **PRES-0003** / #351 / merge `aee9508d` | PRES-0004 / #355 + #348 image enrichment | **WATCH / REPEATED ACCEPTANCE-BOOKKEEPING LAG** |
-| Audit | **AUDIT-0010** / #374 / merge `0b657264` | **AUDIT-0011 / #380** value telemetry + reversible operations before DigitalOcean activation | **WATCH / ACTIVE; PRE-ACTIVATION ECONOMICS** |
+| Audit | **AUDIT-0011** / #380 / merge `3b8b42d4` | one small DigitalOcean activation + issue #369 live gate + issue #378 daily economics | **WATCH / REPOSITORY ACCEPTED; DEPLOYMENT PENDING** |
 
 Open producer/program PRs at this reconciliation: Presentation #355 and Audit #352. Audit reconciliation #356 is state-only.
 
@@ -164,10 +164,10 @@ not a lost orchestration event.
 1. Watch for a fresh current-main morphology-only SF-IMP-0083 branch and targeted Tableland diagnosis; unchanged heavy reruns escalate to LOOP RISK.
 2. Keep Authorship dormant after AUTH-0098 and AUTH-0099 parked unless a concrete consumer appears.
 3. Require Presentation accepted-state bookkeeping to catch up independently of PRES-0004; do not reopen accepted PRES-0003 evidence.
-4. Complete AUDIT-0011 / #380, then activate one small DigitalOcean host only after its daily
-   model-free value reporting and teardown path are accepted. Collect visible hosted economics in
-   issue #378 while retaining issue #349's accepted-progress/usage measures. API-billing fallback and
-   auto-merge expansion remain out of scope.
+4. Activate one small DigitalOcean host under AUDIT-0010/AUDIT-0011 with the actual Droplet hourly
+   rate wired into model-free reporting. Complete issue #369's live HTTPS/signed-delivery/manual-wake/
+   reboot gate, then collect daily economics in issue #378. API-billing fallback and auto-merge
+   expansion remain out of scope.
 5. Track cross-lane/Implementation ledger lag as bookkeeping debt without treating it as changed technical contracts.
 6. Prevent the next concrete Bootstrap resource-realization milestone from silently bypassing HS-06.
 7. Continue hourly supervision and notify separately for LOOP RISK, restart recommendation, ready human gate, serious repository/process failure, or triggered strategy decision.
