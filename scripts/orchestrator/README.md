@@ -1,8 +1,11 @@
-# Skyforge event-driven Codex pilot
+# Skyforge event-driven Codex orchestration
 
-This directory contains a **local development pilot** for low-usage autonomous Skyforge orchestration.
+This directory contains the accepted low-usage orchestration controller plus both local-development and
+always-on hosted transports.
 
 It does not replace the hourly ChatGPT Audit watchdog.
+
+Local development:
 
 ```text
 GitHub activity
@@ -18,8 +21,20 @@ GitHub silence / dead producer
     -> hourly Audit watchdog
     -> Audit RESTART/LOOP-RISK comment
     -> issue_comment webhook
-    -> local orchestrator wake
+    -> orchestrator wake
 ```
+
+Hosted production transport:
+
+```text
+GitHub repository webhook
+    -> trusted HTTPS / Caddy
+    -> GitHub HMAC-SHA256 validation
+    -> same deterministic filter/debounce
+    -> same Luna/Terra dispatch policy
+```
+
+The hosted deployment package is documented in `deploy/orchestrator/README.md`.
 
 ## Why SDK + App Server
 
@@ -61,7 +76,7 @@ Auto-merge is **off by default**. After several clean pilot cycles, it can be en
 - Git
 - GitHub CLI (`gh`) authenticated for `ni-da-ba/skyforge`
 - Codex/ChatGPT authentication available to the Codex SDK
-- GitHub CLI webhook-forwarding extension
+- GitHub CLI webhook-forwarding extension **for local development only**
 
 Review the extension before installing it; GitHub CLI extensions execute local code.
 
@@ -299,12 +314,22 @@ Pause the pilot if:
 The repository-first workflow, Audit watchdog, validation policy, and ordinary producer chats continue
 to work without this controller.
 
-## Production phase, only if pilot succeeds
+## Always-on hosted mode
 
-Do **not** use `gh webhook forward` as permanent infrastructure.
+AUDIT-0010 promotes the accepted controller to an always-on host without changing its model-facing
+policy. Hosted mode requires:
 
-A later production controller should use a real HTTPS webhook receiver with GitHub signature
-verification and the same deterministic event filter. The model-facing portion can remain the Codex SDK
-and resumable parent thread.
+- `--require-webhook-secret` / `SKYFORGE_WEBHOOK_SECRET`;
+- `--startup-reconcile` so repository changes across host downtime become one synthetic current-state
+  wake;
+- trusted HTTPS in front of the localhost controller;
+- systemd restart-on-boot;
+- the exact repository webhook allowlist.
 
-Track pilot outcomes in issue #349.
+Use `deploy/orchestrator/README.md` and `scripts/orchestrator/install_hosted.sh`.
+
+The local `gh webhook forward` transport remains useful for development but is not permanent
+infrastructure. Hosted mode still leaves auto-merge disabled and does not enable API-key billing
+fallback.
+
+Track local-pilot economics in issue #349 and hosted activation in issue #369.
