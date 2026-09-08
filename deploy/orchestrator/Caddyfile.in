@@ -1,0 +1,15 @@
+@@HOSTNAME@@ {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:3000
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy no-referrer
+        -Server
+    }
+
+    log {
+        output file /var/log/caddy/skyforge-orchestrator-access.log
+    }
+}
