@@ -396,6 +396,18 @@ Ownership after AUTH-0101:
 
 Reference: `docs/authorship/AUTH-0101-morphology-surface-character-comparisons.md`.
 
+### Morphology control atlas doctrine — ESTABLISHED
+
+The project now explicitly separates morphology **capacity**, **control knowledge**, **gameplay selection**, and **backend realization**.
+
+Authorship must preserve broad neutral expressive capacity, including rugged/lumpy/awkward terrain that may be unsuitable for ordinary traversal, while also documenting how to request materially different terrain characters deliberately. The canonical control artifact is:
+
+`docs/authorship/MORPHOLOGY_CONTROL_ATLAS.md`
+
+Authorship owns semantic control axes/recipes, descriptive control-response evidence, interactions, and deterministic examples. Content owns where those recipes belong in gameplay/world roles. Implementation owns faithful Minecraft realization and block-space consequences. Human review owns qualitative product judgment.
+
+A finding such as “this Massif is too lumpy for the starting role” does **not** by itself authorize removing lumpiness from the family or shrinking generator capacity. First classify whether the defect is an Authorship control/intended-shape problem, a Content recipe-selection problem, or an Implementation realization problem.
+
 ## IN PROGRESS
 
 No Authorship milestone is currently in progress.
@@ -521,11 +533,16 @@ sites/approaches.
 
 1. Hand AUTH-0101 to #267/#283 and the SF-IMP-0083/#214 review as compact comparative evidence.
    Do not treat the comparison file as a substitute for human traversal/family-quality judgment.
-2. If #214/#267/#283 identifies a concrete authored-intent morphology defect, reconstruct the narrow
-   tuning requirement from that finding before assigning AUTH-0102 or later; otherwise leave
-   morphology unchanged.
-3. Let Content/Bootstrap continue consuming AUTH-0096 + AUTH-0097 for concrete site/access requirements
+2. Apply the Morphology Control Atlas fault triage to any #214/#267/#283 defect before retuning:
+   preserve expressive capacity; determine whether the neutral recipe/control response is wrong
+   (Authorship), the valid recipe is assigned to the wrong gameplay role (Content), or Minecraft
+   realization is distorting the neutral terrain (Implementation).
+3. If the review demonstrates an Authorship control-knowledge gap, characterize the smallest relevant
+   semantic control/recipe relationship and add it to `MORPHOLOGY_CONTROL_ATLAS.md` before assigning
+   a broader family retune. If the existing control space already deliberately reaches the desired
+   terrain, leave capacity intact and hand production recipe selection to Content.
+4. Let Content/Bootstrap continue consuming AUTH-0096 + AUTH-0097 for concrete site/access requirements
    and Implementation consume AUTH-0098/AUTH-0100 only through accepted Content petroleum policy.
-4. AUTH-0099 remains an unaccepted historical gap. Do not enumerate cave/geothermal/civilization/
+5. AUTH-0099 remains an unaccepted historical gap. Do not enumerate cave/geothermal/civilization/
    exceptional-phenomenon semantics without an executable consumer.
 
