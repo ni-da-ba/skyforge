@@ -43,6 +43,9 @@ DEFAULT_RATE_LIMIT_BACKOFF_SECONDS = 300
 DEFAULT_TRANSIENT_BACKOFF_SECONDS = 300
 DEFAULT_MAX_SEEN_DELIVERIES = 512
 DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
+CONTROLLER_RUNTIME_PATHS = {
+    "scripts/orchestrator/skyforge_orchestrator.py",
+}
 PROTECTED_WORKER_PATH_PREFIXES = (
     "scripts/orchestrator/",
     "deploy/orchestrator/",
@@ -1188,10 +1191,10 @@ class Orchestrator:
                 ).stdout.splitlines()
                 if line.strip()
             ]
-            python_changes = [path for path in changed if path.endswith(".py")]
+            runtime_changes = [path for path in changed if path in CONTROLLER_RUNTIME_PATHS]
             self.runtime_head = current_head
-            if python_changes:
-                self._request_runtime_restart(previous_head, current_head, python_changes)
+            if runtime_changes:
+                self._request_runtime_restart(previous_head, current_head, runtime_changes)
         else:
             self.runtime_head = current_head
 
