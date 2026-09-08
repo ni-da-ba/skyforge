@@ -115,6 +115,20 @@ Minecraft playback, transition, persistence, and client/runtime integration. Ada
 consume explicit accepted cross-lane state and accepted audio-source identities rather than
 reverse-discovering either.
 
+### Presentation
+
+Owns accurate project-level communication and durable showcase packaging:
+
+- audience-specific explanations of what Skyforge is and why its engineering matters;
+- capability/limitation claim registries grounded in accepted repository evidence;
+- architecture/explanation diagrams, demo scripts, showcase sequencing, captions, and reviewer paths;
+- portfolio, recruiter, interview, contributor, player-facing, release, and later commercial-facing material when a concrete audience requires it;
+- freshness review when producer milestones materially change what Skyforge can legitimately show or claim.
+
+Presentation is a **consumer of accepted project truth**, not a producer of technical truth. It may compress detail but may not erase the distinction between accepted capability, in-progress work, documented roadmap, and longer-range aspiration.
+
+Presentation does not accept producer milestones, invent world/game/audio semantics, define runtime behavior, or substitute communication polish for missing evidence. Stale presentation prose yields to current source/tests, merged history, producer-lane state, and cross-lane contracts.
+
 ### Audit / Program Health
 
 Owns repository-wide convergence assurance and agent/workflow health:
