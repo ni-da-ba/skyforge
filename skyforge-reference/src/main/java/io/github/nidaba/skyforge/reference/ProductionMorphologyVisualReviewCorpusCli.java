@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.reference;
 
 import io.github.nidaba.skyforge.reference.evidence.ProductionMorphologyDiagnostics;
+import io.github.nidaba.skyforge.reference.evidence.ProductionMorphologySurfaceCharacterComparison;
 import io.github.nidaba.skyforge.reference.evidence.ProductionMorphologySurfaceCharacterDiagnostics;
 import io.github.nidaba.skyforge.reference.evidence.SuspendedVolumeEvidence;
 import io.github.nidaba.skyforge.reference.evidence.SuspendedVolumeEvidenceGenerator;
@@ -56,6 +57,7 @@ public final class ProductionMorphologyVisualReviewCorpusCli {
 
         writeSummary(members, results, output);
         writeSurfaceCharacterSummary(members, results, output);
+        writeSurfaceCharacterComparisons(results, output);
         writeMinecraftHandoff(members, output);
         Files.writeString(output.resolve("index.html"), galleryHtml(members), StandardCharsets.UTF_8);
         System.out.println(output.resolve("index.html").toAbsolutePath());
@@ -249,6 +251,91 @@ public final class ProductionMorphologyVisualReviewCorpusCli {
     }
 
     /**
+     * AUTH-0101 compact threshold-free comparisons for the exact #267/#283 human-review consumers.
+     *
+     * <p>Every delta is candidate minus baseline. The rows intentionally cover only the comparisons
+     * already requested by the open morphology issues: Massif versus Tableland across all three
+     * canonical MEDIUM seeds, plus Massif MEDIUM versus LARGE at the canonical Skyforge seed.
+     * No aggregate score or aesthetic/traversal classification is emitted.
+     */
+    private static void writeSurfaceCharacterComparisons(
+            Map<String, MemberResult> results,
+            Path output)
+            throws IOException {
+        List<ComparisonPair> pairs =
+                List.of(
+                        new ComparisonPair(
+                                "massif-vs-tableland-medium-seed-min",
+                                "builtin-massif-medium-seed-min",
+                                "builtin-tableland-medium-seed-min"),
+                        new ComparisonPair(
+                                "massif-vs-tableland-medium-seed-zero",
+                                "builtin-massif-medium-seed-zero",
+                                "builtin-tableland-medium-seed-zero"),
+                        new ComparisonPair(
+                                "massif-vs-tableland-medium-seed-skyforge",
+                                "builtin-massif-medium-seed-skyforge",
+                                "builtin-tableland-medium-seed-skyforge"),
+                        new ComparisonPair(
+                                "massif-medium-vs-large-seed-skyforge",
+                                "builtin-massif-medium-seed-skyforge",
+                                "builtin-massif-large-seed-skyforge"));
+
+        StringBuilder csv =
+                new StringBuilder(
+                        "comparison,baselineMember,candidateMember,"
+                                + "upperReliefRangeRDelta,upperStdDevRDelta,"
+                                + "gradientP50Delta,gradientP75Delta,gradientP90Delta,gradientP95Delta,"
+                                + "curvatureP50TimesRDelta,curvatureP75TimesRDelta,curvatureP90TimesRDelta,curvatureP95TimesRDelta,"
+                                + "lag1MeanDiffRDelta,lag2MeanDiffRDelta,lag4MeanDiffRDelta,lag8MeanDiffRDelta,"
+                                + "window3MedianRangeRDelta,window3P90RangeRDelta,"
+                                + "window5MedianRangeRDelta,window5P90RangeRDelta,"
+                                + "window9MedianRangeRDelta,window9P90RangeRDelta\n");
+
+        for (ComparisonPair pair : pairs) {
+            MemberResult baseline = results.get(pair.baselineMember());
+            MemberResult candidate = results.get(pair.candidateMember());
+            if (baseline == null || candidate == null) {
+                throw new IOException("missing AUTH-0101 comparison member: " + pair.id());
+            }
+            ProductionMorphologySurfaceCharacterComparison d =
+                    ProductionMorphologySurfaceCharacterComparison.compare(
+                            pair.baselineMember(),
+                            baseline.surfaceCharacter(),
+                            pair.candidateMember(),
+                            candidate.surfaceCharacter());
+            csv.append(pair.id()).append(',')
+                    .append(d.baselineMember()).append(',')
+                    .append(d.candidateMember()).append(',')
+                    .append(d.upperReliefRangeNormalizedDelta()).append(',')
+                    .append(d.upperStandardDeviationNormalizedDelta()).append(',')
+                    .append(d.gradientP50Delta()).append(',')
+                    .append(d.gradientP75Delta()).append(',')
+                    .append(d.gradientP90Delta()).append(',')
+                    .append(d.gradientP95Delta()).append(',')
+                    .append(d.curvatureP50TimesRadiusDelta()).append(',')
+                    .append(d.curvatureP75TimesRadiusDelta()).append(',')
+                    .append(d.curvatureP90TimesRadiusDelta()).append(',')
+                    .append(d.curvatureP95TimesRadiusDelta()).append(',')
+                    .append(d.lag1MeanDifferenceNormalizedDelta()).append(',')
+                    .append(d.lag2MeanDifferenceNormalizedDelta()).append(',')
+                    .append(d.lag4MeanDifferenceNormalizedDelta()).append(',')
+                    .append(d.lag8MeanDifferenceNormalizedDelta()).append(',')
+                    .append(d.window3MedianRangeNormalizedDelta()).append(',')
+                    .append(d.window3P90RangeNormalizedDelta()).append(',')
+                    .append(d.window5MedianRangeNormalizedDelta()).append(',')
+                    .append(d.window5P90RangeNormalizedDelta()).append(',')
+                    .append(d.window9MedianRangeNormalizedDelta()).append(',')
+                    .append(d.window9P90RangeNormalizedDelta()).append('\n');
+        }
+
+        Files.writeString(
+                output.resolve("surface-character-comparisons.csv"),
+                csv,
+                StandardCharsets.UTF_8);
+    }
+
+    /**
      * Writes the explicit downstream contract for Implementation without adding a production-core
      * dependency on the reference module.
      */
@@ -348,6 +435,8 @@ public final class ProductionMorphologyVisualReviewCorpusCli {
         }
         return "\"" + value.replace("\"", "\"\"") + "\"";
     }
+
+    private record ComparisonPair(String id, String baselineMember, String candidateMember) {}
 
     private record MemberResult(
             ProductionMorphologyVisualReviewCorpus.Member member,
