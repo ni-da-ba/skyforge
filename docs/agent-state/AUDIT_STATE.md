@@ -3,8 +3,8 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-08 (America/Chicago)  
-**Current full-program reconciliation base:** `main@8962984191e2db9d780b79991e1809e0e4baff68`  
-**Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0017**
+**Current full-program reconciliation base:** `main@aea2c35cf91870006895416388e672ed7cf8e988`  
+**Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0018**
 
 Read first: [PROGRAM_CHARTER.md](PROGRAM_CHARTER.md), [VALIDATION_POLICY.md](VALIDATION_POLICY.md), [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md), [ORCHESTRATION_PROTOCOL.md](ORCHESTRATION_PROTOCOL.md), [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md), current lane ledgers, current `main`, open PRs/issues, source/tests, merged history, and exact-head workflow evidence. Repository evidence overrides stale conversation or older snapshots.
 
@@ -30,6 +30,8 @@ AUDIT-0001 through AUDIT-0008 established repository-first reconstruction, manua
 
 **AUDIT-0017** accepted repository-visible, model-free hosted status reporting from PR #414 / merge `73162485`. Exact head `a5e765ec65cafefb420aad07eaf72f4a62b3e2be` passed Orchestrator Smoke run `34286300083` and repository CI run `34286299999`. Trusted `/skyforge-status` is a deterministic zero-Codex control that reports non-secret live controller state back to the issuing issue/PR, including loaded runtime head and checkout head; `/healthz` now exposes the loaded runtime head as well. The controller-authored status reply is self-filtered and cannot recurse.
 
+**AUDIT-0018** accepted bounded multi-event no-change liveness from PR #417 / merge `aea2c35c`. Exact head `413d5d85f896a71bfd61c17b81774471db933aaf` passed Orchestrator Smoke run `34289927826` and repository CI run `34289927869`. Durable webhook events remain batch-classified rather than spending one Luna call per event. If a multi-event batch dispatches a worker that produces no repository handoff and no newer event is already queued, the controller now preserves exactly one synthetic reconciliation event so a second independent runnable objective cannot be stranded. A single-event follow-up cannot recursively create another follow-up, and the 24-call Luna ceiling is unchanged.
+
 Hosted activation remains **VERIFIED** in issue #369, and the AUDIT-0017 live deployment is now **VERIFIED**. After confirming branch=`main`, a clean controller checkout, and `pending_worker=false`, the hosted checkout was fast-forwarded without rewriting state from `e59fcaa2` to current `main@8962984191`. The service restarted successfully, local and public `/healthz` both returned HTTP 200, startup reconciliation preserved the durable journal and added one current-state event, and trusted `/skyforge-status` posted repository-visible proof that `runtime_head == checkout_head == 8962984191e2db9d780b79991e1809e0e4baff68`, `pending_worker=false`, `paused=false`, and no worker is active. Seventeen pending events remain durably queued. The only active block is the intentional first-week Luna daily ceiling (`24/24`, `blocked_kind=local_budget`), not a controller fault; queued work may resume after the UTC-day budget reset. Safety remains auto-merge OFF and API-billing fallback OFF.
 
 ## CURRENT PROGRAM SNAPSHOT
@@ -41,7 +43,7 @@ Hosted activation remains **VERIFIED** in issue #369, and the AUDIT-0017 live de
 | Content / Experience | **C26** plus late **C12 B0-A1/B0-A2** acceptance; C11 and #237 machine seams retained | #401 merged; powered-aircraft lifecycle and #237 ergonomics remain downstream | **HEALTHY / ACCEPTED; HUMAN GATE REMAINS** |
 | Music / Audio | **MUS-0005** | source/plugin recovery and Track-06 source/listening only | **HEALTHY / DORMANT pending source/human work** |
 | Presentation | **PRES-0004** plus accepted runtime-capture infrastructure #362 | PRES-0005 explanatory graphics #385 | **HEALTHY / HUMAN GATE** |
-| Audit | **AUDIT-0017** | value watch #378; negative-space/liveness watchdog | **HEALTHY / LIVE DEPLOYMENT VERIFIED** |
+| Audit | **AUDIT-0018** | post-reset self-refresh verification; value watch #378; negative-space/liveness watchdog | **HEALTHY / REPO ACCEPTED; LIVE AUTO-REFRESH PENDING RESET** |
 
 ## ACTIVE CONVERGENCE HEALTH
 
@@ -77,7 +79,7 @@ The hosted recovery worker that woke from the earlier RESTART signal recreated t
 
 The controller is currently blocked only by the intentional first-week Luna daily ceiling: `luna_calls_today_total=24` / `classifier_calls_today=24`, `luna_worker_calls_today=0`, `terra_worker_calls_today=1`, `blocked_kind=local_budget`. This is expected capacity control, not liveness failure; do not clear the journal or bypass the ceiling merely to drain the queue. After the UTC-day reset, retained events may resume through the normal scheduler.
 
-AUDIT-0015 prevents worker branches from pinning the service checkout. AUDIT-0016 provides runtime self-refresh after controller-source movement. AUDIT-0017 provides model-free repository-visible runtime proof. Issue #378 remains the hosted value watch. Auto-merge remains off.
+AUDIT-0015 prevents worker branches from pinning the service checkout. AUDIT-0016 provides runtime self-refresh after controller-source movement. AUDIT-0017 provides model-free repository-visible runtime proof. AUDIT-0018 prevents a multi-event no-change dispatch from retiring the only evidence for a second runnable objective. Because AUDIT-0018 changes the controller runtime while the current process is intentionally blocked on the daily Luna ceiling, the already-loaded AUDIT-0016 self-refresh path should fast-forward to current main and recycle the service on the first post-reset dispatch before spending a new classifier call. Issue #378 remains the hosted value watch. Auto-merge remains off.
 
 ## VALIDATION / EVIDENCE ECONOMY
 
@@ -109,13 +111,13 @@ AUDIT-0015 prevents worker branches from pinning the service checkout. AUDIT-001
 - Presentation #385: **HEALTHY / HUMAN GATE**; silence is expected while waiting on qualitative review.
 - Authorship: **INTENTIONALLY DORMANT**, not stale.
 - Music: **INTENTIONALLY DORMANT pending source/human work**, not stale.
-- Hosted controller: **HEALTHY / LIVE AUDIT-0017 VERIFIED**. Current runtime and checkout match `main@8962984191`; HTTPS health, signed webhook delivery, startup reconciliation, durable event retention, and model-free status reporting are proven. The current `local_budget` block is expected first-week capacity control. Audit continues to own negative space, silence, stale-session replacement, evidence saturation, and race detection.
+- Hosted controller: **HEALTHY / AUDIT-0018 REPO-ACCEPTED; AUTO-REFRESH PENDING RESET**. The currently loaded AUDIT-0017 runtime is healthy and model-free status/health are proven. AUDIT-0018 controller source is merged on current main; the intentional `local_budget` block prevents an immediate dispatch/sync, so the existing self-refresh path should load AUDIT-0018 automatically on the first post-reset cycle. Audit continues to own negative space, silence, stale-session replacement, evidence saturation, and race detection.
 
 ## NEXT AUDIT WORK
 
 1. Hold #358 at the ready human gate; prevent further broad morphology testing until #214/#267/#283 review supplies a concrete uncertainty.
 2. Surface HS-03 and HS-04 to Nicholas; preserve the solved SF-IMP-0083 carrier/runtime boundary even if narrow tuning is requested.
-3. Treat AUDIT-0017 hosted deployment as verified. Let the retained 17-event queue respect the normal `local_budget` reset rather than bypassing the 24-call Luna ceiling; inspect only if the block persists after the UTC-day reset or a new breaker/safety pause appears.
+3. Let the retained durable batch respect the normal `local_budget` reset rather than bypassing the 24-call Luna ceiling. On the first post-reset cycle, verify the AUDIT-0016 self-refresh path advances the hosted checkout/runtime to AUDIT-0018 current main and then drains/classifies the batch normally; intervene only if the budget block persists, runtime/checkouts diverge after sync, or a new breaker/safety pause appears.
 4. Keep Authorship dormant until a concrete consumer proves a missing neutral-world semantic.
 5. Keep PRES-0005 and #237 ergonomics visible as ready human gates without substituting more machine evidence.
 6. Keep HS-06 visible before concrete Bootstrap resource guarantees are locked and HS-05 before final Bootstrap Province implementation begins.
