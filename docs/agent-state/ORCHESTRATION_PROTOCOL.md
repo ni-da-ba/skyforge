@@ -476,17 +476,34 @@ If Codex reaches a human gate, it posts a controller-marked GitHub gate comment 
 controller ignores its own comment to prevent recursive wakeups; Audit remains responsible for
 bringing the gate to the project owner.
 
-### Local-only first phase
+### Local and hosted transports
 
-The initial implementation is under `scripts/orchestrator/` and binds only localhost. GitHub CLI
-webhook forwarding is a development/test transport, not production infrastructure.
+The controller implementation lives under `scripts/orchestrator/` and continues to bind localhost by
+default. GitHub CLI webhook forwarding remains a development/test transport.
 
-The controller requires a **dedicated clone**. Local state and its virtualenv live under the ignored
-`.skyforge-orchestrator/` directory.
+AUDIT-0010 adds the bounded always-on transport without changing dispatch policy:
 
-If the pilot demonstrates favorable accepted-progress/usage economics, the next step is a small real
-HTTPS webhook receiver with GitHub signature validation using the same deterministic filter. Do not
-build that deployment layer before issue #349 shows the pilot is worth keeping.
+```text
+GitHub repository webhook
+    -> trusted HTTPS reverse proxy
+    -> HMAC-SHA256 verification of the exact request body
+    -> persistent GitHub delivery de-duplication
+    -> existing deterministic filter/debounce
+```
+
+Hosted mode must reject unsigned or invalidly signed deliveries before event classification. The
+webhook secret belongs only in host configuration, never Git or model prompts. The public reverse
+proxy terminates trusted TLS; the controller itself remains localhost-only.
+
+The controller requires a **dedicated clone** in both modes. Local state and its virtualenv live under
+the ignored `.skyforge-orchestrator/` directory. The hosted service must restart on boot and preserve
+that directory across process restarts.
+
+Because a powered-off host cannot receive webhooks, each hosted startup compares a compact current
+GitHub fingerprint (main head, open PR state, recent Actions state) with the prior startup baseline.
+A changed fingerprint produces exactly one synthetic `reconcile` wake so the classifier reasons from
+current repository truth rather than attempting to replay every missed delivery. First startup only
+establishes the baseline.
 
 ### Usage accounting
 
