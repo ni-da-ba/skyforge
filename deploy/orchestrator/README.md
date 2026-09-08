@@ -73,7 +73,9 @@ Before the hosted service can start, GitHub must enforce the minimum unattended-
 - pull requests required;
 - required status checks enabled;
 - force pushes blocked;
-- branch deletion blocked.
+- branch deletion blocked;
+- the rules apply to administrators / repository owners as well, so the host's owner-authenticated `gh`
+  session cannot bypass the protected-`main` boundary.
 
 `scripts/orchestrator/verify_main_protection.py` checks applicable rulesets first and classic branch
 protection second. The installer fails closed if this cannot be verified. Do not bypass this gate to

@@ -48,7 +48,8 @@ def classic_protection_ok(value: Any) -> bool:
     status_required = value.get("required_status_checks") is not None
     force_push = bool(((value.get("allow_force_pushes") or {}).get("enabled")))
     deletion = bool(((value.get("allow_deletions") or {}).get("enabled")))
-    return pr_required and status_required and not force_push and not deletion
+    admins_enforced = bool(((value.get("enforce_admins") or {}).get("enabled")))
+    return pr_required and status_required and not force_push and not deletion and admins_enforced
 
 
 def verify(repo: str = REPO, branch: str = BRANCH) -> tuple[bool, str]:
@@ -65,7 +66,7 @@ def verify(repo: str = REPO, branch: str = BRANCH) -> tuple[bool, str]:
     try:
         classic = _run_json(["gh", "api", f"repos/{repo}/branches/{branch}/protection"])
         if classic_protection_ok(classic):
-            return True, "classic branch protection requires PR + status checks and blocks force-push/deletion"
+            return True, "classic branch protection requires PR + status checks, blocks force-push/deletion, and applies to administrators"
     except Exception as exc:
         classic_error = str(exc)
 
@@ -78,7 +79,7 @@ def verify(repo: str = REPO, branch: str = BRANCH) -> tuple[bool, str]:
     return (
         False,
         "main is not verifiably protected for unattended operation. Require pull requests and status "
-        "checks, and block force pushes and branch deletion before hosted activation." + suffix,
+        "checks, block force pushes and branch deletion, and apply the rules to administrators before hosted activation." + suffix,
     )
 
 
