@@ -3,7 +3,7 @@
 **Lane:** Content / Experience  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Highest accepted Content boundary:** C23 / PR #367
+**Highest accepted Content boundary:** C24 / PR #373
 
 Read first:
 
@@ -13,7 +13,50 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest accepted executable Content milestone: C23
+### Highest accepted executable Content milestone: C24
+
+**C24 / PR #373** consumes accepted C23 + AUTH-0096/AUTH-0097 to nominate coarse petroleum
+infrastructure candidates without introducing a new Authorship threshold or selecting a final site.
+
+Accepted role contract:
+
+```text
+PETROLEUM_EXTRACTION_INTERFACE
+    -> C23 petroleum-eligible association
+    + AUTH-0096 physical surface support
+
+REFINERY_PROCESSING
+    -> AUTH-0096 physical surface support
+    -> may be on another island in the same exact C23/AUTH-0100 region
+
+FREIGHT_TRANSFER_EDGE
+    -> AUTH-0096 physical surface support
+    + at least one AUTH-0097 observed-open ray
+```
+
+Accepted interpretation:
+
+- extraction-interface nomination is restricted to C23 petroleum-eligible islands;
+- refinery/processing may be separated from the source island by logistics;
+- freight-edge nomination uses only broad accepted open-direction evidence and is not a runway, dock,
+  vehicle corridor, or neighboring-obstruction proof;
+- candidate order and provenance remain exact AUTH-0096/AUTH-0097 source order;
+- C24 returns candidate lists only and exposes no selected site or local ranking score;
+- no flatness, area, grade, approach-length, hydrology, morphology, reserves, quantity, deposit
+  position, or backend threshold enters C24;
+- AUTH-0096/AUTH-0097 are sufficient for the **coarse candidate stage**. C24 demonstrates no new
+  Authorship evidence gap;
+- the next Content boundary must derive concrete infrastructure requirement envelopes from actual
+  retained/bespoke pumpjack/refinery/freight assets and gameplay roles before any further Authorship
+  request;
+- Implementation owns exact structure geometry/orientation/admission, deposit-interface alignment,
+  neighboring obstruction, mutation, placement, persistence, and lifecycle.
+
+Exact candidate verification passed Wave C24 Petroleum Infrastructure Candidates run
+`34186747769`, Wave C20 Base Metal Content Policy regression run `34186747718`, and repository CI
+run `34186747691`. No Minecraft manual or human visual gate applies to C24 itself.
+
+### C23
 
 **C23 / PR #367** consumes accepted C22 + AUTH-0100 in the first deterministic
 petroleum-province feasibility/replan layer.
@@ -407,9 +450,9 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 
 1. Do not duplicate active C11/C12 work; consume their results into #224 when accepted.
 2. Hand C21's exact-volume resource-authority contract to Implementation: filter competing Create Zinc/striated generic feature execution only inside explicit Skyforge-owned population, never by a packaged BASE_WORLD-wide override.
-3. Build the next petroleum Content boundary from C23 candidates: define explicit extraction/refinery/freight infrastructure-role requirements and attempt to match them against accepted AUTH-0096 local site plus AUTH-0097 directional-access evidence.
-4. Request new Authorship evidence only if that concrete role matcher demonstrates a specific missing backend-neutral world cause; do not add another regional petroleum wrapper or geological threshold.
-5. Keep literal petroleum deposits, extraction mechanics, exact structure geometry/admission, worldgen, persistence, and lifecycle in Implementation.
+3. Build the next petroleum Content boundary from C24: derive concrete extraction/refinery/freight requirement envelopes from actual retained/bespoke assets and gameplay roles, then test those requirements against accepted C24 candidate evidence.
+4. Request new Authorship evidence only if a concrete requirement cannot be evaluated from existing AUTH-0096/AUTH-0097 evidence; do not add another petroleum wrapper, ranking layer, or intuitive site threshold.
+5. Keep literal petroleum deposits, extraction mechanics, exact structure geometry/orientation/admission, neighboring obstruction, worldgen, persistence, and lifecycle in Implementation.
 6. Resume the remaining #227 turtle questions afterward: farming throughput, quarry/branch-mining scale, or dedicated chunk-loader/Ender-storage combinations. Do not nerf turtles without measured substitution evidence.
 7. Continue Bootstrap Province acceptance with C20's guaranteed Iron and post-flight Copper/Zinc semantics; exact quantities remain downstream of accepted C11/C12 aircraft closure and HS-06 remains the human gate before locking the starting recipe.
 8. Complete/accept #237 / PR #240 before C12 powered-soaring closure.

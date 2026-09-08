@@ -1,6 +1,6 @@
 # Wave C24 — petroleum infrastructure candidate matching
 
-**Status:** IN PROGRESS  
+**Status:** ACCEPTED merge candidate  
 **Issue:** #372  
 **Predecessor:** C23 / PR #367  
 **Authorship inputs:** AUTH-0096, AUTH-0097, AUTH-0100  
@@ -114,3 +114,16 @@ Only a concrete requirement that cannot be evaluated from AUTH-0096/0097 should 
 8. targeted tests and repository CI pass.
 
 No Minecraft manual or visual gate applies to C24.
+
+
+## Accepted candidate evidence
+
+Exact C24 code head `73eaee5a91a52f8c6826f99b3449235258658773` passed:
+
+- Wave C24 Petroleum Infrastructure Candidates run `34186747769`;
+- Wave C20 Base Metal Content Policy regression run `34186747718`;
+- repository CI run `34186747691`.
+
+These tests exercise real AUTH-0096/AUTH-0097 profiles over exact published C23-region associations.
+The result is sufficient to close the coarse-candidate evidence question: no new Authorship wrapper is
+required at this stage.
