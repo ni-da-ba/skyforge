@@ -20,7 +20,7 @@ if ! gh auth status >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! gh extension list | awk '{print $1}' | grep -qx 'gh-webhook'; then
+if ! gh webhook --help >/dev/null 2>&1; then
   echo "The gh-webhook extension is required." >&2
   echo "Install it after reviewing the extension source: gh extension install cli/gh-webhook" >&2
   exit 1
