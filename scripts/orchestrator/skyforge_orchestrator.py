@@ -1358,6 +1358,7 @@ def main() -> int:
         startup_reconcile=args.startup_reconcile,
     )
     orchestrator.validate_environment()
+    orchestrator._metric("controller_starts")
     Handler.orchestrator = orchestrator
     server = ThreadingHTTPServer((args.bind, args.port), Handler)
     print(
