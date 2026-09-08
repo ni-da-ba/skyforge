@@ -82,6 +82,15 @@ Never race a healthy ordinary ChatGPT/manual producer. Recent information-bearin
 PR-head movement, or progressing Actions means RUNNING_EXTERNAL unless the evidence explicitly says
 that producer is stale/dead/restart-recommended.
 
+Trusted Audit directives are first-class liveness evidence. A structured
+signal_kind="restart_recommended" means Audit has already adjudicated the prior producer stale/dead at
+the signal time. Do NOT use PR/issue updatedAt, draft/open state, the Audit comment itself, bookkeeping
+motion, or unchanged reruns as evidence that the producer recovered. For such a signal, choose NOOP
+only when the snapshot shows substantive producer evidence strictly after the signal (for example a
+new producer head/commit, genuinely new Actions work attributable to that producer, or an already
+controller-managed recovery). Otherwise honor the bounded restart objective and choose DISPATCH.
+A structured human_gate signal remains a HUMAN_GATE rather than a worker dispatch.
+
 Do not dispatch work merely because a lane exists. Do not poll CI. Do not expand expensive validation
 without a distinct risk. Honor VALIDATION_POLICY.md and ORCHESTRATION_PROTOCOL.md.
 
@@ -136,6 +145,9 @@ class EventDecision:
     head_sha: str | None = None
     pr_number: int | None = None
     observed_at: str | None = None
+    source_id: str | None = None
+    signal_kind: str | None = None
+    signal_text: str | None = None
 
     def summary(self) -> str:
         bits = [self.event]
@@ -145,6 +157,8 @@ class EventDecision:
             bits.append(f"PR#{self.pr_number}")
         if self.head_sha:
             bits.append(self.head_sha[:10])
+        if self.signal_kind:
+            bits.append(f"signal={self.signal_kind}")
         bits.append(self.reason)
         return " | ".join(bits)
 
@@ -161,6 +175,9 @@ class EventDecision:
             head_sha=value.get("head_sha"),
             pr_number=value.get("pr_number"),
             observed_at=value.get("observed_at"),
+            source_id=value.get("source_id"),
+            signal_kind=value.get("signal_kind"),
+            signal_text=value.get("signal_text"),
         )
 
 
@@ -188,6 +205,18 @@ def _internal_workflow_payload(payload: dict[str, Any], repo: str) -> bool:
     run = payload.get("workflow_run") or {}
     head_repo = (run.get("head_repository") or {}).get("full_name")
     return not head_repo or str(head_repo).lower() == repo.lower()
+
+
+def _audit_signal_kind(body_lower: str) -> str | None:
+    if "restart recommended" in body_lower:
+        return "restart_recommended"
+    if "loop risk" in body_lower:
+        return "loop_risk"
+    if "human_gate" in body_lower or "human gate" in body_lower:
+        return "human_gate"
+    if "audit" in body_lower:
+        return "audit"
+    return None
 
 
 def classify_control_command(
@@ -276,17 +305,18 @@ def classify_event(
         action = str(payload.get("action") or "").lower()
         if action != "created":
             return EventDecision(False, "only newly-created comments can wake orchestration", event, action)
-        body = str((payload.get("comment") or {}).get("body") or "")
+        comment = payload.get("comment") or {}
+        body = str(comment.get("body") or "")
         body_lower = body.lower()
         if SELF_COMMENT_MARKER in body_lower:
             return EventDecision(False, "controller-authored comment; prevent wake loop", event, action)
         issue = payload.get("issue") or {}
-        wake_requested = (
-            "/skyforge-orchestrate" in body_lower
-            or any(token in body_lower for token in AUDIT_WAKE_TOKENS if token != "/skyforge-orchestrate")
-        )
+        signal_kind = _audit_signal_kind(body_lower)
+        wake_requested = "/skyforge-orchestrate" in body_lower or signal_kind is not None
         if wake_requested and not _trusted_actor(payload, trusted_actors):
             return EventDecision(False, "untrusted commenter cannot wake orchestration", event, action)
+        source_id = str(comment.get("id")) if comment.get("id") is not None else None
+        observed_at = comment.get("created_at")
         if "/skyforge-orchestrate" in body_lower:
             return EventDecision(
                 True,
@@ -294,14 +324,20 @@ def classify_event(
                 event,
                 "manual_command",
                 pr_number=issue.get("number"),
+                observed_at=observed_at,
+                source_id=source_id,
             )
-        if any(token in body_lower for token in AUDIT_WAKE_TOKENS if token != "/skyforge-orchestrate"):
+        if signal_kind is not None:
             return EventDecision(
                 True,
                 "Audit/watchdog orchestration signal",
                 event,
                 "audit_signal",
                 pr_number=issue.get("number"),
+                observed_at=observed_at,
+                source_id=source_id,
+                signal_kind=signal_kind,
+                signal_text=body[:6000],
             )
         return EventDecision(False, "ordinary comment", event, action)
 
@@ -375,6 +411,18 @@ def _clean_json_object(text: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError("Classifier JSON must be an object")
     return value
+
+
+def _classifier_prompt(events: list[EventDecision], snapshot: dict[str, Any]) -> str:
+    structured_events = [event.to_state() for event in events]
+    return (
+        "A filtered Skyforge repository event batch is actionable.\n\n"
+        "STRUCTURED EVENTS:\n" + json.dumps(structured_events, indent=2) + "\n\n"
+        "COMPACT REPOSITORY SNAPSHOT:\n" + json.dumps(snapshot, indent=2)[:24000] + "\n\n"
+        "Treat structured trusted Audit directives as first-class evidence. PR/issue updatedAt is not "
+        "producer-liveness evidence because comments and bookkeeping mutate it. "
+        "Read AGENTS.md and the compact Audit state as needed. Return only the required JSON decision."
+    )
 
 
 class RetryBlocked(RuntimeError):
@@ -902,7 +950,7 @@ class Orchestrator:
                 "--state", "open",
                 "--limit", "50",
                 "--json",
-                "number,title,isDraft,headRefName,baseRefName,updatedAt,url,author,mergeStateStatus",
+                "number,title,isDraft,headRefName,headRefOid,baseRefName,url,author,mergeStateStatus",
             ],
             cwd=self.root,
         )
@@ -1323,12 +1371,7 @@ class Orchestrator:
             with self._state_lock:
                 self.state.data["last_events"] = summaries[-20:]
                 self.state.save()
-            prompt = (
-                "A filtered Skyforge repository event batch is actionable.\n\n"
-                "EVENTS:\n- " + "\n- ".join(summaries) + "\n\n"
-                "COMPACT REPOSITORY SNAPSHOT:\n" + json.dumps(snap, indent=2)[:24000] + "\n\n"
-                "Read AGENTS.md and the compact Audit state as needed. Return only the required JSON decision."
-            )
+            prompt = _classifier_prompt(events, snap)
             decision = self._codex_classifier(prompt)
             with self._state_lock:
                 self.state.data["last_dispatch_epoch"] = now
