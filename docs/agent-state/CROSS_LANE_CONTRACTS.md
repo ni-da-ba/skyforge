@@ -477,10 +477,13 @@ evidence. PR #389 accepts the stationary compatibility seam on the C11 flight-on
 default behavior unchanged; opted-in redstone cutoff yields zero output, preserves active burn time
 and queued fuel, and resumes exact upstream ignition/countdown behavior.
 
-Still unaccepted for #237: save/reload, comparator/display coherence, assembled-Sable behavior,
-two-engine together/independent behavior, and human ergonomics. C12 / issue #239 may consume the
-stationary seam for engineering work, but final powered-soaring closure must wait for the relevant
-mobile/persistence gates.
+PR #392 additionally accepts real two-boot save/reopen and comparator coherence: configured CUT
+mode, exact burn timer, queued fuel, neighboring redstone state, zero output, and comparator state
+survive restart; signal removal resumes exact timer/output behavior and comparator movement.
+
+Still unaccepted for #237: assembled-Sable behavior, two-engine together/independent behavior, and
+human ergonomics. C12 / issue #239 may consume the stationary/persistent seam for engineering work,
+but final powered-soaring closure must wait for the mobile gate.
 
 ## Handoff discipline
 

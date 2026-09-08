@@ -173,3 +173,24 @@ Then the verify boot removes the signal and ticks once:
 - comparator falls coherently from 12 to 11.
 
 This proof remains stationary. Assembled-Sable and two-engine behavior stay separate mobile gates.
+
+
+## Accepted persistence/comparator evidence
+
+Exact code head `e6ce64657b67a287f2e69d922262ef33d3882789` passed:
+
+- Portable Engine Cutoff Persistence run `34192202520`;
+- stationary Portable Engine Cutoff regression `34192202524`;
+- retained C11 recipe regression `34192202494`;
+- repository CI run `34192202484`.
+
+The two dedicated-server boots reported:
+
+```text
+PREPARE PASS burn=600 fuel=1 comparator=12 active=true
+VERIFY  PASS burn=600->599 fuel=1 comparator=12->11 persistedMode=true
+```
+
+This accepts save/reopen and comparator coherence only. The next #237 gate is actual Sable
+sublevel assembly with two Portable Engines and together/independent cutoff/restart behavior.
+Human ergonomics remains a final manual gate.
