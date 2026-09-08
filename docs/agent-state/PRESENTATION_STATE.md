@@ -2,9 +2,9 @@
 
 **Canonical lane:** PRESENTATION  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Status:** PRES-0002 ready for acceptance under issue #345  
-**Highest merged Presentation milestone:** **PRES-0001**  
-**PRES-0001 merge:** PR #344, `a880f2fb3298b76d5abf601b2163adcbfb3b6706`
+**Status:** PRES-0003 in progress under issue #347  
+**Highest merged Presentation milestone:** **PRES-0002**  
+**PRES-0002 merge:** PR #350, `08bc6ff65da5f49f499a3ce16d4fceaf474aa216`
 
 Always reconstruct current project claims from `main`, the program charter, validation policy, producer-lane ledgers, cross-lane contracts, relevant acceptance records, and merged history before publishing or revising an external-facing artifact.
 
@@ -50,35 +50,33 @@ Repository state and accepted evidence outrank existing presentation prose.
 
 ### PRES-0001 — Presentation lane bootstrap
 
-PR #344 merged as `a880f2fb3298b76d5abf601b2163adcbfb3b6706`.
+PR #344 / `a880f2fb3298b76d5abf601b2163adcbfb3b6706`.
 
-Accepted boundary:
-
-- canonical Presentation lane and persistence architecture;
-- explicit ownership/non-authority in the program charter;
-- fresh-agent reconstruction path;
-- durable `docs/presentation/` artifact home;
-- accepted/in-progress/roadmap/aspirational claim discipline.
-
-## READY FOR ACCEPTANCE
+Established Presentation ownership/non-authority, durable repository memory, fresh-agent reconstruction, and publication-state discipline.
 
 ### PRES-0002 — current claim registry and audience matrix
 
-Issue #345. Branch `presentation/pres-0002-claim-registry`.
+PR #350 / `08bc6ff65da5f49f499a3ce16d4fceaf474aa216`.
 
-Candidate artifacts:
+Accepted artifacts:
 
 - `docs/presentation/claims/current-claims.md` — evidence-linked present/in-progress/roadmap/aspirational claim surface plus explicit “must not claim yet” boundaries;
-- `docs/presentation/audiences/current-audience-matrix.md` — nontechnical, recruiter, technical-engineer, procedural-generation, Minecraft/player, contributor, and commercial/collaborator compression guidance;
+- `docs/presentation/audiences/current-audience-matrix.md` — nontechnical, recruiter, technical-engineer, procedural-generation, Minecraft/player, contributor, and collaborator/commercial compression guidance;
 - `docs/presentation/audiences/nontechnical-overview.md` — reusable “Skyforge at a Glance” general-audience narrative.
 
-Acceptance intent: establish one stable claim surface that later demos/portfolio artifacts can consume without duplicating producer technical ledgers.
+Exact-head CI run #1776 passed before merge. PRES-0002 creates no producer technical claim or cross-lane contract.
 
-## NEXT
+## IN PROGRESS
 
 ### PRES-0003 — flagship 90-second demo narrative
 
-Issue #347 is open. Define the smallest show-don’t-tell sequence that makes a nontechnical reviewer understand why Skyforge is significant:
+Issue #347. Branch `presentation/pres-0003-flagship-demo`.
+
+Current artifact:
+
+- `docs/presentation/demos/flagship-90-second-demo.md` — exact ~90-second shot/narration/on-screen-text/evidence map for a nontechnical-first demo.
+
+Core sequence:
 
 ```text
 meaning
@@ -90,11 +88,15 @@ meaning
 -> clearly labeled Bootstrap Province direction
 ```
 
-Issue #348 tracks acquisition/reuse of canonical accepted visuals: Massif hero/orbit, five-family comparison, underside view, ecology view, and a persistence/reopen pair where cheap existing fixtures can supply them.
+The storyboard consumes the PRES-0002 claim registry and the accepted SF-IMP-0080/0081/0082 viewer choreography. Issue #348 tracks canonical still acquisition.
+
+Inspection of the retained SF-IMP-0082 Showcase Acceptance artifacts found acceptance properties/logs but no image captures, so Presentation must not substitute generated or fabricated runtime visuals. Reuse existing accepted viewer worlds/commands or the cheapest valid capture path rather than rerunning the expensive morphology matrix solely for screenshots.
+
+## NEXT
 
 ### PRES-0004 — portfolio/showcase package
 
-Follow PRES-0003 once the claim surface and flagship story are stable. Do not create presentation volume for its own sake; prefer a small set of reusable high-signal artifacts.
+Follow PRES-0003 once the flagship story has canonical runtime images. Prefer reusable high-signal artifacts over presentation volume.
 
 ## Current communication hazards
 
@@ -103,9 +105,9 @@ Follow PRES-0003 once the claim surface and flagship story are stable. Do not cr
 - Do not call authored opportunity/evidence a physical deposit, resource guarantee, species population, settlement, runway, dock, or structure unless the owning lanes accept that mapping.
 - Do not imply issue #214 is fully closed: all five SMALL / `seed-skyforge` families are accepted, but broader seed/scale/hybrid/regional review remains open.
 - Do not present Bootstrap Province as current capability.
-- Do not inflate scale with raw test/metric counts when the audience needs the engineering consequence instead.
+- Do not use generated/concept images as runtime evidence.
 - Do not make Presentation work a blocker on production convergence.
 
 ## Recommended next work
 
-Merge PRES-0002 after its documentation-only exact-head gate passes, then create PRES-0003 from current `main` and build the 90-second storyboard using the accepted morphology/ecology viewer choreography and the canonical claim registry.
+Complete PRES-0003 by acquiring the small canonical capture set from issue #348, insert those visuals into the flagship storyboard/demo package, verify every frame against `current-claims.md`, then merge the bounded narrative package before beginning PRES-0004.
