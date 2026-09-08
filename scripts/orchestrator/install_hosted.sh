@@ -156,11 +156,11 @@ sudo systemctl restart skyforge-orchestrator.service
 sudo systemctl reload caddy.service
 
 # Establish the value-accounting baseline without posting a zero-value report.
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
-"$VENV_PYTHON" scripts/orchestrator/daily_value_report.py   --root "$ROOT" --repo "$REPO" --issue "$SKYFORGE_VALUE_REPORT_ISSUE" --initialize
+SKYFORGE_HOST_ACTIVATED_AT="$HOST_ACTIVATED_AT" \
+SKYFORGE_DROPLET_HOURLY_USD="$SKYFORGE_DROPLET_HOURLY_USD" \
+SKYFORGE_VALUE_REPORT_ISSUE="$SKYFORGE_VALUE_REPORT_ISSUE" \
+"$VENV_PYTHON" scripts/orchestrator/daily_value_report.py \
+  --root "$ROOT" --repo "$REPO" --issue "$SKYFORGE_VALUE_REPORT_ISSUE" --initialize
 
 health_url="https://$SKYFORGE_PUBLIC_HOSTNAME/healthz"
 webhook_url="https://$SKYFORGE_PUBLIC_HOSTNAME/webhook"
