@@ -33,8 +33,19 @@ class RulesetProtectionTests(unittest.TestCase):
             "required_status_checks": {"strict": True, "contexts": ["CI"]},
             "allow_force_pushes": {"enabled": False},
             "allow_deletions": {"enabled": False},
+            "enforce_admins": {"enabled": True},
         }
         self.assertTrue(guard.classic_protection_ok(value))
+
+    def test_classic_admin_bypass_fails(self):
+        value = {
+            "required_pull_request_reviews": {"required_approving_review_count": 0},
+            "required_status_checks": {"strict": False, "contexts": ["build"]},
+            "allow_force_pushes": {"enabled": False},
+            "allow_deletions": {"enabled": False},
+            "enforce_admins": {"enabled": False},
+        }
+        self.assertFalse(guard.classic_protection_ok(value))
 
     def test_classic_force_push_or_missing_checks_fails(self):
         value = {
@@ -42,6 +53,7 @@ class RulesetProtectionTests(unittest.TestCase):
             "required_status_checks": None,
             "allow_force_pushes": {"enabled": True},
             "allow_deletions": {"enabled": False},
+            "enforce_admins": {"enabled": False},
         }
         self.assertFalse(guard.classic_protection_ok(value))
 
