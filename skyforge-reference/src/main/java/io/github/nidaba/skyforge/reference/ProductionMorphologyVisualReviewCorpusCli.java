@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.reference;
 
 import io.github.nidaba.skyforge.reference.evidence.ProductionMorphologyDiagnostics;
+import io.github.nidaba.skyforge.reference.evidence.ProductionMorphologySurfaceCharacterDiagnostics;
 import io.github.nidaba.skyforge.reference.evidence.SuspendedVolumeEvidence;
 import io.github.nidaba.skyforge.reference.evidence.SuspendedVolumeEvidenceGenerator;
 import io.github.nidaba.skyforge.reference.evidence.SuspendedVolumeEvidenceWriter;
@@ -54,6 +55,7 @@ public final class ProductionMorphologyVisualReviewCorpusCli {
                 generateMembers(members, output, version);
 
         writeSummary(members, results, output);
+        writeSurfaceCharacterSummary(members, results, output);
         writeMinecraftHandoff(members, output);
         Files.writeString(output.resolve("index.html"), galleryHtml(members), StandardCharsets.UTF_8);
         System.out.println(output.resolve("index.html").toAbsolutePath());
@@ -125,7 +127,8 @@ public final class ProductionMorphologyVisualReviewCorpusCli {
         return new MemberResult(
                 member,
                 evidence,
-                ProductionMorphologyDiagnostics.measure(evidence));
+                ProductionMorphologyDiagnostics.measure(evidence),
+                ProductionMorphologySurfaceCharacterDiagnostics.measure(evidence));
     }
 
     private static void writeSummary(
@@ -172,6 +175,77 @@ public final class ProductionMorphologyVisualReviewCorpusCli {
                     .append(d.upperUndersidePearsonCorrelation()).append('\n');
         }
         Files.writeString(output.resolve("summary.csv"), csv, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * AUTH-0095 additive threshold-free surface-character evidence over the exact AUTH-0083 built-ins.
+     *
+     * <p>The file intentionally excludes hybrids/provider-axis members because SF-IMP-0083 / #284
+     * currently consumes the 25 built-in seed/scale specimens. No walkability, plateau, bench,
+     * lumpiness, or aesthetic classification is emitted.
+     */
+    private static void writeSurfaceCharacterSummary(
+            List<ProductionMorphologyVisualReviewCorpus.Member> members,
+            Map<String, MemberResult> results,
+            Path output)
+            throws IOException {
+        StringBuilder csv =
+                new StringBuilder(
+                        "member,scale,seed,morphologySpec,sampleSpacingR,occupiedColumns,gradientSamples,"
+                                + "window3Samples,window5Samples,window9Samples,upperReliefRangeR,upperStdDevR,"
+                                + "gradientP50,gradientP75,gradientP90,gradientP95,"
+                                + "curvatureP50TimesR,curvatureP75TimesR,curvatureP90TimesR,curvatureP95TimesR,"
+                                + "lag1MeanDiffR,lag2MeanDiffR,lag4MeanDiffR,lag8MeanDiffR,"
+                                + "window3MedianRangeR,window3P90RangeR,window5MedianRangeR,window5P90RangeR,"
+                                + "window9MedianRangeR,window9P90RangeR\n");
+
+        for (ProductionMorphologyVisualReviewCorpus.Member member : members) {
+            if (member.kind() != ProductionMorphologyVisualReviewCorpus.Kind.BUILT_IN) {
+                continue;
+            }
+            MemberResult result = results.get(member.id());
+            if (result == null) {
+                throw new IOException("missing completed review member: " + member.id());
+            }
+            ProductionMorphologySurfaceCharacterDiagnostics d = result.surfaceCharacter();
+            double sampleSpacingR =
+                    ProductionMorphologyVisualReviewCorpus.reviewGrid(member).spacingX()
+                            / ProductionMorphologyVisualReviewCorpus.descriptor(member).nominalRadius();
+            csv.append(member.id()).append(',')
+                    .append(member.scale().id()).append(',')
+                    .append(member.seed()).append(',')
+                    .append(csvEscape(member.morphology().stableIdentifier())).append(',')
+                    .append(sampleSpacingR).append(',')
+                    .append(d.occupiedColumns()).append(',')
+                    .append(d.gradientSamples()).append(',')
+                    .append(d.window3Samples()).append(',')
+                    .append(d.window5Samples()).append(',')
+                    .append(d.window9Samples()).append(',')
+                    .append(d.upperReliefRangeNormalized()).append(',')
+                    .append(d.upperStandardDeviationNormalized()).append(',')
+                    .append(d.gradientP50()).append(',')
+                    .append(d.gradientP75()).append(',')
+                    .append(d.gradientP90()).append(',')
+                    .append(d.gradientP95()).append(',')
+                    .append(d.curvatureP50TimesRadius()).append(',')
+                    .append(d.curvatureP75TimesRadius()).append(',')
+                    .append(d.curvatureP90TimesRadius()).append(',')
+                    .append(d.curvatureP95TimesRadius()).append(',')
+                    .append(d.lag1MeanDifferenceNormalized()).append(',')
+                    .append(d.lag2MeanDifferenceNormalized()).append(',')
+                    .append(d.lag4MeanDifferenceNormalized()).append(',')
+                    .append(d.lag8MeanDifferenceNormalized()).append(',')
+                    .append(d.window3MedianRangeNormalized()).append(',')
+                    .append(d.window3P90RangeNormalized()).append(',')
+                    .append(d.window5MedianRangeNormalized()).append(',')
+                    .append(d.window5P90RangeNormalized()).append(',')
+                    .append(d.window9MedianRangeNormalized()).append(',')
+                    .append(d.window9P90RangeNormalized()).append('\n');
+        }
+        Files.writeString(
+                output.resolve("surface-character.csv"),
+                csv,
+                StandardCharsets.UTF_8);
     }
 
     /**
@@ -278,5 +352,6 @@ public final class ProductionMorphologyVisualReviewCorpusCli {
     private record MemberResult(
             ProductionMorphologyVisualReviewCorpus.Member member,
             SuspendedVolumeEvidence evidence,
-            ProductionMorphologyDiagnostics diagnostics) {}
+            ProductionMorphologyDiagnostics diagnostics,
+            ProductionMorphologySurfaceCharacterDiagnostics surfaceCharacter) {}
 }

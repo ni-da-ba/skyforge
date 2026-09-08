@@ -4,12 +4,15 @@ on:
   pull_request:
     paths:
       - ".github/workflows/wave-c14-avionics-capability.yml"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/wave-c9-mods.properties"
-      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC14AvionicsCapabilityAcceptance.java"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/WaveC14AvionicsCapabilityResourceTest.java"
+  push:
+    branches: [main]
+    paths:
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
   workflow_dispatch:
 
 permissions:

@@ -1,11 +1,8 @@
 name: Skyforge Showcase Acceptance
 
 on:
-  pull_request:
-    paths:
-      - "skyforge-neoforge-1211/**"
-      - "docs/showcase/**"
-      - ".github/workflows/showcase-acceptance.yml"
+  schedule:
+    - cron: "47 8 * * *"
   workflow_dispatch:
 
 permissions:

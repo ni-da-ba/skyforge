@@ -4,12 +4,15 @@ on:
   pull_request:
     paths:
       - ".github/workflows/wave-c2-mobility-preflight.yml"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/wave-c2-mods.properties"
       - "skyforge-neoforge-1211/src/development/resources/data/reliable_gliders/**"
       - "skyforge-neoforge-1211/src/development/wave-c2-*/**"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/WaveC2DevelopmentResourceTest.java"
+  push:
+    branches: [main]
+    paths:
+      - "skyforge-neoforge-1211/build.gradle.kts"
   workflow_dispatch:
 
 permissions:

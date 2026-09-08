@@ -5,9 +5,12 @@ on:
     paths:
       - ".github/workflows/wave-c18-turtle-freight.yml"
       - "skyforge-neoforge-1211/wave-c9-mods.properties"
-      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC18TurtleFreightAcceptance.java"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/WaveC18TurtleFreightResourceTest.java"
+  push:
+    branches: [main]
+    paths:
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
   workflow_dispatch:
 
 permissions:
