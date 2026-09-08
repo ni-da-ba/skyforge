@@ -625,7 +625,7 @@ the service process to stale worker-branch control-plane code.
 
 The running hosted process must also not remain indefinitely on stale in-memory controller Python after
 `main` advances. After `sync_main()`, if the synchronized range changes
-`scripts/orchestrator/*.py`, the controller records a durable runtime-refresh request and exits with a
+`scripts/orchestrator/skyforge_orchestrator.py`, the controller records a durable runtime-refresh request and exits with a
 failure status so the existing systemd `Restart=on-failure` contract reloads the new Python. The
 pending-event journal is preserved and replayed by the replacement process. Documentation-only movement
 does not require a process recycle. Changes to pinned dependencies/installer semantics remain an
