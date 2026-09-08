@@ -1838,6 +1838,17 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
+        // #237 mobile proof: actual Simulated assembly into one Sable sublevel with two engines.
+        create("portableEngineCutoffSableAcceptanceServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-portable-engine-cutoff-sable").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.portableEngineCutoffSableAcceptance", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // C14 A/B baseline: the retained Create/Sable/Aeronautics stack without computing mods.
         create("waveC14FlightBaselineServer") {
             server()
@@ -2250,6 +2261,30 @@ listOf(
             directory.resolve("eula.txt").writeText("eula=true\n")
             directory.resolve("server.properties").writeText(portableEngineCutoffPersistenceServerProperties)
         }
+    }
+}
+
+
+val portableEngineCutoffSableServerProperties = """
+    level-name=portable-engine-cutoff-sable
+    level-seed=602372
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runPortableEngineCutoffSableAcceptanceServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-portable-engine-cutoff-sable").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(portableEngineCutoffSableServerProperties)
     }
 }
 

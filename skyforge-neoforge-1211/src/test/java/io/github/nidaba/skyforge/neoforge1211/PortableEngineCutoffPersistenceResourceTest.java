@@ -35,7 +35,8 @@ final class PortableEngineCutoffPersistenceResourceTest {
         int verifyIndex = build.indexOf(
                 "runPortableEngineCutoffPersistenceVerifyCutServer");
         assertTrue(verifyIndex >= 0);
-        int nextSection = build.indexOf("val waveC14ServerProperties", verifyIndex);
+        int nextSection =
+                build.indexOf("val portableEngineCutoffSableServerProperties", verifyIndex);
         String verifyBlock = build.substring(verifyIndex, nextSection);
 
         assertFalse(verifyBlock.contains("delete(directory)"));

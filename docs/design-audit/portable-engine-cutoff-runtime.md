@@ -194,3 +194,80 @@ RUN VERIFY PASS burn=599->598 fuel=1 comparator=11 persistedMode=true active=fal
 This accepts save/reopen in both CUT and configured-RUN states plus comparator coherence. The next
 #237 gate is actual Sable sublevel assembly with two Portable Engines and together/independent
 cutoff/restart behavior. Human ergonomics remains the final manual gate.
+
+
+## Assembled Sable two-engine gate
+
+The next #237 machine gate uses Simulated's own `SimAssemblyHelper.assembleFromSingleBlock` to move
+an ordinary retained structure into a real Sable server sublevel.
+
+Specimen:
+
+- two `simulated:red_portable_engine` block entities;
+- one `create:shaft` between their inward-facing shaft faces, so both engines share one aircraft
+  kinetic line;
+- a vanilla slime attachment floor so assembly uses normal NeoForge block stickiness;
+- one redstone control block adjacent to each engine, carried into the same Sable sublevel.
+
+The acceptance must prove, at the relocated sublevel block entities:
+
+1. both cutoff opt-in flags and exact pre-assembly burn counters survive assembly;
+2. both relocated engines and both control positions resolve to the exact returned Sable sublevel;
+3. together CUT freezes both counters and produces zero output;
+4. together RUN resumes exact counters and normal 32-RPM output;
+5. cutting only engine A freezes A while engine B continues burning/generating;
+6. restarting A resumes its exact counter without disturbing B;
+7. the same independent behavior is then exercised with engine B;
+8. a final together CUT/restart remains repeatable.
+
+This is a headless compatibility gate, not the human ergonomics/flight-feel gate.
+
+
+## Accepted assembled-Sable/two-engine evidence
+
+Exact synchronized code head `d041eeee96bee538ac17a6027b6fd636fab3eb40` passed:
+
+- Portable Engine Cutoff Sable run `34215553782`;
+- Portable Engine Cutoff Persistence regression `34215553812`;
+- stationary Portable Engine Cutoff regression `34215553718`;
+- retained C11 recipe regression `34215553709`;
+- repository CI run `34215553710`.
+
+The live mobile marker was:
+
+```text
+PORTABLE_ENGINE_CUTOFF_SABLE_ACCEPTANCE PASS
+subLevel=ServerSubLevel
+virtualA=false
+virtualB=false
+startA=1000
+startB=1200
+finalA=996
+finalB=1196
+sharedShaft=true
+independentA=true
+independentB=true
+together=true
+```
+
+This uses Simulated's real assembly path and relocated block entities in the exact returned Sable
+server sublevel. It accepts issue #237 machine items #6 and #7 and, together with PRs #389/#392,
+completes machine acceptance items #1-#9.
+
+## Remaining human gate
+
+Issue #237 stays open for acceptance item #10 only.
+
+The owner/play check should answer:
+
+1. Is sneak-use with a Redstone Torch an understandable, intentional way to opt an engine into
+   redstone cutoff?
+2. Is the enabled/disabled feedback clear enough during aircraft setup?
+3. Once configured, is it obvious which redstone signal is commanding CUT versus ordinary nearby
+   aircraft circuitry?
+4. Can normal neighboring redstone arrangements create surprising engine shutdown in realistic
+   aircraft packaging?
+5. Does together/independent shutdown/restart feel predictable enough for power-off glide/restart?
+
+This is a control-ergonomics gate. More stationary/mobile machine permutations do not substitute for
+it unless play reveals a specific compatibility defect.

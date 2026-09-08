@@ -483,9 +483,15 @@ removal the engine resumes at exact upstream 32 RPM/timer/comparator state, that
 is saved, and a third server boot reopens it with mode persisted but inactive and normal countdown
 continuing.
 
-Still unaccepted for #237: assembled-Sable behavior, two-engine together/independent behavior, and
-human ergonomics. C12 / issue #239 may consume the stationary/persistent seam for engineering work,
-but final powered-soaring closure must wait for the mobile gate.
+PR #397 accepts the real assembled-Sable/two-engine machine boundary using Simulated's own
+`assembleFromSingleBlock` into one Sable `ServerSubLevel`: both configured engines, shared shaft,
+and independent redstone controls survive assembly; together and independent CUT/restart preserve
+exact burn counters and restore normal 32-RPM output.
+
+Therefore machine acceptance items #1-#9 of issue #237 are satisfied across PRs #389/#392/#397.
+Only human acceptance item #10 remains: shutdown/control ergonomics and protection against surprising
+neighbor-redstone shutdown. C12 / issue #239 may now consume the mechanically proven mobile cutoff
+seam; final #237 closure still requires the human play result.
 
 ## Handoff discipline
 
