@@ -7,6 +7,11 @@ cd "$ROOT"
 REPO="ni-da-ba/skyforge"
 SERVICE_USER="$(id -un)"
 SERVICE_HOME="$HOME"
+
+if [[ "$SERVICE_USER" == "root" ]]; then
+  echo "Refusing hosted install as root. Create/use a dedicated non-root sudo service user first." >&2
+  exit 1
+fi
 STATE_DIR="$ROOT/.skyforge-orchestrator"
 VENV="$STATE_DIR/venv"
 VENV_PYTHON="$VENV/bin/python"
@@ -66,6 +71,12 @@ if ! gh auth status >/dev/null 2>&1; then
   exit 1
 fi
 
+echo "Verifying server-side protection for main..."
+if ! python3 scripts/orchestrator/verify_main_protection.py "$REPO" main; then
+  echo "Hosted activation is blocked until GitHub enforces the main protection contract." >&2
+  exit 1
+fi
+
 origin="$(git remote get-url origin)"
 case "$origin" in
   *github.com/ni-da-ba/skyforge.git|*github.com:ni-da-ba/skyforge.git) ;;
@@ -80,6 +91,12 @@ if [[ ! -x "$VENV_PYTHON" ]]; then
   python3 -m venv "$VENV"
   "$VENV_PYTHON" -m pip install --upgrade pip
   "$VENV_PYTHON" -m pip install -r scripts/orchestrator/requirements.txt
+fi
+
+if ! "$VENV_PYTHON" scripts/orchestrator/codex_auth.py >/dev/null 2>&1; then
+  echo "Codex ChatGPT authentication is not active for the service user." >&2
+  echo "Run: $VENV_PYTHON scripts/orchestrator/codex_auth.py --device-login" >&2
+  exit 1
 fi
 
 tmp_service="$(mktemp)"
@@ -135,9 +152,10 @@ SKYFORGE_REQUIRE_WEBHOOK_SECRET=1
 SKYFORGE_STARTUP_RECONCILE=1
 SKYFORGE_ORCHESTRATOR_AUTO_MERGE=0
 SKYFORGE_WEBHOOK_SECRET=$SKYFORGE_WEBHOOK_SECRET
+SKYFORGE_TRUSTED_GITHUB_ACTORS=${SKYFORGE_TRUSTED_GITHUB_ACTORS:-ni-da-ba}
 SKYFORGE_HOST_ACTIVATED_AT=$HOST_ACTIVATED_AT
-SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY=${SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY:-48}
-SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY=${SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY:-8}
+SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY=${SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY:-24}
+SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY=${SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY:-4}
 EOF
 
 cat >"$tmp_value_env" <<EOF
@@ -235,4 +253,6 @@ echo
 echo "Daily value telemetry: skyforge-value-report.timer (08:05 America/Chicago)"
 echo "Value report issue:    #$SKYFORGE_VALUE_REPORT_ISSUE"
 echo "Hourly cost basis:     $SKYFORGE_DROPLET_HOURLY_USD"
-echo "Auto-merge remains disabled. AUDIT-0009 daily call ceilings remain in force."
+echo "Trusted GitHub actors:    ${SKYFORGE_TRUSTED_GITHUB_ACTORS:-ni-da-ba}"
+echo "First-week call ceilings: ${SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY:-24} Luna / ${SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY:-4} Terra per UTC day"
+echo "Auto-merge remains disabled."

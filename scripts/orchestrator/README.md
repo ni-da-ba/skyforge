@@ -119,7 +119,7 @@ On Unix-like systems the original shell runner remains available:
 ```
 
 On first start either runner creates an ignored local virtualenv under
-`.skyforge-orchestrator/venv` and installs `openai-codex`. The Python launcher uses argument-array
+`.skyforge-orchestrator/venv` and installs the pinned `openai-codex==0.147.0` SDK. The Python launcher uses argument-array
 subprocesses rather than shell quoting, so repository paths containing spaces are supported on Windows
 and Unix-like systems.
 
@@ -149,15 +149,15 @@ lower-cost worker fails to produce information-bearing progress.
 The pilot also has hard call-count ceilings independent of the Codex account's own allowance:
 
 ```text
-classifier attempts / UTC day = 48
-worker attempts / UTC day     = 8
+classifier attempts / UTC day = 24
+worker attempts / UTC day     = 4
 ```
 
 Override them only deliberately:
 
 ```bash
-export SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY=48
-export SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY=8
+export SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY=24
+export SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY=4
 ```
 
 These are safety ceilings rather than dollar accounting. The local state also records attempt,
@@ -180,8 +180,11 @@ Codex may be woken by:
 - pushes to `main`;
 - meaningful PR lifecycle changes;
 - a completed workflow **after all runs on that exact head are quiescent**;
-- an Audit/restart/loop-risk/human-gate comment;
-- a manual `/skyforge-orchestrate` issue/PR comment.
+- an Audit/restart/loop-risk/human-gate comment **from a trusted GitHub actor**;
+- a manual `/skyforge-orchestrate` issue/PR comment **from a trusted GitHub actor**.
+
+Hosted issue-comment wake authority defaults to `ni-da-ba` and may be explicitly configured with
+`SKYFORGE_TRUSTED_GITHUB_ACTORS`. Fork/external PR and workflow payloads are ignored before Codex.
 
 Events are debounced (default 25 seconds) and Codex dispatch has a minimum interval (default 120
 seconds). A workflow completion does not wake Codex while another run for the same head is still active.
@@ -222,6 +225,18 @@ An Audit comment containing terms such as `RESTART RECOMMENDED`, `LOOP RISK`, or
 If Codex reaches a human gate, the local controller posts a
 `[skyforge-orchestrator] HUMAN_GATE` comment. Its own comment is ignored by the webhook filter to
 prevent recursion; the hourly watchdog/user-facing GitHub notifications remain the escalation layer.
+
+## Remote control
+
+Trusted GitHub actors can control the hosted dispatcher without spending a model turn:
+
+```text
+/skyforge-pause
+/skyforge-resume
+```
+
+Pause preserves incoming actionable events in the durable journal but starts no new classifier/worker
+dispatch. Resume schedules the retained batch. Untrusted commenters cannot invoke these controls.
 
 ## Manual wake
 
@@ -267,6 +282,11 @@ The parent thread rotates after 24 useful turns by default. The new thread recon
 source of context drag.
 
 Terra workers are intentionally fresh/bounded threads.
+
+Before controller handoff, worker changes are rejected if they touch the orchestration/control plane:
+`scripts/orchestrator/**`, `deploy/orchestrator/**`, `.github/workflows/**`, `AGENTS.md`, or
+canonical governance/Audit documents. A control-plane edit is a fail-closed manual-inspection event,
+not an autonomous commit.
 
 ### Codex-limit and failure recovery
 
@@ -327,6 +347,17 @@ policy. Hosted mode requires:
 - the exact repository webhook allowlist.
 
 Use `deploy/orchestrator/README.md` and `scripts/orchestrator/install_hosted.sh`.
+
+The hosted installer refuses root execution and refuses activation unless GitHub server-side protection
+for `main` is verifiably requiring pull requests + status checks while blocking force pushes and
+branch deletion. The pinned Python SDK is also the authentication surface; after the virtualenv exists,
+run:
+
+```bash
+.skyforge-orchestrator/venv/bin/python scripts/orchestrator/codex_auth.py --device-login
+```
+
+The device URL/code may be completed on another device. No API-key billing fallback is introduced.
 
 The local `gh webhook forward` transport remains useful for development but is not permanent
 infrastructure. Hosted mode still leaves auto-merge disabled and does not enable API-key billing

@@ -36,11 +36,18 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install pinned orchestrator dependency
+        run: |
+          python -m pip install --disable-pip-version-check -r scripts/orchestrator/requirements.txt
+          python -c "import openai_codex; print(openai_codex.__name__)"
+
       - name: Compile controller and launcher
         run: |
           python -m py_compile scripts/orchestrator/skyforge_orchestrator.py
           python -m py_compile scripts/orchestrator/run_pilot.py
           python -m py_compile scripts/orchestrator/daily_value_report.py
+          python -m py_compile scripts/orchestrator/verify_main_protection.py
+          python -m py_compile scripts/orchestrator/codex_auth.py
 
       - name: Check hosted shell syntax
         run: |
@@ -54,3 +61,6 @@ jobs:
         run: |
           python -m unittest scripts/orchestrator/test_skyforge_orchestrator.py
           python -m unittest scripts/orchestrator/test_daily_value_report.py
+          python -m unittest scripts/orchestrator/test_verify_main_protection.py
+          python -m unittest scripts/orchestrator/test_decommission_contract.py
+          python -m unittest scripts/orchestrator/test_codex_auth.py

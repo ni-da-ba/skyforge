@@ -86,7 +86,7 @@ class EventFilterTests(unittest.TestCase):
             {
                 "action": "created",
                 "issue": {"number": 285},
-                "comment": {"body": "AUDIT: RESTART RECOMMENDED"},
+                "comment": {"body": "AUDIT: RESTART RECOMMENDED", "user": {"login": "ni-da-ba"}},
             },
         )
         self.assertTrue(d.actionable)
@@ -99,7 +99,7 @@ class EventFilterTests(unittest.TestCase):
             {
                 "action": "created",
                 "issue": {"number": 349},
-                "comment": {"body": "/skyforge-orchestrate"},
+                "comment": {"body": "/skyforge-orchestrate", "user": {"login": "ni-da-ba"}},
             },
         )
         self.assertTrue(d.actionable)
@@ -122,7 +122,81 @@ class EventFilterTests(unittest.TestCase):
             {
                 "action": "created",
                 "issue": {"number": 349},
-                "comment": {"body": "[skyforge-orchestrator] HUMAN_GATE"},
+                "comment": {"body": "[skyforge-orchestrator] HUMAN_GATE", "user": {"login": "ni-da-ba"}},
+            },
+        )
+        self.assertFalse(d.actionable)
+
+    def test_untrusted_manual_command_cannot_wake(self):
+        d = orch.classify_event(
+            "issue_comment",
+            {
+                "action": "created",
+                "issue": {"number": 349},
+                "comment": {
+                    "body": "/skyforge-orchestrate",
+                    "user": {"login": "random-contributor"},
+                },
+            },
+        )
+        self.assertFalse(d.actionable)
+        self.assertIn("untrusted commenter", d.reason)
+
+    def test_untrusted_audit_words_cannot_wake(self):
+        d = orch.classify_event(
+            "issue_comment",
+            {
+                "action": "created",
+                "issue": {"number": 349},
+                "comment": {
+                    "body": "AUDIT: LOOP RISK",
+                    "user": {"login": "random-contributor"},
+                },
+            },
+        )
+        self.assertFalse(d.actionable)
+
+    def test_pause_resume_commands_require_trusted_actor(self):
+        trusted = {
+            "action": "created",
+            "comment": {"body": "/skyforge-pause", "user": {"login": "ni-da-ba"}},
+        }
+        untrusted = {
+            "action": "created",
+            "comment": {"body": "/skyforge-pause", "user": {"login": "random-contributor"}},
+        }
+        self.assertEqual(orch.classify_control_command("issue_comment", trusted), "pause")
+        self.assertIsNone(orch.classify_control_command("issue_comment", untrusted))
+        trusted["comment"]["body"] = "/skyforge-resume"
+        self.assertEqual(orch.classify_control_command("issue_comment", trusted), "resume")
+
+    def test_external_pr_event_is_ignored(self):
+        d = orch.classify_event(
+            "pull_request",
+            {
+                "action": "closed",
+                "number": 99,
+                "pull_request": {
+                    "head": {
+                        "sha": "abc",
+                        "repo": {"full_name": "someone/fork"},
+                    }
+                },
+            },
+        )
+        self.assertFalse(d.actionable)
+        self.assertIn("external/fork", d.reason)
+
+    def test_external_workflow_event_is_ignored(self):
+        d = orch.classify_event(
+            "workflow_run",
+            {
+                "action": "completed",
+                "workflow_run": {
+                    "head_sha": "abc",
+                    "head_repository": {"full_name": "someone/fork"},
+                    "pull_requests": [],
+                },
             },
         )
         self.assertFalse(d.actionable)
@@ -224,6 +298,48 @@ class HostedTransportTests(unittest.TestCase):
             self.assertEqual(health["repo"], "ni-da-ba/skyforge")
             self.assertNotIn("webhook_secret", health)
             self.assertNotIn("x" * 48, str(health))
+
+    def test_pause_state_persists_and_health_reports_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            o = self.make_orchestrator(root)
+            o.set_paused(True, actor="ni-da-ba")
+            self.assertTrue(o.is_paused())
+            self.assertTrue(o.health_snapshot()["paused"])
+
+            reloaded = self.make_orchestrator(root)
+            self.assertTrue(reloaded.is_paused())
+            reloaded.set_paused(False, actor="ni-da-ba")
+            self.assertFalse(reloaded.is_paused())
+
+    def test_worker_control_plane_paths_are_forbidden(self):
+        forbidden = [
+            "scripts/orchestrator/skyforge_orchestrator.py",
+            "deploy/orchestrator/Caddyfile.in",
+            ".github/workflows/ci.yml",
+            ".github/dependabot.yml",
+            "AGENTS.md",
+            "docs/agent-state/VALIDATION_POLICY.md",
+            "docs/agent-state/AUDIT_STATE.md",
+            ".skyforge-orchestrator/state.json",
+        ]
+        for path in forbidden:
+            with self.subTest(path=path):
+                self.assertTrue(orch.Orchestrator._worker_path_forbidden(path))
+        self.assertFalse(
+            orch.Orchestrator._worker_path_forbidden(
+                "src/main/java/com/skyforge/example/Feature.java"
+            )
+        )
+        self.assertFalse(
+            orch.Orchestrator._worker_path_forbidden(
+                "docs/agent-state/IMPLEMENTATION_STATE.md"
+            )
+        )
+
+    def test_first_week_local_budget_defaults_are_conservative(self):
+        self.assertEqual(orch.DEFAULT_MAX_CLASSIFIER_CALLS_PER_DAY, 24)
+        self.assertEqual(orch.DEFAULT_MAX_WORKER_CALLS_PER_DAY, 4)
 
     def test_reconcile_fingerprint_is_order_stable_for_mapping_keys(self):
         first = {
@@ -406,6 +522,29 @@ class DurableStateTests(unittest.TestCase):
             pending = reloaded.state.data["pending_worker"]
             self.assertEqual(pending["stage"], "handoff")
             self.assertEqual(pending["worker_summary"], "tests passed")
+
+    def test_protected_handoff_safety_pauses_without_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            with mock.patch.object(
+                o,
+                "_changed_paths",
+                return_value=[".github/workflows/ci.yml"],
+            ), mock.patch.object(o, "_post_gate") as post_gate:
+                with self.assertRaisesRegex(RuntimeError, "safety-paused"):
+                    o._handoff_changes(
+                        "Implementation",
+                        "unsafe test",
+                        "codex/implementation-test",
+                        77,
+                        "done",
+                    )
+
+            self.assertTrue(o.is_paused())
+            self.assertEqual(o.state.data["paused_by"], "controller-safety")
+            post_gate.assert_called_once()
+            message = post_gate.call_args.args[0]["human_message"]
+            self.assertIn("No autonomous commit/push occurred", message)
 
     def test_handoff_reuses_existing_open_pr_after_interruption(self):
         with tempfile.TemporaryDirectory() as tmp:
