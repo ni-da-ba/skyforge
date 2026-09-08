@@ -36,12 +36,27 @@ DEFAULT_PORT = 3000
 DEFAULT_DEBOUNCE_SECONDS = 25
 DEFAULT_MIN_DISPATCH_SECONDS = 120
 DEFAULT_MAX_PARENT_TURNS = 24
-DEFAULT_MAX_CLASSIFIER_CALLS_PER_DAY = 48
-DEFAULT_MAX_WORKER_CALLS_PER_DAY = 8
+DEFAULT_MAX_CLASSIFIER_CALLS_PER_DAY = 24
+DEFAULT_MAX_WORKER_CALLS_PER_DAY = 4
 DEFAULT_QUOTA_BACKOFF_SECONDS = 3600
 DEFAULT_RATE_LIMIT_BACKOFF_SECONDS = 300
 DEFAULT_TRANSIENT_BACKOFF_SECONDS = 300
 DEFAULT_MAX_SEEN_DELIVERIES = 512
+DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
+PROTECTED_WORKER_PATH_PREFIXES = (
+    "scripts/orchestrator/",
+    "deploy/orchestrator/",
+    ".github/workflows/",
+)
+PROTECTED_WORKER_PATHS = {
+    "AGENTS.md",
+    "docs/agent-state/PROGRAM_CHARTER.md",
+    "docs/agent-state/VALIDATION_POLICY.md",
+    "docs/agent-state/ORCHESTRATION_PROTOCOL.md",
+    "docs/agent-state/HUMAN_STRATEGY_ROADMAP.md",
+    "docs/agent-state/CROSS_LANE_CONTRACTS.md",
+    "docs/agent-state/AUDIT_STATE.md",
+}
 
 ACTIVE_RUN_STATUSES = {"queued", "in_progress", "requested", "waiting", "pending"}
 AUDIT_WAKE_TOKENS = (
@@ -157,8 +172,50 @@ def _event_key(value: EventDecision | dict[str, Any]) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
 
-def classify_event(event: str, payload: dict[str, Any]) -> EventDecision:
-    """Cheap deterministic gate. Irrelevant events never reach Codex."""
+def _trusted_actor(payload: dict[str, Any], trusted_actors: Iterable[str]) -> bool:
+    login = str((((payload.get("comment") or {}).get("user") or {}).get("login")) or "").strip().lower()
+    allowed = {str(actor).strip().lower() for actor in trusted_actors if str(actor).strip()}
+    return bool(login and login in allowed)
+
+
+def _internal_pr_payload(payload: dict[str, Any], repo: str) -> bool:
+    pr = payload.get("pull_request") or {}
+    head_repo = ((pr.get("head") or {}).get("repo") or {}).get("full_name")
+    return not head_repo or str(head_repo).lower() == repo.lower()
+
+
+def _internal_workflow_payload(payload: dict[str, Any], repo: str) -> bool:
+    run = payload.get("workflow_run") or {}
+    head_repo = (run.get("head_repository") or {}).get("full_name")
+    return not head_repo or str(head_repo).lower() == repo.lower()
+
+
+def classify_control_command(
+    event: str,
+    payload: dict[str, Any],
+    *,
+    trusted_actors: Iterable[str] = DEFAULT_TRUSTED_GITHUB_ACTORS,
+) -> str | None:
+    if (event or "").strip().lower() != "issue_comment":
+        return None
+    if str(payload.get("action") or "").lower() != "created":
+        return None
+    body = str((payload.get("comment") or {}).get("body") or "").strip().lower()
+    if body not in {"/skyforge-pause", "/skyforge-resume"}:
+        return None
+    if not _trusted_actor(payload, trusted_actors):
+        return None
+    return "pause" if body == "/skyforge-pause" else "resume"
+
+
+def classify_event(
+    event: str,
+    payload: dict[str, Any],
+    *,
+    repo: str = REPO,
+    trusted_actors: Iterable[str] = DEFAULT_TRUSTED_GITHUB_ACTORS,
+) -> EventDecision:
+    """Cheap deterministic gate. Irrelevant or unauthorized events never reach Codex."""
     event = (event or "").strip().lower()
 
     if event == "ping":
@@ -171,6 +228,8 @@ def classify_event(event: str, payload: dict[str, Any]) -> EventDecision:
         return EventDecision(False, "non-main push; PR/workflow events cover producer branches", event)
 
     if event == "pull_request":
+        if not _internal_pr_payload(payload, repo):
+            return EventDecision(False, "external/fork PR event cannot wake orchestration", event)
         action = str(payload.get("action") or "").lower()
         pr = payload.get("pull_request") or {}
         number = payload.get("number")
@@ -198,6 +257,8 @@ def classify_event(event: str, payload: dict[str, Any]) -> EventDecision:
         return EventDecision(False, "non-actionable PR event", event, action, head_sha, number)
 
     if event == "workflow_run":
+        if not _internal_workflow_payload(payload, repo):
+            return EventDecision(False, "external/fork workflow cannot wake orchestration", event)
         action = str(payload.get("action") or "").lower()
         run = payload.get("workflow_run") or {}
         if action != "completed":
@@ -220,6 +281,12 @@ def classify_event(event: str, payload: dict[str, Any]) -> EventDecision:
         if SELF_COMMENT_MARKER in body_lower:
             return EventDecision(False, "controller-authored comment; prevent wake loop", event, action)
         issue = payload.get("issue") or {}
+        wake_requested = (
+            "/skyforge-orchestrate" in body_lower
+            or any(token in body_lower for token in AUDIT_WAKE_TOKENS if token != "/skyforge-orchestrate")
+        )
+        if wake_requested and not _trusted_actor(payload, trusted_actors):
+            return EventDecision(False, "untrusted commenter cannot wake orchestration", event, action)
         if "/skyforge-orchestrate" in body_lower:
             return EventDecision(
                 True,
@@ -392,6 +459,9 @@ class LocalState:
             "reconcile_fingerprint": None,
             "reconcile_snapshot": None,
             "last_reconcile_at": None,
+            "paused": False,
+            "paused_at": None,
+            "paused_by": None,
         }
         if self.path.exists():
             try:
@@ -432,6 +502,12 @@ class Orchestrator:
         self.webhook_secret = webhook_secret or os.environ.get("SKYFORGE_WEBHOOK_SECRET")
         self.require_webhook_secret = require_webhook_secret
         self.startup_reconcile = startup_reconcile
+        actors_raw = os.environ.get("SKYFORGE_TRUSTED_GITHUB_ACTORS", ",".join(DEFAULT_TRUSTED_GITHUB_ACTORS))
+        self.trusted_actors = tuple(
+            actor.strip().lower() for actor in actors_raw.split(",") if actor.strip()
+        )
+        if not self.trusted_actors:
+            raise RuntimeError("At least one trusted GitHub actor is required")
         self.state = LocalState(root)
         self._state_lock = threading.RLock()
         self._timer_lock = threading.Lock()
@@ -495,7 +571,23 @@ class Orchestrator:
                 "worker_calls_today": int(self.state.data.get("worker_calls_today") or 0),
                 "managed_prs": len(self.state.data.get("managed") or {}),
                 "last_reconcile_at": self.state.data.get("last_reconcile_at"),
+                "paused": bool(self.state.data.get("paused")),
+                "paused_at": self.state.data.get("paused_at"),
             }
+
+    def set_paused(self, paused: bool, *, actor: str | None = None) -> None:
+        with self._state_lock:
+            self.state.data["paused"] = bool(paused)
+            self.state.data["paused_at"] = _utc_now() if paused else None
+            self.state.data["paused_by"] = actor if paused else None
+            self.state.save()
+        self._metric("pause_commands" if paused else "resume_commands")
+        if not paused and self._pending_events():
+            self._schedule_pending(1)
+
+    def is_paused(self) -> bool:
+        with self._state_lock:
+            return bool(self.state.data.get("paused"))
 
     def _remote_reconcile_snapshot(self) -> dict[str, Any]:
         remote = _run(
@@ -736,12 +828,17 @@ class Orchestrator:
             self._metric("audit_wakes")
         self._persist_pending_events([event])
         print(f"[orchestrator] journaled: {event.summary()}", flush=True)
+        if self.is_paused():
+            print("[orchestrator] paused; actionable event retained without dispatch", flush=True)
+            return
         remaining = self._blocked_remaining()
         self._schedule_pending(remaining if remaining else self.debounce_seconds)
 
     def _drain_and_dispatch(self) -> None:
         pending = self._pending_events()
         if not pending:
+            return
+        if self.is_paused():
             return
         with self._dispatch_lock:
             try:
@@ -993,6 +1090,16 @@ class Orchestrator:
             pending["worker_completed_at"] = _utc_now()
             self.state.save()
 
+    @staticmethod
+    def _worker_path_forbidden(path: str) -> bool:
+        normalized = path.replace("\\", "/").lstrip("./")
+        return (
+            normalized in PROTECTED_WORKER_PATHS
+            or any(normalized.startswith(prefix) for prefix in PROTECTED_WORKER_PATH_PREFIXES)
+            or normalized.startswith(f"{STATE_DIR}/")
+            or normalized.startswith(".git/")
+        )
+
     def _changed_paths(self) -> list[str]:
         output = _run(["git", "status", "--porcelain"], cwd=self.root).stdout.splitlines()
         paths: list[str] = []
@@ -1014,9 +1121,13 @@ class Orchestrator:
         worker_summary: str,
     ) -> None:
         paths = self._changed_paths()
-        forbidden = [p for p in paths if p.startswith(f"{STATE_DIR}/") or p.startswith(".git/")]
+        forbidden = [p for p in paths if self._worker_path_forbidden(p)]
         if forbidden:
-            raise RuntimeError(f"Worker touched controller/private paths: {forbidden}")
+            self._metric("worker_protected_path_rejections")
+            raise RuntimeError(
+                "Worker touched protected control-plane/private paths; refusing autonomous handoff: "
+                f"{forbidden}"
+            )
 
         short = re.sub(r"\s+", " ", objective).strip()[:72]
         if paths:
@@ -1324,7 +1435,27 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
             event = self.headers.get("X-GitHub-Event") or ""
-            decision = classify_event(event, payload)
+            control = classify_control_command(
+                event,
+                payload,
+                trusted_actors=self.orchestrator.trusted_actors,
+            )
+            if control:
+                actor = str((((payload.get("comment") or {}).get("user") or {}).get("login")) or "")
+                self.orchestrator.set_paused(control == "pause", actor=actor)
+                self.orchestrator.record_delivery(delivery_id)
+                self._respond_json(
+                    202,
+                    {"accepted": False, "control": control, "paused": self.orchestrator.is_paused()},
+                )
+                return
+
+            decision = classify_event(
+                event,
+                payload,
+                repo=self.orchestrator.repo,
+                trusted_actors=self.orchestrator.trusted_actors,
+            )
             self.orchestrator.enqueue(decision)
             # Record only after enqueue has durably journaled any actionable event.
             self.orchestrator.record_delivery(delivery_id)
