@@ -275,6 +275,14 @@ def _render_markdown(report: dict[str, Any]) -> str:
         if latency_samples > 0
         else None
     )
+    trailing_latency_samples = int(trailing.get("dispatch_latency_samples") or 0)
+    trailing_latency_seconds = (
+        int(trailing.get("dispatch_latency_ms_total") or 0)
+        / trailing_latency_samples
+        / 1000.0
+        if trailing_latency_samples > 0
+        else None
+    )
 
     def pct(value: float | None) -> str:
         return "n/a" if value is None else f"{value * 100:.0f}%"
@@ -331,7 +339,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"- Manual wakes / Audit wakes: "
         f"**{trailing['manual_wakes']} / {trailing['audit_wakes']}**",
         f"- Mean actionable-event → classifier latency: **"
-        f"{'n/a' if trailing['dispatch_latency_samples'] == 0 else f'{trailing['dispatch_latency_ms_total'] / trailing['dispatch_latency_samples'] / 1000.0:.1f}s'}**",
+        f"{'n/a' if trailing_latency_seconds is None else f'{trailing_latency_seconds:.1f}s'}**",
         f"- Codex blocks / dispatch failures: "
         f"**{trailing['codex_blocks']} / {trailing['dispatch_failures']}**",
         "",
