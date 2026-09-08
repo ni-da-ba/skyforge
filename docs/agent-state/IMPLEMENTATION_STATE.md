@@ -191,6 +191,8 @@ Read [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md). Most important near-ter
 
 ### SF-IMP-0083 — AUTH-0083 built-in seed/scale Minecraft matrix
 
+**Machine status:** PASS — human #214/#267/#283 review required before acceptance/merge.
+
 Issue **#284** remains the active Implementation milestone. The original four-member-per-family
 carrier draft #285 is retired. Its Tableland characterization run 34171538516 enabled 1,886 exact
 warmup chunks in a 1,616-block-high carrier and then emitted repeated `OutOfMemoryError` failures
@@ -280,9 +282,14 @@ Main subsequently advanced only through the accepted Sable Portable Engine cutof
 with this PR is limited to one additional ModDev run block in `build.gradle.kts` and one opt-in
 bootstrap hook in `SkyforgeNeoForge1211Mod`; no SF-IMP-0083 carrier, generator, mutation, viewer,
 contract, or dependency changed. Under the canonical evidence-portability rule, run 34215626713
-remains merge-ready expensive evidence after recomposition onto `main@13b453284...`; only cheap
-exact-head/current-contract gates need to be rerun. The remaining acceptance boundary is human
-#214/#267/#283 morphology review after those exact-head gates pass.
+remains merge-ready expensive evidence after recomposition onto `main@13b453284...`.
+
+Final code head `fb37ad80cad6f562aa7679d3f39c73ed7559a1f2` passed repository CI
+**34218264488**, C11 First Flight Recipe Runtime **34218264640**, C21 Create Resource Authority
+**34218264473**, Portable Engine Cutoff **34218264496**, Portable Engine Cutoff Persistence
+**34218264510**, and Sable Portable Engine Cutoff **34218264658**. The automated acceptance boundary
+is therefore closed. SF-IMP-0083 is **machine-ready but not yet accepted**; the only remaining
+milestone gate is human #214/#267/#283 morphology review.
 
 Preserve exact AUTH-0083 IDs/providers and objective admission/persistence/digest gates. Human #214,
 #267, and #283 remain qualitative gates; no machine diagnostic is an aesthetic pass/fail threshold.
@@ -328,7 +335,10 @@ Useful local Gradle entry points include:
 :skyforge-neoforge-1211:showcaseEcologyPrepareVerify
 :skyforge-neoforge-1211:showcaseEcologyViewerVerify
 :skyforge-neoforge-1211:launchShowcase
-:skyforge-neoforge-1211:launchShowcaseEcology\n:skyforge-neoforge-1211:productionMorphologySeedScaleTablelandPrepareVerify -PskyforgeProductionMorphologyVariant=medium-seed-skyforge\n:skyforge-neoforge-1211:productionMorphologySeedScaleTablelandViewerVerify -PskyforgeProductionMorphologyVariant=medium-seed-skyforge\n```
+:skyforge-neoforge-1211:launchShowcaseEcology
+:skyforge-neoforge-1211:productionMorphologySeedScaleTablelandPrepareVerify -PskyforgeProductionMorphologyVariant=medium-seed-skyforge
+:skyforge-neoforge-1211:productionMorphologySeedScaleTablelandViewerVerify -PskyforgeProductionMorphologyVariant=medium-seed-skyforge
+```
 
 Use `--no-configuration-cache` for the showcase/dev runs where the project marks ModDev orchestration incompatible with configuration cache.
 
@@ -348,13 +358,13 @@ Continue **SF-IMP-0083 / issue #284** on the recomposed single-member carrier.
 
 Next acceptance sequence:
 
-1. recompose the proven SF-IMP-0083 delta onto current main while preserving orthogonal Sable
-   Portable Engine wiring;
-2. run cheap exact-head repository/current-contract gates;
-3. reuse final seven-representative lifecycle evidence from run 34215626713 under the canonical
-   evidence-portability rule;
-4. stop at the human #214/#267/#283 review gate with the seven representative launch commands;
-5. after human approval, record SF-IMP-0083 acceptance and merge the smallest coherent milestone.
+1. perform the human #214 review on the seven representative Minecraft carriers;
+2. explicitly classify #267 Massif traversal cadence across MEDIUM and LARGE;
+3. explicitly classify #283 Massif-vs-Tableland family separation at MEDIUM;
+4. if the review passes without evidence-backed tuning changes, record SF-IMP-0083 acceptance and
+   merge PR #358;
+5. if review exposes a concrete morphology defect, keep the machine carrier boundary accepted as
+   evidence and open/continue the narrow tuning issue rather than reopening solved runtime hazards.
 
 After carrier/lifecycle risk and the human morphology gate are retired, prefer the next major
 production-world integration over exhaustive equivalent lifecycle repetition. Current cross-lane

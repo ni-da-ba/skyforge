@@ -138,8 +138,10 @@ both preparation and persisted actual-client reopen:
 The subsequent main movement only added the accepted Sable Portable Engine cutoff ModDev run and
 bootstrap hook. Those additions do not touch the morphology carrier/generator/mutation/viewer
 dependency surface, so the expensive seven-world evidence is portable under the canonical validation
-policy. A final cheap exact-head CI pass is required after recomposition; the next substantive gate is
-human #214/#267/#283 review.
+policy. Final recomposed code head `fb37ad80cad6f562aa7679d3f39c73ed7559a1f2` passed repository CI
+34218264488 plus the retained C11, C21, Portable Engine cutoff, persistence, and Sable cutoff
+regressions. The machine gate is therefore complete. The next substantive gate is human
+#214/#267/#283 review.
 
 For review, rebuild and launch the exact representative with:
 
