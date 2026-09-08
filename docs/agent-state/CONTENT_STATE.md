@@ -3,7 +3,7 @@
 **Lane:** Content / Experience  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Main snapshot after C20 merge:** `0b76038a0b0a98628b6b3ec0e39b5cb0cd76a8d9`
+**Highest accepted Content boundary:** C21 / PR #315
 
 Read first:
 
@@ -13,7 +13,32 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest accepted executable Content milestone: C20
+### Highest accepted executable Content milestone: C21
+
+**C21 / PR #315** proves that the pinned Create 6.0.10 resource assets are separable from its broad
+generic Overworld placement authority.
+
+Accepted interpretation:
+
+- baseline Create `create:zinc_ore` and `create:striated_ores_overworld` biome modifiers remain
+  active add-feature modifiers;
+- an isolated world-local validation datapack can replace exactly those two modifiers with
+  `neoforge:none` while `create:zinc_ore`, `create:deepslate_zinc_ore`, and `create:crimsite`
+  remain registered;
+- that no-op datapack is validation-only and must not ship as a packaged global override;
+- ordinary `BASE_WORLD` generation remains under native Create authority;
+- inside explicit Skyforge-owned exact-volume population, Implementation owns the narrow
+  feature-admission/filtering seam that prevents generic Create Zinc/striated placement from
+  competing with authored resource semantics;
+- vanilla Iron/Copper and Create Zinc identities/assets remain the preferred retained resource
+  identities unless later executable evidence rejects them;
+- concrete AUTH-0093/0094 + C20 deposit geometry, count, grade, quantity, accessibility, placement,
+  persistence, and lifecycle remain Implementation-owned.
+
+Acceptance is gated by the dedicated C21 A/B workflow, repository CI, and the targeted C17 regression
+on the synchronized PR #315 merge candidate. No Minecraft manual run or visual gate is required.
+
+### C20
 
 **C20 / PR #302**, merge `0b76038a0b0a98628b6b3ec0e39b5cb0cd76a8d9`; final synchronized policy head `efc03a4f5233eade9eff24d438315315524b247d`.
 
@@ -201,7 +226,10 @@ Stationary retained-stack evidence exists. Assembled-Sable, save/reload, two-eng
 - AUTH-0088 is accepted: exact published-volume/world-XZ surface-ecology projection, with no Minecraft biome/Y policy.
 - AUTH-0089 is accepted: deterministic island ecological opportunity aggregation without species/spawn/resource/backend policy.
 - AUTH-0092 is accepted: raw deterministic regional nearest-peer center-distance / nominal-radial-gap isolation evidence without gameplay classification.
-- AUTH-0093 is accepted: normalized Iron/Copper/Zinc geological opportunity subordinate to exact mineral-bearing structural host support; Content owns availability classes, bootstrap guarantees, trade/salvage, and resource progression policy.\n- AUTH-0094 is accepted: exact published-region inventory of every canonical AUTH-0093 island profile, including eligible-island lists and threshold-free mean-opportunity ranking; C20 still owns scope selection/replanning and guarantee satisfaction.
+- AUTH-0093 is accepted: normalized Iron/Copper/Zinc geological opportunity subordinate to exact mineral-bearing structural host support; Content owns availability classes, bootstrap guarantees, trade/salvage, and resource progression policy.
+- AUTH-0094 is accepted: exact published-region inventory of every canonical AUTH-0093 island profile, including eligible-island lists and threshold-free mean-opportunity ranking; C20 owns scope selection/replanning and guarantee satisfaction.
+- AUTH-0096 and AUTH-0097 are accepted: threshold-free local surface-site and directional-access evidence are available for later Content structure/civilization site policy; neither selects a gameplay role.
+- AUTH-0098 is accepted: petroleum-system geological opportunity is available for later Content progression/availability policy; no petroleum Content guarantee or availability class is accepted yet.
 - SF-IMP-0080 is accepted: legible forest/taiga ecology showcase.
 - SF-IMP-0081 and SF-IMP-0082 are accepted for all five SMALL / seed-skyforge built-in morphology carriers; SF-IMP-0083 / issue #284 owns the remaining multi-seed/multi-scale built-in matrix, while #267 and #283 separately track tuning concerns.
 
@@ -219,12 +247,15 @@ C9/C14/C16/C17/C18/C19 now establish substrate, real avionics capability, wirele
 
 Computing is a first-class infrastructure axis, **not** a first-flight prerequisite.
 
-### Base-metal resource geography after C20
+### Base-metal resource geography after C21
 
-AUTH-0093 + C20 now close the semantic-to-gameplay policy boundary for Iron/Copper/Zinc. The next gap is concrete retained-resource authority/realization, not another authored opportunity system.
+AUTH-0093/0094 + C20 + C21 now close the authored-opportunity -> gameplay-policy -> retained-resource-authority
+boundary for Iron/Copper/Zinc. The next gap is concrete exact-volume realization, not another authored
+opportunity or a packaged global suppression datapack.
 
 - keep vanilla Iron/Copper and Create Zinc block/item/processing identities unless executable evidence disproves them;
-- suppress/redirect independent third-party Overworld resource placement where it competes with Skyforge authorship;
+- leave ordinary BASE_WORLD Create placement intact;
+- suppress/redirect the competing generic Create Zinc/striated placed features only inside explicit Skyforge-owned exact-volume population;
 - Implementation owns concrete deposit geometry/count/volume/accessibility/placement/lifecycle;
 - the 48-64 iron-equivalent first-flight band remains an engineering estimate until C11/C12 executable aircraft closure is accepted;
 - sample access versus industrial-scale supply remains open and must not be inferred from AUTH-0093 magnitude alone.
@@ -291,9 +322,9 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 ## Ordered next work
 
 1. Do not duplicate active C11/C12 work; consume their results into #224 when accepted.
-2. Check whether C21 is already claimed before reserving a new milestone.
-3. Prefer the next thin resource-authority realization: keep Create Zinc assets/processing but suppress its generic Overworld Zinc biome modifier (and the competing Create striated Overworld material modifier) for Skyforge-controlled worldgen; do not yet invent authored deposit geometry.
-4. Consume AUTH-0094 when selecting/replanning concrete starting-cluster and post-flight-province scopes; then hand C20 + AUTH-0093/0094 to Implementation for concrete Iron/Copper/Zinc deposit realization once resource authority is clean.
+2. Hand C21's exact-volume resource-authority contract to Implementation: filter competing Create Zinc/striated generic feature execution only inside explicit Skyforge-owned population, never by a packaged BASE_WORLD-wide override.
+3. Consume AUTH-0094 + C20 when selecting/replanning concrete starting-cluster and post-flight-province scopes, then let Implementation realize Iron/Copper/Zinc deposits under that clean authority seam.
+4. Check C22 ownership before reserving the next Content resource/progression milestone. AUTH-0098 petroleum opportunity is now available, but no petroleum availability/guarantee policy is accepted yet.
 5. Resume the remaining #227 turtle questions afterward: farming throughput, quarry/branch-mining scale, or dedicated chunk-loader/Ender-storage combinations. Do not nerf turtles without measured substitution evidence.
 6. Continue Bootstrap Province acceptance with C20's guaranteed Iron and post-flight Copper/Zinc semantics; exact quantities remain downstream of accepted C11/C12 aircraft closure.
 7. Complete/accept #237 / PR #240 before C12 powered-soaring closure.

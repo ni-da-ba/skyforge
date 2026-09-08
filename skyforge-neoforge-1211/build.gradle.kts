@@ -1702,6 +1702,26 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // C21 A/B control reuses the pinned Create-capable C9 runtime. The suppressed variant
+        // installs its no-op overrides only into its disposable run-world datapack.
+        create("waveC21CreateResourceBaselineServer") {
+            server()
+            sourceSet.set(waveC9Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c21-resource-baseline-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC21CreateResourceAuthority", "baseline")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC21CreateResourceSuppressedServer") {
+            server()
+            sourceSet.set(waveC9Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c21-resource-suppressed-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC21CreateResourceAuthority", "suppressed")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // C14 A/B baseline: the retained Create/Sable/Aeronautics stack without computing mods.
         create("waveC14FlightBaselineServer") {
             server()
@@ -1912,6 +1932,61 @@ tasks.named("runWaveC9ComputingAvionicsServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(waveC9SmokeServerProperties)
+    }
+}
+
+val waveC21BaselineServerProperties = """
+    level-name=wave-c21-baseline
+    level-seed=602100
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+val waveC21SuppressedServerProperties = """
+    level-name=wave-c21-suppressed
+    level-seed=602101
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC21CreateResourceBaselineServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c21-resource-baseline-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC21BaselineServerProperties)
+    }
+}
+
+tasks.named("runWaveC21CreateResourceSuppressedServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c21-resource-suppressed-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC21SuppressedServerProperties)
+
+        val pack = directory.resolve("wave-c21-suppressed/datapacks/wave-c21-control")
+        pack.resolve("data/create/neoforge/biome_modifier").mkdirs()
+        pack.resolve("pack.mcmeta").writeText(
+            """{"pack":{"pack_format":48,"description":"Skyforge C21 validation-only Create resource-authority control"}}"""
+        )
+        val noneModifier = """{"type":"neoforge:none"}"""
+        pack.resolve("data/create/neoforge/biome_modifier/zinc_ore.json").writeText(noneModifier)
+        pack.resolve("data/create/neoforge/biome_modifier/striated_ores_overworld.json").writeText(noneModifier)
     }
 }
 
