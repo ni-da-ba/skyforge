@@ -112,11 +112,21 @@ def _controller_prs(prs: list[dict[str, Any]], start: datetime, end: datetime) -
     controller = [
         pr for pr in prs if str(pr.get("headRefName") or "").startswith("codex/")
     ]
+    project_created = []
+    project_merged = []
     created = []
     merged = []
     overnight_created = []
     overnight_merged = []
     open_now = []
+
+    for pr in prs:
+        created_at = _parse_time(pr.get("createdAt"))
+        merged_at = _parse_time(pr.get("mergedAt"))
+        if created_at and start <= created_at < end:
+            project_created.append(pr)
+        if merged_at and start <= merged_at < end:
+            project_merged.append(pr)
 
     for pr in controller:
         created_at = _parse_time(pr.get("createdAt"))
@@ -144,6 +154,8 @@ def _controller_prs(prs: list[dict[str, Any]], start: datetime, end: datetime) -
         ]
 
     return {
+        "project_created": compact(project_created),
+        "project_merged": compact(project_merged),
         "created": compact(created),
         "merged": compact(merged),
         "open_now": compact(open_now),
@@ -159,6 +171,7 @@ def evaluation_signal(
     worker_handoffs: int,
     worker_no_change: int,
     merged_prs: int,
+    project_merged_prs: int,
     dispatch_failures: int,
     codex_blocks: int,
 ) -> tuple[str, str]:
@@ -170,6 +183,17 @@ def evaluation_signal(
         return (
             "INSUFFICIENT_DATA",
             "Continue collecting evidence; the host has not yet accumulated a representative worker sample.",
+        )
+
+    if (
+        elapsed_days >= 7
+        and project_merged_prs >= 3
+        and merged_prs == 0
+        and worker_handoffs < 2
+    ):
+        return (
+            "CANCEL_CANDIDATE",
+            "Skyforge remained active, but paid hosted uptime produced no merged controller work and too few useful handoffs.",
         )
 
     if (
@@ -322,8 +346,10 @@ def _render_markdown(report: dict[str, Any]) -> str:
         "",
         "### Controller PR evidence",
         "",
-        f"- Created this period: **{len(prs['created'])}**",
-        f"- Merged this period: **{len(prs['merged'])}**",
+        f"- Overall Skyforge PRs created / merged this period: "
+        f"**{len(prs['project_created'])} / {len(prs['project_merged'])}**",
+        f"- Controller PRs created this period: **{len(prs['created'])}**",
+        f"- Controller PRs merged this period: **{len(prs['merged'])}**",
         f"- Still open: **{len(prs['open_now'])}**",
         f"- Created overnight (22:00–08:00 America/Chicago): **{len(prs['overnight_created'])}**",
         f"- Merged overnight: **{len(prs['overnight_merged'])}**",
@@ -334,6 +360,8 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"- Estimated trailing compute cost: **{_money(trailing.get('estimated_cost_usd'))}**",
         f"- Terra attempts / handoffs / no-change: "
         f"**{trailing['worker_attempts']} / {trailing['worker_handoffs']} / {trailing['worker_no_change']}**",
+        f"- Overall Skyforge PRs created / merged: "
+        f"**{trailing['project_prs_created']} / {trailing['project_prs_merged']}**",
         f"- Controller PRs created / merged: "
         f"**{trailing['controller_prs_created']} / {trailing['controller_prs_merged']}**",
         f"- Manual wakes / Audit wakes: "
@@ -459,6 +487,14 @@ def build_report(
             int((item.get("metric_deltas") or {}).get("dispatch_failures") or 0)
             for item in window
         ),
+        "project_prs_created": sum(
+            len((item.get("controller_prs") or {}).get("project_created") or [])
+            for item in window
+        ),
+        "project_prs_merged": sum(
+            len((item.get("controller_prs") or {}).get("project_merged") or [])
+            for item in window
+        ),
         "controller_prs_created": sum(
             len((item.get("controller_prs") or {}).get("created") or [])
             for item in window
@@ -485,6 +521,7 @@ def build_report(
         worker_handoffs=trailing["worker_handoffs"],
         worker_no_change=trailing["worker_no_change"],
         merged_prs=trailing["controller_prs_merged"],
+        project_merged_prs=trailing["project_prs_merged"],
         dispatch_failures=trailing["dispatch_failures"],
         codex_blocks=trailing["codex_blocks"],
     )
