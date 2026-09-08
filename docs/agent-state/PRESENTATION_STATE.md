@@ -98,17 +98,17 @@ A rigorously matched pre-save/post-reopen image pair remains unavailable; use a 
 
 Issue #383. Branch `presentation/pres-0005-explanatory-graphics`.
 
-The first five exact source diagrams are now present under `docs/presentation/diagrams/`:
+The first five exact source diagrams and the controlled rendering guide are now present under `docs/presentation/diagrams/`:
 
 - `how-skyforge-works.mmd`;
 - `authority-layers.mmd`;
 - `volume-not-heightmap.mmd`;
 - `evidence-architecture.mmd`;
-- `current-vs-roadmap.mmd`.
+- `current-vs-roadmap.mmd`;\n- `PRES-0005-rendering-guide.md`.
 
 This milestone intentionally does not depend on production-quality runtime screenshots. It exists to communicate Skyforge's architecture, authority model, volumetric ownership, validation philosophy, and current-vs-roadmap boundary using claim-controlled vector-first graphics.
 
-The remaining acceptance gate is human-eye communication quality of the rendered five-graphic set. That gate may approve the visual language, request bounded restyling, or identify one diagram that is not legible enough. It does not reopen technical producer evidence.
+The deterministic five-panel infographic candidate has also been rendered outside the repository from these controlled sources. Generated island artwork is used only as an explicitly labeled explanatory illustration; all factual copy is repository-controlled. The remaining acceptance gate is human-eye communication quality of that rendered set. That gate may approve the visual language, request bounded restyling, or identify one diagram that is not legible enough. It does not reopen technical producer evidence.
 
 ## Recommended next work
 
