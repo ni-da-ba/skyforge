@@ -1,6 +1,6 @@
 # Portable Engine redstone cutoff — current-main runtime recomposition
 
-**Status:** RECOMPOSED / STATIONARY PROOF IN PROGRESS  
+**Status:** STATIONARY PROOF ACCEPTED MERGE CANDIDATE  
 **Issue:** #237  
 **Historical draft:** PR #240, closed unmerged as reserved historical work  
 **Dependency:** accepted C11 / PR #386 flight-only runtime  
@@ -116,3 +116,27 @@ acceptance must not be declared closed until the relevant mobile/persistence gat
 No human gate is required for the stationary compatibility proof.
 
 A human ergonomics gate remains required before final #237 acceptance.
+
+
+## Accepted stationary evidence
+
+Exact code head `42aadf006e641168954076a6a8af72ce60d755f9` passed:
+
+- Portable Engine Cutoff run `34190573454`;
+- retained Wave C11 First Flight Recipe Runtime regression `34190573367`;
+- repository CI run `34190573402`.
+
+The live retained engine reported:
+
+```text
+defaultBurn=99
+cutoffBurn=100
+queuedFuelPreserved=2
+ignitionBurn=1600
+runningBurn=1599
+resumedBurn=1598
+runtime=C11_FLIGHT_ONLY
+```
+
+This accepts only the stationary compatibility seam. Issue #237 remains open for persistence,
+assembled-Sable, two-engine, comparator/display, and human ergonomics gates.

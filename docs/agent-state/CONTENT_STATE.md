@@ -453,12 +453,25 @@ Reserved for the real assembled Sable/Create Aeronautics Bellanca engineering mu
 recipe-surface closure is now satisfied. Final powered-soaring/restart acceptance still depends on
 the Portable Engine cutoff path or an equivalent safe cutoff.
 
-### Portable Engine cutoff — issue #237; historical draft PR #240 closed unmerged
+### Portable Engine cutoff — issue #237; stationary seam accepted via PR #389 candidate
 
-PR #240 was closed by AUDIT dormant-branch cleanup as **reserved historical work, not rejected**.
-Its stationary retained-stack evidence remains useful, but any continuation must be recomposed from
-current `main`. Assembled-Sable, save/reload, two-engine behavior, and human ergonomics remain
-unaccepted.
+Historical PR #240 remains closed/unmerged as reserved evidence. PR #389 recomposes the stationary
+compatibility seam from current `main` on the narrower accepted C11 flight-only runtime.
+
+Accepted stationary behavior:
+
+- unconfigured Portable Engine ignores neighboring redstone and keeps upstream 32 RPM/burn behavior;
+- explicitly opted-in engine + redstone cuts output to zero;
+- active burn timer is preserved exactly while cut;
+- queued fuel is not consumed while cut;
+- signal removal resumes upstream cold/warm ignition behavior without refund/duplication;
+- repeated cut/restart preserves the exact running timer.
+
+Exact candidate validation passed Portable Engine Cutoff run `34190573454`, retained C11 regression
+`34190573367`, and repository CI `34190573402`.
+
+Issue #237 remains **open**. Save/reload, assembled-Sable behavior, two-engine together/independent
+control, comparator/display coherence, and human ergonomics remain unaccepted.
 
 ### Authorship / Implementation dependencies
 
@@ -561,8 +574,8 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 
 ## Ordered next work
 
-1. Recompose Portable Engine cutoff issue #237 from current `main`; use historical PR #240 only as bounded evidence/design, not as an integration base. Preserve default upstream behavior and re-prove stationary cutoff before assembled-Sable/save-reload/two-engine gates.
-2. Proceed with C12 / issue #239 executable Bellanca B0 once the current cutoff seam is available; C11 direct recipe-surface dependency is now satisfied.
+1. Continue issue #237 from accepted stationary PR #389 into save/reload and comparator/display coherence, then assembled-Sable and two-engine together/independent gates. Preserve the narrow Simulated-only compatibility scope.
+2. Proceed with C12 / issue #239 executable Bellanca B0 using accepted C11 direct recipe closure and the #237 cutoff seam as it becomes mobile/persistent; do not claim final powered-soaring closure before #237's mobile gates.
 3. Hand C21's exact-volume resource-authority contract to Implementation: filter competing Create Zinc/striated generic feature execution only inside explicit Skyforge-owned population, never by a packaged BASE_WORLD-wide override.
 4. Track Implementation issue #387 as the consumer of C25+C26: keep Diesel Generators machinery, suppress native chunk oil globally, and realize the narrow Skyforge source/depletion/pumpjack bridge only inside C23-eligible petroleum provinces and exact C26 nonzero AUTH-0098 local support.
 5. Do not add another petroleum Authorship wrapper for retained-machine block geometry; Pumpjack 4-16 arm span and Distillation Tank dimensions remain Implementation geometry unless a concrete backend-neutral cause is demonstrated missing.
