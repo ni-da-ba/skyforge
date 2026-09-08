@@ -1,8 +1,8 @@
 # Skyforge Music / Audio State
 
-**Status:** MERGED / ACCEPTED — MUS-0002  
+**Status:** MERGED / ACCEPTED — MUS-0003  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Accepted merge:** `30b5202fec3ae07b0720b42eb8d7770c3c463843`
+**Accepted merge:** `4346f9c429feb6781c6e2f446d12f4cc0ad29411`
 
 ## Authority
 
@@ -19,24 +19,26 @@ Conversation is supplementary only.
 
 ## Highest repository-level accepted milestone
 
-`MUS-0002` / PR #304 is **MERGED / ACCEPTED** as
-`30b5202fec3ae07b0720b42eb8d7770c3c463843`.
+`MUS-0003` / PR #331 is **MERGED / ACCEPTED** as
+`4346f9c429feb6781c6e2f446d12f4cc0ad29411`.
 
 Acceptance evidence:
 
-- synchronized merge candidate `df779c6cf11b83caf00f16d941f8037cdd6febba` was zero commits behind current `main`;
-- exact-head normal CI run `34173135366` passed, including the Music source-integrity step;
-- the squash merge landed on `main` as `30b5202fec3ae07b0720b42eb8d7770c3c463843`;
-- post-merge `main` CI run `34173486633` executed and passed the Music source-integrity step.
+- synchronized feature head `ad88c2664bad6d4de6d5c846951b7ee0952154f7` was based on `c770acc0d73240bf3191d6328acc82252f94a13a`;
+- exact-head normal CI run `34176101697` passed the Music source-integrity step and full repository regression/evidence checks;
+- while CI ran, `main` advanced only through `docs/agent-state/AUDIT_STATE.md`; no Music, verifier, source, build, or runtime path changed, so exact-head evidence remained portable;
+- PR #331 merged cleanly onto current `main` as `4346f9c429feb6781c6e2f446d12f4cc0ad29411`.
 
-MUS-0002 turns the MUS-0001 persistence/library rules into an executable repository gate while
-preserving the Audit lane's CI evidence-economy policy.
+MUS-0003 pins both non-canonical Track 00 range-repair candidates and proves that each is
+BBCSO-range-clean and differs from frozen V2F.1 only in Horns, Trumpets, Violas, and Celli.
+It does not promote either candidate; the BBCSO listening A/B remains a human gate.
 
 ## Current accepted musical state on `main`
 
 - Track 00 — **A Windborne Fantasia**: frozen original; 2026-09-07 audit found BBCSO Horn/Viola
-  range defects. Two non-canonical repair candidates are persisted; human BBCSO A/B required before
-  any source promotion.
+  range defects. MUS-0003 machine-qualified both persisted non-canonical repair candidates: exact
+  hashes are pinned, both are ordinary-lane BBCSO-range-clean, and only HN/TPT/VLA/VLC raw MIDI
+  tracks differ from V2F.1. Human BBCSO A/B remains required before any source promotion.
 - Track 01 — **Rambling Through the Gentle Blue**: frozen; source checksum/order/tempo/range audit
   passes. Track 11 Harp/Celeste plugin-state provenance remains to be recovered from the original CWP.
 - Track 02 — **The Lord of Empty Miles**: frozen; BBCSO Untuned Percussion repair accepted and
@@ -84,6 +86,19 @@ It does not own world/environment semantics, gameplay/progression semantics, or 
 playback/adaptive-state implementation. Those remain Authorship, Content / Experience, and
 Implementation responsibilities respectively.
 
+
+## MUS-0003 — Track 00 repair-candidate integrity
+
+**Status:** ACCEPTED
+
+MUS-0003 extends source verification to the two non-canonical Track 00 repair candidates without
+changing the frozen source. Each `.candidate.json` contract pins candidate/base hashes, conductor
+metadata, the accepted V2F.1 defect set, the candidate's empty ordinary-lane range-exception set,
+and the exact raw-track mutation boundary: HN (6), TPT (7), VLA (17), VLC (18).
+
+The remaining Track 00 gate is qualitative: render Candidate A and Candidate B with the normal
+BBCSO patches and compare bars 55–61 against accepted V2F.1. Machine acceptance is not permission
+to promote either source.
 
 ## MUS-0002 — automated source verification
 
