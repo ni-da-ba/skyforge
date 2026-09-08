@@ -46,7 +46,7 @@ DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
 PROTECTED_WORKER_PATH_PREFIXES = (
     "scripts/orchestrator/",
     "deploy/orchestrator/",
-    ".github/workflows/",
+    ".github/",
 )
 PROTECTED_WORKER_PATHS = {
     "AGENTS.md",
@@ -1092,7 +1092,9 @@ class Orchestrator:
 
     @staticmethod
     def _worker_path_forbidden(path: str) -> bool:
-        normalized = path.replace("\\", "/").lstrip("./")
+        normalized = path.replace("\\", "/")
+        while normalized.startswith("./"):
+            normalized = normalized[2:]
         return (
             normalized in PROTECTED_WORKER_PATHS
             or any(normalized.startswith(prefix) for prefix in PROTECTED_WORKER_PATH_PREFIXES)
