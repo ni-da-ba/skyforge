@@ -718,6 +718,114 @@ class DurableStateTests(unittest.TestCase):
             message = post_gate.call_args.args[0]["human_message"]
             self.assertIn("No autonomous commit/push occurred", message)
 
+    def test_existing_controller_gate_after_current_pr_head_is_seeded_and_suppressed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            decision = {
+                "decision": "HUMAN_GATE",
+                "lane": "Implementation",
+                "pr_number": 358,
+                "human_message": "Review the morphology gate.",
+            }
+            pr_info = {
+                "headRefOid": "abc123",
+                "state": "OPEN",
+                "commits": [
+                    {"committedDate": "2026-09-08T15:00:00Z"},
+                ],
+                "comments": [
+                    {
+                        "body": "[skyforge-orchestrator] HUMAN_GATE\n\nAlready surfaced.",
+                        "createdAt": "2026-09-08T16:00:00Z",
+                    }
+                ],
+            }
+
+            with mock.patch.object(orch, "_json_cmd", return_value=pr_info), \
+                    mock.patch.object(orch, "_run") as run:
+                o._post_gate(decision)
+
+            run.assert_not_called()
+            record = o.state.data["human_gate_records"]["pr:358:implementation"]
+            self.assertEqual(record["token"], "abc123:OPEN")
+            self.assertTrue(record["seeded_from_github"])
+            self.assertEqual(
+                o.state.data["metrics"].get("human_gate_duplicates_suppressed"),
+                1,
+            )
+
+    def test_same_pr_head_human_gate_is_suppressed_after_first_post(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            decision = {
+                "decision": "HUMAN_GATE",
+                "lane": "Implementation",
+                "pr_number": 358,
+                "human_message": "Review the morphology gate.",
+            }
+            pr_info = {
+                "headRefOid": "abc123",
+                "state": "OPEN",
+                "commits": [
+                    {"committedDate": "2026-09-08T15:00:00Z"},
+                ],
+                "comments": [],
+            }
+
+            with mock.patch.object(orch, "_json_cmd", return_value=pr_info), \
+                    mock.patch.object(
+                        orch,
+                        "_run",
+                        return_value=orch.subprocess.CompletedProcess([], 0, stdout="", stderr=""),
+                    ) as run:
+                o._post_gate(decision)
+                o._post_gate({**decision, "human_message": "Please review that same gate."})
+
+            self.assertEqual(run.call_count, 1)
+            self.assertEqual(o.state.data["metrics"].get("human_gates"), 1)
+            self.assertEqual(
+                o.state.data["metrics"].get("human_gate_duplicates_suppressed"),
+                1,
+            )
+
+    def test_new_pr_head_resurfaces_human_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            decision = {
+                "decision": "HUMAN_GATE",
+                "lane": "Implementation",
+                "pr_number": 358,
+                "human_message": "Review the morphology gate.",
+            }
+            first = {
+                "headRefOid": "abc123",
+                "state": "OPEN",
+                "commits": [{"committedDate": "2026-09-08T15:00:00Z"}],
+                "comments": [],
+            }
+            second = {
+                "headRefOid": "def456",
+                "state": "OPEN",
+                "commits": [{"committedDate": "2026-09-08T17:00:00Z"}],
+                "comments": [],
+            }
+
+            with mock.patch.object(orch, "_json_cmd", side_effect=[first, second]), \
+                    mock.patch.object(
+                        orch,
+                        "_run",
+                        return_value=orch.subprocess.CompletedProcess([], 0, stdout="", stderr=""),
+                    ) as run:
+                o._post_gate(decision)
+                o._post_gate(decision)
+
+            self.assertEqual(run.call_count, 2)
+            self.assertEqual(
+                o.state.data["human_gate_records"]["pr:358:implementation"]["token"],
+                "def456:OPEN",
+            )
+            self.assertEqual(o.state.data["metrics"].get("human_gates"), 2)
+
     def test_handoff_reuses_existing_open_pr_after_interruption(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
@@ -886,6 +994,97 @@ class FrugalRoutingTests(unittest.TestCase):
             self.assertIsNotNone(health["worker_age_seconds"])
             self.assertEqual(health["luna_calls_today_total"], 5)
             self.assertEqual(health["terra_worker_calls_today"], 1)
+
+
+class ControllerSelfRefreshTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=999,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+        )
+
+    @staticmethod
+    def completed(args, stdout=""):
+        return orch.subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
+    def test_sync_main_requests_restart_only_when_controller_python_changed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.runtime_head = "oldhead"
+
+            def fake_run(args, **kwargs):
+                if args[:3] == ["git", "rev-parse", "HEAD"]:
+                    return self.completed(args, "newhead\n")
+                if args[:3] == ["git", "diff", "--name-only"]:
+                    return self.completed(
+                        args,
+                        "scripts/orchestrator/skyforge_orchestrator.py\n"
+                        "docs/agent-state/AUDIT_STATE.md\n",
+                    )
+                return self.completed(args)
+
+            with mock.patch.object(o, "_worktree_clean", return_value=True), \
+                    mock.patch.object(orch, "_run", side_effect=fake_run), \
+                    mock.patch.object(o, "_request_runtime_restart") as restart:
+                o.sync_main()
+
+            restart.assert_called_once_with(
+                "oldhead",
+                "newhead",
+                ["scripts/orchestrator/skyforge_orchestrator.py"],
+            )
+            self.assertEqual(o.runtime_head, "newhead")
+
+    def test_sync_main_does_not_restart_for_orchestrator_docs_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.runtime_head = "oldhead"
+
+            def fake_run(args, **kwargs):
+                if args[:3] == ["git", "rev-parse", "HEAD"]:
+                    return self.completed(args, "newhead\n")
+                if args[:3] == ["git", "diff", "--name-only"]:
+                    return self.completed(
+                        args,
+                        "scripts/orchestrator/test_skyforge_orchestrator.py\n"
+                        "scripts/orchestrator/README.md\n",
+                    )
+                return self.completed(args)
+
+            with mock.patch.object(o, "_worktree_clean", return_value=True), \
+                    mock.patch.object(orch, "_run", side_effect=fake_run), \
+                    mock.patch.object(o, "_request_runtime_restart") as restart:
+                o.sync_main()
+
+            restart.assert_not_called()
+            self.assertEqual(o.runtime_head, "newhead")
+
+    def test_runtime_restart_request_is_durable_before_exit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            with mock.patch.object(orch.os, "_exit") as exit_process:
+                o._request_runtime_restart(
+                    "oldhead",
+                    "newhead",
+                    ["scripts/orchestrator/skyforge_orchestrator.py"],
+                )
+
+            exit_process.assert_called_once_with(75)
+            request = o.state.data["runtime_restart_requested"]
+            self.assertEqual(request["from_head"], "oldhead")
+            self.assertEqual(request["to_head"], "newhead")
+            self.assertEqual(
+                request["changed_paths"],
+                ["scripts/orchestrator/skyforge_orchestrator.py"],
+            )
+            self.assertEqual(
+                o.state.data["metrics"].get("runtime_restarts_requested"),
+                1,
+            )
 
 
 class WorkerWorktreeIsolationTests(unittest.TestCase):

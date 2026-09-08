@@ -213,6 +213,8 @@ class MarkdownRenderTests(unittest.TestCase):
         rendered = report._render_markdown(value)
         self.assertIn("| Codex capacity/auth blocks | 2 |\n", rendered)
         self.assertIn("| Dispatch failures | 3 |\n", rendered)
+        self.assertIn("| Duplicate human gates suppressed | 0 |\n", rendered)
+        self.assertIn("| Runtime refresh requests / completions | 0 / 0 |\n", rendered)
         self.assertNotIn("| 2 || Dispatch failures", rendered)
 
 

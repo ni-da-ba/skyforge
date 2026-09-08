@@ -43,6 +43,9 @@ DEFAULT_RATE_LIMIT_BACKOFF_SECONDS = 300
 DEFAULT_TRANSIENT_BACKOFF_SECONDS = 300
 DEFAULT_MAX_SEEN_DELIVERIES = 512
 DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
+CONTROLLER_RUNTIME_PATHS = {
+    "scripts/orchestrator/skyforge_orchestrator.py",
+}
 PROTECTED_WORKER_PATH_PREFIXES = (
     "scripts/orchestrator/",
     "deploy/orchestrator/",
@@ -567,6 +570,7 @@ class LocalState:
             "classifier_policy_fingerprint": None,
             "last_dispatch_epoch": 0.0,
             "managed": {},
+            "human_gate_records": {},
             "last_events": [],
             "pending_events": [],
             "pending_decision": None,
@@ -654,6 +658,7 @@ class Orchestrator:
         self._timer_lock = threading.Lock()
         self._timer: threading.Timer | None = None
         self._dispatch_lock = threading.Lock()
+        self.runtime_head: str | None = None
 
     def validate_environment(self) -> None:
         if os.environ.get("SKYFORGE_ORCHESTRATOR_DEDICATED_CLONE") != "1":
@@ -678,6 +683,21 @@ class Orchestrator:
                 raise RuntimeError(
                     "SKYFORGE_WEBHOOK_SECRET must be at least 32 characters in hosted mode."
                 )
+        self.runtime_head = _run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.root,
+        ).stdout.strip()
+        with self._state_lock:
+            requested = self.state.data.pop("runtime_restart_requested", None)
+            if requested:
+                self.state.data["last_runtime_restart"] = {
+                    **requested,
+                    "completed_at": _utc_now(),
+                    "runtime_head": self.runtime_head,
+                }
+                self.state.save()
+        if requested:
+            self._metric("runtime_restart_completions")
 
     def delivery_seen(self, delivery_id: str | None) -> bool:
         if not delivery_id:
@@ -1118,12 +1138,65 @@ class Orchestrator:
             )
         _run(["git", "worktree", "prune"], cwd=self.root, check=False)
 
+    def _request_runtime_restart(
+        self,
+        previous_head: str,
+        current_head: str,
+        changed_paths: list[str],
+    ) -> None:
+        with self._state_lock:
+            self.state.data["runtime_restart_requested"] = {
+                "from_head": previous_head,
+                "to_head": current_head,
+                "changed_paths": changed_paths,
+                "requested_at": _utc_now(),
+            }
+            self.state.save()
+        self._metric("runtime_restarts_requested")
+        print(
+            "[orchestrator] controller Python changed on main; durable state is preserved and "
+            f"systemd restart is required ({previous_head[:10]} -> {current_head[:10]}): "
+            + ", ".join(changed_paths),
+            flush=True,
+        )
+        # The systemd unit uses Restart=on-failure. Exit non-zero so ExecStart reloads the
+        # just-synchronized Python source from the stable main checkout. Actionable events are
+        # already durable and will be replayed by resume_pending() in the replacement process.
+        os._exit(75)
+
     def sync_main(self) -> None:
         if not self._worktree_clean():
             raise RuntimeError("Dedicated clone is dirty; refusing autonomous checkout/sync")
+        previous_head = self.runtime_head or _run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.root,
+        ).stdout.strip()
         _run(["git", "fetch", "--prune", "origin"], cwd=self.root, timeout=180)
         _run(["git", "checkout", "main"], cwd=self.root)
         _run(["git", "pull", "--ff-only", "origin", "main"], cwd=self.root, timeout=180)
+        current_head = _run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.root,
+        ).stdout.strip()
+        if previous_head != current_head:
+            changed = [
+                line.strip()
+                for line in _run(
+                    [
+                        "git", "diff", "--name-only",
+                        previous_head, current_head,
+                        "--", "scripts/orchestrator",
+                    ],
+                    cwd=self.root,
+                ).stdout.splitlines()
+                if line.strip()
+            ]
+            runtime_changes = [path for path in changed if path in CONTROLLER_RUNTIME_PATHS]
+            self.runtime_head = current_head
+            if runtime_changes:
+                self._request_runtime_restart(previous_head, current_head, runtime_changes)
+        else:
+            self.runtime_head = current_head
 
     def workflows_quiescent(self, head_sha: str | None) -> bool:
         if not head_sha:
@@ -1555,10 +1628,108 @@ class Orchestrator:
         self._metric("worker_handoffs")
         print(f"[orchestrator] handed off {lane} on {branch} / PR #{pr_number}", flush=True)
 
+    @staticmethod
+    def _parse_github_time(value: Any) -> datetime | None:
+        if not value:
+            return None
+        text = str(value).strip()
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+
+    def _human_gate_identity(
+        self,
+        decision: dict[str, Any],
+    ) -> tuple[str, str, str, bool]:
+        pr = decision.get("pr_number")
+        lane = str(decision.get("lane") or "program").strip().lower() or "program"
+        if isinstance(pr, int):
+            target = str(pr)
+            key = f"pr:{pr}:{lane}"
+            try:
+                info = _json_cmd(
+                    [
+                        "gh", "pr", "view", target,
+                        "--repo", self.repo,
+                        "--json", "headRefOid,state,commits,comments",
+                    ],
+                    cwd=self.root,
+                    timeout=60,
+                )
+                head = str(info.get("headRefOid") or "unknown")
+                state = str(info.get("state") or "unknown").upper()
+                token = f"{head}:{state}"
+
+                commits = info.get("commits") or []
+                head_time = None
+                if commits:
+                    last = commits[-1] or {}
+                    head_time = self._parse_github_time(
+                        last.get("committedDate") or last.get("authoredDate")
+                    )
+                prior_gate_after_head = False
+                if head_time is not None:
+                    for comment in info.get("comments") or []:
+                        body = str((comment or {}).get("body") or "")
+                        if SELF_COMMENT_MARKER not in body or "HUMAN_GATE" not in body:
+                            continue
+                        created = self._parse_github_time((comment or {}).get("createdAt"))
+                        if created is not None and created >= head_time:
+                            prior_gate_after_head = True
+                            break
+                return key, token, target, prior_gate_after_head
+            except Exception as exc:
+                print(
+                    f"[orchestrator] could not inspect PR #{pr} for gate deduplication: {exc}",
+                    flush=True,
+                )
+                return key, "unknown", target, False
+
+        target = "349"
+        message = str(
+            decision.get("human_message")
+            or decision.get("reason")
+            or "Human gate reached"
+        )
+        normalized = re.sub(r"[^a-z0-9]+", " ", message.lower()).strip()
+        digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+        return f"issue:{target}:{lane}", digest, target, False
+
     def _post_gate(self, decision: dict[str, Any]) -> None:
         message = str(decision.get("human_message") or decision.get("reason") or "Human gate reached")
-        pr = decision.get("pr_number")
-        target = str(pr) if isinstance(pr, int) else "349"
+        key, token, target, already_visible = self._human_gate_identity(decision)
+
+        with self._state_lock:
+            records = self.state.data.setdefault("human_gate_records", {})
+            prior = records.get(key)
+            if isinstance(prior, dict) and prior.get("token") == token:
+                self._metric("human_gate_duplicates_suppressed")
+                print(
+                    f"[orchestrator] human gate already surfaced for {key} at state {token}; suppressing duplicate",
+                    flush=True,
+                )
+                return
+            if already_visible:
+                records[key] = {
+                    "token": token,
+                    "target": target,
+                    "seeded_from_github": True,
+                    "recorded_at": _utc_now(),
+                }
+                self.state.save()
+                self._metric("human_gate_duplicates_suppressed")
+                print(
+                    f"[orchestrator] existing controller human gate already covers {key} at state {token}; suppressing duplicate",
+                    flush=True,
+                )
+                return
+
         body = f"{SELF_COMMENT_MARKER} HUMAN_GATE\n\n{message[:5000]}"
         try:
             _run(
@@ -1566,6 +1737,15 @@ class Orchestrator:
                 cwd=self.root,
                 timeout=60,
             )
+            with self._state_lock:
+                records = self.state.data.setdefault("human_gate_records", {})
+                records[key] = {
+                    "token": token,
+                    "target": target,
+                    "seeded_from_github": False,
+                    "recorded_at": _utc_now(),
+                }
+                self.state.save()
             self._metric("human_gates")
         except Exception as exc:
             print(f"[orchestrator] could not post human gate: {exc}", flush=True)
