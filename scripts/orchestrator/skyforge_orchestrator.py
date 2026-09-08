@@ -1084,6 +1084,7 @@ class Orchestrator:
             check=False,
         ).returncode == 0
         if local_exists:
+            _run(["git", "worktree", "prune"], cwd=self.root, check=False)
             _run(["git", "branch", "-f", branch, start_ref], cwd=self.root)
             _run(["git", "worktree", "add", str(worktree), branch], cwd=self.root, timeout=120)
         else:
@@ -1485,7 +1486,6 @@ class Orchestrator:
         if ahead <= 0:
             self._metric("worker_no_change")
             print(f"[orchestrator] worker made no repository changes for {lane}", flush=True)
-            self._retire_worker_worktree(worktree)
             return
 
         # Push and PR creation are intentionally idempotent so an interrupted handoff resumes without
@@ -1545,7 +1545,6 @@ class Orchestrator:
             }
             self.state.save()
         self._metric("worker_handoffs")
-        self._retire_worker_worktree(worktree)
         print(f"[orchestrator] handed off {lane} on {branch} / PR #{pr_number}", flush=True)
 
     def _post_gate(self, decision: dict[str, Any]) -> None:
@@ -1809,7 +1808,17 @@ commit, push, open/merge PRs, or use network access."""
             allowed_paths,
             worker_root,
         )
+        # Clear durable event/worker state before retiring the linked worktree. If the process
+        # crashes during handoff, the retained worktree remains available for idempotent replay.
         self._clear_completed_decision()
+        try:
+            self._retire_worker_worktree(worker_root)
+        except Exception as exc:
+            self._metric("worker_worktree_cleanup_failures")
+            print(
+                f"[orchestrator] worker worktree cleanup warning: {type(exc).__name__}: {exc}",
+                flush=True,
+            )
 
 
 class Handler(BaseHTTPRequestHandler):
