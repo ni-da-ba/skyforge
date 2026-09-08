@@ -684,6 +684,17 @@ class Orchestrator:
             ["git", "rev-parse", "HEAD"],
             cwd=self.root,
         ).stdout.strip()
+        with self._state_lock:
+            requested = self.state.data.pop("runtime_restart_requested", None)
+            if requested:
+                self.state.data["last_runtime_restart"] = {
+                    **requested,
+                    "completed_at": _utc_now(),
+                    "runtime_head": self.runtime_head,
+                }
+                self.state.save()
+        if requested:
+            self._metric("runtime_restart_completions")
 
     def delivery_seen(self, delivery_id: str | None) -> bool:
         if not delivery_id:
