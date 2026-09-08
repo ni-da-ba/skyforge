@@ -85,7 +85,9 @@ only the lane that actually has work
 
 Classify each lane as one of:
 
-- **RUN** — bounded, technically prudent work exists now.
+- **RUN** — bounded, technically prudent work exists now and no healthy producer is already executing it.
+- **RUNNING_EXTERNAL** — an ordinary ChatGPT/manual/Codex producer is already making
+  information-bearing repository or Actions progress; do not dispatch a duplicate worker.
 - **WAIT_CI** — useful work is blocked on already-running evidence; do not poll in a loop.
 - **HUMAN_GATE** — human judgment/strategy/permission is required.
 - **DORMANT** — no retained consumer or next prudent milestone exists.
@@ -106,7 +108,8 @@ On each orchestrator heartbeat:
    - newly completed/failed relevant CI;
    - Audit interventions;
    - human decisions now required.
-3. Classify each lane.
+3. Classify each lane. Recent information-bearing commits, PR updates, or progressing Actions from an
+   existing producer classify the lane as **RUNNING_EXTERNAL** and suppress duplicate dispatch.
 4. If any **HUMAN_GATE** exists, report it and do not silently choose for the project owner.
 5. If any **RESTART** exists, reconstruct a fresh worker from GitHub.
 6. Select at most **two** RUN lanes in one wake; default to **one** when either task is expensive.
@@ -115,7 +118,7 @@ On each orchestrator heartbeat:
    - persist meaningful progress in GitHub;
    - merge only if its existing acceptance policy permits;
    - otherwise leave a precise PR/issue handoff.
-9. If only WAIT_CI/DORMANT lanes remain, stop the run immediately.
+9. If only RUNNING_EXTERNAL/WAIT_CI/DORMANT lanes remain, stop the run immediately.
 10. Do not spend agentic usage repeatedly polling for the same CI state.
 
 ## 6. Dispatch priority
@@ -306,7 +309,10 @@ On every wake:
 3. Inspect current main, open producer PRs/issues, and only the recent repository/Actions movement
    necessary to determine what changed since the last useful wake.
 4. Classify Authorship, Implementation, Content, Music/Audio, Presentation, and Audit as:
-   RUN, WAIT_CI, HUMAN_GATE, DORMANT, WATCH, or RESTART.
+   RUN, RUNNING_EXTERNAL, WAIT_CI, HUMAN_GATE, DORMANT, WATCH, or RESTART.
+   If a healthy ordinary ChatGPT/manual producer is already producing information-bearing commits,
+   PR changes, or Actions movement for a lane, classify RUNNING_EXTERNAL and DO NOT dispatch a
+   competing Codex worker.
 
 Usage discipline:
 - Run this orchestrator on Luna/low-cost settings where available.
@@ -340,7 +346,7 @@ If one or more RUN lanes exist:
 - prevent unrelated scope expansion;
 - persist meaningful work in GitHub before ending.
 
-If the only remaining states are WAIT_CI or DORMANT:
+If the only remaining states are RUNNING_EXTERNAL, WAIT_CI, or DORMANT:
 - do not poll or invent work;
 - end the run promptly.
 
