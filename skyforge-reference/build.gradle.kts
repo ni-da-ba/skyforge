@@ -206,3 +206,13 @@ tasks.register<JavaExec>("authorshipPetroleumSystemOpportunityCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/authorship-petroleum-system-opportunity-v1").get().asFile.absolutePath)
 }
+
+
+tasks.register<JavaExec>("authorshipRegionalPetroleumSystemOpportunityCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0100 regional petroleum-system opportunity inventory evidence package."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.AuthorshipRegionalPetroleumSystemOpportunityCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/authorship-regional-petroleum-system-opportunity-v1").get().asFile.absolutePath)
+}
