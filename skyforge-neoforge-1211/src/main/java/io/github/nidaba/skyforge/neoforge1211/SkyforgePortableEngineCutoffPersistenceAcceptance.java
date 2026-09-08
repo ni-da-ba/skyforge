@@ -16,8 +16,9 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 
 /**
- * Two-boot dedicated-server proof that issue #237's Portable Engine cutoff mode survives real world
- * save/reopen and keeps upstream comparator fuel information coherent.
+ * Three-boot dedicated-server proof that issue #237's Portable Engine cutoff mode survives real
+ * world save/reopen in both CUT and configured-RUN states while preserving upstream comparator
+ * fuel information.
  */
 final class SkyforgePortableEngineCutoffPersistenceAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.portableEngineCutoffPersistence";
@@ -27,10 +28,12 @@ final class SkyforgePortableEngineCutoffPersistenceAcceptance {
     private static final ResourceLocation ENGINE_ID = id("simulated:red_portable_engine");
     private static final BlockPos ENGINE_POS = new BlockPos(0, 96, 0);
     private static final BlockPos CUTOFF_POWER_POS = ENGINE_POS.above();
-    private static final int SAVED_BURN_TIME = 600;
+    private static final int CUT_BURN_TIME = 600;
+    private static final int RUN_BURN_TIME = 599;
+    private static final int RUN_AFTER_TICK_BURN_TIME = 598;
     private static final int SAVED_FUEL_COUNT = 1;
-    private static final int SAVED_COMPARATOR = 12;
-    private static final int RESUMED_COMPARATOR = 11;
+    private static final int CUT_COMPARATOR = 12;
+    private static final int RUN_COMPARATOR = 11;
 
     private SkyforgePortableEngineCutoffPersistenceAcceptance() {}
 
@@ -39,9 +42,14 @@ final class SkyforgePortableEngineCutoffPersistenceAcceptance {
         if (phase.isEmpty()) {
             return;
         }
-        if (!phase.equals("prepare") && !phase.equals("verify")) {
+        if (!phase.equals("prepare")
+                && !phase.equals("verify-cut")
+                && !phase.equals("verify-run")) {
             throw new IllegalArgumentException(
-                    ENABLE_PROPERTY + " must be 'prepare' or 'verify', got '" + phase + "'");
+                    ENABLE_PROPERTY
+                            + " must be 'prepare', 'verify-cut', or 'verify-run', got '"
+                            + phase
+                            + "'");
         }
         NeoForge.EVENT_BUS.addListener(
                 SkyforgePortableEngineCutoffPersistenceAcceptance::onServerStarted);
@@ -52,10 +60,11 @@ final class SkyforgePortableEngineCutoffPersistenceAcceptance {
         ServerLevel level = event.getServer().overworld();
         try {
             level.getChunk(ENGINE_POS.getX() >> 4, ENGINE_POS.getZ() >> 4);
-            if (phase.equals("prepare")) {
-                prepare(event, level);
-            } else {
-                verify(level);
+            switch (phase) {
+                case "prepare" -> prepareCut(event, level);
+                case "verify-cut" -> verifyCutAndSaveRun(event, level);
+                case "verify-run" -> verifyRun(level);
+                default -> fail("unexpected persistence phase " + phase);
             }
         } catch (ReflectiveOperationException failure) {
             Throwable cause = failure instanceof InvocationTargetException invocation
@@ -67,7 +76,7 @@ final class SkyforgePortableEngineCutoffPersistenceAcceptance {
         }
     }
 
-    private static void prepare(ServerStartedEvent event, ServerLevel level)
+    private static void prepareCut(ServerStartedEvent event, ServerLevel level)
             throws ReflectiveOperationException {
         Block engineBlock = requireEngineBlock();
         level.setBlock(ENGINE_POS, engineBlock.defaultBlockState(), 3);
@@ -87,41 +96,39 @@ final class SkyforgePortableEngineCutoffPersistenceAcceptance {
         Method setItem = publicMethod(inventory, "setItem", int.class, ItemStack.class);
         Method getItem = publicMethod(inventory, "getItem", int.class);
 
-        setBurnTime.invoke(blockEntity, SAVED_BURN_TIME);
+        setBurnTime.invoke(blockEntity, CUT_BURN_TIME);
         setItem.invoke(inventory, 0, new ItemStack(Items.COAL, SAVED_FUEL_COUNT));
-
         tick.invoke(blockEntity);
 
         assertTrue("prepared cutoff mode enabled", cutoff.skyforge$isRedstoneCutoffEnabled());
         assertTrue("prepared cutoff mode active", cutoff.skyforge$isRedstoneCutoffActive());
-        assertInt("prepared burn timer", SAVED_BURN_TIME, getBurnTime.invoke(blockEntity));
+        assertInt("prepared burn timer", CUT_BURN_TIME, getBurnTime.invoke(blockEntity));
         assertInt(
                 "prepared queued fuel count",
                 SAVED_FUEL_COUNT,
                 ((ItemStack) getItem.invoke(inventory, 0)).getCount());
         assertFloat("prepared output cut", 0.0f, getGeneratedSpeed.invoke(blockEntity));
-        assertInt(
-                "prepared comparator",
-                SAVED_COMPARATOR,
-                comparatorOutput(engineBlock, level));
+        assertInt("prepared comparator", CUT_COMPARATOR, comparatorOutput(engineBlock, level));
 
         blockEntity.setChanged();
-        boolean saved = event.getServer().saveEverything(false, true, true);
-        assertTrue("server reported world save success", saved);
+        assertTrue(
+                "server reported CUT world save success",
+                event.getServer().saveEverything(false, true, true));
 
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "PORTABLE_ENGINE_CUTOFF_PERSISTENCE PREPARE PASS"
                         + " burn="
-                        + SAVED_BURN_TIME
+                        + CUT_BURN_TIME
                         + " fuel="
                         + SAVED_FUEL_COUNT
                         + " comparator="
-                        + SAVED_COMPARATOR
+                        + CUT_COMPARATOR
                         + " active=true");
     }
 
-    private static void verify(ServerLevel level) throws ReflectiveOperationException {
+    private static void verifyCutAndSaveRun(ServerStartedEvent event, ServerLevel level)
+            throws ReflectiveOperationException {
         Block engineBlock = requireEngineBlock();
 
         assertTrue(
@@ -139,45 +146,114 @@ final class SkyforgePortableEngineCutoffPersistenceAcceptance {
         Object inventory = publicField(blockEntity, "inventory").get(blockEntity);
         Method getItem = publicMethod(inventory, "getItem", int.class);
 
-        assertTrue("reloaded cutoff mode enabled", cutoff.skyforge$isRedstoneCutoffEnabled());
-        assertTrue("reloaded cutoff mode active", cutoff.skyforge$isRedstoneCutoffActive());
-        assertInt("reloaded burn timer", SAVED_BURN_TIME, getBurnTime.invoke(blockEntity));
+        assertTrue("reloaded CUT mode enabled", cutoff.skyforge$isRedstoneCutoffEnabled());
+        assertTrue("reloaded CUT mode active", cutoff.skyforge$isRedstoneCutoffActive());
+        assertInt("reloaded CUT burn timer", CUT_BURN_TIME, getBurnTime.invoke(blockEntity));
         assertInt(
-                "reloaded queued fuel count",
+                "reloaded CUT queued fuel count",
                 SAVED_FUEL_COUNT,
                 ((ItemStack) getItem.invoke(inventory, 0)).getCount());
-        assertFloat("reloaded output remains cut", 0.0f, getGeneratedSpeed.invoke(blockEntity));
+        assertFloat("reloaded CUT output remains zero", 0.0f, getGeneratedSpeed.invoke(blockEntity));
         assertInt(
-                "reloaded comparator",
-                SAVED_COMPARATOR,
+                "reloaded CUT comparator",
+                CUT_COMPARATOR,
                 comparatorOutput(engineBlock, level));
 
         level.setBlock(CUTOFF_POWER_POS, Blocks.AIR.defaultBlockState(), 3);
         tick.invoke(blockEntity);
 
-        assertTrue("cutoff mode stays enabled after signal removal", cutoff.skyforge$isRedstoneCutoffEnabled());
-        assertFalse("cutoff mode becomes inactive after signal removal", cutoff.skyforge$isRedstoneCutoffActive());
-        assertInt("resumed burn timer", SAVED_BURN_TIME - 1, getBurnTime.invoke(blockEntity));
-        assertAbsFloat("resumed generator output", 32.0f, getGeneratedSpeed.invoke(blockEntity));
+        assertTrue("RUN keeps cutoff mode configured", cutoff.skyforge$isRedstoneCutoffEnabled());
+        assertFalse("RUN has no active cutoff signal", cutoff.skyforge$isRedstoneCutoffActive());
+        assertInt("RUN burn timer", RUN_BURN_TIME, getBurnTime.invoke(blockEntity));
         assertInt(
-                "resumed comparator",
-                RESUMED_COMPARATOR,
+                "RUN queued fuel count",
+                SAVED_FUEL_COUNT,
+                ((ItemStack) getItem.invoke(inventory, 0)).getCount());
+        assertAbsFloat("RUN generator output", 32.0f, getGeneratedSpeed.invoke(blockEntity));
+        assertInt("RUN comparator", RUN_COMPARATOR, comparatorOutput(engineBlock, level));
+
+        blockEntity.setChanged();
+        assertTrue(
+                "server reported RUN world save success",
+                event.getServer().saveEverything(false, true, true));
+
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "PORTABLE_ENGINE_CUTOFF_PERSISTENCE CUT VERIFY PASS"
+                        + " burn="
+                        + CUT_BURN_TIME
+                        + "->"
+                        + RUN_BURN_TIME
+                        + " fuel="
+                        + SAVED_FUEL_COUNT
+                        + " comparator="
+                        + CUT_COMPARATOR
+                        + "->"
+                        + RUN_COMPARATOR
+                        + " persistedMode=true runSaved=true");
+    }
+
+    private static void verifyRun(ServerLevel level) throws ReflectiveOperationException {
+        Block engineBlock = requireEngineBlock();
+
+        assertTrue(
+                "persisted RUN signal absence",
+                level.getBlockState(CUTOFF_POWER_POS).isAir());
+
+        BlockEntity blockEntity = requireCutoffBlockEntity(level);
+        SkyforgePortableEngineCutoffAccess cutoff =
+                (SkyforgePortableEngineCutoffAccess) blockEntity;
+
+        Method tick = publicMethod(blockEntity, "tick");
+        Method getBurnTime = publicMethod(blockEntity, "getCurrentBurnTime");
+        Method getGeneratedSpeed = publicMethod(blockEntity, "getGeneratedSpeed");
+
+        Object inventory = publicField(blockEntity, "inventory").get(blockEntity);
+        Method getItem = publicMethod(inventory, "getItem", int.class);
+
+        assertTrue("reloaded RUN mode remains configured", cutoff.skyforge$isRedstoneCutoffEnabled());
+        assertFalse("reloaded RUN mode remains inactive", cutoff.skyforge$isRedstoneCutoffActive());
+        assertInt("reloaded RUN burn timer", RUN_BURN_TIME, getBurnTime.invoke(blockEntity));
+        assertInt(
+                "reloaded RUN queued fuel count",
+                SAVED_FUEL_COUNT,
+                ((ItemStack) getItem.invoke(inventory, 0)).getCount());
+        assertAbsFloat(
+                "reloaded RUN generated output",
+                32.0f,
+                getGeneratedSpeed.invoke(blockEntity));
+        assertInt(
+                "reloaded RUN comparator",
+                RUN_COMPARATOR,
+                comparatorOutput(engineBlock, level));
+
+        tick.invoke(blockEntity);
+
+        assertInt(
+                "RUN continues decrement after reload",
+                RUN_AFTER_TICK_BURN_TIME,
+                getBurnTime.invoke(blockEntity));
+        assertAbsFloat(
+                "RUN continues normal output after reload",
+                32.0f,
+                getGeneratedSpeed.invoke(blockEntity));
+        assertInt(
+                "RUN comparator remains coherent after second tick",
+                RUN_COMPARATOR,
                 comparatorOutput(engineBlock, level));
 
         LOGGER.log(
                 System.Logger.Level.INFO,
-                "PORTABLE_ENGINE_CUTOFF_PERSISTENCE VERIFY PASS"
+                "PORTABLE_ENGINE_CUTOFF_PERSISTENCE RUN VERIFY PASS"
                         + " burn="
-                        + SAVED_BURN_TIME
+                        + RUN_BURN_TIME
                         + "->"
-                        + (SAVED_BURN_TIME - 1)
+                        + RUN_AFTER_TICK_BURN_TIME
                         + " fuel="
                         + SAVED_FUEL_COUNT
                         + " comparator="
-                        + SAVED_COMPARATOR
-                        + "->"
-                        + RESUMED_COMPARATOR
-                        + " persistedMode=true");
+                        + RUN_COMPARATOR
+                        + " persistedMode=true active=false");
     }
 
     private static Block requireEngineBlock() {

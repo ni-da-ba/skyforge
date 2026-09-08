@@ -1809,7 +1809,8 @@ neoForge {
         }
 
 
-        // #237 persistence proof uses two separate server boots against the same disposable world.
+        // #237 persistence proof uses three server boots against one disposable world:
+        // prepare CUT -> reopen CUT and save RUN -> reopen RUN.
         create("portableEngineCutoffPersistencePrepareServer") {
             server()
             sourceSet.set(waveC11Runtime)
@@ -1819,12 +1820,21 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-        create("portableEngineCutoffPersistenceVerifyServer") {
+        create("portableEngineCutoffPersistenceVerifyCutServer") {
             server()
             sourceSet.set(waveC11Runtime)
             gameDirectory = layout.projectDirectory.dir("run-portable-engine-cutoff-persistence").asFile
             programArgument("--nogui")
-            systemProperty("skyforge.dev.portableEngineCutoffPersistence", "verify")
+            systemProperty("skyforge.dev.portableEngineCutoffPersistence", "verify-cut")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("portableEngineCutoffPersistenceVerifyRunServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-portable-engine-cutoff-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.portableEngineCutoffPersistence", "verify-run")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -2227,14 +2237,19 @@ tasks.named("runPortableEngineCutoffPersistencePrepareServer").configure {
     }
 }
 
-tasks.named("runPortableEngineCutoffPersistenceVerifyServer").configure {
-    doFirst {
-        val directory = layout.projectDirectory.dir("run-portable-engine-cutoff-persistence").asFile
-        check(directory.resolve("portable-engine-cutoff-persistence").isDirectory) {
-            "persistence verify requires the prepared world from the first server boot"
+listOf(
+    "runPortableEngineCutoffPersistenceVerifyCutServer",
+    "runPortableEngineCutoffPersistenceVerifyRunServer",
+).forEach { taskName ->
+    tasks.named(taskName).configure {
+        doFirst {
+            val directory = layout.projectDirectory.dir("run-portable-engine-cutoff-persistence").asFile
+            check(directory.resolve("portable-engine-cutoff-persistence").isDirectory) {
+                "persistence verify requires the world from the preceding server boot"
+            }
+            directory.resolve("eula.txt").writeText("eula=true\n")
+            directory.resolve("server.properties").writeText(portableEngineCutoffPersistenceServerProperties)
         }
-        directory.resolve("eula.txt").writeText("eula=true\n")
-        directory.resolve("server.properties").writeText(portableEngineCutoffPersistenceServerProperties)
     }
 }
 
