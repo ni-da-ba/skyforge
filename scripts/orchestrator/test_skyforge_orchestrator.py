@@ -360,9 +360,16 @@ class DurableStateTests(unittest.TestCase):
             event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
             o.enqueue(event)
             try:
-                self.assertEqual(o._pending_events(), [event])
+                pending = o._pending_events()
+                self.assertEqual(len(pending), 1)
+                self.assertEqual(orch._event_key(pending[0]), orch._event_key(event))
+                self.assertIsNotNone(pending[0].observed_at)
+
                 reloaded = self.make_orchestrator(pathlib.Path(tmp))
-                self.assertEqual(reloaded._pending_events(), [event])
+                restored = reloaded._pending_events()
+                self.assertEqual(len(restored), 1)
+                self.assertEqual(orch._event_key(restored[0]), orch._event_key(event))
+                self.assertEqual(restored[0].observed_at, pending[0].observed_at)
             finally:
                 if o._timer is not None:
                     o._timer.cancel()
