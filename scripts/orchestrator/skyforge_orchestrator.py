@@ -812,10 +812,22 @@ class Orchestrator:
                 "branch": branch,
                 "managed_pr": managed_pr,
                 "objective": objective,
+                "stage": "editing",
+                "worker_summary": None,
                 "started_at": _utc_now(),
             }
             self.state.save()
         return branch, managed_pr
+
+    def _mark_worker_handoff(self, worker_summary: str) -> None:
+        with self._state_lock:
+            pending = self.state.data.get("pending_worker")
+            if not isinstance(pending, dict):
+                raise RuntimeError("Cannot persist worker handoff without pending worker state")
+            pending["stage"] = "handoff"
+            pending["worker_summary"] = worker_summary[:8000]
+            pending["worker_completed_at"] = _utc_now()
+            self.state.save()
 
     def _changed_paths(self) -> list[str]:
         output = _run(["git", "status", "--porcelain"], cwd=self.root).stdout.splitlines()
@@ -838,50 +850,71 @@ class Orchestrator:
         worker_summary: str,
     ) -> None:
         paths = self._changed_paths()
-        if not paths:
-            self._metric("worker_no_change")
-            print(f"[orchestrator] worker made no repository changes for {lane}", flush=True)
-            return
-
         forbidden = [p for p in paths if p.startswith(f"{STATE_DIR}/") or p.startswith(".git/")]
         if forbidden:
             raise RuntimeError(f"Worker touched controller/private paths: {forbidden}")
 
-        _run(["git", "diff", "--check"], cwd=self.root)
-        _run(["git", "add", "--all"], cwd=self.root)
         short = re.sub(r"\s+", " ", objective).strip()[:72]
-        _run(["git", "commit", "-m", f"CODEX {lane}: {short}"], cwd=self.root, timeout=120)
-        # Deliberately no force push.
+        if paths:
+            _run(["git", "diff", "--check"], cwd=self.root)
+            _run(["git", "add", "--all"], cwd=self.root)
+            _run(["git", "commit", "-m", f"CODEX {lane}: {short}"], cwd=self.root, timeout=120)
+
+        ahead = int(
+            _run(["git", "rev-list", "--count", "origin/main..HEAD"], cwd=self.root).stdout.strip() or "0"
+        )
+        if ahead <= 0:
+            self._metric("worker_no_change")
+            print(f"[orchestrator] worker made no repository changes for {lane}", flush=True)
+            return
+
+        # Push and PR creation are intentionally idempotent so an interrupted handoff resumes without
+        # rerunning the model or losing a commit that already exists locally/remotely.
         _run(["git", "push", "-u", "origin", branch], cwd=self.root, timeout=180)
 
         if managed_pr:
             pr_number = int(managed_pr)
         else:
-            body = (
-                "Automated bounded-work pilot from the Skyforge event-driven orchestrator.\n\n"
-                f"**Lane:** {lane}\n\n"
-                f"**Objective:** {objective}\n\n"
-                "Worker summary:\n\n"
-                f"{worker_summary[:4000]}\n\n"
-                "This PR is intentionally draft until ordinary machine/human acceptance gates are satisfied."
-            )
-            created = _run(
+            existing = _json_cmd(
                 [
-                    "gh", "pr", "create",
+                    "gh", "pr", "list",
                     "--repo", self.repo,
-                    "--draft",
-                    "--base", "main",
+                    "--state", "open",
                     "--head", branch,
-                    "--title", f"CODEX {lane}: {short}",
-                    "--body", body,
+                    "--limit", "5",
+                    "--json", "number",
                 ],
                 cwd=self.root,
-                timeout=120,
-            ).stdout.strip()
-            match = re.search(r"/pull/(\d+)", created)
-            if not match:
-                raise RuntimeError(f"Could not parse created PR URL: {created}")
-            pr_number = int(match.group(1))
+                timeout=60,
+            )
+            if existing:
+                pr_number = int(existing[0]["number"])
+            else:
+                body = (
+                    "Automated bounded-work pilot from the Skyforge event-driven orchestrator.\n\n"
+                    f"**Lane:** {lane}\n\n"
+                    f"**Objective:** {objective}\n\n"
+                    "Worker summary:\n\n"
+                    f"{worker_summary[:4000]}\n\n"
+                    "This PR is intentionally draft until ordinary machine/human acceptance gates are satisfied."
+                )
+                created = _run(
+                    [
+                        "gh", "pr", "create",
+                        "--repo", self.repo,
+                        "--draft",
+                        "--base", "main",
+                        "--head", branch,
+                        "--title", f"CODEX {lane}: {short}",
+                        "--body", body,
+                    ],
+                    cwd=self.root,
+                    timeout=120,
+                ).stdout.strip()
+                match = re.search(r"/pull/(\d+)", created)
+                if not match:
+                    raise RuntimeError(f"Could not parse created PR URL: {created}")
+                pr_number = int(match.group(1))
 
         managed_map = self.state.data.setdefault("managed", {})
         managed_map[lane] = {
@@ -1046,7 +1079,14 @@ relevant, its origin ref may be available locally for comparison, but do not bli
 
 Work only until the stop boundary. Persist the bounded result as local file changes and tests. Do not
 commit, push, open/merge PRs, or use network access."""
-        worker_summary = self._worker(worker_prompt)
+        pending_worker = self.state.data.get("pending_worker")
+        if isinstance(pending_worker, dict) and pending_worker.get("stage") == "handoff":
+            worker_summary = str(pending_worker.get("worker_summary") or "Interrupted worker completed.")
+            self._metric("handoff_resumes")
+        else:
+            worker_summary = self._worker(worker_prompt)
+            self._mark_worker_handoff(worker_summary)
+
         self._handoff_changes(lane, objective, branch, managed_pr, worker_summary)
         self._clear_completed_decision()
 
