@@ -966,6 +966,24 @@ class WorkerWorktreeIsolationTests(unittest.TestCase):
                 o.state.save()
                 o._retire_worker_worktree(worktree)
 
+    def test_orphaned_dirty_worktree_is_not_reused_without_pending_ownership(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_repository(pathlib.Path(tmp))
+            o = self.make_orchestrator(root)
+            branch, _, worktree = o._prepare_worker_branch("Content", None)
+            orphan = worktree / "orphan.txt"
+            orphan.write_text("partial work\n")
+
+            try:
+                with self.assertRaisesRegex(RuntimeError, "Orphaned worker worktree is dirty"):
+                    o._ensure_worker_worktree(branch, "origin/main")
+                self.assertEqual(o._current_branch(), "main")
+                self.assertTrue(o._worktree_clean())
+            finally:
+                orch._run(["git", "reset", "--hard"], cwd=worktree)
+                orch._run(["git", "clean", "-fd"], cwd=worktree)
+                o._retire_worker_worktree(worktree)
+
     def test_protected_worker_change_safety_pauses_without_dirtying_controller_root(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.make_repository(pathlib.Path(tmp))
