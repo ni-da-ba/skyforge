@@ -3,7 +3,7 @@
 **Lane:** Content / Experience  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Highest accepted Content boundary:** C22 / PR #360
+**Highest accepted Content boundary:** C23 / PR #367
 
 Read first:
 
@@ -13,7 +13,49 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest accepted executable Content milestone: C22
+### Highest accepted executable Content milestone: C23
+
+**C23 / PR #367** consumes accepted C22 + AUTH-0100 in the first deterministic
+petroleum-province feasibility/replan layer.
+
+Accepted intent/outcome contract:
+
+```text
+ORDINARY_PROVINCE
+    -> NO_PETROLEUM_REQUIREMENT
+
+PETROLEUM_STRATEGIC_NODE
+    + AUTH-0100 eligibleIslandCount == 0
+        -> REPLAN_REQUIRED
+    + AUTH-0100 eligibleIslandCount > 0
+        -> CANDIDATES_AVAILABLE
+```
+
+Accepted interpretation:
+
+- ordinary provinces never re-plan solely because petroleum is absent;
+- an intentionally petroleum-bearing strategic-node province must contain at least one exact
+  AUTH-0100 geologically eligible island or Content must re-plan the province;
+- C23 exposes AUTH-0100 `eligibleIslands()` and `rankedEligibleIslands()` exactly and rejects
+  substituted candidate evidence;
+- C23 deliberately exposes no selected island, so the strongest geological candidate cannot silently
+  become an oilfield/refinery/route/civilization choice;
+- no strategic-node frequency, opportunity threshold, reserves, grade, pressure, volume, extraction
+  rate, site role, route geometry, or backend ontology enters the planner;
+- AUTH-0100 is sufficient for **province geological feasibility**. C23 demonstrates no new Authorship
+  evidence gap;
+- the next petroleum Content boundary should define explicit infrastructure-role requirements and
+  first attempt to consume accepted AUTH-0096 local surface-site plus AUTH-0097 directional-access
+  evidence before requesting new Authorship semantics;
+- Implementation still owns literal petroleum deposits, extraction, concrete structure geometry,
+  worldgen, persistence, and lifecycle.
+
+Exact candidate verification passed Wave C23 Petroleum Province Feasibility run `34185862890`,
+Wave C20 Base Metal Content Policy regression run `34185862839`, and repository CI run
+`34185862783`. Intervening main movement was Audit/orchestration-only. No Minecraft manual run or
+human visual gate applies.
+
+### C22
 
 **C22 / PR #360** binds accepted AUTH-0098 petroleum-system geological opportunity to the first
 executable backend-neutral petroleum gameplay policy:
@@ -365,10 +407,11 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 
 1. Do not duplicate active C11/C12 work; consume their results into #224 when accepted.
 2. Hand C21's exact-volume resource-authority contract to Implementation: filter competing Create Zinc/striated generic feature execution only inside explicit Skyforge-owned population, never by a packaged BASE_WORLD-wide override.
-3. Consume AUTH-0100 under C22 in the next Content petroleum-province requirement/evaluation boundary; do not invent frequency, reserves, literal deposits, or make geological rank the entire selection policy.
-4. If that concrete planner exposes a missing route/site/civilization world cause, hand only that specific evidence gap back to Authorship; otherwise keep further petroleum work in Content/Implementation.
-5. Resume the remaining #227 turtle questions afterward: farming throughput, quarry/branch-mining scale, or dedicated chunk-loader/Ender-storage combinations. Do not nerf turtles without measured substitution evidence.
-6. Continue Bootstrap Province acceptance with C20's guaranteed Iron and post-flight Copper/Zinc semantics; exact quantities remain downstream of accepted C11/C12 aircraft closure and HS-06 remains the human gate before locking the starting recipe.
-7. Complete/accept #237 / PR #240 before C12 powered-soaring closure.
-8. Keep assembled-aircraft Nether transfer separate from accepted ordinary-player C15 mechanics.
-9. Return to C1 industrial runtime evidence when a focused runtime window is practical.
+3. Build the next petroleum Content boundary from C23 candidates: define explicit extraction/refinery/freight infrastructure-role requirements and attempt to match them against accepted AUTH-0096 local site plus AUTH-0097 directional-access evidence.
+4. Request new Authorship evidence only if that concrete role matcher demonstrates a specific missing backend-neutral world cause; do not add another regional petroleum wrapper or geological threshold.
+5. Keep literal petroleum deposits, extraction mechanics, exact structure geometry/admission, worldgen, persistence, and lifecycle in Implementation.
+6. Resume the remaining #227 turtle questions afterward: farming throughput, quarry/branch-mining scale, or dedicated chunk-loader/Ender-storage combinations. Do not nerf turtles without measured substitution evidence.
+7. Continue Bootstrap Province acceptance with C20's guaranteed Iron and post-flight Copper/Zinc semantics; exact quantities remain downstream of accepted C11/C12 aircraft closure and HS-06 remains the human gate before locking the starting recipe.
+8. Complete/accept #237 / PR #240 before C12 powered-soaring closure.
+9. Keep assembled-aircraft Nether transfer separate from accepted ordinary-player C15 mechanics.
+10. Return to C1 industrial runtime evidence when a focused runtime window is practical.

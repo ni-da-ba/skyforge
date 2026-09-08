@@ -1,6 +1,6 @@
 # Wave C23 — petroleum strategic-node province feasibility
 
-**Status:** IN PROGRESS  
+**Status:** ACCEPTED merge candidate  
 **Issue:** #365  
 **Predecessor:** C22 / PR #360  
 **Authorship input:** AUTH-0100 / PR #361  
@@ -111,3 +111,15 @@ Minecraft placement, structure geometry/admission, persistence, and lifecycle.
 8. targeted tests and repository CI pass.
 
 No Minecraft manual or human visual gate applies to C23.
+
+
+## Accepted candidate evidence
+
+Exact C23 head `b629708f2b5ea420eb91577b4019b53c2b10b059` passed:
+
+- Wave C23 Petroleum Province Feasibility run `34185862890`;
+- Wave C20 Base Metal Content Policy regression run `34185862839`;
+- repository CI run `34185862783`.
+
+The PR base advanced only through AUDIT-0009 orchestrator files, outside the C23/AUTH-0100 dependency
+surface, so no synchronization churn was required under `VALIDATION_POLICY.md`.
