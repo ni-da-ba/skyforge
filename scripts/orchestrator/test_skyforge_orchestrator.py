@@ -231,6 +231,8 @@ class EventFilterTests(unittest.TestCase):
         self.assertIsNone(orch.classify_control_command("issue_comment", untrusted))
         trusted["comment"]["body"] = "/skyforge-resume"
         self.assertEqual(orch.classify_control_command("issue_comment", trusted), "resume")
+        trusted["comment"]["body"] = "/skyforge-status"
+        self.assertEqual(orch.classify_control_command("issue_comment", trusted), "status")
 
     def test_external_pr_event_is_ignored(self):
         d = orch.classify_event(
@@ -439,6 +441,33 @@ class HostedTransportTests(unittest.TestCase):
             self.assertTrue(reloaded.is_paused())
             reloaded.set_paused(False, actor="ni-da-ba")
             self.assertFalse(reloaded.is_paused())
+
+    def test_status_command_posts_nonsecret_runtime_and_checkout_heads(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.runtime_head = "runtime-head-123"
+
+            calls = []
+
+            def fake_run(args, **kwargs):
+                calls.append(args)
+                if args[:3] == ["git", "rev-parse", "HEAD"]:
+                    return orch.subprocess.CompletedProcess(
+                        args, 0, stdout="checkout-head-456\n", stderr=""
+                    )
+                return orch.subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+            with mock.patch.object(orch, "_run", side_effect=fake_run):
+                o.post_status(349)
+
+            gh_calls = [args for args in calls if args[:3] == ["gh", "issue", "comment"]]
+            self.assertEqual(len(gh_calls), 1)
+            body = gh_calls[0][gh_calls[0].index("--body") + 1]
+            self.assertIn("[skyforge-orchestrator] STATUS", body)
+            self.assertIn('"runtime_head": "runtime-head-123"', body)
+            self.assertIn('"checkout_head": "checkout-head-456"', body)
+            self.assertNotIn("x" * 48, body)
+            self.assertEqual(o.state.data["metrics"].get("status_commands"), 1)
 
     def test_worker_control_plane_paths_are_forbidden(self):
         forbidden = [
