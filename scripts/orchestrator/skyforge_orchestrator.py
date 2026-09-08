@@ -1044,12 +1044,79 @@ class Orchestrator:
                 print(f"[orchestrator] dispatch error: {type(exc).__name__}: {exc}", flush=True)
                 self._set_retry_block("controller_error", delay, f"{type(exc).__name__}: {exc}")
 
-    def _worktree_clean(self) -> bool:
-        out = _run(["git", "status", "--porcelain"], cwd=self.root).stdout.strip()
+    def _worktree_clean(self, cwd: Path | None = None) -> bool:
+        target = cwd or self.root
+        out = _run(["git", "status", "--porcelain"], cwd=target).stdout.strip()
         return not out
 
-    def _current_branch(self) -> str:
-        return _run(["git", "branch", "--show-current"], cwd=self.root).stdout.strip()
+    def _current_branch(self, cwd: Path | None = None) -> str:
+        target = cwd or self.root
+        return _run(["git", "branch", "--show-current"], cwd=target).stdout.strip()
+
+    def _worker_worktree_path(self, branch: str) -> Path:
+        slug = re.sub(r"[^A-Za-z0-9._-]+", "-", branch).strip("-") or "worker"
+        return self.root / STATE_DIR / "worktrees" / slug[-120:]
+
+    def _ensure_worker_worktree(self, branch: str, start_ref: str) -> Path:
+        worktree = self._worker_worktree_path(branch)
+        worktree.parent.mkdir(parents=True, exist_ok=True)
+
+        if worktree.exists():
+            probe = _run(
+                ["git", "rev-parse", "--is-inside-work-tree"],
+                cwd=worktree,
+                check=False,
+            )
+            if probe.returncode != 0:
+                raise RuntimeError(
+                    f"Worker worktree path exists but is not a Git worktree: {worktree}"
+                )
+            current = self._current_branch(worktree)
+            if current != branch:
+                raise RuntimeError(
+                    f"Worker worktree {worktree} is on {current!r}; expected {branch!r}"
+                )
+            if not self._worktree_clean(worktree):
+                raise RuntimeError(
+                    f"Orphaned worker worktree is dirty without pending-worker ownership: {worktree}"
+                )
+            # This path is reached only for a new dispatch with no pending-worker state. A clean
+            # leftover worktree from a prior cleanup failure is safe to realign to the requested
+            # durable start ref before reuse.
+            _run(["git", "reset", "--hard", start_ref], cwd=worktree)
+            return worktree
+
+        local_exists = _run(
+            ["git", "show-ref", "--verify", f"refs/heads/{branch}"],
+            cwd=self.root,
+            check=False,
+        ).returncode == 0
+        if local_exists:
+            _run(["git", "worktree", "prune"], cwd=self.root, check=False)
+            _run(["git", "branch", "-f", branch, start_ref], cwd=self.root)
+            _run(["git", "worktree", "add", str(worktree), branch], cwd=self.root, timeout=120)
+        else:
+            _run(
+                ["git", "worktree", "add", "-b", branch, str(worktree), start_ref],
+                cwd=self.root,
+                timeout=120,
+            )
+        return worktree
+
+    def _retire_worker_worktree(self, worktree: Path | None) -> None:
+        if worktree is None or worktree.resolve() == self.root.resolve():
+            return
+        if worktree.exists():
+            if not self._worktree_clean(worktree):
+                raise RuntimeError(
+                    f"Refusing to retire dirty worker worktree after handoff: {worktree}"
+                )
+            _run(
+                ["git", "worktree", "remove", "--force", str(worktree)],
+                cwd=self.root,
+                timeout=120,
+            )
+        _run(["git", "worktree", "prune"], cwd=self.root, check=False)
 
     def sync_main(self) -> None:
         if not self._worktree_clean():
@@ -1170,7 +1237,12 @@ class Orchestrator:
             kind, retry = _codex_failure_policy(exc)
             raise RetryBlocked(kind, retry, f"classifier call failed: {exc}") from exc
 
-    def _worker(self, prompt: str, worker_tier: str) -> str:
+    def _worker(
+        self,
+        prompt: str,
+        worker_tier: str,
+        worker_root: Path | None = None,
+    ) -> str:
         tier = str(worker_tier or "TERRA").strip().upper()
         if tier == "LUNA":
             self._consume_budget("luna_worker")
@@ -1190,7 +1262,7 @@ class Orchestrator:
 
             with Codex() as codex:
                 thread = codex.thread_start(
-                    cwd=str(self.root),
+                    cwd=str(worker_root or self.root),
                     model=model,
                     config={"model_reasoning_effort": effort},
                     sandbox=Sandbox.workspace_write,
@@ -1226,18 +1298,22 @@ class Orchestrator:
             )
             return []
 
-    def _prepare_worker_branch(self, lane: str, source_pr: int | None) -> tuple[str, int | None]:
+    def _prepare_worker_branch(
+        self,
+        lane: str,
+        source_pr: int | None,
+    ) -> tuple[str, int | None, Path]:
         managed = self._managed_branch(lane)
         if managed and managed.get("branch"):
             branch = str(managed["branch"])
             _run(["git", "fetch", "origin", branch], cwd=self.root, timeout=120)
-            _run(["git", "checkout", "-B", branch, f"origin/{branch}"], cwd=self.root)
-            return branch, managed.get("pr_number")
+            worktree = self._ensure_worker_worktree(branch, f"origin/{branch}")
+            return branch, managed.get("pr_number"), worktree
 
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
         slug = re.sub(r"[^a-z0-9]+", "-", lane.lower()).strip("-") or "lane"
         branch = f"codex/{slug}-{stamp}"
-        _run(["git", "checkout", "-b", branch, "origin/main"], cwd=self.root)
+        worktree = self._ensure_worker_worktree(branch, "origin/main")
 
         if source_pr:
             try:
@@ -1250,7 +1326,7 @@ class Orchestrator:
                     _run(["git", "fetch", "origin", old_branch], cwd=self.root, timeout=120)
             except Exception:
                 pass
-        return branch, None
+        return branch, None, worktree
 
     def _resume_or_prepare_worker(
         self,
@@ -1259,36 +1335,46 @@ class Orchestrator:
         objective: str,
         worker_tier: str,
         allowed_paths: list[str] | None,
-    ) -> tuple[str, int | None]:
+    ) -> tuple[str, int | None, Path]:
         pending = self.state.data.get("pending_worker")
         if isinstance(pending, dict) and pending.get("branch"):
             branch = str(pending["branch"])
             managed_pr = pending.get("managed_pr")
-            current = self._current_branch()
-            if current != branch:
-                if not self._worktree_clean():
+            stored_worktree = pending.get("worktree")
+            if stored_worktree:
+                worktree = Path(str(stored_worktree))
+                if not worktree.is_absolute():
+                    worktree = self.root / worktree
+                if not worktree.exists():
                     raise RuntimeError(
-                        f"Interrupted worker has dirty worktree on {current!r}; expected {branch!r}. "
+                        f"Interrupted worker worktree is missing: {worktree}. "
                         "Manual inspection required before autonomous recovery."
                     )
-                local_exists = _run(
-                    ["git", "show-ref", "--verify", f"refs/heads/{branch}"],
-                    cwd=self.root,
-                    check=False,
-                ).returncode == 0
-                if local_exists:
-                    _run(["git", "checkout", branch], cwd=self.root)
-                else:
-                    _run(["git", "fetch", "origin", branch], cwd=self.root, timeout=120)
-                    _run(["git", "checkout", "-B", branch, f"origin/{branch}"], cwd=self.root)
+                current = self._current_branch(worktree)
+                if current != branch:
+                    raise RuntimeError(
+                        f"Interrupted worker worktree is on {current!r}; expected {branch!r}. "
+                        "Manual inspection required before autonomous recovery."
+                    )
+            else:
+                # Backward-compatible recovery for pre-isolation state. Preserve the legacy worktree
+                # exactly where it is rather than moving dirty partial work implicitly.
+                current = self._current_branch()
+                if current != branch:
+                    raise RuntimeError(
+                        f"Legacy interrupted worker expected branch {branch!r}, but controller root "
+                        f"is on {current!r}. Manual inspection required before autonomous recovery."
+                    )
+                worktree = self.root
             self._metric("worker_resumes")
-            return branch, managed_pr
+            return branch, managed_pr, worktree
 
-        branch, managed_pr = self._prepare_worker_branch(lane, source_pr)
+        branch, managed_pr, worktree = self._prepare_worker_branch(lane, source_pr)
         with self._state_lock:
             self.state.data["pending_worker"] = {
                 "lane": lane,
                 "branch": branch,
+                "worktree": str(worktree),
                 "managed_pr": managed_pr,
                 "objective": objective,
                 "worker_tier": worker_tier,
@@ -1299,7 +1385,7 @@ class Orchestrator:
                 "started_at": _utc_now(),
             }
             self.state.save()
-        return branch, managed_pr
+        return branch, managed_pr, worktree
 
     def _mark_worker_handoff(self, worker_summary: str) -> None:
         with self._state_lock:
@@ -1340,8 +1426,9 @@ class Orchestrator:
                 return True
         return False
 
-    def _changed_paths(self) -> list[str]:
-        output = _run(["git", "status", "--porcelain"], cwd=self.root).stdout.splitlines()
+    def _changed_paths(self, cwd: Path | None = None) -> list[str]:
+        target = cwd or self.root
+        output = _run(["git", "status", "--porcelain"], cwd=target).stdout.splitlines()
         paths: list[str] = []
         for line in output:
             if not line:
@@ -1360,8 +1447,10 @@ class Orchestrator:
         managed_pr: int | None,
         worker_summary: str,
         allowed_paths: list[str] | None = None,
+        worker_root: Path | None = None,
     ) -> None:
-        paths = self._changed_paths()
+        worktree = worker_root or self.root
+        paths = self._changed_paths(worktree)
         forbidden = [p for p in paths if self._worker_path_forbidden(p)]
         out_of_scope = [
             p for p in paths if not self._worker_path_allowed(p, allowed_paths)
@@ -1395,12 +1484,12 @@ class Orchestrator:
 
         short = re.sub(r"\s+", " ", objective).strip()[:72]
         if paths:
-            _run(["git", "diff", "--check"], cwd=self.root)
-            _run(["git", "add", "--all"], cwd=self.root)
-            _run(["git", "commit", "-m", f"CODEX {lane}: {short}"], cwd=self.root, timeout=120)
+            _run(["git", "diff", "--check"], cwd=worktree)
+            _run(["git", "add", "--all"], cwd=worktree)
+            _run(["git", "commit", "-m", f"CODEX {lane}: {short}"], cwd=worktree, timeout=120)
 
         ahead = int(
-            _run(["git", "rev-list", "--count", "origin/main..HEAD"], cwd=self.root).stdout.strip() or "0"
+            _run(["git", "rev-list", "--count", "origin/main..HEAD"], cwd=worktree).stdout.strip() or "0"
         )
         if ahead <= 0:
             self._metric("worker_no_change")
@@ -1409,7 +1498,7 @@ class Orchestrator:
 
         # Push and PR creation are intentionally idempotent so an interrupted handoff resumes without
         # rerunning the model or losing a commit that already exists locally/remotely.
-        _run(["git", "push", "-u", "origin", branch], cwd=self.root, timeout=180)
+        _run(["git", "push", "-u", "origin", branch], cwd=worktree, timeout=180)
 
         if managed_pr:
             pr_number = int(managed_pr)
@@ -1659,7 +1748,7 @@ class Orchestrator:
         if worker_tier == "LUNA" and not allowed_paths:
             raise RuntimeError("LUNA DISPATCH requires a non-empty allowed_paths scope")
 
-        branch, managed_pr = self._resume_or_prepare_worker(
+        branch, managed_pr, worker_root = self._resume_or_prepare_worker(
             lane,
             decision.get("pr_number"),
             objective,
@@ -1704,8 +1793,9 @@ Allowed edit scope for this worker:
 Worker tier:
 {worker_tier}
 
-The outer controller has selected branch {branch}. This may be a resumed interrupted worker branch;
-inspect and preserve any partial work already present before changing it. If a prior producer PR is
+The outer controller has selected branch {branch} in isolated worker worktree {worker_root}. This may
+be a resumed interrupted worker branch; inspect and preserve any partial work already present before
+changing it. The controller checkout remains separate and must not be modified. If a prior producer PR is
 relevant, its origin ref may be available locally for comparison, but do not blindly merge stale history.
 
 Work only until the stop boundary. Persist the bounded result as local file changes and tests. Do not
@@ -1714,7 +1804,7 @@ commit, push, open/merge PRs, or use network access."""
             worker_summary = str(pending_worker.get("worker_summary") or "Interrupted worker completed.")
             self._metric("handoff_resumes")
         else:
-            worker_summary = self._worker(worker_prompt, worker_tier)
+            worker_summary = self._worker(worker_prompt, worker_tier, worker_root)
             self._mark_worker_handoff(worker_summary)
 
         self._handoff_changes(
@@ -1724,8 +1814,19 @@ commit, push, open/merge PRs, or use network access."""
             managed_pr,
             worker_summary,
             allowed_paths,
+            worker_root,
         )
+        # Clear durable event/worker state before retiring the linked worktree. If the process
+        # crashes during handoff, the retained worktree remains available for idempotent replay.
         self._clear_completed_decision()
+        try:
+            self._retire_worker_worktree(worker_root)
+        except Exception as exc:
+            self._metric("worker_worktree_cleanup_failures")
+            print(
+                f"[orchestrator] worker worktree cleanup warning: {type(exc).__name__}: {exc}",
+                flush=True,
+            )
 
 
 class Handler(BaseHTTPRequestHandler):

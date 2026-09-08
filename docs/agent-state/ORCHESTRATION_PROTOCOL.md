@@ -609,13 +609,20 @@ aggregate worker attempts/handoffs/resumes, retry/Codex blocks, restart replays,
 pause/resume commands, protected-path rejections, bounded-scope rejections, and safety pauses.
 
 A bounded worker may edit lane-owned source/tests/docs but may not autonomously rewrite the control
-plane that defines its own authority. A classifier-selected narrow edit scope is also enforced by the
-controller at handoff; a worker cannot broaden its own allowlist. Before controller handoff, reject worker changes under
+plane that defines its own authority. The hosted controller checkout remains a stable `main` checkout;
+each bounded worker runs in a separate ignored Git linked worktree under the controller state directory.
+This separation is a reliability boundary: a dirty, interrupted, or safety-paused worker must not pin
+the service process to stale worker-branch control-plane code.
+
+A classifier-selected narrow edit scope is also enforced by the controller at handoff; a worker cannot
+broaden its own allowlist. Before controller handoff, reject worker changes under
 `scripts/orchestrator/**`, `deploy/orchestrator/**`, `.github/**`, private orchestrator state,
 `AGENTS.md`, or canonical program/validation/orchestration/human-strategy/cross-lane/Audit governance
 documents. Such a change requires manual/Audit inspection rather than an autonomous commit. The
 controller enters a durable safety pause and posts a human-gate record before returning the handoff
-error, preventing a retry loop from repeatedly attempting the same unsafe commit.
+error, preventing a retry loop from repeatedly attempting the same unsafe commit. Preserve a dirty
+worker worktree across that pause. After a successful or no-change handoff, clear the durable consumed
+event/pending-worker state before retiring the linked worktree so crash recovery remains replayable.
 
 Do not interpret these counters as token or dollar accounting unless the SDK exposes authoritative
 usage fields. Their purpose is to detect runaway wakeups, low-value dispatch, and poor accepted-progress

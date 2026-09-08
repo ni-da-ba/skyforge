@@ -423,10 +423,9 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"| Worker scope rejects | {d.get('worker_scope_rejections', 0)} |",
         f"| Protected-path rejects | {d.get('worker_protected_path_rejections', 0)} |",
         f"| Safety pauses | {d.get('safety_pauses', 0)} |",
-        f"| Codex capacity/auth blocks | {d.get('codex_blocks', 0)} |"
+        f"| Codex capacity/auth blocks | {d.get('codex_blocks', 0)} |",
         f"| Dispatch failures | {d.get('dispatch_failures', 0)} |",
         f"| Pause / resume commands | {d.get('pause_commands', 0)} / {d.get('resume_commands', 0)} |",
-        f"| Protected-path rejections | {d.get('worker_protected_path_rejections', 0)} |",
         f"| Controller starts | {d.get('controller_starts', 0)} |",
         f"| Startup reconciliations | {d.get('startup_reconciliations', 0)} |",
         f"| Mean actionable-event → classifier latency | "

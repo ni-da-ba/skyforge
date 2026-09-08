@@ -298,11 +298,17 @@ It stores:
 Actionable webhooks are journaled **before** the HTTP handler returns success. A process crash or Codex
 failure therefore cannot silently consume the wake.
 
-If Luna succeeds but Terra is interrupted, the classifier decision and worker branch are retained so
-the next attempt can continue the bounded objective without paying to rediscover it. Once Terra
-completes, the controller persists a separate `handoff` stage before commit/push/PR operations. That
-handoff is idempotent: an existing local commit, remote branch, or already-open PR is reused rather than
-rerunning the worker or creating a duplicate. New repository events are retained separately and are
+If Luna succeeds but a worker is interrupted, the classifier decision, worker branch, and linked
+worker-worktree path are retained so the next attempt can continue the bounded objective without paying
+to rediscover it. The service/controller checkout stays on `main`; bounded workers execute in ignored
+linked worktrees under `.skyforge-orchestrator/worktrees/`. A worker safety pause therefore cannot pin
+the running controller to stale branch code or dirty the controller checkout.
+
+Once a worker completes, the controller persists a separate `handoff` stage before commit/push/PR
+operations. That handoff is idempotent: an existing local commit, remote branch, or already-open PR is
+reused rather than rerunning the worker or creating a duplicate. The linked worktree is retired only
+after the consumed event and pending-worker state have been durably cleared; a crash before that point
+leaves the worktree available for replay. New repository events are retained separately and are
 classified after the interrupted objective reaches its handoff.
 
 The parent thread rotates after 24 useful turns by default. The new thread reconstructs from GitHub and

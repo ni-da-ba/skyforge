@@ -167,5 +167,54 @@ class BuildReportTests(unittest.TestCase):
             self.assertIn("disk_used_pct", value["host_resources"])
 
 
+class MarkdownRenderTests(unittest.TestCase):
+    def test_capacity_and_dispatch_failures_render_as_separate_rows(self):
+        value = {
+            "metric_deltas": {
+                "codex_blocks": 2,
+                "dispatch_failures": 3,
+            },
+            "controller_prs": {
+                "project_created": [],
+                "project_merged": [],
+                "created": [],
+                "merged": [],
+                "open_now": [],
+                "overnight_created": [],
+                "overnight_merged": [],
+            },
+            "trailing_window": {
+                "report_count": 1,
+                "estimated_cost_usd": 0.01,
+                "worker_attempts": 0,
+                "worker_handoffs": 0,
+                "worker_no_change": 0,
+                "project_prs_created": 0,
+                "project_prs_merged": 0,
+                "controller_prs_created": 0,
+                "controller_prs_merged": 0,
+                "manual_wakes": 0,
+                "audit_wakes": 0,
+                "dispatch_latency_samples": 0,
+                "dispatch_latency_ms_total": 0,
+                "codex_blocks": 2,
+                "dispatch_failures": 3,
+            },
+            "cost": {
+                "period_estimate_usd": 0.01,
+                "cumulative_estimate_usd": 0.01,
+            },
+            "evaluation": {"signal": "INSUFFICIENT_DATA", "reason": "test"},
+            "report_date_central": "2026-09-08",
+            "period_start": "2026-09-08T00:00:00+00:00",
+            "period_end": "2026-09-09T00:00:00+00:00",
+            "host_resources": {},
+        }
+        rendered = report._render_markdown(value)
+        self.assertIn("| Codex capacity/auth blocks | 2 |\n", rendered)
+        self.assertIn("| Dispatch failures | 3 |\n", rendered)
+        self.assertNotIn("| 2 || Dispatch failures", rendered)
+
+
 if __name__ == "__main__":
     unittest.main()
