@@ -140,3 +140,36 @@ runtime=C11_FLIGHT_ONLY
 
 This accepts only the stationary compatibility seam. Issue #237 remains open for persistence,
 assembled-Sable, two-engine, comparator/display, and human ergonomics gates.
+
+
+## Persistence/comparator follow-on
+
+The next #237 slice is intentionally a separate two-boot dedicated-server specimen rather than an
+in-memory NBT unit test.
+
+Prepare boot:
+
+- place an opted-in Portable Engine;
+- power the cutoff with a persisted redstone block;
+- set exact active burn time to 600 ticks;
+- queue one coal item;
+- verify zero output and comparator level 12;
+- force a world save.
+
+Verify boot reopens the same disposable world and requires:
+
+- the Portable Engine and redstone block still exist;
+- cutoff opt-in flag is restored;
+- cutoff is active;
+- exact burn time remains 600;
+- queued coal count remains one;
+- generated output remains zero;
+- comparator remains 12.
+
+Then the verify boot removes the signal and ticks once:
+
+- burn time becomes 599;
+- output returns to normal 32 RPM;
+- comparator falls coherently from 12 to 11.
+
+This proof remains stationary. Assembled-Sable and two-engine behavior stay separate mobile gates.

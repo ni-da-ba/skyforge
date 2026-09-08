@@ -1808,6 +1808,26 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
+        // #237 persistence proof uses two separate server boots against the same disposable world.
+        create("portableEngineCutoffPersistencePrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-portable-engine-cutoff-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.portableEngineCutoffPersistence", "prepare")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("portableEngineCutoffPersistenceVerifyServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-portable-engine-cutoff-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.portableEngineCutoffPersistence", "verify")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // C14 A/B baseline: the retained Create/Sable/Aeronautics stack without computing mods.
         create("waveC14FlightBaselineServer") {
             server()
@@ -2180,6 +2200,41 @@ tasks.named("runPortableEngineCutoffAcceptanceServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(portableEngineCutoffServerProperties)
+    }
+}
+
+
+val portableEngineCutoffPersistenceServerProperties = """
+    level-name=portable-engine-cutoff-persistence
+    level-seed=602371
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runPortableEngineCutoffPersistencePrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-portable-engine-cutoff-persistence").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(portableEngineCutoffPersistenceServerProperties)
+    }
+}
+
+tasks.named("runPortableEngineCutoffPersistenceVerifyServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-portable-engine-cutoff-persistence").asFile
+        check(directory.resolve("portable-engine-cutoff-persistence").isDirectory) {
+            "persistence verify requires the prepared world from the first server boot"
+        }
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(portableEngineCutoffPersistenceServerProperties)
     }
 }
 
