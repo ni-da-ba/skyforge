@@ -22,7 +22,7 @@ This file records only coordination boundaries another lane must preserve.
 | Authorship | `AUTH-0095` accepted: threshold-free scale-normalized surface-character diagnostics over the exact AUTH-0083 built-in matrix |
 | Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / #284 owns remaining AUTH-0083 built-in seed/scale Minecraft matrix |
 | Content / Experience | `C20` merged on current history: Iron/Copper/Zinc availability/guarantee policy over AUTH-0093; C11/C12 remain separately in progress/reserved |
-| Music / Audio | `MUS-0001` accepted in `0b3386ad74ef610f49d9d3e8050e5a701f5e2cbd` with canonical score/source persistence and remaining human/source-recovery gates |
+| Music / Audio | `MUS-0002` accepted in `30b5202fec3ae07b0720b42eb8d7770c3c463843`: canonical soundtrack source integrity is machine-gated in normal CI; human listening/CWP recovery gates remain explicit |
 | AUDIT | `AUDIT-0008` accepted: repository-visible process/convergence health remains supervisory responsibility |
 
 If a lane ledger lags merged history, current `main`, merged PRs, tests, and this coordination file take precedence until its owner repairs the ledger.
@@ -184,11 +184,12 @@ Do not build duplicate generic Skyforge networking, GPS, computer, or turtle sys
 
 Still Content-owned: farming/quarry-scale throughput, dedicated chunk-loader progression, Ender-storage combinations, GPS tower placement, autopilot progression, ore abundance, mature fleet automation, and final aircraft-vs-turtle economics.
 
-## Music / Audio — MUS-0001 — ACCEPTED
+## Music / Audio — MUS-0002 — ACCEPTED
 
-MUS-0001 / PR #159 merged as `0b3386ad74ef610f49d9d3e8050e5a701f5e2cbd`.
+MUS-0002 / PR #304 merged as `30b5202fec3ae07b0720b42eb8d7770c3c463843`, superseding MUS-0001 as the highest accepted Music / Audio repository-health boundary.
 
 - Music / Audio owns composition, motifs/cues, orchestration, exact source/library identity, renders/masters, and listening gates;
+- Music source integrity is now a Tier 0 deterministic gate in normal CI for relevant Music source/verifier changes; it does not replace human BBCSO listening or original-CWP/plugin-state recovery.
 - Authorship owns world/environment semantics that may motivate musical state;
 - Content owns gameplay/experience meaning that may request cue changes;
 - Implementation owns Minecraft playback, transitions, adaptive runtime, persistence, and client integration.

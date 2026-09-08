@@ -77,4 +77,4 @@ Run the Music / Audio repository-health gate locally with:
 python3 scripts/music/verify_music_sources.py
 ```
 
-Normal GitHub CI runs the same verifier immediately after checkout, before Gradle/JDK setup. Canonical manifest/source mismatches, structural MIDI misalignment, undeclared BBCSO range violations, and special-lane provenance/mapping errors therefore fail the pull request instead of remaining review-only findings.
+Normal GitHub CI runs the same verifier immediately after change-impact classification and before Gradle/JDK setup whenever Music source/verifier state is affected. Manual dispatches and unknown comparison bases fail safe to verification; unrelated documentation-only changes do not pay the Music gate cost. Canonical manifest/source mismatches, structural MIDI misalignment, undeclared BBCSO range violations, and special-lane provenance/mapping errors therefore fail relevant pull requests instead of remaining review-only findings.
