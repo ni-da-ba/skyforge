@@ -3,14 +3,17 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Current reconciliation base:** `main@741e16ecd359db5ce433c93ebf49095fd61f2753`  
-**Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0008**
+**Current full-program reconciliation base:** `main@741e16ecd359db5ce433c93ebf49095fd61f2753`  
+**Latest Audit acceptance observed at:** `main@f859f5acfbb299de85a32cea08a7481dd9098a40`  
+**Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0009**
 
 Read first: [PROGRAM_CHARTER.md](PROGRAM_CHARTER.md), [VALIDATION_POLICY.md](VALIDATION_POLICY.md), [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md), [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md), current lane ledgers, current `main`, open PRs/issues, source/tests, merged history, and exact-head workflow evidence. Repository evidence overrides stale conversation or older snapshots.
 
 ## DURABLE AUDIT BOUNDARY
 
 AUDIT-0001 through AUDIT-0008 established repository-first reconstruction, manual/cross-lane gate tracking, Music/Audio supervision, and repository-visible process/convergence health. Post-AUDIT-0008 governance adds layered/risk-equivalence validation (#316), CI/evidence economy (#321/#322), producer-session liveness (#339), and the lightweight autonomous orchestration protocol / agent map / cost-aware routing merged in `07275511`.
+
+**AUDIT-0009** accepts quota-safe/restart-safe local event-driven orchestration reliability from PR #364, merged as `f859f5acfbb299de85a32cea08a7481dd9098a40`. Exact-head Orchestrator Smoke `34185291157` PASS and ordinary CI `34185291184` PASS at `3535232d62ea24accf62ae031166b3cafac96fb9`.
 
 Presentation is now a canonical program lane. It consumes accepted project truth and owns external communication/showcase packaging; it does not own producer acceptance.
 
@@ -23,7 +26,7 @@ Presentation is now a canonical program lane. It consumes accepted project truth
 | Content / Experience | **C21** / #315 + C17 fixture maintenance #341 / merge `741e16ec` | no new bounded Content milestone | **HEALTHY / ACCEPTED** |
 | Music / Audio | **MUS-0003** / #331 | human listening/source-recovery gates | **HEALTHY / DORMANT pending human/source work** |
 | Presentation | **PRES-0003** / #351 / merge `aee9508d` | PRES-0004 / #355 + #348 image enrichment | **WATCH / REPEATED ACCEPTANCE-BOOKKEEPING LAG** |
-| Audit | **AUDIT-0008** + orchestration governance | AUDIT-0009 reliability / #364 + hourly supervision | **WATCH / ACTIVE; QUOTA-SAFE HARDENING** |
+| Audit | **AUDIT-0009** / #364 / merge `f859f5ac` | local pilot activation + issue #349 telemetry; hourly supervision | **HEALTHY / PILOT READY** |
 
 Open producer/program PRs at this reconciliation: Presentation #355 and Audit #352. Audit reconciliation #356 is state-only.
 
@@ -53,18 +56,22 @@ The unresolved diagnostic evidence remains the deliberately sampled Tableland pr
 
 Canonical `PRESENTATION_STATE.md` on main still says PRES-0003 is READY FOR ACCEPTANCE / highest merged PRES-0002. This repeats the one-milestone lag left after #350. New PRES-0004 / #355 currently repairs PRES-0003 state while beginning the next milestone, repeating the same coupling. Audit directed a bounded accepted-state repair independent of PRES-0004 and an atomic-bookkeeping rule for future Presentation acceptance. This is a durable-state convergence issue, not a reason to reopen accepted Presentation evidence.
 
-### Audit — event-driven pilot merged; AUDIT-0009 reliability hardening
+### Audit — AUDIT-0009 accepted; local event-driven pilot ready
 
-**WATCH / ACTIVE; QUOTA-SAFE HARDENING.** The event-driven local Codex pilot from #352 is merged on
-`main` as `e678afc56a700c9149fda9bf2e337082bec3cf08`. AUDIT-0009 / PR #364 hardens the remaining
-reliability boundary: actionable events are durably journaled before acknowledgement; classifier
-decisions and interrupted worker branches survive bounded failure; Codex quota/rate/auth/transient
-failures enter a local circuit breaker rather than consuming the wake; later events coalesce while
-blocked; controller-side daily call ceilings and pilot metrics bound/evaluate usage.
+**HEALTHY / PILOT READY.** The event-driven local Codex pilot from #352 is merged on
+`main` as `e678afc56a700c9149fda9bf2e337082bec3cf08`. AUDIT-0009 / PR #364 is merged as
+`f859f5acfbb299de85a32cea08a7481dd9098a40` and accepts the remaining local reliability boundary:
+actionable events are durably journaled before acknowledgement; classifier decisions and interrupted
+worker branches survive bounded failure; Codex quota/rate/auth/transient failures enter a local circuit
+breaker rather than consuming the wake; later events coalesce while blocked; worker completion and
+GitHub handoff are separate resumable/idempotent phases; local state persistence is serialized;
+controller-side daily call ceilings and pilot metrics bound/evaluate usage; and a cross-platform Python
+launcher supports local activation on Windows and Unix-like systems.
 
-PR #364 exact-head Orchestrator Smoke `34184964212` PASS at `334ed4fd`; ordinary CI remains the
-remaining machine gate at this ledger update. This is orchestration infrastructure only: no producer
-technical acceptance, semantic contract, human gate, or auto-merge authority is expanded.
+Exact-head Orchestrator Smoke `34185291157` PASS and ordinary CI `34185291184` PASS at
+`3535232d62ea24accf62ae031166b3cafac96fb9`. This is orchestration infrastructure only: no producer
+technical acceptance, semantic contract, human gate, hosted receiver, API-billing fallback, or
+auto-merge authority is expanded.
 
 Event-driven role split remains:
 
@@ -117,8 +124,10 @@ No current producer session meets the repository-evidence threshold for restart.
 ## EVENT-DRIVEN CODEX PILOT
 
 Issue #349 owns the local event-driven Codex orchestration experiment. PR #352 established the merged
-event-driven pilot; AUDIT-0009 / PR #364 owns quota/failure persistence, restart replay, local usage
-ceilings, and recovery telemetry needed before routine unattended operation.
+event-driven pilot; AUDIT-0009 / PR #364 accepted quota/failure persistence, restart replay, resumable
+worker/Git handoff, serialized local state, local usage ceilings, recovery telemetry, and the
+cross-platform launcher. The next evidence is real pilot operation over several producer milestones,
+not additional speculative orchestration infrastructure.
 
 Role split:
 
@@ -147,8 +156,10 @@ not a lost orchestration event.
 1. Watch for a fresh current-main morphology-only SF-IMP-0083 branch and targeted Tableland diagnosis; unchanged heavy reruns escalate to LOOP RISK.
 2. Keep Authorship dormant after AUTH-0098 and AUTH-0099 parked unless a concrete consumer appears.
 3. Require Presentation accepted-state bookkeeping to catch up independently of PRES-0004; do not reopen accepted PRES-0003 evidence.
-4. Watch AUDIT-0009 / #364 ordinary CI; if green, accept the quota-safe reliability boundary while
-   keeping hosted deployment, API-billing fallback, and auto-merge expansion out of scope.
+4. Activate the local AUDIT-0009 pilot in a dedicated clone and collect issue #349 telemetry over
+   several meaningful producer milestones; keep hosted deployment, API-billing fallback, and
+   auto-merge expansion out of scope until the pilot demonstrates favorable accepted-progress/usage
+   economics.
 5. Track cross-lane/Implementation ledger lag as bookkeeping debt without treating it as changed technical contracts.
 6. Prevent the next concrete Bootstrap resource-realization milestone from silently bypassing HS-06.
 7. Continue hourly supervision and notify separately for LOOP RISK, restart recommendation, ready human gate, serious repository/process failure, or triggered strategy decision.
