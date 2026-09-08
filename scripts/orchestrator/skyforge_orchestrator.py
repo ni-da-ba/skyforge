@@ -890,6 +890,8 @@ class Orchestrator:
             self.state.data[key] = int(self.state.data.get(key) or 0) + 1
             metrics = self.state.data.setdefault("metrics", {})
             metrics[metric_key] = int(metrics.get(metric_key) or 0) + 1
+            if kind in {"luna_worker", "worker"}:
+                metrics["worker_attempts"] = int(metrics.get("worker_attempts") or 0) + 1
             self.state.save()
 
     def _pending_events(self) -> list[EventDecision]:
