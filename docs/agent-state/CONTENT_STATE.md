@@ -449,9 +449,28 @@ SF-IMP-0080 / PR #248 is now merged/accepted and the project-owner human ecology
 
 ### C12 — executable Bellanca B0 — issue #239
 
-Reserved for the real assembled Sable/Create Aeronautics Bellanca engineering mule. C11 direct
-recipe-surface closure is now satisfied. Final powered-soaring/restart acceptance still depends on
-the Portable Engine cutoff path or an equivalent safe cutoff.
+**C12 B0-A1/B0-A2 / PR #401** accepts the first real assembled Sable/Create Aeronautics Bellanca
+engineering-mule boundary. Exact head `091a2decaf81bebc9e9161e8b04e291c2831d9b0` passed Wave C12
+Bellanca B0 Assembly, retained C11 First Flight Recipe Runtime, Portable Engine cutoff/persistence/
+assembled-Sable regressions, and repository CI.
+
+Accepted bounded result:
+
+- Simulated's real Physics Assembler moves exactly one 105-block historical B0-A `MAIN_BODY` into
+  one Sable `ServerSubLevel`, preserves the expected block states, and admits no extra translated
+  MAIN_BODY-volume block;
+- Sable's live merged mass tracker supplies authoritative finite/positive mass and X/Y/Z COM,
+  satisfies lateral symmetry, and remains below the explicit 60-kpg review threshold;
+- historical PR #242 remains source-constrained topology input only; its paper mass/CG estimates
+  are not accepted runtime facts.
+
+AUTH-0101 and subsequent main movement are orthogonal to this C12 runtime surface. The exact-head
+expensive assembly/mass evidence is therefore portable under the validation policy; no duplicate
+live-assembly run is warranted solely to refresh its SHA.
+
+This is not powered-aircraft acceptance. PROP_CHILD lifecycle, lift, propulsion, controls, landing
+gear, taxi/flight, and power-off glide/restart remain explicitly deferred. Portable Engine cutoff
+machine seams remain accepted separately; issue #237 still retains only its human ergonomics gate.
 
 ### Portable Engine cutoff — issue #237; stationary seam accepted via PR #389 candidate
 
