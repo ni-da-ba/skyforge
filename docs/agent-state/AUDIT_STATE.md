@@ -4,8 +4,8 @@
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
 **Current full-program reconciliation base:** `main@741e16ecd359db5ce433c93ebf49095fd61f2753`  
-**Latest Audit acceptance observed at:** `main@f859f5acfbb299de85a32cea08a7481dd9098a40`  
-**Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0009**
+**Latest Audit acceptance observed at:** `main@0b657264265204207b585a07d36698cf108b30d9`  
+**Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0010**
 
 Read first: [PROGRAM_CHARTER.md](PROGRAM_CHARTER.md), [VALIDATION_POLICY.md](VALIDATION_POLICY.md), [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md), [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md), current lane ledgers, current `main`, open PRs/issues, source/tests, merged history, and exact-head workflow evidence. Repository evidence overrides stale conversation or older snapshots.
 
@@ -15,7 +15,7 @@ AUDIT-0001 through AUDIT-0008 established repository-first reconstruction, manua
 
 **AUDIT-0009** accepts quota-safe/restart-safe local event-driven orchestration reliability from PR #364, merged as `f859f5acfbb299de85a32cea08a7481dd9098a40`. Exact-head Orchestrator Smoke `34185291157` PASS and ordinary CI `34185291184` PASS at `3535232d62ea24accf62ae031166b3cafac96fb9`.
 
-**AUDIT-0010 / PR #374 is IN PROGRESS.** It promotes the accepted controller to one always-on host with signed GitHub webhook delivery, persistent delivery de-duplication, startup/offline repository reconciliation, health reporting, systemd restart-on-boot, and trusted-HTTPS deployment packaging. Repository acceptance requires exact-head Orchestrator Smoke + ordinary CI; operational acceptance additionally requires one live hosted health/signed-delivery/manual-wake/reboot check. Auto-merge and API-billing fallback remain out of scope.
+**AUDIT-0010** accepts the repository/deployment boundary for always-on hosted orchestration from PR #374, merged as `0b657264265204207b585a07d36698cf108b30d9`. Exact-head Orchestrator Smoke `34186996643` PASS and ordinary CI `34186996647` PASS at `7db67db2d6875a5a0e2a65c28dacefc00d70e4c9`. The code/deployment contract is therefore MERGED / ACCEPTED. **Operational activation remains pending** one live hosted health/signed-delivery/manual-wake/reboot check on the DigitalOcean node. Auto-merge and API-billing fallback remain out of scope.
 
 Presentation is now a canonical program lane. It consumes accepted project truth and owns external communication/showcase packaging; it does not own producer acceptance.
 
@@ -28,7 +28,7 @@ Presentation is now a canonical program lane. It consumes accepted project truth
 | Content / Experience | **C21** / #315 + C17 fixture maintenance #341 / merge `741e16ec` | no new bounded Content milestone | **HEALTHY / ACCEPTED** |
 | Music / Audio | **MUS-0003** / #331 | human listening/source-recovery gates | **HEALTHY / DORMANT pending human/source work** |
 | Presentation | **PRES-0003** / #351 / merge `aee9508d` | PRES-0004 / #355 + #348 image enrichment | **WATCH / REPEATED ACCEPTANCE-BOOKKEEPING LAG** |
-| Audit | **AUDIT-0009** / #364 / merge `f859f5ac` | **AUDIT-0010 / #374** always-on hosted orchestration | **WATCH / ACTIVE; HOSTED ACTIVATION** |
+| Audit | **AUDIT-0010** / #374 / merge `0b657264` | DigitalOcean live activation + issue #369 operational gate | **WATCH / REPOSITORY ACCEPTED; DEPLOYMENT PENDING** |
 
 Open producer/program PRs at this reconciliation: Presentation #355 and Audit #352. Audit reconciliation #356 is state-only.
 
@@ -58,22 +58,24 @@ The unresolved diagnostic evidence remains the deliberately sampled Tableland pr
 
 Canonical `PRESENTATION_STATE.md` on main still says PRES-0003 is READY FOR ACCEPTANCE / highest merged PRES-0002. This repeats the one-milestone lag left after #350. New PRES-0004 / #355 currently repairs PRES-0003 state while beginning the next milestone, repeating the same coupling. Audit directed a bounded accepted-state repair independent of PRES-0004 and an atomic-bookkeeping rule for future Presentation acceptance. This is a durable-state convergence issue, not a reason to reopen accepted Presentation evidence.
 
-### Audit — AUDIT-0009 accepted; local event-driven pilot ready
+### Audit — AUDIT-0010 repository accepted; hosted activation pending
 
-**HEALTHY / PILOT READY.** The event-driven local Codex pilot from #352 is merged on
-`main` as `e678afc56a700c9149fda9bf2e337082bec3cf08`. AUDIT-0009 / PR #364 is merged as
-`f859f5acfbb299de85a32cea08a7481dd9098a40` and accepts the remaining local reliability boundary:
-actionable events are durably journaled before acknowledgement; classifier decisions and interrupted
-worker branches survive bounded failure; Codex quota/rate/auth/transient failures enter a local circuit
-breaker rather than consuming the wake; later events coalesce while blocked; worker completion and
-GitHub handoff are separate resumable/idempotent phases; local state persistence is serialized;
-controller-side daily call ceilings and pilot metrics bound/evaluate usage; and a cross-platform Python
-launcher supports local activation on Windows and Unix-like systems.
+**WATCH / REPOSITORY ACCEPTED; DEPLOYMENT PENDING.** AUDIT-0009 remains the accepted local
+quota/restart/handoff-safe controller foundation. AUDIT-0010 / PR #374 is merged as
+`0b657264265204207b585a07d36698cf108b30d9` and accepts the always-on deployment contract:
+GitHub HMAC-SHA256 verification before classification, persistent delivery de-duplication,
+startup/offline repository-state reconciliation, non-secret health reporting, localhost-only
+controller binding behind trusted HTTPS, systemd restart-on-boot, Caddy packaging, and one bounded
+installer that creates/updates the exact repository webhook.
 
-Exact-head Orchestrator Smoke `34185291157` PASS and ordinary CI `34185291184` PASS at
-`3535232d62ea24accf62ae031166b3cafac96fb9`. This is orchestration infrastructure only: no producer
-technical acceptance, semantic contract, human gate, hosted receiver, API-billing fallback, or
-auto-merge authority is expanded.
+Exact-head Orchestrator Smoke `34186996643` PASS and ordinary CI `34186996647` PASS at
+`7db67db2d6875a5a0e2a65c28dacefc00d70e4c9`.
+
+The remaining AUDIT-0010 operational gate is external deployment evidence on one DigitalOcean host:
+trusted `/healthz` 200, signed GitHub delivery 2xx, exactly-once manual wake delivery, reboot
+survival, and retained startup reconciliation state. Do not claim the hosted service operationally
+accepted until those checks pass. Auto-merge, API-key billing fallback, multi-host failover, and
+producer semantic changes remain outside this milestone.
 
 Event-driven role split remains:
 
