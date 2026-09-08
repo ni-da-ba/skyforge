@@ -166,6 +166,13 @@ The orchestrator should fill these fields from repository evidence, not from mem
 ### Hard defaults
 
 - **One orchestrator automation**, not one scheduled automation per producer lane.
+- Use the lowest-capability/cost model that can reliably perform the role:
+  - **Luna** for the orchestration heartbeat, classification, lightweight GitHub inspection, and prompt construction;
+  - **Terra** for routine bounded implementation/recomposition/testing work;
+  - **Sol** only when the task demonstrates a need for frontier reasoning, difficult debugging, architecture,
+    or a cheaper worker has failed to make information-bearing progress.
+- Where the active Codex surface does not support model routing for delegated work, apply the same rule
+  by choosing the appropriate model for the thread/task before dispatch rather than assuming Sol everywhere.
 - **No idle worker wakeups.**
 - **No CI polling loops.**
 - **Maximum two worker dispatches per orchestrator wake.**
@@ -267,15 +274,17 @@ Pilot:
 
 1. install this repository harness;
 2. create **one Codex orchestrator thread automation**;
-3. allow it to dispatch at most one Implementation or Content task per wake initially;
-4. keep hourly Audit reporting;
-5. compare for several milestones:
+3. run the orchestrator itself on Luna at low/normal effort where available;
+4. allow it to dispatch at most one Implementation or Content task per wake initially, preferring Terra
+   for routine bounded work and escalating to Sol only when justified;
+5. keep hourly Audit reporting;
+6. compare for several milestones:
    - manual prompts/restarts required;
    - agentic usage consumed;
    - median time from actionable state to next commit/PR;
    - redundant CI/runtime runs;
    - dead-session recovery latency;
-6. expand to two-worker dispatch only if the usage/progress ratio is favorable.
+7. expand to two-worker dispatch only if the usage/progress ratio is favorable.
 
 Success means fewer manual continuation/restart prompts and faster accepted milestones **without**
 increasing regressions or exhausting the shared agentic allowance.
@@ -300,6 +309,10 @@ On every wake:
    RUN, WAIT_CI, HUMAN_GATE, DORMANT, WATCH, or RESTART.
 
 Usage discipline:
+- Run this orchestrator on Luna/low-cost settings where available.
+- Prefer Terra for routine bounded worker execution.
+- Escalate to Sol only for genuinely difficult reasoning/debugging/architecture or after a cheaper
+  worker fails to produce information-bearing progress.
 - Do not fully reconstruct every lane merely to classify it.
 - Do not poll unchanged CI.
 - Do not wake idle producer lanes.
