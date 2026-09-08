@@ -1,0 +1,14 @@
+[Unit]
+Description=Skyforge hosted orchestration daily value report
+After=network-online.target skyforge-orchestrator.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=@@USER@@
+WorkingDirectory=@@ROOT@@
+Environment=HOME=@@HOME@@
+EnvironmentFile=/etc/skyforge-orchestrator/env
+ExecStart=@@VENV_PYTHON@@ @@ROOT@@/scripts/orchestrator/daily_value_report.py --root @@ROOT@@ --repo ni-da-ba/skyforge
+NoNewPrivileges=true
+PrivateTmp=true
