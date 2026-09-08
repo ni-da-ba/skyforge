@@ -1,6 +1,6 @@
 # Track 00 — A Windborne Fantasia
 
-**Status:** Frozen  
+**Status:** Frozen — V2F2A peak-handoff repair canonical  
 **Role:** first ascent / panorama / rare revelation / thesis statement  
 **Meter:** 6/8  
 **Tonal center:** D major  
@@ -36,7 +36,7 @@ The core image used during composition was:
 | 37–47 | revelation |
 | 48–51 | triumph / peace |
 | 52–56 | bridge into horn departure |
-| 57–60 | horn crest |
+| 57–60 | horn crest / peak handoff |
 | 61–64 | horn-to-flute handoff |
 | 65–72 | coda / afterglow |
 
@@ -88,10 +88,11 @@ The full cue uses a broader vocabulary including Dadd9, Gmaj7, Bm7, Asus4, inver
 
 - flute: upward travel / curiosity;
 - horns: breadth, horizon, confidence;
+- trumpets: peak reinforcement and the repaired high-point handoff, not a wholesale martial recoloring;
 - V1: emotional realization;
 - low voices: support and scale, not independent narrative foreground.
 
-The first horn declaration was deliberately preserved because it established the panorama without turning the cue martial.
+The first horn declaration remains deliberately preserved because it establishes the panorama without turning the cue martial.
 
 ## Accepted production findings
 
@@ -108,17 +109,32 @@ A late V2F.1 correction smoothed the first horn entry after the real render expo
 
 ## Canonical MIDI identity
 
-SHA-256:
+Canonical revision after MUS-0004:
+
+```text
+V2F2A — peak handoff
+```
+
+Uncompressed MIDI SHA-256:
+
+```text
+c8de531cba73d058ca02a8b58b444617596a09d888bd7cf7132601141121ca73
+```
+
+Repository source:
+
+```text
+assets/music/source/frozen/track-00-a-windborne-fantasia-v2f2a-peak-handoff.mid.gz
+```
+
+Historical V2F.1 reference:
 
 ```text
 beb0c9d7d5625c7764207d140cce6b5496bbf1ad0803b2f0d78c26ce3cde9695
+assets/music/source/frozen/track-00-a-windborne-fantasia-v2f1.mid.gz
 ```
 
-Canonical authoring source at MUS-0001 record time:
-
-```text
-SF_V2F1_01_FULL_72bar_HORN_ENTRY_SMOOTHED.mid
-```
+The original MUS-0001 authoring filename was `SF_V2F1_01_FULL_72bar_HORN_ENTRY_SMOOTHED.mid`. That identity is retained for provenance but is no longer canonical.
 
 ## Mastering
 
@@ -141,6 +157,8 @@ Shared tonal refinement:
 - approximately -17.5 LUFS;
 - approximately 15.0 LU loudness range;
 - approximately -1 dB true peak.
+
+The existing master measurements describe the accepted pre-repair production record. MUS-0004 promotes MIDI source identity only; it does not claim that new GAME/OST bounces have been mastered or measured.
 
 ## Final evaluation at freeze
 
@@ -165,84 +183,41 @@ No further local polishing is justified unless a later soundtrack-wide audit exp
 
 This cue established that Skyforge’s orchestral identity could support large-scale wonder, but its rarity and dynamic shape make it unsuitable as ordinary background rotation.
 
+## 2026-09-07 library-range audit and MUS-0004 resolution
 
-## 2026-09-07 library-range audit
+V2F.1 contained two verified BBCSO Discover alignment defects:
 
-The persisted V2F.1 source hash and canonical 20-track order verify correctly, but the BBCSO Discover range audit found two latent alignment defects.
+- Track 06 HN: ten notes above the Horns F5 ceiling in bars 57–60;
+- Track 17 VLA: three B2 note-ons below the Viola C3 floor.
 
-### Horn crest
+MUS-0003 generated and machine-qualified two repairs. Both preserve 104 BPM / 6/8, format-1 / 20-track structure and canonical lane order; both are ordinary-lane range-clean; and only HN, TPT, VLA and VLC differ from V2F.1.
 
-Track 06 HN contains ten notes above the documented Horns a4 ceiling of F5. They occur in bars 57-60, the cue's explicitly authored **horn crest**, and include F#5 / A5 / B5-class pitches.
+### Selected repair — V2F2A peak handoff
 
-Because this passage is semantically important, do not apply a blind octave transpose.
+MUS-0004 promotes the conservative peak-handoff repair:
 
-Required next step is a controlled A/B orchestration repair that preserves the crest's contour while deciding whether the high material belongs:
-
-- revoiced within Horn range;
-- transferred/doubled into Trumpets;
-- or split between Horns and Trumpets.
-
-The frozen source remains unchanged until that A/B is heard.
-
-### Viola floor
-
-Track 17 VLA contains three B2 notes, one semitone below the documented Viola floor of C3, at approximately bars 36, 67, and 70.
-
-These are minor and can be repaired surgically in the same controlled A/B, but they are not to be silently changed in the frozen source.
-
-### Tempo metadata clarification
-
-The persisted MIDI conductor tempo is exactly 104 BPM in 6/8. The earlier "experienced tempo approximately 108 BPM" description is retained as a perceptual characterization, not source metadata.
-
-
-## Range-repair A/B candidates
-
-Two non-canonical BBCSO repair candidates were generated from the verified V2F.1 source.
-
-### Candidate A — peak handoff
-
-Repository source:
-
-`assets/music/source/repair-candidates/track-00-v2f2a-peak-handoff-range-repair.mid.gz`
-
-Uncompressed MIDI SHA-256:
-
-`c8de531cba73d058ca02a8b58b444617596a09d888bd7cf7132601141121ca73`
-
-Repair strategy:
-
-- remove only the ten Horn note events above Discover's F5 ceiling;
+- remove only the ten Horn events above Discover's F5 ceiling;
 - transfer seven previously uncovered high peaks to Trumpets;
 - leave three already-covered Trumpet reinforcements unduplicated;
 - preserve all in-range Horn melody;
-- move the three out-of-range Viola B2 notes to Celli at identical pitch, timing, duration, and velocity.
+- move the three out-of-range Viola B2 notes to Celli at identical pitch, timing, duration and velocity.
 
-This is the preferred first audition because it preserves the original horn-led identity most conservatively.
+This retains the horn-led identity while giving the impossible peaks to an instrument that can actually play them.
 
-### Candidate B — continuous brass crest
+### Retained alternate — V2F2B continuous brass crest
 
-Repository source:
+V2F2B remains a noncanonical alternate at:
 
 `assets/music/source/repair-candidates/track-00-v2f2b-continuous-brass-crest-range-repair.mid.gz`
 
-Uncompressed MIDI SHA-256:
+SHA-256:
 
 `79d3ae690cf8aaf785ad0e31bef2e85f92ddfa3a3ac8cd2fe7c81b5d3c74d375`
 
-Repair strategy:
+It moves the complete upper Horn melody in bars 57–60 to Trumpets and is therefore intentionally more interventionist.
 
-- move the complete upper Horn melody from bars 57-60 to Trumpets;
-- retain the low Horn pad layer;
-- replace sparse Trumpet reinforcements in those bars with the continuous transferred line;
-- copy the Horn CC1/CC11 crest envelope into the Trumpet lane for that passage;
-- move the three out-of-range Viola B2 notes to Celli unchanged in pitch/timing/duration/velocity.
+### Human disposition
 
-This candidate is intentionally more interventionist and exists to test whether a coherent brass-family handoff works better than note-by-note peak transfer.
+On 2026-09-07 the project owner explicitly directed the Music lane to finalize the peak-handoff version. That direct qualitative disposition closes the Track 00 candidate-selection gate for MUS-0004.
 
-### Acceptance gate
-
-Neither candidate is canonical.
-
-Audition at **104 BPM / 6/8** using the normal BBCSO Horns, Trumpets, Violas, and Celli patches. Compare bars 55-61 against the accepted V2F.1 render.
-
-Promote only if the repair preserves the cue's accepted revelation/departure character while eliminating silent or impossible library events.
+No new BBCSO bounce was supplied to the repository as part of this decision. MUS-0004 therefore claims canonical MIDI/source repair and range correctness, not a newly measured or remastered audio render.

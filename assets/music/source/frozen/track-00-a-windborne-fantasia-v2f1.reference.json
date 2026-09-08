@@ -1,0 +1,24 @@
+{
+  "cue": "Track 00 — A Windborne Fantasia",
+  "revision": "V2F.1",
+  "status": "superseded historical reference after MUS-0004",
+  "source": "assets/music/source/frozen/track-00-a-windborne-fantasia-v2f1.mid.gz",
+  "uncompressed_midi_sha256": "beb0c9d7d5625c7764207d140cce6b5496bbf1ad0803b2f0d78c26ce3cde9695",
+  "superseded_by": {
+    "revision": "V2F2A — peak handoff",
+    "uncompressed_midi_sha256": "c8de531cba73d058ca02a8b58b444617596a09d888bd7cf7132601141121ca73"
+  },
+  "known_range_exceptions": [
+    {
+      "track_index": 6,
+      "notes": {"78": 4, "81": 4, "83": 2},
+      "reason": "Ten Horn note-ons exceed the BBCSO Discover Horns F5 ceiling in bars 57-60."
+    },
+    {
+      "track_index": 17,
+      "notes": {"47": 3},
+      "reason": "Three Viola B2 note-ons fall below the BBCSO Discover Viola C3 floor."
+    }
+  ],
+  "note": "Retained as the pre-repair musical/reference identity; it is no longer the canonical Track 00 source."
+}
