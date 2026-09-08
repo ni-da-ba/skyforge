@@ -11,6 +11,14 @@ class DecommissionContractTests(unittest.TestCase):
         self.assertIn("Teardown continued intentionally", text)
         self.assertNotIn("refusing teardown so the accounting boundary is not silently lost", text)
 
+    def test_local_shutdown_is_not_blocked_by_cleanup_prerequisites(self):
+        text = SCRIPT.read_text()
+        self.assertNotIn("Hosted virtualenv not found", text)
+        self.assertNotIn("Could not determine the hosted public hostname.\\n  exit 1", text)
+        self.assertIn("Local shutdown is unconditional", text)
+        self.assertIn("WEBHOOK_LIST_FAILED", text)
+        self.assertIn("WEBHOOK_DELETE_FAILED", text)
+
     def test_provider_destruction_remains_external(self):
         text = SCRIPT.read_text()
         self.assertIn("Destroy the DigitalOcean Droplet from the provider control plane.", text)
