@@ -32,7 +32,8 @@ jobs:
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             echo "full=true" >> "${GITHUB_OUTPUT}"
-            echo "Manual dispatch requests full CI."
+            echo "music=true" >> "${GITHUB_OUTPUT}"
+            echo "Manual dispatch requests full CI and music-source verification."
             exit 0
           fi
 
@@ -44,17 +45,26 @@ jobs:
             head="${GITHUB_SHA}"
           else
             echo "full=true" >> "${GITHUB_OUTPUT}"
+            echo "music=true" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
           if [[ -z "${base}" || "${base}" =~ ^0+$ ]] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
             echo "full=true" >> "${GITHUB_OUTPUT}"
-            echo "Unable to establish a safe comparison base; running full CI."
+            echo "music=true" >> "${GITHUB_OUTPUT}"
+            echo "Unable to establish a safe comparison base; running full CI and music-source verification."
             exit 0
           fi
 
           changed="$(git diff --name-only "${base}" "${head}")"
           printf '%s\n' "${changed}"
+
+          if printf '%s\n' "${changed}" | grep -Eq '^(assets/music/|scripts/music/verify_music_sources\.py$|\.github/workflows/ci\.yml$)'; then
+            echo "music=true" >> "${GITHUB_OUTPUT}"
+            echo "Music source/verifier impact detected: enabling music-source verification."
+          else
+            echo "music=false" >> "${GITHUB_OUTPUT}"
+          fi
 
           if [[ -n "${changed}" ]] && ! printf '%s\n' "${changed}" | grep -Ev '^(docs/|README\.md$|CONTRIBUTING\.md$|SECURITY\.md$|CODE_OF_CONDUCT\.md$)' >/dev/null; then
             echo "full=false" >> "${GITHUB_OUTPUT}"
@@ -63,6 +73,10 @@ jobs:
             echo "full=true" >> "${GITHUB_OUTPUT}"
             echo "Code, asset, build, or workflow impact detected: running full CI."
           fi
+
+      - name: Verify music source integrity
+        if: steps.impact.outputs.music == 'true'
+        run: python3 scripts/music/verify_music_sources.py
 
       - name: Validate documentation-only repository integrity
         if: steps.impact.outputs.full != 'true'

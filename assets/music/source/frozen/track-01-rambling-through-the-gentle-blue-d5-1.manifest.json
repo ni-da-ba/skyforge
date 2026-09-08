@@ -17,6 +17,7 @@
     "known_range_exceptions": [],
     "track_11_hc_state": "not recoverable from MIDI alone; verify Harp/Celeste technique from source CWP for full reproducibility",
     "track_12_perc_used": false,
-    "track_13_tp_used": false
+    "track_13_tp_used": false,
+    "range_exceptions": []
   }
 }

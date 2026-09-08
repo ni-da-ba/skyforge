@@ -20,9 +20,21 @@
   "track_12_percussion": {
     "bbcso_preset": "Percussion -> Untuned Percussion",
     "absolute_midi_map": [
-      {"note": 48, "instrument": "Bass Drum", "attacks": 97},
-      {"note": 50, "instrument": "Tenor Drum", "attacks": 26},
-      {"note": 71, "instrument": "Piatti", "attacks": 14}
+      {
+        "note": 48,
+        "instrument": "Bass Drum",
+        "attacks": 97
+      },
+      {
+        "note": 50,
+        "instrument": "Tenor Drum",
+        "attacks": 26
+      },
+      {
+        "note": 71,
+        "instrument": "Piatti",
+        "attacks": 14
+      }
     ]
   },
   "track_13_tuned_percussion": {
@@ -38,5 +50,25 @@
     "expected_92_bar_endpoint_seconds_at_132_bpm": 167.27272727272728,
     "tail_seconds": 2.727113997114003
   },
-  "verification_rule": "Decompress repository source and compare canonical_persisted_midi_sha256 before use."
+  "verification_rule": "Decompress repository source and compare canonical_persisted_midi_sha256 before use.",
+  "midi": {
+    "type": 1,
+    "ticks_per_beat": 960,
+    "instrument_tracks": 19,
+    "conductor_track_index": 0
+  },
+  "library_audit": {
+    "ordinary_track_order": "verified",
+    "range_status": "pass with logged frozen-source exception",
+    "range_exceptions": [
+      {
+        "track_index": 7,
+        "notes": {
+          "85": 2
+        },
+        "reason": "Two accepted legacy Trumpet C#6 note-ons lie one semitone above the documented BBCSO Discover Trumpets a3 C6 ceiling; retained as a non-blocking frozen-source exception pending any future A/B."
+      }
+    ],
+    "track_11_hc_state": "not recoverable from MIDI alone; verify Harp/Celeste technique from the accepted source CWP for full reproducibility"
+  }
 }

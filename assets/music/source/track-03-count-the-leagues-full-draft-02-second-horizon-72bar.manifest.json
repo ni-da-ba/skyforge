@@ -18,6 +18,7 @@
     "known_range_exceptions": [],
     "track_11_hc_state": "not recoverable from MIDI alone; cue uses rare high-register afterimage color; verify Harp/Celeste technique from source CWP rather than infer it",
     "track_12_perc_used": false,
-    "track_13_tp_used": false
+    "track_13_tp_used": false,
+    "range_exceptions": []
   }
 }
