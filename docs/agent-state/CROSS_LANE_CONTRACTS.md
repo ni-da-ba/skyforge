@@ -21,7 +21,7 @@ This file records only coordination boundaries another lane must preserve.
 | --- | --- |
 | Authorship | `AUTH-0100` accepted: exact regional AUTH-0098 petroleum-system opportunity inventory over AUTH-0087 provenance; AUTH-0097 remains the site-access handoff and AUTH-0095 the morphology-diagnostic handoff |
 | Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / #284 owns remaining AUTH-0083 built-in seed/scale Minecraft matrix |
-| Content / Experience | `C21` accepted; C22 / issue #357 / draft PR #360 is in progress and fixes later-game petroleum to R3/STRATEGIC_NODE while requesting AUTH-0100 for intentional petroleum-province selection |
+| Content / Experience | `C22` / PR #360 accepted candidate: petroleum is STRATEGIC_NODE / R3 mature industry with no ordinary-province hard guarantee; AUTH-0100 supplies the requested regional inventory |
 | Music / Audio | `MUS-0002` accepted in `30b5202fec3ae07b0720b42eb8d7770c3c463843`: canonical soundtrack source integrity is machine-gated in normal CI; human listening/CWP recovery gates remain explicit |
 | AUDIT | `AUDIT-0008` accepted: repository-visible process/convergence health remains supervisory responsibility |
 
@@ -263,21 +263,26 @@ Production ownership after C21:
 - **Implementation** owns concrete AUTH-0093/0094 + C20 deposit geometry, count, grade, quantity, accessibility, placement, persistence, and lifecycle;
 - C21 does not itself realize deposits or convert AUTH-0093/0094 opportunity into physical ore quantity.
 
-### C22 — petroleum strategic-node policy — IN PROGRESS / issue #357 / draft PR #360
+### C22 — petroleum strategic-node policy — ACCEPTED
 
-The executable Content policy currently fixes:
+C22 / PR #360 fixes:
 
 - availability: `STRATEGIC_NODE`;
 - progression: `R3_MATURE_INDUSTRY`;
 - first-flight criticality: `false`;
 - ordinary-province petroleum hard guarantee: none;
 - alternative access: bounded trade/salvage only;
-- mature industrial supply: primary extraction or logistics required;
-- intentional petroleum-bearing province selection: canonical AUTH-0100 regional inventory required.
+- mature industrial supply: primary extraction or logistics required.
 
-AUTH-0100 satisfies only that regional geological-evidence request. C22 remains the policy owner and
-must not reinterpret AUTH-0098/AUTH-0100 opportunity as reserves, grade, pressure, physical volume,
-deposit count, extraction rate, or Minecraft placement weight.
+AUTH-0100 / PR #361 satisfies C22's regional geological-evidence request with complete exact
+AUTH-0087/AUTH-0046 coverage, one canonical AUTH-0098 profile per associated island, and deterministic
+eligible-island ranking.
+
+Content owns whether a petroleum-bearing province is intentionally requested, strategic-node
+frequency, multi-factor selection/replanning, trade/salvage, route pressure, and progression. It must
+not reinterpret AUTH-0098/AUTH-0100 opportunity as reserves, grade, pressure, physical volume,
+deposit count, extraction rate, or Minecraft placement weight, and geological rank alone must not
+silently become final route/site/civilization selection policy.
 
 ## Atmosphere / mobility
 
