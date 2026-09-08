@@ -2,81 +2,36 @@
 
 **Canonical lane:** PRESENTATION  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Status:** lane bootstrap in progress under issue #343  
-**Highest merged Presentation milestone:** none yet
+**Status:** PRES-0002 ready for acceptance under issue #345  
+**Highest merged Presentation milestone:** **PRES-0001**  
+**PRES-0001 merge:** PR #344, `a880f2fb3298b76d5abf601b2163adcbfb3b6706`
 
-Always reconstruct current project claims from `main`, the program charter, producer-lane ledgers, cross-lane contracts, relevant acceptance records, and merged history before publishing or revising an external-facing artifact.
+Always reconstruct current project claims from `main`, the program charter, validation policy, producer-lane ledgers, cross-lane contracts, relevant acceptance records, and merged history before publishing or revising an external-facing artifact.
 
-## Mission
+## Mission and authority
 
-Presentation owns the accurate communication of Skyforge as a project.
+Presentation owns accurate project-level communication and durable showcase packaging. It translates accepted engineering, authorship, content, audio, and program evidence into audience-appropriate explanations without becoming an independent source of technical truth.
 
-It translates accepted engineering, authorship, content, audio, and program evidence into audience-appropriate explanations and durable showcase artifacts without becoming an independent source of technical truth.
+Presentation may compress detail but may not collapse these publication states:
 
-Primary audiences include:
+- **ACCEPTED / PROVEN** — current capability supported by merged evidence;
+- **IN PROGRESS** — active bounded work, explicitly unfinished;
+- **ROADMAP / PLANNED** — documented intended work, not current capability;
+- **ASPIRATIONAL / STRATEGIC** — conditional longer-range direction.
 
-- recruiters and hiring managers;
-- technical interviewers and engineers;
-- open-source contributors and procedural-generation practitioners;
-- Minecraft players/modpack users where appropriate;
-- prospective collaborators, users, customers, or commercial evaluators if the project later reaches those boundaries;
-- the project owner, when a concise project-wide explanation or demo narrative is needed.
+Presentation does not accept producer milestones, invent world/game/audio semantics, define runtime behavior, or substitute communication polish for missing evidence.
 
-## Ownership
+## Durable artifacts
 
-Presentation owns:
+Canonical Presentation artifacts live under `docs/presentation/`:
 
-- project-level narrative and terminology for external communication;
-- concise capability summaries and claim registries;
-- architecture/explanation diagrams whose semantics are traceable to accepted repository evidence;
-- demo scripts, showcase sequencing, captions, and reviewer paths;
-- portfolio/recruiter/interview descriptions;
-- release/showcase communication packages assigned to this lane;
-- audience-specific compression of technical material while preserving material caveats;
-- freshness review of external-facing project claims when producer milestones materially change what Skyforge can demonstrate.
+- `claims/` — current externally usable capability/limitation register;
+- `audiences/` — audience-specific compression and reusable explanations;
+- `demos/` — demo scripts, shot lists, narration, and evidence mapping;
+- `diagrams/` — explanatory diagrams traceable to accepted semantics;
+- `portfolio/` — portfolio/recruiter/interview reviewer paths when needed.
 
-Presentation does **not** own:
-
-- backend-neutral world meaning (Authorship);
-- Minecraft/runtime correctness or physical realization (Implementation);
-- gameplay/progression/content meaning (Content / Experience);
-- soundtrack/audio authorship or source identity (Music / Audio);
-- producer acceptance, validation policy, or repository-wide supervisory judgment (Audit / Program Health).
-
-Presentation may identify ambiguity, stale prose, missing evidence, or a communication gap and hand that problem to the owning lane. It may not repair the gap by inventing semantics or promoting an unaccepted result.
-
-## Publication contract
-
-Every substantive external claim must be classifiable as one of:
-
-- **ACCEPTED / PROVEN** — directly supported by current merged repository evidence;
-- **IN PROGRESS** — active work with an explicit issue/milestone/branch/PR boundary;
-- **ROADMAP / PLANNED** — documented intended work that is not yet accepted;
-- **ASPIRATIONAL / STRATEGIC** — longer-range possibility or product direction not guaranteed by the current roadmap.
-
-Presentation must not collapse these categories in prose, diagrams, demos, resumes, portfolio material, release notes, or commercial discussion.
-
-When a simplified artifact omits implementation detail, it must preserve the claim boundary. For example, "backend-neutral architecture" is currently proven; "multiple production backends" is not yet proven.
-
-## Durable artifact architecture
-
-Canonical Presentation artifacts live under `docs/presentation/`.
-
-```text
-docs/agent-state/PRESENTATION_STATE.md
-    -> concise live lane ledger and next work
-
-docs/presentation/
-    -> durable presentation policy and audience artifacts
-
-docs/showcase/
-    -> existing generated/technical showcase material owned by its producing context
-
-docs/reviews/, docs/authorship/, docs/architecture/, source/tests/PRs
-    -> evidence sources; Presentation consumes but does not supersede them
-```
-
-Presentation should prefer links/pointers to authoritative evidence rather than duplicating detailed milestone measurements into its state ledger.
+Existing producer-owned technical showcase records remain under `docs/showcase/`, `docs/reviews/`, `docs/authorship/`, source/tests, and merged PR history. Presentation consumes but does not supersede them.
 
 ## Fresh-session reconstruction order
 
@@ -85,74 +40,72 @@ Presentation should prefer links/pointers to authoritative evidence rather than 
 3. `docs/agent-state/HUMAN_STRATEGY_ROADMAP.md`
 4. `docs/agent-state/PRESENTATION_STATE.md`
 5. `docs/agent-state/CROSS_LANE_CONTRACTS.md`
-6. current producer-lane state files relevant to the artifact being produced
-7. current `README.md`, relevant architecture/review/showcase docs, source/tests
+6. relevant current producer-lane ledgers
+7. `README.md` plus relevant architecture/review/showcase/source/tests
 8. recent merged PRs/commits since the Presentation ledger was last updated
 
 Repository state and accepted evidence outrank existing presentation prose.
 
-## Milestones
+## MERGED / ACCEPTED
 
-### PRES-0001 — Presentation lane bootstrap — IN PROGRESS
+### PRES-0001 — Presentation lane bootstrap
 
-Issue #343.
+PR #344 merged as `a880f2fb3298b76d5abf601b2163adcbfb3b6706`.
 
-Acceptance target:
+Accepted boundary:
 
-- establish this canonical lane ledger;
-- add Presentation to the program charter and fresh-agent read order;
-- persist the publication/authority boundary;
-- establish `docs/presentation/` as the durable artifact home;
-- seed the first bounded Presentation work queue.
+- canonical Presentation lane and persistence architecture;
+- explicit ownership/non-authority in the program charter;
+- fresh-agent reconstruction path;
+- durable `docs/presentation/` artifact home;
+- accepted/in-progress/roadmap/aspirational claim discipline.
 
-No technical capability claim is added by PRES-0001.
+## READY FOR ACCEPTANCE
 
-### PRES-0002 — current claim registry and audience matrix — PROPOSED
+### PRES-0002 — current claim registry and audience matrix
 
-Create a concise project-wide register of what Skyforge can currently claim, with source pointers and audience-specific phrasing. At minimum distinguish:
+Issue #345. Branch `presentation/pres-0002-claim-registry`.
 
-- 30-second project explanation;
-- recruiter/hiring-manager summary;
-- technical-engineering summary;
-- procedural-generation specialist summary;
-- Minecraft/player-facing summary;
-- roadmap/future wording that cannot be presented as current capability.
+Candidate artifacts:
 
-The registry should be maintained for claim freshness, not become a duplicate technical ledger.
+- `docs/presentation/claims/current-claims.md` — evidence-linked present/in-progress/roadmap/aspirational claim surface plus explicit “must not claim yet” boundaries;
+- `docs/presentation/audiences/current-audience-matrix.md` — nontechnical, recruiter, technical-engineer, procedural-generation, Minecraft/player, contributor, and commercial/collaborator compression guidance;
+- `docs/presentation/audiences/nontechnical-overview.md` — reusable “Skyforge at a Glance” general-audience narrative.
 
-### PRES-0003 — flagship technical demo narrative — PROPOSED
+Acceptance intent: establish one stable claim surface that later demos/portfolio artifacts can consume without duplicating producer technical ledgers.
 
-Define the smallest demonstrable sequence that lets a reviewer understand why Skyforge is technically significant. Target a roughly 90-second core story with optional deeper branches. The demo should connect semantic intent, deterministic procedural graphs, morphology/volumetric ownership, Minecraft realization, and evidence/reproducibility using only accepted artifacts.
+## NEXT
 
-### PRES-0004 — portfolio/showcase package — PROPOSED
+### PRES-0003 — flagship 90-second demo narrative
 
-Produce a durable portfolio-facing package after PRES-0002/0003 establish the claim and demo boundaries. Likely components include architecture graphics, selected current-world visuals, concise engineering bullets, reviewer path, and explicit current limitations.
+Issue #347 is open. Define the smallest show-don’t-tell sequence that makes a nontechnical reviewer understand why Skyforge is significant:
 
-Do not build a slide deck, marketing site, or commercial pitch merely because the lane exists; create those only for a concrete audience/use case.
+```text
+meaning
+-> five recognizable landform identities
+-> finite 3-D volume / underside
+-> Minecraft realization
+-> native ecology/lifecycle
+-> deterministic persistence/evidence
+-> clearly labeled Bootstrap Province direction
+```
 
-## Current accepted project boundary relevant to Presentation
+Issue #348 tracks acquisition/reuse of canonical accepted visuals: Massif hero/orbit, five-family comparison, underside view, ecology view, and a persistence/reopen pair where cheap existing fixtures can supply them.
 
-At lane bootstrap, the root README reports:
+### PRES-0004 — portfolio/showcase package
 
-- backend-neutral deterministic world synthesis with Minecraft 1.21.1/NeoForge as the first runtime backend;
-- immutable typed procedural graphs, deterministic reference evaluation, exact finite suspended volumes, five primary morphology families, and higher-order authored composition machinery;
-- accepted Minecraft lifecycle through SF-IMP-0082, including exact-volume realization, stacked-volume isolation, biome/surface population, structure admission/support, deferred realization, native+authored cave composition, interior population, fluid provenance/fencing, persistence/reopen evidence, and all five SMALL/seed-skyforge morphology carriers;
-- Authorship accepted through at least AUTH-0096 in the README snapshot, with newer lane/cross-lane state potentially ahead of that prose;
-- Content / Experience and Music / Audio have separate accepted boundaries;
-- Skyforge remains pre-release and does not promise a stable public API.
+Follow PRES-0003 once the claim surface and flagship story are stable. Do not create presentation volume for its own sake; prefer a small set of reusable high-signal artifacts.
 
-Fresh work must verify those statements against current lane ledgers and merged history because parallel lanes advance independently.
-
-## Known communication hazards
+## Current communication hazards
 
 - Do not describe Skyforge merely as a Minecraft mod; Minecraft is the first runtime realization of a backend-neutral engine.
 - Do not claim a second production backend until one exists and is accepted.
-- Do not call roadmap semantics physically realized in Minecraft before Implementation accepts them.
-- Do not equate authored opportunity/evidence with gameplay guarantees, resource deposits, structures, or named roles unless the owning lanes have accepted those mappings.
-- Do not describe human visual acceptance as a numerical proof, or machine evidence as a substitute for a required human visual/listening gate.
-- Do not inflate project scale by listing tests/metrics without explaining the engineering risk they retire.
-- Do not let presentation work become a reason to stall production convergence.
+- Do not call authored opportunity/evidence a physical deposit, resource guarantee, species population, settlement, runway, dock, or structure unless the owning lanes accept that mapping.
+- Do not imply issue #214 is fully closed: all five SMALL / `seed-skyforge` families are accepted, but broader seed/scale/hybrid/regional review remains open.
+- Do not present Bootstrap Province as current capability.
+- Do not inflate scale with raw test/metric counts when the audience needs the engineering consequence instead.
+- Do not make Presentation work a blocker on production convergence.
 
 ## Recommended next work
 
-After PRES-0001 lands, proceed with **PRES-0002**: build the current claim registry and audience matrix from current `main`, prioritizing a recruiter/technical-reviewer explanation of Skyforge's already accepted engineering boundary.
+Merge PRES-0002 after its documentation-only exact-head gate passes, then create PRES-0003 from current `main` and build the 90-second storyboard using the accepted morphology/ecology viewer choreography and the canonical claim registry.
