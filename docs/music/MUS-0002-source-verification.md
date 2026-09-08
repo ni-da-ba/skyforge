@@ -1,6 +1,6 @@
 # MUS-0002 — automated soundtrack source verification
 
-**Status:** In progress
+**Status:** Accepted
 
 ## Scope
 
@@ -55,3 +55,17 @@ python3 scripts/music/verify_music_sources.py
 ```
 
 Acceptance requires exact-head normal CI on the final PR head.
+
+
+## Acceptance evidence
+
+- PR: #304
+- synchronized merge-candidate head: `df779c6cf11b83caf00f16d941f8037cdd6febba`
+- exact-head normal CI: run `34173135366` — PASS
+- exact-head Music source-integrity step — PASS
+- accepted squash merge: `30b5202fec3ae07b0720b42eb8d7770c3c463843`
+- post-merge main CI: run `34173486633` — Music source-integrity step PASS
+
+The CI integration follows the repository evidence-economy policy: the Music verifier runs when
+`assets/music/`, the verifier itself, or the normal CI workflow changes, plus conservative
+manual/unknown-base cases. Unrelated documentation changes do not pay this verification cost.
