@@ -2,6 +2,7 @@ import importlib.util
 import pathlib
 import sys
 import tempfile
+import threading
 import unittest
 from unittest import mock
 
@@ -292,6 +293,32 @@ class DurableStateTests(unittest.TestCase):
 
             self.assertEqual(o.state.data["managed"]["Audit"]["pr_number"], 77)
             self.assertEqual(o.state.data["managed"]["Audit"]["branch"], "codex/audit-test")
+
+    def test_concurrent_state_saves_remain_valid_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            o = self.make_orchestrator(root)
+            errors = []
+
+            def writer(index):
+                try:
+                    for value in range(20):
+                        with o._state_lock:
+                            o.state.data[f"thread_{index}"] = value
+                            o.state.save()
+                except Exception as exc:
+                    errors.append(exc)
+
+            threads = [threading.Thread(target=writer, args=(index,)) for index in range(4)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+            self.assertEqual(errors, [])
+            reloaded = self.make_orchestrator(root)
+            for index in range(4):
+                self.assertEqual(reloaded.state.data[f"thread_{index}"], 19)
 
     def test_local_budget_blocks_without_spending_beyond_limit(self):
         with tempfile.TemporaryDirectory() as tmp:
