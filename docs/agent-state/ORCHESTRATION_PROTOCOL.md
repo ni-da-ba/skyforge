@@ -481,8 +481,18 @@ liveness detection, evidence-saturation supervision, hourly human-facing summari
 escalation.
 
 When Audit posts a material GitHub comment such as RESTART RECOMMENDED or LOOP RISK, that comment
-becomes an actionable webhook and can wake Codex immediately. Thus Audit diagnoses; the event
-controller may execute the bounded recovery.
+becomes an actionable webhook and can wake Codex immediately. The controller preserves the trusted
+directive text, signal kind, source comment identity, and signal timestamp as structured classifier
+evidence rather than collapsing it to a generic wake. Thus Audit diagnoses; the event controller may
+execute the bounded recovery.
+
+For `RESTART RECOMMENDED`, Audit has already adjudicated the prior producer stale/dead at the signal
+time. The classifier must not reinterpret PR/issue `updatedAt`, draft/open state, the Audit comment
+itself, bookkeeping-only motion, or unchanged reruns as producer recovery. NOOP is valid only if
+information-bearing evidence strictly after the signal proves recovery (for example a new producer
+head/commit, genuinely attributable Actions progress, or an already controller-managed replacement).
+Otherwise the bounded fresh-worker objective is dispatched. This prevents the watchdog comment that
+declares a producer stale from accidentally making that same producer look recently active.
 
 If Codex reaches a human gate, it posts a controller-marked GitHub gate comment and stops. The
 controller ignores its own comment to prevent recursive wakeups; Audit remains responsible for
