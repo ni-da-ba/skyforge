@@ -315,7 +315,7 @@ The parent thread rotates after 24 useful turns by default. The new thread recon
 `AGENTS.md`, preventing an indefinitely growing orchestration conversation from becoming another
 source of context drag.
 
-Bounded Luna and Terra workers are intentionally fresh threads; only the lightweight classifier parent is persistent.
+Terra workers are intentionally fresh/bounded threads.
 
 Before controller handoff, worker changes are rejected if they touch the orchestration/control plane:
 `scripts/orchestrator/**`, `deploy/orchestrator/**`, `.github/**`, `AGENTS.md`, or canonical
