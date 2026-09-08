@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Current reconciliation base:** `main@e7a0119663be85a5a9b6ea2d6c31d6548f477797`  
+**Current reconciliation base:** `main@c770acc0d73240bf3191d6328acc82252f94a13a`  
 **Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0008**
 
 Read first:
@@ -19,18 +19,14 @@ Repository evidence overrides stale conversation or older Audit snapshots.
 
 ## DURABLE AUDIT BOUNDARY
 
-AUDIT-0001 through AUDIT-0008 established repository-first reconstruction, manual/cross-lane gate
-tracking, Music/Audio supervision, and repository-visible process/convergence health.
+AUDIT-0001 through AUDIT-0008 established repository-first reconstruction, manual/cross-lane gate tracking, Music/Audio supervision, and repository-visible process/convergence health.
 
-Post-AUDIT-0008 governance merges now make the following program-wide policy durable:
+Post-AUDIT-0008 governance remains canonical:
 
 - PR #316 / merge `0ea167d2` — human-strategy roadmap plus layered/risk-equivalence validation;
-- PR #321 / merge `ab9a866b` — CI fan-out reduction, docs/state fast path, synchronization economy,
-  evidence portability, atomic bookkeeping guidance, and evidence-economy PR template;
-- PR #322 / merge `978c5562` — retained heavy Showcase/performance characterization reduced to
-  weekly + manual rather than daily/every-PR fan-out;
-- PR #325 / merge `3122e6f5` — current-main design-state recompose, including exceptional regional
-  phenomena and inhabited-airspace / aircraft reuse-capture governance.
+- PR #321 / merge `ab9a866b` — CI fan-out reduction, docs/state fast path, synchronization economy, evidence portability, atomic bookkeeping guidance, and evidence-economy PR template;
+- PR #322 / merge `978c5562` — retained heavy Showcase/performance characterization reduced to weekly + manual;
+- PR #325 / merge `3122e6f5` — current-main design-state recompose.
 
 Issue #319 is CLOSED / COMPLETED.
 
@@ -39,12 +35,12 @@ Issue #319 is CLOSED / COMPLETED.
 | Lane | Highest accepted boundary | Current active work | Health |
 | --- | --- | --- | --- |
 | Implementation | **SF-IMP-0082** / PR #273 | **SF-IMP-0083 / #284 / draft PR #285** | **WATCH / ACTIVE RECOVERY + SCOPE SATURATION** |
-| Authorship | **AUTH-0096** / PR #318, merge `3fa34d5c` | none | **HEALTHY / DORMANT** |
-| Content / Experience | **C20** / PR #302 | **C21 / draft PR #315** | **WATCH / CONVERGING** |
-| Music / Audio | **MUS-0002** / PR #304, merge `30b5202f` | none | **HEALTHY / DORMANT with human/source gates** |
+| Authorship | **AUTH-0097** / PR #328 + acceptance-state merge `c770acc0` | none | **HEALTHY / DORMANT pending downstream consumer** |
+| Content / Experience | **C20** / PR #302 | **C21 / draft PR #315** | **WATCH / CONVERGING, synchronization pending** |
+| Music / Audio | **MUS-0002** / PR #304 | **MUS-0003 / PR #331** | **HEALTHY / ACTIVE; human listening/source gates remain** |
 | Audit | **AUDIT-0008** + post-boundary governance above | hourly supervision | **HEALTHY** |
 
-Only two producer PRs are open at this snapshot: #285 and #315.
+Open producer PRs at this reconciliation are #285, #315, and #331.
 
 ## ACTIVE CONVERGENCE HEALTH
 
@@ -52,167 +48,103 @@ Only two producer PRs are open at this snapshot: #285 and #315.
 
 **WATCH / ACTIVE RECOVERY + SCOPE SATURATION.**
 
-The producer continues to generate real information rather than unchanged reruns, so no fresh-session
-replacement is currently justified.
+Current exact head is `109b26ff5dfac02b9e8356943342e54bc7a76a06`. It is 53 commits ahead / 30 behind current `main`, with merge base `3c556e806ca1d865583836ca276c5f0103b33fa8`, and carries 29 changed files / 53 commits. The branch mixes morphology acceptance with independently useful admission/catch-up/occupancy/interpreter/runtime fixes.
 
-The project-owner-approved validation policy applies:
+Latest exact-head evidence:
 
-- exhaustive cheap deterministic evidence for all remaining AUTH-0083 built-ins;
-- representative full-runtime lifecycle/persistence/reopen evidence;
-- sampled failure widens only the affected risk-equivalence class;
-- orthogonal main movement does not invalidate portable expensive evidence;
-- no return to a 20x full-lifecycle matrix without demonstrated heterogeneity.
+- repository CI `34171538512`: PASS;
+- deliberate SF-IMP-0083 run `34171538516`: FAIL during `Prepare exact AUTH-0083 tableland seed/scale atlas` after roughly 9m24s;
+- Massif/Spine/Basin/Lobed jobs were selector-skipped rather than failed.
 
-Latest sampled evidence:
+Validation-policy consequence:
 
-- exact-head CI is green on head `109b26ff`;
-- deliberately selected Tableland run `34171538516` failed during prepare after about 9m24s;
-- other family jobs were selector-skipped, not failed;
-- therefore only the Tableland/pathological-runtime class widens.
+- exhaustive cheap deterministic corpus evidence remains required;
+- only the Tableland/pathological-runtime equivalence class widens from this sampled failure;
+- do not launch unrelated family lifecycle runs to compensate;
+- inspect/profile the Tableland failure and prefer cheap deterministic equivalents before another expensive run;
+- prior expensive evidence remains portable across orthogonal main movement when its dependency surface is unchanged and synchronized cheap CI is green.
 
-Process concern is now branch scope rather than simple behind-count: #285 carries more than 50 commits
-and mixes morphology acceptance with reusable admission/catch-up/occupancy/interpreter/runtime fixes.
+Current Audit directive remains: if technically clean, checkpoint already-proved generic runtime recovery in a small current-main support PR with focused tests/ordinary CI and no false SF-IMP-0083 acceptance claim, then recompose the morphology-specific remainder on that new main. Do not move unresolved Tableland semantics into the support PR. If separation is not clean, keep one branch but stop adding unrelated generic optimization.
 
-Audit directive on #285:
-
-> If technically clean, checkpoint independently proved generic runtime recovery in a small
-> current-main support PR with focused tests/ordinary CI and no false SF-IMP-0083 acceptance claim,
-> then recompose the remaining morphology-specific acceptance delta on that new main. Do not move
-> unresolved Tableland semantics into the support PR. If separation is not clean, keep one branch but
-> stop adding unrelated generic optimization.
-
-Another materially unchanged expensive Tableland/full-matrix rerun before diagnosis is LOOP RISK.
+Another materially unchanged expensive Tableland/full-matrix rerun before diagnosis is **LOOP RISK**. Current repository evidence does not yet justify a producer-session restart; the latest run produced a new sampled failure and the last Audit directive already requests narrower recovery.
 
 ### Content — C21 / PR #315
 
 **WATCH / CONVERGING.**
 
-C21 is a narrow retained-Create resource-worldgen authority A/B. Its dedicated C21 gate is
-information-bearing.
+Current exact head is `cdea4172d096ed9a69e70dbdee14f04941153bc6`, 7 commits ahead / 27 behind current `main`, merge base `6ac193a9b856bf69a1bfd83a8d8cb2d3df72893d`.
 
-A branch-specific C17 failure was correctly handled with diagnostic current-main control #320 rather
-than by replaying the full retained suite. The clean C17 control passed; #320 is closed unmerged.
+Exact-head evidence already established:
 
-Audit directive on #315:
+- dedicated C21 authority A/B `34168726628`: PASS;
+- repository CI `34168726696`: PASS;
+- Wave C17 GPS `34168726606`: FAIL on the old broad-fan-out head;
+- clean current-main diagnostic control #320 passed GPS + build, isolating the failure as branch/integration-specific rather than a current-main retained regression.
 
-- recompose the narrow C21 delta when relevant current contracts require it;
-- rerun dedicated C21 + cheap exact-head CI/C17 only;
-- widen only if C17 reproduces on the synchronized C21 head;
-- before merge, align the new C21 workflow with the accepted trigger policy: C21-owned files remain
-  PR-gating, broad build/central-registration changes become one post-merge-main retained run.
+Audit directive remains:
 
-### Authorship — AUTH-0096
+- recompose the narrow C21 delta onto current main before acceptance;
+- rerun dedicated C21 + cheap exact-head CI/C17 once;
+- widen only if C17 reproduces on synchronized C21;
+- reuse already-green expensive/orthogonal evidence rather than replaying the obsolete retained matrix;
+- align the C21 workflow trigger with `VALIDATION_POLICY.md`: C21-owned files remain PR-gating, broad shared wiring becomes retained post-merge-main coverage.
 
-**HEALTHY / DORMANT.**
+No producer restart is indicated. The lane has simply not yet performed the requested synchronization boundary.
 
-AUTH-0096 accepted local surface-site capability evidence and correctly reused portable expensive
-evidence across orthogonal workflow/docs movement.
+### Authorship — AUTH-0097
 
-Process note for future Authorship work: include lane-state and genuinely changed cross-lane contract
-updates in the milestone PR when practical. Do not reopen AUTH-0096 merely to eliminate its small
-post-merge bookkeeping sequence.
+**HEALTHY / DORMANT pending consumer.**
 
-### Music / Audio — MUS-0002
+AUTH-0097 is now accepted. PR #328 merged as `b5af55b990349590b594fa1b3594f491839c5b91`; the subsequent acceptance-state merge `c770acc0d73240bf3191d6328acc82252f94a13a` advanced the Authorship ledger and cross-lane contract to the same accepted boundary.
 
-**HEALTHY / DORMANT.**
+Accepted AUTH-0097 provides threshold-free directional surface-access evidence over exact AUTH-0096 provenance. Content owns role thresholds/ranking/site selection; Implementation owns concrete orientation, 3D clearance, obstruction, accommodation, mutation, persistence, and lifecycle.
 
-MUS-0002 now machine-gates canonical soundtrack source/manifest integrity in normal impact-aware CI.
+Authorship should not create AUTH-0098 merely to continue the site-capability inventory. Resume only for a retained executable consumer or morphology tuning after the matching Minecraft/human gate.
+
+### Music / Audio — MUS-0003 / PR #331
+
+**HEALTHY / ACTIVE.**
+
+MUS-0002 remains the highest accepted repository-level Music boundary. PR #331 begins MUS-0003 directly from current `main@c770acc0` with one bounded commit and no branch divergence.
+
+MUS-0003 machine-verifies the two existing Track-00 BBCSO range-repair candidates as deterministic **non-canonical** artifacts. It explicitly does not promote either candidate and does not replace the required human BBCSO listening gate.
+
+At this reconciliation, exact-head CI `34176101697` is in progress. The Music source-integrity step has already passed; build/test/evidence generation is still running with no hang/failure evidence.
 
 Human/source gates remain:
 
-- Track 00 BBCSO V2F2A vs V2F2B listening A/B;
+- Track 00 V2F2A vs V2F2B BBCSO listening A/B;
 - original CWP plugin-state recovery/inspection where required;
 - exact Track 06 Draft 02.3 MIDI recovery and later listening/master disposition.
 
-Machine verification does not waive those gates.
-
 ## VALIDATION / WORKFLOW POLICY — CURRENT STEADY STATE
 
-### Routine PRs
+Routine PRs should use normal CI + direct feature/contract tests + only retained checks whose owned dependency surface changed.
 
-Prefer:
+Expensive evidence remains representative by risk-equivalence class. Sampled failures widen only the affected class. Orthogonal main movement does not invalidate portable expensive evidence when dependency surfaces are unchanged and synchronized cheap exact-head CI is green.
 
-```text
-normal CI
-+ direct feature/contract tests
-+ only retained checks whose direct owned dependency surface changed
-```
-
-Do not attach the complete historical capability matrix to every PR.
-
-### Expensive evidence
-
-- full Showcase + SF-IMP-0070 performance are retained **weekly + manual**;
-- old SF-IMP-0061..0069 suites are manual-only;
-- accepted Content waves keep narrow direct PR triggers and broad shared-wiring checks post-merge;
-- docs/state-only PRs use the lightweight integrity CI path;
-- expensive evidence may be reused after orthogonal changes when dependency/contract surfaces are
-  unchanged and cheap current-head evidence is green.
-
-### Synchronization
-
-Numerical behind-count is not a defect.
-
-Request synchronization only for:
-
-- relevant contract/dependency movement;
-- actual merge conflict;
-- acceptance/merge boundary;
-- a relevant newer-main regression failure;
-- stale state that changes the claim.
-
-### Branch checkpointing
-
-Audit should actively inspect a long producer branch for **mixed independently provable concerns**.
-
-When reusable fixes are already independently tested and an unrelated unresolved gate is holding them
-hostage, recommend a bounded support checkpoint rather than allowing one branch to grow indefinitely.
-
-Do not split merely to reduce commit count. Split only when the resulting support delta has a coherent,
-independent correctness claim and makes the remaining milestone smaller/safer.
-
-### Bookkeeping
-
-Prefer state/contracts in the milestone PR. Avoid separate merge-hash-only repair PRs and duplicate
-cross-lane contract restatements.
-
-## PR / BRANCH HYGIENE
-
-Closed as superseded/reserved rather than continually rebased:
-
-- Audit #298, #299, #300 — valid content recomposed through #325;
-- Audit #323 — stale hourly snapshot superseded by this current-main reconciliation;
-- Authorship #303 — milestone-number collision; floating-river concept preserved in design state;
-- C11 #233, Portable Engine #240, Bellanca B0-A #242 — reserved historical work; reconstruct from
-  current main if resumed;
-- diagnostic C17 #320 — served its isolation purpose and closed unmerged;
-- stale Dependabot #282 — low-priority obsolete-base automation PR; Dependabot may recreate if needed.
-
-Age alone is not a problem; stale branches should not masquerade as active work.
+Retired standalone risks should pivot to the next integration risk rather than accumulate repeated lifecycle/persistence/client proofs.
 
 ## HUMAN / MANUAL GATES
 
 - #194 ecology: **PASSED / CLOSED**.
-- #214 production morphology: **OPEN**. Do not summon human review until a bounded representative
-  SF-IMP-0083 candidate is actually ready.
-- #267 Massif traversal lumpiness: human/evidence classification after representative matrix.
-- #283 Tableland-vs-Massif identity: human/evidence classification after representative matrix.
-- Music: Track-00 A/B, plugin-state recovery, Track-06 exact-source/listening gates remain open.
-- Bellanca/C12 and Portable Engine interaction gates remain future/dormant.
+- #214 production morphology: **OPEN, NOT READY**. Do not summon human review until a bounded representative SF-IMP-0083 candidate exists.
+- #267 Massif traversal lumpiness: defer classification until representative matrix evidence.
+- #283 Tableland-vs-Massif identity: defer classification until representative matrix evidence; current Tableland runtime failure is a process/runtime issue, not an aesthetic verdict.
+- Music Track-00 A/B: **OPEN**; MUS-0003 may make candidate integrity machine-clean but cannot make the listening choice.
+- Track-06 exact-source/listening and plugin-state recovery remain open.
+
+Human-strategy roadmap:
+
+- HS-03 remains **NOT YET AT TRIGGER** until SF-IMP-0083 reaches a synchronized clean acceptance candidate.
+- HS-04 remains **NOT YET AT TRIGGER** until #214 multi-seed/scale review is ready.
+- HS-06 is approaching but should be surfaced when C21/resource realization moves from authority control into concrete Bootstrap Province selection/guarantee implementation; C21 itself does not yet lock that recipe.
 
 ## NEXT AUDIT WORK
 
-1. Watch #285 for a bounded generic-runtime checkpoint or clean reason not to split; do not permit
-   unchanged Tableland reruns or unrelated generic optimization to extend the branch indefinitely.
-2. Watch #315 for narrow C21 convergence and trigger-policy alignment; do not broaden retained
-   regression after the already-isolated C17 result unless it reproduces.
-3. Enforce the validation policy across new producer workflows before they become accepted historical
-   fan-out.
-4. Prefer atomic lane-state/contracts updates in future producer milestone PRs.
-5. Track [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md); next human strategy trigger is HS-03
-   after SF-IMP-0083 reaches a clean acceptance boundary.
-6. Continue the hourly orchestrator brief and notify separately for LOOP RISK, restart recommendation,
-   ready human gate, serious repository/process failure, or a strategy trigger.
-
-No additional repository-process optimization is currently justified without either new evidence of
-waste or a substantive product/accuracy tradeoff.
+1. Watch #285 for a bounded generic-runtime checkpoint or a clean reason not to split; escalate to LOOP RISK if it repeats unchanged Tableland/full-matrix heavy characterization before diagnosis.
+2. Watch #315 for current-main recompose plus narrow C21/C17 exact-head replay; do not permit broad retained-regression replay absent reproduction.
+3. Watch #331 exact-head CI; if green, MUS-0003 may merge without waiving the Track-00 listening gate.
+4. Preserve AUTH-0097 as dormant accepted input until a retained downstream consumer requests more semantics.
+5. Surface HS-03 only at a clean SF-IMP-0083 acceptance boundary; surface HS-06 before concrete Bootstrap resource-selection/guarantee realization is locked.
+6. Continue hourly supervision and notify separately for LOOP RISK, restart recommendation, ready human gate, serious repository/process failure, or a triggered strategy decision.
