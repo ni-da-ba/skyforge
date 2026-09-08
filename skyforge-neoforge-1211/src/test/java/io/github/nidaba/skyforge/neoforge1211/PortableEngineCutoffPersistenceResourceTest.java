@@ -48,7 +48,7 @@ final class PortableEngineCutoffPersistenceResourceTest {
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/"
                         + "SkyforgePortableEngineCutoffPersistenceAcceptance.java"));
 
-        assertTrue(source.contains("saveEverything()"));
+        assertTrue(source.contains("saveEverything(false, true, true)"));
         assertTrue(source.contains("SAVED_BURN_TIME = 600"));
         assertTrue(source.contains("SAVED_FUEL_COUNT = 1"));
         assertTrue(source.contains("SAVED_COMPARATOR = 12"));
