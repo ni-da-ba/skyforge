@@ -470,19 +470,20 @@ Accepted stationary behavior:
 Exact candidate validation passed Portable Engine Cutoff run `34190573454`, retained C11 regression
 `34190573367`, and repository CI `34190573402`.
 
-PR #392 additionally accepts real two-boot save/reopen and comparator coherence:
+PR #392 additionally accepts real **three-boot** persistence in both CUT and configured-RUN states,
+plus comparator coherence:
 
-- CUT mode persists across a dedicated-server world save/reopen;
-- exact active burn timer persists at 600 ticks;
-- one queued coal item persists;
-- persisted neighboring redstone keeps CUT active with zero output;
-- upstream comparator output persists at 12;
-- after signal removal and one resumed tick, burn becomes 599, output returns to 32 RPM, and
-  comparator coherently transitions 12 -> 11.
+- boot A saves configured CUT at burn=600, one queued coal, comparator=12, zero output;
+- boot B reopens that exact CUT state, removes the persisted signal, resumes at burn=599 / 32 RPM /
+  comparator=11, then saves configured RUN;
+- boot C reopens configured RUN with cutoff mode still persisted but inactive, exact burn=599,
+  one queued coal, comparator=11, and normal 32 RPM output;
+- one further real engine tick decrements burn to 598 while preserving normal output/comparator
+  behavior.
 
-Exact code-head verification passed Portable Engine Cutoff Persistence run `34192202520`, stationary
-cutoff regression `34192202524`, retained C11 regression `34192202494`, and repository CI
-`34192202484`.
+Exact strengthened-head verification passed Portable Engine Cutoff Persistence run `34193038291`,
+stationary cutoff regression `34193038285`, retained C11 regression `34193038301`, and repository
+CI `34193038286`.
 
 Issue #237 remains **open**. Assembled-Sable behavior, two-engine together/independent control, and
 human ergonomics remain unaccepted.

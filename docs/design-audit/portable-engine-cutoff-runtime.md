@@ -100,13 +100,16 @@ The initial live proof requires:
 
 Issue #237 must remain open after the initial stationary proof.
 
-Still required:
+Still required after the stationary proof:
 
 - save/reload in RUN and CUT states;
 - assembled Sable contraption behavior;
 - two-engine together/independent cutoff behavior;
 - comparator/display coherence under the added mode;
 - human ergonomics / neighboring-redstone shutdown clarity.
+
+PR #392 closes the save/reload and comparator items below; assembled Sable, two-engine behavior, and
+human ergonomics remain open.
 
 C12 may consume the cutoff seam for engineering-mule work, but final powered-soaring/restart
 acceptance must not be declared closed until the relevant mobile/persistence gates pass.
@@ -142,55 +145,52 @@ This accepts only the stationary compatibility seam. Issue #237 remains open for
 assembled-Sable, two-engine, comparator/display, and human ergonomics gates.
 
 
-## Persistence/comparator follow-on
-
-The next #237 slice is intentionally a separate two-boot dedicated-server specimen rather than an
-in-memory NBT unit test.
-
-Prepare boot:
-
-- place an opted-in Portable Engine;
-- power the cutoff with a persisted redstone block;
-- set exact active burn time to 600 ticks;
-- queue one coal item;
-- verify zero output and comparator level 12;
-- force a world save.
-
-Verify boot reopens the same disposable world and requires:
-
-- the Portable Engine and redstone block still exist;
-- cutoff opt-in flag is restored;
-- cutoff is active;
-- exact burn time remains 600;
-- queued coal count remains one;
-- generated output remains zero;
-- comparator remains 12.
-
-Then the verify boot removes the signal and ticks once:
-
-- burn time becomes 599;
-- output returns to normal 32 RPM;
-- comparator falls coherently from 12 to 11.
-
-This proof remains stationary. Assembled-Sable and two-engine behavior stay separate mobile gates.
-
-
 ## Accepted persistence/comparator evidence
 
-Exact code head `e6ce64657b67a287f2e69d922262ef33d3882789` passed:
+The accepted #237 persistence specimen is a **three-boot dedicated-server proof** against one
+disposable world, not an in-memory NBT round-trip.
 
-- Portable Engine Cutoff Persistence run `34192202520`;
-- stationary Portable Engine Cutoff regression `34192202524`;
-- retained C11 recipe regression `34192202494`;
-- repository CI run `34192202484`.
+Boot A saves configured CUT:
 
-The two dedicated-server boots reported:
+- burn=600;
+- one queued coal;
+- comparator=12;
+- zero generated output;
+- neighboring redstone persisted;
+- cutoff mode configured and active.
+
+Boot B reopens that exact CUT state, then removes the signal and executes one real engine tick:
+
+- burn 600 -> 599;
+- output returns to normal 32 RPM;
+- comparator 12 -> 11;
+- cutoff mode remains configured but becomes inactive;
+- that configured RUN state is then explicitly saved.
+
+Boot C reopens configured RUN:
+
+- burn=599;
+- one queued coal;
+- comparator=11;
+- cutoff mode still configured but inactive;
+- normal 32 RPM output present;
+- one further real tick continues burn 599 -> 598.
+
+Exact strengthened code head `d910694922fe5f8480a4f4bb4d7b390f324a7bde` passed:
+
+- Portable Engine Cutoff Persistence run `34193038291`;
+- stationary Portable Engine Cutoff regression `34193038285`;
+- retained C11 recipe regression `34193038301`;
+- repository CI run `34193038286`.
+
+Live markers:
 
 ```text
 PREPARE PASS burn=600 fuel=1 comparator=12 active=true
-VERIFY  PASS burn=600->599 fuel=1 comparator=12->11 persistedMode=true
+CUT VERIFY PASS burn=600->599 fuel=1 comparator=12->11 persistedMode=true runSaved=true
+RUN VERIFY PASS burn=599->598 fuel=1 comparator=11 persistedMode=true active=false
 ```
 
-This accepts save/reopen and comparator coherence only. The next #237 gate is actual Sable
-sublevel assembly with two Portable Engines and together/independent cutoff/restart behavior.
-Human ergonomics remains a final manual gate.
+This accepts save/reopen in both CUT and configured-RUN states plus comparator coherence. The next
+#237 gate is actual Sable sublevel assembly with two Portable Engines and together/independent
+cutoff/restart behavior. Human ergonomics remains the final manual gate.
