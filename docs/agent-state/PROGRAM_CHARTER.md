@@ -148,6 +148,46 @@ Audit should autonomously:
 
 A scheduled Audit watch may perform these checks periodically. Scheduled monitoring does not change lane ownership or acceptance authority.
 
+### Producer-session liveness rule
+
+A visually frozen producer chat is not automatically dead, because useful work may continue through
+repository writes or Actions after the UI stops visibly updating. Audit must distinguish UI symptoms
+from execution liveness using external evidence.
+
+Treat a user report that a producer chat appears frozen/stopped as **authoritative UI evidence**.
+Then inspect the producer's repository-visible activity:
+
+- new commits or branch-head movement;
+- PR body/state/comment updates;
+- newly created or progressing workflow runs/jobs;
+- fresh issue/handoff comments or other lane-owned repository writes.
+
+Classification:
+
+~~~text
+UI appears frozen + repository/Actions still advancing
+    -> ACTIVE / KEEP SESSION
+
+UI appears frozen + no repository/Actions movement yet
+    -> WATCH / POSSIBLE STALL
+
+UI appears frozen + no information-bearing repository/Actions movement across the next reasonable
+watch interval, or the user reports the generation has explicitly stopped
+    -> STALE SESSION / RESTART RECOMMENDED
+
+UI appears frozen + repeated repo activity is only unchanged reruns, conflict churn, or bookkeeping
+with no new technical information
+    -> LOOP RISK / RESTART RECOMMENDED
+~~~
+
+Do not wait indefinitely for a producer merely because it *could* still be thinking. When UI-frozen
+evidence and repository silence coincide, session liveness is a first-class Audit concern. Conversely,
+do not kill a visually frozen session while substantive repository or workflow progress continues.
+
+When recommending replacement, preserve work already made durable in Git and instruct the new producer
+to reconstruct from current main and canonical state/contracts rather than attempting to recover the
+old conversation.
+
 ## Working method
 
 Prefer:

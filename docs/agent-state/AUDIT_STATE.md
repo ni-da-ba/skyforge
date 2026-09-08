@@ -140,6 +140,27 @@ Human-strategy roadmap:
 - HS-04 remains **NOT YET AT TRIGGER** until #214 multi-seed/scale review is ready.
 - HS-06 is approaching but should be surfaced when C21/resource realization moves from authority control into concrete Bootstrap Province selection/guarantee implementation; C21 itself does not yet lock that recipe.
 
+## PRODUCER SESSION LIVENESS
+
+Project-owner feedback on 2026-09-07 indicates the previously quiet/frozen Implementation and Content
+producer chats were in fact dead and were restarted. Future Audit passes should therefore escalate
+UI-frozen + repository-silent sessions more aggressively.
+
+Operational rule:
+
+- user-visible frozen/stopped UI is authoritative evidence that the session may be unhealthy;
+- substantive commit/PR/Actions/comment movement proves the producer is still executing and should
+  normally be left alone;
+- no information-bearing repository or Actions movement across the next reasonable watch interval
+  after a frozen/stopped UI report becomes **STALE SESSION / RESTART RECOMMENDED**;
+- unchanged reruns, conflict churn, or bookkeeping-only motion do not count as proof of healthy
+  convergence;
+- when uncertain, explicitly tell the project owner which sessions are ACTIVE, WATCH, DORMANT, or
+  RESTART RECOMMENDED rather than describing all quiet lanes as healthy.
+
+A restarted producer should reconstruct from current main, canonical lane state, validation policy,
+cross-lane contracts, and merged history. Do not attempt to preserve a dead conversation as authority.
+
 ## NEXT AUDIT WORK
 
 1. Watch #285 for a bounded generic-runtime checkpoint or a clean reason not to split; escalate to LOOP RISK if it repeats unchanged Tableland/full-matrix heavy characterization before diagnosis.
