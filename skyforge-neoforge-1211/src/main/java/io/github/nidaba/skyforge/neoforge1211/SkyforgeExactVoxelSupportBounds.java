@@ -5,8 +5,11 @@ import io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainInterpreter;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
 import io.github.nidaba.skyforge.world.WorldBounds;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import net.minecraft.world.level.ChunkPos;
 
 /**
  * Derives the tight closed integer-voxel support bounds of one certified compiled island.
@@ -43,6 +46,7 @@ final class SkyforgeExactVoxelSupportBounds {
         int maximumZ = Integer.MIN_VALUE;
         int occupiedColumns = 0;
         long scannedColumns = 0L;
+        LinkedHashSet<Long> occupiedChunkKeys = new LinkedHashSet<>();
 
         for (int x = scanMinimumX; x <= scanMaximumX; x++) {
             for (int z = scanMinimumZ; z <= scanMaximumZ; z++) {
@@ -53,6 +57,7 @@ final class SkyforgeExactVoxelSupportBounds {
                 }
                 ColumnRange solid = range.orElseThrow();
                 occupiedColumns++;
+                occupiedChunkKeys.add(new ChunkPos(Math.floorDiv(x, 16), Math.floorDiv(z, 16)).toLong());
                 minimumX = Math.min(minimumX, x);
                 maximumX = Math.max(maximumX, x);
                 minimumY = Math.min(minimumY, solid.minimumY());
@@ -83,6 +88,7 @@ final class SkyforgeExactVoxelSupportBounds {
                         maximumZ),
                 occupiedColumns,
                 scannedColumns,
+                Set.copyOf(occupiedChunkKeys),
                 certificate.certificateKind());
     }
 
@@ -147,11 +153,13 @@ final class SkyforgeExactVoxelSupportBounds {
             WorldBounds bounds,
             int occupiedColumns,
             long scannedColumns,
+            Set<Long> occupiedChunkKeys,
             String certificateKind) {
         Result {
             Objects.requireNonNull(bounds, "bounds");
+            occupiedChunkKeys = Set.copyOf(Objects.requireNonNull(occupiedChunkKeys, "occupiedChunkKeys"));
             Objects.requireNonNull(certificateKind, "certificateKind");
-            if (occupiedColumns <= 0 || scannedColumns < occupiedColumns) {
+            if (occupiedColumns <= 0 || scannedColumns < occupiedColumns || occupiedChunkKeys.isEmpty()) {
                 throw new IllegalArgumentException("invalid exact-support evidence counts");
             }
         }

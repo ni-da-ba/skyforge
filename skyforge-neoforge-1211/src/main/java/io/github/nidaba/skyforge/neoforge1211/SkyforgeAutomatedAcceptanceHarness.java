@@ -49,11 +49,14 @@ final class SkyforgeAutomatedAcceptanceHarness {
     static final String RESULT_FILE_PROPERTY = "skyforge.dev.acceptanceResultFile";
     static final String RADIUS_PROPERTY = "skyforge.dev.acceptanceRadius";
     static final String TIMEOUT_SECONDS_PROPERTY = "skyforge.dev.acceptanceTimeoutSeconds";
+    static final String NONBLOCKING_EXPLICIT_WARMUP_PROPERTY =
+            "skyforge.dev.acceptanceNonblockingExplicitWarmup";
+    static final String TICKET_RADIUS_PROPERTY = "skyforge.dev.acceptanceTicketRadius";
 
     private static final String MODE_SERVER = "server";
     private static final String MODE_CLIENT = "client";
     private static final int DEFAULT_RADIUS = 2;
-    private static final int ACCEPTANCE_TICKET_DISTANCE = 3;
+    private static final int DEFAULT_ACCEPTANCE_TICKET_RADIUS = 3;
     private static final TicketType<ChunkPos> ACCEPTANCE_TICKET = TicketType.create(
             "skyforge_acceptance",
             Comparator.comparingLong(ChunkPos::toLong));
@@ -63,7 +66,9 @@ final class SkyforgeAutomatedAcceptanceHarness {
 
     private static final Map<String, String> EVIDENCE = new LinkedHashMap<>();
     private static Set<Long> explicitWarmupChunkKeys = Set.of();
+    private static boolean warmupTicketsInstalled;
     private static boolean warmupComplete;
+    private static long warmupStartNanos = Long.MIN_VALUE;
     private static boolean completionRequested;
     private static long firstServerTickNanos = Long.MIN_VALUE;
 
@@ -95,26 +100,43 @@ final class SkyforgeAutomatedAcceptanceHarness {
                 continue;
             }
             if (!warmupComplete) {
-                warmOriginFootprint(level);
-                warmupComplete = true;
-                LOGGER.log(
-                        System.Logger.Level.INFO,
-                        "SKYFORGE AUTOMATED ACCEPTANCE WARMUP: case=" + caseId()
-                                + ", " + warmupDescription()
-                                + ". Development harness synchronously loaded and ticketed the finite proof footprint.");
+                if (warmupStartNanos == Long.MIN_VALUE) {
+                    warmupStartNanos = SkyforgeRuntimePerformanceMetrics.start();
+                }
+                if (nonblockingExplicitWarmup()) {
+                    warmupComplete = pollExplicitWarmup(level);
+                } else {
+                    warmOriginFootprint(level);
+                    warmupComplete = true;
+                }
+                if (warmupComplete) {
+                    SkyforgeRuntimePerformanceMetrics.recordSince(
+                            "acceptance.warmOriginFootprint",
+                            warmupStartNanos);
+                    LOGGER.log(
+                            System.Logger.Level.INFO,
+                            "SKYFORGE AUTOMATED ACCEPTANCE WARMUP: case=" + caseId()
+                                    + ", " + warmupDescription()
+                                    + (nonblockingExplicitWarmup()
+                                            ? ". Development harness ticketed the finite proof footprint and let the chunk scheduler complete it without serial getChunk forcing."
+                                            : ". Development harness synchronously loaded and ticketed the finite proof footprint."));
+                }
             }
         }
 
-        // Synchronous proof-footprint warmup is test setup, not proof execution. Large finite
-        // fixtures can legitimately spend substantial wall time generating their bounded chunk
-        // corpus, so begin the bounded PASS deadline only after that setup has completed.
-        if (warmupComplete && firstServerTickNanos == Long.MIN_VALUE) {
+        // Nonblocking explicit warmup is part of the bounded acceptance case: if scheduling or
+        // generation stalls, fail instead of hiding the wall time before the harness deadline.
+        // Historical synchronous fixtures retain their accepted setup-time semantics.
+        if (firstServerTickNanos == Long.MIN_VALUE
+                && (warmupComplete || nonblockingExplicitWarmup())) {
             firstServerTickNanos = System.nanoTime();
         }
 
-        long elapsedSeconds = Math.max(
-                0L,
-                (System.nanoTime() - firstServerTickNanos) / 1_000_000_000L);
+        long elapsedSeconds = firstServerTickNanos == Long.MIN_VALUE
+                ? 0L
+                : Math.max(
+                        0L,
+                        (System.nanoTime() - firstServerTickNanos) / 1_000_000_000L);
         long timeout = timeoutSeconds();
         if (elapsedSeconds > timeout) {
             fail(event.getServer(), "acceptance case exceeded " + timeout + " seconds without PASS");
@@ -196,6 +218,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
         Objects.requireNonNull(server, "server");
         Objects.requireNonNull(reason, "reason");
         EVIDENCE.put("failure", reason);
+        record(SkyforgeRuntimePerformanceMetrics.evidence());
         complete("FAIL");
         completionRequested = true;
         server.halt(false);
@@ -213,7 +236,6 @@ final class SkyforgeAutomatedAcceptanceHarness {
     }
 
     private static void warmOriginFootprint(ServerLevel level) {
-        long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
         var chunkSource = level.getChunkSource();
         Set<Long> explicit = explicitWarmupChunkKeys;
         if (!explicit.isEmpty()) {
@@ -228,7 +250,50 @@ final class SkyforgeAutomatedAcceptanceHarness {
                 }
             }
         }
-        SkyforgeRuntimePerformanceMetrics.recordSince("acceptance.warmOriginFootprint", performanceStart);
+    }
+
+    /**
+     * Installs explicit region tickets once, then observes scheduler-completed chunks without
+     * synchronously forcing each one on the server thread.
+     */
+    private static boolean pollExplicitWarmup(ServerLevel level) {
+        Set<Long> explicit = explicitWarmupChunkKeys;
+        if (explicit.isEmpty()) {
+            throw new IllegalStateException(
+                    "nonblocking acceptance warmup requires an explicit finite chunk footprint");
+        }
+
+        var chunkSource = level.getChunkSource();
+        if (!warmupTicketsInstalled) {
+            for (long key : explicit) {
+                ChunkPos pos = new ChunkPos(ChunkPos.getX(key), ChunkPos.getZ(key));
+                chunkSource.addRegionTicket(
+                        ACCEPTANCE_TICKET,
+                        pos,
+                        ticketRadius(),
+                        pos);
+            }
+            warmupTicketsInstalled = true;
+            SkyforgeRuntimePerformanceMetrics.recordSample(
+                    "acceptance.explicitWarmupTickets",
+                    explicit.size());
+        }
+
+        int available = 0;
+        for (long key : explicit) {
+            if (chunkSource.getChunkNow(ChunkPos.getX(key), ChunkPos.getZ(key)) != null) {
+                available++;
+            }
+        }
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "acceptance.explicitWarmupAvailableChunks",
+                available);
+        return available == explicit.size();
+    }
+
+    private static boolean nonblockingExplicitWarmup() {
+        return Boolean.getBoolean(NONBLOCKING_EXPLICIT_WARMUP_PROPERTY)
+                && !explicitWarmupChunkKeys.isEmpty();
     }
 
     private static void warmChunk(
@@ -242,7 +307,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
         chunkSource.addRegionTicket(
                 ACCEPTANCE_TICKET,
                 pos,
-                ACCEPTANCE_TICKET_DISTANCE,
+                ticketRadius(),
                 pos);
         level.getChunk(pos.x, pos.z);
     }
@@ -251,7 +316,16 @@ final class SkyforgeAutomatedAcceptanceHarness {
         Set<Long> explicit = explicitWarmupChunkKeys;
         return explicit.isEmpty()
                 ? "radiusChunks=" + radius()
-                : "explicitChunks=" + explicit.size();
+                : "explicitChunks=" + explicit.size() + ", ticketRadius=" + ticketRadius();
+    }
+
+    private static int ticketRadius() {
+        int value = Integer.getInteger(TICKET_RADIUS_PROPERTY, DEFAULT_ACCEPTANCE_TICKET_RADIUS);
+        if (value < 0 || value > 3) {
+            throw new IllegalArgumentException(
+                    "acceptance ticket radius must be in [0,3], found " + value);
+        }
+        return value;
     }
 
     private static int radius() {

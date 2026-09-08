@@ -13,9 +13,11 @@ import net.minecraft.world.level.chunk.LevelChunk;
  * <p>Skyforge's concrete chunk writer deliberately uses {@link ChunkAccess#setBlockState} so direct
  * world-generation realization remains a low-level deterministic materialization step. SF-IMP-0056
  * may replay that same writer after a target chunk has already become a client-visible
- * {@link LevelChunk}. In that deferred lifecycle, each actual block change must also be submitted to
- * Minecraft's light engine and block-change broadcaster; otherwise the authoritative server chunk
- * can contain correct collision while a tracking client retains stale section geometry or lighting.
+ * {@link LevelChunk}. In that deferred lifecycle, {@link LevelChunk#setBlockState} already submits
+ * changed light properties to Minecraft's light engine. Skyforge must additionally submit the
+ * block-change broadcast and ensure the threaded light queue is kicked while long catch-up work is
+ * still consuming server ticks; otherwise a tracking client can retain stale section geometry or
+ * lighting, or the queued light work can grow without bound.
  *
  * <p>This scope is opened only around deferred terrain catch-up. Native population runs after it is
  * closed, and ordinary WorldGenRegion realization never enters it.
@@ -57,12 +59,20 @@ final class SkyforgeDeferredChunkMutationLifecycle {
             throw new IllegalStateException("deferred stable-chunk mutation escaped its target chunk");
         }
 
-        // The writer reuses one MutableBlockPos. Both downstream systems may retain/schedule work,
-        // so never hand them that mutable instance.
+        // The writer reuses one MutableBlockPos. The broadcaster may retain/schedule work, so never
+        // hand it that mutable instance. LevelChunk#setBlockState has already submitted the required
+        // light-engine check for this stable-chunk write; duplicating checkBlock here doubles the
+        // threaded light backlog.
         BlockPos immutablePosition = position.immutable();
-        state.level.getChunkSource().getLightEngine().checkBlock(immutablePosition);
         state.level.getChunkSource().blockChanged(immutablePosition);
         state.changedBlocks++;
+
+        // A single exact-solid chunk can contain enough changed blocks to monopolize a server tick.
+        // Kick the asynchronous light executor periodically from inside the chunk, not only when the
+        // mutation scope closes. tryScheduleUpdate() is idempotent while a batch is already active.
+        if ((state.changedBlocks & 0xff) == 0) {
+            state.level.getChunkSource().getLightEngine().tryScheduleUpdate();
+        }
     }
 
     private static final class State {
@@ -91,6 +101,12 @@ final class SkyforgeDeferredChunkMutationLifecycle {
             }
             closed = true;
             ACTIVE.remove();
+
+            // Drain any remainder after the final partial batch. The LevelChunk write has already
+            // issued exactly one lighting check per relevant block; this only schedules processing.
+            if (state.changedBlocks > 0) {
+                state.level.getChunkSource().getLightEngine().tryScheduleUpdate();
+            }
         }
     }
 }

@@ -1,8 +1,8 @@
 # Skyforge Implementation lane state
 
 **Canonical lane:** IMPLEMENTATION  
-**Updated:** 2026-09-07  
-**Repository snapshot observed at migration:** `main@3f300346e598a6bc87a3a1468ec028bdee7eec0b`  
+**Updated:** 2026-09-08
+**Repository snapshot observed for current SF-IMP-0083 recomposition:** `main@13b453284dca429da3e78bb3d5d9fe3be9dee627`  
 **Highest merged Implementation milestone:** **SF-IMP-0082**  
 **SF-IMP-0082 merge:** PR #273, `3c48828924b0cf4ac7f1184c493d60ef605bf84a`
 
@@ -149,6 +149,22 @@ Two non-blocking tuning questions remain deliberately separate from carrier corr
 
 Do not tune from one specimen. The next accepted direction is to complete the AUTH-0083 built-in multi-seed/multi-scale matrix first.
 
+### SF-IMP-0083 runtime-recovery support boundary — MERGED
+
+PR #338 merged as `3f6e27bdef4d85a7b167db460e630a6ed12e28cc` without consuming a
+milestone number or claiming SF-IMP-0083 acceptance. It extracted the reusable runtime delta from
+superseded draft #285 onto current-main history:
+
+- exact-column native occupancy survey preserving historical first-conflict identity;
+- exact-footprint admission skipping for bounds-only chunks;
+- bounded one-volume deferred catch-up with terrain-before-population ordering;
+- admitted exact deferred-write fast path with conservative overlap fallback;
+- neutral column classification/materialization hot-path reductions;
+- focused unit/regression coverage.
+
+Synchronized normal CI run 34179592334 passed before merge. Draft PR #285 was then closed unmerged as
+superseded rather than carrying its 53-commit synchronization history forward.
+
 ## Architectural invariants
 
 - BASE_WORLD generation and Skyforge exact ownership remain distinct domains.
@@ -175,20 +191,101 @@ Read [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md). Most important near-ter
 
 ### SF-IMP-0083 — AUTH-0083 built-in seed/scale Minecraft matrix
 
-Issue **#284** is the active next Implementation milestone.
+Issue **#284** remains the active Implementation milestone. The original four-member-per-family
+carrier draft #285 is retired. Its Tableland characterization run 34171538516 enabled 1,886 exact
+warmup chunks in a 1,616-block-high carrier and then emitted repeated `OutOfMemoryError` failures
+before producing `prepare.properties`. This is classified as a carrier-resource failure, not a
+morphology correctness failure.
 
-Complete the remaining **20** built-in AUTH-0083 specimens in Minecraft:
+The recomposed branch is `impl/sf-imp-0083-representative-carriers`.
 
-- MEDIUM scale at `seed-min`, `seed-zero`, and `seed-skyforge` for Massif, Tableland, Spine, Basin, and Lobed;
-- LARGE scale at `seed-skyforge` for all five families.
+Tier 0 remains exhaustive for all **20** remaining AUTH-0083 built-ins: exact member/family/seed/scale
+identity, deterministic provider-neutral compilation, tight support, occupied chunk footprint,
+translation/build-range feasibility, and cheap diagnostics.
 
-The five SMALL / `seed-skyforge` members are already accepted through SF-IMP-0081/0082.
+Tier 2 lifecycle evidence is representative under the canonical validation policy. The initial seven
+risk representatives are:
 
-First profile exact integer support bounds and finite chunk footprints for all remaining members before choosing runtime packaging. Prefer evidence-driven grouped atlases or another bounded reusable lifecycle over blindly spawning a 20-client CI matrix.
+- Massif MEDIUM / seed-skyforge;
+- Tableland MEDIUM / seed-skyforge;
+- Spine MEDIUM / seed-min;
+- Basin MEDIUM / seed-zero;
+- Lobed MEDIUM / seed-skyforge;
+- Massif LARGE / seed-skyforge;
+- Spine LARGE / seed-skyforge.
 
-Preserve exact AUTH-0083 member IDs, seeds, scales, provider identities, full bounded detail, full secondary morphology, provider-neutral compilation, objective admission/persistence gates, and human #214 review.
+The replacement Minecraft carrier realizes **one exact member per world**, uses min Y 320 / height
+544, translates exact support to begin at Y=336, warms exact occupied chunks only, and uses
+nonblocking explicit warmup rather than serial synchronous `getChunk` forcing. Cave/ecology/interior
+mutation remains absent so the carrier isolates morphology realization.
 
-This tranche is the evidence gate for **#267** and **#283**. Do not retune Massif or Tableland until multiple seeds/scales show whether the observed lumpiness/family similarity is systemic.
+Tableland MEDIUM / seed-skyforge is the first deliberate full-runtime case because it reproduces the
+family/context that exposed the retired carrier's memory pathology. Diagnostic run 34184041079
+reached complete sampled geometry (3,192/3,192 top/underside boundaries, matching exterior air,
+zero height mismatches) before an inherited grass>0 predicate stopped the case. After that predicate
+was correctly narrowed to stable land substrate + exact geometry, run 34185431565 exposed a later
+real resource failure: Java heap exhaustion during admitted deferred exact-solid realization before
+the 862-chunk radius-3 warmup completed. The representative failure therefore widened the carrier
+resource class as required.
+
+The next bounded correction does not add heap or weaken lifecycle evidence. The acceptance harness
+now permits an explicit ticket radius while retaining radius 3 as the historical default; SF-IMP-0083
+uses radius 0 because its proof needs target chunks held at FULL status for getChunkNow/deferred
+mutation, not an entity-ticking halo around every one of 862 targets. Run 34186680014 then passed
+Tableland preparation under radius 0 with the exact 862-chunk footprint and no heap failure. Its
+actual-client reopen did not start the integrated server: QuickPlay stalled while the shared
+development resource set parsed the C1 Create Addition recipe even though Create Addition was absent
+from this stripped morphology client. The development-only recipe is now guarded by NeoForge's
+mod-loaded condition. Its retained-stack behavior is unchanged when Create Addition is present, and
+the isolated morphology client can ignore the unrelated compatibility override.
+
+Widened representative run 34188436241 then separated two independent remaining carrier
+problems. Basin MEDIUM / seed-zero and Spine LARGE / seed-skyforge exhausted heap while
+`ThreadedLevelLightEngine.checkBlock` work accumulated during slow deferred stable-chunk catch-up;
+the authoritative exact geometry was not rejected. The accepted SF-IMP-0056 side effects remain
+required. Follow-up Basin evidence on run 34189778665 showed that one end-of-chunk kick was
+insufficient and, critically, the surviving OOM stack moved inside
+`LevelChunk.setBlockState -> ThreadedLevelLightEngine.checkBlock`. Stable `LevelChunk#setBlockState`
+already owns the required light-engine notification in Minecraft 1.21.1, so the deferred lifecycle
+now removes its redundant second `checkBlock`, retains the explicit `blockChanged` broadcast, and
+calls `tryScheduleUpdate()` every 256 changed blocks plus once at scope close. This preserves one
+native lighting notification per relevant stable-chunk write while preventing a single slow chunk
+from starving the asynchronous light executor.
+
+The same widened run showed Massif MEDIUM, Tableland MEDIUM, Spine MEDIUM, and Lobed MEDIUM
+preparing successfully but stopping on the same 360-second pre-integrated-server QuickPlay boundary.
+The development-only 544-high dimension is an experimental world configuration, so actual-client
+acceptance now recognizes only Minecraft's `BackupConfirmScreen` and presses the exact
+`selectWorld.backupJoinSkipButton` ("I Know What I'm Doing!") action before continuing the unchanged
+ownership-only persistence proof. The client records whether this expected warning was acknowledged
+and reports its last screen class on timeout.
+
+Post-fix branch evidence on `b3195c1e554b39f3595bec22122831525aae5238` closes both diagnosed
+machine defects before final-main recomposition. Normal CI 34190278699 and retained C21 A/B
+34190278674 passed. Basin MEDIUM / seed-zero run 34191320102 passed preparation plus actual-client
+reopen with 888 / 888 exact footprint chunks, 3,331 / 3,331 sampled top and underside boundaries,
+zero height mismatches, and stable digest 13330754608028663149. Massif MEDIUM / seed-skyforge run
+34191688813 passed with 969 / 969 chunks, 3,591 / 3,591 boundaries, zero mismatches, and stable digest
+12718455444228866863. Massif LARGE / seed-skyforge run 34191720235 passed with 2,124 / 2,124 chunks,
+8,088 / 8,088 boundaries, zero mismatches, and stable digest 1731929346833003588. None reproduced
+the earlier heap failure; all actual-client viewers acknowledged the expected experimental-world
+warning and reproduced the persisted geometry. Final synchronized candidate `05bd8cd9c9a1b26e7f196c633e07a93a151d79e5` passed ordinary CI
+34214944601 plus the current-main C11, C21, Portable Engine cutoff, and Portable Engine persistence
+regressions. Final representative run 34215626713 then passed **all seven** approved Tier 2 cases
+through preparation and persisted actual-client reopen: Massif MEDIUM / seed-skyforge, Tableland
+MEDIUM / seed-skyforge, Spine MEDIUM / seed-min, Basin MEDIUM / seed-zero, Lobed MEDIUM /
+seed-skyforge, Massif LARGE / seed-skyforge, and Spine LARGE / seed-skyforge.
+
+Main subsequently advanced only through the accepted Sable Portable Engine cutoff proof. Its overlap
+with this PR is limited to one additional ModDev run block in `build.gradle.kts` and one opt-in
+bootstrap hook in `SkyforgeNeoForge1211Mod`; no SF-IMP-0083 carrier, generator, mutation, viewer,
+contract, or dependency changed. Under the canonical evidence-portability rule, run 34215626713
+remains merge-ready expensive evidence after recomposition onto `main@13b453284...`; only cheap
+exact-head/current-contract gates need to be rerun. The remaining acceptance boundary is human
+#214/#267/#283 morphology review after those exact-head gates pass.
+
+Preserve exact AUTH-0083 IDs/providers and objective admission/persistence/digest gates. Human #214,
+#267, and #283 remain qualitative gates; no machine diagnostic is an aesthetic pass/fail threshold.
 
 ## PROPOSED / priority order
 
@@ -212,6 +309,7 @@ Deprioritized performance follow-up: issue #219 (canonical nearest-first surface
 - Structure support was proved earlier but has not yet been fully reintegrated into the newest production exact-volume population lifecycle.
 - Underside morphology is a first-class requirement; the SMALL / seed-skyforge review passed across all five built-in families, but multiple seeds/scales must still test whether primary+detail underside vocabulary remains sufficient.
 - Issue #267 tracks a non-blocking Massif traversal-quality concern: repeated local rises/falls may be too lumpy for comfortable on-foot exploration. Issue #283 separately tracks Tableland-vs-Massif family separation. Do not retune either family from one specimen; SF-IMP-0083 provides the required multi-seed/multi-scale evidence.
+- Retired SF-IMP-0083 draft #285 demonstrated that four large vertically stacked morphology volumes in one 1,616-high carrier can exhaust GitHub-runner memory. Do not rerun that packaging. Use one exact member per short review world and widen only on information-bearing failures.
 
 ## Verification procedures
 
@@ -230,8 +328,7 @@ Useful local Gradle entry points include:
 :skyforge-neoforge-1211:showcaseEcologyPrepareVerify
 :skyforge-neoforge-1211:showcaseEcologyViewerVerify
 :skyforge-neoforge-1211:launchShowcase
-:skyforge-neoforge-1211:launchShowcaseEcology
-```
+:skyforge-neoforge-1211:launchShowcaseEcology\n:skyforge-neoforge-1211:productionMorphologySeedScaleTablelandPrepareVerify -PskyforgeProductionMorphologyVariant=medium-seed-skyforge\n:skyforge-neoforge-1211:productionMorphologySeedScaleTablelandViewerVerify -PskyforgeProductionMorphologyVariant=medium-seed-skyforge\n```
 
 Use `--no-configuration-cache` for the showcase/dev runs where the project marks ModDev orchestration incompatible with configuration cache.
 
@@ -247,16 +344,19 @@ Do not declare production morphology aesthetically accepted before this human ga
 
 ## Immediate recommended next work
 
-Begin **SF-IMP-0083 / issue #284** from merged SF-IMP-0082.
+Continue **SF-IMP-0083 / issue #284** on the recomposed single-member carrier.
 
-Use the exact AUTH-0083 built-in matrix rather than inventing new seeds/scales. The next tranche should:
+Next acceptance sequence:
 
-- complete MEDIUM seed-min / seed-zero / seed-skyforge and LARGE seed-skyforge for all five built-in families;
-- first measure each specimen's tight integer support and chunk footprint so runtime packaging is evidence-driven;
-- reuse/generalize the accepted exact carrier, explicit finite warmup, physical admission, top/underside digest, persistence, and mutation-inert actual-client reopen contracts;
-- preserve exact member IDs in all evidence and review commands;
-- add descriptive seed/scale/traversal diagnostics without hard aesthetic thresholds;
-- compare Massif and Tableland explicitly across seeds/scales to classify #267/#283 before any tuning;
-- retain a human #214 gate for family identity, macro/meso hierarchy, underside quality, repetition, and traversal character.
+1. recompose the proven SF-IMP-0083 delta onto current main while preserving orthogonal Sable
+   Portable Engine wiring;
+2. run cheap exact-head repository/current-contract gates;
+3. reuse final seven-representative lifecycle evidence from run 34215626713 under the canonical
+   evidence-portability rule;
+4. stop at the human #214/#267/#283 review gate with the seven representative launch commands;
+5. after human approval, record SF-IMP-0083 acceptance and merge the smallest coherent milestone.
 
-After the built-in 25-member corpus is complete, proceed to AUTH-0083's 10 pairwise hybrids and 6 external-provider-axis specimens unless evidence first justifies a focused morphology tuning item.
+After carrier/lifecycle risk and the human morphology gate are retired, prefer the next major
+production-world integration over exhaustive equivalent lifecycle repetition. Current cross-lane
+state also hands C25/C26 petroleum source/depletion/pumpjack integration to Implementation; that
+handoff is queued behind the active SF-IMP-0083 human gate rather than folded into this morphology PR.

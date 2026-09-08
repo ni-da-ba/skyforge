@@ -29,6 +29,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ProductionMorphologyMassifDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ProductionMorphologyAtlasDevRuntime.installFromSystemProperty();
+        SkyforgeNeoForge1211ProductionMorphologySeedScaleDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ShowcaseEcologyDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211LocalModificationsDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211CarverDevRuntime.installFromSystemProperty();
@@ -60,6 +61,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211ShowcaseEcologyViewer.installFromSystemProperty();
         SkyforgeNeoForge1211ProductionMorphologyMassifViewer.installFromSystemProperty();
         SkyforgeNeoForge1211ProductionMorphologyAtlasViewer.installFromSystemProperty();
+        SkyforgeNeoForge1211ProductionMorphologySeedScaleViewer.installFromSystemProperty();
         SkyforgeWaveC6SoaringFaunaDevRuntime.installFromSystemProperty();
         SkyforgeWaveC7GliderLiftDevRuntime.installFromSystemProperty();
         SkyforgeWaveC10NetherScaleAcceptance.installFromSystemProperty();

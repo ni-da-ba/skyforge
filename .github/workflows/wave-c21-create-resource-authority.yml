@@ -7,6 +7,7 @@ on:
       - "skyforge-neoforge-1211/wave-c9-mods.properties"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC21CreateResourceAuthorityAcceptance.java"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/WaveC21CreateResourceAuthorityResourceTest.java"
+      - "skyforge-neoforge-1211/src/development/resources/data/createaddition/recipe/crafting/modular_accumulator.json"
       - "docs/design-audit/wave-c21-create-resource-authority.md"
   push:
     branches: [main]

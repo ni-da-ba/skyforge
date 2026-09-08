@@ -351,6 +351,18 @@ val skyforgeProductionMorphologyAtlasMembers = linkedMapOf(
 fun skyforgeMorphologyAtlasSuffix(family: String): String =
     family.substring(0, 1).uppercase() + family.substring(1)
 
+val skyforgeProductionMorphologySeedScaleFamilies =
+    listOf("massif", "tableland", "spine", "basin", "lobed")
+val skyforgeProductionMorphologySeedScaleVariant =
+    providers.gradleProperty("skyforgeProductionMorphologyVariant")
+        .orElse("medium-seed-skyforge")
+        .get()
+val skyforgeProductionMorphologySeedScaleVariants =
+    setOf("medium-seed-min", "medium-seed-zero", "medium-seed-skyforge", "large-seed-skyforge")
+check(skyforgeProductionMorphologySeedScaleVariant in skyforgeProductionMorphologySeedScaleVariants) {
+    "unknown SF-IMP-0083 seed/scale variant: $skyforgeProductionMorphologySeedScaleVariant"
+}
+
 neoForge {
     version = "21.1.249"
 
@@ -1401,6 +1413,70 @@ neoForge {
             }
         }
 
+        // SF-IMP-0083 uses one exact AUTH-0083 seed/scale specimen per development world.
+        // The Gradle property selects the member variant without multiplying fixed run definitions.
+        for (family in skyforgeProductionMorphologySeedScaleFamilies) {
+            val suffix = skyforgeMorphologyAtlasSuffix(family)
+            val variant = skyforgeProductionMorphologySeedScaleVariant
+            val seedScaleGameDirectory =
+                layout.projectDirectory.dir("run-skyforge-production-morphology-seed-scale-$family-$variant")
+            val worldName = "morphology-seed-scale-$family-$variant"
+            val resultDirectory = "acceptance/production-morphology-seed-scale/$family/$variant"
+
+            create("productionMorphologySeedScale${suffix}Prepare") {
+                server()
+                gameDirectory = seedScaleGameDirectory.asFile
+                programArgument("--nogui")
+                programArgument("--universe")
+                programArgument("saves")
+                programArgument("--world")
+                programArgument(worldName)
+                systemProperty("skyforge.dev.productionMorphologySeedScaleFamily", family)
+                systemProperty("skyforge.dev.productionMorphologySeedScaleMember", variant)
+                systemProperty("skyforge.dev.acceptanceHarness", "true")
+                systemProperty("skyforge.dev.acceptanceMode", "server")
+                systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0083-$family-$variant")
+                systemProperty("skyforge.dev.acceptanceNonblockingExplicitWarmup", "true")
+                systemProperty("skyforge.dev.acceptanceTicketRadius", "0")
+                systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+                systemProperty(
+                    "skyforge.dev.acceptanceResultFile",
+                    layout.buildDirectory.file("$resultDirectory/prepare.properties").get().asFile.absolutePath,
+                )
+                taskBefore(tasks.named(development.processResourcesTaskName))
+            }
+
+            create("productionMorphologySeedScale${suffix}Client") {
+                client()
+                gameDirectory = seedScaleGameDirectory.asFile
+                programArgument("--quickPlaySingleplayer")
+                programArgument(worldName)
+                systemProperty("skyforge.dev.productionMorphologySeedScaleViewerFamily", family)
+                systemProperty("skyforge.dev.productionMorphologySeedScaleViewerMember", variant)
+                taskBefore(tasks.named(development.processResourcesTaskName))
+            }
+
+            create("productionMorphologySeedScale${suffix}ViewerAcceptanceClient") {
+                client()
+                gameDirectory = seedScaleGameDirectory.asFile
+                programArgument("--quickPlaySingleplayer")
+                programArgument(worldName)
+                systemProperty("skyforge.dev.productionMorphologySeedScaleViewerFamily", family)
+                systemProperty("skyforge.dev.productionMorphologySeedScaleViewerMember", variant)
+                systemProperty("skyforge.dev.acceptanceHarness", "true")
+                systemProperty("skyforge.dev.acceptanceMode", "client")
+                systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0083-$family-$variant-viewer")
+                systemProperty("skyforge.dev.acceptanceNonblockingExplicitWarmup", "true")
+                systemProperty("skyforge.dev.acceptanceTicketRadius", "0")
+                systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "360")
+                systemProperty(
+                    "skyforge.dev.acceptanceResultFile",
+                    layout.buildDirectory.file("$resultDirectory/viewer.properties").get().asFile.absolutePath,
+                )
+                taskBefore(tasks.named(development.processResourcesTaskName))
+            }
+        }
+
         // Same final-head native-carver proof in an independent game directory for deterministic
         // repeat evidence. This run must produce the same Skyforge transform/carve digests.
         create("nativeCarverRepeatClient") {
@@ -2263,7 +2339,6 @@ listOf(
         }
     }
 }
-
 
 val portableEngineCutoffSableServerProperties = """
     level-name=portable-engine-cutoff-sable
@@ -5790,4 +5865,218 @@ tasks.register("productionMorphologyAtlasViewerVerify") {
     group = "verification"
     description = "Actual-client persistence verification for all four remaining morphology carriers."
     dependsOn(skyforgeProductionMorphologyAtlasViewerTasks)
+}
+
+val skyforgeProductionMorphologySeedScaleServerProperties = """
+    level-seed=1405130932537311389
+    level-type=skyforge:production_morphology_seed_scale
+    online-mode=false
+    spawn-protection=0
+    gamemode=spectator
+    difficulty=peaceful
+    allow-flight=true
+    view-distance=8
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun skyforgeProductionMorphologySeedScaleResultDirectory(family: String) =
+    layout.buildDirectory.dir(
+        "acceptance/production-morphology-seed-scale/$family/$skyforgeProductionMorphologySeedScaleVariant",
+    )
+
+fun skyforgeProductionMorphologySeedScaleGameDirectory(family: String) =
+    layout.projectDirectory
+        .dir("run-skyforge-production-morphology-seed-scale-$family-$skyforgeProductionMorphologySeedScaleVariant")
+        .asFile
+
+fun skyforgeProductionMorphologySeedScaleWorldName(family: String) =
+    "morphology-seed-scale-$family-$skyforgeProductionMorphologySeedScaleVariant"
+
+fun skyforgeProductionMorphologySeedScaleMemberId(family: String) =
+    "builtin-$family-$skyforgeProductionMorphologySeedScaleVariant"
+
+fun skyforgeProductionMorphologySeedScaleExpectedScale() =
+    if (skyforgeProductionMorphologySeedScaleVariant.startsWith("large-")) "large" else "medium"
+
+fun skyforgeProductionMorphologySeedScaleExpectedSeed() =
+    when (skyforgeProductionMorphologySeedScaleVariant) {
+        "medium-seed-min" -> "9223372036854775808"
+        "medium-seed-zero" -> "0"
+        "medium-seed-skyforge", "large-seed-skyforge" -> "6001989086914692933"
+        else -> error("unreachable SF-IMP-0083 variant")
+    }
+
+fun prepareSkyforgeProductionMorphologySeedScaleDirectory(family: String) {
+    val directory = skyforgeProductionMorphologySeedScaleGameDirectory(family)
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(
+        "level-name=${skyforgeProductionMorphologySeedScaleWorldName(family)}\n"
+            + skyforgeProductionMorphologySeedScaleServerProperties,
+    )
+}
+
+fun requireSkyforgeProductionMorphologySeedScalePreparationPass(family: String) {
+    val file =
+        skyforgeProductionMorphologySeedScaleResultDirectory(family).get().file("prepare.properties").asFile
+    check(file.isFile) { "Skyforge seed/scale preparation result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    val expectedId = skyforgeProductionMorphologySeedScaleMemberId(family)
+    val claimed = properties.getProperty("member0SampledClaims")?.toIntOrNull() ?: 0
+    val footprint = properties.getProperty("member0FootprintChunks")?.toIntOrNull() ?: 0
+    val required = properties.getProperty("member0Required")?.toIntOrNull() ?: 0
+    val minimumY = properties.getProperty("member0MinimumY")?.toIntOrNull() ?: Int.MIN_VALUE
+    val maximumY = properties.getProperty("member0MaximumY")?.toIntOrNull() ?: Int.MAX_VALUE
+
+    check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("family") == family
+            && properties.getProperty("memberCount") == "1"
+            && properties.getProperty("reviewDimensionMinY") == "320"
+            && properties.getProperty("reviewDimensionHeight") == "544"
+            && properties.getProperty("member0Id") == expectedId
+            && properties.getProperty("member0Family") == family
+            && properties.getProperty("member0Scale") == skyforgeProductionMorphologySeedScaleExpectedScale()
+            && properties.getProperty("member0Seed") == skyforgeProductionMorphologySeedScaleExpectedSeed()
+            && properties.getProperty("member0Morphology") == "skyforge:$family"
+            && properties.getProperty("member0State") == "ADMITTED"
+            && properties.getProperty("member0Observed") == properties.getProperty("member0Required")
+            && properties.getProperty("member0PendingCatchup") == "0"
+            && footprint > 0
+            && footprint == required
+            && minimumY > 320
+            && maximumY + 1 < 864
+            && claimed > 0
+            && properties.getProperty("member0StoredTop").toInt() == claimed
+            && properties.getProperty("member0AirAbove").toInt() == claimed
+            && properties.getProperty("member0StoredUnderside").toInt() == claimed
+            && properties.getProperty("member0AirBelow").toInt() == claimed
+            && properties.getProperty("member0HeightMismatches") == "0"
+            && properties.getProperty("member0LandTop").toInt() > 0
+            && !properties.getProperty("member0SurfaceDigest").isNullOrBlank()) {
+        val detail = properties.getProperty("failure") ?: properties.toString()
+        "Skyforge seed/scale $family/$skyforgeProductionMorphologySeedScaleVariant did not PASS: $detail"
+    }
+}
+
+fun requireSkyforgeProductionMorphologySeedScaleViewerPass(family: String) {
+    val directory = skyforgeProductionMorphologySeedScaleResultDirectory(family).get()
+    val prepareFile = directory.file("prepare.properties").asFile
+    val viewerFile = directory.file("viewer.properties").asFile
+    check(prepareFile.isFile) { "Skyforge seed/scale preparation evidence missing: $prepareFile" }
+    check(viewerFile.isFile) { "Skyforge seed/scale viewer result missing: $viewerFile" }
+    val prepare = Properties()
+    val viewer = Properties()
+    prepareFile.inputStream().use(prepare::load)
+    viewerFile.inputStream().use(viewer::load)
+
+    val claimed = viewer.getProperty("viewerMember0SampledClaims")?.toIntOrNull() ?: 0
+    check(viewer.getProperty("status") == "PASS"
+            && viewer.getProperty("viewerFamily") == family
+            && viewer.getProperty("viewerMemberCount") == "1"
+            && viewer.getProperty("viewerTerrainOwnershipRestored") == "true"
+            && viewer.getProperty("viewerMutationBindingsInert") == "true"
+            && viewer.getProperty("viewerFamilyFootprintChunks") == prepare.getProperty("familyFootprintChunks")
+            && viewer.getProperty("viewerClientPass") == "true"
+            && viewer.getProperty("viewerMember0Id") == skyforgeProductionMorphologySeedScaleMemberId(family)
+            && claimed > 0
+            && viewer.getProperty("viewerMember0StoredTop").toInt() == claimed
+            && viewer.getProperty("viewerMember0AirAbove").toInt() == claimed
+            && viewer.getProperty("viewerMember0StoredUnderside").toInt() == claimed
+            && viewer.getProperty("viewerMember0AirBelow").toInt() == claimed
+            && viewer.getProperty("viewerMember0HeightMismatches") == "0"
+            && viewer.getProperty("viewerMember0LandTop").toInt() > 0
+            && viewer.getProperty("viewerMember0SurfaceDigest") == prepare.getProperty("member0SurfaceDigest")) {
+        val detail = viewer.getProperty("failure") ?: viewer.toString()
+        "Skyforge seed/scale $family/$skyforgeProductionMorphologySeedScaleVariant viewer did not PASS: $detail"
+    }
+}
+
+for (family in skyforgeProductionMorphologySeedScaleFamilies) {
+    val suffix = skyforgeMorphologyAtlasSuffix(family)
+    val prepareRun = "runProductionMorphologySeedScale${suffix}Prepare"
+    val clientRun = "runProductionMorphologySeedScale${suffix}Client"
+    val viewerRun = "runProductionMorphologySeedScale${suffix}ViewerAcceptanceClient"
+    val prepareVerify = "productionMorphologySeedScale${suffix}PrepareVerify"
+    val viewerVerify = "productionMorphologySeedScale${suffix}ViewerVerify"
+    val launch = "launchProductionMorphologySeedScale$suffix"
+
+    tasks.named(prepareRun).configure {
+        notCompatibleWithConfigurationCache(
+            "NeoForge ModDev RunGameTask and SF-IMP-0083 single-member filesystem orchestration are runtime-bound.",
+        )
+        doFirst {
+            delete(skyforgeProductionMorphologySeedScaleResultDirectory(family))
+            prepareSkyforgeProductionMorphologySeedScaleDirectory(family)
+        }
+        doLast {
+            requireSkyforgeProductionMorphologySeedScalePreparationPass(family)
+        }
+    }
+
+    tasks.named(clientRun).configure {
+        notCompatibleWithConfigurationCache(
+            "NeoForge ModDev RunGameTask is interactive and intentionally not configuration-cache serialized.",
+        )
+        mustRunAfter(prepareRun)
+        doFirst {
+            val directory = skyforgeProductionMorphologySeedScaleGameDirectory(family)
+            check(directory.resolve("saves/${skyforgeProductionMorphologySeedScaleWorldName(family)}/level.dat").isFile) {
+                "Skyforge seed/scale $family world is missing; prepare it first or use $launch."
+            }
+            directory.resolve("options.txt").writeText("onboardAccessibility:false\nnarrator:0\n")
+        }
+    }
+
+    tasks.named(viewerRun).configure {
+        notCompatibleWithConfigurationCache(
+            "NeoForge ModDev RunGameTask is an actual quick-play SF-IMP-0083 single-member acceptance process.",
+        )
+        mustRunAfter(prepareRun)
+        doFirst {
+            requireSkyforgeProductionMorphologySeedScalePreparationPass(family)
+            val directory = skyforgeProductionMorphologySeedScaleGameDirectory(family)
+            check(directory.resolve("saves/${skyforgeProductionMorphologySeedScaleWorldName(family)}/level.dat").isFile) {
+                "Skyforge seed/scale $family world is missing before viewer acceptance."
+            }
+            delete(skyforgeProductionMorphologySeedScaleResultDirectory(family).get().file("viewer.properties").asFile)
+            directory.resolve("options.txt").writeText("onboardAccessibility:false\nnarrator:0\n")
+        }
+    }
+
+    tasks.register(prepareVerify) {
+        group = "verification"
+        description =
+            "Verify selected exact AUTH-0083 $family seed/scale carrier ($skyforgeProductionMorphologySeedScaleVariant)."
+        dependsOn(prepareRun)
+        doLast {
+            requireSkyforgeProductionMorphologySeedScalePreparationPass(family)
+            println(
+                "SF-IMP-0083 ${family.uppercase()} $skyforgeProductionMorphologySeedScaleVariant PREPARATION PASS",
+            )
+        }
+    }
+
+    tasks.register(viewerVerify) {
+        group = "verification"
+        description =
+            "Reopen selected persisted AUTH-0083 $family seed/scale carrier ($skyforgeProductionMorphologySeedScaleVariant)."
+        dependsOn(viewerRun)
+        doLast {
+            requireSkyforgeProductionMorphologySeedScaleViewerPass(family)
+            println(
+                "SF-IMP-0083 ${family.uppercase()} $skyforgeProductionMorphologySeedScaleVariant VIEWER PASS",
+            )
+        }
+    }
+
+    tasks.register(launch) {
+        group = "application"
+        description =
+            "Rebuild selected AUTH-0083 $family seed/scale carrier, then launch Minecraft for #214 review."
+        dependsOn(prepareRun, clientRun)
+    }
 }
