@@ -786,5 +786,107 @@ class DurableStateTests(unittest.TestCase):
                     orch.os.environ["SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY"] = old
 
 
+class FrugalRoutingTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=999,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+            webhook_secret="x" * 48,
+            require_webhook_secret=True,
+            startup_reconcile=True,
+        )
+
+    def test_luna_worker_shares_classifier_daily_ceiling(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            old = orch.os.environ.get("SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY")
+            orch.os.environ["SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY"] = "2"
+            try:
+                o._consume_budget("classifier")
+                o._consume_budget("luna_worker")
+                with self.assertRaises(orch.RetryBlocked) as ctx:
+                    o._consume_budget("classifier")
+                self.assertEqual(ctx.exception.kind, "local_budget")
+                self.assertEqual(o.state.data["classifier_calls_today"], 1)
+                self.assertEqual(o.state.data["luna_worker_calls_today"], 1)
+            finally:
+                if old is None:
+                    orch.os.environ.pop("SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY", None)
+                else:
+                    orch.os.environ["SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY"] = old
+
+    def test_worker_scope_rejection_safety_pauses_without_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            with mock.patch.object(
+                o,
+                "_changed_paths",
+                return_value=[
+                    "docs/agent-state/CONTENT_STATE.md",
+                    "skyforge-neoforge-1211/build.gradle.kts",
+                ],
+            ), mock.patch.object(o, "_post_gate") as post_gate:
+                with self.assertRaises(orch.SafetyPause):
+                    o._handoff_changes(
+                        "Content",
+                        "record accepted C12 boundary",
+                        "codex/content-test",
+                        None,
+                        "done",
+                        ["docs/agent-state/CONTENT_STATE.md"],
+                    )
+
+            self.assertTrue(o.is_paused())
+            self.assertEqual(o.state.data["paused_by"], "controller-safety")
+            post_gate.assert_called_once()
+            message = post_gate.call_args.args[0]["human_message"]
+            self.assertIn("outside the bounded edit scope", message)
+            self.assertEqual(
+                o.state.data["metrics"].get("worker_scope_rejections"),
+                1,
+            )
+
+    def test_allowed_path_prefix(self):
+        self.assertTrue(
+            orch.Orchestrator._worker_path_allowed(
+                "docs/design-audit/example.md",
+                ["docs/design-audit/**"],
+            )
+        )
+        self.assertFalse(
+            orch.Orchestrator._worker_path_allowed(
+                "skyforge-neoforge-1211/build.gradle.kts",
+                ["docs/design-audit/**"],
+            )
+        )
+
+    def test_health_exposes_pending_worker_tier_and_age(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.state.data["pending_worker"] = {
+                "lane": "Content",
+                "branch": "codex/content-test",
+                "stage": "editing",
+                "worker_tier": "LUNA",
+                "started_at": orch._utc_now(),
+            }
+            o.state.data["classifier_calls_today"] = 3
+            o.state.data["luna_worker_calls_today"] = 2
+            o.state.data["worker_calls_today"] = 1
+            o.state.save()
+
+            health = o.health_snapshot()
+            self.assertEqual(health["worker_lane"], "Content")
+            self.assertEqual(health["worker_stage"], "editing")
+            self.assertEqual(health["worker_tier"], "LUNA")
+            self.assertIsNotNone(health["worker_age_seconds"])
+            self.assertEqual(health["luna_calls_today_total"], 5)
+            self.assertEqual(health["terra_worker_calls_today"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()

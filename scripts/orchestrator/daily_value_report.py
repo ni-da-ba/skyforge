@@ -39,6 +39,8 @@ COUNTER_KEYS = (
     "classifier_noops",
     "cached_decision_reuses",
     "worker_attempts",
+    "luna_worker_attempts",
+    "terra_worker_attempts",
     "worker_handoffs",
     "worker_resumes",
     "handoff_resumes",
@@ -59,6 +61,8 @@ COUNTER_KEYS = (
     "pause_commands",
     "resume_commands",
     "worker_protected_path_rejections",
+    "worker_scope_rejections",
+    "safety_pauses",
 )
 
 
@@ -363,6 +367,8 @@ def _render_markdown(report: dict[str, Any]) -> str:
     host = report.get("host_resources") or {}
 
     classifier_attempts = int(d.get("classifier_attempts") or 0)
+    luna_worker_attempts = int(d.get("luna_worker_attempts") or 0)
+    terra_worker_attempts = int(d.get("terra_worker_attempts") or 0)
     worker_attempts = int(d.get("worker_attempts") or 0)
     noop_rate = _ratio(int(d.get("classifier_noops") or 0), classifier_attempts)
     handoff_yield = _ratio(int(d.get("worker_handoffs") or 0), worker_attempts)
@@ -408,11 +414,16 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"| Signature rejects | {d.get('webhook_signature_rejections', 0)} |",
         f"| Luna classifier attempts | {classifier_attempts} |",
         f"| Luna NOOPs | {d.get('classifier_noops', 0)} ({pct(noop_rate)}) |",
-        f"| Terra worker attempts | {worker_attempts} |",
+        f"| Luna worker attempts | {luna_worker_attempts} |",
+        f"| Terra worker attempts | {terra_worker_attempts} |",
+        f"| Total worker attempts | {worker_attempts} |",
         f"| Worker handoffs | {d.get('worker_handoffs', 0)} ({pct(handoff_yield)} yield) |",
         f"| Worker no-change | {d.get('worker_no_change', 0)} ({pct(no_change_rate)}) |",
         f"| Human gates | {d.get('human_gates', 0)} |",
-        f"| Codex capacity/auth blocks | {d.get('codex_blocks', 0)} |",
+        f"| Worker scope rejects | {d.get('worker_scope_rejections', 0)} |",
+        f"| Protected-path rejects | {d.get('worker_protected_path_rejections', 0)} |",
+        f"| Safety pauses | {d.get('safety_pauses', 0)} |",
+        f"| Codex capacity/auth blocks | {d.get('codex_blocks', 0)} |"
         f"| Dispatch failures | {d.get('dispatch_failures', 0)} |",
         f"| Pause / resume commands | {d.get('pause_commands', 0)} / {d.get('resume_commands', 0)} |",
         f"| Protected-path rejections | {d.get('worker_protected_path_rejections', 0)} |",
