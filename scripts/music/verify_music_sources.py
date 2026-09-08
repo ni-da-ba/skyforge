@@ -72,7 +72,7 @@ def parse_midi(b,label):
         if p+8>len(b) or b[p:p+4]!=b"MTrk":raise VError(f"{label}: missing MTrk {i}")
         n=struct.unpack(">I",b[p+4:p+8])[0];s=p+8;e=s+n
         if e>len(b):raise VError(f"{label}: truncated MTrk {i}")
-        tracks.append(parse_track(b[s:e],i));p=e
+        tr=parse_track(b[s:e],i);tr["raw_sha256"]=hashlib.sha256(b[s:e]).hexdigest();tracks.append(tr);p=e
     if p!=len(b):raise VError(f"{label}: {len(b)-p} trailing bytes")
     return {"fmt":fmt,"ntrks":ntrks,"ppq":div,"tracks":tracks}
 
@@ -119,6 +119,66 @@ def actual_exceptions(md):
         c=collections.Counter({n:v for n,v in md["tracks"][i]["notes"].items() if n<lo or n>hi})
         if c:out[i]=c
     return out
+
+def exception_list(xs,label):
+    if not isinstance(xs,list):raise VError(f"{label} must be a list")
+    out={}
+    for x in xs:
+        if not isinstance(x,dict):raise VError(f"{label}: invalid range exception {x!r}")
+        i=x.get("track_index");ns=x.get("notes");reason=x.get("reason")
+        if i not in RANGES or not isinstance(ns,dict) or not ns or not isinstance(reason,str) or not reason.strip():raise VError(f"{label}: invalid range exception {x!r}")
+        lo,hi=RANGES[i];c=collections.Counter()
+        for k,v in ns.items():
+            n=int(k)
+            if lo<=n<=hi or not isinstance(v,int) or v<=0:raise VError(f"{label}: invalid range exception note/count {i}:{k}={v}")
+            c[n]+=v
+        if i in out:raise VError(f"{label}: duplicate track exception {i}")
+        out[i]=c
+    return out
+
+def verify_repair_candidate(root,p):
+    m=json.loads(p.read_text("utf-8"));rel=p.relative_to(root)
+    srel=m.get("source");brel=m.get("base_source")
+    if not isinstance(srel,str) or not srel.startswith("assets/music/source/repair-candidates/") or not srel.endswith(".mid.gz"):raise VError(f"{rel}: invalid repair-candidate source")
+    if not isinstance(brel,str) or not brel.startswith("assets/music/source/") or not brel.endswith(".mid.gz"):raise VError(f"{rel}: invalid base source")
+    src=root/srel;base=root/brel
+    if not src.is_file() or not base.is_file():raise VError(f"{rel}: missing candidate/base source")
+    try:raw=gzip.decompress(src.read_bytes());braw=gzip.decompress(base.read_bytes())
+    except Exception as e:raise VError(f"{rel}: gzip decode failed: {e}") from e
+    digest=sha(raw);bdigest=sha(braw)
+    if digest!=str(m.get("uncompressed_midi_sha256","")).lower():raise VError(f"{rel}: candidate MIDI SHA mismatch actual={digest}")
+    if bdigest!=str(m.get("base_uncompressed_midi_sha256","")).lower():raise VError(f"{rel}: base MIDI SHA mismatch actual={bdigest}")
+    md=parse_midi(raw,srel);bmd=parse_midi(braw,brel)
+    if md["fmt"]!=1 or md["ntrks"]!=20 or bmd["fmt"]!=1 or bmd["ntrks"]!=20:raise VError(f"{rel}: expected format 1 / 20 tracks for base and candidate")
+    if md["ppq"]!=bmd["ppq"]:raise VError(f"{rel}: candidate PPQ differs from base")
+    mm=m.get("midi",{})
+    if "ticks_per_beat" in mm and md["ppq"]!=int(mm["ticks_per_beat"]):raise VError(f"{rel}: PPQ mismatch")
+    for i,pfx in enumerate(LANES,1):
+        cn=md["tracks"][i]["name"];bn=bmd["tracks"][i]["name"]
+        if not cn or not cn.startswith(pfx) or not bn or not bn.startswith(pfx):raise VError(f"{rel}: track {i} lane-name mismatch")
+    bpm=tempo_of(m)
+    if bpm is not None:
+        target=round(60000000/bpm)
+        for label,x in (("candidate",md),("base",bmd)):
+            allx=[ev for t in x["tracks"] for ev in t["tempos"]]
+            if not any(t==0 and abs(us-target)<=1 for t,us in x["tracks"][0]["tempos"]):raise VError(f"{rel}: {label} conductor tick-0 tempo != {bpm:g}")
+            if any(abs(us-target)>1 for t,us in allx):raise VError(f"{rel}: {label} has conflicting tempo events")
+    meter=meter_of(m)
+    if meter:
+        for label,x in (("candidate",md),("base",bmd)):
+            allx=[ev for t in x["tracks"] for ev in t["meters"]]
+            if not any(t==0 and (a,b)==meter for t,a,b in x["tracks"][0]["meters"]):raise VError(f"{rel}: {label} conductor tick-0 meter != {meter[0]}/{meter[1]}")
+            if any((a,b)!=meter for t,a,b in allx):raise VError(f"{rel}: {label} has conflicting meter events")
+    be=exception_list(m.get("base_range_exceptions"),f"{rel}.base_range_exceptions")
+    ce=exception_list(m.get("candidate_range_exceptions"),f"{rel}.candidate_range_exceptions")
+    if actual_exceptions(bmd)!=be:raise VError(f"{rel}: base BBCSO range exceptions differ; actual={actual_exceptions(bmd)} declared={be}")
+    if actual_exceptions(md)!=ce:raise VError(f"{rel}: candidate BBCSO range exceptions differ; actual={actual_exceptions(md)} declared={ce}")
+    expected=m.get("expected_mutated_track_indices")
+    if not isinstance(expected,list) or not expected or any(not isinstance(i,int) or i<1 or i>19 for i in expected) or len(set(expected))!=len(expected):raise VError(f"{rel}: invalid expected_mutated_track_indices")
+    expected=sorted(expected)
+    changed=[i for i in range(20) if bmd["tracks"][i]["raw_sha256"]!=md["tracks"][i]["raw_sha256"]]
+    if changed!=expected:raise VError(f"{rel}: raw MIDI track mutation scope differs; actual={changed} expected={expected}")
+    return srel,digest,changed
 
 def verify_manifest(root,p,warns):
     m=json.loads(p.read_text("utf-8")); rel=p.relative_to(root); srel=source_of(m); src=root/srel
@@ -194,8 +254,14 @@ def main():
             s,h=verify_manifest(root,p,warns)
             if s in seen_s or h in seen_h:raise VError(f"duplicate canonical source/hash: {s} {h}")
             seen_s.add(s);seen_h.add(h);print(f"PASS {p.relative_to(root)} -> {s} [{h[:12]}]")
+        candidates=sorted(source.rglob("*.candidate.json"))
+        if not candidates:raise VError("no repair-candidate contracts found")
+        for p in candidates:
+            s,h,changed=verify_repair_candidate(root,p)
+            if s in seen_s or h in seen_h:raise VError(f"duplicate verified source/hash: {s} {h}")
+            seen_s.add(s);seen_h.add(h);print(f"PASS {p.relative_to(root)} -> {s} [{h[:12]}] changed_tracks={changed}")
         for w in warns:print("WARN",w)
-        print(f"PASS parsed {count} MIDI artifacts; verified {len(manifests)} canonical manifests")
+        print(f"PASS parsed {count} MIDI artifacts; verified {len(manifests)} canonical manifests and {len(candidates)} repair candidates")
         return 0
     except (VError,KeyError,ValueError,json.JSONDecodeError) as e:
         print("MUSIC SOURCE VERIFICATION FAILED:",e,file=sys.stderr);return 1
