@@ -460,10 +460,13 @@ Ignored before Codex startup:
 - orchestration/Audit command text from untrusted commenters;
 - fork/external PR and workflow payloads.
 
-Trusted `/skyforge-pause` and `/skyforge-resume` comments are deterministic control commands, not
-Codex wakes. Pause persists across restart, retains newly actionable events in the durable journal,
-and starts no new classifier/worker dispatch. Resume schedules the retained batch. A worker already in
-its bounded handoff is not destructively interrupted merely because pause arrived.
+Trusted `/skyforge-pause`, `/skyforge-resume`, and `/skyforge-status` comments are deterministic
+control commands, not Codex wakes. Pause persists across restart, retains newly actionable events in
+the durable journal, and starts no new classifier/worker dispatch. Resume schedules the retained batch.
+Status posts a controller-marked, non-secret live snapshot to the command's issue/PR, including loaded
+runtime and checkout heads plus pause/breaker, queue, worker, and daily model-call state; that status
+comment is filtered from orchestration input and cannot recurse. A worker already in its bounded handoff
+is not destructively interrupted merely because pause arrived.
 
 Events are debounced and subject to a minimum dispatch interval.
 
