@@ -671,6 +671,60 @@ class DurableStateTests(unittest.TestCase):
             if o._timer is not None:
                 o._timer.cancel()
 
+    def test_multi_event_no_change_schedules_one_bounded_followup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.runtime_head = "abc123"
+            first = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            second = orch.EventDecision(
+                True,
+                "workflow completed",
+                "workflow_run",
+                action="completed",
+                head_sha="abc123",
+            )
+
+            with mock.patch.object(o, "_schedule_pending"):
+                self.assertTrue(o._schedule_no_change_followup([first, second]))
+                pending = o._pending_events()
+                self.assertEqual(len(pending), 1)
+                self.assertEqual(pending[0].event, "reconcile")
+                self.assertEqual(pending[0].action, "no_change_followup")
+                self.assertEqual(pending[0].head_sha, "abc123")
+                self.assertEqual(
+                    o.state.data["metrics"].get("no_change_followup_reconciliations"),
+                    1,
+                )
+
+                # A retained follow-up suppresses another synthetic wake.
+                self.assertFalse(o._schedule_no_change_followup([first, second]))
+                # A single-event batch can never recursively create a follow-up.
+                o.state.data["pending_events"] = []
+                o.state.save()
+                self.assertFalse(o._schedule_no_change_followup([first]))
+
+    def test_no_change_handoff_reports_no_repository_handoff(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+
+            def fake_run(args, **kwargs):
+                if args[:3] == ["git", "rev-list", "--count"]:
+                    return orch.subprocess.CompletedProcess(args, 0, stdout="0\n", stderr="")
+                return orch.subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+            with mock.patch.object(o, "_changed_paths", return_value=[]), \
+                    mock.patch.object(orch, "_run", side_effect=fake_run):
+                created = o._handoff_changes(
+                    "Audit",
+                    "already satisfied",
+                    "codex/audit-test",
+                    None,
+                    "done",
+                )
+
+            self.assertFalse(created)
+            self.assertEqual(o.state.data["metrics"].get("worker_no_change"), 1)
+
     def test_enqueue_journals_actionable_event_before_dispatch(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
