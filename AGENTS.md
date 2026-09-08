@@ -22,6 +22,7 @@ This file is a map, not the full manual. Read deeper documents only when the cur
   - Implementation: `docs/agent-state/IMPLEMENTATION_STATE.md`
   - Content: `docs/agent-state/CONTENT_STATE.md`
   - Music/Audio: `docs/agent-state/MUSIC_STATE.md`
+  - Presentation: `docs/agent-state/PRESENTATION_STATE.md`
 - Lightweight multi-agent operation: `docs/agent-state/ORCHESTRATION_PROTOCOL.md`
 
 If summaries disagree with `main`, source/tests, or merged history, the repository evidence wins.
@@ -32,6 +33,7 @@ If summaries disagree with `main`, source/tests, or merged history, the reposito
 - **Implementation** — Minecraft/NeoForge realization, exact-volume runtime, lifecycle, persistence, performance.
 - **Content / Experience** — mod integration, progression, gameplay capability, Bootstrap Province, player experience.
 - **Music / Audio** — score/audio authorship, source identity, production evidence and listening gates.
+- **Presentation** — accurate project communication/showcase packaging grounded in accepted project truth.
 - **Audit** — convergence, validation economy, session/process health, orchestration and human-gate escalation.
 
 Do not seize another lane's technical or product authority merely to keep work moving.
