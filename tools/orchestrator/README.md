@@ -112,14 +112,14 @@ Set a webhook secret and launch:
 
 ```bash
 export SKYFORGE_GITHUB_WEBHOOK_SECRET='replace-with-random-secret'
-python tools/orchestrator/skyforge_codex_orchestrator.py --dry-run
+python tools/orchestrator/app_server_controller.py --dry-run
 ```
 
 On Windows PowerShell:
 
 ```powershell
 $env:SKYFORGE_GITHUB_WEBHOOK_SECRET = 'replace-with-random-secret'
-python tools/orchestrator/skyforge_codex_orchestrator.py --dry-run
+python tools/orchestrator/app_server_controller.py --dry-run
 ```
 
 Dry-run mode verifies signatures, filters, deduplicates, debounces, and prints the exact prompt that
@@ -186,7 +186,7 @@ After dry-run quality and App Server smoke are satisfactory:
 export SKYFORGE_GITHUB_WEBHOOK_SECRET='replace-with-random-secret'
 export SKYFORGE_REPO='/absolute/path/to/skyforge'
 export SKYFORGE_ORCHESTRATOR_MODEL='gpt-5.6-luna'
-python tools/orchestrator/skyforge_codex_orchestrator.py
+python tools/orchestrator/app_server_controller.py
 ```
 
 The controller stores the persistent thread id in:
