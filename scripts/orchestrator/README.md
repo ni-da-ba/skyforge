@@ -350,7 +350,7 @@ Use `deploy/orchestrator/README.md` and `scripts/orchestrator/install_hosted.sh`
 
 The hosted installer refuses root execution and refuses activation unless GitHub server-side protection
 for `main` is verifiably requiring pull requests + status checks while blocking force pushes and
-branch deletion. The pinned Python SDK is also the authentication surface; after the virtualenv exists,
+branch deletion **and applying the protection to administrators**. The pinned Python SDK is also the authentication surface; after the virtualenv exists,
 run:
 
 ```bash
