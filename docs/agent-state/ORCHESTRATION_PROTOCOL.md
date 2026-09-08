@@ -565,6 +565,43 @@ Do not interpret these counters as token or dollar accounting unless the SDK exp
 usage fields. Their purpose is to detect runaway wakeups, low-value dispatch, and poor accepted-progress
 yield before the pilot is expanded.
 
+### Hosted value-accounting contract
+
+Continuous hosting must be judged against accepted-progress economics rather than uptime alone.
+AUDIT-0011 requires one model-free daily report that persists a machine-readable local snapshot and
+posts a controller-marked GitHub summary without waking Codex.
+
+The report must distinguish:
+
+- overall Skyforge repository activity from controller-owned `codex/*` PR activity;
+- manual `/skyforge-orchestrate` wakes from Audit/watchdog wakes;
+- classifier attempts/NOOPs from Terra attempts/handoffs/no-change outcomes;
+- actionable-event-to-classifier latency;
+- ordinary human gates from controller/reliability failures;
+- quota/rate/authentication blocking from useful worker throughput;
+- overnight hosted contribution from daytime/manual progress;
+- actual configured host-hour cost from model-call counters.
+
+A trailing keep/rework/cancel advisory may be computed deterministically, but it is never authority to
+destroy infrastructure or cross a project gate. A quiet project interval is insufficient evidence for
+cancellation by itself; compare controller yield with overall project activity.
+
+Hosted cancellation is a two-boundary operation:
+
+```text
+host-side decommission
+    -> final value report
+    -> delete repository webhook
+    -> disable report timer/controller/HTTPS proxy
+
+provider control plane
+    -> destroy Droplet
+    -> verify no separately billable pilot resource remains
+```
+
+Do not grant the hosted worker provider credentials merely so it can self-destruct. Provider deletion
+remains an explicit external action. Powering off a VM is not equivalent to cancellation.
+
 ### Rollback
 
 Stopping the local process disables the entire event-driven layer. GitHub state, ordinary producer
