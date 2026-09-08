@@ -1,11 +1,13 @@
 import importlib.util
 import pathlib
+import sys
 import unittest
 
 MODULE_PATH = pathlib.Path(__file__).with_name("skyforge_orchestrator.py")
 SPEC = importlib.util.spec_from_file_location("skyforge_orchestrator", MODULE_PATH)
 assert SPEC and SPEC.loader
 orch = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = orch
 SPEC.loader.exec_module(orch)
 
 
