@@ -2,8 +2,9 @@
 
 **Canonical lane:** PRESENTATION  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Status:** lane bootstrap in progress under issue #343  
-**Highest merged Presentation milestone:** none yet
+**Status:** PRES-0002 in progress under issue #345  
+**Highest merged Presentation milestone:** **PRES-0001**  
+**PRES-0001 merge:** PR #344, `a880f2fb3298b76d5abf601b2163adcbfb3b6706`
 
 Always reconstruct current project claims from `main`, the program charter, producer-lane ledgers, cross-lane contracts, relevant acceptance records, and merged history before publishing or revising an external-facing artifact.
 
@@ -91,23 +92,26 @@ Presentation should prefer links/pointers to authoritative evidence rather than 
 
 Repository state and accepted evidence outrank existing presentation prose.
 
-## Milestones
+## MERGED / ACCEPTED
 
-### PRES-0001 — Presentation lane bootstrap — IN PROGRESS
+### PRES-0001 — Presentation lane bootstrap
 
-Issue #343.
+PR #344 merged as `a880f2fb3298b76d5abf601b2163adcbfb3b6706`.
 
-Acceptance target:
+Accepted boundary:
 
-- establish this canonical lane ledger;
-- add Presentation to the program charter and fresh-agent read order;
-- persist the publication/authority boundary;
-- establish `docs/presentation/` as the durable artifact home;
-- seed the first bounded Presentation work queue.
+- canonical Presentation lane ledger exists;
+- Presentation ownership/non-authority is recorded in the program charter;
+- Presentation is part of the fresh-agent read order;
+- `docs/presentation/` is the durable artifact home;
+- claim-status discipline distinguishes accepted, in-progress, roadmap, and aspirational statements;
+- no producer technical ownership or acceptance boundary changed.
 
-No technical capability claim is added by PRES-0001.
+## IN PROGRESS
 
-### PRES-0002 — current claim registry and audience matrix — PROPOSED
+### PRES-0002 — current claim registry and audience matrix
+
+Issue #345.
 
 Create a concise project-wide register of what Skyforge can currently claim, with source pointers and audience-specific phrasing. At minimum distinguish:
 
@@ -120,11 +124,13 @@ Create a concise project-wide register of what Skyforge can currently claim, wit
 
 The registry should be maintained for claim freshness, not become a duplicate technical ledger.
 
-### PRES-0003 — flagship technical demo narrative — PROPOSED
+## PROPOSED
+
+### PRES-0003 — flagship technical demo narrative
 
 Define the smallest demonstrable sequence that lets a reviewer understand why Skyforge is technically significant. Target a roughly 90-second core story with optional deeper branches. The demo should connect semantic intent, deterministic procedural graphs, morphology/volumetric ownership, Minecraft realization, and evidence/reproducibility using only accepted artifacts.
 
-### PRES-0004 — portfolio/showcase package — PROPOSED
+### PRES-0004 — portfolio/showcase package
 
 Produce a durable portfolio-facing package after PRES-0002/0003 establish the claim and demo boundaries. Likely components include architecture graphics, selected current-world visuals, concise engineering bullets, reviewer path, and explicit current limitations.
 
@@ -155,4 +161,4 @@ Fresh work must verify those statements against current lane ledgers and merged 
 
 ## Recommended next work
 
-After PRES-0001 lands, proceed with **PRES-0002**: build the current claim registry and audience matrix from current `main`, prioritizing a recruiter/technical-reviewer explanation of Skyforge's already accepted engineering boundary.
+Complete **PRES-0002** on `presentation/pres-0002-claim-registry`: build the first evidence-linked current claim registry and audience matrix from current `main`, then use it as the input boundary for PRES-0003 demo design.
