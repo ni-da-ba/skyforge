@@ -56,6 +56,9 @@ COUNTER_KEYS = (
     "controller_starts",
     "dispatch_latency_ms_total",
     "dispatch_latency_samples",
+    "pause_commands",
+    "resume_commands",
+    "worker_protected_path_rejections",
 )
 
 
@@ -411,6 +414,8 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"| Human gates | {d.get('human_gates', 0)} |",
         f"| Codex capacity/auth blocks | {d.get('codex_blocks', 0)} |",
         f"| Dispatch failures | {d.get('dispatch_failures', 0)} |",
+        f"| Pause / resume commands | {d.get('pause_commands', 0)} / {d.get('resume_commands', 0)} |",
+        f"| Protected-path rejections | {d.get('worker_protected_path_rejections', 0)} |",
         f"| Controller starts | {d.get('controller_starts', 0)} |",
         f"| Startup reconciliations | {d.get('startup_reconciliations', 0)} |",
         f"| Mean actionable-event → classifier latency | "
