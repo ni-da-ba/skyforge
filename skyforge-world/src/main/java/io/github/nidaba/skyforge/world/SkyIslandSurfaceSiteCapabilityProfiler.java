@@ -27,10 +27,8 @@ public final class SkyIslandSurfaceSiteCapabilityProfiler {
         int gridSize = watershed.gridSize();
         double radius = descriptor.nominalRadius();
         double spacing = watershed.spacing();
-        SkyIslandCompiledVolumeColumnField physical =
-                new SkyIslandCompiledVolumeColumnField(
-                        association.realizedVolume().compiledVolume());
-        SkyIslandVerticalColumn[] columns = samplePhysicalGrid(physical, gridSize, radius, spacing);
+        SkyIslandWatershedPhysicalSurfaceGrid physicalGrid =
+                SkyIslandWatershedPhysicalSurfaceGrid.create(association, watershed);
 
         Map<Integer, WaterbodyEvidence> waterbodies = waterbodyEvidence(visibleHydrology);
         Map<Integer, Double> margins = marginEvidence(visibleHydrology);
@@ -43,12 +41,12 @@ public final class SkyIslandSurfaceSiteCapabilityProfiler {
                 new java.util.ArrayList<>(watershed.cells().size());
         for (SkyIslandWatershedCell source : watershed.cells()) {
             int index = source.index();
-            SkyIslandVerticalColumn center = columns[index];
+            SkyIslandVerticalColumn center = physicalGrid.columnOrNull(index);
             boolean present = center != null;
 
-            WindowStats window3 = window(columns, gridSize, index, 1, radius, present);
-            WindowStats window5 = window(columns, gridSize, index, 2, radius, present);
-            WindowStats window9 = window(columns, gridSize, index, 4, radius, present);
+            WindowStats window3 = window(physicalGrid, index, 1, radius, present);
+            WindowStats window5 = window(physicalGrid, index, 2, radius, present);
+            WindowStats window9 = window(physicalGrid, index, 4, radius, present);
 
             WaterbodyEvidence waterbody =
                     waterbodies.getOrDefault(index, WaterbodyEvidence.NONE);
@@ -84,7 +82,7 @@ public final class SkyIslandSurfaceSiteCapabilityProfiler {
                             window3.reliefNormalized(),
                             window5.reliefNormalized(),
                             window9.reliefNormalized(),
-                            meanCardinalGrade(columns, gridSize, index, spacing),
+                            meanCardinalGrade(physicalGrid, index, spacing),
                             flow,
                             waterbody.present(),
                             waterbody.shoreline(),
@@ -99,33 +97,13 @@ public final class SkyIslandSurfaceSiteCapabilityProfiler {
                 association, watershed, visibleHydrology, cells);
     }
 
-    private static SkyIslandVerticalColumn[] samplePhysicalGrid(
-            SkyIslandCompiledVolumeColumnField physical,
-            int gridSize,
-            double radius,
-            double spacing) {
-        SkyIslandVerticalColumn[] result =
-                new SkyIslandVerticalColumn[Math.multiplyExact(gridSize, gridSize)];
-        for (int z = 0; z < gridSize; z++) {
-            for (int x = 0; x < gridSize; x++) {
-                int index = z * gridSize + x;
-                SkyIslandLocalPosition position =
-                        new SkyIslandLocalPosition(
-                                x == gridSize - 1 ? radius : -radius + x * spacing,
-                                z == gridSize - 1 ? radius : -radius + z * spacing);
-                result[index] = physical.columnAt(position).orElse(null);
-            }
-        }
-        return result;
-    }
-
     private static WindowStats window(
-            SkyIslandVerticalColumn[] columns,
-            int gridSize,
+            SkyIslandWatershedPhysicalSurfaceGrid grid,
             int centerIndex,
             int halfWidth,
             double radius,
             boolean centerPresent) {
+        int gridSize = grid.gridSize();
         int cx = centerIndex % gridSize;
         int cz = centerIndex / gridSize;
         int width = halfWidth * 2 + 1;
@@ -141,7 +119,7 @@ public final class SkyIslandSurfaceSiteCapabilityProfiler {
                 if (x < 0 || z < 0 || x >= gridSize || z >= gridSize) {
                     continue;
                 }
-                SkyIslandVerticalColumn column = columns[z * gridSize + x];
+                SkyIslandVerticalColumn column = grid.columnOrNull(x, z);
                 if (column == null) {
                     continue;
                 }
@@ -158,11 +136,11 @@ public final class SkyIslandSurfaceSiteCapabilityProfiler {
     }
 
     private static OptionalDouble meanCardinalGrade(
-            SkyIslandVerticalColumn[] columns,
-            int gridSize,
+            SkyIslandWatershedPhysicalSurfaceGrid grid,
             int centerIndex,
             double spacing) {
-        SkyIslandVerticalColumn center = columns[centerIndex];
+        int gridSize = grid.gridSize();
+        SkyIslandVerticalColumn center = grid.columnOrNull(centerIndex);
         if (center == null) {
             return OptionalDouble.empty();
         }
@@ -177,7 +155,7 @@ public final class SkyIslandSurfaceSiteCapabilityProfiler {
             if (x < 0 || z < 0 || x >= gridSize || z >= gridSize) {
                 continue;
             }
-            SkyIslandVerticalColumn neighbor = columns[z * gridSize + x];
+            SkyIslandVerticalColumn neighbor = grid.columnOrNull(x, z);
             if (neighbor == null) {
                 continue;
             }
