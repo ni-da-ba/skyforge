@@ -16,7 +16,9 @@
     "SkyforgeFlowingFluidDomainMixin",
     "SkyforgeLevelTicksFluidProvenanceMixin",
     "SkyforgeWorldGenTickAccessFluidProvenanceMixin",
-    "SkyforgeLakeFeatureAdmissionMixin"
+    "SkyforgeLakeFeatureAdmissionMixin",
+    "SkyforgePortableEngineBlockEntityMixin",
+    "SkyforgePortableEngineBlockMixin"
   ],
   "injectors": {
     "defaultRequire": 1
