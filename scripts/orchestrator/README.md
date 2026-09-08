@@ -256,15 +256,20 @@ prevent recursion; the hourly watchdog/user-facing GitHub notifications remain t
 
 ## Remote control
 
-Trusted GitHub actors can control the hosted dispatcher without spending a model turn:
+Trusted GitHub actors can control and inspect the hosted dispatcher without spending a model turn:
 
 ```text
 /skyforge-pause
 /skyforge-resume
+/skyforge-status
 ```
 
 Pause preserves incoming actionable events in the durable journal but starts no new classifier/worker
-dispatch. Resume schedules the retained batch. Untrusted commenters cannot invoke these controls.
+dispatch. Resume schedules the retained batch. Status posts a controller-marked, non-secret snapshot
+to the issue or PR containing the command, including the loaded runtime head, checkout head, pause /
+breaker state, queued-event count, worker state, and daily Luna/Terra counters. The status comment is
+ignored by the webhook filter and therefore cannot recurse. Untrusted commenters cannot invoke these
+controls.
 
 ## Manual wake
 
