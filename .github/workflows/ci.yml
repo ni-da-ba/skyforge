@@ -66,7 +66,7 @@ jobs:
             echo "music=false" >> "${GITHUB_OUTPUT}"
           fi
 
-          if [[ -n "${changed}" ]] && ! printf '%s\n' "${changed}" | grep -Ev '^(docs/|README\.md$|CONTRIBUTING\.md$|SECURITY\.md$|CODE_OF_CONDUCT\.md$)' >/dev/null; then
+          if [[ -n "${changed}" ]] && ! printf '%s\n' "${changed}" | grep -Ev '^(docs/|AGENTS\.md$|README\.md$|CONTRIBUTING\.md$|SECURITY\.md$|CODE_OF_CONDUCT\.md$)' >/dev/null; then
             echo "full=false" >> "${GITHUB_OUTPUT}"
             echo "Documentation/state-only change: skipping Gradle/evidence generation."
           else
@@ -87,7 +87,7 @@ jobs:
           test -f docs/agent-state/CROSS_LANE_CONTRACTS.md
           test -f docs/agent-state/VALIDATION_POLICY.md
           test -f docs/agent-state/HUMAN_STRATEGY_ROADMAP.md
-          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- README.md docs; then
+          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- AGENTS.md README.md docs; then
             echo "Merge-conflict marker found in documentation/state."
             exit 1
           fi
