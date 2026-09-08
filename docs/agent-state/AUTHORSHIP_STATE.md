@@ -315,10 +315,31 @@ Reference: `docs/authorship/AUTH-0098-petroleum-system-geological-opportunity.md
 
 No Authorship milestone is currently in progress.
 
-AUTH-0098 closes the first petroleum geological-cause gap required by mature resource geography. Do not
-assign AUTH-0099 merely to create a regional wrapper or literal petroleum deposit. Add cliff/underside,
-interior/cave, regional-composition, or other semantics only when a retained executable consumer
-requires them. Morphology family tuning still requires the matching Minecraft matrix plus human review.
+### AUTH-0099 — cave-system site capability — PARKED / NOT ACCEPTED
+
+Fresh-state reconstruction found an unmerged branch
+`auth/auth-0099-cave-site-capability` at `8116268960c499207d68fa3a1bffcd07bc6549a1`.
+It contains seven AUTH-0099 commits based on `4ab6c2e211a6dab14de3ad21c617d505f39d326b`,
+but has no PR and no recorded workflow run.
+
+The branch must not be merged, rebased forward, or treated as accepted work because its stated
+concrete-consumer premise is not supported by the authoritative Bootstrap state:
+
+- issue #224 does not require an early cave/resource-learning site;
+- the issue #224 Authorship handoff explicitly says a cliff/interior/cave capability should be added
+  only if the first executable Bootstrap site/route planner proves that accepted evidence is
+  insufficient;
+- no such Content planner has been opened; the current accepted Content boundary is C21 resource
+  authority, and Audit records the Bootstrap/resource follow-on as not yet opened.
+
+Preserve AUTH-0099 as an unaccepted historical numbering gap. If a future executable consumer proves
+that cave-system capability evidence is genuinely missing, reconstruct the requirement from current
+`main` and assign the next available Authorship milestone rather than reviving this stale branch.
+
+AUTH-0098 therefore remains the highest accepted Authorship boundary. Do not add a regional petroleum
+wrapper, literal petroleum deposit, cliff/underside, interior/cave, regional-composition, or other
+semantic layer merely for completeness. Morphology family tuning still requires the matching
+Minecraft matrix plus human review.
 
 ## ACTIVE CROSS-LANE BOUNDARIES
 
@@ -362,6 +383,9 @@ civilization-history, geothermal, or other semantics only when a concrete consum
 ## Known hazards
 
 - Parallel lane merges frequently move `main`; follow `VALIDATION_POLICY.md`: inspect dependency-surface impact, preserve expensive evidence across demonstrably orthogonal movement, and rerun the cheapest synchronized gate that can falsify the remaining risk rather than chasing timestamps.
+- Historical feature branches are not authoritative evidence of active work. In particular,
+  `auth/auth-0099-cave-site-capability` is parked/unaccepted despite containing implementation commits;
+  do not revive it without a newly demonstrated concrete consumer.
 - Some other lane ledgers may lag merged history; current `main`, merged PRs, tests, and cross-lane contracts remain authoritative.
 - AUTH-0083/AUTH-0084 prove review machinery, not final visual quality.
 - No accepted geothermal/volcanic semantics currently exist.
@@ -405,8 +429,9 @@ sites/approaches.
 1. Hand AUTH-0098 to Content as the island-scale petroleum geological-opportunity producer. Do not
    add a regional petroleum inventory until a concrete Content province-selection policy requires it.
 2. Let Content/Bootstrap continue consuming AUTH-0096 + AUTH-0097 for concrete site/access requirements.
-3. Reconstruct the next missing backend-neutral cause before assigning AUTH-0099; do not enumerate
-   geothermal/civilization/exceptional-phenomenon semantics without an executable consumer.
+3. Reconstruct the next missing backend-neutral cause before assigning AUTH-0100 or later. AUTH-0099
+   is preserved as an unaccepted historical gap; do not enumerate cave/geothermal/civilization/
+   exceptional-phenomenon semantics without an executable consumer.
 4. Keep AUTH-0095 handed to SF-IMP-0083/#284. Do not retune Massif/Tableland until the synchronized
    Minecraft matrix plus #214/#267/#283 human review demonstrates a systemic family issue.
 
