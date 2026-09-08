@@ -14,6 +14,7 @@ This file records only coordination boundaries another lane must preserve.
 - Exact three-dimensional ownership, explicit provenance, and deterministic identity remain fundamental.
 - Existing mods/content are asset/capability libraries under Skyforge semantic authority.
 - Do not compensate for morphology/ecology problems by increasing world/content density; negative space is intentional.
+- Morphology **capacity is not production selection**: Skyforge must preserve the ability to express rugged, lumpy, awkward, hostile, or otherwise poor-for-a-given-role terrain even when production recipes deliberately avoid that terrain for ordinary traversal.
 
 ## Current lane snapshot
 
@@ -234,6 +235,76 @@ Cross-lane consequences:
 Acceptance evidence: repository CI `34238485165` PASS; shared AUTH-0095/AUTH-0101 morphology
 evidence workflow `34238485301` PASS; artifact `10060939982`; digest
 `sha256:3715f70b6afb68b3e9f21187e89bc253f8971f3128b50c8fd909edf397163950`.
+
+## Morphology capacity, control, selection, and realization
+
+The production morphology stack separates **what the generator can express**, **how neutral intent deliberately requests a terrain character**, **where that terrain is appropriate for gameplay**, and **whether a backend realizes the intent faithfully**.
+
+### Capacity and control — Authorship
+
+**Authorship owns the backend-neutral expressive morphology space and the semantic control knowledge needed to use it deliberately.**
+
+This includes:
+
+- preserving broad terrain capacity rather than deleting difficult or unattractive regions of control space merely because they are unsuitable for a common gameplay role;
+- defining stable semantic control axes / recipes over the neutral morphology system;
+- demonstrating descriptive control-response relationships such as local-relief amplitude, characteristic feature scale, bench/table persistence, ridge density, rim character, or underside tendencies;
+- recording important interactions between controls and representative extremes;
+- maintaining exact provenance and deterministic examples sufficient to reproduce a requested neutral terrain character.
+
+A terrain-control recipe is descriptive neutral intent, not a verdict that the terrain is good or bad for play. Authorship must not encode Minecraft block rules, player-step thresholds, progression roles, or arbitrary gameplay suitability classes merely to make production selection easier.
+
+The durable Authorship artifact for this knowledge is the **Morphology Control Atlas** contract in
+`docs/authorship/MORPHOLOGY_CONTROL_ATLAS.md`. “The generator can produce this terrain” is not sufficient production knowledge if the project cannot also explain how to request that terrain intentionally.
+
+### Role and selection — Content / Experience
+
+**Content / Experience owns gameplay terrain requirements and the policy that selects/distributes neutral terrain recipes for a world role.**
+
+Content may state requirements such as:
+
+- a starting foothold needs broad credible traversal and construction sites;
+- an ordinary settled Tableland should favor long coherent upper surfaces;
+- a remote Massif may tolerate more vertical drama and route difficulty;
+- a hostile, exceptional, or wilderness region may deliberately use broken/lumpy/awkward terrain.
+
+Content should consume semantic Authorship controls/recipes rather than reaching through the contract to incidental implementation parameters. Production tuning should normally change **recipe selection, role distribution, or authored intent**, not prune Skyforge's expressive capacity.
+
+### Backend fidelity and consequences — Implementation
+
+**Implementation owns faithful backend realization and the concrete physical consequences of the requested neutral terrain.**
+
+Implementation proves:
+
+- the requested neutral morphology survives backend translation/discretization;
+- concrete block-space support, slopes, steps, traversal consequences, clearance, persistence, and lifecycle;
+- whether a backend introduces artifacts or materially distorts the neutral requested character.
+
+Implementation must not silently retune neutral morphology to solve a gameplay-role problem. If neutral geometry is correct but the selected terrain is unsuitable for the gameplay role, route the defect to Content. If the neutral geometry itself does not match the intended recipe, route it to Authorship.
+
+### Human/product judgment
+
+Human review owns the qualitative decision that a realized terrain specimen is attractive, legible, suitably traversable for its intended role, sufficiently distinct from neighboring families, and appropriately distributed in production.
+
+Use this fault triage before changing morphology:
+
+```text
+neutral shape/control response is wrong or uncontrollable
+    -> AUTHORSHIP
+
+neutral shape is intentional and faithfully realized,
+but wrong for the assigned gameplay/world role
+    -> CONTENT / EXPERIENCE
+
+neutral shape is correct, but backend realization
+introduces distortion/artifacts/bad block-space behavior
+    -> IMPLEMENTATION
+
+all three are technically correct; question is desired look/feel/distribution
+    -> HUMAN PRODUCT GATE
+```
+
+A lumpy Massif may therefore be a valid PASS for generator capacity, Authorship controllability, and Minecraft fidelity while still being a FAIL for selection as an ordinary starting-area recipe. Production acceptance must not collapse those judgments into “remove lumpiness from the generator.”
 
 ## Morphology / Minecraft realization
 
