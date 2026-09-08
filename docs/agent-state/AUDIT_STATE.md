@@ -3,7 +3,7 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-08 (America/Chicago)  
-**Current full-program reconciliation base:** `main@7316248526b46a330fe34c3b271d1e381207c2c8`  
+**Current full-program reconciliation base:** `main@8962984191e2db9d780b79991e1809e0e4baff68`  
 **Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0017**
 
 Read first: [PROGRAM_CHARTER.md](PROGRAM_CHARTER.md), [VALIDATION_POLICY.md](VALIDATION_POLICY.md), [HUMAN_STRATEGY_ROADMAP.md](HUMAN_STRATEGY_ROADMAP.md), [ORCHESTRATION_PROTOCOL.md](ORCHESTRATION_PROTOCOL.md), [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md), current lane ledgers, current `main`, open PRs/issues, source/tests, merged history, and exact-head workflow evidence. Repository evidence overrides stale conversation or older snapshots.
@@ -30,7 +30,7 @@ AUDIT-0001 through AUDIT-0008 established repository-first reconstruction, manua
 
 **AUDIT-0017** accepted repository-visible, model-free hosted status reporting from PR #414 / merge `73162485`. Exact head `a5e765ec65cafefb420aad07eaf72f4a62b3e2be` passed Orchestrator Smoke run `34286300083` and repository CI run `34286299999`. Trusted `/skyforge-status` is a deterministic zero-Codex control that reports non-secret live controller state back to the issuing issue/PR, including loaded runtime head and checkout head; `/healthz` now exposes the loaded runtime head as well. The controller-authored status reply is self-filtered and cannot recurse.
 
-Hosted activation remains **VERIFIED** in issue #369. The pre-AUDIT-0015 C12 duplicate-worker incident is recovered: the duplicate #401 delta was discarded without losing unique work, the durable event journal was preserved, and the service/controller checkout was returned to a safe state. A provider reboot on 2026-09-08 proved both services restart successfully: Caddy and `skyforge-orchestrator.service` became active, the controller listened on `127.0.0.1:3000`, local and public `/healthz` returned HTTP 200, GitHub webhook deliveries returned 202, startup reconciliation observed remote `main@7316248526`, and 11 durable pending events were restored. However that reboot loaded a pre-#414 checkout: the live controller treated `/skyforge-status` as an ordinary comment. The remaining deployment step is therefore a guarded service stop plus clean `main` fast-forward to current `origin/main`, followed by service restart and `/skyforge-status` verification. Safety remains auto-merge OFF and API-billing fallback OFF.
+Hosted activation remains **VERIFIED** in issue #369, and the AUDIT-0017 live deployment is now **VERIFIED**. After confirming branch=`main`, a clean controller checkout, and `pending_worker=false`, the hosted checkout was fast-forwarded without rewriting state from `e59fcaa2` to current `main@8962984191`. The service restarted successfully, local and public `/healthz` both returned HTTP 200, startup reconciliation preserved the durable journal and added one current-state event, and trusted `/skyforge-status` posted repository-visible proof that `runtime_head == checkout_head == 8962984191e2db9d780b79991e1809e0e4baff68`, `pending_worker=false`, `paused=false`, and no worker is active. Seventeen pending events remain durably queued. The only active block is the intentional first-week Luna daily ceiling (`24/24`, `blocked_kind=local_budget`), not a controller fault; queued work may resume after the UTC-day budget reset. Safety remains auto-merge OFF and API-billing fallback OFF.
 
 ## CURRENT PROGRAM SNAPSHOT
 
@@ -41,7 +41,7 @@ Hosted activation remains **VERIFIED** in issue #369. The pre-AUDIT-0015 C12 dup
 | Content / Experience | **C26** plus late **C12 B0-A1/B0-A2** acceptance; C11 and #237 machine seams retained | #401 merged; powered-aircraft lifecycle and #237 ergonomics remain downstream | **HEALTHY / ACCEPTED; HUMAN GATE REMAINS** |
 | Music / Audio | **MUS-0005** | source/plugin recovery and Track-06 source/listening only | **HEALTHY / DORMANT pending source/human work** |
 | Presentation | **PRES-0004** plus accepted runtime-capture infrastructure #362 | PRES-0005 explanatory graphics #385 | **HEALTHY / HUMAN GATE** |
-| Audit | **AUDIT-0017** | guarded live checkout fast-forward; value watch #378; negative-space/liveness watchdog | **REPO FIX MERGED / LIVE RUNTIME STALE** |
+| Audit | **AUDIT-0017** | value watch #378; negative-space/liveness watchdog | **HEALTHY / LIVE DEPLOYMENT VERIFIED** |
 
 ## ACTIVE CONVERGENCE HEALTH
 
@@ -73,11 +73,11 @@ The hosted recovery worker that woke from the earlier RESTART signal recreated t
 
 ### Audit — hosted orchestration
 
-**HOST HEALTHY / CHECKOUT FAST-FORWARD REQUIRED.** The legacy C12 shared-worktree incident is recovered. A subsequent bounded provider reboot proved the systemd/Caddy boot path, public HTTPS health, signed webhook delivery, startup reconciliation, and durable replay journal are all functioning. The replacement process restored 11 pending events and observed remote `main@7316248526`.
+**HEALTHY / LIVE DEPLOYMENT VERIFIED.** The legacy C12 shared-worktree incident is recovered, and the final stale-checkout condition is closed. The guarded fast-forward/restart retained the durable event journal, loaded current `main@8962984191`, and restored normal hosted operation. Both local and public `/healthz` return HTTP 200. Repository-visible `/skyforge-status` confirms `runtime_head` and `checkout_head` both equal current main, with `pending_worker=false`, `paused=false`, no active worker, and 17 durable pending events.
 
-The remaining defect is narrower: systemd reloaded the controller from a stale local checkout, so the live process still lacks AUDIT-0017's `/skyforge-status` handler even though remote `main` contains it. This is not a webhook or provider-network failure; post-reboot issue-comment and workflow-run deliveries return 202, and `/healthz` returns 200. Before modifying state, require `pending_worker=false`, controller branch `main`, and a clean checkout. Then stop the service, fast-forward the checkout to current `origin/main`, restart, and use `/skyforge-status` to prove `runtime_head == checkout_head == current main`. Preserve the 11-event durable journal, counters, telemetry, and any legitimate pending decision. If a worker is pending or the checkout is dirty, abort and inspect rather than forcing the update.
+The controller is currently blocked only by the intentional first-week Luna daily ceiling: `luna_calls_today_total=24` / `classifier_calls_today=24`, `luna_worker_calls_today=0`, `terra_worker_calls_today=1`, `blocked_kind=local_budget`. This is expected capacity control, not liveness failure; do not clear the journal or bypass the ceiling merely to drain the queue. After the UTC-day reset, retained events may resume through the normal scheduler.
 
-AUDIT-0015 prevents worker branches from pinning the service checkout. AUDIT-0016 provides self-refresh after a running process reaches `sync_main()`. AUDIT-0017 closes the operator-observability gap so future stale-runtime diagnosis does not depend on SSH. Issue #378 remains the model-free hosted value watch. Auto-merge remains off.
+AUDIT-0015 prevents worker branches from pinning the service checkout. AUDIT-0016 provides runtime self-refresh after controller-source movement. AUDIT-0017 provides model-free repository-visible runtime proof. Issue #378 remains the hosted value watch. Auto-merge remains off.
 
 ## VALIDATION / EVIDENCE ECONOMY
 
@@ -109,13 +109,13 @@ AUDIT-0015 prevents worker branches from pinning the service checkout. AUDIT-001
 - Presentation #385: **HEALTHY / HUMAN GATE**; silence is expected while waiting on qualitative review.
 - Authorship: **INTENTIONALLY DORMANT**, not stale.
 - Music: **INTENTIONALLY DORMANT pending source/human work**, not stale.
-- Hosted controller: **HEALTHY TRANSPORT / STALE LOCAL CHECKOUT**. Reboot, HTTPS health, signed webhook delivery, startup reconciliation, and durable event restoration are proven; one guarded clean-main fast-forward/restart is required to load AUDIT-0017 and make future runtime state repository-visible. Audit continues to own negative space, silence, stale-session replacement, evidence saturation, and race detection.
+- Hosted controller: **HEALTHY / LIVE AUDIT-0017 VERIFIED**. Current runtime and checkout match `main@8962984191`; HTTPS health, signed webhook delivery, startup reconciliation, durable event retention, and model-free status reporting are proven. The current `local_budget` block is expected first-week capacity control. Audit continues to own negative space, silence, stale-session replacement, evidence saturation, and race detection.
 
 ## NEXT AUDIT WORK
 
 1. Hold #358 at the ready human gate; prevent further broad morphology testing until #214/#267/#283 review supplies a concrete uncertainty.
 2. Surface HS-03 and HS-04 to Nicholas; preserve the solved SF-IMP-0083 carrier/runtime boundary even if narrow tuning is requested.
-3. Complete the guarded host checkout fast-forward only when `pending_worker=false`, branch=`main`, and the controller checkout is clean; stop the service, fast-forward to current `origin/main`, restart, and verify `/skyforge-status` reports matching `runtime_head`, `checkout_head`, and current `main` with no stale breaker. Preserve the durable event journal/telemetry.
+3. Treat AUDIT-0017 hosted deployment as verified. Let the retained 17-event queue respect the normal `local_budget` reset rather than bypassing the 24-call Luna ceiling; inspect only if the block persists after the UTC-day reset or a new breaker/safety pause appears.
 4. Keep Authorship dormant until a concrete consumer proves a missing neutral-world semantic.
 5. Keep PRES-0005 and #237 ergonomics visible as ready human gates without substituting more machine evidence.
 6. Keep HS-06 visible before concrete Bootstrap resource guarantees are locked and HS-05 before final Bootstrap Province implementation begins.
