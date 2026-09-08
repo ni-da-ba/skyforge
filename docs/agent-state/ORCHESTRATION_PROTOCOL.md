@@ -524,6 +524,11 @@ bounded local circuit breaker, and accept/coalesce later events without starting
 When the breaker expires, reconstruct from current repository truth before continuation. An interrupted
 worker with partial local changes is resumed on its recorded branch rather than discarded.
 
+Worker completion and GitHub handoff are separate durable phases. Once the worker returns, persist a
+`handoff` stage and summary before commit/push/PR operations. Handoff retries must be idempotent:
+reuse an existing local commit, remote branch, or open PR rather than rerunning the worker or creating
+duplicate pull requests.
+
 A fresh event invalidates a cached non-worker classifier decision because repository truth may have
 changed. A genuinely in-flight worker decision remains stable until its bounded handoff completes;
 later events remain queued for a subsequent classification.
