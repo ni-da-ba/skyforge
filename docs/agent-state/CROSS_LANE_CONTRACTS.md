@@ -21,7 +21,7 @@ This file records only coordination boundaries another lane must preserve.
 | --- | --- |
 | Authorship | `AUTH-0100` accepted: exact regional AUTH-0098 petroleum-system opportunity inventory over AUTH-0087 provenance; AUTH-0097 remains the site-access handoff and AUTH-0095 the morphology-diagnostic handoff |
 | Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / #284 owns remaining AUTH-0083 built-in seed/scale Minecraft matrix |
-| Content / Experience | `C23` / PR #367 accepted candidate: AUTH-0100 now drives deterministic petroleum-province feasibility/replan without selecting a final site; next Content seam is petroleum infrastructure-role matching over accepted site/access evidence |
+| Content / Experience | `C24` / PR #373 accepted candidate: C23 + AUTH-0096/0097 nominate coarse petroleum extraction/refinery/freight candidates without selecting a final site; next Content seam is concrete infrastructure requirement envelopes |
 | Music / Audio | `MUS-0002` accepted in `30b5202fec3ae07b0720b42eb8d7770c3c463843`: canonical soundtrack source integrity is machine-gated in normal CI; human listening/CWP recovery gates remain explicit |
 | AUDIT | `AUDIT-0008` accepted: repository-visible process/convergence health remains supervisory responsibility |
 
@@ -305,6 +305,31 @@ demonstrates a specific missing backend-neutral world cause.
 
 Implementation remains owner of literal deposits, quantity/pressure/depletion/extraction, concrete
 structure geometry/admission, Minecraft/mod identity, worldgen, persistence, and lifecycle.
+
+### C24 — petroleum infrastructure coarse candidate matching — ACCEPTED
+
+C24 / PR #373 consumes C23 + AUTH-0096/AUTH-0097 as follows:
+
+- extraction-interface candidates require a C23 petroleum-eligible association plus exact
+  AUTH-0096 physical surface support;
+- refinery/processing candidates require exact AUTH-0096 physical surface support and may occupy
+  another island within the same exact C23/AUTH-0100 published region;
+- freight-transfer-edge candidates require exact AUTH-0096 physical surface support plus at least
+  one AUTH-0097 ray with an observed-open sample;
+- candidate order/provenance remains exact AUTH-0096/AUTH-0097 source order;
+- no local candidate is promoted to a selected site.
+
+C24 introduces no numeric footprint/flatness/grade/approach threshold, no geological-ranking site
+choice, and no literal deposit alignment. Therefore AUTH-0096/AUTH-0097 are sufficient for the coarse
+candidate stage and C24 demonstrates no new Authorship evidence gap.
+
+The next Content step must derive concrete requirement envelopes from actual infrastructure assets
+and gameplay roles. A further Authorship milestone is justified only if one of those concrete
+requirements cannot be evaluated from accepted evidence.
+
+Implementation remains owner of exact structure geometry/orientation/admission, deposit-interface
+alignment, neighboring obstruction, mutation, Minecraft/mod identity, worldgen, persistence, and
+lifecycle.
 
 ## Atmosphere / mobility
 
