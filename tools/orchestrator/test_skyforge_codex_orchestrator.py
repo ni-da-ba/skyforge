@@ -1,9 +1,8 @@
 import hashlib
 import hmac
-import json
 import unittest
 
-from skyforge_codex_orchestrator import (
+from app_server_controller import (
     build_orchestrator_prompt,
     classify_webhook,
     verify_github_signature,
@@ -31,18 +30,15 @@ class ClassificationTests(unittest.TestCase):
 
     def test_pr_synchronize_actionable(self):
         payload = self.base_repo()
-        payload.update(
-            {
-                "action": "synchronize",
+        payload.update({
+            "action": "synchronize",
+            "number": 42,
+            "pull_request": {
                 "number": 42,
-                "pull_request": {
-                    "number": 42,
-                    "title": "Test PR",
-                    "head": {"sha": "abcdef0123456789"},
-                    "merged": False,
-                },
-            }
-        )
+                "title": "Test PR",
+                "head": {"sha": "abcdef0123456789"},
+            },
+        })
         event = classify_webhook("pull_request", payload, "d2")
         self.assertIsNotNone(event)
         self.assertIn("PR #42", event.summary)
@@ -66,40 +62,34 @@ class ClassificationTests(unittest.TestCase):
 
     def test_completed_workflow_actionable(self):
         payload = self.base_repo()
-        payload.update(
-            {
-                "action": "completed",
-                "workflow_run": {
-                    "name": "CI",
-                    "conclusion": "success",
-                    "head_sha": "cafebabedeadbeef",
-                },
-            }
-        )
+        payload.update({
+            "action": "completed",
+            "workflow_run": {
+                "name": "CI",
+                "conclusion": "success",
+                "head_sha": "cafebabedeadbeef",
+            },
+        })
         event = classify_webhook("workflow_run", payload, "d6")
         self.assertIsNotNone(event)
         self.assertIn("conclusion=success", event.summary)
 
     def test_bot_pr_comment_ignored(self):
         payload = self.base_repo()
-        payload.update(
-            {
-                "action": "created",
-                "issue": {"number": 12, "pull_request": {"url": "x"}},
-                "comment": {"body": "status", "user": {"login": "dependabot[bot]"}},
-            }
-        )
+        payload.update({
+            "action": "created",
+            "issue": {"number": 12, "pull_request": {"url": "x"}},
+            "comment": {"body": "status", "user": {"login": "dependabot[bot]"}},
+        })
         self.assertIsNone(classify_webhook("issue_comment", payload, "d7"))
 
     def test_human_pr_comment_actionable(self):
         payload = self.base_repo()
-        payload.update(
-            {
-                "action": "created",
-                "issue": {"number": 12, "pull_request": {"url": "x"}},
-                "comment": {"body": "please recheck", "user": {"login": "ni-da-ba"}},
-            }
-        )
+        payload.update({
+            "action": "created",
+            "issue": {"number": 12, "pull_request": {"url": "x"}},
+            "comment": {"body": "please recheck", "user": {"login": "ni-da-ba"}},
+        })
         event = classify_webhook("issue_comment", payload, "d8")
         self.assertIsNotNone(event)
         self.assertIn("please recheck", event.summary)
