@@ -68,17 +68,17 @@ jobs:
 
           if [[ -n "${changed}" ]] && ! printf '%s\n' "${changed}" | grep -Ev '^(docs/|AGENTS\.md$|README\.md$|CONTRIBUTING\.md$|SECURITY\.md$|CODE_OF_CONDUCT\.md$)' >/dev/null; then
             echo "full=false" >> "${GITHUB_OUTPUT}"
-            echo "Documentation/state-only change: skipping Gradle/evidence generation."
+            echo "Lightweight docs/orchestration-only change: skipping Gradle/evidence generation."
           else
             echo "full=true" >> "${GITHUB_OUTPUT}"
-            echo "Code, asset, build, or workflow impact detected: running full CI."
+            echo "Product code, asset, build, or general workflow impact detected: running full CI."
           fi
 
       - name: Verify music source integrity
         if: steps.impact.outputs.music == 'true'
         run: python3 scripts/music/verify_music_sources.py
 
-      - name: Validate documentation-only repository integrity
+      - name: Validate lightweight repository integrity
         if: steps.impact.outputs.full != 'true'
         shell: bash
         run: |
@@ -87,11 +87,11 @@ jobs:
           test -f docs/agent-state/CROSS_LANE_CONTRACTS.md
           test -f docs/agent-state/VALIDATION_POLICY.md
           test -f docs/agent-state/HUMAN_STRATEGY_ROADMAP.md
-          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- AGENTS.md README.md docs; then
+          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- AGENTS.md README.md docs scripts/orchestrator; then
             echo "Merge-conflict marker found in documentation/state."
             exit 1
           fi
-          echo "PASS documentation/state-only integrity gate"
+          echo "PASS lightweight repository integrity gate"
 
       - name: Set up Java 25
         if: steps.impact.outputs.full == 'true'
