@@ -75,6 +75,7 @@ final class WaveC12BellancaB0AssemblyResourceTest {
         assertTrue(source.contains("localComZ="));
         assertFalse(source.contains("mass == 38.5"));
         assertTrue(massNote.contains("live Sable measurement is authoritative"));
-        assertTrue(massNote.contains("not acceptance thresholds"));
+        assertTrue(massNote.contains("analytic hypotheses"));
+        assertTrue(massNote.contains("explicit-review rule"));
     }
 }
