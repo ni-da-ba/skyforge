@@ -84,6 +84,17 @@ val waveC9Runtime = sourceSets.create("waveC9Runtime") {
         development.output
 }
 
+
+// C11 resumes the reserved historical first-flight recipe proof on current main. It loads only the
+// exact retained Create/Sable/Aeronautics substrate and remains isolated from production runtime.
+val waveC11Runtime = sourceSets.create("waveC11Runtime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
 // C14 adds an explicit flight-only A/B baseline. It reuses the exact C9 flight substrate but omits
 // CC:Tweaked and Create: Avionics so the capability specimen also proves computing remains optional.
 val waveC14FlightBaselineRuntime = sourceSets.create("waveC14FlightBaselineRuntime") {
@@ -1773,6 +1784,18 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
+        // C11 interrogates Minecraft's live RecipeManager after the exact retained flight stack has
+        // registered its recipes. This proves recipe surface only; it does not prove aircraft flight.
+        create("waveC11FirstFlightRecipeServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c11-first-flight-recipes").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC11FirstFlightRecipeAcceptance", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // C14 A/B baseline: the retained Create/Sable/Aeronautics stack without computing mods.
         create("waveC14FlightBaselineServer") {
             server()
@@ -2097,6 +2120,30 @@ tasks.named("runWaveC25PetroleumAuthoritySuppressedServer").configure {
             "Disable high oil chunks" = true
             """.trimIndent() + "\n"
         )
+    }
+}
+
+
+val waveC11FirstFlightServerProperties = """
+    level-name=wave-c11-first-flight
+    level-seed=601100
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC11FirstFlightRecipeServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c11-first-flight-recipes").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC11FirstFlightServerProperties)
     }
 }
 
@@ -4226,6 +4273,37 @@ tasks.register("waveC9ResolvePinnedMods") {
 
 
 
+tasks.register("waveC11ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve and assert the exact Wave C11 first-flight recipe runtime."
+    inputs.file(waveC1PinFile)
+
+    doLast {
+        val files = waveC11Runtime.runtimeClasspath.files.map { it.name }.sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return "${parts[1]}-${parts[2]}"
+        }
+
+        val requiredTokens = mapOf(
+            "Create" to artifactToken(waveC1Pin("create", "coordinate")),
+            "Sable" to artifactToken(waveC1Pin("sable", "coordinate")),
+            "Create Aeronautics" to artifactToken(waveC1Pin("aeronautics", "coordinate")),
+        )
+        requiredTokens.forEach { (label, token) ->
+            check(files.any { it.contains(token) }) {
+                "Wave C11 missing $label artifact token '$token': $files"
+            }
+        }
+
+        println("Wave C11 first-flight recipe classpath")
+        files.forEach { println("  resolved=$it") }
+    }
+}
+
+
 tasks.register("waveC25ResolvePinnedMods") {
     group = "verification"
     description = "Resolve and assert the exact isolated C25 Create + Diesel Generators runtime."
@@ -4492,6 +4570,14 @@ dependencies {
         )
     }
 
+
+    // C11 first-flight recipe specimen: exact retained Create/Sable/Aeronautics only.
+    listOf("create", "sable", "aeronautics").forEach { mod ->
+        add(
+            waveC11Runtime.runtimeOnlyConfigurationName,
+            waveC1Pin(mod, "coordinate"),
+        )
+    }
 
     // C25 retains only the exact Create base plus Create: Diesel Generators. Keeping this runtime
     // isolated prevents petroleum R&D from changing C1/C9/C14/C16-C21 compatibility evidence.
