@@ -633,8 +633,11 @@ provider control plane
     -> verify no separately billable pilot resource remains
 ```
 
-Telemetry integrity must never trap continuing infrastructure cost. A final-report posting failure is
-a warning/evidence gap, not authority to keep a paid host alive.
+Telemetry or GitHub cleanup integrity must never trap continuing infrastructure cost. Missing local
+reporting prerequisites, final-report posting failure, hostname-discovery failure, or webhook
+lookup/deletion failure are warnings/evidence gaps; they must be recorded where possible while local
+services still stop unconditionally. Provider destruction and an external webhook/billable-resource
+verification remain the terminal cancellation boundary.
 
 Do not grant the hosted worker provider credentials merely so it can self-destruct. Provider deletion
 remains an explicit external action. Powering off a VM is not equivalent to cancellation.
