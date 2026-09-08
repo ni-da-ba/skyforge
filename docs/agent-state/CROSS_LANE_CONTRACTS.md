@@ -21,7 +21,7 @@ This file records only coordination boundaries another lane must preserve.
 | --- | --- |
 | Authorship | `AUTH-0100` accepted: exact regional AUTH-0098 petroleum-system opportunity inventory over AUTH-0087 provenance; AUTH-0097 remains the site-access handoff and AUTH-0095 the morphology-diagnostic handoff |
 | Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / #284 owns remaining AUTH-0083 built-in seed/scale Minecraft matrix |
-| Content / Experience | `C24` / PR #373 accepted candidate: C23 + AUTH-0096/0097 nominate coarse petroleum extraction/refinery/freight candidates without selecting a final site; next Content seam is concrete infrastructure requirement envelopes |
+| Content / Experience | `C25` / PR #377 accepted candidate: retain Create: Diesel Generators machinery but globally suppress its independent chunk-oil geography; Implementation owns the narrow Skyforge petroleum source/depletion/pumpjack bridge |
 | Music / Audio | `MUS-0002` accepted in `30b5202fec3ae07b0720b42eb8d7770c3c463843`: canonical soundtrack source integrity is machine-gated in normal CI; human listening/CWP recovery gates remain explicit |
 | AUDIT | `AUDIT-0008` accepted: repository-visible process/convergence health remains supervisory responsibility |
 
@@ -330,6 +330,28 @@ requirements cannot be evaluated from accepted evidence.
 Implementation remains owner of exact structure geometry/orientation/admission, deposit-interface
 alignment, neighboring obstruction, mutation, Minecraft/mod identity, worldgen, persistence, and
 lifecycle.
+
+### C25 — Create: Diesel Generators petroleum authority control — ACCEPTED
+
+C25 / PR #377 proves the pinned Create: Diesel Generators 1.21.1-1.3.15 stack can retain its crude
+fluid, pumpjack, distillation, and diesel-engine assets while both native oil-chunk classes are
+disabled by the upstream server config.
+
+Production contract:
+
+- retain Diesel Generators petroleum machinery, processing, fuels, storage, and engines;
+- suppress the mod's independent native per-chunk Perlin/biome petroleum geography globally;
+- do not treat upstream chunk noise, biome tags, `cdg_oil_chunks` native generation semantics, or
+  default bedrock pumpjack termination as authored Skyforge petroleum meaning;
+- do not add KubeJS merely to obtain its optional CDG oilAmount event;
+- Content C22-C24 + AUTH-0100 remain the petroleum meaning/selection inputs;
+- **Implementation** owns a narrow adapter that exposes literal Skyforge-owned petroleum
+  source/depletion/pumpjack behavior to retained Diesel Generators machinery.
+
+C25 does not choose that adapter technique and defines no deposit geometry, quantity, pressure,
+depletion curve, final infrastructure site, or Minecraft placement. The adapter must preserve exact
+Skyforge volume ownership, C23 petroleum-province eligibility, C24 infrastructure intent, persistence,
+and lifecycle.
 
 ## Atmosphere / mobility
 

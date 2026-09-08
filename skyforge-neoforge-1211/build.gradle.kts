@@ -105,6 +105,18 @@ val waveC15PortalRuntime = sourceSets.create("waveC15PortalRuntime") {
 }
 
 
+// C25 isolates the retained Create + Create: Diesel Generators petroleum stack from every other
+// content/implementation wave. The candidate jar is validation-only until its authority boundary
+// is accepted and handed to Implementation.
+val waveC25Runtime = sourceSets.create("waveC25Runtime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
+
 // Wave C13 performs a black-box baseline-vs-suppressed Elytra test. Only the suppressed run loads
 // the pinned No More Elytra Boosting jar; ordinary Skyforge and the baseline acceptance stay vanilla.
 val waveC13Runtime = sourceSets.create("waveC13Runtime") {
@@ -130,6 +142,24 @@ check(waveC9Pin("minecraft", "version") == "1.21.1") {
 }
 check(waveC9Pin("neoforge", "version") == "21.1.249") {
     "Wave C9 NeoForge pin must match the adapter runtime"
+}
+
+
+val waveC25PinFile = layout.projectDirectory.file("wave-c25-mods.properties")
+val waveC25Pins = Properties().apply {
+    waveC25PinFile.asFile.inputStream().use(::load)
+}
+
+fun waveC25Pin(mod: String, field: String): String =
+    requireNotNull(waveC25Pins.getProperty("$mod.$field")) {
+        "missing Wave C25 pin: $mod.$field in " + waveC25PinFile.asFile
+    }
+
+check(waveC25Pin("minecraft", "version") == "1.21.1") {
+    "Wave C25 is defined only for Minecraft 1.21.1"
+}
+check(waveC25Pin("neoforge", "version") == "21.1.249") {
+    "Wave C25 NeoForge pin must match the adapter runtime"
 }
 
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
@@ -1722,6 +1752,27 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
+        // C25 A/B retains Create: Diesel Generators machinery while proving its independent
+        // chunk-noise petroleum geography can be disabled through the upstream server config.
+        create("waveC25PetroleumAuthorityBaselineServer") {
+            server()
+            sourceSet.set(waveC25Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c25-petroleum-baseline-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC25PetroleumAuthority", "baseline")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC25PetroleumAuthoritySuppressedServer") {
+            server()
+            sourceSet.set(waveC25Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c25-petroleum-suppressed-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.waveC25PetroleumAuthority", "suppressed")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // C14 A/B baseline: the retained Create/Sable/Aeronautics stack without computing mods.
         create("waveC14FlightBaselineServer") {
             server()
@@ -1987,6 +2038,65 @@ tasks.named("runWaveC21CreateResourceSuppressedServer").configure {
         val noneModifier = """{"type":"neoforge:none"}"""
         pack.resolve("data/create/neoforge/biome_modifier/zinc_ore.json").writeText(noneModifier)
         pack.resolve("data/create/neoforge/biome_modifier/striated_ores_overworld.json").writeText(noneModifier)
+    }
+}
+
+
+val waveC25BaselineServerProperties = """
+    level-name=wave-c25-baseline
+    level-seed=602500
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+val waveC25SuppressedServerProperties = """
+    level-name=wave-c25-suppressed
+    level-seed=602501
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=2
+    simulation-distance=2
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC25PetroleumAuthorityBaselineServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c25-petroleum-baseline-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC25BaselineServerProperties)
+    }
+}
+
+tasks.named("runWaveC25PetroleumAuthoritySuppressedServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c25-petroleum-suppressed-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC25SuppressedServerProperties)
+
+        val serverConfig = directory.resolve(
+            "wave-c25-suppressed/serverconfig/createdieselgenerators-server.toml"
+        )
+        serverConfig.parentFile.mkdirs()
+        serverConfig.writeText(
+            """
+            ["Server Configs"."Oil Config"]
+            "Disable normal oil chunks" = true
+            "Disable high oil chunks" = true
+            """.trimIndent() + "\n"
+        )
     }
 }
 
@@ -4115,6 +4225,37 @@ tasks.register("waveC9ResolvePinnedMods") {
 }
 
 
+
+tasks.register("waveC25ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve and assert the exact isolated C25 Create + Diesel Generators runtime."
+    inputs.file(waveC1PinFile)
+    inputs.file(waveC25PinFile)
+
+    doLast {
+        val files = waveC25Runtime.runtimeClasspath.files.map { it.name }.sorted()
+
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return "${parts[1]}-${parts[2]}"
+        }
+
+        val createToken = artifactToken(waveC1Pin("create", "coordinate"))
+        val dieselToken = artifactToken(waveC25Pin("createdieselgenerators", "coordinate"))
+        check(files.any { it.contains(createToken) }) {
+            "Wave C25 missing pinned Create artifact token '$createToken': $files"
+        }
+        check(files.any { it.contains(dieselToken) }) {
+            "Wave C25 missing pinned Create: Diesel Generators artifact token '$dieselToken': $files"
+        }
+
+        println("Wave C25 petroleum-authority classpath")
+        files.forEach { println("  resolved=$it") }
+    }
+}
+
+
 tasks.register("waveC14ResolvePinnedMods") {
     group = "verification"
     description = "Assert C14 flight-only baseline versus exact C9 computing capability classpaths."
@@ -4350,6 +4491,18 @@ dependencies {
             waveC1Pin(mod, "coordinate"),
         )
     }
+
+
+    // C25 retains only the exact Create base plus Create: Diesel Generators. Keeping this runtime
+    // isolated prevents petroleum R&D from changing C1/C9/C14/C16-C21 compatibility evidence.
+    add(
+        waveC25Runtime.runtimeOnlyConfigurationName,
+        waveC1Pin("create", "coordinate"),
+    )
+    add(
+        waveC25Runtime.runtimeOnlyConfigurationName,
+        waveC25Pin("createdieselgenerators", "coordinate"),
+    )
 
     // C13's suppressed run contains exactly the pinned server-side no-boost mod. The baseline run
     // deliberately uses the ordinary source set and therefore has vanilla Elytra/firework behavior.
