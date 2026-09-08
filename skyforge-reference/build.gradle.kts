@@ -186,3 +186,13 @@ tasks.register<JavaExec>("authorshipSurfaceSiteCapabilityCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/authorship-surface-site-capability-v1").get().asFile.absolutePath)
 }
+
+
+tasks.register<JavaExec>("authorshipDirectionalSurfaceAccessCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0097 directional surface-access evidence package."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.AuthorshipDirectionalSurfaceAccessCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/authorship-directional-surface-access-v1").get().asFile.absolutePath)
+}
