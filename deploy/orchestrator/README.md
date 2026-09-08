@@ -239,10 +239,11 @@ Host-side cancellation is intentionally explicit and reversible:
 
 That command:
 
-1. attempts to write/post one final value report; if posting fails, it preserves a local failure record
-   **and continues teardown** so telemetry failure cannot trap continuing cost;
-2. removes the matching GitHub repository webhook;
-3. stops/disables the daily report timer;
+1. attempts to write/post one final value report; if reporting is unavailable or posting fails, it
+   preserves a local failure record and **continues teardown**;
+2. attempts to remove the matching GitHub repository webhook; lookup/deletion failure is recorded but
+   also **cannot block local shutdown**;
+3. unconditionally stops/disables the daily report timer;
 4. stops/disables the orchestrator;
 5. stops/disables Caddy;
 6. leaves the final local JSON/Markdown reports available for export.
