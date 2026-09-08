@@ -206,3 +206,13 @@ tasks.register<JavaExec>("authorshipPetroleumSystemOpportunityCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/authorship-petroleum-system-opportunity-v1").get().asFile.absolutePath)
 }
+
+
+tasks.register<JavaExec>("authorshipCaveSiteCapabilityCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0099 cave-system site capability evidence package."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.AuthorshipCaveSiteCapabilityCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/authorship-cave-site-capability-v1").get().asFile.absolutePath)
+}
