@@ -23,7 +23,7 @@ Presentation is now a canonical program lane. It consumes accepted project truth
 | Content / Experience | **C21** / #315 + C17 fixture maintenance #341 / merge `741e16ec` | no new bounded Content milestone | **HEALTHY / ACCEPTED** |
 | Music / Audio | **MUS-0003** / #331 | human listening/source-recovery gates | **HEALTHY / DORMANT pending human/source work** |
 | Presentation | **PRES-0003** / #351 / merge `aee9508d` | PRES-0004 / #355 + #348 image enrichment | **WATCH / REPEATED ACCEPTANCE-BOOKKEEPING LAG** |
-| Audit | **AUDIT-0008** + governance above | event-driven orchestration pilot #352 + hourly supervision | **WATCH / ACTIVE; SAME-STATE-FILE RACE IDENTIFIED** |
+| Audit | **AUDIT-0008** + orchestration governance | AUDIT-0009 reliability / #364 + hourly supervision | **WATCH / ACTIVE; QUOTA-SAFE HARDENING** |
 
 Open producer/program PRs at this reconciliation: Presentation #355 and Audit #352. Audit reconciliation #356 is state-only.
 
@@ -53,11 +53,18 @@ The unresolved diagnostic evidence remains the deliberately sampled Tableland pr
 
 Canonical `PRESENTATION_STATE.md` on main still says PRES-0003 is READY FOR ACCEPTANCE / highest merged PRES-0002. This repeats the one-milestone lag left after #350. New PRES-0004 / #355 currently repairs PRES-0003 state while beginning the next milestone, repeating the same coupling. Audit directed a bounded accepted-state repair independent of PRES-0004 and an atomic-bookkeeping rule for future Presentation acceptance. This is a durable-state convergence issue, not a reason to reopen accepted Presentation evidence.
 
-### Audit — event-driven orchestration pilot #352
+### Audit — event-driven pilot merged; AUDIT-0009 reliability hardening
 
-**WATCH / ACTIVE; SAME-STATE-FILE RACE IDENTIFIED.** PR #352 implements the local event-driven Codex pilot under issue #349. Its latest observed head `86facda8` is 15 commits ahead of its base; Orchestrator Smoke `34183511309` PASS and ordinary CI `34183511319` was in progress at reconciliation. Earlier CI cancellation corresponded to head movement, not an unchanged rerun.
+**WATCH / ACTIVE; QUOTA-SAFE HARDENING.** The event-driven local Codex pilot from #352 is merged on
+`main` as `e678afc56a700c9149fda9bf2e337082bec3cf08`. AUDIT-0009 / PR #364 hardens the remaining
+reliability boundary: actionable events are durably journaled before acknowledgement; classifier
+decisions and interrupted worker branches survive bounded failure; Codex quota/rate/auth/transient
+failures enter a local circuit breaker rather than consuming the wake; later events coalesce while
+blocked; controller-side daily call ceilings and pilot metrics bound/evaluate usage.
 
-#352 also modifies `AUDIT_STATE.md` from the pre-#338/#285/PRES/C17 snapshot while hourly Audit reconciliation #356 modifies the same file from current state. Audit directed #352 to keep pilot semantics authoritative in `ORCHESTRATION_PROTOCOL.md`/pilot docs and drop or reapply only still-needed state notes after the current reconciliation, preventing a same-lane merge/reversion race.
+PR #364 exact-head Orchestrator Smoke `34184964212` PASS at `334ed4fd`; ordinary CI remains the
+remaining machine gate at this ledger update. This is orchestration infrastructure only: no producer
+technical acceptance, semantic contract, human gate, or auto-merge authority is expanded.
 
 Event-driven role split remains:
 
@@ -109,7 +116,9 @@ No current producer session meets the repository-evidence threshold for restart.
 
 ## EVENT-DRIVEN CODEX PILOT
 
-Issue #349 / PR #352 owns the local event-driven Codex orchestration experiment.
+Issue #349 owns the local event-driven Codex orchestration experiment. PR #352 established the merged
+event-driven pilot; AUDIT-0009 / PR #364 owns quota/failure persistence, restart replay, local usage
+ceilings, and recovery telemetry needed before routine unattended operation.
 
 Role split:
 
@@ -130,13 +139,16 @@ Audit merely because it is a Codex branch; inspect information-bearing progress 
 
 The pilot is local/reversible, uses a dedicated clone, filters/debounces events before Codex startup,
 uses a low-cost classifier plus at most one bounded worker, and leaves auto-merge disabled initially.
+After AUDIT-0009, a Codex/account/controller outage is intended to become a persisted delayed dispatch,
+not a lost orchestration event.
 
 ## NEXT AUDIT WORK
 
 1. Watch for a fresh current-main morphology-only SF-IMP-0083 branch and targeted Tableland diagnosis; unchanged heavy reruns escalate to LOOP RISK.
 2. Keep Authorship dormant after AUTH-0098 and AUTH-0099 parked unless a concrete consumer appears.
 3. Require Presentation accepted-state bookkeeping to catch up independently of PRES-0004; do not reopen accepted PRES-0003 evidence.
-4. Watch #352 exact-head CI and same-file race resolution; keep pilot acceptance separate from producer acceptance.
+4. Watch AUDIT-0009 / #364 ordinary CI; if green, accept the quota-safe reliability boundary while
+   keeping hosted deployment, API-billing fallback, and auto-merge expansion out of scope.
 5. Track cross-lane/Implementation ledger lag as bookkeeping debt without treating it as changed technical contracts.
 6. Prevent the next concrete Bootstrap resource-realization milestone from silently bypassing HS-06.
 7. Continue hourly supervision and notify separately for LOOP RISK, restart recommendation, ready human gate, serious repository/process failure, or triggered strategy decision.
