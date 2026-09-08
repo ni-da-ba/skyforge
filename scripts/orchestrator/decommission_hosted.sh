@@ -46,10 +46,19 @@ if [[ -f "$VALUE_ENV_FILE" ]]; then
 fi
 
 echo "Writing final hosted value report before teardown..."
-SKYFORGE_DROPLET_HOURLY_USD="$hourly" SKYFORGE_VALUE_REPORT_ISSUE="$issue" "$VENV_PYTHON" scripts/orchestrator/daily_value_report.py   --root "$ROOT" --repo "$REPO" --issue "$issue" || {
-    echo "Final report failed; refusing teardown so the accounting boundary is not silently lost." >&2
-    exit 1
-  }
+report_failed=0
+if ! SKYFORGE_DROPLET_HOURLY_USD="$hourly" SKYFORGE_VALUE_REPORT_ISSUE="$issue" "$VENV_PYTHON" scripts/orchestrator/daily_value_report.py --root "$ROOT" --repo "$REPO" --issue "$issue"; then
+  report_failed=1
+  failure_dir="$ROOT/.skyforge-orchestrator/reports"
+  mkdir -p "$failure_dir"
+  failure_file="$failure_dir/FINAL_REPORT_POST_FAILED_$(date -u +%Y%m%dT%H%M%SZ).txt"
+  {
+    echo "Final hosted value report could not be posted during decommission."
+    echo "Teardown continued intentionally so telemetry failure cannot trap continuing infrastructure cost."
+    echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } >"$failure_file"
+  echo "WARNING: final report post failed; local failure record preserved at $failure_file." >&2
+fi
 
 webhook_url="https://$hostname/webhook"
 mapfile -t hook_ids < <(
@@ -79,4 +88,9 @@ echo "  Destroy the DigitalOcean Droplet from the provider control plane."
 echo "  Then verify no pilot snapshot, backup, volume, reserved IP, load balancer,"
 echo "  database, or other separately billable resource remains."
 echo
+if [[ "$report_failed" == "1" ]]; then
+  echo
+  echo "WARNING: final GitHub value-report posting failed. Local report/failure evidence was retained."
+fi
+
 echo "Do not treat a powered-off Droplet as cancelled; provider destruction is required."
