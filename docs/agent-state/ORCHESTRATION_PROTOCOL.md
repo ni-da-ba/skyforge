@@ -589,7 +589,9 @@ A bounded worker may edit lane-owned source/tests/docs but may not autonomously 
 plane that defines its own authority. Before controller handoff, reject worker changes under
 `scripts/orchestrator/**`, `deploy/orchestrator/**`, `.github/**`, private orchestrator state,
 `AGENTS.md`, or canonical program/validation/orchestration/human-strategy/cross-lane/Audit governance
-documents. Such a change requires manual/Audit inspection rather than an autonomous commit.
+documents. Such a change requires manual/Audit inspection rather than an autonomous commit. The
+controller enters a durable safety pause and posts a human-gate record before returning the handoff
+error, preventing a retry loop from repeatedly attempting the same unsafe commit.
 
 Do not interpret these counters as token or dollar accounting unless the SDK exposes authoritative
 usage fields. Their purpose is to detect runaway wakeups, low-value dispatch, and poor accepted-progress
