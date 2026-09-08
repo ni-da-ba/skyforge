@@ -25,6 +25,24 @@ final class SkyIslandTerrainInterpreterTest {
     }
 
     @Test
+    void reusableColumnClassifierMatchesDirectClassification() {
+        var interpreter = new SkyIslandTerrainInterpreter(compiledMassif(), PROFILE);
+        double[] coordinates = {-192.0, -137.0, -64.0, 0.0, 71.0, 143.0, 192.0};
+
+        for (double x : coordinates) {
+            for (double z : coordinates) {
+                var column = interpreter.column(x, z);
+                for (double y = 120.0; y <= 520.0; y += 5.0) {
+                    assertEquals(
+                            interpreter.classify(x, y, z),
+                            column.classify(y),
+                            "column/direct mismatch at " + x + "," + y + "," + z);
+                }
+            }
+        }
+    }
+
+    @Test
     void compiledVolumeClassifiesAirShellsShallowInteriorAndDeepMass() {
         var volume = compiledMassif();
         var interpreter = new SkyIslandTerrainInterpreter(volume, PROFILE);

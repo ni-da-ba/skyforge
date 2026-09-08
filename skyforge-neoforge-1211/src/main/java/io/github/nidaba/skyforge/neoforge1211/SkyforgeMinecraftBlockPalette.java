@@ -20,7 +20,13 @@ public final class SkyforgeMinecraftBlockPalette {
     /** Projects one accepted Skyforge terrain semantic to a concrete vanilla block registry key. */
     public ResourceLocation blockKey(SkyIslandTerrainSampleContext context) {
         Objects.requireNonNull(context, "context");
-        return switch (context.semantic()) {
+        return blockKey(context.semantic());
+    }
+
+    /** Allocation-free semantic projection for dense backend materialization loops. */
+    public ResourceLocation blockKey(SkyIslandTerrainSemantic semantic) {
+        Objects.requireNonNull(semantic, "semantic");
+        return switch (semantic) {
             case AIR -> AIR;
             case SURFACE_MANTLE -> DIRT;
             case EDGE_SHELL, UNDERSIDE_SHELL, SHALLOW_INTERIOR -> STONE;

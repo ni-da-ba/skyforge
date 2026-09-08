@@ -61,6 +61,51 @@ public final class SkyIslandTerrainInterpreter {
         return value;
     }
 
+    /**
+     * Opens a reusable classifier for one fixed horizontal column.
+     *
+     * <p>Density remains sampled independently at every queried Y, preserving authoritative
+     * occupancy exactly. The upper/underside surface graphs are evaluated lazily on the first solid
+     * sample and then reused for the rest of the column. Minecraft materialization walks many Y
+     * samples at the same X/Z, so this removes repeated 2-D graph evaluation without moving any
+     * backend policy into the neutral interpreter.
+     */
+    public ColumnInterpreter column(double x, double z) {
+        if (!Double.isFinite(x) || !Double.isFinite(z)) {
+            throw new IllegalArgumentException("column coordinates must be finite");
+        }
+        return new ColumnInterpreter(x, z);
+    }
+
+    /** Reusable exact classifier for a fixed X/Z column. */
+    public final class ColumnInterpreter {
+        private final double x;
+        private final double z;
+        private boolean surfacesSampled;
+        private double upper;
+        private double underside;
+
+        private ColumnInterpreter(double x, double z) {
+            this.x = x;
+            this.z = z;
+        }
+
+        public SkyIslandTerrainSemantic classify(double y) {
+            if (!Double.isFinite(y)) {
+                throw new IllegalArgumentException("sample y must be finite");
+            }
+            if (!(density(x, y, z) > 0.0)) {
+                return SkyIslandTerrainSemantic.AIR;
+            }
+            if (!surfacesSampled) {
+                upper = upperSurfaceHeight(x, z);
+                underside = undersideSurfaceHeight(x, z);
+                surfacesSampled = true;
+            }
+            return classifyPositiveDensity(y, upper, underside);
+        }
+    }
+
     /** Classifies one finite world-space coordinate. */
     public SkyIslandTerrainSemantic classify(Coordinate3 point) {
         Objects.requireNonNull(point, "point");
@@ -70,8 +115,15 @@ public final class SkyIslandTerrainInterpreter {
 
         double upper = upperSurfaceHeight(point.x(), point.z());
         double underside = undersideSurfaceHeight(point.x(), point.z());
-        double depthFromUpper = upper - point.y();
-        double depthFromUnderside = point.y() - underside;
+        return classifyPositiveDensity(point.y(), upper, underside);
+    }
+
+    private SkyIslandTerrainSemantic classifyPositiveDensity(
+            double y,
+            double upper,
+            double underside) {
+        double depthFromUpper = upper - y;
+        double depthFromUnderside = y - underside;
         if (!(depthFromUpper > 0.0) || !(depthFromUnderside > 0.0)) {
             throw new IllegalStateException(
                     "compiled density is positive outside the compiled upper/underside surfaces");

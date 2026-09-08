@@ -33,9 +33,39 @@ final class SkyforgePhysicalVolumeAdmissionStage {
 
     static AutoCloseable install(SkyIslandWorldCatalog catalog) {
         Objects.requireNonNull(catalog, "catalog");
+        return install(
+                catalog,
+                new SkyforgePhysicalVolumeAdmissionLedger(catalog.volumes()));
+    }
+
+    /**
+     * Installs physical admission with an exact precomputed required chunk footprint per volume.
+     *
+     * <p>This is appropriate when an upstream exact-voxel support pass has already proved which
+     * Minecraft chunks contain at least one owned solid coordinate. Chunks containing no Skyforge
+     * solid cannot contain a physical occupancy conflict and therefore need not delay whole-volume
+     * admission. The historical bounds-derived constructor remains the production fallback.
+     */
+    static AutoCloseable install(
+            SkyIslandWorldCatalog catalog,
+            Map<SkyIslandWorldVolumeId, Set<Long>> requiredChunkKeysByVolume) {
+        Objects.requireNonNull(catalog, "catalog");
+        Objects.requireNonNull(requiredChunkKeysByVolume, "requiredChunkKeysByVolume");
+        if (!requiredChunkKeysByVolume.keySet().equals(
+                catalog.volumes().stream().map(volume -> volume.id()).collect(java.util.stream.Collectors.toSet()))) {
+            throw new IllegalArgumentException("exact physical-admission footprints must cover the catalog exactly");
+        }
+        return install(
+                catalog,
+                new SkyforgePhysicalVolumeAdmissionLedger(requiredChunkKeysByVolume));
+    }
+
+    private static AutoCloseable install(
+            SkyIslandWorldCatalog catalog,
+            SkyforgePhysicalVolumeAdmissionLedger ledger) {
         Binding binding = new Binding(
                 catalog,
-                new SkyforgePhysicalVolumeAdmissionLedger(catalog.volumes()),
+                ledger,
                 new HashMap<>(),
                 new HashMap<>());
         if (!ACTIVE.compareAndSet(null, binding)) {
@@ -75,9 +105,20 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                 chunk.getPos(),
                 chunk.getMinBuildHeight(),
                 chunk.getHeight());
+        long chunkKey = chunk.getPos().toLong();
         synchronized (binding) {
             for (var volume : binding.catalog().query(chunkBounds.worldBounds())) {
                 SkyIslandWorldVolumeId volumeId = volume.id();
+                // Catalog bounds are intentionally conservative. An exact-footprint admission
+                // ledger may therefore exclude a bounds-intersecting chunk that contains no owned
+                // Skyforge solid coordinate. Such a chunk cannot contain an occupancy conflict and
+                // must not be submitted as evidence to the narrower ledger.
+                if (!binding.ledger().requiresChunk(volumeId, chunkKey)) {
+                    SkyforgeRuntimePerformanceMetrics.recordSample(
+                            "admission.boundsOnlyChunkSkipped",
+                            1L);
+                    continue;
+                }
                 SkyforgePhysicalVolumeAdmissionState before = binding.ledger().state(volumeId);
                 if (before == SkyforgePhysicalVolumeAdmissionState.REJECTED
                         || before == SkyforgePhysicalVolumeAdmissionState.ADMITTED) {
@@ -147,6 +188,45 @@ final class SkyforgePhysicalVolumeAdmissionStage {
             }
         }
         return admittedOwner;
+    }
+
+    /**
+     * Returns whether an exact deferred realization can bypass per-block physical-admission checks.
+     *
+     * <p>The fast path is deliberately narrow: the current volume must already be ADMITTED, the
+     * pending record must still be live for this chunk, and the exact chunk/Y interval may intersect
+     * no other catalog volume bounds. Under those conditions every solid emitted by the exact-volume
+     * materialization has the same already-admitted owner that {@link #allowsWriteAt(int, int, int)}
+     * would rediscover at each block. Any overlap or mixed-volume interval falls back to the
+     * historical position gate.
+     */
+    static boolean canUseExactDeferredWriteFastPath(
+            PendingRealization pending,
+            ChunkAccess chunk,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(pending, "pending");
+        Objects.requireNonNull(chunk, "chunk");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return false;
+        }
+        MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(chunk.getPos(), minimumY, height);
+        synchronized (binding) {
+            if (!binding.ledger().admitted(pending.volumeId())) {
+                return false;
+            }
+            Map<Long, PendingRealization> byChunk = binding.pendingByVolume().get(pending.volumeId());
+            if (byChunk == null || !pending.equals(byChunk.get(pending.chunkKey()))) {
+                return false;
+            }
+            var candidates = binding.catalog().query(chunkBounds.worldBounds());
+            return candidates.size() == 1
+                    && candidates.getFirst().id().equals(pending.volumeId());
+        }
     }
 
     /**

@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,8 +27,19 @@ final class SkyforgeNativeChunkOccupancySurveyTest {
                 fixture.catalog(),
                 SkyIslandTerrainProfile.reference(),
                 new SkyforgeMinecraftBlockPalette());
-        BlockPos owned = firstOwnedPosition(adapter, volume.id(), chunk);
-        chunk.setBlockState(owned, Blocks.CHEST.defaultBlockState(), false);
+        OrderingInversion inversion = findOrderingInversion(adapter, volume.id(), chunk);
+        assertNotEquals(
+                inversion.historicalEarlier(),
+                inversion.columnMajorEarlier(),
+                "fixture must exercise genuinely different Y-major and column-major discovery order");
+        chunk.setBlockState(
+                inversion.historicalEarlier(),
+                Blocks.CHEST.defaultBlockState(),
+                false);
+        chunk.setBlockState(
+                inversion.columnMajorEarlier(),
+                Blocks.CHEST.defaultBlockState(),
+                false);
 
         SkyforgeNativeChunkOccupancySurvey.Result bounded;
         SkyforgeNativeChunkOccupancySurvey.Result fullHeight;
@@ -49,7 +61,10 @@ final class SkyforgeNativeChunkOccupancySurveyTest {
         assertTrue(range.height() < chunk.getHeight(), "fixture should prove that the bounded scan is smaller");
         assertEquals(fullHeight, bounded, "Y clamping must preserve exact admission evidence");
         assertTrue(bounded.conflicts());
-        assertEquals(owned, bounded.firstConflict().orElseThrow().position());
+        assertEquals(
+                inversion.historicalEarlier(),
+                bounded.firstConflict().orElseThrow().position(),
+                "optimized traversal must retain historical Y/Z/X first-conflict identity");
     }
 
     @Test
@@ -70,23 +85,45 @@ final class SkyforgeNativeChunkOccupancySurveyTest {
         assertEquals(0, range.height());
     }
 
-    private static BlockPos firstOwnedPosition(
+    private static OrderingInversion findOrderingInversion(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId volumeId,
             ProtoChunk chunk) {
         int minimumX = chunk.getPos().getMinBlockX();
         int minimumZ = chunk.getPos().getMinBlockZ();
-        for (int y = chunk.getMinBuildHeight(); y < chunk.getMaxBuildHeight(); y++) {
-            for (int localZ = 0; localZ < 16; localZ++) {
-                for (int localX = 0; localX < 16; localX++) {
-                    int x = minimumX + localX;
-                    int z = minimumZ + localZ;
-                    if (adapter.isSolidOwnedBy(volumeId, x, y, z)) {
-                        return new BlockPos(x, y, z);
-                    }
+        BlockPos highestOwnedInEarlierColumn = null;
+
+        // Match the optimized traversal's horizontal ordering (Z, then X). Once a later column has
+        // an owned voxel below a high voxel from any earlier column, the two scan orders provably
+        // disagree: column-major sees the earlier column first while historical Y-major sees the
+        // later column's lower voxel first.
+        for (int localZ = 0; localZ < 16; localZ++) {
+            for (int localX = 0; localX < 16; localX++) {
+                int x = minimumX + localX;
+                int z = minimumZ + localZ;
+                var range = adapter.integerSolidRange(volumeId, x, z);
+                if (range.isEmpty()) {
+                    continue;
+                }
+                var solid = range.orElseThrow();
+                if (highestOwnedInEarlierColumn != null
+                        && solid.minimumY() < highestOwnedInEarlierColumn.getY()) {
+                    return new OrderingInversion(
+                            new BlockPos(x, solid.minimumY(), z),
+                            highestOwnedInEarlierColumn);
+                }
+                if (highestOwnedInEarlierColumn == null
+                        || solid.maximumY() > highestOwnedInEarlierColumn.getY()) {
+                    highestOwnedInEarlierColumn = new BlockPos(x, solid.maximumY(), z);
                 }
             }
         }
-        throw new AssertionError("fixture center chunk contains no exact-volume solid");
+        throw new AssertionError(
+                "fixture center chunk contains no owned-position ordering inversion");
     }
+
+    private record OrderingInversion(
+            BlockPos historicalEarlier,
+            BlockPos columnMajorEarlier) {}
+
 }

@@ -33,7 +33,7 @@ public final class SkyforgeNeoForge1211ChunkWriter {
             ChunkAccess chunk,
             MinecraftChunkMaterialization materialization) {
         validateOwnership(chunk, materialization);
-        return writeInternal(chunk, materialization, false);
+        return writeInternal(chunk, materialization, false, true);
     }
 
     /**
@@ -55,13 +55,29 @@ public final class SkyforgeNeoForge1211ChunkWriter {
             ChunkAccess chunk,
             MinecraftChunkMaterialization materialization) {
         validateOwnership(chunk, materialization);
-        return writeInternal(chunk, materialization, true);
+        return writeInternal(chunk, materialization, true, true);
+    }
+
+    /**
+     * Writes one exact deferred materialization after the admission stage has proved that the entire
+     * chunk/Y interval has no other catalog candidate.
+     *
+     * <p>This bypasses only the redundant per-block ownership query. Strict registry resolution,
+     * occupancy verification, live ChunkAccess mutation, immediate read-back, and deferred lighting /
+     * client side effects remain unchanged.
+     */
+    MinecraftChunkWriteResult writeAdmittedExactSolidOverlay(
+            ChunkAccess chunk,
+            MinecraftChunkMaterialization materialization) {
+        validateOwnership(chunk, materialization);
+        return writeInternal(chunk, materialization, true, false);
     }
 
     private MinecraftChunkWriteResult writeInternal(
             ChunkAccess chunk,
             MinecraftChunkMaterialization materialization,
-            boolean solidOverlayOnly) {
+            boolean solidOverlayOnly,
+            boolean enforcePhysicalAdmission) {
         long maximumYExclusive = (long) materialization.minimumY() + materialization.height();
         int minimumX = materialization.chunkPos().getMinBlockX();
         int minimumZ = materialization.chunkPos().getMinBlockZ();
@@ -82,7 +98,9 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                     }
 
                     int worldX = Math.addExact(minimumX, localX);
-                    if (!expectedAir && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(worldX, worldY, worldZ)) {
+                    if (!expectedAir
+                            && enforcePhysicalAdmission
+                            && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(worldX, worldY, worldZ)) {
                         continue;
                     }
 
