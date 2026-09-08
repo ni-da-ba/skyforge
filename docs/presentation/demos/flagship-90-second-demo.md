@@ -165,13 +165,17 @@ Do not visually imply current completion of:
 
 Those belong to future revisions only after their owning lanes accept the corresponding production boundary.
 
-## Definition of done
+## PRES-0003 acceptance boundary
 
-PRES-0003 is presentation-complete when:
+PRES-0003 is the **demo narrative milestone**, not the final edited media package.
+
+It is acceptance-complete when:
 
 - the 90-second narrative and shot order remain correct against the current claim registry;
-- at least one canonical actual Skyforge capture exists for morphology, underside/3-D volume, Minecraft player-scale realization, and ecology;
-- persistence/reopen is represented without a fabricated visual claim;
-- roadmap content is visibly labeled as roadmap;
+- every substantive present-tense beat has an accepted evidence pointer and a concrete valid capture path;
+- persistence/reopen is specified without requiring a fabricated visual claim;
+- roadmap content is explicitly labeled as roadmap;
 - the sequence works for a nontechnical viewer without narration-dependent jargon;
 - a technical reviewer can follow evidence pointers for every substantive present-tense claim.
+
+The canonical runtime image set and final edited media package are a separate presentation-asset follow-up under issue #348. Their absence does not invalidate the narrative architecture, but any future assembled demo must use actual accepted Skyforge/Minecraft captures for current-capability world claims. Generated/concept art may appear only as clearly labeled explanatory illustration, never as runtime evidence.
