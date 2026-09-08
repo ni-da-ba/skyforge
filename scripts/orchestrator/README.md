@@ -12,7 +12,8 @@ GitHub activity
     -> gh webhook forward
     -> local deterministic filter/debounce
     -> Luna orchestration classifier only when useful
-    -> Terra bounded worker only when actionable
+    -> Luna bounded worker for low-risk reconciliation when sufficient
+    -> Terra bounded worker only for substantive implementation/debugging
     -> controller commits/pushes/opens draft PR
     -> GitHub CI
     -> next completion event
@@ -50,8 +51,9 @@ SDK/runtime.
 The pilot intentionally separates model authority from GitHub authority.
 
 **Codex models:**
-- Luna classifier: read-only repository access; returns a JSON decision.
-- Terra worker: workspace-write local access; edits/tests one bounded objective.
+- Luna classifier: read-only repository access; returns a JSON decision plus worker tier/scope.
+- Luna worker: workspace-write local access for tightly scoped docs/state/evidence reconciliation.
+- Terra worker: workspace-write local access for substantive implementation/runtime/debugging.
 - Neither model is expected to use GitHub/network writes.
 
 **Outer controller:**
@@ -130,27 +132,41 @@ The process binds only to `127.0.0.1`. Stopping the launcher also terminates the
 Defaults:
 
 ```text
-classifier/orchestrator = gpt-5.6-luna / low
-bounded worker          = gpt-5.6-terra / medium
+classifier/orchestrator      = gpt-5.6-luna / low
+low-risk bounded worker      = gpt-5.6-luna / low
+substantive bounded worker   = gpt-5.6-terra / medium
+```
+
+Routing rule:
+
+```text
+docs / lane-state / evidence reconciliation
+    -> Luna worker with a narrow controller-enforced path allowlist
+
+source implementation / runtime debugging / substantial test-build integration
+    -> Terra worker
 ```
 
 Override if the current Codex account exposes different model identifiers:
 
 ```bash
 export SKYFORGE_ORCHESTRATOR_MODEL="<available low-cost Codex model>"
+export SKYFORGE_LUNA_WORKER_MODEL="<available low-cost Codex model>"
 export SKYFORGE_WORKER_MODEL="<available balanced Codex model>"
 ```
 
-Do not make Sol the default. Escalate difficult work manually or through future policy only when the
-lower-cost worker fails to produce information-bearing progress.
+The Luna worker shares the same 24-call daily Luna ceiling as classifier turns. Terra retains the
+separate 4-worker daily ceiling. Do not make Sol the default. Escalate only when cheaper execution
+cannot safely retire the stated uncertainty.
 
 ### Local usage guardrails
 
 The pilot also has hard call-count ceilings independent of the Codex account's own allowance:
 
 ```text
-classifier attempts / UTC day = 24
-worker attempts / UTC day     = 4
+total Luna calls / UTC day   = 24
+  (classifier + Luna worker)
+Terra worker attempts / day   = 4
 ```
 
 Override them only deliberately:
@@ -202,7 +218,9 @@ During the pilot, healthy ordinary ChatGPT/manual producers are `RUNNING_EXTERNA
 duplicated.
 
 A new Codex worker branch is created from current `origin/main`. If the objective refers to an old
-producer PR, its remote branch is fetched for comparison, but stale history is not blindly merged.
+producer PR, the controller also inventories that PR's changed paths and tells the worker to treat them
+as durable existing work rather than recreating them merely to copy evidence onto the controller branch.
+Luna reconciliation workers additionally receive a controller-enforced narrow allowed-path scope.
 
 Subsequent events may continue a controller-managed branch recorded in the ignored local state file.
 
@@ -294,9 +312,10 @@ source of context drag.
 Terra workers are intentionally fresh/bounded threads.
 
 Before controller handoff, worker changes are rejected if they touch the orchestration/control plane:
-`scripts/orchestrator/**`, `deploy/orchestrator/**`, `.github/workflows/**`, `AGENTS.md`, or
-canonical governance/Audit documents. A control-plane edit is a fail-closed manual-inspection event,
-not an autonomous commit.
+`scripts/orchestrator/**`, `deploy/orchestrator/**`, `.github/**`, `AGENTS.md`, or canonical
+governance/Audit documents. Scoped workers are also rejected if they edit outside their explicit
+allowlist. Either condition creates a durable safety pause with no autonomous commit/push. Safety pauses
+do not also create a transient retry circuit-breaker, preventing a misleading controller-error loop.
 
 ### Codex-limit and failure recovery
 
