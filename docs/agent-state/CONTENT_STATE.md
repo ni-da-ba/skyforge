@@ -2,8 +2,8 @@
 
 **Lane:** Content / Experience  
 **Status:** Canonical live lane handoff  
-**Updated:** 2026-09-07 (America/Chicago)  
-**Highest accepted Content boundary:** C25 / PR #377
+**Updated:** 2026-09-08 (America/Chicago)  
+**Highest accepted Content boundary:** C26 / PR #382
 
 Read first:
 
@@ -13,7 +13,42 @@ Read first:
 
 ## MERGED / ACCEPTED
 
-### Highest accepted executable Content milestone: C25
+### Highest accepted executable Content milestone: C26
+
+**C26 / PR #382** binds accepted AUTH-0098 local petroleum-system evidence to the literal-source
+admission boundary required by the C25 Implementation adapter.
+
+Accepted local contract:
+
+```text
+AUTH-0098 systemOpportunity == 0
+    -> LOCAL_SOURCE_INELIGIBLE
+
+AUTH-0098 systemOpportunity > 0
+    -> LOCAL_SOURCE_ADMISSIBLE_FOR_REALIZATION_CONSIDERATION
+```
+
+Accepted interpretation:
+
+- no threshold above accepted AUTH-0098 zero/nonzero semantics is introduced;
+- eligible cells are the exact nonzero AUTH-0098 cells in unchanged source order/provenance;
+- eligible x/z source columns contain only nonzero cells and preserve first canonical eligible-cell
+  occurrence order;
+- the column view exists only to support a downstream vertical-source bridge; it is not block-space
+  well geometry;
+- C26 exposes no selected cell/column, no final pumpjack anchor, and no magnitude-derived reserves,
+  pressure, saturation, thickness, volume, extraction rate, depletion, rarity, or placement weight;
+- island/province eligibility from C22/C23 does not authorize arbitrary literal petroleum placement
+  elsewhere on that island;
+- **AUTH-0098 is sufficient for local source admission. No new Authorship producer is required.**
+- Implementation owns which admissible cells/columns become literal sources, exact geometry/count,
+  quantity/pressure/depletion, pumpjack alignment/adapter behavior, persistence, and lifecycle.
+
+Exact code-head verification passed Wave C26 Local Petroleum Source Admission run `34188611055`,
+Wave C20 Base Metal Content Policy regression run `34188611005`, and repository CI run
+`34188611029`. No Minecraft manual or human visual gate applies.
+
+### C25
 
 **C25 / PR #377** proves that the pinned Create: Diesel Generators petroleum machinery/fluid stack can
 remain available while its independent native chunk-noise petroleum geography is disabled.
@@ -492,9 +527,9 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 
 1. Do not duplicate active C11/C12 work; consume their results into #224 when accepted.
 2. Hand C21's exact-volume resource-authority contract to Implementation: filter competing Create Zinc/striated generic feature execution only inside explicit Skyforge-owned population, never by a packaged BASE_WORLD-wide override.
-3. Hand C25's petroleum-authority contract to Implementation: keep Diesel Generators machinery but suppress its native chunk-oil geography globally and prove the narrow Skyforge-owned source/depletion/pumpjack adapter over AUTH-0100 + C22-C24.
-4. Continue the petroleum Content asset audit only from hard retained-machine constraints: e.g. Pumpjack assembly composition/4-16 arm span and Distillation Tank multiblock limits. Do not promote Ponder layouts or intuitive footprints into terrain thresholds.
-5. Request new Authorship evidence only if a concrete retained-machine requirement cannot be evaluated from existing AUTH-0096/AUTH-0097 evidence; do not add another petroleum wrapper or ranking layer.
+3. Hand the C25+C26 petroleum contract to Implementation: keep Diesel Generators machinery, suppress native chunk oil globally, and realize the narrow Skyforge source/depletion/pumpjack bridge only inside C23-eligible petroleum provinces and exact C26 nonzero AUTH-0098 local support.
+4. Continue the petroleum Content asset audit only from hard retained-machine constraints: Pumpjack assembly composition/4-16 arm span, Distillation Tank true multiblock limits, and real freight-interface requirements. Do not promote Ponder layouts or intuitive footprints into authored-terrain thresholds.
+5. Request new Authorship evidence only if a concrete retained-machine requirement cannot be evaluated from existing AUTH-0096/AUTH-0097/AUTH-0098 evidence; do not add another petroleum wrapper or ranking layer.
 6. Resume the remaining #227 turtle questions afterward: farming throughput, quarry/branch-mining scale, or dedicated chunk-loader/Ender-storage combinations. Do not nerf turtles without measured substitution evidence.
 7. Continue Bootstrap Province acceptance with C20's guaranteed Iron and post-flight Copper/Zinc semantics; exact quantities remain downstream of accepted C11/C12 aircraft closure and HS-06 remains the human gate before locking the starting recipe.
 8. Complete/accept #237 / PR #240 before C12 powered-soaring closure.
