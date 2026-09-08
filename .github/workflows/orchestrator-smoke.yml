@@ -34,8 +34,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Compile controller
-        run: python -m py_compile scripts/orchestrator/skyforge_orchestrator.py
+      - name: Compile controller and launcher
+        run: |
+          python -m py_compile scripts/orchestrator/skyforge_orchestrator.py
+          python -m py_compile scripts/orchestrator/run_pilot.py
 
       - name: Run deterministic event-filter tests
         run: python -m unittest scripts/orchestrator/test_skyforge_orchestrator.py
