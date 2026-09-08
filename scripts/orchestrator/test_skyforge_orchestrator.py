@@ -317,6 +317,7 @@ class HostedTransportTests(unittest.TestCase):
             "scripts/orchestrator/skyforge_orchestrator.py",
             "deploy/orchestrator/Caddyfile.in",
             ".github/workflows/ci.yml",
+            ".github/dependabot.yml",
             "AGENTS.md",
             "docs/agent-state/VALIDATION_POLICY.md",
             "docs/agent-state/AUDIT_STATE.md",
