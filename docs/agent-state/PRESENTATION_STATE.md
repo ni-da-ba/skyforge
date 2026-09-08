@@ -2,9 +2,9 @@
 
 **Canonical lane:** PRESENTATION  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Status:** PRES-0004 ready for acceptance under issue #354 / PR #355  
-**Highest merged Presentation milestone:** **PRES-0003**  
-**PRES-0003 merge:** PR #351, `aee9508d2648859079c17487505ccd0a6d48b59f`
+**Status:** issue #348 canonical runtime capture acquisition established by PR #362  
+**Highest merged Presentation milestone:** **PRES-0004**  
+**PRES-0004 merge:** PR #355, `993fba2a7da0725b1f64571bf17b25a9c0525204`
 
 Always reconstruct current project claims from `main`, the program charter, validation policy, producer-lane ledgers, cross-lane contracts, relevant acceptance records, and merged history before publishing or revising an external-facing artifact.
 
@@ -53,42 +53,33 @@ Exact-head CI run #1781 passed before merge.
 
 Acceptance is the **narrative/evidence architecture**, not a claim that final edited media exists. Issue #348 remains a non-blocking asset-enrichment follow-up for canonical runtime stills. Generated/concept art may never substitute for current-capability runtime evidence.
 
-## READY FOR ACCEPTANCE
-
 ### PRES-0004 — flagship portfolio/reviewer package
 
-Issue #354. Branch `presentation/pres-0004-portfolio-package`.
+PR #355 / `993fba2a7da0725b1f64571bf17b25a9c0525204`.
 
-Target one compact reusable package rather than presentation volume.
+Accepted:
 
-Primary artifact:
+- `docs/presentation/portfolio/skyforge-flagship-project-page.md` — compact flagship project page with recruiter/reviewer wording, transparent AI-assisted development role framing, evidence-linked technical highlights, and explicit present-vs-roadmap boundaries.
 
-- `docs/presentation/portfolio/skyforge-flagship-project-page.md`
-
-Required content:
-
-- one-sentence project thesis;
-- transparent personal role wording for AI-assisted multi-agent development;
-- 15-second and 30-second explanations;
-- recruiter/resume bullets;
-- technical engineering highlights;
-- evidence-linked reviewer paths;
-- explicit present-vs-roadmap boundary;
-- reuse of PRES-0002 claims and PRES-0003 demo story rather than restating producer ledgers.
-
-## OPEN ASSET FOLLOW-UP
+## RUNTIME CAPTURE ACQUISITION
 
 ### Issue #348 — canonical runtime capture set
 
-Acquire actual accepted Skyforge/Minecraft stills when a cheap valid capture path is available:
+PR #362 adds the durable manual capture path and records the resulting source-set boundary.
 
-- morphology hero/orbit;
-- five-family comparison;
-- underside/3-D view;
-- ecology view;
-- persistence/reopen pair where practical.
+Validated branch capture run #2 / Actions run 34185345915 produced:
 
-This is visual enrichment for PRES-0003/PRES-0004, not a blocker on their source/narrative architecture.
+- five accepted morphology families × four actual-client views;
+- three accepted ecology views;
+- **23 non-empty Minecraft PNGs total**.
+
+The durable source and limitations are recorded in:
+
+- `docs/presentation/demos/runtime-capture-set.md`.
+
+The remaining caveat is compositional, not evidentiary: some engineering-viewer camera rotations are not guaranteed to synchronize to the actual client, so human-eye selection should use the strongest source frame rather than treating all guided stops as publication-ready photography.
+
+A rigorously matched pre-save/post-reopen image pair remains unavailable; use a reopened-world still together with accepted persistence/digest evidence instead of implying a visual proof the workflow does not provide.
 
 ## Current communication hazards
 
@@ -103,4 +94,4 @@ This is visual enrichment for PRES-0003/PRES-0004, not a blocker on their source
 
 ## Recommended next work
 
-Merge PRES-0004 after its exact-head documentation gate. After that, Presentation should not invent another milestone merely to remain active. The remaining concrete Presentation work is issue #348 canonical runtime still acquisition when a cheap valid capture path exists, plus claim/artifact refreshes triggered by material producer milestones.
+Do not invent another Presentation milestone merely to remain active. Use the acquired runtime source set to enrich PRES-0003/PRES-0004 when a concrete publication target exists, and refresh claims/artifacts only when material producer milestones change what can defensibly be shown. If publication-quality framing requires camera behavior beyond the current engineering viewers, request that as a bounded producer/viewer improvement rather than modifying generation semantics from Presentation.
