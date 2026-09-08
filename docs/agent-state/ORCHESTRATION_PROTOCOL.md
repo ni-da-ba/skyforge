@@ -279,8 +279,9 @@ Pilot:
 2. run the event-driven local SDK/App-Server pilot in Section 15; use the two-hour thread heartbeat
    only as fallback when that receiver is unavailable;
 3. run the orchestration classifier on Luna at low effort where available;
-4. allow at most one bounded worker dispatch per event batch initially, preferring Terra for routine
-   work and escalating to Sol only when justified;
+4. allow at most one bounded worker dispatch per event batch initially, routing tightly scoped
+   docs/state/evidence reconciliation to Luna and substantive source/runtime/debugging work to Terra;
+   escalate beyond Terra only when justified;
 5. keep hourly Audit reporting as an independent liveness/negative-space supervisor;
 6. compare for several milestones:
    - manual prompts/restarts required;
@@ -317,8 +318,9 @@ On every wake:
 
 Usage discipline:
 - Run this orchestrator on Luna/low-cost settings where available.
-- Prefer Terra for routine bounded worker execution.
-- Escalate to Sol only for genuinely difficult reasoning/debugging/architecture or after a cheaper
+- Prefer a scoped Luna worker for docs/state/evidence reconciliation and similarly bounded low-risk work.
+- Use Terra for substantive source implementation, runtime/debugging, and complex integration.
+- Escalate beyond Terra only for genuinely difficult reasoning/debugging/architecture or after a cheaper
   worker fails to produce information-bearing progress.
 - Do not fully reconstruct every lane merely to classify it.
 - Do not poll unchanged CI.
@@ -553,7 +555,10 @@ filtering and CI-quiescence checks.
 A useful work event normally costs:
 - one low-cost Luna classification turn;
 - zero worker turns for NOOP/HUMAN_GATE;
-- one Terra turn for a bounded DISPATCH.
+- one scoped Luna worker turn for low-risk reconciliation **or** one Terra turn for substantive DISPATCH.
+
+The classifier and Luna worker share one conservative Luna-call ceiling so cheaper routing does not
+silently increase total Luna usage. Terra retains its separate worker ceiling.
 
 This should be materially more usage-efficient than scheduled polling when repository activity is
 bursty.
@@ -599,12 +604,13 @@ useful work is being left queued at favorable yield. Reaching the local ceiling 
 state, not a reason to discard work.
 
 Persist counters sufficient to evaluate issue #349 by accepted-progress economics, including at least:
-events seen/filtered/actionable, classifier attempts/NOOPs, worker attempts/handoffs/resumes,
-retry/Codex blocks, restart replays, managed merges, pause/resume commands, and protected-path
-rejections.
+events seen/filtered/actionable, classifier attempts/NOOPs, Luna-worker attempts, Terra-worker attempts,
+aggregate worker attempts/handoffs/resumes, retry/Codex blocks, restart replays, managed merges,
+pause/resume commands, protected-path rejections, bounded-scope rejections, and safety pauses.
 
 A bounded worker may edit lane-owned source/tests/docs but may not autonomously rewrite the control
-plane that defines its own authority. Before controller handoff, reject worker changes under
+plane that defines its own authority. A classifier-selected narrow edit scope is also enforced by the
+controller at handoff; a worker cannot broaden its own allowlist. Before controller handoff, reject worker changes under
 `scripts/orchestrator/**`, `deploy/orchestrator/**`, `.github/**`, private orchestrator state,
 `AGENTS.md`, or canonical program/validation/orchestration/human-strategy/cross-lane/Audit governance
 documents. Such a change requires manual/Audit inspection rather than an autonomous commit. The
