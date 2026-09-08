@@ -222,6 +222,35 @@ class DurableStateTests(unittest.TestCase):
             if o._timer is not None:
                 o._timer.cancel()
 
+    def test_enqueue_journals_actionable_event_before_dispatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o.enqueue(event)
+            try:
+                self.assertEqual(o._pending_events(), [event])
+                reloaded = self.make_orchestrator(pathlib.Path(tmp))
+                self.assertEqual(reloaded._pending_events(), [event])
+            finally:
+                if o._timer is not None:
+                    o._timer.cancel()
+
+    def test_restart_invalidates_cached_nonworker_decision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o._persist_pending_events([event])
+            o._cache_decision({"decision": "NOOP", "reason": "old snapshot"}, [event])
+            self.assertIsNotNone(o._decision_record())
+
+            o.resume_pending()
+            try:
+                self.assertIsNone(o._decision_record())
+                self.assertEqual(o._pending_events(), [event])
+            finally:
+                if o._timer is not None:
+                    o._timer.cancel()
+
     def test_local_budget_blocks_without_spending_beyond_limit(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
