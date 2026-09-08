@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Repository snapshot after AUTH-0097 acceptance:** `b5af55b990349590b594fa1b3594f491839c5b91`
+**Repository snapshot after AUTH-0098 acceptance:** `73ab18406cd49a2134438e171f42f1f41f0a8543`
 
 Detailed milestone evidence belongs in lane ledgers, milestone docs, tests, workflows, and merged PRs.
 This file records only coordination boundaries another lane must preserve.
@@ -19,7 +19,7 @@ This file records only coordination boundaries another lane must preserve.
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0097` accepted: threshold-free directional surface-access evidence over exact AUTH-0096 provenance; AUTH-0095 remains the morphology-diagnostic handoff |
+| Authorship | `AUTH-0098` accepted: petroleum-system geological opportunity over exact AUTH-0033 provenance; AUTH-0097 remains the site-access handoff and AUTH-0095 the morphology-diagnostic handoff |
 | Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / #284 owns remaining AUTH-0083 built-in seed/scale Minecraft matrix |
 | Content / Experience | `C20` merged on current history: Iron/Copper/Zinc availability/guarantee policy over AUTH-0093; C11/C12 remain separately in progress/reserved |
 | Music / Audio | `MUS-0002` accepted in `30b5202fec3ae07b0720b42eb8d7770c3c463843`: canonical soundtrack source integrity is machine-gated in normal CI; human listening/CWP recovery gates remain explicit |
@@ -156,6 +156,28 @@ Cross-lane consequences:
 - AUTH-0097 creates no airfield/runway/dock/buildable/walkable Boolean, aircraft envelope,
   civilization role, structure tier, density, faction state, loot policy, or progression guarantee.
 
+### AUTH-0098 — petroleum-system geological opportunity — ACCEPTED
+
+AUTH-0098 / PR #335 merged as `73ab18406cd49a2134438e171f42f1f41f0a8543`.
+
+One authored island now exposes normalized petroleum-system planning evidence over the exact AUTH-0033
+host lattice:
+
+- source potential subordinate to layered-fabric-rich host;
+- reservoir potential subordinate to connected permeability;
+- seal potential subordinate to low-permeability competent host;
+- deeper-source and shallower-seal support in the same planning column;
+- final system opportunity requiring all three components.
+
+Cross-lane consequences:
+
+- **Content / Experience** may classify petroleum as R3/STRATEGIC_NODE, define regional
+  selection/replanning, route pressure, trade/salvage, and progression policy;
+- **Implementation** owns concrete crude-oil identity, deposits, extraction, pumpjack/refinery
+  realization, persistence and lifecycle;
+- nonzero AUTH-0098 opportunity is not a literal recoverable deposit or guarantee;
+- no reserves, volume, pressure, grade, frequency, or Minecraft/mod placement is implied.
+
 ## Morphology / Minecraft realization
 
 ### SF-IMP-0080 — visible land ecology — ACCEPTED
@@ -195,6 +217,8 @@ A metal is geologically eligible iff AUTH-0093 has nonzero opportunity. Mean opp
 Hard guarantees must select/re-plan an eligible authored scope rather than inject a metal into zero-opportunity geology. Trade/salvage can satisfy a hard guarantee only where the world recipe itself guarantees that access path.
 
 AUTH-0094 is now the exact regional inventory seam C20 may consume for that selection/replanning work.
+
+AUTH-0098 separately supplies island-scale petroleum-system geological opportunity for later R3 policy. No regional petroleum availability/guarantee policy is accepted yet.
 
 ## Atmosphere / mobility
 

@@ -3,8 +3,8 @@
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Main snapshot at latest Authorship acceptance:** `b5af55b990349590b594fa1b3594f491839c5b91`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0097**
+**Main snapshot at latest Authorship acceptance:** `73ab18406cd49a2134438e171f42f1f41f0a8543`  
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0098**
 
 Read first:
 
@@ -269,12 +269,54 @@ Ownership after AUTH-0097:
 
 Reference: `docs/authorship/AUTH-0097-directional-surface-access-evidence.md`.
 
+### AUTH-0098 — petroleum-system geological opportunity
+
+PR #335 / merge `73ab18406cd49a2134438e171f42f1f41f0a8543`.
+
+Concrete consumers: retained R3 resource geography requires petroleum to emerge from authored
+hydrocarbon-capable subsurface context and create later refinery/fuel/freight route pressure without
+becoming a first-flight dependency.
+
+Exact acceptance:
+
+- accepted head `edb6d2fc48ae8e9388ce132b86a3a185095140ad`;
+- full repository CI `34176790298` PASS;
+- scoped AUTH-0098 workflow `34176790313` PASS;
+- evidence artifact `10037537979`;
+- digest `sha256:e096f08617325644c261d84b1548a566f4b61cd4c50502ef3fe588d227f881c3`;
+- incidental AUTH-0096/0097 shared-build-file regressions also passed.
+
+Accepted invariants:
+
+- public input is exactly one authored `SkyIslandDescriptor`;
+- exact AUTH-0033 host-cell identity/order is retained; no second subsurface grid exists;
+- source potential is subordinate to `LAYERED_FABRIC_RICH_HOST`;
+- reservoir potential is subordinate to accepted connected permeability;
+- seal potential is subordinate to accepted low-permeability support;
+- final system opportunity requires local reservoir + deeper source + shallower seal in the same
+  AUTH-0033 x/z planning column and is the product of those supports;
+- one low-frequency organic-source affinity may differentiate source context only after accepted
+  layered-host support exists;
+- normalized values are radius-scale covariant;
+- no literal oil deposit, reserve, pressure, grade, deposit volume/count, STRATEGIC_NODE frequency,
+  guarantee, pumpjack/refinery placement, or Minecraft/mod realization enters Authorship.
+
+Ownership after AUTH-0098:
+
+- **Authorship:** petroleum-system geological opportunity and exact provenance;
+- **Content / Experience:** R3/STRATEGIC_NODE availability, province selection/replanning,
+  route/freight/progression/trade/salvage meaning;
+- **Implementation:** concrete petroleum identity, deposit geometry/extraction, worldgen,
+  persistence and lifecycle.
+
+Reference: `docs/authorship/AUTH-0098-petroleum-system-geological-opportunity.md`.
+
 ## IN PROGRESS
 
 No Authorship milestone is currently in progress.
 
-AUTH-0097 closes the directional surface-access gap required by Bootstrap/structure reintegration. Do not
-assign AUTH-0098 merely to continue the conceptual site-capability inventory. Add cliff/underside,
+AUTH-0098 closes the first petroleum geological-cause gap required by mature resource geography. Do not
+assign AUTH-0099 merely to create a regional wrapper or literal petroleum deposit. Add cliff/underside,
 interior/cave, regional-composition, or other semantics only when a retained executable consumer
 requires them. Morphology family tuning still requires the matching Minecraft matrix plus human review.
 
@@ -303,8 +345,8 @@ and terrain accommodation remain Implementation-owned.
 
 AUTH-0089/0090/0091/0092 remain evidence inputs, not spawn/carrying-capacity/faction/province policy.
 AUTH-0096/AUTH-0097 are local site/environment/access evidence inputs for structure/civilization work,
-not settlement, faction, route-network, or progression policy. Add cave/cliff, disturbance, predator-pressure, trophic,
-civilization-history, geothermal, petroleum, or other semantics only when a concrete consumer proves a gap.
+not settlement, faction, route-network, or progression policy. AUTH-0098 now supplies petroleum-system geological opportunity, not petroleum availability/deposits. Add cave/cliff, disturbance, predator-pressure, trophic,
+civilization-history, geothermal, or other semantics only when a concrete consumer proves a gap.
 
 ## Architectural invariants
 
@@ -360,12 +402,11 @@ sites/approaches.
 
 ## Ordered next work
 
-1. Let Content/Bootstrap consume AUTH-0096 + AUTH-0097 for a concrete surface-site/access requirement
-   in #224; do not invent Authorship-owned runway/dock thresholds.
-2. Reconstruct the next missing backend-neutral cause from executable consumers before assigning
-   AUTH-0098. The current conceptual structure/civilization design documents alone are not sufficient.
-3. Keep AUTH-0095 handed to SF-IMP-0083/#284. Do not retune Massif/Tableland until the synchronized
+1. Hand AUTH-0098 to Content as the island-scale petroleum geological-opportunity producer. Do not
+   add a regional petroleum inventory until a concrete Content province-selection policy requires it.
+2. Let Content/Bootstrap continue consuming AUTH-0096 + AUTH-0097 for concrete site/access requirements.
+3. Reconstruct the next missing backend-neutral cause before assigning AUTH-0099; do not enumerate
+   geothermal/civilization/exceptional-phenomenon semantics without an executable consumer.
+4. Keep AUTH-0095 handed to SF-IMP-0083/#284. Do not retune Massif/Tableland until the synchronized
    Minecraft matrix plus #214/#267/#283 human review demonstrates a systemic family issue.
-4. Preserve negative space and ownership boundaries: regional route/civilization composition belongs
-   in Authorship only if a concrete downstream planner cannot proceed with existing region/isolation/site evidence.
 
