@@ -380,6 +380,40 @@ Real CraftOS computers discover upstream Create: Avionics altitude/throttle peri
 
 The pinned No More Elytra Boosting 1.0.0 runtime removes Elytra rocket propulsion while preserving fall-flying and ordinary fireworks. Human clarity/optional feedback remains a UX question only.
 
+### C11 — live pre-Brass/pre-petroleum first-flight recipe surface — ACCEPTED LATE
+
+**PR #386** recomposes the valid bounded C11 capability from historical draft PR #233 on current
+`main`. PR #233 remains closed as reserved historical work, not rejected.
+
+The exact current C1-pinned Create/Sable/Aeronautics runtime exposes directly bootstrap-safe live
+RecipeManager paths for all nine required first-aircraft/workshop outputs:
+
+```text
+simulated:physics_assembler
+simulated:engine_assembly
+simulated:red_portable_engine
+aeronautics:andesite_propeller
+simulated:steering_wheel
+simulated:swivel_bearing
+simulated:white_symmetric_sail
+create:mechanical_press
+create:mechanical_saw
+```
+
+The live engine assembly starts from iron sheet and its upstream sequenced assembly consists only of
+cutting/pressing the transitional assembly; it does not hide a Brass/petroleum deployer ingredient.
+
+C11 proves only the **direct live recipe surface**. It does not prove transitive raw-material/BOM
+closure, exact bootstrap quantities/guarantees, adhesive/fuel availability, aircraft viability,
+time-to-flight, or player-facing HS-06 choices. C12 still owns the executable Bellanca mule and the
+Portable Engine cutoff path remains a separate dependency for final powered-soaring/restart closure.
+
+Exact recomposed-head verification passed Wave C11 First Flight Recipe Runtime run
+`34189656148` and repository CI run `34189656149`. No manual or human-eye gate applies to C11.
+
+C26 remains the highest numbered accepted Content boundary; late acceptance of C11 does not renumber
+or supersede C12-C26.
+
 ### C10 — live 1:1 Nether scale
 
 **PR #232**, merge `5eaff75638cd3f9033f440e67b82f705c999cd51`.
@@ -413,17 +447,18 @@ survival -> Create -> cheap glider -> shared thermals/fauna -> first aircraft
 
 SF-IMP-0080 / PR #248 is now merged/accepted and the project-owner human ecology gate passed, so legible forest/taiga land ecology is no longer blocked by issue #194. Issue #261 is only a non-blocking short-distance biome ambience/presentation follow-up.
 
-### C11 — live pre-Brass first-flight recipe surface — draft PR #233
-
-Already owned by parallel work. Do not duplicate C11.
-
 ### C12 — executable Bellanca B0 — issue #239
 
-Reserved for the real assembled Sable/Create Aeronautics Bellanca engineering mule. It still depends on C11 closure and the Portable Engine cutoff path.
+Reserved for the real assembled Sable/Create Aeronautics Bellanca engineering mule. C11 direct
+recipe-surface closure is now satisfied. Final powered-soaring/restart acceptance still depends on
+the Portable Engine cutoff path or an equivalent safe cutoff.
 
-### Portable Engine cutoff — issue #237 / draft PR #240
+### Portable Engine cutoff — issue #237; historical draft PR #240 closed unmerged
 
-Stationary retained-stack evidence exists. Assembled-Sable, save/reload, two-engine behavior, and human ergonomics remain unaccepted.
+PR #240 was closed by AUDIT dormant-branch cleanup as **reserved historical work, not rejected**.
+Its stationary retained-stack evidence remains useful, but any continuation must be recomposed from
+current `main`. Assembled-Sable, save/reload, two-engine behavior, and human ergonomics remain
+unaccepted.
 
 ### Authorship / Implementation dependencies
 
@@ -461,7 +496,7 @@ opportunity or a packaged global suppression datapack.
 - leave ordinary BASE_WORLD Create placement intact;
 - suppress/redirect the competing generic Create Zinc/striated placed features only inside explicit Skyforge-owned exact-volume population;
 - Implementation owns concrete deposit geometry/count/volume/accessibility/placement/lifecycle;
-- the 48-64 iron-equivalent first-flight band remains an engineering estimate until C11/C12 executable aircraft closure is accepted;
+- C11 now proves the direct first-flight recipe surface is pre-Brass/pre-petroleum, but the 48-64 iron-equivalent first-flight band remains an engineering estimate until transitive C12/Bootstrap closure and HS-06;
 - sample access versus industrial-scale supply remains open and must not be inferred from AUTH-0093 magnitude alone.
 
 ### Nether after C15
@@ -512,6 +547,7 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 - `Wave C7 Glider Shared Lift`
 - `Wave C9 Computing Avionics`
 - `Wave C10 Nether Scale Runtime`
+- `Wave C11 First Flight Recipe Runtime`
 - `Wave C13 Elytra Bypass`
 - `Wave C14 Avionics Capability`
 - `Wave C15 Portal Linking`
@@ -525,13 +561,12 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 
 ## Ordered next work
 
-1. Do not duplicate active C11/C12 work; consume their results into #224 when accepted.
-2. Hand C21's exact-volume resource-authority contract to Implementation: filter competing Create Zinc/striated generic feature execution only inside explicit Skyforge-owned population, never by a packaged BASE_WORLD-wide override.
-3. Hand the C25+C26 petroleum contract to Implementation: keep Diesel Generators machinery, suppress native chunk oil globally, and realize the narrow Skyforge source/depletion/pumpjack bridge only inside C23-eligible petroleum provinces and exact C26 nonzero AUTH-0098 local support.
-4. Continue the petroleum Content asset audit only from hard retained-machine constraints: Pumpjack assembly composition/4-16 arm span, Distillation Tank true multiblock limits, and real freight-interface requirements. Do not promote Ponder layouts or intuitive footprints into authored-terrain thresholds.
-5. Request new Authorship evidence only if a concrete retained-machine requirement cannot be evaluated from existing AUTH-0096/AUTH-0097/AUTH-0098 evidence; do not add another petroleum wrapper or ranking layer.
-6. Resume the remaining #227 turtle questions afterward: farming throughput, quarry/branch-mining scale, or dedicated chunk-loader/Ender-storage combinations. Do not nerf turtles without measured substitution evidence.
-7. Continue Bootstrap Province acceptance with C20's guaranteed Iron and post-flight Copper/Zinc semantics; exact quantities remain downstream of accepted C11/C12 aircraft closure and HS-06 remains the human gate before locking the starting recipe.
-8. Complete/accept #237 / PR #240 before C12 powered-soaring closure.
-9. Keep assembled-aircraft Nether transfer separate from accepted ordinary-player C15 mechanics.
-10. Return to C1 industrial runtime evidence when a focused runtime window is practical.
+1. Recompose Portable Engine cutoff issue #237 from current `main`; use historical PR #240 only as bounded evidence/design, not as an integration base. Preserve default upstream behavior and re-prove stationary cutoff before assembled-Sable/save-reload/two-engine gates.
+2. Proceed with C12 / issue #239 executable Bellanca B0 once the current cutoff seam is available; C11 direct recipe-surface dependency is now satisfied.
+3. Hand C21's exact-volume resource-authority contract to Implementation: filter competing Create Zinc/striated generic feature execution only inside explicit Skyforge-owned population, never by a packaged BASE_WORLD-wide override.
+4. Track Implementation issue #387 as the consumer of C25+C26: keep Diesel Generators machinery, suppress native chunk oil globally, and realize the narrow Skyforge source/depletion/pumpjack bridge only inside C23-eligible petroleum provinces and exact C26 nonzero AUTH-0098 local support.
+5. Do not add another petroleum Authorship wrapper for retained-machine block geometry; Pumpjack 4-16 arm span and Distillation Tank dimensions remain Implementation geometry unless a concrete backend-neutral cause is demonstrated missing.
+6. Resume the remaining #227 turtle questions after the first-aircraft dependency chain is moving: farming throughput, quarry/branch-mining scale, or dedicated chunk-loader/Ender-storage combinations. Do not nerf turtles without measured substitution evidence.
+7. Continue Bootstrap Province acceptance with C20's guaranteed Iron and post-flight Copper/Zinc semantics. C11 supports pre-Brass/pre-petroleum direct recipes, but exact quantities and acquisition guarantees remain downstream of C12/Bootstrap closure and HS-06.
+8. Keep assembled-aircraft Nether transfer separate from accepted ordinary-player C15 mechanics.
+9. Return to C1 industrial runtime evidence when a focused runtime window is practical.
