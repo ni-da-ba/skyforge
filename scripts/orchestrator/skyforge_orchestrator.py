@@ -347,6 +347,7 @@ class LocalState:
     def __init__(self, root: Path) -> None:
         self.dir = root / STATE_DIR
         self.path = self.dir / STATE_FILE
+        self._lock = threading.RLock()
         self.dir.mkdir(parents=True, exist_ok=True)
         self.data: dict[str, Any] = {
             "parent_thread_id": None,
@@ -375,9 +376,10 @@ class LocalState:
                 pass
 
     def save(self) -> None:
-        tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(self.data, indent=2, sort_keys=True) + "\n")
-        tmp.replace(self.path)
+        with self._lock:
+            tmp = self.path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(self.data, indent=2, sort_keys=True) + "\n")
+            tmp.replace(self.path)
 
 
 class Orchestrator:
@@ -714,9 +716,10 @@ class Orchestrator:
                     turns = 0
 
                 result = thread.run(prompt, sandbox=Sandbox.read_only)
-                self.state.data["parent_thread_id"] = thread.id
-                self.state.data["parent_turns"] = turns + 1
-                self.state.save()
+                with self._state_lock:
+                    self.state.data["parent_thread_id"] = thread.id
+                    self.state.data["parent_turns"] = turns + 1
+                    self.state.save()
                 return _clean_json_object(result.final_response)
         except RetryBlocked:
             raise
@@ -916,13 +919,14 @@ class Orchestrator:
                     raise RuntimeError(f"Could not parse created PR URL: {created}")
                 pr_number = int(match.group(1))
 
-        managed_map = self.state.data.setdefault("managed", {})
-        managed_map[lane] = {
-            "branch": branch,
-            "pr_number": pr_number,
-            "updated_at": _utc_now(),
-        }
-        self.state.save()
+        with self._state_lock:
+            managed_map = self.state.data.setdefault("managed", {})
+            managed_map[lane] = {
+                "branch": branch,
+                "pr_number": pr_number,
+                "updated_at": _utc_now(),
+            }
+            self.state.save()
         self._metric("worker_handoffs")
         print(f"[orchestrator] handed off {lane} on {branch} / PR #{pr_number}", flush=True)
 
@@ -974,8 +978,9 @@ class Orchestrator:
         if pr.get("isDraft"):
             _run(["gh", "pr", "ready", str(pr_number), "--repo", self.repo], cwd=self.root)
         _run(["gh", "pr", "merge", str(pr_number), "--repo", self.repo, "--merge"], cwd=self.root, timeout=120)
-        self.state.data.setdefault("managed", {}).pop(lane, None)
-        self.state.save()
+        with self._state_lock:
+            self.state.data.setdefault("managed", {}).pop(lane, None)
+            self.state.save()
         self._metric("managed_merges")
         print(f"[orchestrator] merged managed PR #{pr_number}", flush=True)
 
@@ -1017,8 +1022,9 @@ class Orchestrator:
         if decision is None:
             snap = self.snapshot()
             summaries = [e.summary() for e in events]
-            self.state.data["last_events"] = summaries[-20:]
-            self.state.save()
+            with self._state_lock:
+                self.state.data["last_events"] = summaries[-20:]
+                self.state.save()
             prompt = (
                 "A filtered Skyforge repository event batch is actionable.\n\n"
                 "EVENTS:\n- " + "\n- ".join(summaries) + "\n\n"
@@ -1026,8 +1032,9 @@ class Orchestrator:
                 "Read AGENTS.md and the compact Audit state as needed. Return only the required JSON decision."
             )
             decision = self._codex_classifier(prompt)
-            self.state.data["last_dispatch_epoch"] = now
-            self.state.save()
+            with self._state_lock:
+                self.state.data["last_dispatch_epoch"] = now
+                self.state.save()
             self._cache_decision(decision, events)
         else:
             self._metric("cached_decision_reuses")
