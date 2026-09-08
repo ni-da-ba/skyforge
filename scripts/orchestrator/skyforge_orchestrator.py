@@ -94,6 +94,19 @@ A structured human_gate signal remains a HUMAN_GATE rather than a worker dispatc
 Do not dispatch work merely because a lane exists. Do not poll CI. Do not expand expensive validation
 without a distinct risk. Honor VALIDATION_POLICY.md and ORCHESTRATION_PROTOCOL.md.
 
+For DISPATCH, choose the cheapest worker tier that can safely retire the stated uncertainty:
+- LUNA: documentation/lane-state/evidence reconciliation, acceptance recording, narrow low-risk text/config
+  work, or similarly bounded tasks that do not require substantive source/runtime debugging.
+- TERRA: source implementation, runtime/debugging, substantial tests/build integration, or complex
+  engineering where lower-capability execution is likely to waste a retry.
+Prefer LUNA when a trusted restart says existing source/runtime evidence is already green and the
+remaining objective is to record/reconcile that accepted boundary. Do not ask a recovery worker to
+recreate files already present on the source PR merely to move the same evidence onto a new branch.
+
+For a LUNA worker, return the smallest practical non-empty allowed_paths list. Entries are exact
+repository paths or directory prefixes ending in /**. For TERRA, allowed_paths may be null unless the
+objective is naturally narrow enough to constrain safely.
+
 Return ONLY one JSON object:
 {
   "decision": "NOOP" | "DISPATCH" | "HUMAN_GATE" | "MERGE",
@@ -102,6 +115,8 @@ Return ONLY one JSON object:
   "objective": string | null,
   "stop_boundary": string | null,
   "reusable_evidence": string | null,
+  "worker_tier": "LUNA" | "TERRA" | null,
+  "allowed_paths": [string, ...] | null,
   "reason": string,
   "human_message": string | null
 }
@@ -125,7 +140,10 @@ network writes.
 
 Work only on the supplied objective. Do not expand into unrelated cleanup. Do not cross a human or
 product-strategy gate. Do not repeat expensive evidence unless the prompt identifies the distinct
-uncertainty it retires. Reuse portable evidence under VALIDATION_POLICY.md.
+uncertainty it retires. Reuse portable evidence under VALIDATION_POLICY.md. If the prompt lists files
+already changed by a source PR, treat those files as existing durable work: do not recreate/copy them
+onto the controller branch unless the objective explicitly requires changing that existing source work.
+If the prompt supplies an allowed-path scope, edit nothing outside it.
 
 Make local source/test/doc changes and run appropriate local verification. Preserve and inspect any
 partial changes already present from an interrupted prior attempt before editing further. Leave the
@@ -477,6 +495,10 @@ def _restart_noop_has_post_signal_evidence(
     return True
 
 
+class SafetyPause(RuntimeError):
+    """Fail-closed controller safety event that must not also create a retry circuit-breaker."""
+
+
 class RetryBlocked(RuntimeError):
     def __init__(self, kind: str, retry_after_seconds: int, message: str) -> None:
         super().__init__(message)
@@ -555,6 +577,7 @@ class LocalState:
             "metrics": {},
             "budget_day": _utc_day(),
             "classifier_calls_today": 0,
+            "luna_worker_calls_today": 0,
             "worker_calls_today": 0,
             "seen_deliveries": [],
             "reconcile_fingerprint": None,
@@ -678,15 +701,43 @@ class Orchestrator:
 
     def health_snapshot(self) -> dict[str, Any]:
         with self._state_lock:
+            pending = self.state.data.get("pending_worker")
+            pending = pending if isinstance(pending, dict) else None
+            started_at = pending.get("started_at") if pending else None
+            worker_age_seconds = None
+            if started_at:
+                try:
+                    worker_age_seconds = max(
+                        0,
+                        int(
+                            (
+                                datetime.now(timezone.utc)
+                                - datetime.fromisoformat(str(started_at))
+                            ).total_seconds()
+                        ),
+                    )
+                except ValueError:
+                    worker_age_seconds = None
+            classifier_calls = int(self.state.data.get("classifier_calls_today") or 0)
+            luna_worker_calls = int(self.state.data.get("luna_worker_calls_today") or 0)
+            terra_worker_calls = int(self.state.data.get("worker_calls_today") or 0)
             return {
                 "status": "ok",
                 "repo": self.repo,
                 "pending_events": len(self.state.data.get("pending_events") or []),
-                "pending_worker": bool(self.state.data.get("pending_worker")),
+                "pending_worker": bool(pending),
+                "worker_lane": pending.get("lane") if pending else None,
+                "worker_stage": pending.get("stage") if pending else None,
+                "worker_tier": pending.get("worker_tier") if pending else None,
+                "worker_started_at": started_at,
+                "worker_age_seconds": worker_age_seconds,
                 "blocked_kind": self.state.data.get("blocked_kind"),
                 "blocked_until_epoch": float(self.state.data.get("blocked_until_epoch") or 0.0),
-                "classifier_calls_today": int(self.state.data.get("classifier_calls_today") or 0),
-                "worker_calls_today": int(self.state.data.get("worker_calls_today") or 0),
+                "classifier_calls_today": classifier_calls,
+                "luna_worker_calls_today": luna_worker_calls,
+                "luna_calls_today_total": classifier_calls + luna_worker_calls,
+                "worker_calls_today": terra_worker_calls,
+                "terra_worker_calls_today": terra_worker_calls,
                 "managed_prs": len(self.state.data.get("managed") or {}),
                 "last_reconcile_at": self.state.data.get("last_reconcile_at"),
                 "paused": bool(self.state.data.get("paused")),
@@ -796,37 +847,48 @@ class Orchestrator:
         if self.state.data.get("budget_day") != today:
             self.state.data["budget_day"] = today
             self.state.data["classifier_calls_today"] = 0
+            self.state.data["luna_worker_calls_today"] = 0
             self.state.data["worker_calls_today"] = 0
 
     def _consume_budget(self, kind: str) -> None:
         with self._state_lock:
             self._reset_daily_budget_if_needed()
-            if kind == "classifier":
-                key = "classifier_calls_today"
+            if kind in {"classifier", "luna_worker"}:
+                classifier_used = int(self.state.data.get("classifier_calls_today") or 0)
+                luna_worker_used = int(self.state.data.get("luna_worker_calls_today") or 0)
+                used = classifier_used + luna_worker_used
                 limit = _env_int(
                     "SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY",
                     DEFAULT_MAX_CLASSIFIER_CALLS_PER_DAY,
                     minimum=1,
                 )
+                if used >= limit:
+                    raise RetryBlocked(
+                        "local_budget",
+                        _seconds_until_next_utc_day(),
+                        f"local Luna daily call budget exhausted ({used}/{limit})",
+                    )
+                key = "classifier_calls_today" if kind == "classifier" else "luna_worker_calls_today"
+                metric_key = "classifier_attempts" if kind == "classifier" else "luna_worker_attempts"
             elif kind == "worker":
                 key = "worker_calls_today"
+                used = int(self.state.data.get(key) or 0)
                 limit = _env_int(
                     "SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY",
                     DEFAULT_MAX_WORKER_CALLS_PER_DAY,
                     minimum=1,
                 )
+                if used >= limit:
+                    raise RetryBlocked(
+                        "local_budget",
+                        _seconds_until_next_utc_day(),
+                        f"local Terra daily call budget exhausted ({used}/{limit})",
+                    )
+                metric_key = "terra_worker_attempts"
             else:
                 raise ValueError(f"unknown budget kind: {kind}")
-            used = int(self.state.data.get(key) or 0)
-            if used >= limit:
-                raise RetryBlocked(
-                    "local_budget",
-                    _seconds_until_next_utc_day(),
-                    f"local {kind} daily call budget exhausted ({used}/{limit})",
-                )
-            self.state.data[key] = used + 1
+            self.state.data[key] = int(self.state.data.get(key) or 0) + 1
             metrics = self.state.data.setdefault("metrics", {})
-            metric_key = f"{kind}_attempts"
             metrics[metric_key] = int(metrics.get(metric_key) or 0) + 1
             self.state.save()
 
@@ -967,6 +1029,9 @@ class Orchestrator:
                     flush=True,
                 )
                 self._set_retry_block(exc.kind, exc.retry_after_seconds, str(exc))
+            except SafetyPause as exc:
+                self._metric("safety_pauses")
+                print(f"[orchestrator] safety pause: {exc}", flush=True)
             except Exception as exc:
                 self._metric("dispatch_failures")
                 delay = _env_int(
@@ -1103,13 +1168,24 @@ class Orchestrator:
             kind, retry = _codex_failure_policy(exc)
             raise RetryBlocked(kind, retry, f"classifier call failed: {exc}") from exc
 
-    def _worker(self, prompt: str) -> str:
-        self._consume_budget("worker")
+    def _worker(self, prompt: str, worker_tier: str) -> str:
+        tier = str(worker_tier or "TERRA").strip().upper()
+        if tier == "LUNA":
+            self._consume_budget("luna_worker")
+            model = os.environ.get(
+                "SKYFORGE_LUNA_WORKER_MODEL",
+                os.environ.get("SKYFORGE_ORCHESTRATOR_MODEL", "gpt-5.6-luna"),
+            )
+            effort = os.environ.get("SKYFORGE_LUNA_WORKER_REASONING", "low")
+        elif tier == "TERRA":
+            self._consume_budget("worker")
+            model = os.environ.get("SKYFORGE_WORKER_MODEL", "gpt-5.6-terra")
+            effort = os.environ.get("SKYFORGE_WORKER_REASONING", "medium")
+        else:
+            raise RuntimeError(f"Unknown worker tier: {tier}")
         try:
             from openai_codex import Codex, Sandbox
 
-            model = os.environ.get("SKYFORGE_WORKER_MODEL", "gpt-5.6-terra")
-            effort = os.environ.get("SKYFORGE_WORKER_REASONING", "medium")
             with Codex() as codex:
                 thread = codex.thread_start(
                     cwd=str(self.root),
@@ -1125,11 +1201,28 @@ class Orchestrator:
             raise
         except Exception as exc:
             kind, retry = _codex_failure_policy(exc)
-            raise RetryBlocked(kind, retry, f"worker call failed: {exc}") from exc
+            raise RetryBlocked(kind, retry, f"{tier.lower()} worker call failed: {exc}") from exc
 
     def _managed_branch(self, lane: str) -> dict[str, Any] | None:
         value = (self.state.data.get("managed") or {}).get(lane)
         return value if isinstance(value, dict) else None
+
+    def _source_pr_changed_paths(self, source_pr: int | None) -> list[str]:
+        if not source_pr:
+            return []
+        try:
+            output = _run(
+                ["gh", "pr", "diff", str(source_pr), "--repo", self.repo, "--name-only"],
+                cwd=self.root,
+                timeout=60,
+            ).stdout.splitlines()
+            return sorted({line.strip() for line in output if line.strip()})
+        except Exception as exc:
+            print(
+                f"[orchestrator] could not inspect source PR #{source_pr} changed paths: {exc}",
+                flush=True,
+            )
+            return []
 
     def _prepare_worker_branch(self, lane: str, source_pr: int | None) -> tuple[str, int | None]:
         managed = self._managed_branch(lane)
@@ -1158,7 +1251,12 @@ class Orchestrator:
         return branch, None
 
     def _resume_or_prepare_worker(
-        self, lane: str, source_pr: int | None, objective: str
+        self,
+        lane: str,
+        source_pr: int | None,
+        objective: str,
+        worker_tier: str,
+        allowed_paths: list[str] | None,
     ) -> tuple[str, int | None]:
         pending = self.state.data.get("pending_worker")
         if isinstance(pending, dict) and pending.get("branch"):
@@ -1191,6 +1289,9 @@ class Orchestrator:
                 "branch": branch,
                 "managed_pr": managed_pr,
                 "objective": objective,
+                "worker_tier": worker_tier,
+                "allowed_paths": allowed_paths,
+                "source_pr": source_pr,
                 "stage": "editing",
                 "worker_summary": None,
                 "started_at": _utc_now(),
@@ -1220,6 +1321,23 @@ class Orchestrator:
             or normalized.startswith(".git/")
         )
 
+    @staticmethod
+    def _worker_path_allowed(path: str, allowed_paths: list[str] | None) -> bool:
+        if allowed_paths is None:
+            return True
+        normalized = path.replace("\\", "/").lstrip("./")
+        for entry in allowed_paths:
+            scope = str(entry or "").replace("\\", "/").lstrip("./")
+            if not scope:
+                continue
+            if scope.endswith("/**"):
+                prefix = scope[:-3].rstrip("/") + "/"
+                if normalized.startswith(prefix):
+                    return True
+            elif normalized == scope:
+                return True
+        return False
+
     def _changed_paths(self) -> list[str]:
         output = _run(["git", "status", "--porcelain"], cwd=self.root).stdout.splitlines()
         paths: list[str] = []
@@ -1239,26 +1357,38 @@ class Orchestrator:
         branch: str,
         managed_pr: int | None,
         worker_summary: str,
+        allowed_paths: list[str] | None = None,
     ) -> None:
         paths = self._changed_paths()
         forbidden = [p for p in paths if self._worker_path_forbidden(p)]
-        if forbidden:
-            self._metric("worker_protected_path_rejections")
+        out_of_scope = [
+            p for p in paths if not self._worker_path_allowed(p, allowed_paths)
+        ]
+        if forbidden or out_of_scope:
+            if forbidden:
+                self._metric("worker_protected_path_rejections")
+            if out_of_scope:
+                self._metric("worker_scope_rejections")
             self.set_paused(True, actor="controller-safety")
+            details = []
+            if forbidden:
+                details.append(f"protected paths {forbidden}")
+            if out_of_scope:
+                details.append(f"paths outside the bounded edit scope {out_of_scope}")
+            detail_text = "; ".join(details)
             self._post_gate(
                 {
                     "pr_number": managed_pr,
                     "human_message": (
-                        "SAFETY PAUSE: a hosted worker modified protected control-plane/private paths "
-                        f"{forbidden}. No autonomous commit/push occurred. Inspect or discard the local "
-                        "changes on the hosted worker branch, then use /skyforge-resume only after the "
-                        "worktree is safe."
+                        "SAFETY PAUSE: a hosted worker modified "
+                        f"{detail_text}. No autonomous commit/push occurred. Inspect or discard the "
+                        "local changes on the hosted worker branch, then use /skyforge-resume only after "
+                        "the worktree is safe."
                     ),
                 }
             )
-            raise RuntimeError(
-                "Worker touched protected control-plane/private paths; controller safety-paused: "
-                f"{forbidden}"
+            raise SafetyPause(
+                f"Worker handoff rejected ({detail_text}); controller safety-paused"
             )
 
         short = re.sub(r"\s+", " ", objective).strip()[:72]
@@ -1515,7 +1645,42 @@ class Orchestrator:
         if not objective or not stop_boundary:
             raise RuntimeError("DISPATCH requires objective and stop_boundary")
 
-        branch, managed_pr = self._resume_or_prepare_worker(lane, decision.get("pr_number"), objective)
+        worker_tier = str(decision.get("worker_tier") or "TERRA").strip().upper()
+        if worker_tier not in {"LUNA", "TERRA"}:
+            raise RuntimeError(f"DISPATCH has invalid worker_tier: {worker_tier}")
+        raw_allowed = decision.get("allowed_paths")
+        allowed_paths = (
+            [str(value).strip() for value in raw_allowed if str(value).strip()]
+            if isinstance(raw_allowed, list)
+            else None
+        )
+        if worker_tier == "LUNA" and not allowed_paths:
+            raise RuntimeError("LUNA DISPATCH requires a non-empty allowed_paths scope")
+
+        branch, managed_pr = self._resume_or_prepare_worker(
+            lane,
+            decision.get("pr_number"),
+            objective,
+            worker_tier,
+            allowed_paths,
+        )
+        pending_worker = self.state.data.get("pending_worker")
+        if isinstance(pending_worker, dict):
+            worker_tier = str(pending_worker.get("worker_tier") or worker_tier).upper()
+            stored_scope = pending_worker.get("allowed_paths")
+            if isinstance(stored_scope, list):
+                allowed_paths = [str(value) for value in stored_scope]
+        source_pr_paths = self._source_pr_changed_paths(decision.get("pr_number"))
+        source_pr_text = (
+            "\n".join(f"- {path}" for path in source_pr_paths)
+            if source_pr_paths
+            else "N/A"
+        )
+        scope_text = (
+            "\n".join(f"- {path}" for path in allowed_paths)
+            if allowed_paths
+            else "No additional allowlist; ordinary protected-path rules still apply."
+        )
         worker_prompt = f"""Bounded objective:
 {objective}
 
@@ -1528,21 +1693,36 @@ Existing portable evidence:
 Source PR or issue context:
 {decision.get("pr_number") or "N/A"}
 
+Files already changed by that source PR (durable existing work; do not recreate merely to copy it):
+{source_pr_text}
+
+Allowed edit scope for this worker:
+{scope_text}
+
+Worker tier:
+{worker_tier}
+
 The outer controller has selected branch {branch}. This may be a resumed interrupted worker branch;
 inspect and preserve any partial work already present before changing it. If a prior producer PR is
 relevant, its origin ref may be available locally for comparison, but do not blindly merge stale history.
 
 Work only until the stop boundary. Persist the bounded result as local file changes and tests. Do not
 commit, push, open/merge PRs, or use network access."""
-        pending_worker = self.state.data.get("pending_worker")
         if isinstance(pending_worker, dict) and pending_worker.get("stage") == "handoff":
             worker_summary = str(pending_worker.get("worker_summary") or "Interrupted worker completed.")
             self._metric("handoff_resumes")
         else:
-            worker_summary = self._worker(worker_prompt)
+            worker_summary = self._worker(worker_prompt, worker_tier)
             self._mark_worker_handoff(worker_summary)
 
-        self._handoff_changes(lane, objective, branch, managed_pr, worker_summary)
+        self._handoff_changes(
+            lane,
+            objective,
+            branch,
+            managed_pr,
+            worker_summary,
+            allowed_paths,
+        )
         self._clear_completed_decision()
 
 
