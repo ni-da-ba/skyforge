@@ -30,6 +30,8 @@ COUNTER_KEYS = (
     "events_seen",
     "events_filtered",
     "events_actionable",
+    "manual_wakes",
+    "audit_wakes",
     "duplicate_deliveries",
     "webhook_signature_rejections",
     "classifier_attempts",
@@ -51,6 +53,8 @@ COUNTER_KEYS = (
     "startup_reconcile_failures",
     "managed_merges",
     "controller_starts",
+    "dispatch_latency_ms_total",
+    "dispatch_latency_samples",
 )
 
 
@@ -264,6 +268,13 @@ def _render_markdown(report: dict[str, Any]) -> str:
     noop_rate = _ratio(int(d.get("classifier_noops") or 0), classifier_attempts)
     handoff_yield = _ratio(int(d.get("worker_handoffs") or 0), worker_attempts)
     no_change_rate = _ratio(int(d.get("worker_no_change") or 0), worker_attempts)
+    latency_samples = int(d.get("dispatch_latency_samples") or 0)
+    latency_total_ms = int(d.get("dispatch_latency_ms_total") or 0)
+    avg_dispatch_seconds = (
+        latency_total_ms / latency_samples / 1000.0
+        if latency_samples > 0
+        else None
+    )
 
     def pct(value: float | None) -> str:
         return "n/a" if value is None else f"{value * 100:.0f}%"
@@ -284,6 +295,8 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"| Webhook events seen | {d.get('events_seen', 0)} |",
         f"| Filtered before useful dispatch | {d.get('events_filtered', 0)} |",
         f"| Actionable events | {d.get('events_actionable', 0)} |",
+        f"| Manual wakes | {d.get('manual_wakes', 0)} |",
+        f"| Audit/watchdog wakes | {d.get('audit_wakes', 0)} |",
         f"| Duplicate deliveries | {d.get('duplicate_deliveries', 0)} |",
         f"| Signature rejects | {d.get('webhook_signature_rejections', 0)} |",
         f"| Luna classifier attempts | {classifier_attempts} |",
@@ -296,6 +309,8 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"| Dispatch failures | {d.get('dispatch_failures', 0)} |",
         f"| Controller starts | {d.get('controller_starts', 0)} |",
         f"| Startup reconciliations | {d.get('startup_reconciliations', 0)} |",
+        f"| Mean actionable-event → classifier latency | "
+        f"{'n/a' if avg_dispatch_seconds is None else f'{avg_dispatch_seconds:.1f}s'} |",
         "",
         "### Controller PR evidence",
         "",
@@ -313,6 +328,10 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"**{trailing['worker_attempts']} / {trailing['worker_handoffs']} / {trailing['worker_no_change']}**",
         f"- Controller PRs created / merged: "
         f"**{trailing['controller_prs_created']} / {trailing['controller_prs_merged']}**",
+        f"- Manual wakes / Audit wakes: "
+        f"**{trailing['manual_wakes']} / {trailing['audit_wakes']}**",
+        f"- Mean actionable-event → classifier latency: **"
+        f"{'n/a' if trailing['dispatch_latency_samples'] == 0 else f'{trailing['dispatch_latency_ms_total'] / trailing['dispatch_latency_samples'] / 1000.0:.1f}s'}**",
         f"- Codex blocks / dispatch failures: "
         f"**{trailing['codex_blocks']} / {trailing['dispatch_failures']}**",
         "",
@@ -406,6 +425,22 @@ def build_report(
         ),
         "classifier_noops": sum(
             int((item.get("metric_deltas") or {}).get("classifier_noops") or 0)
+            for item in window
+        ),
+        "manual_wakes": sum(
+            int((item.get("metric_deltas") or {}).get("manual_wakes") or 0)
+            for item in window
+        ),
+        "audit_wakes": sum(
+            int((item.get("metric_deltas") or {}).get("audit_wakes") or 0)
+            for item in window
+        ),
+        "dispatch_latency_ms_total": sum(
+            int((item.get("metric_deltas") or {}).get("dispatch_latency_ms_total") or 0)
+            for item in window
+        ),
+        "dispatch_latency_samples": sum(
+            int((item.get("metric_deltas") or {}).get("dispatch_latency_samples") or 0)
             for item in window
         ),
         "codex_blocks": sum(
