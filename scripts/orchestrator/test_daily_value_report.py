@@ -47,6 +47,8 @@ class ControllerPrTests(unittest.TestCase):
             },
         ]
         result = report._controller_prs(prs, start, end)
+        self.assertEqual([item["number"] for item in result["project_created"]], [10, 11])
+        self.assertEqual([item["number"] for item in result["project_merged"]], [10, 11])
         self.assertEqual([item["number"] for item in result["created"]], [10])
         self.assertEqual([item["number"] for item in result["merged"]], [10])
         self.assertEqual([item["number"] for item in result["overnight_created"]], [10])
@@ -61,6 +63,7 @@ class EvaluationSignalTests(unittest.TestCase):
             worker_handoffs=1,
             worker_no_change=0,
             merged_prs=0,
+            project_merged_prs=1,
             dispatch_failures=0,
             codex_blocks=0,
         )
@@ -73,6 +76,7 @@ class EvaluationSignalTests(unittest.TestCase):
             worker_handoffs=4,
             worker_no_change=1,
             merged_prs=2,
+            project_merged_prs=3,
             dispatch_failures=0,
             codex_blocks=1,
         )
@@ -85,6 +89,7 @@ class EvaluationSignalTests(unittest.TestCase):
             worker_handoffs=2,
             worker_no_change=4,
             merged_prs=1,
+            project_merged_prs=3,
             dispatch_failures=0,
             codex_blocks=0,
         )
@@ -97,6 +102,7 @@ class EvaluationSignalTests(unittest.TestCase):
             worker_handoffs=1,
             worker_no_change=3,
             merged_prs=0,
+            project_merged_prs=4,
             dispatch_failures=0,
             codex_blocks=0,
         )
