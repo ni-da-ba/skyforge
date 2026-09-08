@@ -435,10 +435,15 @@ credential action belongs in autonomous pilot scope.
 Potential wakes:
 
 - push to `main`;
-- PR closed/reopened/ready-for-review/draft transition;
-- workflow-run completion after all runs for the exact head are quiescent;
-- Audit/restart/loop-risk/human-gate comments;
-- manual `/skyforge-orchestrate`.
+- internal-repository PR closed/reopened/ready-for-review/draft transition;
+- internal-repository workflow-run completion after all runs for the exact head are quiescent;
+- Audit/restart/loop-risk/human-gate comments from an explicitly trusted GitHub actor;
+- manual `/skyforge-orchestrate` from an explicitly trusted GitHub actor.
+
+The default trusted issue-comment actor is `ni-da-ba`; hosted configuration may enumerate additional
+actors explicitly. A valid GitHub webhook signature authenticates GitHub as the sender, not the human
+authority behind a comment. Fork/external PR and workflow payloads are therefore treated as untrusted
+input and filtered before Codex startup.
 
 Ignored before Codex startup:
 
@@ -447,7 +452,14 @@ Ignored before Codex startup:
 - ordinary comments;
 - PR opened before first CI completion;
 - non-completed workflow notifications;
-- controller-authored comments.
+- controller-authored comments;
+- orchestration/Audit command text from untrusted commenters;
+- fork/external PR and workflow payloads.
+
+Trusted `/skyforge-pause` and `/skyforge-resume` comments are deterministic control commands, not
+Codex wakes. Pause persists across restart, retains newly actionable events in the durable journal,
+and starts no new classifier/worker dispatch. Resume schedules the retained batch. A worker already in
+its bounded handoff is not destructively interrupted merely because pause arrived.
 
 Events are debounced and subject to a minimum dispatch interval.
 
@@ -498,6 +510,16 @@ proxy terminates trusted TLS; the controller itself remains localhost-only.
 The controller requires a **dedicated clone** in both modes. Local state and its virtualenv live under
 the ignored `.skyforge-orchestrator/` directory. The hosted service must restart on boot and preserve
 that directory across process restarts.
+
+Hosted installation must run as a dedicated **non-root** sudo-capable service user. The installer
+fails closed when invoked as root. The hosted Codex runtime is the repository-pinned Python SDK; its
+ChatGPT device-code authentication is stored for that service user. No API-key billing fallback is
+introduced.
+
+Before hosted activation, server-side GitHub protection for `main` must be verifiably active:
+pull requests and status checks are required, while force-push and branch deletion are blocked.
+The installer verifies applicable rulesets or classic branch protection and refuses activation if
+this invariant cannot be established.
 
 Because a powered-off host cannot receive webhooks, each hosted startup compares a compact current
 GitHub fingerprint (main head, open PR state, recent Actions state) with the prior startup baseline.
@@ -553,13 +575,21 @@ later events remain queued for a subsequent classification.
 ### Local cost ceiling and telemetry
 
 The pilot has conservative controller-side call ceilings in addition to whatever account-level Codex
-allowance applies. Defaults are 48 classifier attempts and 8 worker attempts per UTC day; both are
-environment-overridable. Reaching the local ceiling is a normal blocked state, not a reason to discard
-work.
+allowance applies. The first hosted evaluation defaults are **24 classifier attempts and 4 worker
+attempts per UTC day**; both are environment-overridable. Raise them only after issue #378 shows that
+useful work is being left queued at favorable yield. Reaching the local ceiling is a normal blocked
+state, not a reason to discard work.
 
 Persist counters sufficient to evaluate issue #349 by accepted-progress economics, including at least:
 events seen/filtered/actionable, classifier attempts/NOOPs, worker attempts/handoffs/resumes,
-retry/Codex blocks, restart replays, and managed merges.
+retry/Codex blocks, restart replays, managed merges, pause/resume commands, and protected-path
+rejections.
+
+A bounded worker may edit lane-owned source/tests/docs but may not autonomously rewrite the control
+plane that defines its own authority. Before controller handoff, reject worker changes under
+`scripts/orchestrator/**`, `deploy/orchestrator/**`, `.github/**`, private orchestrator state,
+`AGENTS.md`, or canonical program/validation/orchestration/human-strategy/cross-lane/Audit governance
+documents. Such a change requires manual/Audit inspection rather than an autonomous commit.
 
 Do not interpret these counters as token or dollar accounting unless the SDK exposes authoritative
 usage fields. Their purpose is to detect runaway wakeups, low-value dispatch, and poor accepted-progress
@@ -580,7 +610,8 @@ The report must distinguish:
 - ordinary human gates from controller/reliability failures;
 - quota/rate/authentication blocking from useful worker throughput;
 - overnight hosted contribution from daytime/manual progress;
-- actual configured host-hour cost from model-call counters.
+- actual configured host-hour cost from model-call counters;
+- host CPU-load, available-memory, and disk-utilization snapshots for right-sizing evidence.
 
 A trailing keep/rework/cancel advisory may be computed deterministically, but it is never authority to
 destroy infrastructure or cross a project gate. A quiet project interval is insufficient evidence for
@@ -590,7 +621,8 @@ Hosted cancellation is a two-boundary operation:
 
 ```text
 host-side decommission
-    -> final value report
+    -> attempt final value report
+       -> if GitHub posting fails, preserve local failure evidence and CONTINUE teardown
     -> delete repository webhook
     -> disable report timer/controller/HTTPS proxy
 
@@ -598,6 +630,9 @@ provider control plane
     -> destroy Droplet
     -> verify no separately billable pilot resource remains
 ```
+
+Telemetry integrity must never trap continuing infrastructure cost. A final-report posting failure is
+a warning/evidence gap, not authority to keep a paid host alive.
 
 Do not grant the hosted worker provider credentials merely so it can self-destruct. Provider deletion
 remains an explicit external action. Powering off a VM is not equivalent to cancellation.
