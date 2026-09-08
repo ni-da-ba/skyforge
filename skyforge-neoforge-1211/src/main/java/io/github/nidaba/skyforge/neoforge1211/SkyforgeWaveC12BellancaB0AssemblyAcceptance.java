@@ -336,10 +336,10 @@ final class SkyforgeWaveC12BellancaB0AssemblyAcceptance {
     private static BlockState withManifestProperty(BlockState state, String semanticName, String value) {
         Property property = findManifestProperty(state, semanticName);
         Object parsed = property.getValue(value).orElse(null);
-        if (!(parsed instanceof Comparable comparable)) {
+        if (!(parsed instanceof Comparable)) {
             fail("cannot parse block property " + semanticName + "=" + value + " on " + state);
         }
-        return state.setValue(property, comparable);
+        return state.setValue(property, (Comparable) parsed);
     }
 
     @SuppressWarnings("rawtypes")
