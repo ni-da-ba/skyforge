@@ -655,6 +655,7 @@ class Orchestrator:
         self._timer_lock = threading.Lock()
         self._timer: threading.Timer | None = None
         self._dispatch_lock = threading.Lock()
+        self.runtime_head: str | None = None
 
     def validate_environment(self) -> None:
         if os.environ.get("SKYFORGE_ORCHESTRATOR_DEDICATED_CLONE") != "1":
@@ -679,6 +680,10 @@ class Orchestrator:
                 raise RuntimeError(
                     "SKYFORGE_WEBHOOK_SECRET must be at least 32 characters in hosted mode."
                 )
+        self.runtime_head = _run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.root,
+        ).stdout.strip()
 
     def delivery_seen(self, delivery_id: str | None) -> bool:
         if not delivery_id:
@@ -1119,12 +1124,65 @@ class Orchestrator:
             )
         _run(["git", "worktree", "prune"], cwd=self.root, check=False)
 
+    def _request_runtime_restart(
+        self,
+        previous_head: str,
+        current_head: str,
+        changed_paths: list[str],
+    ) -> None:
+        with self._state_lock:
+            self.state.data["runtime_restart_requested"] = {
+                "from_head": previous_head,
+                "to_head": current_head,
+                "changed_paths": changed_paths,
+                "requested_at": _utc_now(),
+            }
+            self.state.save()
+        self._metric("runtime_restarts_requested")
+        print(
+            "[orchestrator] controller Python changed on main; durable state is preserved and "
+            f"systemd restart is required ({previous_head[:10]} -> {current_head[:10]}): "
+            + ", ".join(changed_paths),
+            flush=True,
+        )
+        # The systemd unit uses Restart=on-failure. Exit non-zero so ExecStart reloads the
+        # just-synchronized Python source from the stable main checkout. Actionable events are
+        # already durable and will be replayed by resume_pending() in the replacement process.
+        os._exit(75)
+
     def sync_main(self) -> None:
         if not self._worktree_clean():
             raise RuntimeError("Dedicated clone is dirty; refusing autonomous checkout/sync")
+        previous_head = self.runtime_head or _run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.root,
+        ).stdout.strip()
         _run(["git", "fetch", "--prune", "origin"], cwd=self.root, timeout=180)
         _run(["git", "checkout", "main"], cwd=self.root)
         _run(["git", "pull", "--ff-only", "origin", "main"], cwd=self.root, timeout=180)
+        current_head = _run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.root,
+        ).stdout.strip()
+        if previous_head != current_head:
+            changed = [
+                line.strip()
+                for line in _run(
+                    [
+                        "git", "diff", "--name-only",
+                        previous_head, current_head,
+                        "--", "scripts/orchestrator",
+                    ],
+                    cwd=self.root,
+                ).stdout.splitlines()
+                if line.strip()
+            ]
+            python_changes = [path for path in changed if path.endswith(".py")]
+            self.runtime_head = current_head
+            if python_changes:
+                self._request_runtime_restart(previous_head, current_head, python_changes)
+        else:
+            self.runtime_head = current_head
 
     def workflows_quiescent(self, head_sha: str | None) -> bool:
         if not head_sha:
