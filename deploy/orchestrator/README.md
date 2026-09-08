@@ -135,3 +135,85 @@ sudo systemctl disable --now skyforge-orchestrator caddy
 
 Then disable/delete the repository webhook in GitHub. The ordinary repository-first workflow, CI, and
 Audit watchdog continue unchanged.
+
+
+## Daily value telemetry
+
+Continuous hosting is not accepted merely because the service stays up. AUDIT-0011 makes the host
+publish a **model-free** daily value report at approximately 08:05 America/Chicago.
+
+The timer:
+
+```text
+skyforge-value-report.timer
+    -> scripts/orchestrator/daily_value_report.py
+    -> .skyforge-orchestrator/reports/YYYY-MM-DD.{json,md}
+    -> controller-marked comment on issue #378
+```
+
+The controller marker means the report's own GitHub comment is deterministically filtered and cannot
+wake Luna. The reporter imports no Codex SDK and spends zero model turns.
+
+Each report records:
+
+- actual elapsed host hours multiplied by the selected Droplet's configured hourly rate;
+- events seen / filtered / actionable / duplicate / signature-rejected;
+- manual `/skyforge-orchestrate` wakes separately from Audit/watchdog wakes;
+- mean actionable-event-to-classifier dispatch latency;
+- Luna attempts and NOOP ratio;
+- Terra attempts, handoffs, resumes, and no-change rate;
+- human gates, capacity/authentication blocks, dispatch failures, restarts, and reconciliation activity;
+- all Skyforge PR activity versus controller-owned `codex/*` PR activity;
+- controller PRs created/merged overnight (22:00–08:00 America/Chicago);
+- a trailing seven-report cost/yield summary.
+
+The actual hourly Droplet rate is required at install time:
+
+```bash
+export SKYFORGE_DROPLET_HOURLY_USD="<actual selected rate>"
+```
+
+Do not hard-code an assumed provider price into the reporter when the provisioned size can change.
+
+### Keep / rework / cancel evaluation
+
+The daily advisory is deliberately conservative and cannot destroy infrastructure.
+
+- **KEEP** — repeated merged controller PRs, or repeated information-bearing worker handoffs at
+  acceptable yield.
+- **REWORK** — the host is active but worker no-change, low handoff yield, dispatch failures, or
+  capacity blocking are wasting material runtime.
+- **CANCEL_CANDIDATE** — after enough elapsed/activity evidence, Skyforge remains active but paid
+  hosted uptime produces no merged controller work and too few useful handoffs.
+- **INSUFFICIENT_DATA** — the project or worker sample is too quiet to justify a hosting conclusion.
+
+A quiet Skyforge week is not automatically a failed hosting week. The report compares controller work
+with overall project PR activity so lack of opportunity is distinguishable from lack of contribution.
+
+The automated signal is evidence for Audit/Nicholas; it is not a substitute for qualitative review.
+In particular, branch races, human-gate bypass, or low-value speculative work can make hosting
+unacceptable even when raw PR counts look good.
+
+## Cancellation / decommission
+
+Host-side cancellation is intentionally explicit and reversible:
+
+```bash
+./scripts/orchestrator/decommission_hosted.sh --confirm
+```
+
+That command:
+
+1. writes/posts one final value report;
+2. removes the matching GitHub repository webhook;
+3. stops/disables the daily report timer;
+4. stops/disables the orchestrator;
+5. stops/disables Caddy;
+6. leaves the final local JSON/Markdown reports available for export.
+
+It **does not** give the VM credentials to destroy itself. Provider-side destruction remains the final
+external step. After host-side teardown, destroy the DigitalOcean Droplet from the provider control
+plane and verify that no pilot backup, snapshot, block volume, reserved IP, load balancer, database, or
+other separately billable resource remains.
+
+Do not use power-off as cancellation. A powered-off Droplet may still be billable.
