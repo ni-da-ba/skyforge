@@ -313,7 +313,7 @@ class Orchestrator:
             if self._timer is not None:
                 self._timer.cancel()
             self._timer = threading.Timer(self.debounce_seconds, self._drain_and_dispatch)
-            self._timer.daemon = true
+            self._timer.daemon = True
             self._timer.start()
 
     def _drain_and_dispatch(self) -> None:
