@@ -32,6 +32,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeWaveC17GpsInfrastructureAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.waveC17GpsInfrastructure";
     private static final String RESULT_FILE = "c17-result.properties";
+    private static final long HOST_WARMUP_TICKS = 60L;
     private static final long TIMEOUT_TICKS = 260L;
     private static final double POSITION_TOLERANCE = 0.15;
     private static final System.Logger LOGGER =
@@ -52,13 +53,16 @@ final class SkyforgeWaveC17GpsInfrastructureAcceptance {
 
     private record Fixture(String name, int computerId, Path resultFile) {}
 
+    private static MinecraftServer server;
     private static ServerLevel overworld;
     private static ServerLevel nether;
     private static Fixture noHost;
     private static Fixture normalNear;
     private static Fixture normalFar;
     private static Fixture enderRemote;
+    private static long hostsStartedTick;
     private static long startTick;
+    private static boolean locatorsBooted;
     private static boolean complete;
 
     private SkyforgeWaveC17GpsInfrastructureAcceptance() {}
@@ -75,76 +79,90 @@ final class SkyforgeWaveC17GpsInfrastructureAcceptance {
         try {
             requireLoaded("computercraft");
 
-            MinecraftServer server = event.getServer();
+            server = event.getServer();
             overworld = server.overworld();
             nether = server.getLevel(Level.NETHER);
             if (nether == null) {
                 throw new IllegalStateException("Nether level is required for the no-host isolation proof");
             }
 
-            // The no-host locator is isolated in the Nether. Every GPS host below lives in the
-            // Overworld, and ordinary Wireless Modems cannot cross dimensions.
-            noHost = createComputer(
-                    server,
-                    nether,
-                    "no-host",
-                    NO_HOST_LOCATOR,
-                    "wireless_modem_normal",
-                    locatorScript());
-
-            // Three stock ordinary GPS hosts form a local non-collinear constellation. The near
-            // locator is inside C16's accepted local envelope; the far locator is outside it.
+            // Boot every GPS host first. Locators are deliberately withheld for a fixed number of
+            // server ticks so CraftOS and the stock gps host program can establish their modem
+            // listeners before any locate request is allowed to begin. This is a black-box
+            // readiness barrier: Skyforge still never calls ComputerCraft GPS/network internals.
             createComputer(server, overworld, "normal-host-a", NORMAL_HOST_A,
                     "wireless_modem_normal", hostScript(NORMAL_HOST_A));
             createComputer(server, overworld, "normal-host-b", NORMAL_HOST_B,
                     "wireless_modem_normal", hostScript(NORMAL_HOST_B));
             createComputer(server, overworld, "normal-host-c", NORMAL_HOST_C,
                     "wireless_modem_normal", hostScript(NORMAL_HOST_C));
-            normalNear = createComputer(
-                    server,
-                    overworld,
-                    "normal-near",
-                    NORMAL_NEAR_LOCATOR,
-                    "wireless_modem_normal",
-                    locatorScript());
-            normalFar = createComputer(
-                    server,
-                    overworld,
-                    "normal-far",
-                    NORMAL_FAR_LOCATOR,
-                    "wireless_modem_normal",
-                    locatorScript());
 
-            // A separate Ender constellation demonstrates the mature range bypass already exposed
-            // by C16, now through stock gps.locate rather than raw modem messages.
             createComputer(server, overworld, "ender-host-a", ENDER_HOST_A,
                     "wireless_modem_advanced", hostScript(ENDER_HOST_A));
             createComputer(server, overworld, "ender-host-b", ENDER_HOST_B,
                     "wireless_modem_advanced", hostScript(ENDER_HOST_B));
             createComputer(server, overworld, "ender-host-c", ENDER_HOST_C,
                     "wireless_modem_advanced", hostScript(ENDER_HOST_C));
-            enderRemote = createComputer(
-                    server,
-                    overworld,
-                    "ender-remote",
-                    ENDER_REMOTE_LOCATOR,
-                    "wireless_modem_advanced",
-                    locatorScript());
 
-            startTick = overworld.getGameTime();
+            hostsStartedTick = overworld.getGameTime();
             LOGGER.log(
                     System.Logger.Level.INFO,
-                    "Wave C17 real GPS computers booted noHost="
-                            + noHost.computerId()
-                            + " normalNear="
-                            + normalNear.computerId()
-                            + " normalFar="
-                            + normalFar.computerId()
-                            + " enderRemote="
-                            + enderRemote.computerId());
+                    "Wave C17 GPS hosts booted; delaying locators by "
+                            + HOST_WARMUP_TICKS
+                            + " server ticks");
         } catch (Exception exception) {
             fail("fixture bootstrap failed", exception);
         }
+    }
+
+    private static void bootLocators() throws IOException, ReflectiveOperationException {
+        // The no-host locator is isolated in the Nether. Every GPS host lives in the Overworld,
+        // and ordinary Wireless Modems cannot cross dimensions.
+        noHost = createComputer(
+                server,
+                nether,
+                "no-host",
+                NO_HOST_LOCATOR,
+                "wireless_modem_normal",
+                locatorScript());
+
+        // The near locator is inside C16's accepted local envelope; the far locator is outside it.
+        normalNear = createComputer(
+                server,
+                overworld,
+                "normal-near",
+                NORMAL_NEAR_LOCATOR,
+                "wireless_modem_normal",
+                locatorScript());
+        normalFar = createComputer(
+                server,
+                overworld,
+                "normal-far",
+                NORMAL_FAR_LOCATOR,
+                "wireless_modem_normal",
+                locatorScript());
+
+        // The Ender locator demonstrates C16's mature range bypass through stock gps.locate.
+        enderRemote = createComputer(
+                server,
+                overworld,
+                "ender-remote",
+                ENDER_REMOTE_LOCATOR,
+                "wireless_modem_advanced",
+                locatorScript());
+
+        startTick = overworld.getGameTime();
+        locatorsBooted = true;
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "Wave C17 real GPS locators booted after host warm-up noHost="
+                        + noHost.computerId()
+                        + " normalNear="
+                        + normalNear.computerId()
+                        + " normalFar="
+                        + normalFar.computerId()
+                        + " enderRemote="
+                        + enderRemote.computerId());
     }
 
     private static Fixture createComputer(
@@ -265,12 +283,19 @@ final class SkyforgeWaveC17GpsInfrastructureAcceptance {
     }
 
     private static void onServerTickPost(ServerTickEvent.Post event) {
-        if (complete || overworld == null || noHost == null || normalNear == null
-                || normalFar == null || enderRemote == null) {
+        if (complete || server == null || overworld == null) {
             return;
         }
 
         try {
+            if (!locatorsBooted) {
+                if (overworld.getGameTime() - hostsStartedTick < HOST_WARMUP_TICKS) {
+                    return;
+                }
+                bootLocators();
+                return;
+            }
+
             Properties noHostResult = loadComplete(noHost);
             Properties normalNearResult = loadComplete(normalNear);
             Properties normalFarResult = loadComplete(normalFar);

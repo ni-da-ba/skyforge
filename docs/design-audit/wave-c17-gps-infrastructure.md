@@ -24,6 +24,20 @@ Real CraftOS computers use only:
 - stock `gps host x y z`;
 - stock `gps.locate`.
 
+### Deterministic host-readiness barrier
+
+The original accepted fixture powered hosts and locators in the same server-start tick. Repeated CI
+evidence later showed a narrow nondeterministic failure where the remote Ender locator could begin its
+finite locate window before all stock GPS hosts had established their CraftOS listeners.
+
+The repaired fixture boots the six stock GPS hosts first, waits **60 server ticks**, and only then
+creates/powers the four locator computers. The locator behavior, host geometry, modem types, stock
+CraftOS APIs, timeouts, and acceptance assertions are otherwise unchanged.
+
+This is verification-reliability maintenance, not a change to C17's gameplay conclusion. The barrier
+uses only Skyforge's own server-tick scheduling and does not inspect or call ComputerCraft GPS/network
+internals.
+
 ### No-host case
 
 A real normal-Wireless-Modem locator is isolated in the Nether while every GPS host lives in the Overworld. It must fail to establish a position.

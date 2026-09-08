@@ -32,6 +32,18 @@ final class WaveC17GpsInfrastructureResourceTest {
     }
 
     @Test
+    void acceptanceBootsHostsBeforeLocatorsToAvoidStartupRace() throws IOException {
+        String source = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/"
+                        + "SkyforgeWaveC17GpsInfrastructureAcceptance.java"));
+
+        assertTrue(source.contains("HOST_WARMUP_TICKS = 60L"));
+        assertTrue(source.contains("hostsStartedTick < HOST_WARMUP_TICKS"));
+        assertTrue(source.contains("bootLocators();"));
+        assertTrue(source.contains("locatorsBooted = true"));
+    }
+
+    @Test
     void acceptanceProvesNoHostLocalRangeAndEnderRangeCases() throws IOException {
         String source = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/"
