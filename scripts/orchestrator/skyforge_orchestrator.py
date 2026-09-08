@@ -1545,7 +1545,7 @@ class Orchestrator:
         worker_summary: str,
         allowed_paths: list[str] | None = None,
         worker_root: Path | None = None,
-    ) -> None:
+    ) -> bool:
         worktree = worker_root or self.root
         paths = self._changed_paths(worktree)
         forbidden = [p for p in paths if self._worker_path_forbidden(p)]
@@ -1591,7 +1591,7 @@ class Orchestrator:
         if ahead <= 0:
             self._metric("worker_no_change")
             print(f"[orchestrator] worker made no repository changes for {lane}", flush=True)
-            return
+            return False
 
         # Push and PR creation are intentionally idempotent so an interrupted handoff resumes without
         # rerunning the model or losing a commit that already exists locally/remotely.
@@ -1651,6 +1651,23 @@ class Orchestrator:
             self.state.save()
         self._metric("worker_handoffs")
         print(f"[orchestrator] handed off {lane} on {branch} / PR #{pr_number}", flush=True)
+        return True
+
+    def _schedule_no_change_followup(self, events: list[EventDecision]) -> bool:
+        """Preserve one bounded reclassification opportunity after a multi-event no-change dispatch."""
+        if len(events) <= 1 or self._pending_events():
+            return False
+        self._metric("no_change_followup_reconciliations")
+        self.enqueue(
+            EventDecision(
+                True,
+                "multi-event batch worker made no repository changes; re-evaluate remaining state once",
+                "reconcile",
+                action="no_change_followup",
+                head_sha=self.runtime_head,
+            )
+        )
+        return True
 
     @staticmethod
     def _parse_github_time(value: Any) -> datetime | None:
@@ -2011,7 +2028,7 @@ commit, push, open/merge PRs, or use network access."""
             worker_summary = self._worker(worker_prompt, worker_tier, worker_root)
             self._mark_worker_handoff(worker_summary)
 
-        self._handoff_changes(
+        handoff_created = self._handoff_changes(
             lane,
             objective,
             branch,
@@ -2023,6 +2040,8 @@ commit, push, open/merge PRs, or use network access."""
         # Clear durable event/worker state before retiring the linked worktree. If the process
         # crashes during handoff, the retained worktree remains available for idempotent replay.
         self._clear_completed_decision()
+        if not handoff_created:
+            self._schedule_no_change_followup(events)
         try:
             self._retire_worker_worktree(worker_root)
         except Exception as exc:
