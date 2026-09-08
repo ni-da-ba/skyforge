@@ -155,6 +155,117 @@ class FailurePolicyTests(unittest.TestCase):
         self.assertGreaterEqual(delay, 30)
 
 
+class HostedTransportTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=999,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+            webhook_secret="x" * 48,
+            require_webhook_secret=True,
+            startup_reconcile=True,
+        )
+
+    def test_webhook_signature_matches_github_reference_vector(self):
+        self.assertTrue(
+            orch.verify_webhook_signature(
+                "It's a Secret to Everybody",
+                b"Hello, World!",
+                "sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17",
+            )
+        )
+
+    def test_webhook_signature_rejects_missing_or_tampered_values(self):
+        self.assertFalse(orch.verify_webhook_signature(None, b"payload", "sha256=abc"))
+        self.assertFalse(orch.verify_webhook_signature("secret", b"payload", None))
+        self.assertFalse(
+            orch.verify_webhook_signature(
+                "secret",
+                b"payload",
+                "sha256=0000000000000000000000000000000000000000000000000000000000000000",
+            )
+        )
+
+    def test_delivery_ids_persist_and_are_bounded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            o = self.make_orchestrator(root)
+            for index in range(orch.DEFAULT_MAX_SEEN_DELIVERIES + 3):
+                o.record_delivery(f"delivery-{index}")
+
+            self.assertEqual(
+                len(o.state.data["seen_deliveries"]),
+                orch.DEFAULT_MAX_SEEN_DELIVERIES,
+            )
+            self.assertFalse(o.delivery_seen("delivery-0"))
+            self.assertTrue(
+                o.delivery_seen(
+                    f"delivery-{orch.DEFAULT_MAX_SEEN_DELIVERIES + 2}"
+                )
+            )
+
+            reloaded = self.make_orchestrator(root)
+            self.assertTrue(
+                reloaded.delivery_seen(
+                    f"delivery-{orch.DEFAULT_MAX_SEEN_DELIVERIES + 2}"
+                )
+            )
+
+    def test_health_snapshot_exposes_state_not_secrets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            health = o.health_snapshot()
+            self.assertEqual(health["status"], "ok")
+            self.assertEqual(health["repo"], "ni-da-ba/skyforge")
+            self.assertNotIn("webhook_secret", health)
+            self.assertNotIn("x" * 48, str(health))
+
+    def test_reconcile_fingerprint_is_order_stable_for_mapping_keys(self):
+        first = {
+            "main": "abc",
+            "open_prs": [{"number": 2, "title": "x"}],
+            "recent_runs": [{"databaseId": 5, "status": "completed"}],
+        }
+        second = {
+            "recent_runs": [{"status": "completed", "databaseId": 5}],
+            "open_prs": [{"title": "x", "number": 2}],
+            "main": "abc",
+        }
+        self.assertEqual(
+            orch.Orchestrator._reconcile_fingerprint(first),
+            orch.Orchestrator._reconcile_fingerprint(second),
+        )
+
+    def test_startup_reconcile_wakes_only_after_baseline_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            initial = {"main": "abc", "open_prs": [], "recent_runs": []}
+            changed = {
+                "main": "def",
+                "open_prs": [{"number": 7}],
+                "recent_runs": [],
+            }
+
+            with mock.patch.object(o, "_remote_reconcile_snapshot", return_value=initial), \
+                    mock.patch.object(o, "enqueue") as enqueue:
+                o.startup_reconcile_repository()
+                enqueue.assert_not_called()
+
+                o.startup_reconcile_repository()
+                enqueue.assert_not_called()
+
+                o._remote_reconcile_snapshot.return_value = changed
+                o.startup_reconcile_repository()
+                enqueue.assert_called_once()
+                event = enqueue.call_args.args[0]
+                self.assertEqual(event.event, "reconcile")
+                self.assertTrue(event.actionable)
+                self.assertEqual(event.head_sha, "def")
+
+
 class DurableStateTests(unittest.TestCase):
     def make_orchestrator(self, root: pathlib.Path):
         return orch.Orchestrator(
