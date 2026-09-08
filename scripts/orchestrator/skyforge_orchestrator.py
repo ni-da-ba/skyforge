@@ -301,6 +301,10 @@ class Orchestrator:
         if not (self.root / ".git").exists():
             raise RuntimeError(f"{self.root} is not a Git clone")
         _run(["git", "rev-parse", "--is-inside-work-tree"], cwd=self.root)
+        for key in ("user.name", "user.email"):
+            value = _run(["git", "config", "--get", key], cwd=self.root, check=False).stdout.strip()
+            if not value:
+                raise RuntimeError(f"Git {key} is required in the dedicated clone before autonomous commits")
         _run(["gh", "auth", "status"], cwd=self.root, timeout=30)
 
     def enqueue(self, event: EventDecision) -> None:
@@ -624,7 +628,19 @@ class Orchestrator:
         now = time.time()
         last = float(self.state.data.get("last_dispatch_epoch") or 0.0)
         if now - last < self.min_dispatch_seconds:
-            print("[orchestrator] minimum dispatch interval not elapsed; coalescing into next event", flush=True)
+            remaining = max(1, int(self.min_dispatch_seconds - (now - last)))
+            for event in events:
+                self.events.put(event)
+            print(
+                f"[orchestrator] minimum dispatch interval not elapsed; retrying coalesced batch in {remaining}s",
+                flush=True,
+            )
+            with self._timer_lock:
+                if self._timer is not None:
+                    self._timer.cancel()
+                self._timer = threading.Timer(remaining, self._drain_and_dispatch)
+                self._timer.daemon = True
+                self._timer.start()
             return
 
         self.sync_main()
