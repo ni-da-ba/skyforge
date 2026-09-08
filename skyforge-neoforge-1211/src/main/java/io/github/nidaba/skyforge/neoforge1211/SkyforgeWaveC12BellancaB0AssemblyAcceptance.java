@@ -273,20 +273,29 @@ final class SkyforgeWaveC12BellancaB0AssemblyAcceptance {
 
     private static Object requireServerSubLevelContainer(ServerLevel level)
             throws ReflectiveOperationException {
-        Class<?> containerClass =
-                Class.forName("dev.ryanhcode.sable.api.sublevel.SubLevelContainer");
-        Method getContainer = containerClass.getMethod("getContainer", ServerLevel.class);
-        Object container = getContainer.invoke(null, level);
-        if (container == null) {
+        Class<?> holderClass =
+                Class.forName("dev.ryanhcode.sable.mixinterface.plot.SubLevelContainerHolder");
+        if (!holderClass.isInstance(level)) {
+            fail("ServerLevel does not expose Sable SubLevelContainerHolder");
+        }
+
+        Method getPlotContainer = holderClass.getDeclaredMethod("sable$getPlotContainer");
+        Object container = getPlotContainer.invoke(level);
+
+        Class<?> serverContainerClass =
+                Class.forName("dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer");
+        if (container == null || !serverContainerClass.isInstance(container)) {
             fail("Sable ServerSubLevelContainer unavailable");
         }
         return container;
     }
 
-    @SuppressWarnings("unchecked")
     private static List<?> getAllSubLevels(Object container) throws ReflectiveOperationException {
-        Object value = publicMethod(container, "getAllSubLevels").invoke(container);
-        if (!(value instanceof List<?> list)) {
+        Class<?> serverContainerClass =
+                Class.forName("dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer");
+        Method getAll = serverContainerClass.getDeclaredMethod("getAllSubLevels");
+        Object value = getAll.invoke(container);
+        if (!(value instanceof List<?>)) {
             fail("Sable getAllSubLevels did not return a List");
         }
         return (List<?>) value;
