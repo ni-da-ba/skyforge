@@ -1,0 +1,80 @@
+name: AUTH-0099 Cave Site Capability
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/auth-0099-cave-site-capability.yml"
+      - "docs/authorship/AUTH-0099-cave-system-site-capability.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandCaveSiteNodeEvidence.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandCaveSiteCapabilitySystem.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandCaveSiteCapabilityProfile.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandCaveSiteCapabilityProfiler.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandCaveSiteCapabilityProfilerTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipCaveSiteCapabilityCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipCaveSiteCapabilityCorpusTest.java"
+      - "skyforge-reference/build.gradle.kts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-0099-cave-site-capability-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Verify AUTH-0099 semantics and evidence
+        run: |
+          ./gradlew \
+            :skyforge-world:test --tests '*SkyIslandCaveSiteCapabilityProfilerTest' \
+            :skyforge-reference:test --tests '*AuthorshipCaveSiteCapabilityCorpusTest' \
+            :skyforge-reference:authorshipCaveSiteCapabilityCorpus \
+            --no-configuration-cache
+
+      - name: Verify evidence files
+        run: |
+          DIR=skyforge-reference/build/evidence/authorship-cave-site-capability-v1
+          test -f "$DIR/index.html"
+          test -f "$DIR/atlas.png"
+          test -f "$DIR/manifest.csv"
+          test -f "$DIR/systems.csv"
+          test -f "$DIR/nodes.csv"
+          test "$(wc -l < "$DIR/manifest.csv")" -eq 7
+          test "$(grep -c ',true$' "$DIR/manifest.csv")" -eq 6
+          test "$(wc -l < "$DIR/systems.csv")" -gt 1
+          test "$(wc -l < "$DIR/nodes.csv")" -gt 1
+
+      - name: Publish AUTH-0099 evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: auth-0099-cave-site-capability-${{ github.sha }}
+          path: |
+            skyforge-reference/build/evidence/authorship-cave-site-capability-v1/index.html
+            skyforge-reference/build/evidence/authorship-cave-site-capability-v1/atlas.png
+            skyforge-reference/build/evidence/authorship-cave-site-capability-v1/manifest.csv
+            skyforge-reference/build/evidence/authorship-cave-site-capability-v1/systems.csv
+            skyforge-reference/build/evidence/authorship-cave-site-capability-v1/nodes.csv
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 9
