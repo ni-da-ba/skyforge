@@ -2,7 +2,7 @@
 
 **Status:** Canonical concise coordination state  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Repository snapshot after AUTH-0096 acceptance:** `3fa34d5c30d7d89f48179cdcde6d6b4fb1740d40`
+**Repository snapshot after AUTH-0097 acceptance:** `b5af55b990349590b594fa1b3594f491839c5b91`
 
 Detailed milestone evidence belongs in lane ledgers, milestone docs, tests, workflows, and merged PRs.
 This file records only coordination boundaries another lane must preserve.
@@ -19,7 +19,7 @@ This file records only coordination boundaries another lane must preserve.
 
 | Lane | Repository-visible boundary |
 | --- | --- |
-| Authorship | `AUTH-0096` accepted: exact local surface-site capability evidence over AUTH-0046 provenance; AUTH-0095 remains the morphology-diagnostic handoff |
+| Authorship | `AUTH-0097` accepted: threshold-free directional surface-access evidence over exact AUTH-0096 provenance; AUTH-0095 remains the morphology-diagnostic handoff |
 | Implementation | `SF-IMP-0082` accepted; SF-IMP-0083 / #284 owns remaining AUTH-0083 built-in seed/scale Minecraft matrix |
 | Content / Experience | `C20` merged on current history: Iron/Copper/Zinc availability/guarantee policy over AUTH-0093; C11/C12 remain separately in progress/reserved |
 | Music / Audio | `MUS-0002` accepted in `30b5202fec3ae07b0720b42eb8d7770c3c463843`: canonical soundtrack source integrity is machine-gated in normal CI; human listening/CWP recovery gates remain explicit |
@@ -127,6 +127,35 @@ Cross-lane consequences:
 - no concrete structure roll, progression guarantee, settlement density, faction state, or loot
   policy is created by AUTH-0096.
 
+### AUTH-0097 — directional surface-access evidence — ACCEPTED
+
+AUTH-0097 / PR #328 merged as `b5af55b990349590b594fa1b3594f491839c5b91` from candidate
+`a036cf2711556a6a705e0b3abd1fdeb6f00d60da`.
+
+For each physically supported AUTH-0096 anchor, downstream planners may inspect eight canonical
+island-local lattice directions with raw:
+
+- available extent to the accepted watershed-square boundary;
+- consecutive physical-support run and first-open distance;
+- furthest supported distance and boundary open-tail extent;
+- support-transition count for re-entry/fragmentation;
+- maximum rise/fall from the anchor;
+- mean adjacent-supported grade.
+
+AUTH-0096 and AUTH-0097 share one exact-realization physical watershed lattice. Independent tests
+reconstruct the rays directly from the compiled physical volume.
+
+Cross-lane consequences:
+
+- **Content / Experience** owns any runway/dock/route/cliff-role thresholds, ranking, semantic site
+  selection, fallback/replan, progression and service meaning;
+- **Implementation** owns exact orientation, concrete geometry, full 3D/block-space clearance,
+  neighboring obstruction checks, terrain accommodation, mutation, persistence and lifecycle;
+- open-tail evidence does not prove a concrete aircraft corridor and may not be promoted to
+  cross-island route clearance;
+- AUTH-0097 creates no airfield/runway/dock/buildable/walkable Boolean, aircraft envelope,
+  civilization role, structure tier, density, faction state, loot policy, or progression guarantee.
+
 ## Morphology / Minecraft realization
 
 ### SF-IMP-0080 — visible land ecology — ACCEPTED
@@ -194,7 +223,7 @@ Remaining work includes assembled contraption/passenger/cargo transfer, authored
 
 ## Structures / civilization
 
-Content defines gameplay role/reuse/history/service semantics; Authorship supplies site/environment evidence; Implementation owns realization modes and lifecycle. AUTH-0096 is the current accepted local surface-site evidence seam, not site selection or concrete structure proof. Progression-critical structures must remain obtainable and cannot rely on lucky structure rolls unless the world recipe guarantees them.
+Content defines gameplay role/reuse/history/service semantics; Authorship supplies site/environment evidence; Implementation owns realization modes and lifecycle. AUTH-0096 supplies local surface-site evidence and AUTH-0097 adds directional support/edge evidence; neither is site selection or concrete structure/approach proof. Progression-critical structures must remain obtainable and cannot rely on lucky structure rolls unless the world recipe guarantees them.
 
 ## Computing / automation
 
