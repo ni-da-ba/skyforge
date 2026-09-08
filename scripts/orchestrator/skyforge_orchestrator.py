@@ -255,11 +255,15 @@ def classify_control_command(
     if str(payload.get("action") or "").lower() != "created":
         return None
     body = str((payload.get("comment") or {}).get("body") or "").strip().lower()
-    if body not in {"/skyforge-pause", "/skyforge-resume"}:
+    if body not in {"/skyforge-pause", "/skyforge-resume", "/skyforge-status"}:
         return None
     if not _trusted_actor(payload, trusted_actors):
         return None
-    return "pause" if body == "/skyforge-pause" else "resume"
+    if body == "/skyforge-pause":
+        return "pause"
+    if body == "/skyforge-resume":
+        return "resume"
+    return "status"
 
 
 def classify_event(
@@ -744,6 +748,7 @@ class Orchestrator:
             return {
                 "status": "ok",
                 "repo": self.repo,
+                "runtime_head": self.runtime_head,
                 "pending_events": len(self.state.data.get("pending_events") or []),
                 "pending_worker": bool(pending),
                 "worker_lane": pending.get("lane") if pending else None,
@@ -777,6 +782,25 @@ class Orchestrator:
     def is_paused(self) -> bool:
         with self._state_lock:
             return bool(self.state.data.get("paused"))
+
+    def post_status(self, target: int | str = 349) -> None:
+        status = dict(self.health_snapshot())
+        status["checkout_head"] = _run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.root,
+        ).stdout.strip()
+        body = (
+            f"{SELF_COMMENT_MARKER} STATUS\n\n"
+            + "~~~json\n"
+            + json.dumps(status, indent=2, sort_keys=True)
+            + "\n~~~"
+        )
+        _run(
+            ["gh", "issue", "comment", str(target), "--repo", self.repo, "--body", body],
+            cwd=self.root,
+            timeout=60,
+        )
+        self._metric("status_commands")
 
     def _remote_reconcile_snapshot(self) -> dict[str, Any]:
         remote = _run(
@@ -2069,7 +2093,12 @@ class Handler(BaseHTTPRequestHandler):
             )
             if control:
                 actor = str((((payload.get("comment") or {}).get("user") or {}).get("login")) or "")
-                self.orchestrator.set_paused(control == "pause", actor=actor)
+                if control == "status":
+                    issue = payload.get("issue") or {}
+                    target = issue.get("number") or 349
+                    self.orchestrator.post_status(target)
+                else:
+                    self.orchestrator.set_paused(control == "pause", actor=actor)
                 self.orchestrator.record_delivery(delivery_id)
                 self._respond_json(
                     202,
