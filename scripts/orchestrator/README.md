@@ -226,7 +226,11 @@ not reduced to a generic "Audit signal." A `RESTART RECOMMENDED` directive is au
 prior producer was stale at that instant. PR/issue `updatedAt` is never sufficient evidence of producer
 recovery because comments and bookkeeping mutate it; only information-bearing post-signal evidence
 such as a new producer head/commit, attributable Actions movement, or an already-managed recovery may
-suppress the fresh-worker dispatch.
+suppress the fresh-worker dispatch. If Luna nevertheless returns NOOP while the target remains open at
+the signal-time head, the controller performs one guarded reclassification. A second unsupported NOOP
+is converted to a human gate rather than silently consuming the restart. Classifier-policy changes
+automatically rotate the persistent Luna parent thread while preserving budgets, pending events, and
+worker state.
 
 If Codex reaches a human gate, the local controller posts a
 `[skyforge-orchestrator] HUMAN_GATE` comment. Its own comment is ignored by the webhook filter to
