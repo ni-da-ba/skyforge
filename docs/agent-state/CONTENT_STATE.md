@@ -470,8 +470,23 @@ Accepted stationary behavior:
 Exact candidate validation passed Portable Engine Cutoff run `34190573454`, retained C11 regression
 `34190573367`, and repository CI `34190573402`.
 
-Issue #237 remains **open**. Save/reload, assembled-Sable behavior, two-engine together/independent
-control, comparator/display coherence, and human ergonomics remain unaccepted.
+PR #392 additionally accepts real **three-boot** persistence in both CUT and configured-RUN states,
+plus comparator coherence:
+
+- boot A saves configured CUT at burn=600, one queued coal, comparator=12, zero output;
+- boot B reopens that exact CUT state, removes the persisted signal, resumes at burn=599 / 32 RPM /
+  comparator=11, then saves configured RUN;
+- boot C reopens configured RUN with cutoff mode still persisted but inactive, exact burn=599,
+  one queued coal, comparator=11, and normal 32 RPM output;
+- one further real engine tick decrements burn to 598 while preserving normal output/comparator
+  behavior.
+
+Exact strengthened-head verification passed Portable Engine Cutoff Persistence run `34193038291`,
+stationary cutoff regression `34193038285`, retained C11 regression `34193038301`, and repository
+CI `34193038286`.
+
+Issue #237 remains **open**. Assembled-Sable behavior, two-engine together/independent control, and
+human ergonomics remain unaccepted.
 
 ### Authorship / Implementation dependencies
 
@@ -574,7 +589,7 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 
 ## Ordered next work
 
-1. Continue issue #237 from accepted stationary PR #389 into save/reload and comparator/display coherence, then assembled-Sable and two-engine together/independent gates. Preserve the narrow Simulated-only compatibility scope.
+1. Continue issue #237 from accepted stationary/persistence PRs #389/#392 into the real assembled-Sable two-engine together/independent gate. Preserve the narrow Simulated-only compatibility scope; do not infer mobile behavior from stationary ticks.
 2. Proceed with C12 / issue #239 executable Bellanca B0 using accepted C11 direct recipe closure and the #237 cutoff seam as it becomes mobile/persistent; do not claim final powered-soaring closure before #237's mobile gates.
 3. Hand C21's exact-volume resource-authority contract to Implementation: filter competing Create Zinc/striated generic feature execution only inside explicit Skyforge-owned population, never by a packaged BASE_WORLD-wide override.
 4. Track Implementation issue #387 as the consumer of C25+C26: keep Diesel Generators machinery, suppress native chunk oil globally, and realize the narrow Skyforge source/depletion/pumpjack bridge only inside C23-eligible petroleum provinces and exact C26 nonzero AUTH-0098 local support.
