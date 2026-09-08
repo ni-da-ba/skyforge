@@ -91,6 +91,7 @@ class EventFilterTests(unittest.TestCase):
         )
         self.assertTrue(d.actionable)
         self.assertEqual(d.pr_number, 285)
+        self.assertEqual(d.action, "audit_signal")
 
     def test_manual_command_wakes(self):
         d = orch.classify_event(
@@ -102,6 +103,7 @@ class EventFilterTests(unittest.TestCase):
             },
         )
         self.assertTrue(d.actionable)
+        self.assertEqual(d.action, "manual_command")
 
     def test_ordinary_comment_is_ignored(self):
         d = orch.classify_event(
@@ -283,6 +285,23 @@ class DurableStateTests(unittest.TestCase):
         self.assertEqual(restored, event)
         self.assertEqual(orch._event_key(restored), orch._event_key(event))
 
+    def test_event_identity_ignores_observation_timestamp(self):
+        first = orch.EventDecision(
+            True,
+            "main advanced",
+            "push",
+            head_sha="abc123",
+            observed_at="2026-09-08T01:00:00+00:00",
+        )
+        second = orch.EventDecision(
+            True,
+            "main advanced",
+            "push",
+            head_sha="abc123",
+            observed_at="2026-09-08T01:05:00+00:00",
+        )
+        self.assertEqual(orch._event_key(first), orch._event_key(second))
+
     def test_pending_events_are_durable_and_deduplicated(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
@@ -341,9 +360,16 @@ class DurableStateTests(unittest.TestCase):
             event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
             o.enqueue(event)
             try:
-                self.assertEqual(o._pending_events(), [event])
+                pending = o._pending_events()
+                self.assertEqual(len(pending), 1)
+                self.assertEqual(orch._event_key(pending[0]), orch._event_key(event))
+                self.assertIsNotNone(pending[0].observed_at)
+
                 reloaded = self.make_orchestrator(pathlib.Path(tmp))
-                self.assertEqual(reloaded._pending_events(), [event])
+                restored = reloaded._pending_events()
+                self.assertEqual(len(restored), 1)
+                self.assertEqual(orch._event_key(restored[0]), orch._event_key(event))
+                self.assertEqual(restored[0].observed_at, pending[0].observed_at)
             finally:
                 if o._timer is not None:
                     o._timer.cancel()

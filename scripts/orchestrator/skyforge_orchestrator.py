@@ -23,7 +23,7 @@ import re
 import subprocess
 import threading
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -120,6 +120,7 @@ class EventDecision:
     action: str | None = None
     head_sha: str | None = None
     pr_number: int | None = None
+    observed_at: str | None = None
 
     def summary(self) -> str:
         bits = [self.event]
@@ -144,11 +145,15 @@ class EventDecision:
             action=value.get("action"),
             head_sha=value.get("head_sha"),
             pr_number=value.get("pr_number"),
+            observed_at=value.get("observed_at"),
         )
 
 
 def _event_key(value: EventDecision | dict[str, Any]) -> str:
-    payload = value.to_state() if isinstance(value, EventDecision) else value
+    payload = dict(value.to_state() if isinstance(value, EventDecision) else value)
+    # Observation time is telemetry, not event identity. Redelivery/replay must deduplicate the same
+    # repository transition even when it is observed at a different wall-clock instant.
+    payload.pop("observed_at", None)
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
 
@@ -214,13 +219,21 @@ def classify_event(event: str, payload: dict[str, Any]) -> EventDecision:
         body_lower = body.lower()
         if SELF_COMMENT_MARKER in body_lower:
             return EventDecision(False, "controller-authored comment; prevent wake loop", event, action)
-        if any(token in body_lower for token in AUDIT_WAKE_TOKENS):
-            issue = payload.get("issue") or {}
+        issue = payload.get("issue") or {}
+        if "/skyforge-orchestrate" in body_lower:
             return EventDecision(
                 True,
-                "Audit/manual orchestration comment",
+                "manual orchestration command",
                 event,
-                action,
+                "manual_command",
+                pr_number=issue.get("number"),
+            )
+        if any(token in body_lower for token in AUDIT_WAKE_TOKENS if token != "/skyforge-orchestrate"):
+            return EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                event,
+                "audit_signal",
                 pr_number=issue.get("number"),
             )
         return EventDecision(False, "ordinary comment", event, action)
@@ -714,7 +727,13 @@ class Orchestrator:
             self._metric("events_filtered")
             print(f"[orchestrator] ignored: {event.summary()}", flush=True)
             return
+        if event.observed_at is None:
+            event = replace(event, observed_at=_utc_now())
         self._metric("events_actionable")
+        if event.action == "manual_command":
+            self._metric("manual_wakes")
+        elif event.action == "audit_signal":
+            self._metric("audit_wakes")
         self._persist_pending_events([event])
         print(f"[orchestrator] journaled: {event.summary()}", flush=True)
         remaining = self._blocked_remaining()
@@ -1162,6 +1181,18 @@ class Orchestrator:
             decision = None
 
         if decision is None:
+            observed_epochs = []
+            for event in events:
+                if not event.observed_at:
+                    continue
+                try:
+                    observed_epochs.append(datetime.fromisoformat(event.observed_at).timestamp())
+                except ValueError:
+                    continue
+            if observed_epochs:
+                latency_ms = max(0, int((time.time() - min(observed_epochs)) * 1000))
+                self._metric("dispatch_latency_ms_total", latency_ms)
+                self._metric("dispatch_latency_samples")
             snap = self.snapshot()
             summaries = [e.summary() for e in events]
             with self._state_lock:
@@ -1358,6 +1389,7 @@ def main() -> int:
         startup_reconcile=args.startup_reconcile,
     )
     orchestrator.validate_environment()
+    orchestrator._metric("controller_starts")
     Handler.orchestrator = orchestrator
     server = ThreadingHTTPServer((args.bind, args.port), Handler)
     print(

@@ -12,11 +12,24 @@ VENV="$STATE_DIR/venv"
 VENV_PYTHON="$VENV/bin/python"
 CONFIG_DIR="/etc/skyforge-orchestrator"
 ENV_FILE="$CONFIG_DIR/env"
+VALUE_ENV_FILE="$CONFIG_DIR/value.env"
 SERVICE_FILE="/etc/systemd/system/skyforge-orchestrator.service"
+VALUE_SERVICE_FILE="/etc/systemd/system/skyforge-value-report.service"
+VALUE_TIMER_FILE="/etc/systemd/system/skyforge-value-report.timer"
 CADDY_FILE="/etc/caddy/Caddyfile"
 
 : "${SKYFORGE_PUBLIC_HOSTNAME:?Set SKYFORGE_PUBLIC_HOSTNAME to the public HTTPS hostname.}"
 : "${SKYFORGE_WEBHOOK_SECRET:?Set SKYFORGE_WEBHOOK_SECRET to a high-entropy webhook secret.}"
+: "${SKYFORGE_DROPLET_HOURLY_USD:?Set SKYFORGE_DROPLET_HOURLY_USD to the selected Droplet hourly rate.}"
+
+SKYFORGE_VALUE_REPORT_ISSUE="${SKYFORGE_VALUE_REPORT_ISSUE:-378}"
+HOST_ACTIVATED_AT="${SKYFORGE_HOST_ACTIVATED_AT:-}"
+if [[ -z "$HOST_ACTIVATED_AT" && -f "$ENV_FILE" ]]; then
+  HOST_ACTIVATED_AT="$(sudo sed -n 's/^SKYFORGE_HOST_ACTIVATED_AT=//p' "$ENV_FILE" | head -n 1)"
+fi
+if [[ -z "$HOST_ACTIVATED_AT" ]]; then
+  HOST_ACTIVATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+fi
 
 if [[ "${#SKYFORGE_WEBHOOK_SECRET}" -lt 32 ]]; then
   echo "SKYFORGE_WEBHOOK_SECRET must be at least 32 characters." >&2
@@ -70,9 +83,11 @@ if [[ ! -x "$VENV_PYTHON" ]]; then
 fi
 
 tmp_service="$(mktemp)"
+tmp_value_service="$(mktemp)"
 tmp_caddy="$(mktemp)"
 tmp_env="$(mktemp)"
-trap 'rm -f "$tmp_service" "$tmp_caddy" "$tmp_env"' EXIT
+tmp_value_env="$(mktemp)"
+trap 'rm -f "$tmp_service" "$tmp_value_service" "$tmp_caddy" "$tmp_env" "$tmp_value_env"' EXIT
 
 python3 - "$ROOT" "$SERVICE_USER" "$SERVICE_HOME" "$VENV_PYTHON" >"$tmp_service" <<'PY'
 from pathlib import Path
@@ -80,6 +95,21 @@ import sys
 
 root, user, home, python = sys.argv[1:]
 template = Path("deploy/orchestrator/skyforge-orchestrator.service.in").read_text()
+print(
+    template.replace("@@ROOT@@", root)
+    .replace("@@USER@@", user)
+    .replace("@@HOME@@", home)
+    .replace("@@VENV_PYTHON@@", python),
+    end="",
+)
+PY
+
+python3 - "$ROOT" "$SERVICE_USER" "$SERVICE_HOME" "$VENV_PYTHON" >"$tmp_value_service" <<'PY'
+from pathlib import Path
+import sys
+
+root, user, home, python = sys.argv[1:]
+template = Path("deploy/orchestrator/skyforge-value-report.service.in").read_text()
 print(
     template.replace("@@ROOT@@", root)
     .replace("@@USER@@", user)
@@ -105,21 +135,39 @@ SKYFORGE_REQUIRE_WEBHOOK_SECRET=1
 SKYFORGE_STARTUP_RECONCILE=1
 SKYFORGE_ORCHESTRATOR_AUTO_MERGE=0
 SKYFORGE_WEBHOOK_SECRET=$SKYFORGE_WEBHOOK_SECRET
+SKYFORGE_HOST_ACTIVATED_AT=$HOST_ACTIVATED_AT
 SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY=${SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY:-48}
 SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY=${SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY:-8}
 EOF
 
+cat >"$tmp_value_env" <<EOF
+SKYFORGE_HOST_ACTIVATED_AT=$HOST_ACTIVATED_AT
+SKYFORGE_DROPLET_HOURLY_USD=$SKYFORGE_DROPLET_HOURLY_USD
+SKYFORGE_VALUE_REPORT_ISSUE=$SKYFORGE_VALUE_REPORT_ISSUE
+EOF
+
 sudo install -d -m 0700 "$CONFIG_DIR"
 sudo install -m 0600 "$tmp_env" "$ENV_FILE"
+sudo install -m 0644 "$tmp_value_env" "$VALUE_ENV_FILE"
 sudo install -m 0644 "$tmp_service" "$SERVICE_FILE"
+sudo install -m 0644 "$tmp_value_service" "$VALUE_SERVICE_FILE"
+sudo install -m 0644 deploy/orchestrator/skyforge-value-report.timer "$VALUE_TIMER_FILE"
 sudo install -d -m 0755 /etc/caddy
 sudo install -m 0644 "$tmp_caddy" "$CADDY_FILE"
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now skyforge-orchestrator.service
+sudo systemctl enable --now skyforge-value-report.timer
 sudo systemctl enable --now caddy.service
 sudo systemctl restart skyforge-orchestrator.service
 sudo systemctl reload caddy.service
+
+# Establish the value-accounting baseline without posting a zero-value report.
+SKYFORGE_HOST_ACTIVATED_AT="$HOST_ACTIVATED_AT" \
+SKYFORGE_DROPLET_HOURLY_USD="$SKYFORGE_DROPLET_HOURLY_USD" \
+SKYFORGE_VALUE_REPORT_ISSUE="$SKYFORGE_VALUE_REPORT_ISSUE" \
+"$VENV_PYTHON" scripts/orchestrator/daily_value_report.py \
+  --root "$ROOT" --repo "$REPO" --issue "$SKYFORGE_VALUE_REPORT_ISSUE" --initialize
 
 health_url="https://$SKYFORGE_PUBLIC_HOSTNAME/healthz"
 webhook_url="https://$SKYFORGE_PUBLIC_HOSTNAME/webhook"
@@ -184,4 +232,7 @@ echo
 echo "Verify the latest GitHub delivery with:"
 echo "  gh api repos/$REPO/hooks/$hook_id/deliveries --jq '.[0] | {status_code,event,delivered_at}'"
 echo
+echo "Daily value telemetry: skyforge-value-report.timer (08:05 America/Chicago)"
+echo "Value report issue:    #$SKYFORGE_VALUE_REPORT_ISSUE"
+echo "Hourly cost basis:     $SKYFORGE_DROPLET_HOURLY_USD"
 echo "Auto-merge remains disabled. AUDIT-0009 daily call ceilings remain in force."
