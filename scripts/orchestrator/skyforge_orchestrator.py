@@ -1076,6 +1076,14 @@ class Orchestrator:
                 raise RuntimeError(
                     f"Worker worktree {worktree} is on {current!r}; expected {branch!r}"
                 )
+            if not self._worktree_clean(worktree):
+                raise RuntimeError(
+                    f"Orphaned worker worktree is dirty without pending-worker ownership: {worktree}"
+                )
+            # This path is reached only for a new dispatch with no pending-worker state. A clean
+            # leftover worktree from a prior cleanup failure is safe to realign to the requested
+            # durable start ref before reuse.
+            _run(["git", "reset", "--hard", start_ref], cwd=worktree)
             return worktree
 
         local_exists = _run(
