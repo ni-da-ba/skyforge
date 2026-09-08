@@ -176,3 +176,13 @@ tasks.register<JavaExec>("terrainSemanticCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/terrain-semantics-v1").get().asFile.absolutePath)
 }
+
+
+tasks.register<JavaExec>("authorshipSurfaceSiteCapabilityCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0096 local surface-site capability evidence package."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.AuthorshipSurfaceSiteCapabilityCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/authorship-surface-site-capability-v1").get().asFile.absolutePath)
+}
