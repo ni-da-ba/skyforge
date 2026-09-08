@@ -1,0 +1,159 @@
+name: Skyforge Presentation Runtime Captures
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skyforge-presentation-runtime-captures
+  cancel-in-progress: false
+
+jobs:
+  morphology:
+    name: Capture morphology - ${{ matrix.family }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - family: massif
+            prepare: productionMorphologyMassifPrepareVerify
+            client: runProductionMorphologyMassifClient
+            game_dir: run-skyforge-production-morphology-massif
+            command_root: skyforge_morphology
+          - family: tableland
+            prepare: productionMorphologyAtlasTablelandPrepareVerify
+            client: runProductionMorphologyAtlasTablelandClient
+            game_dir: run-skyforge-production-morphology-atlas-tableland
+            command_root: skyforge_morphology_atlas
+          - family: spine
+            prepare: productionMorphologyAtlasSpinePrepareVerify
+            client: runProductionMorphologyAtlasSpineClient
+            game_dir: run-skyforge-production-morphology-atlas-spine
+            command_root: skyforge_morphology_atlas
+          - family: basin
+            prepare: productionMorphologyAtlasBasinPrepareVerify
+            client: runProductionMorphologyAtlasBasinClient
+            game_dir: run-skyforge-production-morphology-atlas-basin
+            command_root: skyforge_morphology_atlas
+          - family: lobed
+            prepare: productionMorphologyAtlasLobedPrepareVerify
+            client: runProductionMorphologyAtlasLobedClient
+            game_dir: run-skyforge-production-morphology-atlas-lobed
+            command_root: skyforge_morphology_atlas
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Install X11 capture tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb xdotool
+
+      - name: Prepare accepted ${{ matrix.family }} carrier
+        timeout-minutes: 45
+        run: ./gradlew :skyforge-neoforge-1211:${{ matrix.prepare }} --stacktrace --no-configuration-cache
+
+      - name: Start virtual display
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp >/tmp/skyforge-xvfb.log 2>&1 &
+          echo $! >/tmp/skyforge-xvfb.pid
+          sleep 2
+
+      - name: Capture guided morphology stops in actual client
+        timeout-minutes: 20
+        env:
+          DISPLAY: ":99"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          chmod +x scripts/presentation/capture-minecraft-viewer.sh
+          scripts/presentation/capture-minecraft-viewer.sh             "skyforge-neoforge-1211/${{ matrix.game_dir }}"             "${{ matrix.client }}"             "${{ matrix.command_root }}"             "${{ matrix.family }}"             "build/presentation-captures/${{ matrix.family }}"             above approach below orbit
+
+      - name: Publish ${{ matrix.family }} presentation captures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: skyforge-presentation-morphology-${{ matrix.family }}-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            build/presentation-captures/${{ matrix.family }}/*.png
+            build/presentation-captures/${{ matrix.family }}/client.log
+            build/presentation-captures/${{ matrix.family }}/xvfb.log
+
+  ecology:
+    name: Capture accepted ecology
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Install X11 capture tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb xdotool
+
+      - name: Prepare accepted forest/taiga specimen
+        timeout-minutes: 45
+        run: ./gradlew :skyforge-neoforge-1211:showcaseEcologyPrepareVerify --stacktrace --no-configuration-cache
+
+      - name: Start virtual display
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp >/tmp/skyforge-xvfb.log 2>&1 &
+          echo $! >/tmp/skyforge-xvfb.pid
+          sleep 2
+
+      - name: Capture guided ecology stops in actual client
+        timeout-minutes: 20
+        env:
+          DISPLAY: ":99"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          chmod +x scripts/presentation/capture-minecraft-viewer.sh
+          scripts/presentation/capture-minecraft-viewer.sh             "skyforge-neoforge-1211/run-skyforge-showcase-ecology"             "runShowcaseEcologyClient"             "skyforge_ecology"             "ecology"             "build/presentation-captures/ecology"             panorama lower_forest upper_taiga
+
+      - name: Publish ecology presentation captures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: skyforge-presentation-ecology-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            build/presentation-captures/ecology/*.png
+            build/presentation-captures/ecology/client.log
+            build/presentation-captures/ecology/xvfb.log
