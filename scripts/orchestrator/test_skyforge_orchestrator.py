@@ -718,6 +718,114 @@ class DurableStateTests(unittest.TestCase):
             message = post_gate.call_args.args[0]["human_message"]
             self.assertIn("No autonomous commit/push occurred", message)
 
+    def test_existing_controller_gate_after_current_pr_head_is_seeded_and_suppressed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            decision = {
+                "decision": "HUMAN_GATE",
+                "lane": "Implementation",
+                "pr_number": 358,
+                "human_message": "Review the morphology gate.",
+            }
+            pr_info = {
+                "headRefOid": "abc123",
+                "state": "OPEN",
+                "commits": [
+                    {"committedDate": "2026-09-08T15:00:00Z"},
+                ],
+                "comments": [
+                    {
+                        "body": "[skyforge-orchestrator] HUMAN_GATE\n\nAlready surfaced.",
+                        "createdAt": "2026-09-08T16:00:00Z",
+                    }
+                ],
+            }
+
+            with mock.patch.object(orch, "_json_cmd", return_value=pr_info), \
+                    mock.patch.object(orch, "_run") as run:
+                o._post_gate(decision)
+
+            run.assert_not_called()
+            record = o.state.data["human_gate_records"]["pr:358:implementation"]
+            self.assertEqual(record["token"], "abc123:OPEN")
+            self.assertTrue(record["seeded_from_github"])
+            self.assertEqual(
+                o.state.data["metrics"].get("human_gate_duplicates_suppressed"),
+                1,
+            )
+
+    def test_same_pr_head_human_gate_is_suppressed_after_first_post(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            decision = {
+                "decision": "HUMAN_GATE",
+                "lane": "Implementation",
+                "pr_number": 358,
+                "human_message": "Review the morphology gate.",
+            }
+            pr_info = {
+                "headRefOid": "abc123",
+                "state": "OPEN",
+                "commits": [
+                    {"committedDate": "2026-09-08T15:00:00Z"},
+                ],
+                "comments": [],
+            }
+
+            with mock.patch.object(orch, "_json_cmd", return_value=pr_info), \
+                    mock.patch.object(
+                        orch,
+                        "_run",
+                        return_value=orch.subprocess.CompletedProcess([], 0, stdout="", stderr=""),
+                    ) as run:
+                o._post_gate(decision)
+                o._post_gate({**decision, "human_message": "Please review that same gate."})
+
+            self.assertEqual(run.call_count, 1)
+            self.assertEqual(o.state.data["metrics"].get("human_gates"), 1)
+            self.assertEqual(
+                o.state.data["metrics"].get("human_gate_duplicates_suppressed"),
+                1,
+            )
+
+    def test_new_pr_head_resurfaces_human_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            decision = {
+                "decision": "HUMAN_GATE",
+                "lane": "Implementation",
+                "pr_number": 358,
+                "human_message": "Review the morphology gate.",
+            }
+            first = {
+                "headRefOid": "abc123",
+                "state": "OPEN",
+                "commits": [{"committedDate": "2026-09-08T15:00:00Z"}],
+                "comments": [],
+            }
+            second = {
+                "headRefOid": "def456",
+                "state": "OPEN",
+                "commits": [{"committedDate": "2026-09-08T17:00:00Z"}],
+                "comments": [],
+            }
+
+            with mock.patch.object(orch, "_json_cmd", side_effect=[first, second]), \
+                    mock.patch.object(
+                        orch,
+                        "_run",
+                        return_value=orch.subprocess.CompletedProcess([], 0, stdout="", stderr=""),
+                    ) as run:
+                o._post_gate(decision)
+                o._post_gate(decision)
+
+            self.assertEqual(run.call_count, 2)
+            self.assertEqual(
+                o.state.data["human_gate_records"]["pr:358:implementation"]["token"],
+                "def456:OPEN",
+            )
+            self.assertEqual(o.state.data["metrics"].get("human_gates"), 2)
+
     def test_handoff_reuses_existing_open_pr_after_interruption(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
