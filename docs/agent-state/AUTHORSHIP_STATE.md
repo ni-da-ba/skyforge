@@ -3,8 +3,8 @@
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Main snapshot at latest Authorship acceptance:** `3fa34d5c30d7d89f48179cdcde6d6b4fb1740d40`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0096**
+**Main snapshot at latest Authorship acceptance:** `b5af55b990349590b594fa1b3594f491839c5b91`  
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0097**
 
 Read first:
 
@@ -225,14 +225,58 @@ Ownership after AUTH-0096:
 
 Reference: `docs/authorship/AUTH-0096-local-surface-site-capability.md`.
 
+### AUTH-0097 — directional surface-access evidence
+
+PR #328 / merge `b5af55b990349590b594fa1b3594f491839c5b91`.
+
+Concrete consumers: Bootstrap Province #224 requires dock/aircraft handling and route/navigation
+infrastructure, while the Stage-B structure-site-capability design requires directional access/edge
+evidence before downstream role matching.
+
+Exact acceptance:
+
+- accepted head `a036cf2711556a6a705e0b3abd1fdeb6f00d60da`;
+- full repository CI `34175242168` PASS;
+- AUTH-0096 regression workflow `34175242086` PASS;
+- scoped AUTH-0097 evidence workflow `34175242113` PASS;
+- evidence artifact `10037027809`;
+- digest `sha256:92c52648c9e29a0873734ad0d44095c257f92d38940d19c9e0b3828fdcb820e7`;
+- intervening pre-merge main movement modified only README/Audit state, so evidence remained portable
+  under `VALIDATION_POLICY.md`.
+
+Accepted invariants:
+
+- public profiling input is exactly one accepted AUTH-0096 `SkyIslandSurfaceSiteCapabilityProfile`;
+- AUTH-0096 and AUTH-0097 share one package-private exact-realization physical watershed lattice;
+- every physically supported AUTH-0096 anchor exposes the same eight canonical island-local lattice
+  directions; unsupported anchors expose no synthetic rays;
+- ray evidence remains threshold-free: available extent, consecutive support, first-open distance,
+  furthest support, boundary open tail, support transitions, rise/fall, and adjacent-supported grade;
+- an independent test reconstructs every ray directly from `SkyIslandCompiledVolumeColumnField`,
+  so acceptance does not depend on the shared helper agreeing with itself;
+- exact physical evidence remains tied to the exact realized placement and is not promoted to a
+  translation-invariant surrogate;
+- no airfield/runway/dock/cliff/buildable/walkable classification, aircraft envelope, cross-island
+  obstruction model, site selection, civilization role, or progression policy enters Authorship.
+
+Ownership after AUTH-0097:
+
+- **Authorship:** exact local directional support/edge evidence and provenance;
+- **Content / Experience:** role-specific thresholds/ranking, site selection, runway/dock/route
+  meaning, fallback/replan, progression and service semantics;
+- **Implementation:** concrete orientation/geometry, exact 3D/block-space clearance, neighboring
+  obstruction checks, terrain accommodation, mutation, persistence, and lifecycle.
+
+Reference: `docs/authorship/AUTH-0097-directional-surface-access-evidence.md`.
+
 ## IN PROGRESS
 
 No Authorship milestone is currently in progress.
 
-AUTH-0096 closes the first surface-site evidence gap required by Bootstrap/structure reintegration. Do not
-assign AUTH-0097 merely to enumerate every conceptual site-capability field. Add cliff/underside,
-interior/cave, access, regional-composition, or other semantics only when a retained consumer requires
-them. Morphology family tuning still requires the matching Minecraft matrix plus human review.
+AUTH-0097 closes the directional surface-access gap required by Bootstrap/structure reintegration. Do not
+assign AUTH-0098 merely to continue the conceptual site-capability inventory. Add cliff/underside,
+interior/cave, regional-composition, or other semantics only when a retained executable consumer
+requires them. Morphology family tuning still requires the matching Minecraft matrix plus human review.
 
 ## ACTIVE CROSS-LANE BOUNDARIES
 
@@ -241,7 +285,8 @@ them. Morphology family tuning still requires the matching Minecraft matrix plus
 - C20 is accepted and may consume AUTH-0094 to inspect/select/re-plan published scopes around eligible Iron/Copper/Zinc geology.
 - Iron availability/starting-cluster closure and Copper/Zinc post-flight-province guarantees remain Content-owned.
 - AUTH-0094 does not prove that a specific generated province satisfies C20; executable province planning/acceptance is downstream.
-- AUTH-0096 now supplies exact local surface-site evidence for Bootstrap civilization/structure requirement matching; Content still owns role requirements, thresholds, selection, and progression meaning.
+- AUTH-0096 supplies exact local surface-site evidence for Bootstrap civilization/structure requirement matching.
+- AUTH-0097 adds exact local directional support/edge evidence for roles needing access/approach context; Content still owns role thresholds, ranking, selection, and progression meaning.
 
 ### Implementation
 
@@ -250,14 +295,15 @@ concrete deposits, blocks/tags, quantities, accessibility, placement/worldgen, p
 lifecycle. SF-IMP-0083 / issue #284 may consume AUTH-0095 as the backend-neutral surface-character measurement
 seam for the exact built-in seed/scale matrix. Minecraft carrier/persistence/runtime evidence remains
 Implementation-owned, and AUTH-0095 does not itself authorize morphology-family retuning.
-Implementation may also consume an AUTH-0096-selected candidate only after Content supplies a concrete
-requirement/pairing; exact structure geometry/admission and terrain accommodation remain Implementation-owned.
+Implementation may consume an AUTH-0096/AUTH-0097-selected candidate only after Content supplies a concrete
+requirement/pairing; exact orientation, 3D clearance, structure geometry/admission, neighboring obstruction,
+and terrain accommodation remain Implementation-owned.
 
 ### Ecology / fauna / civilization
 
 AUTH-0089/0090/0091/0092 remain evidence inputs, not spawn/carrying-capacity/faction/province policy.
-AUTH-0096 is now an additional local site/environment evidence input for structure/civilization work,
-not a settlement or faction policy. Add cave/cliff, disturbance, predator-pressure, trophic,
+AUTH-0096/AUTH-0097 are local site/environment/access evidence inputs for structure/civilization work,
+not settlement, faction, route-network, or progression policy. Add cave/cliff, disturbance, predator-pressure, trophic,
 civilization-history, geothermal, petroleum, or other semantics only when a concrete consumer proves a gap.
 
 ## Architectural invariants
@@ -308,17 +354,18 @@ AUTH-0095 introduces no new independent human/manual gate; it supplies measureme
 already-open #214/#267/#283 review. Any Massif/Tableland tuning decision still requires that human
 comparison against the matching SF-IMP-0083 Minecraft matrix.
 
-AUTH-0096 introduces no new independent human/manual gate. Human judgment begins only after Content
-selects concrete civilization/structure requirements and Implementation presents player-facing sites.
+AUTH-0096/AUTH-0097 introduce no new independent human/manual gate. Human judgment begins only after
+Content selects concrete civilization/structure requirements and Implementation presents player-facing
+sites/approaches.
 
 ## Ordered next work
 
-1. Let Content/Bootstrap consume AUTH-0096 for concrete surface-site requirement matching in #224.
-2. Do not promote the working civilization/structure design documents into new Authorship semantics
-   until a retained executable consumer identifies the next missing backend-neutral cause; surface
-   evidence alone does not justify a regional wrapper, site class, or settlement policy.
-3. Keep AUTH-0095 handed to SF-IMP-0083/#284. Current Implementation remains in targeted Tableland
-   runtime recovery, so #267/#283 morphology retuning is not yet justified.
-4. Return to morphology only when the synchronized Minecraft matrix plus #214 human review identifies
-   a systemic family-level change; otherwise continue the next concrete Bootstrap-owned semantic gap.
+1. Let Content/Bootstrap consume AUTH-0096 + AUTH-0097 for a concrete surface-site/access requirement
+   in #224; do not invent Authorship-owned runway/dock thresholds.
+2. Reconstruct the next missing backend-neutral cause from executable consumers before assigning
+   AUTH-0098. The current conceptual structure/civilization design documents alone are not sufficient.
+3. Keep AUTH-0095 handed to SF-IMP-0083/#284. Do not retune Massif/Tableland until the synchronized
+   Minecraft matrix plus #214/#267/#283 human review demonstrates a systemic family issue.
+4. Preserve negative space and ownership boundaries: regional route/civilization composition belongs
+   in Authorship only if a concrete downstream planner cannot proceed with existing region/isolation/site evidence.
 
