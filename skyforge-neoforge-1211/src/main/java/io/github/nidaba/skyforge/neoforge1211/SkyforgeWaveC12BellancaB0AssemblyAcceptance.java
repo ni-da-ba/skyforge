@@ -332,21 +332,35 @@ final class SkyforgeWaveC12BellancaB0AssemblyAcceptance {
         }
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private static BlockState withManifestProperty(BlockState state, String semanticName, String value) {
-        Property property = findManifestProperty(state, semanticName);
-        Object parsed = property.getValue(value).orElse(null);
-        if (!(parsed instanceof Comparable)) {
-            fail("cannot parse block property " + semanticName + "=" + value + " on " + state);
-        }
-        return state.setValue(property, (Comparable) parsed);
+    private static BlockState withManifestProperty(
+            BlockState state,
+            String semanticName,
+            String value) {
+        Property<?> property = findManifestProperty(state, semanticName);
+        return withParsedProperty(state, property, semanticName, value);
     }
 
-    @SuppressWarnings("rawtypes")
+    private static <T extends Comparable<T>> BlockState withParsedProperty(
+            BlockState state,
+            Property<T> property,
+            String semanticName,
+            String value) {
+        T parsed = property.getValue(value).orElse(null);
+        if (parsed == null) {
+            fail("cannot parse block property " + semanticName + "=" + value + " on " + state);
+        }
+        return state.setValue(property, parsed);
+    }
+
     private static String readManifestProperty(BlockState state, String semanticName) {
-        Property property = findManifestProperty(state, semanticName);
-        Object value = state.getValue(property);
-        return property.getName((Comparable) value);
+        Property<?> property = findManifestProperty(state, semanticName);
+        return readProperty(state, property);
+    }
+
+    private static <T extends Comparable<T>> String readProperty(
+            BlockState state,
+            Property<T> property) {
+        return property.getName(state.getValue(property));
     }
 
     private static Property<?> findManifestProperty(BlockState state, String semanticName) {
