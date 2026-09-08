@@ -1,6 +1,6 @@
 # MUS-0003 — Track 00 repair-candidate integrity
 
-**Status:** In progress
+**Status:** Accepted
 
 ## Scope
 
@@ -58,5 +58,13 @@ python3 scripts/music/verify_music_sources.py
 ```
 
 Then require exact-head normal CI before merge.
+
+## Accepted evidence
+
+- feature head: `ad88c2664bad6d4de6d5c846951b7ee0952154f7`;
+- exact-head CI: `34176101697` — Music source integrity **PASS**, full Gradle/evidence regression **PASS**;
+- PR: #331;
+- accepted merge: `4346f9c429feb6781c6e2f446d12f4cc0ad29411`;
+- pre-merge `main` movement after the tested base touched only `docs/agent-state/AUDIT_STATE.md`, so no Music/code evidence was invalidated.
 
 After machine acceptance, the remaining Track 00 decision is the existing BBCSO A/B at bars 55-61.
