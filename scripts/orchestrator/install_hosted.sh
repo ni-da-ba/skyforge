@@ -95,9 +95,9 @@ if [[ ! -x "$VENV_PYTHON" ]]; then
   python3 -m venv "$VENV"
   "$VENV_PYTHON" -m pip install --upgrade pip
 fi
-# Reconcile the pinned runtime on every deliberate deployment so a requirements.txt change cannot
-# leave the service running stale packages merely because the venv already existed.
-"$VENV_PYTHON" -m pip install --disable-pip-version-check -r scripts/orchestrator/requirements.txt
+# Reconcile the pinned runtime on every deliberate deployment. The same fingerprinted helper is
+# also an ExecStartPre gate, so a requirements-only main update self-refreshes on service restart.
+"$VENV_PYTHON" scripts/orchestrator/sync_runtime_dependencies.py --root "$ROOT"
 
 if ! "$VENV_PYTHON" scripts/orchestrator/codex_auth.py >/dev/null 2>&1; then
   echo "Codex ChatGPT authentication is not active for the service user." >&2
