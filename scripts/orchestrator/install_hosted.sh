@@ -94,8 +94,10 @@ mkdir -p "$STATE_DIR"
 if [[ ! -x "$VENV_PYTHON" ]]; then
   python3 -m venv "$VENV"
   "$VENV_PYTHON" -m pip install --upgrade pip
-  "$VENV_PYTHON" -m pip install -r scripts/orchestrator/requirements.txt
 fi
+# Reconcile the pinned runtime on every deliberate deployment so a requirements.txt change cannot
+# leave the service running stale packages merely because the venv already existed.
+"$VENV_PYTHON" -m pip install --disable-pip-version-check -r scripts/orchestrator/requirements.txt
 
 if ! "$VENV_PYTHON" scripts/orchestrator/codex_auth.py >/dev/null 2>&1; then
   echo "Codex ChatGPT authentication is not active for the service user." >&2
@@ -185,12 +187,17 @@ sudo systemctl enable --now caddy.service
 sudo systemctl restart skyforge-orchestrator.service
 sudo systemctl reload caddy.service
 
-# Establish the value-accounting baseline without posting a zero-value report.
-SKYFORGE_HOST_ACTIVATED_AT="$HOST_ACTIVATED_AT" \
-SKYFORGE_DROPLET_HOURLY_USD="$SKYFORGE_DROPLET_HOURLY_USD" \
-SKYFORGE_VALUE_REPORT_ISSUE="$SKYFORGE_VALUE_REPORT_ISSUE" \
-"$VENV_PYTHON" scripts/orchestrator/daily_value_report.py \
-  --root "$ROOT" --repo "$REPO" --issue "$SKYFORGE_VALUE_REPORT_ISSUE" --initialize
+# Establish the value-accounting baseline only on first install. A maintenance redeploy must not
+# reset the last-report timestamp/metric baseline and hide part of the hosted-value history.
+if [[ ! -f "$STATE_DIR/report_state.json" ]]; then
+  SKYFORGE_HOST_ACTIVATED_AT="$HOST_ACTIVATED_AT" \
+  SKYFORGE_DROPLET_HOURLY_USD="$SKYFORGE_DROPLET_HOURLY_USD" \
+  SKYFORGE_VALUE_REPORT_ISSUE="$SKYFORGE_VALUE_REPORT_ISSUE" \
+  "$VENV_PYTHON" scripts/orchestrator/daily_value_report.py \
+    --root "$ROOT" --repo "$REPO" --issue "$SKYFORGE_VALUE_REPORT_ISSUE" --initialize
+else
+  echo "Preserving existing hosted value-report baseline."
+fi
 
 health_url="https://$SKYFORGE_PUBLIC_HOSTNAME/healthz"
 webhook_url="https://$SKYFORGE_PUBLIC_HOSTNAME/webhook"
