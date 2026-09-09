@@ -579,7 +579,7 @@ public final class CanonicalGraphJson {
                 fail("incomplete JSON number");
             }
             if (consume('0')) {
-                if (offset < source.length() && Character.isDigit(source.charAt(offset))) {
+                if (offset < source.length() && isJsonDigit(source.charAt(offset))) {
                     fail("leading zero in JSON number");
                 }
             } else {
@@ -600,7 +600,7 @@ public final class CanonicalGraphJson {
 
         private void requireDigits() {
             int start = offset;
-            while (offset < source.length() && Character.isDigit(source.charAt(offset))) {
+            while (offset < source.length() && isJsonDigit(source.charAt(offset))) {
                 offset++;
             }
             if (start == offset) {
@@ -616,6 +616,11 @@ public final class CanonicalGraphJson {
                 }
                 offset++;
             }
+        }
+
+        /** JSON numbers use ASCII digits only; Unicode-digit classification is too broad. */
+        private static boolean isJsonDigit(char character) {
+            return character >= '0' && character <= '9';
         }
 
         private boolean consume(char expected) {

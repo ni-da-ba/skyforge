@@ -258,6 +258,13 @@ final class CanonicalGraphJsonTest {
     }
 
     @Test
+    void rejectsNonAsciiDigitsInJsonNumbers() {
+        assertThrows(
+                GraphSerializationException.class,
+                () -> codec.readString(CANONICAL_GRAPH.replace("\"schemaVersion\":1", "\"schemaVersion\":\u0661")));
+    }
+
+    @Test
     void rejectsUnknownEnumsNoncanonicalDoublesAndInvalidGraphReferences() {
         String unknownKind = CANONICAL_GRAPH.replace("\"kind\":\"constant\"", "\"kind\":\"signal\"");
         String unknownType = CANONICAL_GRAPH.replace("scalar-field-2", "density-field");
