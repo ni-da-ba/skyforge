@@ -51,6 +51,7 @@ DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
 CONTROLLER_RUNTIME_PATHS = {
     "scripts/orchestrator/skyforge_orchestrator.py",
     "scripts/orchestrator/requirements.txt",
+    "scripts/orchestrator/sync_runtime_dependencies.py",
 }
 PROTECTED_WORKER_PATH_PREFIXES = (
     "scripts/orchestrator/",
