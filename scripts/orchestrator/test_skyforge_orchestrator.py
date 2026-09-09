@@ -746,6 +746,84 @@ class HostedTransportTests(unittest.TestCase):
                 self.assertTrue(event.actionable)
                 self.assertEqual(event.head_sha, "def")
 
+    def test_reconcile_projection_ignores_timestamp_only_noise(self):
+        first = {
+            "main": "abc",
+            "open_prs": [{
+                "number": 7,
+                "title": "test",
+                "isDraft": False,
+                "headRefName": "feature",
+                "mergeStateStatus": "CLEAN",
+                "updatedAt": "2026-09-09T04:00:00Z",
+            }],
+            "recent_runs": [{
+                "databaseId": 9,
+                "name": "CI",
+                "status": "completed",
+                "conclusion": "success",
+                "headSha": "abc",
+                "headBranch": "main",
+                "event": "push",
+                "updatedAt": "2026-09-09T04:01:00Z",
+            }],
+        }
+        second = {
+            **first,
+            "open_prs": [{**first["open_prs"][0], "updatedAt": "2026-09-09T05:00:00Z"}],
+            "recent_runs": [{**first["recent_runs"][0], "updatedAt": "2026-09-09T05:01:00Z"}],
+        }
+        p1 = orch.Orchestrator._reconcile_projection(first)
+        p2 = orch.Orchestrator._reconcile_projection(second)
+        self.assertEqual(p1, p2)
+        self.assertEqual(
+            orch.Orchestrator._reconcile_fingerprint(p1),
+            orch.Orchestrator._reconcile_fingerprint(p2),
+        )
+
+    def test_periodic_reconcile_defers_until_actions_are_quiescent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o._checkpoint_classifier_reconcile_observation(
+                {"main": "abc", "open_prs": [], "recent_runs": []}
+            )
+            active = {
+                "main": "def",
+                "open_prs": [],
+                "recent_runs": [{
+                    "databaseId": 11,
+                    "name": "CI",
+                    "status": "in_progress",
+                    "conclusion": None,
+                    "headSha": "def",
+                    "headBranch": "main",
+                    "event": "push",
+                }],
+            }
+            completed = {
+                "main": "def",
+                "open_prs": [],
+                "recent_runs": [{
+                    **active["recent_runs"][0],
+                    "status": "completed",
+                    "conclusion": "success",
+                }],
+            }
+
+            with mock.patch.object(o, "_remote_reconcile_snapshot", return_value=active), \
+                    mock.patch.object(o, "enqueue") as enqueue:
+                o.startup_reconcile_repository(source="periodic")
+                enqueue.assert_not_called()
+                self.assertEqual(
+                    o.state.data["metrics"].get("periodic_reconcile_deferred_active_runs"),
+                    1,
+                )
+
+                o._remote_reconcile_snapshot.return_value = completed
+                o.startup_reconcile_repository(source="periodic")
+                enqueue.assert_called_once()
+                self.assertEqual(enqueue.call_args.args[0].head_sha, "def")
+
     def test_classifier_checkpoint_suppresses_periodic_reconcile_for_same_state(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
