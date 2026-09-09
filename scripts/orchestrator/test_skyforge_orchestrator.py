@@ -591,6 +591,19 @@ class HostedTransportTests(unittest.TestCase):
             self.assertNotIn("x" * 48, body)
             self.assertEqual(o.state.data["metrics"].get("status_commands"), 1)
 
+    def test_hosted_installer_enforces_minimal_ufw_surface(self):
+        installer = MODULE_PATH.with_name("install_hosted.sh").read_text()
+        self.assertIn("sudo ufw default deny incoming", installer)
+        self.assertIn("sudo ufw default allow outgoing", installer)
+        self.assertIn("sudo ufw allow 22/tcp", installer)
+        self.assertIn("sudo ufw allow 80/tcp", installer)
+        self.assertIn("sudo ufw allow 443/tcp", installer)
+        self.assertIn("sudo ufw --force enable", installer)
+        self.assertLess(
+            installer.index("sudo ufw allow 22/tcp"),
+            installer.index("sudo ufw --force enable"),
+        )
+
     def test_worker_control_plane_paths_are_forbidden(self):
         forbidden = [
             "scripts/orchestrator/skyforge_orchestrator.py",
@@ -732,6 +745,49 @@ class HostedTransportTests(unittest.TestCase):
                 self.assertTrue(event.actionable)
                 self.assertEqual(event.head_sha, "def")
 
+    def test_startup_reconcile_failure_is_durable_and_retried_model_free(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.startup_reconcile = True
+            with mock.patch.object(
+                o,
+                "startup_reconcile_repository",
+                side_effect=RuntimeError("github temporarily unavailable"),
+            ), mock.patch.object(
+                o,
+                "_schedule_startup_reconcile_retry",
+            ) as schedule, mock.patch.object(
+                orch,
+                "_env_int",
+                return_value=30,
+            ):
+                self.assertFalse(o.attempt_startup_reconcile())
+
+            schedule.assert_called_once_with(30)
+            error = o.state.data["last_startup_reconcile_error"]
+            self.assertEqual(error["kind"], "RuntimeError")
+            self.assertIn("temporarily unavailable", error["summary"])
+            self.assertIsNotNone(o.state.data["startup_reconcile_retry_at"])
+            self.assertEqual(
+                o.state.data["metrics"].get("startup_reconcile_failures"),
+                1,
+            )
+
+    def test_successful_startup_reconcile_clears_degraded_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.startup_reconcile = True
+            o.state.data["last_startup_reconcile_error"] = {"kind": "RuntimeError"}
+            o.state.data["startup_reconcile_retry_at"] = "later"
+            o.state.save()
+
+            with mock.patch.object(o, "startup_reconcile_repository"):
+                self.assertTrue(o.attempt_startup_reconcile())
+
+            self.assertIsNone(o.state.data["last_startup_reconcile_error"])
+            self.assertIsNone(o.state.data["startup_reconcile_retry_at"])
+            self.assertIsNotNone(o.state.data["last_startup_reconcile_success_at"])
+
 
 class DurableStateTests(unittest.TestCase):
     def make_orchestrator(self, root: pathlib.Path):
@@ -743,6 +799,57 @@ class DurableStateTests(unittest.TestCase):
             max_parent_turns=24,
             auto_merge=False,
         )
+
+    def test_local_state_save_creates_valid_primary_and_backup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            state = orch.LocalState(root)
+            state.data["marker"] = "durable"
+            state.save()
+
+            self.assertEqual(
+                orch.LocalState._read_mapping(state.path)["marker"],
+                "durable",
+            )
+            self.assertEqual(
+                orch.LocalState._read_mapping(state.backup_path)["marker"],
+                "durable",
+            )
+
+    def test_local_state_recovers_from_backup_when_primary_is_corrupt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            state = orch.LocalState(root)
+            state.data["marker"] = "preserved"
+            state.save()
+            state.path.write_text("{not-json")
+
+            recovered = orch.LocalState(root)
+
+            self.assertEqual(recovered.data["marker"], "preserved")
+            self.assertEqual(
+                recovered.data["metrics"].get("state_backup_recoveries"),
+                1,
+            )
+            self.assertEqual(
+                recovered.data["last_state_recovery"]["source"],
+                "state.json.bak",
+            )
+            self.assertEqual(
+                orch.LocalState._read_mapping(recovered.path)["marker"],
+                "preserved",
+            )
+
+    def test_local_state_fails_closed_when_primary_and_backup_are_corrupt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            state = orch.LocalState(root)
+            state.save()
+            state.path.write_text("{bad-primary")
+            state.backup_path.write_text("{bad-backup")
+
+            with self.assertRaisesRegex(RuntimeError, "primary and backup"):
+                orch.LocalState(root)
 
     def test_event_state_round_trip(self):
         event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
@@ -800,6 +907,160 @@ class DurableStateTests(unittest.TestCase):
 
             reloaded = self.make_orchestrator(root)
             self.assertEqual(reloaded._pending_events(), [event])
+
+    def test_queue_pressure_compacts_ordinary_history_to_reconcile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            events = [
+                orch.EventDecision(
+                    True,
+                    "PR lifecycle changed",
+                    "pull_request",
+                    action="closed",
+                    head_sha=f"head-{index}",
+                    pr_number=index,
+                )
+                for index in range(12)
+            ]
+
+            with mock.patch.object(orch, "_env_int", return_value=10):
+                o._persist_pending_events(events)
+
+            pending = o._pending_events()
+            self.assertEqual(len(pending), 10)
+            self.assertTrue(
+                any(
+                    event.event == "reconcile" and event.action == "queue_compaction"
+                    for event in pending
+                )
+            )
+            self.assertGreater(
+                o.state.data["metrics"].get("pending_events_compacted", 0),
+                0,
+            )
+            report = o.state.data["last_pending_event_compaction"]
+            self.assertEqual(report["before"], 12)
+            self.assertEqual(report["after"], 10)
+            self.assertTrue(report["reconcile_inserted"])
+
+    def test_queue_pressure_never_drops_trusted_signals(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            ordinary = [
+                orch.EventDecision(
+                    True,
+                    "PR lifecycle changed",
+                    "pull_request",
+                    action="closed",
+                    head_sha=f"head-{index}",
+                    pr_number=index,
+                )
+                for index in range(12)
+            ]
+            signals = [
+                orch.EventDecision(
+                    True,
+                    "Audit/watchdog orchestration signal",
+                    "issue_comment",
+                    action="audit_signal",
+                    pr_number=349,
+                    source_id=f"signal-{index}",
+                    signal_kind="restart_recommended",
+                    signal_text=f"AUDIT restart {index}",
+                )
+                for index in range(2)
+            ]
+
+            with mock.patch.object(orch, "_env_int", return_value=10):
+                o._persist_pending_events(ordinary + signals)
+
+            pending = o._pending_events()
+            self.assertEqual(len(pending), 10)
+            source_ids = {event.source_id for event in pending}
+            self.assertIn("signal-0", source_ids)
+            self.assertIn("signal-1", source_ids)
+            self.assertTrue(
+                any(
+                    event.event == "reconcile" and event.action == "queue_compaction"
+                    for event in pending
+                )
+            )
+
+    def test_queue_pressure_never_drops_owned_event_keys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            owned = [
+                orch.EventDecision(
+                    True,
+                    "PR lifecycle changed",
+                    "pull_request",
+                    action="closed",
+                    head_sha=f"owned-{index}",
+                    pr_number=index,
+                )
+                for index in range(2)
+            ]
+            o._persist_pending_events(owned)
+            o._cache_decision(
+                {"decision": "NOOP", "reason": "owned batch"},
+                owned,
+                {"main": "mainhead", "open_prs": []},
+            )
+            later = [
+                orch.EventDecision(
+                    True,
+                    "PR lifecycle changed",
+                    "pull_request",
+                    action="closed",
+                    head_sha=f"later-{index}",
+                    pr_number=100 + index,
+                )
+                for index in range(12)
+            ]
+
+            with mock.patch.object(orch, "_env_int", return_value=10):
+                o._persist_pending_events(later)
+
+            pending_keys = {orch._event_key(event) for event in o._pending_events()}
+            owned_keys = set(o._decision_record()["event_keys"])
+            self.assertTrue(owned_keys.issubset(pending_keys))
+            self.assertEqual(len(o._pending_events()), 10)
+            self.assertTrue(
+                any(
+                    event.event == "reconcile" and event.action == "queue_compaction"
+                    for event in o._pending_events()
+                )
+            )
+
+    def test_priority_authority_may_exceed_soft_queue_cap_without_loss(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            signals = [
+                orch.EventDecision(
+                    True,
+                    "Audit/watchdog orchestration signal",
+                    "issue_comment",
+                    action="audit_signal",
+                    pr_number=349,
+                    source_id=f"signal-{index}",
+                    signal_kind="restart_recommended",
+                    signal_text=f"AUDIT restart {index}",
+                )
+                for index in range(11)
+            ]
+
+            with mock.patch.object(orch, "_env_int", return_value=10):
+                o._persist_pending_events(signals)
+
+            self.assertEqual(len(o._pending_events()), 11)
+            self.assertEqual(
+                {event.source_id for event in o._pending_events()},
+                {f"signal-{index}" for index in range(11)},
+            )
+            self.assertEqual(
+                o.state.data["metrics"].get("pending_event_protected_overflow"),
+                1,
+            )
 
     def test_new_event_queues_behind_cached_terminal_decision(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1724,6 +1985,57 @@ class WorkerWorktreeIsolationTests(unittest.TestCase):
             max_parent_turns=24,
             auto_merge=False,
         )
+
+    def test_closed_managed_pr_record_is_retired_before_worker_reuse(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_repository(pathlib.Path(tmp))
+            o = self.make_orchestrator(root)
+            o.state.data["managed"] = {
+                "Content": {
+                    "branch": "codex/content-old",
+                    "pr_number": 77,
+                }
+            }
+            o.state.save()
+
+            with mock.patch.object(
+                orch,
+                "_json_cmd",
+                return_value={"state": "MERGED", "headRefName": "codex/content-old"},
+            ):
+                managed = o._validated_managed_branch("Content")
+
+            self.assertIsNone(managed)
+            self.assertNotIn("Content", o.state.data["managed"])
+            self.assertEqual(
+                o.state.data["metrics"].get("stale_managed_records_retired"),
+                1,
+            )
+
+    def test_open_managed_pr_record_remains_reusable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_repository(pathlib.Path(tmp))
+            o = self.make_orchestrator(root)
+            record = {
+                "branch": "codex/content-live",
+                "pr_number": 77,
+            }
+            o.state.data["managed"] = {"Content": dict(record)}
+            o.state.save()
+
+            with mock.patch.object(
+                orch,
+                "_json_cmd",
+                return_value={"state": "OPEN", "headRefName": "codex/content-live"},
+            ):
+                managed = o._validated_managed_branch("Content")
+
+            self.assertEqual(managed, record)
+            self.assertEqual(o.state.data["managed"]["Content"], record)
+            self.assertEqual(
+                o.state.data["metrics"].get("stale_managed_records_retired", 0),
+                0,
+            )
 
     def test_prepare_worker_keeps_controller_checkout_on_main(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -43,6 +43,8 @@ DEFAULT_RATE_LIMIT_BACKOFF_SECONDS = 300
 DEFAULT_TRANSIENT_BACKOFF_SECONDS = 300
 DEFAULT_MAX_CONSECUTIVE_CLASSIFIER_FAILURES = 3
 DEFAULT_MAX_SEEN_DELIVERIES = 512
+DEFAULT_MAX_PENDING_EVENTS = 100
+DEFAULT_STARTUP_RECONCILE_RETRY_SECONDS = 60
 DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
 CONTROLLER_RUNTIME_PATHS = {
     "scripts/orchestrator/skyforge_orchestrator.py",
@@ -632,6 +634,7 @@ class LocalState:
     def __init__(self, root: Path) -> None:
         self.dir = root / STATE_DIR
         self.path = self.dir / STATE_FILE
+        self.backup_path = self.dir / f"{STATE_FILE}.bak"
         self._lock = threading.RLock()
         self.dir.mkdir(parents=True, exist_ok=True)
         self.data: dict[str, Any] = {
@@ -668,21 +671,76 @@ class LocalState:
             "paused": False,
             "paused_at": None,
             "paused_by": None,
+            "last_state_recovery": None,
+            "last_startup_reconcile_error": None,
+            "last_startup_reconcile_success_at": None,
+            "startup_reconcile_retry_at": None,
         }
+
+        primary_error: Exception | None = None
+        loaded: dict[str, Any] | None = None
         if self.path.exists():
             try:
-                loaded = json.loads(self.path.read_text())
-                if isinstance(loaded, dict):
-                    self.data.update(loaded)
-            except Exception:
-                # A corrupt local state file must not damage the repository.
-                pass
+                loaded = self._read_mapping(self.path)
+            except Exception as exc:
+                primary_error = exc
+        elif self.backup_path.exists():
+            primary_error = FileNotFoundError(str(self.path))
+
+        recovered_from_backup = False
+        if loaded is None and self.backup_path.exists():
+            try:
+                loaded = self._read_mapping(self.backup_path)
+                recovered_from_backup = True
+            except Exception as backup_error:
+                raise RuntimeError(
+                    "Skyforge orchestrator state is unreadable in both primary and backup files"
+                ) from backup_error
+
+        if loaded is None and primary_error is not None:
+            raise RuntimeError(
+                "Skyforge orchestrator state file is unreadable and no valid backup is available"
+            ) from primary_error
+
+        if loaded is not None:
+            self.data.update(loaded)
+
+        if recovered_from_backup:
+            metrics = self.data.get("metrics")
+            if not isinstance(metrics, dict):
+                metrics = {}
+                self.data["metrics"] = metrics
+            metrics["state_backup_recoveries"] = int(
+                metrics.get("state_backup_recoveries") or 0
+            ) + 1
+            self.data["last_state_recovery"] = {
+                "at": _utc_now(),
+                "source": self.backup_path.name,
+                "primary_error": type(primary_error).__name__ if primary_error else "missing",
+            }
+            self.save()
+
+    @staticmethod
+    def _read_mapping(path: Path) -> dict[str, Any]:
+        value = json.loads(path.read_text())
+        if not isinstance(value, dict):
+            raise ValueError(f"State file {path} must contain a JSON object")
+        return value
+
+    @staticmethod
+    def _atomic_write(path: Path, payload: str) -> None:
+        tmp = path.with_name(path.name + ".tmp")
+        with tmp.open("w") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
 
     def save(self) -> None:
         with self._lock:
-            tmp = self.path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(self.data, indent=2, sort_keys=True) + "\n")
-            tmp.replace(self.path)
+            payload = json.dumps(self.data, indent=2, sort_keys=True) + "\n"
+            self._atomic_write(self.path, payload)
+            self._atomic_write(self.backup_path, payload)
 
 
 def _ensure_classifier_policy_state(state: LocalState) -> None:
@@ -737,6 +795,8 @@ class Orchestrator:
         self._timer_lock = threading.Lock()
         self._timer: threading.Timer | None = None
         self._dispatch_lock = threading.Lock()
+        self._startup_reconcile_retry_lock = threading.Lock()
+        self._startup_reconcile_retry_timer: threading.Timer | None = None
         self.runtime_head: str | None = None
 
     def validate_environment(self) -> None:
@@ -832,6 +892,20 @@ class Orchestrator:
                 "repo": self.repo,
                 "runtime_head": self.runtime_head,
                 "pending_events": len(self.state.data.get("pending_events") or []),
+                "pending_event_soft_limit": _env_int(
+                    "SKYFORGE_ORCHESTRATOR_MAX_PENDING_EVENTS",
+                    DEFAULT_MAX_PENDING_EVENTS,
+                    minimum=10,
+                ),
+                "pending_event_high_water": int(
+                    (self.state.data.get("metrics") or {}).get("pending_event_high_water") or 0
+                ),
+                "pending_event_protected_overflow": int(
+                    (self.state.data.get("metrics") or {}).get("pending_event_protected_overflow") or 0
+                ),
+                "last_pending_event_compaction": self.state.data.get(
+                    "last_pending_event_compaction"
+                ),
                 "pending_event_summaries": [
                     EventDecision.from_state(value).summary()
                     for value in (self.state.data.get("pending_events") or [])[-10:]
@@ -885,6 +959,16 @@ class Orchestrator:
                 "last_human_gate_error": self.state.data.get("last_human_gate_error"),
                 "managed_prs": len(self.state.data.get("managed") or {}),
                 "last_reconcile_at": self.state.data.get("last_reconcile_at"),
+                "last_state_recovery": self.state.data.get("last_state_recovery"),
+                "last_startup_reconcile_error": self.state.data.get(
+                    "last_startup_reconcile_error"
+                ),
+                "last_startup_reconcile_success_at": self.state.data.get(
+                    "last_startup_reconcile_success_at"
+                ),
+                "startup_reconcile_retry_at": self.state.data.get(
+                    "startup_reconcile_retry_at"
+                ),
                 "paused": bool(self.state.data.get("paused")),
                 "paused_at": self.state.data.get("paused_at"),
             }
@@ -1134,6 +1218,58 @@ class Orchestrator:
             flush=True,
         )
 
+    def attempt_startup_reconcile(self) -> bool:
+        """Run model-free startup reconciliation and retry later if GitHub is temporarily unavailable."""
+        try:
+            self.startup_reconcile_repository()
+        except Exception as exc:
+            retry_seconds = _env_int(
+                "SKYFORGE_STARTUP_RECONCILE_RETRY_SECONDS",
+                DEFAULT_STARTUP_RECONCILE_RETRY_SECONDS,
+                minimum=30,
+            )
+            retry_at = datetime.now(timezone.utc) + timedelta(seconds=retry_seconds)
+            with self._state_lock:
+                self.state.data["last_startup_reconcile_error"] = {
+                    "at": _utc_now(),
+                    "kind": type(exc).__name__,
+                    "summary": str(exc)[:500],
+                }
+                self.state.data["startup_reconcile_retry_at"] = retry_at.isoformat()
+                self.state.save()
+            self._metric("startup_reconcile_failures")
+            print(
+                f"[orchestrator] startup reconciliation failed closed: "
+                f"{type(exc).__name__}: {exc}; retrying model-free in {retry_seconds}s",
+                flush=True,
+            )
+            self._schedule_startup_reconcile_retry(retry_seconds)
+            return False
+
+        with self._state_lock:
+            self.state.data["last_startup_reconcile_error"] = None
+            self.state.data["last_startup_reconcile_success_at"] = _utc_now()
+            self.state.data["startup_reconcile_retry_at"] = None
+            self.state.save()
+        return True
+
+    def _schedule_startup_reconcile_retry(self, delay_seconds: int | float) -> None:
+        if not self.startup_reconcile:
+            return
+        delay = max(1.0, float(delay_seconds))
+        with self._startup_reconcile_retry_lock:
+            if self._startup_reconcile_retry_timer is not None:
+                self._startup_reconcile_retry_timer.cancel()
+            timer = threading.Timer(delay, self._retry_startup_reconcile)
+            timer.daemon = True
+            self._startup_reconcile_retry_timer = timer
+            timer.start()
+
+    def _retry_startup_reconcile(self) -> None:
+        with self._startup_reconcile_retry_lock:
+            self._startup_reconcile_retry_timer = None
+        self.attempt_startup_reconcile()
+
     def _metric(self, name: str, amount: int = 1) -> None:
         with self._state_lock:
             metrics = self.state.data.setdefault("metrics", {})
@@ -1197,6 +1333,121 @@ class Orchestrator:
             values = self.state.data.get("pending_events") or []
             return [EventDecision.from_state(v) for v in values if isinstance(v, dict)]
 
+    @staticmethod
+    def _pending_event_priority(value: dict[str, Any]) -> bool:
+        event = EventDecision.from_state(value)
+        return bool(event.signal_kind) or event.action in {"audit_signal", "manual_command"}
+
+    @staticmethod
+    def _pending_event_compaction_slot(value: dict[str, Any]) -> tuple[str, ...]:
+        event = EventDecision.from_state(value)
+        if event.event == "push":
+            return ("push", "main")
+        if event.event == "pull_request" and event.pr_number is not None:
+            return ("pull_request", str(event.pr_number))
+        if event.event == "workflow_run" and event.head_sha:
+            return ("workflow_run", str(event.head_sha))
+        if event.event == "reconcile":
+            return ("reconcile", str(event.action or "reconcile"))
+        return (
+            str(event.event or "event"),
+            str(event.pr_number or ""),
+            str(event.head_sha or ""),
+            str(event.action or ""),
+        )
+
+    def _compact_pending_event_values(
+        self,
+        values: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        """Bound ordinary webhook history without silently losing durable authority.
+
+        Trusted Audit/manual signals and event keys already owned by a cached classifier decision are
+        never compacted away. Ordinary repository transitions first coalesce by subject, then any
+        remaining excess is represented by one synthetic current-state reconcile event.
+        """
+        limit = _env_int(
+            "SKYFORGE_ORCHESTRATOR_MAX_PENDING_EVENTS",
+            DEFAULT_MAX_PENDING_EVENTS,
+            minimum=10,
+        )
+        if len(values) <= limit:
+            return values, None
+
+        decision_record = self._decision_record() or {}
+        owned_keys = set(decision_record.get("event_keys") or [])
+        protected_keys = {
+            _event_key(value)
+            for value in values
+            if _event_key(value) in owned_keys or self._pending_event_priority(value)
+        }
+
+        # Coalesce ordinary repository transitions by semantic subject while preserving protected
+        # events at their original relative positions. Later ordinary state supersedes earlier state
+        # for the same subject.
+        latest_unprotected_by_slot: dict[tuple[str, ...], tuple[int, dict[str, Any]]] = {}
+        for index, value in enumerate(values):
+            key = _event_key(value)
+            if key in protected_keys:
+                continue
+            latest_unprotected_by_slot[self._pending_event_compaction_slot(value)] = (index, value)
+
+        selected_indexes = {
+            index
+            for index, _ in latest_unprotected_by_slot.values()
+        }
+        first_pass = [
+            value
+            for index, value in enumerate(values)
+            if _event_key(value) in protected_keys or index in selected_indexes
+        ]
+        if len(first_pass) <= limit:
+            report = {
+                "at": _utc_now(),
+                "before": len(values),
+                "after": len(first_pass),
+                "coalesced": len(values) - len(first_pass),
+                "reconcile_inserted": False,
+                "protected_overflow": max(0, len(protected_keys) - limit),
+            }
+            return first_pass, report
+
+        protected = [value for value in first_pass if _event_key(value) in protected_keys]
+        ordinary = [value for value in first_pass if _event_key(value) not in protected_keys]
+        # Leave one slot for a synthetic reconcile whenever ordinary history must be elided. If
+        # protected authority itself exceeds the soft cap, preserve it all and append one reconcile.
+        ordinary_slots = max(0, limit - len(protected) - 1)
+        kept_ordinary = ordinary[-ordinary_slots:] if ordinary_slots else []
+        kept_ordinary_keys = {_event_key(value) for value in kept_ordinary}
+        dropped_ordinary = max(0, len(ordinary) - len(kept_ordinary))
+
+        reconcile = EventDecision(
+            True,
+            "pending event history compacted; reconcile current repository truth",
+            "reconcile",
+            action="queue_compaction",
+            observed_at=_utc_now(),
+        ).to_state()
+
+        compacted = [
+            value
+            for value in first_pass
+            if _event_key(value) in protected_keys or _event_key(value) in kept_ordinary_keys
+        ]
+        if dropped_ordinary:
+            compacted.append(reconcile)
+
+        report = {
+            "at": _utc_now(),
+            "before": len(values),
+            "after": len(compacted),
+            "coalesced": len(values) - len(first_pass),
+            "dropped_to_reconcile": dropped_ordinary,
+            "reconcile_inserted": bool(dropped_ordinary),
+            "protected_overflow": max(0, len(protected) - limit),
+        }
+        return compacted, report
+
     def _persist_pending_events(self, events: Iterable[EventDecision]) -> None:
         with self._state_lock:
             current = [v for v in (self.state.data.get("pending_events") or []) if isinstance(v, dict)]
@@ -1208,13 +1459,35 @@ class Orchestrator:
                 if key not in by_key:
                     by_key[key] = payload
                     added = True
-            self.state.data["pending_events"] = list(by_key.values())[-100:]
+
+            values = list(by_key.values())
+            metrics = self.state.data.setdefault("metrics", {})
+            metrics["pending_event_high_water"] = max(
+                int(metrics.get("pending_event_high_water") or 0),
+                len(values),
+            )
+            compacted, report = self._compact_pending_event_values(values)
+            self.state.data["pending_events"] = compacted
+            if report:
+                self.state.data["last_pending_event_compaction"] = report
+                metrics["pending_event_compactions"] = int(
+                    metrics.get("pending_event_compactions") or 0
+                ) + 1
+                metrics["pending_events_compacted"] = int(
+                    metrics.get("pending_events_compacted") or 0
+                ) + int(report.get("coalesced") or 0) + int(
+                    report.get("dropped_to_reconcile") or 0
+                )
+                metrics["pending_event_protected_overflow"] = max(
+                    int(metrics.get("pending_event_protected_overflow") or 0),
+                    int(report.get("protected_overflow") or 0),
+                )
+
             # A successful classifier decision owns exactly the event keys it captured. Later webhook
             # events queue behind that batch; they must not erase the cached decision and force Luna
             # to pay for the same earlier batch again. DISPATCH decisions are revalidated against
             # current main/source-PR identity immediately before execution.
             if added and self.state.data.get("pending_decision"):
-                metrics = self.state.data.setdefault("metrics", {})
                 metrics["events_queued_behind_cached_decision"] = int(
                     metrics.get("events_queued_behind_cached_decision") or 0
                 ) + 1
@@ -1794,6 +2067,62 @@ class Orchestrator:
         value = (self.state.data.get("managed") or {}).get(lane)
         return value if isinstance(value, dict) else None
 
+    def _validated_managed_branch(self, lane: str) -> dict[str, Any] | None:
+        """Return only a still-open controller-managed PR record.
+
+        Manual merges are expected while auto-merge is disabled. Do not let a locally stale managed
+        record pin the next worker in that lane to an already-closed branch/PR.
+        """
+        managed = self._managed_branch(lane)
+        if not managed:
+            return None
+        branch = str(managed.get("branch") or "").strip()
+        pr_number = int(managed.get("pr_number") or 0)
+        if not branch or pr_number <= 0:
+            with self._state_lock:
+                self.state.data.setdefault("managed", {}).pop(lane, None)
+                metrics = self.state.data.setdefault("metrics", {})
+                metrics["stale_managed_records_retired"] = int(
+                    metrics.get("stale_managed_records_retired") or 0
+                ) + 1
+                self.state.save()
+            return None
+
+        pr = _json_cmd(
+            [
+                "gh", "pr", "view", str(pr_number),
+                "--repo", self.repo,
+                "--json", "state,headRefName",
+            ],
+            cwd=self.root,
+            timeout=60,
+        )
+        if (
+            str(pr.get("state") or "").upper() == "OPEN"
+            and str(pr.get("headRefName") or "") == branch
+        ):
+            return managed
+
+        with self._state_lock:
+            current = self._managed_branch(lane)
+            if (
+                current
+                and int(current.get("pr_number") or 0) == pr_number
+                and str(current.get("branch") or "") == branch
+            ):
+                self.state.data.setdefault("managed", {}).pop(lane, None)
+                metrics = self.state.data.setdefault("metrics", {})
+                metrics["stale_managed_records_retired"] = int(
+                    metrics.get("stale_managed_records_retired") or 0
+                ) + 1
+                self.state.save()
+        print(
+            f"[orchestrator] retired stale managed record for {lane}: "
+            f"PR #{pr_number} / {branch}",
+            flush=True,
+        )
+        return None
+
     def _source_pr_changed_paths(self, source_pr: int | None) -> list[str]:
         if not source_pr:
             return []
@@ -1816,7 +2145,7 @@ class Orchestrator:
         lane: str,
         source_pr: int | None,
     ) -> tuple[str, int | None, Path]:
-        managed = self._managed_branch(lane)
+        managed = self._validated_managed_branch(lane)
         if managed and managed.get("branch"):
             branch = str(managed["branch"])
             _run(["git", "fetch", "origin", branch], cwd=self.root, timeout=120)
@@ -2723,14 +3052,7 @@ def main() -> int:
         flush=True,
     )
     if orchestrator.startup_reconcile:
-        try:
-            orchestrator.startup_reconcile_repository()
-        except Exception as exc:
-            orchestrator._metric("startup_reconcile_failures")
-            print(
-                f"[orchestrator] startup reconciliation failed closed: {type(exc).__name__}: {exc}",
-                flush=True,
-            )
+        orchestrator.attempt_startup_reconcile()
     orchestrator.resume_pending()
     try:
         server.serve_forever()

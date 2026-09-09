@@ -365,6 +365,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
     cost = report["cost"]
     signal = report["evaluation"]
     host = report.get("host_resources") or {}
+    queue = report.get("queue_pressure") or {}
 
     classifier_attempts = int(d.get("classifier_attempts") or 0)
     luna_worker_attempts = int(d.get("luna_worker_attempts") or 0)
@@ -431,8 +432,20 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"| Runtime refresh requests / completions | "
         f"{d.get('runtime_restarts_requested', 0)} / {d.get('runtime_restart_completions', 0)} |",
         f"| Startup reconciliations | {d.get('startup_reconciliations', 0)} |",
+        f"| Startup reconciliation failures | {d.get('startup_reconcile_failures', 0)} |",
+        f"| State-backup recoveries | {d.get('state_backup_recoveries', 0)} |",
+        f"| Stale managed PR records retired | {d.get('stale_managed_records_retired', 0)} |",
+        f"| Pending-event compactions | {d.get('pending_event_compactions', 0)} |",
+        f"| Pending events compacted | {d.get('pending_events_compacted', 0)} |",
         f"| Mean actionable-event → classifier latency | "
         f"{'n/a' if avg_dispatch_seconds is None else f'{avg_dispatch_seconds:.1f}s'} |",
+        "",
+        "### Queue pressure snapshot",
+        "",
+        f"- Current pending events: **{queue.get('pending_events', 0)}**",
+        f"- Queue high-water mark: **{queue.get('high_water', 0)}**",
+        f"- Protected-authority overflow above soft cap: **{queue.get('protected_overflow', 0)}**",
+        f"- Last compaction: **{queue.get('last_compaction') or 'none'}**",
         "",
         "### Host resource snapshot",
         "",
@@ -532,6 +545,14 @@ def build_report(
             "cumulative_estimate_usd": cumulative_cost,
         },
         "host_resources": collect_host_resources(root),
+        "queue_pressure": {
+            "pending_events": len(state.get("pending_events") or []),
+            "high_water": int(current_metrics.get("pending_event_high_water") or 0),
+            "protected_overflow": int(
+                current_metrics.get("pending_event_protected_overflow") or 0
+            ),
+            "last_compaction": state.get("last_pending_event_compaction"),
+        },
     }
 
     window = recent + [proto]

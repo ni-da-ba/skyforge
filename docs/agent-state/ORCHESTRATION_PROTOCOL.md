@@ -532,7 +532,10 @@ owned event/decision is terminal only after that visibility handoff succeeds (or
 controller gate is already visible); a GitHub posting failure preserves the owned batch and enters a
 bounded retry instead of consuming it. With auto-merge OFF, a classifier MERGE decision likewise
 becomes a once-per-current-head manual-merge HUMAN_GATE rather than a silent no-op; the controller
-does not merge autonomously. Human gates are surfaced once per current target-PR head by default:
+does not merge autonomously. Before reusing any locally recorded controller-managed branch, verify its
+PR is still OPEN at that branch. A manually merged/closed PR retires the stale local managed record so
+the next worker cannot be pinned to a completed branch. Human gates are surfaced once per current
+target-PR head by default:
 durable local gate records suppress
 repeat notifications, and on first observation the controller may seed suppression from an existing
 controller gate comment posted after the current PR head commit. A genuinely new PR head may resurface
@@ -562,7 +565,10 @@ proxy terminates trusted TLS; the controller itself remains localhost-only.
 
 The controller requires a **dedicated clone** in both modes. Local state and its virtualenv live under
 the ignored `.skyforge-orchestrator/` directory. The hosted service must restart on boot and preserve
-that directory across process restarts.
+that directory across process restarts. Durable controller state is written atomically to both
+`state.json` and a same-directory mirror `state.json.bak`. If the primary becomes unreadable, the
+controller may recover from the valid mirror and must report that recovery. If neither copy is
+readable, startup fails closed rather than silently reconstructing empty state.
 
 Hosted installation must run as a dedicated **non-root** sudo-capable service user. The installer
 fails closed when invoked as root. The hosted Codex runtime is the repository-pinned Python SDK; its
@@ -579,7 +585,9 @@ Because a powered-off host cannot receive webhooks, each hosted startup compares
 GitHub fingerprint (main head, open PR state, recent Actions state) with the prior startup baseline.
 A changed fingerprint produces exactly one synthetic `reconcile` wake so the classifier reasons from
 current repository truth rather than attempting to replay every missed delivery. First startup only
-establishes the baseline.
+establishes the baseline. If that model-free GitHub reconciliation fails transiently, record the
+degraded state and keep retrying it on a bounded timer until it succeeds; do not wait indefinitely for
+another webhook and do not spend a model turn merely to retry repository observation.
 
 ### Usage accounting
 
@@ -602,6 +610,15 @@ bursty.
 An actionable webhook is not considered consumed merely because the in-memory dispatcher received it.
 The local controller must journal the event batch before acknowledging it and clear that journal only
 after the corresponding orchestration decision reaches a terminal handoff.
+
+Pending-event capacity is a **soft durability bound**, never a silent-loss boundary. Trusted
+Audit/manual signals and event keys already owned by a cached classifier decision are never evicted.
+When ordinary repository-transition history exceeds the configured soft limit, the controller first
+coalesces superseded transitions by semantic subject. If ordinary history still exceeds available
+slots, it retains the newest bounded sample and inserts one durable synthetic
+`reconcile | queue_compaction` event so the next classifier reconstructs current repository truth.
+If protected authority alone exceeds the soft limit, preserve it even above the limit and expose that
+pressure in model-free telemetry rather than dropping it.
 
 The recovery invariant is:
 

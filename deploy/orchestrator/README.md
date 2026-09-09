@@ -41,6 +41,18 @@ The DigitalOcean Codex Universal image is an appropriate starting point. The hos
 without losing accepted project truth because GitHub remains authoritative; only ignored local
 orchestrator state and an interrupted unpushed worker require the host disk.
 
+## Host firewall
+
+The installer enforces a minimal UFW inbound surface on the dedicated host:
+
+- `22/tcp` — SSH maintenance;
+- `80/tcp` — Caddy HTTP / ACME handling;
+- `443/tcp` — Caddy HTTPS / GitHub webhook transport.
+
+Inbound traffic is denied by default and outbound traffic is allowed. The Python controller remains
+bound to `127.0.0.1:3000` and must never be exposed directly. Configure any provider-level Cloud
+Firewall consistently if one is added later.
+
 ## Public hostname
 
 Use a hostname whose A/AAAA record resolves to the host. Caddy obtains and renews the public TLS
@@ -104,6 +116,17 @@ The installer:
 It does **not** enable autonomous merge or API-key billing fallback. First-week hosted defaults are
 24 Luna classifier attempts and 4 Terra worker attempts per UTC day.
 
+## Durable local state
+
+The ignored controller state is mirrored locally as `.skyforge-orchestrator/state.json` and
+`.skyforge-orchestrator/state.json.bak`. Saves are atomic. A corrupt/missing primary is recovered
+from a valid mirror and that recovery is surfaced in status/daily telemetry. If both copies are
+unreadable, the service fails closed instead of booting with empty counters, queue, decision, or worker
+state.
+
+This mirror protects process/filesystem-write failures on the existing host; it is **not** an
+independent-machine backup. Droplet backups/snapshots remain a separate paid infrastructure choice.
+
 ## Reboot/offline semantics
 
 Each hosted startup records a compact fingerprint of:
@@ -119,7 +142,9 @@ every webhook that may have been missed while the host was offline.
 A successful cached classifier decision is durable across restart, so reboot does not erase decision
 ownership or spend Luna merely to rediscover the same owned batch. If repository state changed while
 the host was unavailable, startup reconciliation queues that newer state behind the owned batch;
-stale DISPATCH decisions still undergo current-state revalidation.
+stale DISPATCH decisions still undergo current-state revalidation. A transient GitHub failure during
+startup reconciliation is persisted as degraded state and retried model-free on a bounded timer until
+GitHub observation succeeds.
 
 ## Trusted remote control / status
 
@@ -148,6 +173,19 @@ worktree, or any worker with commits ahead of `origin/main`; it removes only the
 worker and preserves the durable event/decision for reconstruction. The status reply is filtered from
 orchestration input and cannot recurse. Untrusted commenters cannot invoke any orchestration or
 recovery control.
+
+## Queue pressure
+
+The durable event journal uses a soft default limit of 100 pending events. The limit is not allowed to
+silently discard orchestration authority. Trusted Audit/manual signals and classifier-owned event keys
+are preserved. Ordinary webhook history is coalesced by semantic subject under pressure; any remaining
+elided transition history is represented by one durable `queue_compaction` reconcile wake so current
+GitHub truth is reconstructed. If protected authority itself exceeds the soft cap, the queue may
+temporarily exceed the cap and reports that condition in status rather than losing the protected work.
+
+Status exposes the configured soft limit, queue high-water mark, protected overflow, and last
+compaction record. `SKYFORGE_ORCHESTRATOR_MAX_PENDING_EVENTS` may adjust the soft limit but should not
+be raised merely to hide poor coalescing behavior.
 
 ## Health
 

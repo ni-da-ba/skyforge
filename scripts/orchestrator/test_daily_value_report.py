@@ -133,11 +133,15 @@ class BuildReportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             state = {
+                "pending_events": [{"event": "push"}],
+                "last_pending_event_compaction": {"before": 12, "after": 10},
                 "metrics": {
                     "classifier_attempts": 5,
                     "classifier_noops": 2,
                     "worker_attempts": 2,
                     "worker_handoffs": 1,
+                    "pending_event_high_water": 12,
+                    "pending_event_protected_overflow": 1,
                 }
             }
             report_state = {
@@ -165,6 +169,13 @@ class BuildReportTests(unittest.TestCase):
             self.assertAlmostEqual(value["cost"]["cumulative_estimate_usd"], 0.24, places=6)
             self.assertIn("host_resources", value)
             self.assertIn("disk_used_pct", value["host_resources"])
+            self.assertEqual(value["queue_pressure"]["pending_events"], 1)
+            self.assertEqual(value["queue_pressure"]["high_water"], 12)
+            self.assertEqual(value["queue_pressure"]["protected_overflow"], 1)
+            self.assertEqual(
+                value["queue_pressure"]["last_compaction"],
+                {"before": 12, "after": 10},
+            )
 
 
 class MarkdownRenderTests(unittest.TestCase):
@@ -209,12 +220,26 @@ class MarkdownRenderTests(unittest.TestCase):
             "period_start": "2026-09-08T00:00:00+00:00",
             "period_end": "2026-09-09T00:00:00+00:00",
             "host_resources": {},
+            "queue_pressure": {
+                "pending_events": 7,
+                "high_water": 12,
+                "protected_overflow": 1,
+                "last_compaction": {"before": 12, "after": 10},
+            },
         }
         rendered = report._render_markdown(value)
         self.assertIn("| Codex capacity/auth blocks | 2 |\n", rendered)
         self.assertIn("| Dispatch failures | 3 |\n", rendered)
         self.assertIn("| Duplicate human gates suppressed | 0 |\n", rendered)
         self.assertIn("| Runtime refresh requests / completions | 0 / 0 |\n", rendered)
+        self.assertIn("| Startup reconciliation failures | 0 |\n", rendered)
+        self.assertIn("| State-backup recoveries | 0 |\n", rendered)
+        self.assertIn("| Stale managed PR records retired | 0 |\n", rendered)
+        self.assertIn("| Pending-event compactions | 0 |\n", rendered)
+        self.assertIn("| Pending events compacted | 0 |\n", rendered)
+        self.assertIn("Current pending events: **7**", rendered)
+        self.assertIn("Queue high-water mark: **12**", rendered)
+        self.assertIn("Protected-authority overflow above soft cap: **1**", rendered)
         self.assertNotIn("| 2 || Dispatch failures", rendered)
 
 
