@@ -263,6 +263,8 @@ Trusted GitHub actors can control and inspect the hosted dispatcher without spen
 /skyforge-resume
 /skyforge-status
 /skyforge-reset-budget
+/skyforge-refresh-runtime
+/skyforge-discard-worker
 ```
 
 Pause preserves incoming actionable events in the durable journal but starts no new classifier/worker
@@ -348,9 +350,11 @@ Backoff durations can be overridden with the corresponding
 `SKYFORGE_ORCHESTRATOR_*_BACKOFF_SECONDS` variables.
 
 While blocked, incoming actionable events are still journaled but **do not start Codex**. When the
-breaker expires, the controller reconstructs against current repository state. After a process restart,
-pending non-worker decisions are deliberately reclassified; an actual interrupted worker is resumed on
-its recorded branch so partial work is not discarded.
+breaker expires, the controller reconstructs against current repository state. A successful cached
+classifier decision survives process restart with its captured event ownership intact; restart alone
+does not spend Luna to rediscover the same decision. Cached DISPATCH decisions still revalidate current
+main/source-PR identity before execution. An actual interrupted worker is resumed on its recorded branch
+so partial work is not discarded.
 
 Human-gate comments are once-per-current-PR-head by default. Before posting, the controller checks
 durable local gate state and can seed that state from an existing controller gate comment posted after
@@ -361,8 +365,17 @@ When `sync_main()` advances across a changed `scripts/orchestrator/skyforge_orch
 durably records a runtime-refresh request and exits non-zero. The hosted systemd unit's
 `Restart=on-failure` then reloads the synchronized Python from stable `main`, and the replacement
 process replays the retained event journal. Documentation-only movement does not restart the process.
-Dependency/installer changes remain an explicit deployment concern rather than an automatic package
-installation.
+
+Hosted mode also runs a **model-free periodic repository reconciliation** every 15 minutes by default
+(`SKYFORGE_PERIODIC_RECONCILE_SECONDS`). The classifier snapshot used for a successful decision is
+checkpointed as the exact last-observed repository state. Periodic polling therefore remains a NOOP
+when webhooks already covered the state, but journals one synthetic reconcile event when GitHub state
+changes without having been observed by the classifier. This is transport fallback, not a periodic
+Codex heartbeat, and consumes zero model turns unless a genuinely uncheckpointed change is found.
+
+Dependency/installer/systemd/Caddy changes remain an explicit deployment concern rather than an
+automatic privileged package installation. Autonomous workers cannot modify those protected paths, so
+the unattended control plane should remain frozen between deliberate Audit deployment changes.
 
 The hourly Audit watchdog remains the independent path for a prolonged outage or a human decision that
 should not wait for the retry timer.
