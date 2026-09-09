@@ -1288,6 +1288,110 @@ class DurableStateTests(unittest.TestCase):
             reloaded = self.make_orchestrator(root)
             self.assertEqual(reloaded._pending_events(), [event])
 
+    def test_dispatch_batch_isolates_trusted_task_from_repository_noise(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            audit_pr_event = orch.EventDecision(
+                True,
+                "workflow completed; controller will require head quiescence",
+                "workflow_run",
+                action="completed",
+                head_sha="audit-pr-432-head",
+                pr_number=432,
+            )
+            content_task = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="5603650534",
+                signal_kind="audit",
+                signal_text=(
+                    "AUDIT — NEW CONTENT TASK\n"
+                    "Route issue #431 to Content. DISPATCH with pr_number=null."
+                ),
+            )
+
+            selected = o._select_dispatch_batch([audit_pr_event, content_task])
+
+            self.assertEqual(selected, [content_task])
+
+    def test_dispatch_batch_processes_one_authority_directive_at_a_time(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            first = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="first-task",
+                signal_kind="audit",
+                signal_text="AUDIT — NEW CONTENT TASK",
+            )
+            second = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=500,
+                source_id="second-task",
+                signal_kind="audit",
+                signal_text="AUDIT — NEW IMPLEMENTATION TASK",
+            )
+
+            self.assertEqual(o._select_dispatch_batch([first, second]), [first])
+
+    def test_completed_isolated_authority_batch_preserves_unrelated_task_and_noise(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            audit_pr_event = orch.EventDecision(
+                True,
+                "workflow completed; controller will require head quiescence",
+                "workflow_run",
+                action="completed",
+                head_sha="audit-pr-432-head",
+                pr_number=432,
+            )
+            content_task = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="content-task",
+                signal_kind="audit",
+                signal_text="AUDIT — NEW CONTENT TASK",
+            )
+            later_task = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=500,
+                source_id="later-task",
+                signal_kind="audit",
+                signal_text="AUDIT — NEW IMPLEMENTATION TASK",
+            )
+            o._persist_pending_events([audit_pr_event, content_task, later_task])
+            selected = o._select_dispatch_batch(o._pending_events())
+            self.assertEqual(selected, [content_task])
+
+            o._cache_decision(
+                {"decision": "NOOP", "lane": "Content", "reason": "test completion"},
+                selected,
+                {"main": "main-head", "open_prs": []},
+            )
+            o._clear_completed_decision()
+
+            remaining = o._pending_events()
+            self.assertIn(audit_pr_event, remaining)
+            self.assertIn(later_task, remaining)
+            self.assertNotIn(content_task, remaining)
+            if o._timer is not None:
+                o._timer.cancel()
+
     def test_superseded_history_retirement_preserves_trusted_authority(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
