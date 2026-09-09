@@ -45,6 +45,7 @@ DEFAULT_MAX_CONSECUTIVE_CLASSIFIER_FAILURES = 3
 DEFAULT_MAX_SEEN_DELIVERIES = 512
 DEFAULT_MAX_PENDING_EVENTS = 100
 DEFAULT_STARTUP_RECONCILE_RETRY_SECONDS = 60
+DEFAULT_PERIODIC_RECONCILE_SECONDS = 900
 DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
 CONTROLLER_RUNTIME_PATHS = {
     "scripts/orchestrator/skyforge_orchestrator.py",
@@ -675,6 +676,9 @@ class LocalState:
             "last_startup_reconcile_error": None,
             "last_startup_reconcile_success_at": None,
             "startup_reconcile_retry_at": None,
+            "next_periodic_reconcile_at": None,
+            "last_periodic_reconcile_success_at": None,
+            "last_periodic_reconcile_error": None,
         }
 
         primary_error: Exception | None = None
@@ -797,6 +801,9 @@ class Orchestrator:
         self._dispatch_lock = threading.Lock()
         self._startup_reconcile_retry_lock = threading.Lock()
         self._startup_reconcile_retry_timer: threading.Timer | None = None
+        self._periodic_reconcile_lock = threading.Lock()
+        self._periodic_reconcile_timer: threading.Timer | None = None
+        self._reconcile_observation_lock = threading.Lock()
         self.runtime_head: str | None = None
 
     def validate_environment(self) -> None:
@@ -968,6 +975,15 @@ class Orchestrator:
                 ),
                 "startup_reconcile_retry_at": self.state.data.get(
                     "startup_reconcile_retry_at"
+                ),
+                "next_periodic_reconcile_at": self.state.data.get(
+                    "next_periodic_reconcile_at"
+                ),
+                "last_periodic_reconcile_success_at": self.state.data.get(
+                    "last_periodic_reconcile_success_at"
+                ),
+                "last_periodic_reconcile_error": self.state.data.get(
+                    "last_periodic_reconcile_error"
                 ),
                 "paused": bool(self.state.data.get("paused")),
                 "paused_at": self.state.data.get("paused_at"),
