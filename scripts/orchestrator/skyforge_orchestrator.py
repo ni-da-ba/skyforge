@@ -1188,6 +1188,7 @@ class Orchestrator:
 
     def health_snapshot(self) -> dict[str, Any]:
         with self._state_lock:
+            self._reclassify_pending_audit_signals_locked()
             self._purge_suppressed_pending_events_locked()
             pending = self.state.data.get("pending_worker")
             pending = pending if isinstance(pending, dict) else None
@@ -1937,8 +1938,52 @@ class Orchestrator:
             self.state.save()
         return removed
 
+    def _reclassify_pending_audit_signals_locked(self) -> int:
+        """Migrate durable Audit authority through the current deterministic parser.
+
+        Pending issue-comment events survive controller upgrades by design. If a parser defect
+        previously overstated protected authority, leaving the serialized signal_kind untouched
+        would let the fixed runtime execute the old misclassification anyway. Re-evaluate only the
+        stored Audit comment text; never discard the event or consult mutable repository prose.
+        """
+        values = [
+            value
+            for value in (self.state.data.get("pending_events") or [])
+            if isinstance(value, dict)
+        ]
+        changed = 0
+        rewritten: list[dict[str, Any]] = []
+        for value in values:
+            event = EventDecision.from_state(value)
+            payload = dict(value)
+            if (
+                event.action == "audit_signal"
+                and event.signal_kind in {"restart_recommended", "human_gate", "loop_risk"}
+                and event.signal_text
+            ):
+                current_kind = _audit_signal_kind(event.signal_text.lower())
+                if current_kind is not None and current_kind != event.signal_kind:
+                    payload = event.to_state()
+                    payload["signal_kind"] = current_kind
+                    changed += 1
+            rewritten.append(payload)
+
+        if changed:
+            self.state.data["pending_events"] = rewritten
+            metrics = self.state.data.setdefault("metrics", {})
+            metrics["pending_audit_signal_reclassifications"] = int(
+                metrics.get("pending_audit_signal_reclassifications") or 0
+            ) + changed
+            self.state.data["last_pending_audit_signal_reclassification"] = {
+                "at": _utc_now(),
+                "changed": changed,
+            }
+            self.state.save()
+        return changed
+
     def _pending_events(self) -> list[EventDecision]:
         with self._state_lock:
+            self._reclassify_pending_audit_signals_locked()
             self._purge_suppressed_pending_events_locked()
             values = self.state.data.get("pending_events") or []
             return [EventDecision.from_state(v) for v in values if isinstance(v, dict)]
