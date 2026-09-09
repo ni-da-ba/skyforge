@@ -261,17 +261,20 @@ def classify_control_command(
         "/skyforge-resume",
         "/skyforge-status",
         "/skyforge-reset-budget",
+        "/skyforge-refresh-runtime",
+        "/skyforge-discard-worker",
     }:
         return None
     if not _trusted_actor(payload, trusted_actors):
         return None
-    if body == "/skyforge-pause":
-        return "pause"
-    if body == "/skyforge-resume":
-        return "resume"
-    if body == "/skyforge-status":
-        return "status"
-    return "reset_budget"
+    return {
+        "/skyforge-pause": "pause",
+        "/skyforge-resume": "resume",
+        "/skyforge-status": "status",
+        "/skyforge-reset-budget": "reset_budget",
+        "/skyforge-refresh-runtime": "refresh_runtime",
+        "/skyforge-discard-worker": "discard_worker",
+    }[body]
 
 
 def classify_event(
@@ -873,6 +876,13 @@ class Orchestrator:
                 "terra_worker_calls_today": terra_worker_calls,
                 "last_budget_reset_at": self.state.data.get("last_budget_reset_at"),
                 "last_budget_reset_by": self.state.data.get("last_budget_reset_by"),
+                "last_classifier_decision": self.state.data.get("last_classifier_decision"),
+                "last_completed_decision": self.state.data.get("last_completed_decision"),
+                "last_decision_invalidation": self.state.data.get("last_decision_invalidation"),
+                "last_worker_discard": self.state.data.get("last_worker_discard"),
+                "last_runtime_refresh_request": self.state.data.get("last_runtime_refresh_request"),
+                "last_runtime_refresh_error": self.state.data.get("last_runtime_refresh_error"),
+                "last_human_gate_error": self.state.data.get("last_human_gate_error"),
                 "managed_prs": len(self.state.data.get("managed") or {}),
                 "last_reconcile_at": self.state.data.get("last_reconcile_at"),
                 "paused": bool(self.state.data.get("paused")),
@@ -911,6 +921,121 @@ class Orchestrator:
             self.state.data["last_budget_reset_by"] = actor
             self.state.save()
         self._metric("operator_budget_resets")
+
+    def refresh_runtime(self, *, actor: str | None = None) -> None:
+        """Paused-only model-free refresh of the stable controller checkout."""
+        with self._state_lock:
+            if not self.state.data.get("paused"):
+                raise RuntimeError("Runtime refresh requires the controller to be paused")
+            pending = self.state.data.get("pending_worker")
+            if isinstance(pending, dict) and pending.get("stage") != "handoff":
+                raise RuntimeError(
+                    "Runtime refresh is forbidden while an isolated worker is still editing"
+                )
+            if not self._worktree_clean():
+                raise RuntimeError("Runtime refresh requires a clean controller checkout")
+            self.state.data["last_runtime_refresh_request"] = {
+                "requested_at": _utc_now(),
+                "requested_by": actor,
+            }
+            self.state.data["last_runtime_refresh_error"] = None
+            self.state.save()
+        self._metric("operator_runtime_refreshes")
+
+        def refresh() -> None:
+            try:
+                with self._dispatch_lock:
+                    if not self.is_paused():
+                        raise RuntimeError(
+                            "Runtime refresh cancelled because the controller is no longer paused"
+                        )
+                    self.sync_main()
+            except Exception as exc:
+                with self._state_lock:
+                    self.state.data["last_runtime_refresh_error"] = {
+                        "at": _utc_now(),
+                        "kind": type(exc).__name__,
+                        "summary": str(exc)[:500],
+                    }
+                    self.state.save()
+                self._metric("operator_runtime_refresh_failures")
+                print(
+                    f"[orchestrator] operator runtime refresh failed: {type(exc).__name__}: {exc}",
+                    flush=True,
+                )
+
+        timer = threading.Timer(1.0, refresh)
+        timer.daemon = True
+        timer.start()
+
+    def discard_pending_worker(self, *, actor: str | None = None) -> None:
+        """Discard only an isolated uncommitted worker while preserving durable decision/events."""
+        with self._dispatch_lock:
+            with self._state_lock:
+                if not self.state.data.get("paused"):
+                    raise RuntimeError("Worker discard requires the controller to be paused")
+                pending = self.state.data.get("pending_worker")
+                if not isinstance(pending, dict):
+                    raise RuntimeError("No pending worker exists to discard")
+                pending = dict(pending)
+
+            if pending.get("managed_pr"):
+                raise RuntimeError("Refusing to discard a worker already associated with a managed PR")
+            if pending.get("stage") != "handoff":
+                raise RuntimeError("Refusing to discard a worker that has not reached durable handoff")
+            raw_worktree = pending.get("worktree")
+            if not raw_worktree:
+                raise RuntimeError("Refusing to discard a legacy worker without an isolated worktree")
+            worktree = Path(str(raw_worktree))
+            if not worktree.is_absolute():
+                worktree = self.root / worktree
+            if worktree.resolve() == self.root.resolve():
+                raise RuntimeError("Refusing to discard the controller checkout as a worker")
+            if not worktree.exists():
+                raise RuntimeError(f"Pending worker worktree is missing: {worktree}")
+
+            current_head = _run(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip()
+            start_head = str(pending.get("start_head") or "").strip()
+            if start_head:
+                if current_head != start_head:
+                    raise RuntimeError(
+                        "Refusing to discard a worker whose HEAD moved after worker preparation"
+                    )
+            else:
+                # Backward-compatible guard for workers created before start-head tracking existed.
+                ahead = int(
+                    _run(
+                        ["git", "rev-list", "--count", "origin/main..HEAD"],
+                        cwd=worktree,
+                    ).stdout.strip()
+                    or "0"
+                )
+                if ahead > 0:
+                    raise RuntimeError(
+                        f"Refusing to discard legacy worker with {ahead} commit(s) ahead of origin/main"
+                    )
+
+            changed_paths = self._changed_paths(worktree)
+            _run(
+                ["git", "worktree", "remove", "--force", str(worktree)],
+                cwd=self.root,
+                timeout=120,
+            )
+            _run(["git", "worktree", "prune"], cwd=self.root, check=False)
+            with self._state_lock:
+                current = self.state.data.get("pending_worker")
+                if not isinstance(current, dict) or current.get("branch") != pending.get("branch"):
+                    raise RuntimeError("Pending worker ownership changed during discard")
+                self.state.data["pending_worker"] = None
+                self.state.data["last_worker_discard"] = {
+                    "discarded_at": _utc_now(),
+                    "discarded_by": actor,
+                    "branch": pending.get("branch"),
+                    "stage": pending.get("stage"),
+                    "changed_paths": changed_paths[:50],
+                }
+                self.state.save()
+            self._metric("operator_worker_discards")
 
     def post_status(self, target: int | str = 349) -> None:
         status = dict(self.health_snapshot())
@@ -1264,10 +1389,9 @@ class Orchestrator:
         pending = self._pending_events()
         if not pending:
             return
-        with self._state_lock:
-            if self.state.data.get("pending_decision") and not self.state.data.get("pending_worker"):
-                self.state.data["pending_decision"] = None
-                self.state.save()
+        # Successful classifier decisions own their captured event batch across process restarts.
+        # Startup reconciliation may queue newer work behind them; cached DISPATCH still revalidates
+        # current main/source-PR identity before execution.
         self._metric("restart_replays")
         remaining = self._blocked_remaining()
         self._schedule_pending(remaining if remaining else 1)
@@ -1759,11 +1883,13 @@ class Orchestrator:
             return branch, managed_pr, worktree
 
         branch, managed_pr, worktree = self._prepare_worker_branch(lane, source_pr)
+        start_head = _run(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip()
         with self._state_lock:
             self.state.data["pending_worker"] = {
                 "lane": lane,
                 "branch": branch,
                 "worktree": str(worktree),
+                "start_head": start_head,
                 "managed_pr": managed_pr,
                 "objective": objective,
                 "worker_tier": worker_tier,
@@ -1787,10 +1913,26 @@ class Orchestrator:
             self.state.save()
 
     @staticmethod
-    def _worker_path_forbidden(path: str) -> bool:
+    def _worker_path_forbidden(
+        path: str,
+        *,
+        lane: str | None = None,
+        allowed_paths: list[str] | None = None,
+    ) -> bool:
         normalized = path.replace("\\", "/")
         while normalized.startswith("./"):
             normalized = normalized[2:]
+
+        if normalized == "docs/agent-state/AUDIT_STATE.md":
+            exact_scopes = {
+                str(entry or "").replace("\\", "/").lstrip("./")
+                for entry in (allowed_paths or [])
+            }
+            return not (
+                str(lane or "").strip().lower() == "audit"
+                and normalized in exact_scopes
+            )
+
         return (
             normalized in PROTECTED_WORKER_PATHS
             or any(normalized.startswith(prefix) for prefix in PROTECTED_WORKER_PATH_PREFIXES)
@@ -1840,7 +1982,15 @@ class Orchestrator:
     ) -> bool:
         worktree = worker_root or self.root
         paths = self._changed_paths(worktree)
-        forbidden = [p for p in paths if self._worker_path_forbidden(p)]
+        forbidden = [
+            p
+            for p in paths
+            if self._worker_path_forbidden(
+                p,
+                lane=lane,
+                allowed_paths=allowed_paths,
+            )
+        ]
         out_of_scope = [
             p for p in paths if not self._worker_path_allowed(p, allowed_paths)
         ]
@@ -2034,7 +2184,7 @@ class Orchestrator:
         digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
         return f"issue:{target}:{lane}", digest, target, False
 
-    def _post_gate(self, decision: dict[str, Any]) -> None:
+    def _post_gate(self, decision: dict[str, Any]) -> bool:
         message = str(decision.get("human_message") or decision.get("reason") or "Human gate reached")
         key, token, target, already_visible = self._human_gate_identity(decision)
 
@@ -2047,7 +2197,7 @@ class Orchestrator:
                     f"[orchestrator] human gate already surfaced for {key} at state {token}; suppressing duplicate",
                     flush=True,
                 )
-                return
+                return True
             if already_visible:
                 records[key] = {
                     "token": token,
@@ -2061,7 +2211,7 @@ class Orchestrator:
                     f"[orchestrator] existing controller human gate already covers {key} at state {token}; suppressing duplicate",
                     flush=True,
                 )
-                return
+                return True
 
         body = f"{SELF_COMMENT_MARKER} HUMAN_GATE\n\n{message[:5000]}"
         try:
@@ -2078,10 +2228,22 @@ class Orchestrator:
                     "seeded_from_github": False,
                     "recorded_at": _utc_now(),
                 }
+                self.state.data["last_human_gate_error"] = None
                 self.state.save()
             self._metric("human_gates")
+            return True
         except Exception as exc:
+            with self._state_lock:
+                self.state.data["last_human_gate_error"] = {
+                    "at": _utc_now(),
+                    "kind": type(exc).__name__,
+                    "summary": str(exc)[:500],
+                    "target": target,
+                }
+                self.state.save()
+            self._metric("human_gate_post_failures")
             print(f"[orchestrator] could not post human gate: {exc}", flush=True)
+            return False
 
     def _merge_managed(self, lane: str, pr_number: int | None) -> None:
         if not self.auto_merge:
@@ -2142,12 +2304,16 @@ class Orchestrator:
         record = self._decision_record()
         pending_worker = self.state.data.get("pending_worker")
 
-        if not (record and isinstance(pending_worker, dict)):
-            heads = {e.head_sha for e in events if e.event == "workflow_run" and e.head_sha}
+        if record is None:
+            # Quiescence is a pre-classification gate. Newer events that arrived behind an already
+            # owned decision must not delay completion of that older decision.
+            heads = sorted({e.head_sha for e in events if e.head_sha})
             for head in heads:
                 if not self.workflows_quiescent(head):
                     self._schedule_pending(max(30, self.debounce_seconds))
                     return
+
+        if not (record and isinstance(pending_worker, dict)):
             self.sync_main()
 
         if record:
@@ -2250,13 +2416,47 @@ class Orchestrator:
             self._clear_completed_decision()
             return
         if kind == "HUMAN_GATE":
-            self._post_gate(decision)
+            if not self._post_gate(decision):
+                retry = _env_int(
+                    "SKYFORGE_ORCHESTRATOR_TRANSIENT_BACKOFF_SECONDS",
+                    DEFAULT_TRANSIENT_BACKOFF_SECONDS,
+                    minimum=30,
+                )
+                raise RetryBlocked(
+                    "transient",
+                    retry,
+                    "human-gate visibility handoff failed; durable decision retained",
+                )
             self._clear_completed_decision()
             return
         if kind == "MERGE":
             if not isinstance(lane, str):
                 raise RuntimeError("MERGE decision missing lane")
-            self._merge_managed(lane, decision.get("pr_number"))
+            pr_number = decision.get("pr_number")
+            managed = self._managed_branch(lane)
+            if not managed or int(managed.get("pr_number") or 0) != int(pr_number or 0):
+                raise RuntimeError("Refusing MERGE for a PR not owned by local orchestrator state")
+            if not self.auto_merge:
+                gate = dict(decision)
+                gate["decision"] = "HUMAN_GATE"
+                gate["human_message"] = (
+                    f"Controller-managed PR #{pr_number} is ready for merge, but auto-merge remains "
+                    "disabled by policy. Review the machine gates and merge manually if appropriate."
+                )
+                if not self._post_gate(gate):
+                    retry = _env_int(
+                        "SKYFORGE_ORCHESTRATOR_TRANSIENT_BACKOFF_SECONDS",
+                        DEFAULT_TRANSIENT_BACKOFF_SECONDS,
+                        minimum=30,
+                    )
+                    raise RetryBlocked(
+                        "transient",
+                        retry,
+                        "manual-merge gate visibility failed; durable decision retained",
+                    )
+                self._metric("manual_merge_gates")
+            else:
+                self._merge_managed(lane, pr_number)
             self._clear_completed_decision()
             return
         if kind != "DISPATCH":
@@ -2430,6 +2630,10 @@ class Handler(BaseHTTPRequestHandler):
                     self.orchestrator.post_status(target)
                 elif control == "reset_budget":
                     self.orchestrator.reset_local_budget(actor=actor)
+                elif control == "refresh_runtime":
+                    self.orchestrator.refresh_runtime(actor=actor)
+                elif control == "discard_worker":
+                    self.orchestrator.discard_pending_worker(actor=actor)
                 else:
                     self.orchestrator.set_paused(control == "pause", actor=actor)
                 self.orchestrator.record_delivery(delivery_id)

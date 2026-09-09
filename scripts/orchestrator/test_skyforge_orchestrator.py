@@ -238,8 +238,23 @@ class EventFilterTests(unittest.TestCase):
             orch.classify_control_command("issue_comment", trusted),
             "reset_budget",
         )
-        untrusted["comment"]["body"] = "/skyforge-reset-budget"
-        self.assertIsNone(orch.classify_control_command("issue_comment", untrusted))
+        trusted["comment"]["body"] = "/skyforge-refresh-runtime"
+        self.assertEqual(
+            orch.classify_control_command("issue_comment", trusted),
+            "refresh_runtime",
+        )
+        trusted["comment"]["body"] = "/skyforge-discard-worker"
+        self.assertEqual(
+            orch.classify_control_command("issue_comment", trusted),
+            "discard_worker",
+        )
+        for command in (
+            "/skyforge-reset-budget",
+            "/skyforge-refresh-runtime",
+            "/skyforge-discard-worker",
+        ):
+            untrusted["comment"]["body"] = command
+            self.assertIsNone(orch.classify_control_command("issue_comment", untrusted))
 
     def test_external_pr_event_is_ignored(self):
         d = orch.classify_event(
@@ -898,6 +913,65 @@ class DurableStateTests(unittest.TestCase):
             classifier.assert_not_called()
             self.assertEqual(o._pending_events(), [second])
 
+    def test_all_represented_heads_must_be_quiescent_before_classification(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o._persist_pending_events([event])
+
+            with mock.patch.object(o, "workflows_quiescent", return_value=False) as quiescent, \
+                    mock.patch.object(o, "_schedule_pending") as schedule, \
+                    mock.patch.object(o, "sync_main") as sync_main, \
+                    mock.patch.object(o, "_codex_classifier") as classifier:
+                o.dispatch(o._pending_events())
+
+            quiescent.assert_called_once_with("abc123")
+            schedule.assert_called_once()
+            sync_main.assert_not_called()
+            classifier.assert_not_called()
+
+    def test_audit_worker_may_update_only_explicitly_scoped_audit_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            audit_state = "docs/agent-state/AUDIT_STATE.md"
+            protocol = "docs/agent-state/ORCHESTRATION_PROTOCOL.md"
+
+            self.assertFalse(
+                o._worker_path_forbidden(
+                    audit_state,
+                    lane="Audit",
+                    allowed_paths=[audit_state],
+                )
+            )
+            self.assertTrue(
+                o._worker_path_forbidden(
+                    audit_state,
+                    lane="Implementation",
+                    allowed_paths=[audit_state],
+                )
+            )
+            self.assertTrue(
+                o._worker_path_forbidden(
+                    audit_state,
+                    lane="Audit",
+                    allowed_paths=None,
+                )
+            )
+            self.assertTrue(
+                o._worker_path_forbidden(
+                    audit_state,
+                    lane="Audit",
+                    allowed_paths=["docs/agent-state/**"],
+                )
+            )
+            self.assertTrue(
+                o._worker_path_forbidden(
+                    protocol,
+                    lane="Audit",
+                    allowed_paths=[protocol],
+                )
+            )
+
     def test_new_event_preserves_inflight_worker_decision(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
@@ -1038,17 +1112,18 @@ class DurableStateTests(unittest.TestCase):
                 if o._dispatch_lock.locked():
                     o._dispatch_lock.release()
 
-    def test_restart_invalidates_cached_nonworker_decision(self):
+    def test_restart_preserves_cached_nonworker_decision(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
             event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
             o._persist_pending_events([event])
-            o._cache_decision({"decision": "NOOP", "reason": "old snapshot"}, [event])
-            self.assertIsNotNone(o._decision_record())
+            o._cache_decision({"decision": "NOOP", "reason": "owned batch"}, [event])
+            before = o._decision_record()
+            self.assertIsNotNone(before)
 
             o.resume_pending()
             try:
-                self.assertIsNone(o._decision_record())
+                self.assertEqual(o._decision_record(), before)
                 self.assertEqual(o._pending_events(), [event])
             finally:
                 if o._timer is not None:
@@ -1202,6 +1277,63 @@ class DurableStateTests(unittest.TestCase):
             )
             self.assertEqual(o.state.data["metrics"].get("human_gates"), 2)
 
+    def test_human_gate_post_failure_preserves_owned_decision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o._persist_pending_events([event])
+            o._cache_decision(
+                {
+                    "decision": "HUMAN_GATE",
+                    "lane": "Audit",
+                    "human_message": "Review required.",
+                },
+                [event],
+                {"main": "abc123", "open_prs": []},
+            )
+
+            with mock.patch.object(o, "sync_main"), \
+                    mock.patch.object(o, "_post_gate", return_value=False):
+                with self.assertRaises(orch.RetryBlocked):
+                    o.dispatch(o._pending_events())
+
+            self.assertIsNotNone(o._decision_record())
+            self.assertEqual(o._pending_events(), [event])
+
+    def test_merge_with_auto_merge_off_surfaces_manual_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "workflow completed", "workflow_run", head_sha="abc123")
+            o._persist_pending_events([event])
+            with o._state_lock:
+                o.state.data["managed"] = {
+                    "Audit": {"branch": "codex/audit-test", "pr_number": 77}
+                }
+                o.state.save()
+            o._cache_decision(
+                {
+                    "decision": "MERGE",
+                    "lane": "Audit",
+                    "pr_number": 77,
+                    "reason": "machine green",
+                },
+                [event],
+                {"main": "abc123", "open_prs": []},
+            )
+
+            with mock.patch.object(o, "sync_main"), \
+                    mock.patch.object(o, "_post_gate", return_value=True) as post_gate, \
+                    mock.patch.object(o, "_merge_managed") as merge_managed:
+                o.dispatch(o._pending_events())
+
+            merge_managed.assert_not_called()
+            post_gate.assert_called_once()
+            message = post_gate.call_args.args[0]["human_message"]
+            self.assertIn("auto-merge remains disabled", message)
+            self.assertIsNone(o._decision_record())
+            self.assertEqual(o._pending_events(), [])
+            self.assertEqual(o.state.data["metrics"].get("manual_merge_gates"), 1)
+
     def test_handoff_reuses_existing_open_pr_after_interruption(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
@@ -1281,6 +1413,70 @@ class DurableStateTests(unittest.TestCase):
             self.assertEqual(o.state.data["last_budget_reset_by"], "ni-da-ba")
             self.assertIsNotNone(o.state.data["last_budget_reset_at"])
             self.assertEqual(o.state.data["metrics"].get("operator_budget_resets"), 1)
+
+    def test_operator_runtime_refresh_is_paused_only_and_schedules_sync(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            with self.assertRaisesRegex(RuntimeError, "requires the controller to be paused"):
+                o.refresh_runtime(actor="ni-da-ba")
+
+            o.set_paused(True, actor="ni-da-ba")
+            fake_timer = mock.Mock()
+            with mock.patch.object(o, "_worktree_clean", return_value=True), \
+                    mock.patch.object(orch.threading, "Timer", return_value=fake_timer):
+                o.refresh_runtime(actor="ni-da-ba")
+
+            self.assertTrue(fake_timer.daemon)
+            fake_timer.start.assert_called_once()
+            self.assertEqual(
+                o.state.data["last_runtime_refresh_request"]["requested_by"],
+                "ni-da-ba",
+            )
+
+    def test_operator_worker_discard_preserves_decision_and_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            o = self.make_orchestrator(root)
+            o.set_paused(True, actor="ni-da-ba")
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o._persist_pending_events([event])
+            o._cache_decision(
+                {
+                    "decision": "DISPATCH",
+                    "lane": "Audit",
+                    "objective": "reconcile state",
+                    "stop_boundary": "state only",
+                },
+                [event],
+                {"main": "abc123", "open_prs": []},
+            )
+            worktree = root / ".skyforge-orchestrator" / "worktrees" / "codex-audit"
+            worktree.mkdir(parents=True)
+            o.state.data["pending_worker"] = {
+                "lane": "Audit",
+                "branch": "codex/audit-test",
+                "worktree": str(worktree),
+                "managed_pr": None,
+                "stage": "handoff",
+            }
+            o.state.save()
+
+            def fake_run(args, **kwargs):
+                if args[:3] == ["git", "rev-list", "--count"]:
+                    return orch.subprocess.CompletedProcess(args, 0, stdout="0\n", stderr="")
+                return orch.subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+            with mock.patch.object(
+                o,
+                "_changed_paths",
+                return_value=["docs/agent-state/AUDIT_STATE.md"],
+            ), mock.patch.object(orch, "_run", side_effect=fake_run):
+                o.discard_pending_worker(actor="ni-da-ba")
+
+            self.assertIsNone(o.state.data["pending_worker"])
+            self.assertIsNotNone(o._decision_record())
+            self.assertEqual(o._pending_events(), [event])
+            self.assertEqual(o.state.data["last_worker_discard"]["discarded_by"], "ni-da-ba")
 
     def test_operator_budget_reset_rejects_pending_worker(self):
         with tempfile.TemporaryDirectory() as tmp:

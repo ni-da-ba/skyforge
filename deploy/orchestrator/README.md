@@ -116,8 +116,10 @@ If that fingerprint differs from the previous startup baseline, the controller j
 `reconcile` wake. The classifier then reasons from current repository truth instead of depending on
 every webhook that may have been missed while the host was offline.
 
-This is intentionally conservative. A reboot after ordinary online activity can cause one extra Luna
-classification, but repository work is not silently missed.
+A successful cached classifier decision is durable across restart, so reboot does not erase decision
+ownership or spend Luna merely to rediscover the same owned batch. If repository state changed while
+the host was unavailable, startup reconciliation queues that newer state behind the owned batch;
+stale DISPATCH decisions still undergo current-state revalidation.
 
 ## Trusted remote control / status
 
@@ -128,17 +130,24 @@ From any issue or pull request, `ni-da-ba` may post exactly:
 /skyforge-resume
 /skyforge-status
 /skyforge-reset-budget
+/skyforge-refresh-runtime
+/skyforge-discard-worker
 ```
 
 These commands are deterministic and spend zero model turns. Pause keeps receiving and journaling
 actionable repository events but starts no new Codex dispatch. Resume drains the retained batch.
 Status posts a controller-marked, non-secret snapshot back to the issuing issue/PR, including loaded
 runtime head, checkout head, pause/breaker state, queued-event summaries, cached-decision ownership,
-worker state, and daily Luna/Terra counters. Budget reset is intentionally paused-only and refuses a
-pending worker; it resets only the host controller's local daily counters, preserves durable work,
-and does not alter provider-side account usage/quota. The status reply is filtered from orchestration
-input and cannot recurse. Untrusted commenters cannot invoke orchestration, Audit wake tokens, pause,
-resume, status, or budget reset.
+worker state, daily Luna/Terra counters, and the last safe decision/recovery metadata. Budget reset is
+intentionally paused-only and refuses a pending worker; it resets only the host controller's local
+daily counters, preserves durable work, and does not alter provider-side account usage/quota.
+Runtime refresh is paused-only and synchronizes the clean stable controller checkout to current
+`main`; if controller Python changed, systemd reloads it while the isolated worker journal/worktree
+remains intact. Worker discard is paused-only and refuses a managed PR, a legacy/controller-root
+worktree, or any worker with commits ahead of `origin/main`; it removes only the isolated uncommitted
+worker and preserves the durable event/decision for reconstruction. The status reply is filtered from
+orchestration input and cannot recurse. Untrusted commenters cannot invoke any orchestration or
+recovery control.
 
 ## Health
 
