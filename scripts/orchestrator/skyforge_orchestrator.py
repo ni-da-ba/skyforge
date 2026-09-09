@@ -79,6 +79,7 @@ AUDIT_WAKE_TOKENS = (
     "/skyforge-orchestrate",
 )
 SELF_COMMENT_MARKER = "[skyforge-orchestrator]"
+EXTERNAL_EVIDENCE_MARKER = "[skyforge external evidence]"
 
 CLASSIFIER_INSTRUCTIONS = """You are the lightweight Skyforge orchestration classifier.
 
@@ -112,9 +113,11 @@ incomplete objective.
 Hosted LUNA and TERRA workers are repository-local and have NO network authority. If the authoritative
 task requires fresh/current external evidence that is not already supplied in repository/issue
 context (for example current upstream releases, issue trackers, changelogs, licenses, compatibility,
-or web research), choose HUMAN_GATE. TERRA adds engineering capability, not network capability.
-Never dispatch a repository-only worker and then infer, fabricate, or silently omit required external
-evidence.
+or web research), choose HUMAN_GATE. A trusted issue comment explicitly tagged
+"[SKYFORGE EXTERNAL EVIDENCE]" is controller-hydrated evidence and may satisfy that capability
+boundary; assess the supplied evidence rather than attempting fresh network access. TERRA adds
+engineering capability, not network capability. Never dispatch a repository-only worker and then
+infer, fabricate, or silently omit required external evidence.
 
 Do not dispatch work merely because a lane exists. Do not poll CI. Do not expand expensive validation
 without a distinct risk. Honor VALIDATION_POLICY.md and ORCHESTRATION_PROTOCOL.md.
@@ -291,6 +294,13 @@ def _requires_current_external_evidence(issue_context: Iterable[dict[str, Any]])
         )
     )
     return freshness and external
+
+
+def _has_supplied_external_evidence(issue_context: Iterable[dict[str, Any]]) -> bool:
+    return any(
+        isinstance(item, dict) and bool(item.get("external_evidence"))
+        for item in issue_context
+    )
 
 
 def _trusted_actor(payload: dict[str, Any], trusted_actors: Iterable[str]) -> bool:
@@ -2363,7 +2373,8 @@ class Orchestrator:
             for item in issue_context
         )
         external_required = _requires_current_external_evidence(issue_context)
-        if not missing_context and not external_required:
+        external_supplied = _has_supplied_external_evidence(issue_context)
+        if not missing_context and (not external_required or external_supplied):
             return decision
 
         self._metric(
@@ -2390,7 +2401,8 @@ class Orchestrator:
         else:
             reason = (
                 f"Refusing repository-only DISPATCH for {issue_text}: the authoritative task "
-                "requires fresh/current external evidence unavailable to hosted LUNA/TERRA workers."
+                "requires fresh/current external evidence unavailable to hosted LUNA/TERRA workers "
+                "and no trusted external-evidence bundle was supplied."
             )
             human_message = (
                 f"CAPABILITY GATE: {issue_text} requires fresh/current upstream or web evidence. "
@@ -2894,6 +2906,40 @@ class Orchestrator:
                     }
                 )
                 continue
+            evidence_comments: list[dict[str, Any]] = []
+            try:
+                comments = _json_cmd(
+                    [
+                        "gh",
+                        "api",
+                        f"repos/{self.repo}/issues/{issue_number}/comments?per_page=100",
+                    ],
+                    cwd=self.root,
+                    timeout=60,
+                )
+                if isinstance(comments, list):
+                    trusted = {actor.lower() for actor in self.trusted_actors}
+                    for comment in comments:
+                        if not isinstance(comment, dict):
+                            continue
+                        body = str(comment.get("body") or "")
+                        login = str(((comment.get("user") or {}).get("login")) or "").lower()
+                        if EXTERNAL_EVIDENCE_MARKER not in body.lower() or login not in trusted:
+                            continue
+                        evidence_comments.append(
+                            {
+                                "id": comment.get("id"),
+                                "author": login,
+                                "body": body[:8000],
+                                "created_at": comment.get("created_at"),
+                            }
+                        )
+            except Exception as exc:
+                print(
+                    f"[orchestrator] could not hydrate external evidence comments for issue "
+                    f"#{issue_number}: {type(exc).__name__}: {exc}",
+                    flush=True,
+                )
             contexts.append(
                 {
                     "number": issue_number,
@@ -2901,6 +2947,7 @@ class Orchestrator:
                     "state": issue.get("state"),
                     "url": issue.get("html_url"),
                     "body": str(issue.get("body") or "")[:16000],
+                    "external_evidence": evidence_comments[-3:],
                 }
             )
         return contexts
