@@ -1,13 +1,11 @@
 # Skyforge AUDIT Agent State
 
-**Lane:** AUDIT  
-**Status:** Canonical live lane handoff  
-**Updated:** 2026-09-08 (America/Chicago)  
-**Current reconciliation base:** `main@e621a15818849b0f29d8075b90295eca28d02fa2`  
-**Highest live-accepted Audit milestone:** **AUDIT-0021**  
-**AUDIT-0022:** repository merged/machine-green; combined live recovery gate pending  
-**AUDIT-0023:** repository merged/machine-green; combined live recovery gate pending  
-**AUDIT-0024:** unattended transport/dependency fallback hardening in progress
+**Lane:** AUDIT
+**Status:** Canonical live lane handoff
+**Updated:** 2026-09-09 (America/Chicago)
+**Current reconciliation base:** `main@2c96be11`
+**Highest live-accepted Audit milestone:** **AUDIT-0028**
+**AUDIT-0022 through AUDIT-0028:** repository and live acceptance complete; orchestration freeze active
 
 Repository evidence is authoritative. Read current `main`, canonical Audit/program documents, lane
 ledgers, issues #349/#369/#378/#424, active PRs, exact-head Actions, and hosted status evidence.
@@ -108,9 +106,9 @@ AUDIT-0024 must:
 Safety remains unchanged: **24 total Luna calls per UTC day, 4 Terra worker attempts per UTC day,
 auto-merge OFF, API-billing fallback OFF.**
 
-## Combined live acceptance boundary
+## Combined live acceptance boundary — COMPLETE
 
-After AUDIT-0024 merges, perform **one** host maintenance refresh and no earlier intermediate restart:
+After AUDIT-0024 merged, one host maintenance refresh was performed with no earlier intermediate restart:
 
 1. synchronize the stable dedicated clone to merged current `main`;
 2. refresh/install the accepted systemd/runtime dependency contract;
@@ -125,8 +123,33 @@ After AUDIT-0024 merges, perform **one** host maintenance refresh and no earlier
    producer race;
 10. record AUDIT-0022/AUDIT-0023/AUDIT-0024 live acceptance durably.
 
-After this boundary, freeze the orchestration infrastructure except for demonstrated defects or an
-explicit product-policy change. Ordinary Skyforge work should not require revisiting infrastructure.
+The trusted live acceptance signal `5603451890` records AUDIT-0026, AUDIT-0027, and AUDIT-0028 PASS
+on `main@2c96be11`, with healthy repeated stale-batch observations. Main CI and Orchestrator Smoke
+are green. This completes the combined live acceptance boundary for AUDIT-0022 through AUDIT-0024
+and confirms the subsequent reliability fixes.
+
+## AUDIT-0025 through AUDIT-0028 — ACCEPTED
+
+**AUDIT-0025 — ACCEPTED.** PR #427 merged as `ec69a600`; it removes the `gh --slurp` dependency and
+parses paginated JSON compatibly with Ubuntu 24.04 `gh`.
+
+**AUDIT-0026 — LIVE ACCEPTED.** PR #428 merged as `3a7c874c`; it normalizes superseded queue history,
+blocks non-open dispatch targets, and prevents controller-repair worker loops.
+
+**AUDIT-0027 — LIVE ACCEPTED.** PR #429 merged as `49d8e3c5`; it adds durable retired/completed event
+ledgers so stale webhook history cannot re-enter the queue after successful retirement.
+
+**AUDIT-0028 — LIVE ACCEPTED.** PR #430 merged as `2c96be11`; it makes replay ledgers authoritative
+over `pending_events` and purges suppressed physical queue copies before dispatch/status reads.
+
+Signal `5603451890` records AUDIT-0026/0027/0028 PASS on the current main, including healthy repeated
+stale-batch observations. No producer evidence was rerun for this reconciliation.
+
+## Current orchestration boundary — FROZEN
+
+The orchestration infrastructure is frozen at `main@2c96be11`. Do not extend or revisit it absent a
+demonstrated operational defect or an explicit product-policy change. Ordinary Skyforge work should
+not require infrastructure changes.
 
 ## Current program gates
 
