@@ -1986,6 +1986,57 @@ class WorkerWorktreeIsolationTests(unittest.TestCase):
             auto_merge=False,
         )
 
+    def test_closed_managed_pr_record_is_retired_before_worker_reuse(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_repository(pathlib.Path(tmp))
+            o = self.make_orchestrator(root)
+            o.state.data["managed"] = {
+                "Content": {
+                    "branch": "codex/content-old",
+                    "pr_number": 77,
+                }
+            }
+            o.state.save()
+
+            with mock.patch.object(
+                orch,
+                "_json_cmd",
+                return_value={"state": "MERGED", "headRefName": "codex/content-old"},
+            ):
+                managed = o._validated_managed_branch("Content")
+
+            self.assertIsNone(managed)
+            self.assertNotIn("Content", o.state.data["managed"])
+            self.assertEqual(
+                o.state.data["metrics"].get("stale_managed_records_retired"),
+                1,
+            )
+
+    def test_open_managed_pr_record_remains_reusable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_repository(pathlib.Path(tmp))
+            o = self.make_orchestrator(root)
+            record = {
+                "branch": "codex/content-live",
+                "pr_number": 77,
+            }
+            o.state.data["managed"] = {"Content": dict(record)}
+            o.state.save()
+
+            with mock.patch.object(
+                orch,
+                "_json_cmd",
+                return_value={"state": "OPEN", "headRefName": "codex/content-live"},
+            ):
+                managed = o._validated_managed_branch("Content")
+
+            self.assertEqual(managed, record)
+            self.assertEqual(o.state.data["managed"]["Content"], record)
+            self.assertEqual(
+                o.state.data["metrics"].get("stale_managed_records_retired", 0),
+                0,
+            )
+
     def test_prepare_worker_keeps_controller_checkout_on_main(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.make_repository(pathlib.Path(tmp))
