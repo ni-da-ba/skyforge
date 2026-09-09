@@ -79,6 +79,18 @@ AUDIT_WAKE_TOKENS = (
     "/skyforge-orchestrate",
 )
 SELF_COMMENT_MARKER = "[skyforge-orchestrator]"
+MAX_AUTHORITY_SIGNAL_TEXT = 16000
+EXTERNAL_EVIDENCE_TASK_MARKERS = (
+    "verify the current",
+    "research current upstream",
+    "upstream issue/changelog",
+    "changelog evidence",
+    "current release",
+    "exact compatibility",
+    "upstream license",
+)
+TASK_CONTEXT_MARKER = "AUTHORITATIVE ISSUE CONTEXT"
+TASK_CONTEXT_LOOKUP_FAILED_MARKER = "AUTHORITATIVE ISSUE CONTEXT LOOKUP FAILED"
 
 CLASSIFIER_INSTRUCTIONS = """You are the lightweight Skyforge orchestration classifier.
 
@@ -104,7 +116,16 @@ A structured human_gate signal remains a HUMAN_GATE rather than a worker dispatc
 A structured signal_kind="task" is explicit standalone task authority. Route that task on its own
 merits; unrelated managed PRs, human gates, or repository bookkeeping are not reasons to consume or
 replace it. For issue-backed task authority, use pr_number=null unless the directive explicitly names
-an existing source PR as the work target.
+an existing source PR as the work target. Task authority should include an AUTHORITATIVE ISSUE CONTEXT
+block populated by the controller. Treat that title/body as the task contract; do not silently shrink it
+to a convenient documentation edit.
+
+Repository-local workers run without network access. If a task explicitly requires current external or
+upstream evidence that is not already portable in the repository/event context (for example current
+release compatibility, upstream issue/changelog status, license/API facts, or web research), choose
+HUMAN_GATE rather than DISPATCH. Never convert missing external evidence into speculative acceptance or
+lane-state prose. If a controller-managed PR clearly represents the same task and is already executing
+or awaiting acceptance, do not launch a duplicate worker merely because a duplicate task signal exists.
 
 Do not dispatch work merely because a lane exists. Do not poll CI. Do not expand expensive validation
 without a distinct risk. Honor VALIDATION_POLICY.md and ORCHESTRATION_PROTOCOL.md.
@@ -165,6 +186,10 @@ uncertainty it retires. Reuse portable evidence under VALIDATION_POLICY.md. If t
 already changed by a source PR, treat those files as existing durable work: do not recreate/copy them
 onto the controller branch unless the objective explicitly requires changing that existing source work.
 If the prompt supplies an allowed-path scope, edit nothing outside it.
+
+If the objective depends on current external/upstream evidence that is not already present in the
+repository or supplied prompt, stop and report that capability/evidence blocker. Do not invent facts,
+infer current compatibility, or record an acceptance/disposition from reputation or stale local data.
 
 Make local source/test/doc changes and run appropriate local verification. Preserve and inspect any
 partial changes already present from an interrupted prior attempt before editing further. Leave the
@@ -266,6 +291,99 @@ def _audit_signal_kind(body_lower: str) -> str | None:
     if "audit" in body_lower:
         return "audit"
     return None
+
+
+def _compose_task_signal_text(
+    directive: str,
+    issue: dict[str, Any],
+    *,
+    lookup_error: str | None = None,
+) -> str:
+    parts = [str(directive or "").strip()]
+    if lookup_error:
+        parts.extend(
+            [
+                TASK_CONTEXT_LOOKUP_FAILED_MARKER,
+                str(lookup_error).strip()[:1000],
+            ]
+        )
+    else:
+        title = str(issue.get("title") or "").strip()
+        body = str(issue.get("body") or "").strip()
+        state = str(issue.get("state") or "").strip()
+        if title or body or state:
+            parts.extend(
+                [
+                    TASK_CONTEXT_MARKER,
+                    f"State: {state or 'UNKNOWN'}",
+                    f"Title: {title or 'N/A'}",
+                    "Body:",
+                    body or "N/A",
+                ]
+            )
+    return "\n\n".join(part for part in parts if part)[:MAX_AUTHORITY_SIGNAL_TEXT]
+
+
+def _external_evidence_task_event(
+    events: Iterable[EventDecision],
+) -> EventDecision | None:
+    for event in events:
+        if event.action != "audit_signal" or event.signal_kind != "task":
+            continue
+        text = str(event.signal_text or "").lower()
+        if TASK_CONTEXT_LOOKUP_FAILED_MARKER.lower() in text:
+            return event
+        if any(marker in text for marker in EXTERNAL_EVIDENCE_TASK_MARKERS):
+            return event
+    return None
+
+
+def _guard_task_worker_capability(
+    decision: dict[str, Any],
+    events: Iterable[EventDecision],
+) -> dict[str, Any]:
+    if str(decision.get("decision") or "NOOP").upper() != "DISPATCH":
+        return decision
+    task = _external_evidence_task_event(events)
+    if task is None:
+        return decision
+    text = str(task.signal_text or "")
+    lookup_failed = TASK_CONTEXT_LOOKUP_FAILED_MARKER in text
+    issue_label = f"issue #{task.pr_number}" if task.pr_number is not None else "the task"
+    if lookup_failed:
+        reason = (
+            f"{issue_label} could not be hydrated with its authoritative repository item context; "
+            "a repository-local worker cannot safely infer the missing task contract."
+        )
+        message = (
+            f"AUTONOMY CAPABILITY GATE: {issue_label} could not be loaded into the durable task "
+            "context. The controller refused to dispatch a worker against an incomplete objective. "
+            "Restore repository-item visibility or repost the task with its full authoritative objective."
+        )
+    else:
+        reason = (
+            f"{issue_label} explicitly requires current external/upstream evidence unavailable to the "
+            "network-disabled repository worker sandbox."
+        )
+        message = (
+            f"AUTONOMY CAPABILITY GATE: {issue_label} explicitly requires current external/upstream "
+            "research (for example release/compatibility, issue/changelog, or license evidence). "
+            "Repository workers run without network access, so the controller refused to accept a "
+            "speculative documentation-only completion. Attach portable evidence or add a controlled "
+            "research capability before redispatching this task."
+        )
+    return {
+        "decision": "HUMAN_GATE",
+        "lane": decision.get("lane"),
+        "pr_number": task.pr_number,
+        "objective": None,
+        "stop_boundary": None,
+        "reusable_evidence": text[:8000],
+        "worker_tier": None,
+        "allowed_paths": None,
+        "reason": reason,
+        "human_message": message,
+    }
 
 
 def classify_control_command(
@@ -400,7 +518,11 @@ def classify_event(
                 observed_at=observed_at,
                 source_id=source_id,
                 signal_kind=signal_kind,
-                signal_text=body[:6000],
+                signal_text=(
+                    _compose_task_signal_text(body, issue)
+                    if signal_kind == "task"
+                    else body[:6000]
+                ),
             )
         return EventDecision(False, "ordinary comment", event, action)
 
@@ -2936,6 +3058,60 @@ class Orchestrator:
         )
         return None
 
+    def _hydrate_task_authority_context(
+        self,
+        events: list[EventDecision],
+    ) -> list[EventDecision]:
+        """Ensure durable task authority carries the repository item it tells workers to read."""
+        hydrated: list[EventDecision] = []
+        changed = False
+        for event in events:
+            if (
+                event.action != "audit_signal"
+                or event.signal_kind != "task"
+                or event.pr_number is None
+                or TASK_CONTEXT_MARKER in str(event.signal_text or "")
+                or TASK_CONTEXT_LOOKUP_FAILED_MARKER in str(event.signal_text or "")
+            ):
+                hydrated.append(event)
+                continue
+
+            item: dict[str, Any] | None = None
+            failures: list[str] = []
+            for kind in ("issue", "pr"):
+                try:
+                    item = _json_cmd(
+                        [
+                            "gh", kind, "view", str(event.pr_number),
+                            "--repo", self.repo,
+                            "--json", "title,body,state",
+                        ],
+                        cwd=self.root,
+                        timeout=60,
+                    )
+                    if isinstance(item, dict):
+                        break
+                except Exception as exc:
+                    failures.append(f"{kind}: {type(exc).__name__}: {exc}")
+                    item = None
+
+            if item is None:
+                signal_text = _compose_task_signal_text(
+                    str(event.signal_text or ""),
+                    {},
+                    lookup_error="; ".join(failures) or "repository item lookup returned no context",
+                )
+                self._metric("task_context_hydration_failures")
+            else:
+                signal_text = _compose_task_signal_text(str(event.signal_text or ""), item)
+                self._metric("task_context_hydrations")
+            hydrated.append(replace(event, signal_text=signal_text))
+            changed = True
+
+        if changed:
+            self._replace_captured_pending_events(events, hydrated)
+        return hydrated
+
     def _source_pr_changed_paths(self, source_pr: int | None) -> list[str]:
         if not source_pr:
             return []
@@ -3487,6 +3663,7 @@ class Orchestrator:
                 latency_ms = max(0, int((time.time() - min(observed_epochs)) * 1000))
                 self._metric("dispatch_latency_ms_total", latency_ms)
                 self._metric("dispatch_latency_samples")
+            events = self._hydrate_task_authority_context(events)
             snap = self.snapshot()
             events = self._normalize_captured_events_for_snapshot(events, snap)
             if not events:
@@ -3540,6 +3717,10 @@ class Orchestrator:
                             "further autonomous dispatch."
                         ),
                     }
+            capability_guarded = _guard_task_worker_capability(decision, events)
+            if capability_guarded != decision:
+                self._metric("task_external_evidence_gates")
+                decision = capability_guarded
             decision = self._guard_dispatch_target(decision, snap)
             with self._state_lock:
                 self.state.data["last_dispatch_epoch"] = now
