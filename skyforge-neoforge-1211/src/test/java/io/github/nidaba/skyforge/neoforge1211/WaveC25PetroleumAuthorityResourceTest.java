@@ -62,6 +62,29 @@ final class WaveC25PetroleumAuthorityResourceTest {
     }
 
     @Test
+    void productionPumpjackRedirectRetainsCdgMechanicsButReplacesChunkOilAuthority() throws IOException {
+        String mixinConfig = Files.readString(PROJECT_DIRECTORY.resolve("src/main/resources/skyforge.mixins.json"));
+        assertTrue(mixinConfig.contains("SkyforgeDieselPumpjackOilAuthorityMixin"));
+
+        String mixin = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/"
+                        + "SkyforgeDieselPumpjackOilAuthorityMixin.java"));
+        assertTrue(mixin.contains(
+                "com.jesz.createdieselgenerators.content.pumpjack.PumpjackHoleBlockEntity"));
+        assertTrue(mixin.contains("getChunkOilAmount"));
+        assertTrue(mixin.contains("setChunkOilAmount"));
+        assertTrue(mixin.contains("SkyforgePetroleumPumpjackBridge.oilAmountForPumpjack"));
+        assertTrue(mixin.contains("SkyforgePetroleumPumpjackBridge.setOilAmountForPumpjack"));
+        assertFalse(mixin.contains("import com.jesz.createdieselgenerators"));
+
+        String depositTag = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/resources/data/createdieselgenerators/tags/block/oil_deposit.json"));
+        assertTrue(depositTag.contains("\"replace\": true"));
+        assertTrue(depositTag.contains("skyforge:petroleum_source"));
+        assertFalse(depositTag.contains("minecraft:bedrock"));
+    }
+
+    @Test
     void productionEntrypointKeepsC25FixtureOptIn() throws IOException {
         String source = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"));
