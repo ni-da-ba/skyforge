@@ -65,8 +65,11 @@ Harden only the orchestration recovery contract:
 4. Expose safe last-decision/completion/recovery metadata in status.
 5. Add trusted paused-only model-free recovery controls for stable-runtime refresh and safe discard of
    an isolated uncommitted worker, so a dirty worker cannot permanently deadlock controller refresh.
-6. Run only cheap exact-head Audit gates; do not recreate producer evidence or race producer lanes.
-7. After merge, perform the smallest live recovery sample: load merged runtime, discard the superseded
+6. Make HUMAN_GATE visibility durable: failed GitHub posting must retain the owned batch for bounded
+   retry, and MERGE with auto-merge OFF must surface a once-per-head manual-merge gate rather than
+   silently consuming the event.
+7. Run only cheap exact-head Audit gates; do not recreate producer evidence or race producer lanes.
+8. After merge, perform the smallest live recovery sample: load merged runtime, discard the superseded
    isolated Audit worker, resume the durable batch, and verify no protected-path loop or duplicate
    Luna spend.
 
