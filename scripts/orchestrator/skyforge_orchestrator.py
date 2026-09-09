@@ -1871,9 +1871,33 @@ class Orchestrator:
                     flush=True,
                 )
                 self._set_retry_block(exc.kind, exc.retry_after_seconds, str(exc))
+                if exc.kind == "authentication":
+                    self._post_gate(
+                        {
+                            "human_message": (
+                                "AUTHENTICATION BLOCK: hosted Codex/ChatGPT authentication is "
+                                "unavailable. Durable work is preserved and the controller will retry "
+                                "on its normal backoff. Re-authenticate the Skyforge service user if "
+                                "this persists."
+                            ),
+                        }
+                    )
             except SafetyPause as exc:
                 self._metric("safety_pauses")
                 print(f"[orchestrator] safety pause: {exc}", flush=True)
+                with self._state_lock:
+                    paused_by = self.state.data.get("paused_by")
+                if paused_by == "classifier-failure-circuit":
+                    self._post_gate(
+                        {
+                            "human_message": (
+                                "SAFETY PAUSE: the hosted classifier hit its consecutive-failure "
+                                "circuit breaker. Durable events and decision state are preserved. "
+                                "Inspect the classifier/authentication/provider condition before a "
+                                "trusted /skyforge-resume."
+                            ),
+                        }
+                    )
             except Exception as exc:
                 self._metric("dispatch_failures")
                 delay = _env_int(
