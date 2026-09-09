@@ -19,7 +19,8 @@
     "SkyforgeLakeFeatureAdmissionMixin",
     "SkyforgePortableEngineBlockEntityMixin",
     "SkyforgePortableEngineBlockMixin",
-    "SkyforgeDieselPumpjackOilAuthorityMixin"
+    "SkyforgeDieselPumpjackOilAuthorityMixin",
+    "SkyforgeDieselNativeOilSuppressionMixin"
   ],
   "injectors": {
     "defaultRequire": 1
