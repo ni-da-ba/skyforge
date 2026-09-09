@@ -1478,6 +1478,60 @@ class DurableStateTests(unittest.TestCase):
             )
             self.assertTrue(o.state.data.get("completed_authority_event_keys"))
 
+    def test_pending_events_purges_already_retired_physical_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            stale = orch.EventDecision(
+                True,
+                "PR lifecycle changed",
+                "pull_request",
+                action="closed",
+                head_sha="merged-421-head",
+                pr_number=421,
+            )
+            payload = stale.to_state()
+            key = orch._event_key(payload)
+            o.state.data["pending_events"] = [payload]
+            o.state.data["retired_event_keys"] = [key]
+            o.state.save()
+
+            self.assertEqual(o._pending_events(), [])
+            self.assertEqual(o.state.data["pending_events"], [])
+            self.assertEqual(
+                o.state.data["metrics"].get("suppressed_pending_events_purged"),
+                1,
+            )
+            self.assertEqual(
+                o.state.data["last_suppressed_event_purge"]["after"],
+                0,
+            )
+
+    def test_pending_events_purges_completed_authority_physical_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            signal = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=349,
+                source_id="authority-physical-copy",
+                signal_kind="restart_recommended",
+                signal_text="AUDIT — RESTART RECOMMENDED",
+            )
+            payload = signal.to_state()
+            key = orch._event_key(payload)
+            o.state.data["pending_events"] = [payload]
+            o.state.data["completed_authority_event_keys"] = [key]
+            o.state.save()
+
+            self.assertEqual(o._pending_events(), [])
+            self.assertEqual(o.state.data["pending_events"], [])
+            self.assertEqual(
+                o.state.data["metrics"].get("suppressed_pending_events_purged"),
+                1,
+            )
+
     def test_queue_pressure_compacts_ordinary_history_to_reconcile(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
