@@ -870,6 +870,18 @@ class HostedTransportTests(unittest.TestCase):
                 enqueue.assert_called_once()
                 self.assertEqual(enqueue.call_args.args[0].head_sha, "def")
 
+    def test_json_pages_cmd_parses_gh_paginate_without_slurp(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            completed = mock.Mock(stdout='[{"id": 1}]\\n[{"id": 2}]\\n')
+            with mock.patch.object(orch, "_run", return_value=completed) as run:
+                pages = orch._json_pages_cmd(
+                    ["gh", "api", "--paginate", "repos/ni-da-ba/skyforge/issues/comments"],
+                    cwd=pathlib.Path(tmp),
+                )
+
+            self.assertEqual(pages, [[{"id": 1}], [{"id": 2}]])
+            self.assertNotIn("--slurp", run.call_args.args[0])
+
     def test_issue_comment_reconcile_baselines_history_without_replay(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
@@ -881,7 +893,7 @@ class HostedTransportTests(unittest.TestCase):
                 "user": {"login": "ni-da-ba"},
             }]
 
-            with mock.patch.object(orch, "_json_cmd", return_value=comments), \
+            with mock.patch.object(orch, "_json_pages_cmd", return_value=comments), \
                     mock.patch.object(o, "enqueue") as enqueue:
                 o.reconcile_issue_comments(source="startup")
 
@@ -906,7 +918,7 @@ class HostedTransportTests(unittest.TestCase):
                 "user": {"login": "ni-da-ba"},
             }]
 
-            with mock.patch.object(orch, "_json_cmd", return_value=comments), \
+            with mock.patch.object(orch, "_json_pages_cmd", return_value=comments), \
                     mock.patch.object(o, "enqueue") as enqueue:
                 o.reconcile_issue_comments(source="periodic")
                 o.reconcile_issue_comments(source="periodic")
@@ -937,7 +949,7 @@ class HostedTransportTests(unittest.TestCase):
                 "user": {"login": "ni-da-ba"},
             }]
 
-            with mock.patch.object(orch, "_json_cmd", return_value=comments):
+            with mock.patch.object(orch, "_json_pages_cmd", return_value=comments):
                 o.reconcile_issue_comments(source="periodic")
 
             self.assertTrue(o.is_paused())
