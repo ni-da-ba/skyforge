@@ -104,6 +104,17 @@ The installer:
 It does **not** enable autonomous merge or API-key billing fallback. First-week hosted defaults are
 24 Luna classifier attempts and 4 Terra worker attempts per UTC day.
 
+## Durable local state
+
+The ignored controller state is mirrored locally as `.skyforge-orchestrator/state.json` and
+`.skyforge-orchestrator/state.json.bak`. Saves are atomic. A corrupt/missing primary is recovered
+from a valid mirror and that recovery is surfaced in status/daily telemetry. If both copies are
+unreadable, the service fails closed instead of booting with empty counters, queue, decision, or worker
+state.
+
+This mirror protects process/filesystem-write failures on the existing host; it is **not** an
+independent-machine backup. Droplet backups/snapshots remain a separate paid infrastructure choice.
+
 ## Reboot/offline semantics
 
 Each hosted startup records a compact fingerprint of:
@@ -119,7 +130,9 @@ every webhook that may have been missed while the host was offline.
 A successful cached classifier decision is durable across restart, so reboot does not erase decision
 ownership or spend Luna merely to rediscover the same owned batch. If repository state changed while
 the host was unavailable, startup reconciliation queues that newer state behind the owned batch;
-stale DISPATCH decisions still undergo current-state revalidation.
+stale DISPATCH decisions still undergo current-state revalidation. A transient GitHub failure during
+startup reconciliation is persisted as degraded state and retried model-free on a bounded timer until
+GitHub observation succeeds.
 
 ## Trusted remote control / status
 
