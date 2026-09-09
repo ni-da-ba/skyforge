@@ -1288,6 +1288,92 @@ class DurableStateTests(unittest.TestCase):
             reloaded = self.make_orchestrator(root)
             self.assertEqual(reloaded._pending_events(), [event])
 
+    def test_new_task_audit_comment_is_structured_task_authority(self):
+        payload = {
+            "action": "created",
+            "comment": {
+                "id": 5603944223,
+                "created_at": "2026-09-09T14:56:00+00:00",
+                "body": (
+                    "AUDIT — NEW CONTENT TASK\n"
+                    "Route issue #431 to Content as standalone work."
+                ),
+                "user": {"login": "ni-da-ba"},
+            },
+            "issue": {"number": 431},
+        }
+
+        decision = orch.classify_event("issue_comment", payload)
+
+        self.assertTrue(decision.actionable)
+        self.assertEqual(decision.action, "audit_signal")
+        self.assertEqual(decision.signal_kind, "task")
+        self.assertEqual(decision.pr_number, 431)
+
+    def test_task_authority_outranks_historical_manual_wake(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            historical_manual = orch.EventDecision(
+                True,
+                "manual orchestration command",
+                "issue_comment",
+                action="manual_command",
+                pr_number=349,
+                source_id="old-manual",
+            )
+            task = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="new-task",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK",
+            )
+
+            self.assertEqual(
+                o._select_dispatch_batch([historical_manual, task]),
+                [task],
+            )
+
+    def test_multiple_task_authority_signals_remain_fifo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            first = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="task-1",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK",
+            )
+            second = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=500,
+                source_id="task-2",
+                signal_kind="task",
+                signal_text="AUDIT — NEW IMPLEMENTATION TASK",
+            )
+            manual = orch.EventDecision(
+                True,
+                "manual orchestration command",
+                "issue_comment",
+                action="manual_command",
+                pr_number=349,
+                source_id="old-manual",
+            )
+
+            self.assertEqual(
+                o._select_dispatch_batch([manual, first, second]),
+                [first],
+            )
+
     def test_dispatch_batch_isolates_trusted_task_from_repository_noise(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
