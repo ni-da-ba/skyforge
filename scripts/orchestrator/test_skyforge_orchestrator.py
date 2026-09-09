@@ -1310,6 +1310,155 @@ class DurableStateTests(unittest.TestCase):
         self.assertEqual(decision.signal_kind, "task")
         self.assertEqual(decision.pr_number, 431)
 
+    def test_task_signal_embeds_authoritative_issue_context_from_webhook(self):
+        payload = {
+            "action": "created",
+            "comment": {
+                "id": 5603944224,
+                "created_at": "2026-09-09T14:56:00+00:00",
+                "body": "AUDIT — NEW CONTENT TASK\nRead issue #431 as authoritative.",
+                "user": {"login": "ni-da-ba"},
+            },
+            "issue": {
+                "number": 431,
+                "state": "open",
+                "title": "CONTENT: investigate upstream automation",
+                "body": "Verify the current release and research current upstream issue/changelog evidence.",
+            },
+        }
+
+        decision = orch.classify_event("issue_comment", payload)
+
+        self.assertEqual(decision.signal_kind, "task")
+        self.assertIn(orch.TASK_CONTEXT_MARKER, decision.signal_text)
+        self.assertIn("CONTENT: investigate upstream automation", decision.signal_text)
+        self.assertIn("Verify the current release", decision.signal_text)
+
+    def test_external_evidence_task_dispatch_is_fail_closed_to_human_gate(self):
+        event = orch.EventDecision(
+            True,
+            "Audit/watchdog orchestration signal",
+            "issue_comment",
+            action="audit_signal",
+            pr_number=431,
+            source_id="task-research",
+            signal_kind="task",
+            signal_text=(
+                "AUDIT — NEW CONTENT TASK\n\n"
+                f"{orch.TASK_CONTEXT_MARKER}\n\n"
+                "Verify the current release and research current upstream issue/changelog evidence."
+            ),
+        )
+        dispatch = {
+            "decision": "DISPATCH",
+            "lane": "Content",
+            "pr_number": None,
+            "objective": "record an evidence-backed disposition",
+            "stop_boundary": "Content handoff",
+            "worker_tier": "LUNA",
+            "allowed_paths": ["docs/agent-state/CONTENT_STATE.md"],
+            "reason": "bounded docs task",
+        }
+
+        guarded = orch._guard_task_worker_capability(dispatch, [event])
+
+        self.assertEqual(guarded["decision"], "HUMAN_GATE")
+        self.assertEqual(guarded["lane"], "Content")
+        self.assertEqual(guarded["pr_number"], 431)
+        self.assertIn("network-disabled", guarded["reason"])
+        self.assertIn("Attach portable evidence", guarded["human_message"])
+
+    def test_ordinary_local_task_dispatch_remains_dispatchable(self):
+        event = orch.EventDecision(
+            True,
+            "Audit/watchdog orchestration signal",
+            "issue_comment",
+            action="audit_signal",
+            pr_number=500,
+            source_id="task-local",
+            signal_kind="task",
+            signal_text=(
+                "AUDIT — NEW CONTENT TASK\n\n"
+                f"{orch.TASK_CONTEXT_MARKER}\n\n"
+                "Reconcile the already-accepted local lane state from repository evidence."
+            ),
+        )
+        dispatch = {
+            "decision": "DISPATCH",
+            "lane": "Content",
+            "objective": "reconcile local state",
+            "stop_boundary": "state only",
+            "worker_tier": "LUNA",
+            "allowed_paths": ["docs/agent-state/CONTENT_STATE.md"],
+        }
+
+        self.assertIs(orch._guard_task_worker_capability(dispatch, [event]), dispatch)
+
+    def test_legacy_task_context_is_hydrated_and_replaces_durable_event(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="legacy-task",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK. Read issue #431 as authoritative.",
+            )
+            o._persist_pending_events([event])
+
+            with mock.patch.object(
+                orch,
+                "_json_cmd",
+                return_value={
+                    "state": "OPEN",
+                    "title": "CONTENT: investigate automation",
+                    "body": "Verify the current release and exact compatibility.",
+                },
+            ):
+                hydrated = o._hydrate_task_authority_context([event])
+
+            self.assertIn(orch.TASK_CONTEXT_MARKER, hydrated[0].signal_text)
+            self.assertIn("exact compatibility", hydrated[0].signal_text)
+            self.assertEqual(o._pending_events(), hydrated)
+            self.assertEqual(o.state.data["metrics"].get("task_context_hydrations"), 1)
+
+    def test_task_context_lookup_failure_becomes_fail_closed_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="missing-task",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK. Read issue #431 as authoritative.",
+            )
+            o._persist_pending_events([event])
+
+            with mock.patch.object(orch, "_json_cmd", side_effect=RuntimeError("offline")):
+                hydrated = o._hydrate_task_authority_context([event])
+
+            self.assertIn(orch.TASK_CONTEXT_LOOKUP_FAILED_MARKER, hydrated[0].signal_text)
+            guarded = orch._guard_task_worker_capability(
+                {
+                    "decision": "DISPATCH",
+                    "lane": "Content",
+                    "objective": "do task",
+                    "stop_boundary": "handoff",
+                },
+                hydrated,
+            )
+            self.assertEqual(guarded["decision"], "HUMAN_GATE")
+            self.assertEqual(
+                o.state.data["metrics"].get("task_context_hydration_failures"),
+                1,
+            )
+
     def test_task_authority_outranks_historical_manual_wake(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
@@ -2677,6 +2826,10 @@ class FrugalRoutingTests(unittest.TestCase):
                     orch.os.environ.pop("SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY", None)
                 else:
                     orch.os.environ["SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY"] = old
+
+    def test_worker_instructions_fail_closed_without_external_evidence(self):
+        self.assertIn("current external/upstream evidence", orch.WORKER_INSTRUCTIONS)
+        self.assertIn("Do not invent facts", orch.WORKER_INSTRUCTIONS)
 
     def test_worker_scope_rejection_safety_pauses_without_commit(self):
         with tempfile.TemporaryDirectory() as tmp:
