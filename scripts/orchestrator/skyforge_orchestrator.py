@@ -795,6 +795,8 @@ class Orchestrator:
         self._timer_lock = threading.Lock()
         self._timer: threading.Timer | None = None
         self._dispatch_lock = threading.Lock()
+        self._startup_reconcile_retry_lock = threading.Lock()
+        self._startup_reconcile_retry_timer: threading.Timer | None = None
         self.runtime_head: str | None = None
 
     def validate_environment(self) -> None:
@@ -957,6 +959,16 @@ class Orchestrator:
                 "last_human_gate_error": self.state.data.get("last_human_gate_error"),
                 "managed_prs": len(self.state.data.get("managed") or {}),
                 "last_reconcile_at": self.state.data.get("last_reconcile_at"),
+                "last_state_recovery": self.state.data.get("last_state_recovery"),
+                "last_startup_reconcile_error": self.state.data.get(
+                    "last_startup_reconcile_error"
+                ),
+                "last_startup_reconcile_success_at": self.state.data.get(
+                    "last_startup_reconcile_success_at"
+                ),
+                "startup_reconcile_retry_at": self.state.data.get(
+                    "startup_reconcile_retry_at"
+                ),
                 "paused": bool(self.state.data.get("paused")),
                 "paused_at": self.state.data.get("paused_at"),
             }
