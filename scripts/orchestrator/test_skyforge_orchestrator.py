@@ -1310,6 +1310,310 @@ class DurableStateTests(unittest.TestCase):
         self.assertEqual(decision.signal_kind, "task")
         self.assertEqual(decision.pr_number, 431)
 
+    def test_task_issue_context_hydrates_authoritative_issue_body(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            task = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="task-context",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK",
+            )
+            issue = {
+                "number": 431,
+                "title": "CONTENT: investigate external integration",
+                "state": "open",
+                "html_url": "https://github.com/ni-da-ba/skyforge/issues/431",
+                "body": "Verify the current release and research current upstream issue/changelog evidence.",
+            }
+
+            evidence_comment = {
+                "id": 123,
+                "body": "[SKYFORGE EXTERNAL EVIDENCE]\nVerified upstream release evidence.",
+                "user": {"login": "ni-da-ba"},
+                "created_at": "2026-09-09T16:00:00Z",
+            }
+            untrusted_comment = {
+                "id": 124,
+                "body": "[SKYFORGE EXTERNAL EVIDENCE]\nDo not trust this.",
+                "user": {"login": "someone-else"},
+            }
+            with mock.patch.object(
+                orch,
+                "_json_cmd",
+                side_effect=[issue, [evidence_comment, untrusted_comment]],
+            ) as read_issue:
+                context = o._task_issue_context([task])
+
+            self.assertEqual(context[0]["number"], 431)
+            self.assertEqual(context[0]["title"], issue["title"])
+            self.assertEqual(context[0]["body"], issue["body"])
+            self.assertEqual(len(context[0]["external_evidence"]), 1)
+            self.assertEqual(context[0]["external_evidence"][0]["id"], 123)
+            self.assertEqual(read_issue.call_count, 2)
+
+    def test_classifier_prompt_keeps_authoritative_issue_context_outside_snapshot_truncation(self):
+        event = orch.EventDecision(
+            True,
+            "Audit/watchdog orchestration signal",
+            "issue_comment",
+            action="audit_signal",
+            pr_number=431,
+            source_id="task-prompt",
+            signal_kind="task",
+            signal_text="AUDIT — NEW CONTENT TASK",
+        )
+        body = "AUTHORITATIVE-ISSUE-BODY-MARKER"
+        prompt = orch._classifier_prompt(
+            [event],
+            {
+                "task_issue_context": [{"number": 431, "title": "Task", "body": body}],
+                "orchestrator_metrics": {"padding": "x" * 30000},
+            },
+        )
+
+        self.assertIn("AUTHORITATIVE ISSUE-BACKED TASK CONTEXT", prompt)
+        self.assertIn(body, prompt)
+
+    def test_current_external_evidence_requirement_is_detected(self):
+        self.assertTrue(
+            orch._requires_current_external_evidence(
+                [
+                    {
+                        "title": "Integration audit",
+                        "body": (
+                            "Verify the current release and exact compatibility. "
+                            "Research current upstream issue/changelog evidence."
+                        ),
+                    }
+                ]
+            )
+        )
+        self.assertFalse(
+            orch._requires_current_external_evidence(
+                [{"title": "Content doctrine", "body": "Reconcile repository-local accepted state."}]
+            )
+        )
+
+    def test_external_research_task_dispatch_is_forced_to_human_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            task = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="task-capability",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK",
+            )
+            decision = {
+                "decision": "DISPATCH",
+                "lane": "Content",
+                "pr_number": None,
+                "objective": "Investigate issue #431.",
+                "stop_boundary": "Content handoff.",
+                "worker_tier": "LUNA",
+                "allowed_paths": ["docs/agent-state/CONTENT_STATE.md"],
+                "reason": "task",
+            }
+            context = [
+                {
+                    "number": 431,
+                    "title": "Create:Aero audit",
+                    "body": (
+                        "Verify the current release and exact compatibility. "
+                        "Research current upstream issue/changelog evidence and license."
+                    ),
+                }
+            ]
+
+            guarded = o._guard_worker_capability(decision, [task], context)
+
+            self.assertEqual(guarded["decision"], "HUMAN_GATE")
+            self.assertEqual(guarded["lane"], "Content")
+            self.assertIsNone(guarded["worker_tier"])
+            self.assertIn("fresh/current", guarded["reason"])
+            self.assertEqual(
+                o.state.data["metrics"].get("external_research_capability_gates"),
+                1,
+            )
+
+    def test_trusted_external_evidence_allows_repository_worker_dispatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            task = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="task-evidence-ready",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK",
+            )
+            decision = {
+                "decision": "DISPATCH",
+                "lane": "Content",
+                "pr_number": None,
+                "objective": "Synthesize supplied issue #431 evidence.",
+                "stop_boundary": "Content handoff.",
+                "worker_tier": "LUNA",
+                "allowed_paths": ["docs/agent-state/CONTENT_STATE.md"],
+                "reason": "evidence supplied",
+            }
+            context = [
+                {
+                    "number": 431,
+                    "title": "Create:Aero audit",
+                    "body": (
+                        "Verify the current release and exact compatibility. "
+                        "Research current upstream issue/changelog evidence."
+                    ),
+                    "external_evidence": [
+                        {
+                            "id": 123,
+                            "author": "ni-da-ba",
+                            "body": "[SKYFORGE EXTERNAL EVIDENCE]\nVerified evidence bundle.",
+                        }
+                    ],
+                }
+            ]
+
+            guarded = o._guard_worker_capability(decision, [task], context)
+
+            self.assertEqual(guarded, decision)
+            self.assertTrue(orch._has_supplied_external_evidence(context))
+
+    def test_missing_issue_hydration_for_task_dispatch_is_forced_to_human_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            task = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="task-missing-context",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK",
+            )
+            decision = {
+                "decision": "DISPATCH",
+                "lane": "Content",
+                "pr_number": None,
+                "objective": "Read issue #431.",
+                "stop_boundary": "Content handoff.",
+                "worker_tier": "LUNA",
+                "allowed_paths": ["docs/agent-state/CONTENT_STATE.md"],
+                "reason": "task",
+            }
+
+            guarded = o._guard_worker_capability(decision, [task], [])
+
+            self.assertEqual(guarded["decision"], "HUMAN_GATE")
+            self.assertIn("could not be hydrated", guarded["reason"])
+            self.assertEqual(o.state.data["metrics"].get("task_issue_hydration_gates"), 1)
+
+    def test_duplicate_task_authority_for_same_issue_is_suppressed_while_pending(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            first = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="task-first",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK",
+            )
+            duplicate = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="task-retry",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK (retry)",
+            )
+
+            o._persist_pending_events([first])
+            o._persist_pending_events([duplicate])
+
+            self.assertEqual(o._pending_events(), [first])
+            self.assertIn(
+                orch._event_key(duplicate),
+                o.state.data.get("completed_authority_event_keys") or [],
+            )
+            self.assertEqual(
+                o.state.data["metrics"].get("duplicate_task_authorities_suppressed"),
+                1,
+            )
+
+    def test_completed_task_coalesces_same_issue_authority_queued_behind_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            first = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="task-owned",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK",
+            )
+            duplicate = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="task-later",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK retry",
+            )
+            other = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=500,
+                source_id="task-other",
+                signal_kind="task",
+                signal_text="AUDIT — NEW IMPLEMENTATION TASK",
+            )
+            # Seed the pre-AUDIT-0031 race shape directly: duplicate authority arrived behind
+            # the already-owned first task before same-issue suppression existed.
+            o.state.data["pending_events"] = [
+                first.to_state(),
+                duplicate.to_state(),
+                other.to_state(),
+            ]
+            o.state.save()
+            o._cache_decision(
+                {"decision": "DISPATCH", "lane": "Content", "pr_number": None},
+                [first],
+                {"main": "main-head", "open_prs": []},
+            )
+
+            o._clear_completed_decision()
+
+            self.assertEqual(o._pending_events(), [other])
+            self.assertIn(
+                orch._event_key(duplicate),
+                o.state.data.get("completed_authority_event_keys") or [],
+            )
+            if o._timer is not None:
+                o._timer.cancel()
+
     def test_task_authority_outranks_historical_manual_wake(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))

@@ -79,6 +79,7 @@ AUDIT_WAKE_TOKENS = (
     "/skyforge-orchestrate",
 )
 SELF_COMMENT_MARKER = "[skyforge-orchestrator]"
+EXTERNAL_EVIDENCE_MARKER = "[skyforge external evidence]"
 
 CLASSIFIER_INSTRUCTIONS = """You are the lightweight Skyforge orchestration classifier.
 
@@ -104,7 +105,19 @@ A structured human_gate signal remains a HUMAN_GATE rather than a worker dispatc
 A structured signal_kind="task" is explicit standalone task authority. Route that task on its own
 merits; unrelated managed PRs, human gates, or repository bookkeeping are not reasons to consume or
 replace it. For issue-backed task authority, use pr_number=null unless the directive explicitly names
-an existing source PR as the work target.
+an existing source PR as the work target. The controller hydrates the authoritative issue body into
+the compact snapshot; use that issue context rather than assuming the worker can read GitHub itself.
+If an issue-backed task cannot be hydrated, choose HUMAN_GATE rather than dispatching from an
+incomplete objective.
+
+Hosted LUNA and TERRA workers are repository-local and have NO network authority. If the authoritative
+task requires fresh/current external evidence that is not already supplied in repository/issue
+context (for example current upstream releases, issue trackers, changelogs, licenses, compatibility,
+or web research), choose HUMAN_GATE. A trusted issue comment explicitly tagged
+"[SKYFORGE EXTERNAL EVIDENCE]" is controller-hydrated evidence and may satisfy that capability
+boundary; assess the supplied evidence rather than attempting fresh network access. TERRA adds
+engineering capability, not network capability. Never dispatch a repository-only worker and then
+infer, fabricate, or silently omit required external evidence.
 
 Do not dispatch work merely because a lane exists. Do not poll CI. Do not expand expensive validation
 without a distinct risk. Honor VALIDATION_POLICY.md and ORCHESTRATION_PROTOCOL.md.
@@ -157,7 +170,10 @@ CROSS_LANE_CONTRACTS.md, and only the source/tests/history needed for the object
 
 You have local filesystem access in a dedicated clone but NO GitHub/network authority. Do not try to
 push, open PRs, merge, modify secrets, or request credentials. The outer controller owns all git/gh
-network writes.
+network writes. If the bounded objective requires fresh/current external evidence and that evidence
+is not already supplied in the prompt or repository, do not write conclusions from memory or
+assumption. Leave the repository unchanged and report the missing external-evidence capability as a
+gate/blocker.
 
 Work only on the supplied objective. Do not expand into unrelated cleanup. Do not cross a human or
 product-strategy gate. Do not repeat expensive evidence unless the prompt identifies the distinct
@@ -230,6 +246,61 @@ def _event_key(value: EventDecision | dict[str, Any]) -> str:
     # repository transition even when it is observed at a different wall-clock instant.
     payload.pop("observed_at", None)
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
+def _task_issue_number(value: EventDecision | dict[str, Any]) -> int | None:
+    event = value if isinstance(value, EventDecision) else EventDecision.from_state(value)
+    if event.signal_kind != "task" or event.pr_number is None:
+        return None
+    try:
+        return int(event.pr_number)
+    except (TypeError, ValueError):
+        return None
+
+
+def _requires_current_external_evidence(issue_context: Iterable[dict[str, Any]]) -> bool:
+    text = "\n".join(
+        str(part)
+        for item in issue_context
+        if isinstance(item, dict)
+        for part in (item.get("title"), item.get("body"))
+        if part
+    ).lower()
+    if not text:
+        return False
+    freshness = any(
+        token in text
+        for token in (
+            "current release",
+            "current upstream",
+            "currently open",
+            "latest release",
+            "verify the current",
+            "exact compatibility",
+            "current compatibility",
+        )
+    )
+    external = any(
+        token in text
+        for token in (
+            "upstream issue",
+            "upstream issue/changelog",
+            "changelog",
+            "license",
+            "modrinth",
+            "curseforge",
+            "github",
+            "web research",
+        )
+    )
+    return freshness and external
+
+
+def _has_supplied_external_evidence(issue_context: Iterable[dict[str, Any]]) -> bool:
+    return any(
+        isinstance(item, dict) and bool(item.get("external_evidence"))
+        for item in issue_context
+    )
 
 
 def _trusted_actor(payload: dict[str, Any], trusted_actors: Iterable[str]) -> bool:
@@ -500,10 +571,18 @@ def _clean_json_object(text: str) -> dict[str, Any]:
 
 def _classifier_prompt(events: list[EventDecision], snapshot: dict[str, Any]) -> str:
     structured_events = [event.to_state() for event in events]
+    task_issue_context = snapshot.get("task_issue_context") or []
+    compact_snapshot = dict(snapshot)
+    compact_snapshot.pop("task_issue_context", None)
     return (
         "A filtered Skyforge repository event batch is actionable.\n\n"
         "STRUCTURED EVENTS:\n" + json.dumps(structured_events, indent=2) + "\n\n"
-        "COMPACT REPOSITORY SNAPSHOT:\n" + json.dumps(snapshot, indent=2)[:24000] + "\n\n"
+        "AUTHORITATIVE ISSUE-BACKED TASK CONTEXT:\n"
+        + json.dumps(task_issue_context, indent=2)[:18000]
+        + "\n\n"
+        "COMPACT REPOSITORY SNAPSHOT:\n"
+        + json.dumps(compact_snapshot, indent=2)[:24000]
+        + "\n\n"
         "Treat structured trusted Audit directives as first-class evidence. PR/issue updatedAt is not "
         "producer-liveness evidence because comments and bookkeeping mutate it. "
         "Read AGENTS.md and the compact Audit state as needed. Return only the required JSON decision."
@@ -559,6 +638,7 @@ def _classifier_input_fingerprint(
             "open_prs": open_prs,
             "recent_runs": recent_runs,
             "controller_managed": snapshot.get("controller_managed") or {},
+            "task_issue_context": snapshot.get("task_issue_context") or [],
         },
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -1997,11 +2077,32 @@ class Orchestrator:
                 if value
             }
             metrics = self.state.data.setdefault("metrics", {})
+            pending_task_issues = {
+                issue
+                for value in current
+                if (issue := _task_issue_number(value)) is not None
+            }
             added = False
             for event in events:
                 payload = event.to_state()
                 key = _event_key(payload)
                 priority = self._pending_event_priority(payload)
+                task_issue = _task_issue_number(event)
+                if task_issue is not None and task_issue in pending_task_issues and key not in by_key:
+                    ledger = [
+                        str(value)
+                        for value in (self.state.data.get("completed_authority_event_keys") or [])
+                        if value
+                    ]
+                    if key not in set(ledger):
+                        ledger.append(key)
+                        self.state.data["completed_authority_event_keys"] = ledger[
+                            -DEFAULT_MAX_RETIRED_EVENT_KEYS:
+                        ]
+                    metrics["duplicate_task_authorities_suppressed"] = int(
+                        metrics.get("duplicate_task_authorities_suppressed") or 0
+                    ) + 1
+                    continue
                 if priority and key in completed_authority_keys:
                     metrics["completed_authority_replays_suppressed"] = int(
                         metrics.get("completed_authority_replays_suppressed") or 0
@@ -2014,6 +2115,8 @@ class Orchestrator:
                     continue
                 if key not in by_key:
                     by_key[key] = payload
+                    if task_issue is not None:
+                        pending_task_issues.add(task_issue)
                     added = True
 
             values = list(by_key.values())
@@ -2252,6 +2355,74 @@ class Orchestrator:
             ),
         }
 
+    def _guard_worker_capability(
+        self,
+        decision: dict[str, Any],
+        events: list[EventDecision],
+        issue_context: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Fail closed when issue-backed task authority exceeds hosted worker capabilities."""
+        if str(decision.get("decision") or "NOOP").upper() != "DISPATCH":
+            return decision
+        task_events = [event for event in events if _task_issue_number(event) is not None]
+        if not task_events:
+            return decision
+
+        missing_context = not issue_context or any(
+            isinstance(item, dict) and item.get("error")
+            for item in issue_context
+        )
+        external_required = _requires_current_external_evidence(issue_context)
+        external_supplied = _has_supplied_external_evidence(issue_context)
+        if not missing_context and (not external_required or external_supplied):
+            return decision
+
+        self._metric(
+            "task_issue_hydration_gates" if missing_context else "external_research_capability_gates"
+        )
+        issue_numbers = sorted(
+            {
+                issue
+                for event in task_events
+                if (issue := _task_issue_number(event)) is not None
+            }
+        )
+        issue_text = ", ".join(f"#{number}" for number in issue_numbers) or "the task issue"
+        if missing_context:
+            reason = (
+                f"Refusing DISPATCH for {issue_text}: authoritative issue context could not be "
+                "hydrated by the controller."
+            )
+            human_message = (
+                f"CAPABILITY GATE: {issue_text} is issue-backed task authority, but the controller "
+                "could not read the authoritative issue body. No worker was launched from an "
+                "incomplete objective. Restore GitHub issue-read access and retry the task."
+            )
+        else:
+            reason = (
+                f"Refusing repository-only DISPATCH for {issue_text}: the authoritative task "
+                "requires fresh/current external evidence unavailable to hosted LUNA/TERRA workers "
+                "and no trusted external-evidence bundle was supplied."
+            )
+            human_message = (
+                f"CAPABILITY GATE: {issue_text} requires fresh/current upstream or web evidence. "
+                "Hosted LUNA/TERRA workers have repository-only access, so no worker was launched and "
+                "no unsupported conclusions were persisted. Supply verified external evidence through "
+                "a research-capable path, then reissue the bounded task."
+            )
+        return {
+            "decision": "HUMAN_GATE",
+            "lane": decision.get("lane"),
+            "pr_number": None,
+            "objective": decision.get("objective"),
+            "stop_boundary": decision.get("stop_boundary"),
+            "reusable_evidence": decision.get("reusable_evidence"),
+            "worker_tier": None,
+            "allowed_paths": None,
+            "reason": reason,
+            "human_message": human_message,
+        }
+
     def _decision_record(self) -> dict[str, Any] | None:
         value = self.state.data.get("pending_decision")
         return value if isinstance(value, dict) else None
@@ -2366,6 +2537,24 @@ class Orchestrator:
             record = self._decision_record() or {}
             completed = set(record.get("event_keys") or [])
             pending = [v for v in (self.state.data.get("pending_events") or []) if isinstance(v, dict)]
+            completed_task_issues = {
+                issue
+                for value in pending
+                if _event_key(value) in completed
+                if (issue := _task_issue_number(value)) is not None
+            }
+            duplicate_task_keys = {
+                _event_key(value)
+                for value in pending
+                if _event_key(value) not in completed
+                and _task_issue_number(value) in completed_task_issues
+            }
+            if duplicate_task_keys:
+                metrics = self.state.data.setdefault("metrics", {})
+                metrics["duplicate_task_authorities_suppressed"] = int(
+                    metrics.get("duplicate_task_authorities_suppressed") or 0
+                ) + len(duplicate_task_keys)
+                completed.update(duplicate_task_keys)
             completed_authority = [
                 _event_key(value)
                 for value in pending
@@ -2694,6 +2883,74 @@ class Orchestrator:
             print(f"[orchestrator] head {head_sha[:10]} still has active runs: {names}", flush=True)
             return False
         return True
+
+    def _task_issue_context(self, events: Iterable[EventDecision]) -> list[dict[str, Any]]:
+        contexts: list[dict[str, Any]] = []
+        seen: set[int] = set()
+        for event in events:
+            issue_number = _task_issue_number(event)
+            if issue_number is None or issue_number in seen:
+                continue
+            seen.add(issue_number)
+            try:
+                issue = _json_cmd(
+                    ["gh", "api", f"repos/{self.repo}/issues/{issue_number}"],
+                    cwd=self.root,
+                    timeout=60,
+                )
+            except Exception as exc:
+                contexts.append(
+                    {
+                        "number": issue_number,
+                        "error": f"{type(exc).__name__}: {exc}"[:1000],
+                    }
+                )
+                continue
+            evidence_comments: list[dict[str, Any]] = []
+            try:
+                comments = _json_cmd(
+                    [
+                        "gh",
+                        "api",
+                        f"repos/{self.repo}/issues/{issue_number}/comments?per_page=100",
+                    ],
+                    cwd=self.root,
+                    timeout=60,
+                )
+                if isinstance(comments, list):
+                    trusted = {actor.lower() for actor in self.trusted_actors}
+                    for comment in comments:
+                        if not isinstance(comment, dict):
+                            continue
+                        body = str(comment.get("body") or "")
+                        login = str(((comment.get("user") or {}).get("login")) or "").lower()
+                        if EXTERNAL_EVIDENCE_MARKER not in body.lower() or login not in trusted:
+                            continue
+                        evidence_comments.append(
+                            {
+                                "id": comment.get("id"),
+                                "author": login,
+                                "body": body[:8000],
+                                "created_at": comment.get("created_at"),
+                            }
+                        )
+            except Exception as exc:
+                print(
+                    f"[orchestrator] could not hydrate external evidence comments for issue "
+                    f"#{issue_number}: {type(exc).__name__}: {exc}",
+                    flush=True,
+                )
+            contexts.append(
+                {
+                    "number": issue_number,
+                    "title": issue.get("title"),
+                    "state": issue.get("state"),
+                    "url": issue.get("html_url"),
+                    "body": str(issue.get("body") or "")[:16000],
+                    "external_evidence": evidence_comments[-3:],
+                }
+            )
+        return contexts
 
     def snapshot(self) -> dict[str, Any]:
         prs = _json_cmd(
@@ -3488,6 +3745,7 @@ class Orchestrator:
                 self._metric("dispatch_latency_ms_total", latency_ms)
                 self._metric("dispatch_latency_samples")
             snap = self.snapshot()
+            snap["task_issue_context"] = self._task_issue_context(events)
             events = self._normalize_captured_events_for_snapshot(events, snap)
             if not events:
                 return
@@ -3541,6 +3799,11 @@ class Orchestrator:
                         ),
                     }
             decision = self._guard_dispatch_target(decision, snap)
+            decision = self._guard_worker_capability(
+                decision,
+                events,
+                list(snap.get("task_issue_context") or []),
+            )
             with self._state_lock:
                 self.state.data["last_dispatch_epoch"] = now
                 self.state.save()
@@ -3652,6 +3915,12 @@ class Orchestrator:
             if allowed_paths
             else "No additional allowlist; ordinary protected-path rules still apply."
         )
+        task_issue_context = self._task_issue_context(events)
+        task_issue_text = (
+            json.dumps(task_issue_context, indent=2)[:18000]
+            if task_issue_context
+            else "N/A"
+        )
         worker_prompt = f"""Bounded objective:
 {objective}
 
@@ -3661,8 +3930,11 @@ Acceptance / stop boundary:
 Existing portable evidence:
 {decision.get("reusable_evidence") or "N/A"}
 
-Source PR or issue context:
+Source PR target selected by classifier:
 {decision.get("pr_number") or "N/A"}
+
+Authoritative issue-backed task context hydrated by the controller:
+{task_issue_text}
 
 Files already changed by that source PR (durable existing work; do not recreate merely to copy it):
 {source_pr_text}
