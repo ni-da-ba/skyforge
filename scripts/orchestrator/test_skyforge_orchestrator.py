@@ -351,6 +351,102 @@ class ClassifierJsonTests(unittest.TestCase):
         self.assertEqual(value["decision"], "DISPATCH")
 
 
+class ClassifierIdempotencyTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=999,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+        )
+
+    def snapshot(self, *, run_status="completed"):
+        return {
+            "captured_at": "2026-09-09T01:00:00Z",
+            "main": "mainhead",
+            "open_prs": [
+                {
+                    "number": 358,
+                    "title": "morphology gate",
+                    "isDraft": False,
+                    "headRefName": "impl/test",
+                    "headRefOid": "prhead",
+                    "baseRefName": "main",
+                    "mergeStateStatus": "CLEAN",
+                    "author": {"login": "ni-da-ba"},
+                }
+            ],
+            "recent_runs": [
+                {
+                    "databaseId": 123,
+                    "name": "CI",
+                    "status": run_status,
+                    "conclusion": "success" if run_status == "completed" else None,
+                    "headSha": "mainhead",
+                    "headBranch": "main",
+                    "event": "push",
+                    "updatedAt": "2026-09-09T01:00:00Z",
+                }
+            ],
+            "controller_managed": {},
+            "orchestrator_metrics": {"classifier_attempts": 999},
+        }
+
+    def test_classifier_input_fingerprint_ignores_wallclock_and_metrics_noise(self):
+        event = orch.EventDecision(True, "main advanced", "push", head_sha="mainhead")
+        first = self.snapshot()
+        second = self.snapshot()
+        second["captured_at"] = "2030-01-01T00:00:00Z"
+        second["orchestrator_metrics"] = {"classifier_attempts": 1}
+        second["recent_runs"][0]["updatedAt"] = "2030-01-01T00:00:00Z"
+
+        self.assertEqual(
+            orch._classifier_input_fingerprint([event], first),
+            orch._classifier_input_fingerprint([event], second),
+        )
+
+    def test_classifier_input_fingerprint_changes_on_repository_state_change(self):
+        event = orch.EventDecision(True, "main advanced", "push", head_sha="mainhead")
+        self.assertNotEqual(
+            orch._classifier_input_fingerprint([event], self.snapshot(run_status="in_progress")),
+            orch._classifier_input_fingerprint([event], self.snapshot(run_status="completed")),
+        )
+
+    def test_identical_semantic_input_reuses_paid_classifier_decision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="mainhead")
+            snap = self.snapshot()
+            o._persist_pending_events([event])
+
+            with mock.patch.object(o, "workflows_quiescent", return_value=True), \
+                    mock.patch.object(o, "sync_main"), \
+                    mock.patch.object(o, "snapshot", return_value=snap), \
+                    mock.patch.object(
+                        o,
+                        "_codex_classifier",
+                        return_value={"decision": "NOOP", "reason": "human gates unchanged"},
+                    ) as classifier, \
+                    mock.patch.object(o, "_schedule_pending"):
+                o.dispatch(o._pending_events())
+                self.assertEqual(classifier.call_count, 1)
+                self.assertEqual(o._pending_events(), [])
+
+                # Re-observing the exact same semantic input may happen after replay/reconciliation.
+                # It must restore the cached decision rather than paying Luna a second time.
+                o._persist_pending_events([event])
+                o.dispatch(o._pending_events())
+
+            self.assertEqual(classifier.call_count, 1)
+            self.assertEqual(o._pending_events(), [])
+            self.assertEqual(
+                o.state.data["metrics"].get("classifier_decision_cache_hits"),
+                1,
+            )
+
+
 class FailurePolicyTests(unittest.TestCase):
     def test_quota_failure_is_long_backoff(self):
         kind, delay = orch._codex_failure_policy(RuntimeError("Usage limit reached for Codex"))
@@ -508,6 +604,9 @@ class HostedTransportTests(unittest.TestCase):
             state.data["parent_thread_id"] = "stale-thread"
             state.data["parent_turns"] = 7
             state.data["classifier_policy_fingerprint"] = "old-policy"
+            state.data["classifier_decision_cache"] = {
+                "stale": {"decision": {"decision": "NOOP", "reason": "old"}}
+            }
             state.save()
 
             o = self.make_orchestrator(root)
@@ -521,6 +620,7 @@ class HostedTransportTests(unittest.TestCase):
                 o.state.data["metrics"].get("classifier_policy_rotations"),
                 1,
             )
+            self.assertEqual(o.state.data["classifier_decision_cache"], {})
 
     def test_classifier_failure_diagnostics_are_nonsecret_and_reset_on_success(self):
         with tempfile.TemporaryDirectory() as tmp:
