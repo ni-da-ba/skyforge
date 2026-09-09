@@ -1,0 +1,30 @@
+name: AUDIT-0033 Cleanup
+
+on:
+  push:
+    branches:
+      - audit/audit-0033-live-authority-starvation-recovery
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Remove bootstrap artifacts
+        shell: bash
+        run: |
+          rm -rf scripts/orchestrator/__pycache__
+          rm -f .github/workflows/audit-0033-cleanup.yml
+      - name: Commit cleanup
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "AUDIT-0033: remove bootstrap bytecode artifacts"
+          git push origin HEAD:audit/audit-0033-live-authority-starvation-recovery
