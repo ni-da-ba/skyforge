@@ -144,45 +144,6 @@ class EventFilterTests(unittest.TestCase):
         self.assertTrue(d.actionable)
         self.assertEqual(d.signal_kind, "task")
 
-    def test_task_no_change_handoff_is_persisted_to_issue(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            event = orch.EventDecision(
-                True,
-                "Audit/watchdog orchestration signal",
-                "issue_comment",
-                action="audit_signal",
-                pr_number=387,
-                signal_kind="task",
-                signal_text="AUDIT — NEW IMPLEMENTATION TASK",
-            )
-            with mock.patch.object(
-                orch,
-                "_run",
-                return_value=orch.subprocess.CompletedProcess([], 0, stdout="", stderr=""),
-            ) as run:
-                self.assertTrue(
-                    o._persist_task_no_change_handoff(
-                        [event],
-                        "Blocked because the exact compatible artifact is unavailable.",
-                    )
-                )
-
-            args = run.call_args.args[0]
-            self.assertEqual(args[:4], ["gh", "issue", "comment", "387"])
-            self.assertIn("TASK_NO_CHANGE", args[-1])
-            self.assertIn("not task acceptance", args[-1])
-            self.assertIn("exact compatible artifact is unavailable", args[-1])
-            self.assertEqual(o.state.data["metrics"].get("task_no_change_handoffs"), 1)
-
-    def test_non_task_no_change_does_not_post_task_handoff(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
-            with mock.patch.object(orch, "_run") as run:
-                self.assertFalse(o._persist_task_no_change_handoff([event], "No changes."))
-            run.assert_not_called()
-
     def test_classifier_prompt_preserves_restart_text_and_does_not_offer_pr_updated_at(self):
         event = orch.EventDecision(
             True,
@@ -1238,6 +1199,45 @@ class DurableStateTests(unittest.TestCase):
             max_parent_turns=24,
             auto_merge=False,
         )
+
+    def test_task_no_change_handoff_is_persisted_to_issue(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=387,
+                signal_kind="task",
+                signal_text="AUDIT — NEW IMPLEMENTATION TASK",
+            )
+            with mock.patch.object(
+                orch,
+                "_run",
+                return_value=orch.subprocess.CompletedProcess([], 0, stdout="", stderr=""),
+            ) as run:
+                self.assertTrue(
+                    o._persist_task_no_change_handoff(
+                        [event],
+                        "Blocked because the exact compatible artifact is unavailable.",
+                    )
+                )
+
+            args = run.call_args.args[0]
+            self.assertEqual(args[:4], ["gh", "issue", "comment", "387"])
+            self.assertIn("TASK_NO_CHANGE", args[-1])
+            self.assertIn("not task acceptance", args[-1])
+            self.assertIn("exact compatible artifact is unavailable", args[-1])
+            self.assertEqual(o.state.data["metrics"].get("task_no_change_handoffs"), 1)
+
+    def test_non_task_no_change_does_not_post_task_handoff(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            with mock.patch.object(orch, "_run") as run:
+                self.assertFalse(o._persist_task_no_change_handoff([event], "No changes."))
+            run.assert_not_called()
 
     def test_local_state_save_creates_valid_primary_and_backup(self):
         with tempfile.TemporaryDirectory() as tmp:
