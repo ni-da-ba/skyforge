@@ -121,7 +121,8 @@ On each orchestrator heartbeat:
 9. If only RUNNING_EXTERNAL/WAIT_CI/DORMANT lanes remain, stop the run immediately.
 10. Actionable webhook transitions are debounced and classified as one durable batch, not one model call per event. If a multi-event batch dispatches a worker that produces no repository handoff and no newer event is already queued, preserve exactly one synthetic reconciliation event so a second independent runnable objective cannot be stranded. A single-event follow-up must never recursively create another follow-up.
 11. Repeated classifier transport/SDK/format failures must fail closed before exhausting the daily Luna budget. Persist a non-secret failure summary and consecutive-failure streak; after three consecutive classifier failures, safety-pause with the durable event batch retained until the failure is inspected and a trusted operator resumes.
-12. Do not spend agentic usage repeatedly polling for the same CI state.
+12. Timer callbacks are advisory wakeups, not durable event snapshots. A callback must acquire the single dispatch lock before reading the current durable pending-event batch; callbacks that waited behind another dispatch must re-read state and return if that earlier dispatch already retired the work.
+13. Do not spend agentic usage repeatedly polling for the same CI state.
 
 ## 6. Dispatch priority
 
