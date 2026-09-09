@@ -604,6 +604,15 @@ class HostedTransportTests(unittest.TestCase):
             installer.index("sudo ufw --force enable"),
         )
 
+    def test_hosted_installer_reconciles_runtime_without_resetting_existing_value_baseline(self):
+        installer = MODULE_PATH.with_name("install_hosted.sh").read_text()
+        self.assertIn(
+            '"$VENV_PYTHON" -m pip install --disable-pip-version-check -r scripts/orchestrator/requirements.txt',
+            installer,
+        )
+        self.assertIn('if [[ ! -f "$STATE_DIR/report_state.json" ]]; then', installer)
+        self.assertIn('echo "Preserving existing hosted value-report baseline."', installer)
+
     def test_worker_control_plane_paths_are_forbidden(self):
         forbidden = [
             "scripts/orchestrator/skyforge_orchestrator.py",
