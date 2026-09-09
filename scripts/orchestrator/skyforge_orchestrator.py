@@ -1218,6 +1218,58 @@ class Orchestrator:
             flush=True,
         )
 
+    def attempt_startup_reconcile(self) -> bool:
+        """Run model-free startup reconciliation and retry later if GitHub is temporarily unavailable."""
+        try:
+            self.startup_reconcile_repository()
+        except Exception as exc:
+            retry_seconds = _env_int(
+                "SKYFORGE_STARTUP_RECONCILE_RETRY_SECONDS",
+                DEFAULT_STARTUP_RECONCILE_RETRY_SECONDS,
+                minimum=30,
+            )
+            retry_at = datetime.now(timezone.utc) + timedelta(seconds=retry_seconds)
+            with self._state_lock:
+                self.state.data["last_startup_reconcile_error"] = {
+                    "at": _utc_now(),
+                    "kind": type(exc).__name__,
+                    "summary": str(exc)[:500],
+                }
+                self.state.data["startup_reconcile_retry_at"] = retry_at.isoformat()
+                self.state.save()
+            self._metric("startup_reconcile_failures")
+            print(
+                f"[orchestrator] startup reconciliation failed closed: "
+                f"{type(exc).__name__}: {exc}; retrying model-free in {retry_seconds}s",
+                flush=True,
+            )
+            self._schedule_startup_reconcile_retry(retry_seconds)
+            return False
+
+        with self._state_lock:
+            self.state.data["last_startup_reconcile_error"] = None
+            self.state.data["last_startup_reconcile_success_at"] = _utc_now()
+            self.state.data["startup_reconcile_retry_at"] = None
+            self.state.save()
+        return True
+
+    def _schedule_startup_reconcile_retry(self, delay_seconds: int | float) -> None:
+        if not self.startup_reconcile:
+            return
+        delay = max(1.0, float(delay_seconds))
+        with self._startup_reconcile_retry_lock:
+            if self._startup_reconcile_retry_timer is not None:
+                self._startup_reconcile_retry_timer.cancel()
+            timer = threading.Timer(delay, self._retry_startup_reconcile)
+            timer.daemon = True
+            self._startup_reconcile_retry_timer = timer
+            timer.start()
+
+    def _retry_startup_reconcile(self) -> None:
+        with self._startup_reconcile_retry_lock:
+            self._startup_reconcile_retry_timer = None
+        self.attempt_startup_reconcile()
+
     def _metric(self, name: str, amount: int = 1) -> None:
         with self._state_lock:
             metrics = self.state.data.setdefault("metrics", {})
@@ -2944,14 +2996,7 @@ def main() -> int:
         flush=True,
     )
     if orchestrator.startup_reconcile:
-        try:
-            orchestrator.startup_reconcile_repository()
-        except Exception as exc:
-            orchestrator._metric("startup_reconcile_failures")
-            print(
-                f"[orchestrator] startup reconciliation failed closed: {type(exc).__name__}: {exc}",
-                flush=True,
-            )
+        orchestrator.attempt_startup_reconcile()
     orchestrator.resume_pending()
     try:
         server.serve_forever()
