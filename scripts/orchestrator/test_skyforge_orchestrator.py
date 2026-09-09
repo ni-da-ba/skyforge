@@ -1788,7 +1788,7 @@ class DurableStateTests(unittest.TestCase):
                 action="audit_signal",
                 pr_number=431,
                 source_id="5603650534",
-                signal_kind="audit",
+                signal_kind="task",
                 signal_text=(
                     "AUDIT — NEW CONTENT TASK\n"
                     "Route issue #431 to Content. DISPATCH with pr_number=null."
@@ -1809,7 +1809,7 @@ class DurableStateTests(unittest.TestCase):
                 action="audit_signal",
                 pr_number=431,
                 source_id="first-task",
-                signal_kind="audit",
+                signal_kind="task",
                 signal_text="AUDIT — NEW CONTENT TASK",
             )
             second = orch.EventDecision(
@@ -1819,7 +1819,7 @@ class DurableStateTests(unittest.TestCase):
                 action="audit_signal",
                 pr_number=500,
                 source_id="second-task",
-                signal_kind="audit",
+                signal_kind="task",
                 signal_text="AUDIT — NEW IMPLEMENTATION TASK",
             )
 
@@ -1843,7 +1843,7 @@ class DurableStateTests(unittest.TestCase):
                 action="audit_signal",
                 pr_number=431,
                 source_id="content-task",
-                signal_kind="audit",
+                signal_kind="task",
                 signal_text="AUDIT — NEW CONTENT TASK",
             )
             later_task = orch.EventDecision(
@@ -1853,7 +1853,7 @@ class DurableStateTests(unittest.TestCase):
                 action="audit_signal",
                 pr_number=500,
                 source_id="later-task",
-                signal_kind="audit",
+                signal_kind="task",
                 signal_text="AUDIT — NEW IMPLEMENTATION TASK",
             )
             o._persist_pending_events([audit_pr_event, content_task, later_task])
@@ -3412,6 +3412,224 @@ class WorkerWorktreeIsolationTests(unittest.TestCase):
                 orch._run(["git", "reset", "--hard"], cwd=worktree)
                 orch._run(["git", "clean", "-fd"], cwd=worktree)
                 o._retire_worker_worktree(worktree)
+
+
+class Audit0035QueueEfficiencyTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=1,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+        )
+
+    def test_generic_audit_and_manual_wakes_batch_with_repository_noise(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            generic_audit = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=349,
+                source_id="audit-sync",
+                signal_kind="audit",
+                signal_text="AUDIT — acceptance-boundary synchronization",
+            )
+            manual = orch.EventDecision(
+                True,
+                "manual orchestration command",
+                "issue_comment",
+                action="manual_command",
+                pr_number=349,
+                source_id="manual-wake",
+            )
+            workflow = orch.EventDecision(
+                True,
+                "workflow completed; controller will require head quiescence",
+                "workflow_run",
+                action="completed",
+                head_sha="head-1",
+                pr_number=447,
+            )
+
+            pending = [generic_audit, manual, workflow]
+            self.assertEqual(o._select_dispatch_batch(pending), pending)
+            self.assertFalse(o._pending_event_priority(generic_audit.to_state()))
+            self.assertFalse(o._pending_event_priority(manual.to_state()))
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_real_authority_still_isolates_ahead_of_batchable_wakes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            generic_audit = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=349,
+                source_id="audit-sync",
+                signal_kind="audit",
+                signal_text="AUDIT — synchronization",
+            )
+            restart = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=444,
+                source_id="restart",
+                signal_kind="restart_recommended",
+                signal_text="AUDIT — RESTART RECOMMENDED",
+            )
+
+            self.assertEqual(o._select_dispatch_batch([generic_audit, restart]), [restart])
+            self.assertTrue(o._pending_event_priority(restart.to_state()))
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_semantic_coalescing_runs_below_soft_limit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            events = [
+                orch.EventDecision(
+                    True,
+                    "Audit/watchdog orchestration signal",
+                    "issue_comment",
+                    action="audit_signal",
+                    pr_number=349,
+                    source_id=f"audit-{index}",
+                    signal_kind="audit",
+                    signal_text=f"AUDIT — synchronization {index}",
+                )
+                for index in range(4)
+            ]
+            events += [
+                orch.EventDecision(
+                    True,
+                    "workflow completed; controller will require head quiescence",
+                    "workflow_run",
+                    action="completed",
+                    head_sha="same-head",
+                    pr_number=447,
+                    source_id=f"workflow-{index}",
+                )
+                for index in range(3)
+            ]
+
+            o._persist_pending_events(events)
+            pending = o._pending_events()
+
+            self.assertEqual(len(pending), 2)
+            self.assertEqual(
+                {event.source_id for event in pending},
+                {"audit-3", "workflow-2"},
+            )
+            report = o.state.data["last_pending_event_compaction"]
+            self.assertEqual(report["before"], 7)
+            self.assertEqual(report["after"], 2)
+            self.assertEqual(report["coalesced"], 5)
+            self.assertFalse(report["reconcile_inserted"])
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_pending_read_compacts_existing_preupgrade_backlog(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            old_values = [
+                orch.EventDecision(
+                    True,
+                    "Audit/watchdog orchestration signal",
+                    "issue_comment",
+                    action="audit_signal",
+                    pr_number=349,
+                    source_id=f"old-audit-{index}",
+                    signal_kind="audit",
+                    signal_text=f"AUDIT — historical sync {index}",
+                ).to_state()
+                for index in range(20)
+            ]
+            o.state.data["pending_events"] = old_values
+            o.state.save()
+
+            pending = o._pending_events()
+
+            self.assertEqual(len(pending), 1)
+            self.assertEqual(pending[0].source_id, "old-audit-19")
+            self.assertEqual(
+                o.state.data["metrics"].get("pending_events_compacted"),
+                19,
+            )
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_cached_decision_owned_keys_are_not_coalesced(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            first = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=349,
+                source_id="owned-audit",
+                signal_kind="audit",
+                signal_text="AUDIT — first synchronization",
+            )
+            second = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=349,
+                source_id="later-audit",
+                signal_kind="audit",
+                signal_text="AUDIT — later synchronization",
+            )
+            o._persist_pending_events([first])
+            o._cache_decision(
+                {"decision": "NOOP", "reason": "owned generic wake"},
+                [first],
+                {"main": "head", "open_prs": []},
+            )
+            o._persist_pending_events([second])
+
+            pending = o._pending_events()
+            self.assertEqual(
+                {event.source_id for event in pending},
+                {"owned-audit", "later-audit"},
+            )
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_completed_authority_ledger_still_suppresses_reclassified_generic_event(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            generic = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=349,
+                source_id="legacy-completed",
+                signal_kind="audit",
+                signal_text="AUDIT — historical synchronization",
+            )
+            o.state.data["completed_authority_event_keys"] = [orch._event_key(generic)]
+            o.state.save()
+
+            o._persist_pending_events([generic])
+
+            self.assertEqual(o._pending_events(), [])
+            self.assertEqual(
+                o.state.data["metrics"].get("completed_authority_replays_suppressed"),
+                1,
+            )
+            if o._timer is not None:
+                o._timer.cancel()
 
 
 class Audit0034DurableSignalMigrationTests(unittest.TestCase):
