@@ -607,7 +607,7 @@ class HostedTransportTests(unittest.TestCase):
     def test_hosted_installer_reconciles_runtime_without_resetting_existing_value_baseline(self):
         installer = MODULE_PATH.with_name("install_hosted.sh").read_text()
         self.assertIn(
-            '"$VENV_PYTHON" -m pip install --disable-pip-version-check -r scripts/orchestrator/requirements.txt',
+            '"$VENV_PYTHON" scripts/orchestrator/sync_runtime_dependencies.py --root "$ROOT"',
             installer,
         )
         self.assertIn('if [[ ! -f "$STATE_DIR/report_state.json" ]]; then', installer)
