@@ -301,6 +301,7 @@ It stores:
 - durable human-gate surfacing records keyed to current PR state;
 - a durable, deduplicated pending-event journal;
 - a cached classifier decision tied to the event batch it consumed;
+- a bounded semantic classifier-input cache keyed by policy + durable event keys + current repository state, so identical replay cannot spend Luna twice;
 - interrupted worker branch identity;
 - quota/rate/authentication/controller retry state;
 - daily call-budget counters and pilot metrics.
