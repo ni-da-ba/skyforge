@@ -1277,6 +1277,63 @@ class DurableStateTests(unittest.TestCase):
             )
             self.assertEqual(o.state.data["metrics"].get("human_gates"), 2)
 
+    def test_human_gate_post_failure_preserves_owned_decision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o._persist_pending_events([event])
+            o._cache_decision(
+                {
+                    "decision": "HUMAN_GATE",
+                    "lane": "Audit",
+                    "human_message": "Review required.",
+                },
+                [event],
+                {"main": "abc123", "open_prs": []},
+            )
+
+            with mock.patch.object(o, "sync_main"), \
+                    mock.patch.object(o, "_post_gate", return_value=False):
+                with self.assertRaises(orch.RetryBlocked):
+                    o.dispatch(o._pending_events())
+
+            self.assertIsNotNone(o._decision_record())
+            self.assertEqual(o._pending_events(), [event])
+
+    def test_merge_with_auto_merge_off_surfaces_manual_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "workflow completed", "workflow_run", head_sha="abc123")
+            o._persist_pending_events([event])
+            with o._state_lock:
+                o.state.data["managed"] = {
+                    "Audit": {"branch": "codex/audit-test", "pr_number": 77}
+                }
+                o.state.save()
+            o._cache_decision(
+                {
+                    "decision": "MERGE",
+                    "lane": "Audit",
+                    "pr_number": 77,
+                    "reason": "machine green",
+                },
+                [event],
+                {"main": "abc123", "open_prs": []},
+            )
+
+            with mock.patch.object(o, "sync_main"), \
+                    mock.patch.object(o, "_post_gate", return_value=True) as post_gate, \
+                    mock.patch.object(o, "_merge_managed") as merge_managed:
+                o.dispatch(o._pending_events())
+
+            merge_managed.assert_not_called()
+            post_gate.assert_called_once()
+            message = post_gate.call_args.args[0]["human_message"]
+            self.assertIn("auto-merge remains disabled", message)
+            self.assertIsNone(o._decision_record())
+            self.assertEqual(o._pending_events(), [])
+            self.assertEqual(o.state.data["metrics"].get("manual_merge_gates"), 1)
+
     def test_handoff_reuses_existing_open_pr_after_interruption(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
