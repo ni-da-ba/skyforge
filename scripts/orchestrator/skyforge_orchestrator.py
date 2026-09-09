@@ -561,10 +561,18 @@ def _clean_json_object(text: str) -> dict[str, Any]:
 
 def _classifier_prompt(events: list[EventDecision], snapshot: dict[str, Any]) -> str:
     structured_events = [event.to_state() for event in events]
+    task_issue_context = snapshot.get("task_issue_context") or []
+    compact_snapshot = dict(snapshot)
+    compact_snapshot.pop("task_issue_context", None)
     return (
         "A filtered Skyforge repository event batch is actionable.\n\n"
         "STRUCTURED EVENTS:\n" + json.dumps(structured_events, indent=2) + "\n\n"
-        "COMPACT REPOSITORY SNAPSHOT:\n" + json.dumps(snapshot, indent=2)[:24000] + "\n\n"
+        "AUTHORITATIVE ISSUE-BACKED TASK CONTEXT:\n"
+        + json.dumps(task_issue_context, indent=2)[:18000]
+        + "\n\n"
+        "COMPACT REPOSITORY SNAPSHOT:\n"
+        + json.dumps(compact_snapshot, indent=2)[:24000]
+        + "\n\n"
         "Treat structured trusted Audit directives as first-class evidence. PR/issue updatedAt is not "
         "producer-liveness evidence because comments and bookkeeping mutate it. "
         "Read AGENTS.md and the compact Audit state as needed. Return only the required JSON decision."
@@ -2350,7 +2358,7 @@ class Orchestrator:
         if not task_events:
             return decision
 
-        missing_context = any(
+        missing_context = not issue_context or any(
             isinstance(item, dict) and item.get("error")
             for item in issue_context
         )
