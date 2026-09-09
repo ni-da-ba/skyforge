@@ -732,6 +732,49 @@ class HostedTransportTests(unittest.TestCase):
                 self.assertTrue(event.actionable)
                 self.assertEqual(event.head_sha, "def")
 
+    def test_startup_reconcile_failure_is_durable_and_retried_model_free(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.startup_reconcile = True
+            with mock.patch.object(
+                o,
+                "startup_reconcile_repository",
+                side_effect=RuntimeError("github temporarily unavailable"),
+            ), mock.patch.object(
+                o,
+                "_schedule_startup_reconcile_retry",
+            ) as schedule, mock.patch.object(
+                orch,
+                "_env_int",
+                return_value=30,
+            ):
+                self.assertFalse(o.attempt_startup_reconcile())
+
+            schedule.assert_called_once_with(30)
+            error = o.state.data["last_startup_reconcile_error"]
+            self.assertEqual(error["kind"], "RuntimeError")
+            self.assertIn("temporarily unavailable", error["summary"])
+            self.assertIsNotNone(o.state.data["startup_reconcile_retry_at"])
+            self.assertEqual(
+                o.state.data["metrics"].get("startup_reconcile_failures"),
+                1,
+            )
+
+    def test_successful_startup_reconcile_clears_degraded_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.startup_reconcile = True
+            o.state.data["last_startup_reconcile_error"] = {"kind": "RuntimeError"}
+            o.state.data["startup_reconcile_retry_at"] = "later"
+            o.state.save()
+
+            with mock.patch.object(o, "startup_reconcile_repository"):
+                self.assertTrue(o.attempt_startup_reconcile())
+
+            self.assertIsNone(o.state.data["last_startup_reconcile_error"])
+            self.assertIsNone(o.state.data["startup_reconcile_retry_at"])
+            self.assertIsNotNone(o.state.data["last_startup_reconcile_success_at"])
+
 
 class DurableStateTests(unittest.TestCase):
     def make_orchestrator(self, root: pathlib.Path):
@@ -743,6 +786,57 @@ class DurableStateTests(unittest.TestCase):
             max_parent_turns=24,
             auto_merge=False,
         )
+
+    def test_local_state_save_creates_valid_primary_and_backup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            state = orch.LocalState(root)
+            state.data["marker"] = "durable"
+            state.save()
+
+            self.assertEqual(
+                orch.LocalState._read_mapping(state.path)["marker"],
+                "durable",
+            )
+            self.assertEqual(
+                orch.LocalState._read_mapping(state.backup_path)["marker"],
+                "durable",
+            )
+
+    def test_local_state_recovers_from_backup_when_primary_is_corrupt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            state = orch.LocalState(root)
+            state.data["marker"] = "preserved"
+            state.save()
+            state.path.write_text("{not-json")
+
+            recovered = orch.LocalState(root)
+
+            self.assertEqual(recovered.data["marker"], "preserved")
+            self.assertEqual(
+                recovered.data["metrics"].get("state_backup_recoveries"),
+                1,
+            )
+            self.assertEqual(
+                recovered.data["last_state_recovery"]["source"],
+                "state.json.bak",
+            )
+            self.assertEqual(
+                orch.LocalState._read_mapping(recovered.path)["marker"],
+                "preserved",
+            )
+
+    def test_local_state_fails_closed_when_primary_and_backup_are_corrupt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            state = orch.LocalState(root)
+            state.save()
+            state.path.write_text("{bad-primary")
+            state.backup_path.write_text("{bad-backup")
+
+            with self.assertRaisesRegex(RuntimeError, "primary and backup"):
+                orch.LocalState(root)
 
     def test_event_state_round_trip(self):
         event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
