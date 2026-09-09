@@ -882,6 +882,7 @@ class Orchestrator:
                 "last_worker_discard": self.state.data.get("last_worker_discard"),
                 "last_runtime_refresh_request": self.state.data.get("last_runtime_refresh_request"),
                 "last_runtime_refresh_error": self.state.data.get("last_runtime_refresh_error"),
+                "last_human_gate_error": self.state.data.get("last_human_gate_error"),
                 "managed_prs": len(self.state.data.get("managed") or {}),
                 "last_reconcile_at": self.state.data.get("last_reconcile_at"),
                 "paused": bool(self.state.data.get("paused")),
@@ -2183,7 +2184,7 @@ class Orchestrator:
         digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
         return f"issue:{target}:{lane}", digest, target, False
 
-    def _post_gate(self, decision: dict[str, Any]) -> None:
+    def _post_gate(self, decision: dict[str, Any]) -> bool:
         message = str(decision.get("human_message") or decision.get("reason") or "Human gate reached")
         key, token, target, already_visible = self._human_gate_identity(decision)
 
@@ -2196,7 +2197,7 @@ class Orchestrator:
                     f"[orchestrator] human gate already surfaced for {key} at state {token}; suppressing duplicate",
                     flush=True,
                 )
-                return
+                return True
             if already_visible:
                 records[key] = {
                     "token": token,
@@ -2210,7 +2211,7 @@ class Orchestrator:
                     f"[orchestrator] existing controller human gate already covers {key} at state {token}; suppressing duplicate",
                     flush=True,
                 )
-                return
+                return True
 
         body = f"{SELF_COMMENT_MARKER} HUMAN_GATE\n\n{message[:5000]}"
         try:
@@ -2227,10 +2228,22 @@ class Orchestrator:
                     "seeded_from_github": False,
                     "recorded_at": _utc_now(),
                 }
+                self.state.data["last_human_gate_error"] = None
                 self.state.save()
             self._metric("human_gates")
+            return True
         except Exception as exc:
+            with self._state_lock:
+                self.state.data["last_human_gate_error"] = {
+                    "at": _utc_now(),
+                    "kind": type(exc).__name__,
+                    "summary": str(exc)[:500],
+                    "target": target,
+                }
+                self.state.save()
+            self._metric("human_gate_post_failures")
             print(f"[orchestrator] could not post human gate: {exc}", flush=True)
+            return False
 
     def _merge_managed(self, lane: str, pr_number: int | None) -> None:
         if not self.auto_merge:
@@ -2403,13 +2416,47 @@ class Orchestrator:
             self._clear_completed_decision()
             return
         if kind == "HUMAN_GATE":
-            self._post_gate(decision)
+            if not self._post_gate(decision):
+                retry = _env_int(
+                    "SKYFORGE_ORCHESTRATOR_TRANSIENT_BACKOFF_SECONDS",
+                    DEFAULT_TRANSIENT_BACKOFF_SECONDS,
+                    minimum=30,
+                )
+                raise RetryBlocked(
+                    "transient",
+                    retry,
+                    "human-gate visibility handoff failed; durable decision retained",
+                )
             self._clear_completed_decision()
             return
         if kind == "MERGE":
             if not isinstance(lane, str):
                 raise RuntimeError("MERGE decision missing lane")
-            self._merge_managed(lane, decision.get("pr_number"))
+            pr_number = decision.get("pr_number")
+            managed = self._managed_branch(lane)
+            if not managed or int(managed.get("pr_number") or 0) != int(pr_number or 0):
+                raise RuntimeError("Refusing MERGE for a PR not owned by local orchestrator state")
+            if not self.auto_merge:
+                gate = dict(decision)
+                gate["decision"] = "HUMAN_GATE"
+                gate["human_message"] = (
+                    f"Controller-managed PR #{pr_number} is ready for merge, but auto-merge remains "
+                    "disabled by policy. Review the machine gates and merge manually if appropriate."
+                )
+                if not self._post_gate(gate):
+                    retry = _env_int(
+                        "SKYFORGE_ORCHESTRATOR_TRANSIENT_BACKOFF_SECONDS",
+                        DEFAULT_TRANSIENT_BACKOFF_SECONDS,
+                        minimum=30,
+                    )
+                    raise RetryBlocked(
+                        "transient",
+                        retry,
+                        "manual-merge gate visibility failed; durable decision retained",
+                    )
+                self._metric("manual_merge_gates")
+            else:
+                self._merge_managed(lane, pr_number)
             self._clear_completed_decision()
             return
         if kind != "DISPATCH":
