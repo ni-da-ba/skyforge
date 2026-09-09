@@ -44,6 +44,7 @@ DEFAULT_TRANSIENT_BACKOFF_SECONDS = 300
 DEFAULT_MAX_CONSECUTIVE_CLASSIFIER_FAILURES = 3
 DEFAULT_MAX_SEEN_DELIVERIES = 512
 DEFAULT_MAX_PENDING_EVENTS = 100
+DEFAULT_STARTUP_RECONCILE_RETRY_SECONDS = 60
 DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
 CONTROLLER_RUNTIME_PATHS = {
     "scripts/orchestrator/skyforge_orchestrator.py",
@@ -633,6 +634,7 @@ class LocalState:
     def __init__(self, root: Path) -> None:
         self.dir = root / STATE_DIR
         self.path = self.dir / STATE_FILE
+        self.backup_path = self.dir / f"{STATE_FILE}.bak"
         self._lock = threading.RLock()
         self.dir.mkdir(parents=True, exist_ok=True)
         self.data: dict[str, Any] = {
@@ -669,21 +671,76 @@ class LocalState:
             "paused": False,
             "paused_at": None,
             "paused_by": None,
+            "last_state_recovery": None,
+            "last_startup_reconcile_error": None,
+            "last_startup_reconcile_success_at": None,
+            "startup_reconcile_retry_at": None,
         }
+
+        primary_error: Exception | None = None
+        loaded: dict[str, Any] | None = None
         if self.path.exists():
             try:
-                loaded = json.loads(self.path.read_text())
-                if isinstance(loaded, dict):
-                    self.data.update(loaded)
-            except Exception:
-                # A corrupt local state file must not damage the repository.
-                pass
+                loaded = self._read_mapping(self.path)
+            except Exception as exc:
+                primary_error = exc
+        elif self.backup_path.exists():
+            primary_error = FileNotFoundError(str(self.path))
+
+        recovered_from_backup = False
+        if loaded is None and self.backup_path.exists():
+            try:
+                loaded = self._read_mapping(self.backup_path)
+                recovered_from_backup = True
+            except Exception as backup_error:
+                raise RuntimeError(
+                    "Skyforge orchestrator state is unreadable in both primary and backup files"
+                ) from backup_error
+
+        if loaded is None and primary_error is not None:
+            raise RuntimeError(
+                "Skyforge orchestrator state file is unreadable and no valid backup is available"
+            ) from primary_error
+
+        if loaded is not None:
+            self.data.update(loaded)
+
+        if recovered_from_backup:
+            metrics = self.data.get("metrics")
+            if not isinstance(metrics, dict):
+                metrics = {}
+                self.data["metrics"] = metrics
+            metrics["state_backup_recoveries"] = int(
+                metrics.get("state_backup_recoveries") or 0
+            ) + 1
+            self.data["last_state_recovery"] = {
+                "at": _utc_now(),
+                "source": self.backup_path.name,
+                "primary_error": type(primary_error).__name__ if primary_error else "missing",
+            }
+            self.save()
+
+    @staticmethod
+    def _read_mapping(path: Path) -> dict[str, Any]:
+        value = json.loads(path.read_text())
+        if not isinstance(value, dict):
+            raise ValueError(f"State file {path} must contain a JSON object")
+        return value
+
+    @staticmethod
+    def _atomic_write(path: Path, payload: str) -> None:
+        tmp = path.with_name(path.name + ".tmp")
+        with tmp.open("w") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
 
     def save(self) -> None:
         with self._lock:
-            tmp = self.path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(self.data, indent=2, sort_keys=True) + "\n")
-            tmp.replace(self.path)
+            payload = json.dumps(self.data, indent=2, sort_keys=True) + "\n"
+            self._atomic_write(self.path, payload)
+            self._atomic_write(self.backup_path, payload)
 
 
 def _ensure_classifier_policy_state(state: LocalState) -> None:
