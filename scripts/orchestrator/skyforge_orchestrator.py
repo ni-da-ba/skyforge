@@ -2067,6 +2067,62 @@ class Orchestrator:
         value = (self.state.data.get("managed") or {}).get(lane)
         return value if isinstance(value, dict) else None
 
+    def _validated_managed_branch(self, lane: str) -> dict[str, Any] | None:
+        """Return only a still-open controller-managed PR record.
+
+        Manual merges are expected while auto-merge is disabled. Do not let a locally stale managed
+        record pin the next worker in that lane to an already-closed branch/PR.
+        """
+        managed = self._managed_branch(lane)
+        if not managed:
+            return None
+        branch = str(managed.get("branch") or "").strip()
+        pr_number = int(managed.get("pr_number") or 0)
+        if not branch or pr_number <= 0:
+            with self._state_lock:
+                self.state.data.setdefault("managed", {}).pop(lane, None)
+                metrics = self.state.data.setdefault("metrics", {})
+                metrics["stale_managed_records_retired"] = int(
+                    metrics.get("stale_managed_records_retired") or 0
+                ) + 1
+                self.state.save()
+            return None
+
+        pr = _json_cmd(
+            [
+                "gh", "pr", "view", str(pr_number),
+                "--repo", self.repo,
+                "--json", "state,headRefName",
+            ],
+            cwd=self.root,
+            timeout=60,
+        )
+        if (
+            str(pr.get("state") or "").upper() == "OPEN"
+            and str(pr.get("headRefName") or "") == branch
+        ):
+            return managed
+
+        with self._state_lock:
+            current = self._managed_branch(lane)
+            if (
+                current
+                and int(current.get("pr_number") or 0) == pr_number
+                and str(current.get("branch") or "") == branch
+            ):
+                self.state.data.setdefault("managed", {}).pop(lane, None)
+                metrics = self.state.data.setdefault("metrics", {})
+                metrics["stale_managed_records_retired"] = int(
+                    metrics.get("stale_managed_records_retired") or 0
+                ) + 1
+                self.state.save()
+        print(
+            f"[orchestrator] retired stale managed record for {lane}: "
+            f"PR #{pr_number} / {branch}",
+            flush=True,
+        )
+        return None
+
     def _source_pr_changed_paths(self, source_pr: int | None) -> list[str]:
         if not source_pr:
             return []
@@ -2089,7 +2145,7 @@ class Orchestrator:
         lane: str,
         source_pr: int | None,
     ) -> tuple[str, int | None, Path]:
-        managed = self._managed_branch(lane)
+        managed = self._validated_managed_branch(lane)
         if managed and managed.get("branch"):
             branch = str(managed["branch"])
             _run(["git", "fetch", "origin", branch], cwd=self.root, timeout=120)
