@@ -3414,6 +3414,79 @@ class WorkerWorktreeIsolationTests(unittest.TestCase):
                 o._retire_worker_worktree(worktree)
 
 
+class Audit0034DurableSignalMigrationTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=1,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+        )
+
+    def test_status_reclassifies_contextual_restart_before_dispatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            false_restart = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=349,
+                source_id="acceptance-sync",
+                signal_kind="restart_recommended",
+                signal_text=(
+                    "AUDIT — acceptance-boundary synchronization\n\n"
+                    "The retained #444 RESTART RECOMMENDED authority launched a fresh worker; "
+                    "the restart-authority starvation LOOP RISK is cleared."
+                ),
+            )
+            o.state.data["pending_events"] = [false_restart.to_state()]
+            o.state.save()
+
+            snapshot = o.health_snapshot()
+            migrated = orch.EventDecision.from_state(o.state.data["pending_events"][0])
+
+            self.assertEqual(migrated.signal_kind, "audit")
+            self.assertEqual(
+                o.state.data["metrics"].get("pending_audit_signal_reclassifications"),
+                1,
+            )
+            self.assertEqual(
+                o.state.data["last_pending_audit_signal_reclassification"]["changed"],
+                1,
+            )
+            self.assertIn("signal=audit", snapshot["pending_event_summaries"][0])
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_genuine_restart_remains_protected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            restart = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=444,
+                source_id="restart",
+                signal_kind="restart_recommended",
+                signal_text="AUDIT — RESTART RECOMMENDED (Implementation / #387 petroleum bridge)",
+            )
+            o.state.data["pending_events"] = [restart.to_state()]
+            o.state.save()
+
+            pending = o._pending_events()
+
+            self.assertEqual(pending[0].signal_kind, "restart_recommended")
+            self.assertIsNone(
+                o.state.data["metrics"].get("pending_audit_signal_reclassifications")
+            )
+            if o._timer is not None:
+                o._timer.cancel()
+
+
 class Audit0033AuthorityPriorityTests(unittest.TestCase):
     def make_orchestrator(self, root: pathlib.Path):
         return orch.Orchestrator(
