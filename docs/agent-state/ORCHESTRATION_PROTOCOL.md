@@ -562,7 +562,10 @@ proxy terminates trusted TLS; the controller itself remains localhost-only.
 
 The controller requires a **dedicated clone** in both modes. Local state and its virtualenv live under
 the ignored `.skyforge-orchestrator/` directory. The hosted service must restart on boot and preserve
-that directory across process restarts.
+that directory across process restarts. Durable controller state is written atomically to both
+`state.json` and a same-directory mirror `state.json.bak`. If the primary becomes unreadable, the
+controller may recover from the valid mirror and must report that recovery. If neither copy is
+readable, startup fails closed rather than silently reconstructing empty state.
 
 Hosted installation must run as a dedicated **non-root** sudo-capable service user. The installer
 fails closed when invoked as root. The hosted Codex runtime is the repository-pinned Python SDK; its
@@ -579,7 +582,9 @@ Because a powered-off host cannot receive webhooks, each hosted startup compares
 GitHub fingerprint (main head, open PR state, recent Actions state) with the prior startup baseline.
 A changed fingerprint produces exactly one synthetic `reconcile` wake so the classifier reasons from
 current repository truth rather than attempting to replay every missed delivery. First startup only
-establishes the baseline.
+establishes the baseline. If that model-free GitHub reconciliation fails transiently, record the
+degraded state and keep retrying it on a bounded timer until it succeeds; do not wait indefinitely for
+another webhook and do not spend a model turn merely to retry repository observation.
 
 ### Usage accounting
 
