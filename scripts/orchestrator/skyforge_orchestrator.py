@@ -1125,6 +1125,9 @@ class Orchestrator:
                 "pending_event_protected_overflow": int(
                     (self.state.data.get("metrics") or {}).get("pending_event_protected_overflow") or 0
                 ),
+                "isolated_authority_batches": int(
+                    (self.state.data.get("metrics") or {}).get("isolated_authority_batches") or 0
+                ),
                 "retired_event_keys": len(self.state.data.get("retired_event_keys") or []),
                 "completed_authority_event_keys": len(
                     self.state.data.get("completed_authority_event_keys") or []
@@ -1827,6 +1830,19 @@ class Orchestrator:
             values = self.state.data.get("pending_events") or []
             return [EventDecision.from_state(v) for v in values if isinstance(v, dict)]
 
+    def _select_dispatch_batch(self, pending: list[EventDecision]) -> list[EventDecision]:
+        """Choose one decision-safe batch from the durable queue.
+
+        The classifier returns exactly one action. Trusted/manual directives therefore cannot share a
+        classifier batch with repository-state noise or with another directive: doing so lets one
+        decision retire unrelated authority. Ordinary webhook transitions remain batched because they
+        are a coalesced wake to inspect current repository truth rather than independent task authority.
+        """
+        for event in pending:
+            if self._pending_event_priority(event.to_state()):
+                return [event]
+        return pending
+
     @staticmethod
     def _pending_event_priority(value: dict[str, Any]) -> bool:
         event = EventDecision.from_state(value)
@@ -2449,8 +2465,15 @@ class Orchestrator:
             pending = self._pending_events()
             if not pending:
                 return
+            batch = self._select_dispatch_batch(pending)
+            if len(batch) != len(pending):
+                self._metric("isolated_authority_batches")
+                print(
+                    f"[orchestrator] isolated authority batch: 1 event from {len(pending)} pending",
+                    flush=True,
+                )
             try:
-                self.dispatch(pending)
+                self.dispatch(batch)
             except RetryBlocked as exc:
                 print(
                     f"[orchestrator] {exc.kind} block: {exc}; retry in {exc.retry_after_seconds}s",
