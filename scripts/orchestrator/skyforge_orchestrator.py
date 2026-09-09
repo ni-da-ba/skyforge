@@ -1081,6 +1081,7 @@ class Orchestrator:
 
     def health_snapshot(self) -> dict[str, Any]:
         with self._state_lock:
+            self._purge_suppressed_pending_events_locked()
             pending = self.state.data.get("pending_worker")
             pending = pending if isinstance(pending, dict) else None
             started_at = pending.get("started_at") if pending else None
@@ -1135,6 +1136,14 @@ class Orchestrator:
                     (self.state.data.get("metrics") or {}).get(
                         "completed_authority_replays_suppressed"
                     ) or 0
+                ),
+                "suppressed_pending_events_purged": int(
+                    (self.state.data.get("metrics") or {}).get(
+                        "suppressed_pending_events_purged"
+                    ) or 0
+                ),
+                "last_suppressed_event_purge": self.state.data.get(
+                    "last_suppressed_event_purge"
                 ),
                 "last_pending_event_compaction": self.state.data.get(
                     "last_pending_event_compaction"
@@ -1761,8 +1770,60 @@ class Orchestrator:
                 metrics["worker_attempts"] = int(metrics.get("worker_attempts") or 0) + 1
             self.state.save()
 
+    def _purge_suppressed_pending_events_locked(self) -> int:
+        """Physically remove queue entries already covered by durable replay ledgers.
+
+        The replay ledgers are the authority boundary; pending_events is only executable work. A
+        crash/race may leave an already-retired key in the queue, so every dispatch/status read
+        repairs that storage mismatch before the event can reach the classifier again.
+        """
+        values = [
+            value
+            for value in (self.state.data.get("pending_events") or [])
+            if isinstance(value, dict)
+        ]
+        retired_keys = {
+            str(value)
+            for value in (self.state.data.get("retired_event_keys") or [])
+            if value
+        }
+        completed_authority_keys = {
+            str(value)
+            for value in (self.state.data.get("completed_authority_event_keys") or [])
+            if value
+        }
+        kept: list[dict[str, Any]] = []
+        removed = 0
+        for value in values:
+            key = _event_key(value)
+            priority = self._pending_event_priority(value)
+            suppressed = (
+                priority and key in completed_authority_keys
+            ) or (
+                not priority and key in retired_keys
+            )
+            if suppressed:
+                removed += 1
+            else:
+                kept.append(value)
+        if removed:
+            self.state.data["pending_events"] = kept
+            metrics = self.state.data.setdefault("metrics", {})
+            metrics["suppressed_pending_events_purged"] = int(
+                metrics.get("suppressed_pending_events_purged") or 0
+            ) + removed
+            self.state.data["last_suppressed_event_purge"] = {
+                "at": _utc_now(),
+                "removed": removed,
+                "before": len(values),
+                "after": len(kept),
+            }
+            self.state.save()
+        return removed
+
     def _pending_events(self) -> list[EventDecision]:
         with self._state_lock:
+            self._purge_suppressed_pending_events_locked()
             values = self.state.data.get("pending_events") or []
             return [EventDecision.from_state(v) for v in values if isinstance(v, dict)]
 
@@ -1883,6 +1944,7 @@ class Orchestrator:
 
     def _persist_pending_events(self, events: Iterable[EventDecision]) -> None:
         with self._state_lock:
+            self._purge_suppressed_pending_events_locked()
             current = [v for v in (self.state.data.get("pending_events") or []) if isinstance(v, dict)]
             by_key = {_event_key(v): v for v in current}
             retired_keys = {
@@ -2083,6 +2145,10 @@ class Orchestrator:
                     retired.append(key)
                     retired_seen.add(key)
             self.state.data["retired_event_keys"] = retired[-DEFAULT_MAX_RETIRED_EVENT_KEYS:]
+            # Close the race where a redelivery can reinsert a just-retired event between queue
+            # replacement and ledger persistence. Once the ledger exists, purge any physical copy
+            # before releasing the state lock.
+            self._purge_suppressed_pending_events_locked()
             metrics = self.state.data.setdefault("metrics", {})
             metrics["superseded_pending_events_retired"] = int(
                 metrics.get("superseded_pending_events_retired") or 0
