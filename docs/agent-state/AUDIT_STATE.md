@@ -3,10 +3,10 @@
 **Lane:** AUDIT
 **Status:** Canonical live lane handoff
 **Updated:** 2026-09-09 (America/Chicago)
-**Current reconciliation base:** `main@006d0eed31a632e1b101a11135e58995f555d38b`
-**Highest live-accepted Audit milestone:** **AUDIT-0034**
+**Current reconciliation base:** `main@f795dc2d074cd93436adc276780ef1d63b855eef`
+**Highest live-accepted Audit milestone:** **AUDIT-0035**
 **AUDIT-0022 through AUDIT-0032:** repository/live acceptance complete through the protected-task hardening boundary
-**AUDIT-0033:** repository and live authority-starvation recovery accepted\n**AUDIT-0034:** directive-line and durable protected-signal classification live accepted\n**AUDIT-0035:** queue efficiency repair in progress
+**AUDIT-0033:** repository and live authority-starvation recovery accepted\n**AUDIT-0034:** directive-line and durable protected-signal classification live accepted\n**AUDIT-0035:** queue batching/eager-coalescing live accepted\n**AUDIT-0036:** terminal replay retirement repair in progress
 
 Repository evidence is authoritative. Read current `main`, canonical Audit/program documents, lane
 ledgers, issues #349/#369/#378/#424, active PRs, exact-head Actions, and hosted status evidence.
@@ -168,3 +168,28 @@ Acceptance requires exact-head Orchestrator Smoke + CI, a paused runtime refresh
 status showing the retained backlog compacts materially and resumes without extra one-event generic
 Audit churn. Existing 24-Luna/4-Terra ceilings, auto-merge OFF, API-billing fallback OFF, and PR #358's
 human morphology gate remain unchanged.
+
+
+## AUDIT-0036 — TERMINAL REPLAY RETIREMENT
+
+AUDIT-0035 live acceptance reduced the inherited queue from roughly 100 events to 3 and proved that
+ordinary wake evidence batches correctly: one post-fix classifier turn owned 10 events, a later turn
+owned 2, and `isolated_authority_batches` did not increase. The residual three-entry tail nevertheless
+reappeared after terminal NOOP handling. The repeated classifier input hit the semantic cache, so it did
+not incur additional Luna spend, but the queue remained non-empty indefinitely.
+
+Root cause: `_clear_completed_decision()` durably recorded completed protected authority, but ordinary
+events completed by a terminal decision were removed from `pending_events` without being written to a
+replay-suppression ledger. Exact transport/reconciliation redelivery could therefore reconstruct those
+ordinary/manual wakes. Separately, physical queue purging chose which replay ledger to trust using the
+event's *current* priority class, which is unsafe across queue-policy migrations.
+
+AUDIT-0036 records every successfully consumed ordinary event key in `retired_event_keys`, keeps the
+separate `completed_authority_event_keys` ledger for protected authority, and makes physical purge trust
+either ledger regardless of current priority classification. Regression coverage reproduces the live
+closed-PR + old-workflow + manual-wake tail, verifies a terminal NOOP retires it durably, verifies exact
+redelivery cannot rebuild it, and preserves semantic classifier-cache reuse for distinct wake identities.
+
+Acceptance requires exact-head Orchestrator Smoke + CI, paused runtime refresh to the merged head, then a
+bounded resume proving the residual queue drains to zero (or only genuinely new repository events remain)
+without repeated cached-NOOP cycling. PR #358 remains a human morphology gate and is not crossed.
