@@ -1459,53 +1459,71 @@ class Orchestrator:
 
     def startup_reconcile_repository(self, *, source: str = "startup") -> None:
         with self._reconcile_observation_lock:
-            snapshot = self._remote_reconcile_snapshot()
-            previous, fingerprint, snapshot = self._record_reconcile_observation(
-                snapshot,
-                source=source,
-            )
+            snapshot = self._reconcile_projection(self._remote_reconcile_snapshot())
+            fingerprint = self._reconcile_fingerprint(snapshot)
+            with self._state_lock:
+                previous = self.state.data.get("reconcile_fingerprint")
 
-        if not previous:
-            metric = "startup_reconcile_baselines" if source == "startup" else "periodic_reconcile_baselines"
-            self._metric(metric)
-            print(
-                f"[orchestrator] established first hosted {source} reconciliation baseline",
-                flush=True,
-            )
-            return
-        if previous == fingerprint:
-            metric = "startup_reconcile_noops" if source == "startup" else "periodic_reconcile_noops"
-            self._metric(metric)
-            print(
-                f"[orchestrator] {source} reconciliation found no repository-state change",
-                flush=True,
-            )
-            return
+            if not previous:
+                self._record_reconcile_observation(snapshot, source=source)
+                metric = (
+                    "startup_reconcile_baselines"
+                    if source == "startup"
+                    else "periodic_reconcile_baselines"
+                )
+                self._metric(metric)
+                print(
+                    f"[orchestrator] established first hosted {source} reconciliation baseline",
+                    flush=True,
+                )
+                return
 
-        if source == "periodic" and any(
-            str(run.get("status") or "").lower() in ACTIVE_RUN_STATUSES
-            for run in snapshot.get("recent_runs") or []
-            if isinstance(run, dict)
-        ):
-            self._metric("periodic_reconcile_deferred_active_runs")
-            print(
-                "[orchestrator] periodic reconciliation observed changed state but Actions are still "
-                "active; checkpointed model-free and waiting for a quiescent observation",
-                flush=True,
+            if previous == fingerprint:
+                self._record_reconcile_observation(snapshot, source=source)
+                metric = (
+                    "startup_reconcile_noops"
+                    if source == "startup"
+                    else "periodic_reconcile_noops"
+                )
+                self._metric(metric)
+                print(
+                    f"[orchestrator] {source} reconciliation found no repository-state change",
+                    flush=True,
+                )
+                return
+
+            if source == "periodic" and any(
+                str(run.get("status") or "").lower() in ACTIVE_RUN_STATUSES
+                for run in snapshot.get("recent_runs") or []
+                if isinstance(run, dict)
+            ):
+                # Active Actions are an observation boundary, not a dispatch boundary. It is safe to
+                # checkpoint them because the later terminal status changes the semantic fingerprint.
+                self._record_reconcile_observation(snapshot, source=source)
+                self._metric("periodic_reconcile_deferred_active_runs")
+                print(
+                    "[orchestrator] periodic reconciliation observed changed state but Actions are "
+                    "still active; checkpointed model-free and waiting for a quiescent observation",
+                    flush=True,
+                )
+                return
+
+            # Durability ordering is intentional: enqueue the changed-state wake before advancing the
+            # observation fingerprint. A crash after enqueue but before checkpoint can only replay an
+            # event whose durable event key will deduplicate; the inverse ordering could lose work.
+            self.enqueue(
+                EventDecision(
+                    True,
+                    "repository state changed since previous controller observation",
+                    "reconcile",
+                    action=source,
+                    head_sha=snapshot.get("main"),
+                )
             )
-            return
+            self._record_reconcile_observation(snapshot, source=source)
 
         metric = "startup_reconciliations" if source == "startup" else "periodic_reconciliations"
         self._metric(metric)
-        self.enqueue(
-            EventDecision(
-                True,
-                "repository state changed since previous controller observation",
-                "reconcile",
-                action=source,
-                head_sha=snapshot.get("main"),
-            )
-        )
         print(
             f"[orchestrator] {source} reconciliation journaled current repository state after "
             "an uncheckpointed change",
