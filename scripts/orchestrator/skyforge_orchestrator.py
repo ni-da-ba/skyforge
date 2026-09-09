@@ -1905,8 +1905,8 @@ class Orchestrator:
             pending["worker_completed_at"] = _utc_now()
             self.state.save()
 
+    @staticmethod
     def _worker_path_forbidden(
-        self,
         path: str,
         *,
         lane: str | None = None,
