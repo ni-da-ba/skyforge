@@ -131,9 +131,12 @@ On each orchestrator heartbeat:
     repository reconciliation every 15 minutes by default. Checkpoint the exact repository projection
     already presented to a successful classifier decision; do not perform a fresh post-dispatch read
     that could acknowledge a later unseen transition. A periodic observation that matches the
-    classifier checkpoint is a zero-model NOOP. A changed observation journals one synthetic
+    classifier checkpoint is a zero-model NOOP. A changed quiescent observation journals one synthetic
     `reconcile` event, allowing orchestration to continue if webhook/Caddy/TLS delivery silently
-    fails while the host remains up.
+    fails while the host remains up. The same poll must paginate issue/PR comments from its prior scan
+    boundary and recover new trusted Audit signals and `/skyforge-*` controls through the normal
+    deterministic classifiers. First-upgrade historical comments are seeded without replay, while
+    comments created during/after the upgraded process starts remain actionable.
 19. Authentication blocks and classifier-failure circuit pauses must be surfaced durably when GitHub
     comment authority remains available. A safe silent stop is still an unattended-operation failure.
 
