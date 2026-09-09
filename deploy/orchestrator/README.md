@@ -41,6 +41,18 @@ The DigitalOcean Codex Universal image is an appropriate starting point. The hos
 without losing accepted project truth because GitHub remains authoritative; only ignored local
 orchestrator state and an interrupted unpushed worker require the host disk.
 
+## Host firewall
+
+The installer enforces a minimal UFW inbound surface on the dedicated host:
+
+- `22/tcp` — SSH maintenance;
+- `80/tcp` — Caddy HTTP / ACME handling;
+- `443/tcp` — Caddy HTTPS / GitHub webhook transport.
+
+Inbound traffic is denied by default and outbound traffic is allowed. The Python controller remains
+bound to `127.0.0.1:3000` and must never be exposed directly. Configure any provider-level Cloud
+Firewall consistently if one is added later.
+
 ## Public hostname
 
 Use a hostname whose A/AAAA record resolves to the host. Caddy obtains and renews the public TLS
