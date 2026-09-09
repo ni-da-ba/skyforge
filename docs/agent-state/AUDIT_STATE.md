@@ -89,7 +89,9 @@ AUDIT-0023 replaces that silent truncation with a soft-cap/coalescing contract:
 9. Status/daily telemetry expose state-backup recoveries and startup-reconciliation failures.
 10. The hosted installer enforces UFW default-deny inbound with only 22/tcp, 80/tcp, and 443/tcp
     admitted; the Python controller remains localhost-only on 127.0.0.1:3000.
-11. Run only cheap exact-head Audit gates; do not recreate producer evidence or race producer lanes.
+11. Before reusing a controller-managed branch, verify its PR is still open at that branch; retire
+    stale local managed records after manual merge/closure so future lane workers cannot reuse them.
+12. Run only cheap exact-head Audit gates; do not recreate producer evidence or race producer lanes.
 
 After AUDIT-0023 merges, perform one combined host recovery:
 - synchronize the stable controller checkout to current merged `main`;
