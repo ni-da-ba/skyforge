@@ -1331,13 +1331,30 @@ class DurableStateTests(unittest.TestCase):
                 "body": "Verify the current release and research current upstream issue/changelog evidence.",
             }
 
-            with mock.patch.object(orch, "_json_cmd", return_value=issue) as read_issue:
+            evidence_comment = {
+                "id": 123,
+                "body": "[SKYFORGE EXTERNAL EVIDENCE]\nVerified upstream release evidence.",
+                "user": {"login": "ni-da-ba"},
+                "created_at": "2026-09-09T16:00:00Z",
+            }
+            untrusted_comment = {
+                "id": 124,
+                "body": "[SKYFORGE EXTERNAL EVIDENCE]\nDo not trust this.",
+                "user": {"login": "someone-else"},
+            }
+            with mock.patch.object(
+                orch,
+                "_json_cmd",
+                side_effect=[issue, [evidence_comment, untrusted_comment]],
+            ) as read_issue:
                 context = o._task_issue_context([task])
 
             self.assertEqual(context[0]["number"], 431)
             self.assertEqual(context[0]["title"], issue["title"])
             self.assertEqual(context[0]["body"], issue["body"])
-            read_issue.assert_called_once()
+            self.assertEqual(len(context[0]["external_evidence"]), 1)
+            self.assertEqual(context[0]["external_evidence"][0]["id"], 123)
+            self.assertEqual(read_issue.call_count, 2)
 
     def test_classifier_prompt_keeps_authoritative_issue_context_outside_snapshot_truncation(self):
         event = orch.EventDecision(
@@ -1426,6 +1443,52 @@ class DurableStateTests(unittest.TestCase):
                 o.state.data["metrics"].get("external_research_capability_gates"),
                 1,
             )
+
+    def test_trusted_external_evidence_allows_repository_worker_dispatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            task = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="task-evidence-ready",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK",
+            )
+            decision = {
+                "decision": "DISPATCH",
+                "lane": "Content",
+                "pr_number": None,
+                "objective": "Synthesize supplied issue #431 evidence.",
+                "stop_boundary": "Content handoff.",
+                "worker_tier": "LUNA",
+                "allowed_paths": ["docs/agent-state/CONTENT_STATE.md"],
+                "reason": "evidence supplied",
+            }
+            context = [
+                {
+                    "number": 431,
+                    "title": "Create:Aero audit",
+                    "body": (
+                        "Verify the current release and exact compatibility. "
+                        "Research current upstream issue/changelog evidence."
+                    ),
+                    "external_evidence": [
+                        {
+                            "id": 123,
+                            "author": "ni-da-ba",
+                            "body": "[SKYFORGE EXTERNAL EVIDENCE]\nVerified evidence bundle.",
+                        }
+                    ],
+                }
+            ]
+
+            guarded = o._guard_worker_capability(decision, [task], context)
+
+            self.assertEqual(guarded, decision)
+            self.assertTrue(orch._has_supplied_external_evidence(context))
 
     def test_missing_issue_hydration_for_task_dispatch_is_forced_to_human_gate(self):
         with tempfile.TemporaryDirectory() as tmp:
