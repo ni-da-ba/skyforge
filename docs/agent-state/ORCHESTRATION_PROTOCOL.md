@@ -603,6 +603,15 @@ An actionable webhook is not considered consumed merely because the in-memory di
 The local controller must journal the event batch before acknowledging it and clear that journal only
 after the corresponding orchestration decision reaches a terminal handoff.
 
+Pending-event capacity is a **soft durability bound**, never a silent-loss boundary. Trusted
+Audit/manual signals and event keys already owned by a cached classifier decision are never evicted.
+When ordinary repository-transition history exceeds the configured soft limit, the controller first
+coalesces superseded transitions by semantic subject. If ordinary history still exceeds available
+slots, it retains the newest bounded sample and inserts one durable synthetic
+`reconcile | queue_compaction` event so the next classifier reconstructs current repository truth.
+If protected authority alone exceeds the soft limit, preserve it even above the limit and expose that
+pressure in model-free telemetry rather than dropping it.
+
 The recovery invariant is:
 
 ```text
