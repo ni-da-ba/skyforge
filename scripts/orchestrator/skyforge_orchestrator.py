@@ -49,6 +49,7 @@ DEFAULT_PERIODIC_RECONCILE_SECONDS = 900
 DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
 CONTROLLER_RUNTIME_PATHS = {
     "scripts/orchestrator/skyforge_orchestrator.py",
+    "scripts/orchestrator/requirements.txt",
 }
 PROTECTED_WORKER_PATH_PREFIXES = (
     "scripts/orchestrator/",
