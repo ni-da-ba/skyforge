@@ -432,6 +432,8 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"| Runtime refresh requests / completions | "
         f"{d.get('runtime_restarts_requested', 0)} / {d.get('runtime_restart_completions', 0)} |",
         f"| Startup reconciliations | {d.get('startup_reconciliations', 0)} |",
+        f"| Startup reconciliation failures | {d.get('startup_reconcile_failures', 0)} |",
+        f"| State-backup recoveries | {d.get('state_backup_recoveries', 0)} |",
         f"| Pending-event compactions | {d.get('pending_event_compactions', 0)} |",
         f"| Pending events compacted | {d.get('pending_events_compacted', 0)} |",
         f"| Mean actionable-event → classifier latency | "
