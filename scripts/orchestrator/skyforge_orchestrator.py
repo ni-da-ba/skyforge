@@ -261,17 +261,20 @@ def classify_control_command(
         "/skyforge-resume",
         "/skyforge-status",
         "/skyforge-reset-budget",
+        "/skyforge-refresh-runtime",
+        "/skyforge-discard-worker",
     }:
         return None
     if not _trusted_actor(payload, trusted_actors):
         return None
-    if body == "/skyforge-pause":
-        return "pause"
-    if body == "/skyforge-resume":
-        return "resume"
-    if body == "/skyforge-status":
-        return "status"
-    return "reset_budget"
+    return {
+        "/skyforge-pause": "pause",
+        "/skyforge-resume": "resume",
+        "/skyforge-status": "status",
+        "/skyforge-reset-budget": "reset_budget",
+        "/skyforge-refresh-runtime": "refresh_runtime",
+        "/skyforge-discard-worker": "discard_worker",
+    }[body]
 
 
 def classify_event(
@@ -873,6 +876,12 @@ class Orchestrator:
                 "terra_worker_calls_today": terra_worker_calls,
                 "last_budget_reset_at": self.state.data.get("last_budget_reset_at"),
                 "last_budget_reset_by": self.state.data.get("last_budget_reset_by"),
+                "last_classifier_decision": self.state.data.get("last_classifier_decision"),
+                "last_completed_decision": self.state.data.get("last_completed_decision"),
+                "last_decision_invalidation": self.state.data.get("last_decision_invalidation"),
+                "last_worker_discard": self.state.data.get("last_worker_discard"),
+                "last_runtime_refresh_request": self.state.data.get("last_runtime_refresh_request"),
+                "last_runtime_refresh_error": self.state.data.get("last_runtime_refresh_error"),
                 "managed_prs": len(self.state.data.get("managed") or {}),
                 "last_reconcile_at": self.state.data.get("last_reconcile_at"),
                 "paused": bool(self.state.data.get("paused")),
@@ -911,6 +920,99 @@ class Orchestrator:
             self.state.data["last_budget_reset_by"] = actor
             self.state.save()
         self._metric("operator_budget_resets")
+
+    def refresh_runtime(self, *, actor: str | None = None) -> None:
+        """Paused-only model-free refresh of the stable controller checkout."""
+        with self._state_lock:
+            if not self.state.data.get("paused"):
+                raise RuntimeError("Runtime refresh requires the controller to be paused")
+            if not self._worktree_clean():
+                raise RuntimeError("Runtime refresh requires a clean controller checkout")
+            self.state.data["last_runtime_refresh_request"] = {
+                "requested_at": _utc_now(),
+                "requested_by": actor,
+            }
+            self.state.data["last_runtime_refresh_error"] = None
+            self.state.save()
+        self._metric("operator_runtime_refreshes")
+
+        def refresh() -> None:
+            try:
+                self.sync_main()
+            except Exception as exc:
+                with self._state_lock:
+                    self.state.data["last_runtime_refresh_error"] = {
+                        "at": _utc_now(),
+                        "kind": type(exc).__name__,
+                        "summary": str(exc)[:500],
+                    }
+                    self.state.save()
+                self._metric("operator_runtime_refresh_failures")
+                print(
+                    f"[orchestrator] operator runtime refresh failed: {type(exc).__name__}: {exc}",
+                    flush=True,
+                )
+
+        timer = threading.Timer(1.0, refresh)
+        timer.daemon = True
+        timer.start()
+
+    def discard_pending_worker(self, *, actor: str | None = None) -> None:
+        """Discard only an isolated uncommitted worker while preserving durable decision/events."""
+        with self._state_lock:
+            if not self.state.data.get("paused"):
+                raise RuntimeError("Worker discard requires the controller to be paused")
+            pending = self.state.data.get("pending_worker")
+            if not isinstance(pending, dict):
+                raise RuntimeError("No pending worker exists to discard")
+            pending = dict(pending)
+
+        if pending.get("managed_pr"):
+            raise RuntimeError("Refusing to discard a worker already associated with a managed PR")
+        raw_worktree = pending.get("worktree")
+        if not raw_worktree:
+            raise RuntimeError("Refusing to discard a legacy worker without an isolated worktree")
+        worktree = Path(str(raw_worktree))
+        if not worktree.is_absolute():
+            worktree = self.root / worktree
+        if worktree.resolve() == self.root.resolve():
+            raise RuntimeError("Refusing to discard the controller checkout as a worker")
+        if not worktree.exists():
+            raise RuntimeError(f"Pending worker worktree is missing: {worktree}")
+
+        ahead = int(
+            _run(
+                ["git", "rev-list", "--count", "origin/main..HEAD"],
+                cwd=worktree,
+            ).stdout.strip()
+            or "0"
+        )
+        if ahead > 0:
+            raise RuntimeError(
+                f"Refusing to discard worker with {ahead} commit(s) ahead of origin/main"
+            )
+
+        changed_paths = self._changed_paths(worktree)
+        _run(
+            ["git", "worktree", "remove", "--force", str(worktree)],
+            cwd=self.root,
+            timeout=120,
+        )
+        _run(["git", "worktree", "prune"], cwd=self.root, check=False)
+        with self._state_lock:
+            current = self.state.data.get("pending_worker")
+            if not isinstance(current, dict) or current.get("branch") != pending.get("branch"):
+                raise RuntimeError("Pending worker ownership changed during discard")
+            self.state.data["pending_worker"] = None
+            self.state.data["last_worker_discard"] = {
+                "discarded_at": _utc_now(),
+                "discarded_by": actor,
+                "branch": pending.get("branch"),
+                "stage": pending.get("stage"),
+                "changed_paths": changed_paths[:50],
+            }
+            self.state.save()
+        self._metric("operator_worker_discards")
 
     def post_status(self, target: int | str = 349) -> None:
         status = dict(self.health_snapshot())
@@ -1264,10 +1366,9 @@ class Orchestrator:
         pending = self._pending_events()
         if not pending:
             return
-        with self._state_lock:
-            if self.state.data.get("pending_decision") and not self.state.data.get("pending_worker"):
-                self.state.data["pending_decision"] = None
-                self.state.save()
+        # Successful classifier decisions own their captured event batch across process restarts.
+        # Startup reconciliation may queue newer work behind them; cached DISPATCH still revalidates
+        # current main/source-PR identity before execution.
         self._metric("restart_replays")
         remaining = self._blocked_remaining()
         self._schedule_pending(remaining if remaining else 1)
@@ -1786,11 +1887,24 @@ class Orchestrator:
             pending["worker_completed_at"] = _utc_now()
             self.state.save()
 
-    @staticmethod
-    def _worker_path_forbidden(path: str) -> bool:
+    def _worker_path_forbidden(
+        self,
+        path: str,
+        *,
+        lane: str | None = None,
+        allowed_paths: list[str] | None = None,
+    ) -> bool:
         normalized = path.replace("\\", "/")
         while normalized.startswith("./"):
             normalized = normalized[2:]
+
+        if normalized == "docs/agent-state/AUDIT_STATE.md":
+            return not (
+                str(lane or "").strip().lower() == "audit"
+                and allowed_paths is not None
+                and self._worker_path_allowed(normalized, allowed_paths)
+            )
+
         return (
             normalized in PROTECTED_WORKER_PATHS
             or any(normalized.startswith(prefix) for prefix in PROTECTED_WORKER_PATH_PREFIXES)
@@ -1840,7 +1954,15 @@ class Orchestrator:
     ) -> bool:
         worktree = worker_root or self.root
         paths = self._changed_paths(worktree)
-        forbidden = [p for p in paths if self._worker_path_forbidden(p)]
+        forbidden = [
+            p
+            for p in paths
+            if self._worker_path_forbidden(
+                p,
+                lane=lane,
+                allowed_paths=allowed_paths,
+            )
+        ]
         out_of_scope = [
             p for p in paths if not self._worker_path_allowed(p, allowed_paths)
         ]
@@ -2143,7 +2265,7 @@ class Orchestrator:
         pending_worker = self.state.data.get("pending_worker")
 
         if not (record and isinstance(pending_worker, dict)):
-            heads = {e.head_sha for e in events if e.event == "workflow_run" and e.head_sha}
+            heads = sorted({e.head_sha for e in events if e.head_sha})
             for head in heads:
                 if not self.workflows_quiescent(head):
                     self._schedule_pending(max(30, self.debounce_seconds))
@@ -2430,6 +2552,10 @@ class Handler(BaseHTTPRequestHandler):
                     self.orchestrator.post_status(target)
                 elif control == "reset_budget":
                     self.orchestrator.reset_local_budget(actor=actor)
+                elif control == "refresh_runtime":
+                    self.orchestrator.refresh_runtime(actor=actor)
+                elif control == "discard_worker":
+                    self.orchestrator.discard_pending_worker(actor=actor)
                 else:
                     self.orchestrator.set_paused(control == "pause", actor=actor)
                 self.orchestrator.record_delivery(delivery_id)
