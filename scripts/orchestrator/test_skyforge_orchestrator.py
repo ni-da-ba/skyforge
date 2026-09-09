@@ -885,6 +885,60 @@ class HostedTransportTests(unittest.TestCase):
                 "periodic",
             )
 
+    def test_reconcile_projection_tracks_pr_head_identity(self):
+        first = {
+            "main": "abc",
+            "open_prs": [{
+                "number": 7,
+                "title": "test",
+                "isDraft": False,
+                "headRefName": "feature",
+                "headRefOid": "head-a",
+                "baseRefName": "main",
+                "mergeStateStatus": "CLEAN",
+            }],
+            "recent_runs": [],
+        }
+        second = {
+            **first,
+            "open_prs": [{
+                **first["open_prs"][0],
+                "headRefOid": "head-b",
+            }],
+        }
+        p1 = orch.Orchestrator._reconcile_projection(first)
+        p2 = orch.Orchestrator._reconcile_projection(second)
+        self.assertEqual(p1["open_prs"][0]["headRefOid"], "head-a")
+        self.assertEqual(p1["open_prs"][0]["baseRefName"], "main")
+        self.assertNotEqual(
+            orch.Orchestrator._reconcile_fingerprint(p1),
+            orch.Orchestrator._reconcile_fingerprint(p2),
+        )
+
+    def test_periodic_reconcile_defers_while_controller_owns_pending_work(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.startup_reconcile = True
+            o._persist_pending_events([
+                orch.EventDecision(True, "main advanced", "push", head_sha="abc")
+            ])
+
+            with mock.patch.object(
+                o,
+                "startup_reconcile_repository",
+            ) as reconcile, mock.patch.object(
+                o,
+                "_schedule_periodic_reconcile",
+            ) as schedule:
+                o._run_periodic_reconcile()
+
+            reconcile.assert_not_called()
+            schedule.assert_called_once_with()
+            self.assertEqual(
+                o.state.data["metrics"].get("periodic_reconcile_deferred_busy"),
+                1,
+            )
+
     def test_periodic_reconcile_wakes_only_for_uncheckpointed_change(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
