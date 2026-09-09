@@ -1169,7 +1169,6 @@ class Orchestrator:
                     "title": value.get("title"),
                     "isDraft": value.get("isDraft"),
                     "headRefName": value.get("headRefName"),
-                    "updatedAt": value.get("updatedAt"),
                     "mergeStateStatus": value.get("mergeStateStatus"),
                 }
             )
@@ -1186,7 +1185,6 @@ class Orchestrator:
                     "headSha": value.get("headSha"),
                     "headBranch": value.get("headBranch"),
                     "event": value.get("event"),
-                    "updatedAt": value.get("updatedAt"),
                 }
             )
         return {
@@ -1213,7 +1211,7 @@ class Orchestrator:
                 "--state", "open",
                 "--limit", "50",
                 "--json",
-                "number,title,isDraft,headRefName,updatedAt,mergeStateStatus",
+                "number,title,isDraft,headRefName,mergeStateStatus",
             ],
             cwd=self.root,
             timeout=60,
@@ -1224,7 +1222,7 @@ class Orchestrator:
                 "--repo", self.repo,
                 "--limit", "35",
                 "--json",
-                "databaseId,name,status,conclusion,headSha,headBranch,event,updatedAt",
+                "databaseId,name,status,conclusion,headSha,headBranch,event",
             ],
             cwd=self.root,
             timeout=60,
@@ -1288,6 +1286,19 @@ class Orchestrator:
             self._metric(metric)
             print(
                 f"[orchestrator] {source} reconciliation found no repository-state change",
+                flush=True,
+            )
+            return
+
+        if source == "periodic" and any(
+            str(run.get("status") or "").lower() in ACTIVE_RUN_STATUSES
+            for run in snapshot.get("recent_runs") or []
+            if isinstance(run, dict)
+        ):
+            self._metric("periodic_reconcile_deferred_active_runs")
+            print(
+                "[orchestrator] periodic reconciliation observed changed state but Actions are still "
+                "active; checkpointed model-free and waiting for a quiescent observation",
                 flush=True,
             )
             return
