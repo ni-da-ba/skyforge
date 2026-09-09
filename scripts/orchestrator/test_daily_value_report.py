@@ -235,6 +235,7 @@ class MarkdownRenderTests(unittest.TestCase):
         self.assertIn("| Startup reconciliation failures | 0 |\n", rendered)
         self.assertIn("| Periodic reconcile checks | 0 |\n", rendered)
         self.assertIn("| Periodic reconcile NOOPs | 0 |\n", rendered)
+        self.assertIn("| Periodic deferrals for active Actions | 0 |\n", rendered)
         self.assertIn("| Periodic fallback wakes | 0 |\n", rendered)
         self.assertIn("| Periodic reconcile failures | 0 |\n", rendered)
         self.assertIn("| Classifier reconcile checkpoints | 0 |\n", rendered)
