@@ -833,6 +833,84 @@ class HostedTransportTests(unittest.TestCase):
                 enqueue.assert_called_once()
                 self.assertEqual(enqueue.call_args.args[0].head_sha, "def")
 
+    def test_issue_comment_reconcile_baselines_history_without_replay(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            comments = [{
+                "id": 100,
+                "body": "AUDIT: RESTART RECOMMENDED for Content",
+                "created_at": "2026-09-09T04:00:00Z",
+                "issue_url": "https://api.github.com/repos/ni-da-ba/skyforge/issues/349",
+                "user": {"login": "ni-da-ba"},
+            }]
+
+            with mock.patch.object(orch, "_json_cmd", return_value=comments), \
+                    mock.patch.object(o, "enqueue") as enqueue:
+                o.reconcile_issue_comments(source="startup")
+
+            enqueue.assert_not_called()
+            self.assertTrue(o.state.data["issue_comment_reconcile_initialized"])
+            self.assertTrue(o.issue_comment_seen("100"))
+            self.assertEqual(
+                o.state.data["metrics"].get("issue_comment_reconcile_baselines"),
+                1,
+            )
+
+    def test_issue_comment_reconcile_recovers_new_trusted_audit_signal_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.state.data["issue_comment_reconcile_initialized"] = True
+            o.state.save()
+            comments = [{
+                "id": 101,
+                "body": "AUDIT: RESTART RECOMMENDED\nLane: Content\nFresh worker required.",
+                "created_at": "2026-09-09T04:05:00Z",
+                "issue_url": "https://api.github.com/repos/ni-da-ba/skyforge/issues/349",
+                "user": {"login": "ni-da-ba"},
+            }]
+
+            with mock.patch.object(orch, "_json_cmd", return_value=comments), \
+                    mock.patch.object(o, "enqueue") as enqueue:
+                o.reconcile_issue_comments(source="periodic")
+                o.reconcile_issue_comments(source="periodic")
+
+            enqueue.assert_called_once()
+            event = enqueue.call_args.args[0]
+            self.assertTrue(event.actionable)
+            self.assertEqual(event.event, "issue_comment")
+            self.assertEqual(event.signal_kind, "restart_recommended")
+            self.assertEqual(event.pr_number, 349)
+            self.assertEqual(event.source_id, "101")
+            self.assertTrue(o.issue_comment_seen("101"))
+            self.assertEqual(
+                o.state.data["metrics"].get("issue_comment_recovered_wakes"),
+                1,
+            )
+
+    def test_issue_comment_reconcile_recovers_trusted_control_without_model(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.state.data["issue_comment_reconcile_initialized"] = True
+            o.state.save()
+            comments = [{
+                "id": 102,
+                "body": "/skyforge-pause",
+                "created_at": "2026-09-09T04:06:00Z",
+                "issue_url": "https://api.github.com/repos/ni-da-ba/skyforge/issues/349",
+                "user": {"login": "ni-da-ba"},
+            }]
+
+            with mock.patch.object(orch, "_json_cmd", return_value=comments):
+                o.reconcile_issue_comments(source="periodic")
+
+            self.assertTrue(o.is_paused())
+            self.assertEqual(o.state.data["paused_by"], "ni-da-ba")
+            self.assertTrue(o.issue_comment_seen("102"))
+            self.assertEqual(
+                o.state.data["metrics"].get("issue_comment_recovered_controls"),
+                1,
+            )
+
     def test_classifier_checkpoint_suppresses_periodic_reconcile_for_same_state(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
@@ -966,6 +1044,9 @@ class HostedTransportTests(unittest.TestCase):
             o.startup_reconcile = True
             with mock.patch.object(
                 o,
+                "reconcile_issue_comments",
+            ), mock.patch.object(
+                o,
                 "startup_reconcile_repository",
                 side_effect=RuntimeError("github unavailable"),
             ), mock.patch.object(
@@ -1024,6 +1105,7 @@ class HostedTransportTests(unittest.TestCase):
             o.state.save()
 
             with mock.patch.object(o, "startup_reconcile_repository"), \
+                    mock.patch.object(o, "reconcile_issue_comments"), \
                     mock.patch.object(o, "_schedule_periodic_reconcile") as schedule:
                 self.assertTrue(o.attempt_startup_reconcile())
 
