@@ -943,7 +943,12 @@ class Orchestrator:
 
         def refresh() -> None:
             try:
-                self.sync_main()
+                with self._dispatch_lock:
+                    if not self.is_paused():
+                        raise RuntimeError(
+                            "Runtime refresh cancelled because the controller is no longer paused"
+                        )
+                    self.sync_main()
             except Exception as exc:
                 with self._state_lock:
                     self.state.data["last_runtime_refresh_error"] = {
@@ -964,71 +969,72 @@ class Orchestrator:
 
     def discard_pending_worker(self, *, actor: str | None = None) -> None:
         """Discard only an isolated uncommitted worker while preserving durable decision/events."""
-        with self._state_lock:
-            if not self.state.data.get("paused"):
-                raise RuntimeError("Worker discard requires the controller to be paused")
-            pending = self.state.data.get("pending_worker")
-            if not isinstance(pending, dict):
-                raise RuntimeError("No pending worker exists to discard")
-            pending = dict(pending)
+        with self._dispatch_lock:
+            with self._state_lock:
+                if not self.state.data.get("paused"):
+                    raise RuntimeError("Worker discard requires the controller to be paused")
+                pending = self.state.data.get("pending_worker")
+                if not isinstance(pending, dict):
+                    raise RuntimeError("No pending worker exists to discard")
+                pending = dict(pending)
 
-        if pending.get("managed_pr"):
-            raise RuntimeError("Refusing to discard a worker already associated with a managed PR")
-        if pending.get("stage") != "handoff":
-            raise RuntimeError("Refusing to discard a worker that has not reached durable handoff")
-        raw_worktree = pending.get("worktree")
-        if not raw_worktree:
-            raise RuntimeError("Refusing to discard a legacy worker without an isolated worktree")
-        worktree = Path(str(raw_worktree))
-        if not worktree.is_absolute():
-            worktree = self.root / worktree
-        if worktree.resolve() == self.root.resolve():
-            raise RuntimeError("Refusing to discard the controller checkout as a worker")
-        if not worktree.exists():
-            raise RuntimeError(f"Pending worker worktree is missing: {worktree}")
+            if pending.get("managed_pr"):
+                raise RuntimeError("Refusing to discard a worker already associated with a managed PR")
+            if pending.get("stage") != "handoff":
+                raise RuntimeError("Refusing to discard a worker that has not reached durable handoff")
+            raw_worktree = pending.get("worktree")
+            if not raw_worktree:
+                raise RuntimeError("Refusing to discard a legacy worker without an isolated worktree")
+            worktree = Path(str(raw_worktree))
+            if not worktree.is_absolute():
+                worktree = self.root / worktree
+            if worktree.resolve() == self.root.resolve():
+                raise RuntimeError("Refusing to discard the controller checkout as a worker")
+            if not worktree.exists():
+                raise RuntimeError(f"Pending worker worktree is missing: {worktree}")
 
-        current_head = _run(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip()
-        start_head = str(pending.get("start_head") or "").strip()
-        if start_head:
-            if current_head != start_head:
-                raise RuntimeError(
-                    "Refusing to discard a worker whose HEAD moved after worker preparation"
+            current_head = _run(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip()
+            start_head = str(pending.get("start_head") or "").strip()
+            if start_head:
+                if current_head != start_head:
+                    raise RuntimeError(
+                        "Refusing to discard a worker whose HEAD moved after worker preparation"
+                    )
+            else:
+                # Backward-compatible guard for workers created before start-head tracking existed.
+                ahead = int(
+                    _run(
+                        ["git", "rev-list", "--count", "origin/main..HEAD"],
+                        cwd=worktree,
+                    ).stdout.strip()
+                    or "0"
                 )
-        else:
-            # Backward-compatible guard for workers created before start-head tracking existed.
-            ahead = int(
-                _run(
-                    ["git", "rev-list", "--count", "origin/main..HEAD"],
-                    cwd=worktree,
-                ).stdout.strip()
-                or "0"
+                if ahead > 0:
+                    raise RuntimeError(
+                        f"Refusing to discard legacy worker with {ahead} commit(s) ahead of origin/main"
+                    )
+
+            changed_paths = self._changed_paths(worktree)
+            _run(
+                ["git", "worktree", "remove", "--force", str(worktree)],
+                cwd=self.root,
+                timeout=120,
             )
-            if ahead > 0:
-                raise RuntimeError(
-                    f"Refusing to discard legacy worker with {ahead} commit(s) ahead of origin/main"
-                )
-
-        changed_paths = self._changed_paths(worktree)
-        _run(
-            ["git", "worktree", "remove", "--force", str(worktree)],
-            cwd=self.root,
-            timeout=120,
-        )
-        _run(["git", "worktree", "prune"], cwd=self.root, check=False)
-        with self._state_lock:
-            current = self.state.data.get("pending_worker")
-            if not isinstance(current, dict) or current.get("branch") != pending.get("branch"):
-                raise RuntimeError("Pending worker ownership changed during discard")
-            self.state.data["pending_worker"] = None
-            self.state.data["last_worker_discard"] = {
-                "discarded_at": _utc_now(),
-                "discarded_by": actor,
-                "branch": pending.get("branch"),
-                "stage": pending.get("stage"),
-                "changed_paths": changed_paths[:50],
-            }
-            self.state.save()
-        self._metric("operator_worker_discards")
+            _run(["git", "worktree", "prune"], cwd=self.root, check=False)
+            with self._state_lock:
+                current = self.state.data.get("pending_worker")
+                if not isinstance(current, dict) or current.get("branch") != pending.get("branch"):
+                    raise RuntimeError("Pending worker ownership changed during discard")
+                self.state.data["pending_worker"] = None
+                self.state.data["last_worker_discard"] = {
+                    "discarded_at": _utc_now(),
+                    "discarded_by": actor,
+                    "branch": pending.get("branch"),
+                    "stage": pending.get("stage"),
+                    "changed_paths": changed_paths[:50],
+                }
+                self.state.save()
+            self._metric("operator_worker_discards")
 
     def post_status(self, target: int | str = 349) -> None:
         status = dict(self.health_snapshot())
