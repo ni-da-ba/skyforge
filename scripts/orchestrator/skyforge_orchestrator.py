@@ -413,6 +413,28 @@ def _json_cmd(args: list[str], *, cwd: Path, timeout: int = 120) -> Any:
     return json.loads(result.stdout or "null")
 
 
+def _json_pages_cmd(args: list[str], *, cwd: Path, timeout: int = 120) -> list[Any]:
+    """Parse concatenated JSON documents emitted by gh api --paginate.
+
+    Ubuntu 24.04 ships gh 2.45, which supports --paginate but predates the
+    later --slurp convenience flag. Parsing each emitted JSON document here
+    keeps hosted recovery compatible with the distro-supported GitHub CLI.
+    """
+    result = _run(args, cwd=cwd, timeout=timeout)
+    raw = result.stdout or ""
+    decoder = json.JSONDecoder()
+    values: list[Any] = []
+    index = 0
+    while index < len(raw):
+        while index < len(raw) and raw[index].isspace():
+            index += 1
+        if index >= len(raw):
+            break
+        value, index = decoder.raw_decode(raw, index)
+        values.append(value)
+    return values
+
+
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -936,7 +958,6 @@ class Orchestrator:
             "--method",
             "GET",
             "--paginate",
-            "--slurp",
             f"repos/{self.repo}/issues/comments",
             "-f",
             "sort=created",
@@ -948,7 +969,7 @@ class Orchestrator:
         if initialized and since:
             args.extend(["-f", f"since={since}"])
 
-        raw_comments = _json_cmd(args, cwd=self.root, timeout=120)
+        raw_comments = _json_pages_cmd(args, cwd=self.root, timeout=120)
         if not isinstance(raw_comments, list):
             raise RuntimeError("GitHub issue-comment reconciliation returned a non-list payload")
 
