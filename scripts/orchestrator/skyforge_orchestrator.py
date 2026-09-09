@@ -1169,6 +1169,8 @@ class Orchestrator:
                     "title": value.get("title"),
                     "isDraft": value.get("isDraft"),
                     "headRefName": value.get("headRefName"),
+                    "headRefOid": value.get("headRefOid"),
+                    "baseRefName": value.get("baseRefName"),
                     "mergeStateStatus": value.get("mergeStateStatus"),
                 }
             )
@@ -1211,7 +1213,7 @@ class Orchestrator:
                 "--state", "open",
                 "--limit", "50",
                 "--json",
-                "number,title,isDraft,headRefName,mergeStateStatus",
+                "number,title,isDraft,headRefName,headRefOid,baseRefName,mergeStateStatus",
             ],
             cwd=self.root,
             timeout=60,
@@ -1405,7 +1407,17 @@ class Orchestrator:
             self._periodic_reconcile_timer = None
         with self._state_lock:
             self.state.data["next_periodic_reconcile_at"] = None
+            busy = bool(
+                self.state.data.get("pending_events")
+                or self.state.data.get("pending_decision")
+                or isinstance(self.state.data.get("pending_worker"), dict)
+            )
             self.state.save()
+
+        if busy:
+            self._metric("periodic_reconcile_deferred_busy")
+            self._schedule_periodic_reconcile()
+            return
 
         try:
             self.startup_reconcile_repository(source="periodic")
