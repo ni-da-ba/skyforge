@@ -43,28 +43,32 @@ fi
 
 if command -v apt-get >/dev/null 2>&1; then
   missing=0
-  for command in git gh python3 caddy curl; do
+  for command in git gh python3 caddy curl ufw; do
     if ! command -v "$command" >/dev/null 2>&1; then
       missing=1
     fi
   done
   if [[ "$missing" == "1" ]] || ! python3 -m venv --help >/dev/null 2>&1; then
     sudo apt-get update
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git gh python3-venv caddy curl
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git gh python3-venv caddy curl ufw
   fi
 fi
 
-for command in git gh python3 sudo caddy curl; do
+for command in git gh python3 sudo caddy curl ufw; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "Required command is missing after bootstrap: $command" >&2
     exit 1
   fi
 done
 
-if command -v ufw >/dev/null 2>&1 && sudo ufw status | grep -q '^Status: active'; then
-  sudo ufw allow 80/tcp >/dev/null
-  sudo ufw allow 443/tcp >/dev/null
-fi
+# The hosted controller is localhost-only. Keep the public host surface minimal:
+# SSH for maintenance plus HTTP/HTTPS for Caddy/TLS and GitHub webhooks.
+sudo ufw default deny incoming >/dev/null
+sudo ufw default allow outgoing >/dev/null
+sudo ufw allow 22/tcp >/dev/null
+sudo ufw allow 80/tcp >/dev/null
+sudo ufw allow 443/tcp >/dev/null
+sudo ufw --force enable >/dev/null
 
 if ! gh auth status >/dev/null 2>&1; then
   echo "GitHub CLI is not authenticated for the service user. Run: gh auth login" >&2
