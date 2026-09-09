@@ -1,13 +1,12 @@
 # Skyforge AUDIT Agent State
 
-**Lane:** AUDIT  
-**Status:** Canonical live lane handoff  
-**Updated:** 2026-09-08 (America/Chicago)  
-**Current reconciliation base:** `main@e621a15818849b0f29d8075b90295eca28d02fa2`  
-**Highest live-accepted Audit milestone:** **AUDIT-0021**  
-**AUDIT-0022:** repository merged/machine-green; combined live recovery gate pending  
-**AUDIT-0023:** repository merged/machine-green; combined live recovery gate pending  
-**AUDIT-0024:** unattended transport/dependency fallback hardening in progress
+**Lane:** AUDIT
+**Status:** Canonical live lane handoff
+**Updated:** 2026-09-09 (America/Chicago)
+**Current reconciliation base:** `main@121bcf81cb612509232b2acd5d8f93245b3e424f`
+**Highest live-accepted Audit milestone:** **AUDIT-0032**
+**AUDIT-0022 through AUDIT-0032:** repository/live acceptance complete through the protected-task hardening boundary
+**AUDIT-0033:** live authority-starvation recovery in progress
 
 Repository evidence is authoritative. Read current `main`, canonical Audit/program documents, lane
 ledgers, issues #349/#369/#378/#424, active PRs, exact-head Actions, and hosted status evidence.
@@ -133,3 +132,12 @@ explicit product-policy change. Ordinary Skyforge work should not require revisi
 Implementation #358 remains at its morphology human gate. Presentation #385 remains at a human
 communication gate. Authorship is intentionally dormant after AUTH-0101. Content and Music retain their
 accepted/current lane boundaries. Audit must not race healthy producers or cross human/product gates.
+
+
+## AUDIT-0033 — LIVE AUTHORITY STARVATION RECOVERY
+
+Live production evidence after AUDIT-0032 exposed a new control-plane liveness defect. Draft Implementation PR #444 stopped at head `7f622ba60cdde6f0ef9ededb72439dc5e58d8e12` after all exact-head workflows failed on a Java parser error. Audit issued a trusted `RESTART RECOMMENDED` directive, but the hosted controller remained unblocked/unpaused with no worker while the durable queue held 55 events and `isolated_authority_batches` climbed to 393. The later restart directive remained behind older protected Audit bookkeeping.
+
+AUDIT-0033 changes protected authority selection so explicit tasks remain highest priority while `restart_recommended`, `human_gate`, and `loop_risk` signals outrank generic Audit/manual wakes. FIFO order remains within each authority class. Regression coverage reproduces the exact older-generic-Audit-before-later-restart ordering and confirms explicit task authority still wins over restart authority.
+
+Acceptance requires exact-head Orchestrator Smoke + CI green, hosted runtime refresh, and one live proof that the retained #444 restart directive produces a fresh bounded Implementation recovery rather than remaining queued. Until that proof completes, autonomous producer dispatch remains paused.

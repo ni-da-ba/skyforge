@@ -3381,5 +3381,57 @@ class WorkerWorktreeIsolationTests(unittest.TestCase):
                 o._retire_worker_worktree(worktree)
 
 
+class Audit0033AuthorityPriorityTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=1,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+        )
+
+    def test_restart_recommendation_outranks_older_generic_audit_authority(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            older_audit = orch.EventDecision(
+                True, "Audit/watchdog orchestration signal", "issue_comment",
+                action="audit_signal", pr_number=432, source_id="older-audit",
+                signal_kind="audit",
+                signal_text="AUDIT — _acceptance-boundary synchronization update",
+            )
+            restart = orch.EventDecision(
+                True, "Audit/watchdog orchestration signal", "issue_comment",
+                action="audit_signal", pr_number=444, source_id="restart-444",
+                signal_kind="restart_recommended",
+                signal_text="AUDIT — RESTART RECOMMENDED (Implementation / #387 petroleum bridge)",
+            )
+            workflow = orch.EventDecision(
+                True, "workflow completed; controller will require head quiescence", "workflow_run",
+                action="completed", head_sha="failed-444-head", pr_number=444,
+            )
+            self.assertEqual(o._select_dispatch_batch([older_audit, workflow, restart]), [restart])
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_explicit_task_still_outranks_restart_recommendation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            restart = orch.EventDecision(
+                True, "Audit/watchdog orchestration signal", "issue_comment",
+                action="audit_signal", pr_number=444, source_id="restart-444",
+                signal_kind="restart_recommended", signal_text="AUDIT — RESTART RECOMMENDED",
+            )
+            task = orch.EventDecision(
+                True, "Audit/watchdog orchestration signal", "issue_comment",
+                action="audit_signal", pr_number=500, source_id="task-500",
+                signal_kind="task", signal_text="AUDIT — NEW IMPLEMENTATION TASK",
+            )
+            self.assertEqual(o._select_dispatch_batch([restart, task]), [task])
+            if o._timer is not None:
+                o._timer.cancel()
+
+
 if __name__ == "__main__":
     unittest.main()
