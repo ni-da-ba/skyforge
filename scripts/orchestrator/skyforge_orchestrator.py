@@ -684,6 +684,7 @@ class LocalState:
             "next_periodic_reconcile_at": None,
             "last_periodic_reconcile_success_at": None,
             "last_periodic_reconcile_error": None,
+            "controller_started_at": None,
         }
 
         primary_error: Exception | None = None
@@ -839,6 +840,7 @@ class Orchestrator:
             cwd=self.root,
         ).stdout.strip()
         with self._state_lock:
+            self.state.data["controller_started_at"] = _utc_now()
             requested = self.state.data.pop("runtime_restart_requested", None)
             if requested:
                 self.state.data["last_runtime_restart"] = {
