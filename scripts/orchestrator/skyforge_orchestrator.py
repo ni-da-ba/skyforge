@@ -926,6 +926,11 @@ class Orchestrator:
         with self._state_lock:
             if not self.state.data.get("paused"):
                 raise RuntimeError("Runtime refresh requires the controller to be paused")
+            pending = self.state.data.get("pending_worker")
+            if isinstance(pending, dict) and pending.get("stage") != "handoff":
+                raise RuntimeError(
+                    "Runtime refresh is forbidden while an isolated worker is still editing"
+                )
             if not self._worktree_clean():
                 raise RuntimeError("Runtime refresh requires a clean controller checkout")
             self.state.data["last_runtime_refresh_request"] = {
@@ -969,6 +974,8 @@ class Orchestrator:
 
         if pending.get("managed_pr"):
             raise RuntimeError("Refusing to discard a worker already associated with a managed PR")
+        if pending.get("stage") != "handoff":
+            raise RuntimeError("Refusing to discard a worker that has not reached durable handoff")
         raw_worktree = pending.get("worktree")
         if not raw_worktree:
             raise RuntimeError("Refusing to discard a legacy worker without an isolated worktree")
@@ -2264,12 +2271,16 @@ class Orchestrator:
         record = self._decision_record()
         pending_worker = self.state.data.get("pending_worker")
 
-        if not (record and isinstance(pending_worker, dict)):
+        if record is None:
+            # Quiescence is a pre-classification gate. Newer events that arrived behind an already
+            # owned decision must not delay completion of that older decision.
             heads = sorted({e.head_sha for e in events if e.head_sha})
             for head in heads:
                 if not self.workflows_quiescent(head):
                     self._schedule_pending(max(30, self.debounce_seconds))
                     return
+
+        if not (record and isinstance(pending_worker, dict)):
             self.sync_main()
 
         if record:
