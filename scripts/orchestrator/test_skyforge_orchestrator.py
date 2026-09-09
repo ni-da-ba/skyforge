@@ -124,6 +124,26 @@ class EventFilterTests(unittest.TestCase):
         self.assertTrue(d.actionable)
         self.assertEqual(d.signal_kind, "human_gate")
 
+    def test_explicit_new_task_signal_outranks_contextual_human_gate_text(self):
+        d = orch.classify_event(
+            "issue_comment",
+            {
+                "action": "created",
+                "issue": {"number": 387},
+                "comment": {
+                    "id": 100,
+                    "body": (
+                        "AUDIT — NEW IMPLEMENTATION TASK\n\n"
+                        "This task is independent of the morphology human gate. "
+                        "Stop at ordinary human policy gates."
+                    ),
+                    "user": {"login": "ni-da-ba"},
+                },
+            },
+        )
+        self.assertTrue(d.actionable)
+        self.assertEqual(d.signal_kind, "task")
+
     def test_classifier_prompt_preserves_restart_text_and_does_not_offer_pr_updated_at(self):
         event = orch.EventDecision(
             True,
