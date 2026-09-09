@@ -703,3 +703,109 @@ Issue #214 remains a project-owner visual gate for underside/approach quality. D
 7. Continue Bootstrap Province acceptance with C20's guaranteed Iron and post-flight Copper/Zinc semantics. C11 supports pre-Brass/pre-petroleum direct recipes, but exact quantities and acquisition guarantees remain downstream of C12/Bootstrap closure and HS-06.
 8. Keep assembled-aircraft Nether transfer separate from accepted ordinary-player C15 mechanics.
 9. Return to C1 industrial runtime evidence when a focused runtime window is practical.
+
+### C27 — AAL adaptation architecture investigation (#439, 2026-09-09)
+
+This bounded second-stage update accepts C26 and #431/PR #438: AAL remains **HIDDEN / NPC ONLY** and
+**LIMITED ROUTE-BOUND USE**. It adds no dependency, progression, or runtime adapter. It is a concrete
+Implementation handoff; every upstream AAL hook below is unproven until the pinned-stack prototype.
+
+#### Authority/dataflow and current touchpoints
+
+```text
+SkyIslandIdentity + published region association
+ -> Content civilization/service/freight intent
+ -> Content site policy over AUTH-0096/AUTH-0097 evidence
+ -> Implementation station/corridor admission and exact Minecraft realization
+ -> versioned Skyforge routine-route specification
+ -> optional thin AAL adapter
+ -> AAL route/dock/cargo execution
+ -> Skyforge lifecycle record + derived Minecraft/AAL references
+```
+
+The concrete current seams are `skyforge-model` (`SkyIslandIdentity`, `SkyIslandDescriptor`,
+`SkyIslandVolumeDescriptor`), `skyforge-reference` published association/evidence corpora,
+`skyforge-recipes` deterministic compilation, `skyforge-world` (`SkyIslandWorldCatalog`,
+`SkyIslandWorldVolume`, `SkyIslandWorldVolumeId`), and `skyforge-neoforge-1211` exact-volume physical
+admission/population/lifecycle code. The repository has no civilization, station, route, or freight
+runtime contract today. The smallest new seam is a neutral Content `RoutineTransportIntent` and
+versioned `RoutineRouteSpec`, plus an Implementation-side persistence record/adapter; do not build a
+general logistics framework.
+
+#### Smallest neutral contract and adapter
+
+The contract carries only: `CivilizationId`/service owner; `TransportServiceId`; `StationId` and
+ordered endpoint/leg descriptors; `RouteId` and immutable route version; schedule cadence/window;
+cargo/service intent; station role/capability; `VehicleId` binding; lifecycle/authority status and
+last acknowledged leg/waypoint. Meaning belongs to Content, physical realization to Implementation,
+and all of these remain backend-neutral. AAL object IDs, adapter version, route-version reference,
+and recovery token are opaque operational cross-references, not semantic IDs.
+
+Required operations: capability/version discovery; idempotent station create/bind; craft bind; route
+create/import; schedule assign/resume/suspend; route/leg/status and docking/queue observation;
+idempotent cargo authorization/observation; safe suspension; release to the reactive controller;
+reacquire at a declared waypoint/leg; reload recovery; and stale/destroyed object disposal/reconcile.
+Programmatic generated station/route/schedule construction, NPC ownership, safe takeover, cargo
+transaction guarantees, and reacquisition are **UNKNOWN UPSTREAM HOOKS**. Bulk fleet APIs and player
+UI are optional. Pathfinding, obstacle avoidance, tactics, combat, interception, emergency diversion,
+route safety, demand, site selection, progression, and cargo meaning stay outside AAL.
+
+#### Ownership matrix
+
+| Concern | Owner / source of truth |
+|---|---|
+| place/province/island meaning, provenance, deterministic identity | Authorship; Content consumes |
+| civilization/service/freight meaning, admission, density | Content |
+| site/corridor choice from AUTH-0096/0097 | Content; Implementation validates geometry |
+| blocks/entities, physics, chunk tickets, docking realization | Implementation |
+| routine playback, queues, schedule execution | AAL operationally through adapter |
+| reactive flight and takeover | reactive Skyforge controller |
+| canonical route/service/station/vehicle lifecycle and intent | Skyforge record; Content meaning + Implementation persistence |
+| live route position/queue and opaque AAL IDs | AAL-derived telemetry, never semantic authority |
+
+#### Lifecycle/state machine
+
+`ROUTINE_AAL -> SUSPENDING_ROUTINE -> REACTIVE_SKYFORGE -> REJOINING_ROUTE -> ROUTINE_AAL`.
+Exactly one controller lease is valid. AAL must acknowledge a safe dock/queue/waypoint (or a proven
+equivalent); the reactive controller records route version and last safe leg. Rejoin selects a valid
+waypoint/leg and never snaps coordinates. Failure enters `RECOVERING`, then `FAILED / ADMIN_REQUIRED`
+when unresolved. Missing route/station, destruction, invalid version, failed cargo commit, or failed
+takeover preserves intent for replan and never permits double control.
+
+#### Persistence, reconciliation, performance, and isolation
+
+Persist canonical IDs, immutable route version, endpoints/legs, schedule/cargo intent, authority
+state, last safe leg/waypoint, adapter capability version, opaque AAL references, and cargo
+transaction IDs/status. Skyforge owns intent, identity, versions, authority, and commit outcomes;
+AAL may own only live operational state. Startup/reload scans records, validates versions, and
+idempotently rebinds or rebuilds derived AAL objects; canonical IDs reject duplicate materialization.
+Restart mid-leg resumes from the last acknowledged checkpoint. Unresolved partial cargo is
+conservative/admin state. Missing objects become stale and are disposed or replanned; schema/mod
+changes require migration or fail-closed disablement. Distant traffic is a semantic record and live
+craft materialize only under later Implementation policy. No numeric radius, fleet cap, or tick budget
+is selected here: bounded temporary loading may support an accepted live operation, while coarse
+unloaded progression is preferred. Implementation must measure tickets/chunks, ticks, memory, cargo
+latency, and contention. Capability/API drift disables only derived AAL state and retains Skyforge
+intent. Prefer an upstream public hook; a local fork needs an explicit narrow gap and upstream refusal.
+Unsafe reflection/mixins, human-only generated routing, state loss/duplication, or non-deterministic
+recovery are abandonment criteria.
+
+#### Prototype milestones and stop/go criteria
+
+Implementation order: (1) pinned-stack API/capability probe; (2) generated station binding; (3)
+programmatic two-station route; (4) one-craft routine execution; (5) unload/coarse progression and
+rematerialization; (6) docking/queue and idempotent cargo; (7) restart mid-leg plus stale/duplicate
+repair; (8) multi-craft contention/performance; (9) routine/reactive takeover and waypoint/leg
+reacquisition. A thin adapter is a go only after single-craft lifecycle, persistence, no-loss/no-dup,
+and exclusive-control gates pass. A missing narrow public hook requests upstream contribution; a
+local fork is considered only after refusal and bounded maintenance ownership. Failure of generated
+construction, cargo correctness, exclusive control, or restart/recovery stops AAL adoption and does
+not authorize bespoke replacement infrastructure.
+
+#### Cross-lane handoff
+
+Next action belongs to **Implementation** once the prototype is authorized. **Audit** owns evidence
+economy and a later human server/client/play gate for non-teleporting geography, docking,
+unload/reload, and recovery. Content owns the neutral intent and integration policy; Authorship needs
+no new evidence because accepted AUTH-0096/0097 and identity contracts suffice. This is the stop
+boundary: no AAL addition, progression change, or production adapter.
