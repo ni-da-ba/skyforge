@@ -233,6 +233,13 @@ class EventFilterTests(unittest.TestCase):
         self.assertEqual(orch.classify_control_command("issue_comment", trusted), "resume")
         trusted["comment"]["body"] = "/skyforge-status"
         self.assertEqual(orch.classify_control_command("issue_comment", trusted), "status")
+        trusted["comment"]["body"] = "/skyforge-reset-budget"
+        self.assertEqual(
+            orch.classify_control_command("issue_comment", trusted),
+            "reset_budget",
+        )
+        untrusted["comment"]["body"] = "/skyforge-reset-budget"
+        self.assertIsNone(orch.classify_control_command("issue_comment", untrusted))
 
     def test_external_pr_event_is_ignored(self):
         d = orch.classify_event(
@@ -675,17 +682,117 @@ class DurableStateTests(unittest.TestCase):
             reloaded = self.make_orchestrator(root)
             self.assertEqual(reloaded._pending_events(), [event])
 
-    def test_new_event_invalidates_cached_decision_when_no_worker_active(self):
+    def test_new_event_queues_behind_cached_terminal_decision(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
             first = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
             o._persist_pending_events([first])
-            o._cache_decision({"decision": "NOOP", "reason": "idle"}, [first])
+            o._cache_decision(
+                {"decision": "NOOP", "reason": "idle"},
+                [first],
+                {"main": "abc123", "open_prs": []},
+            )
             self.assertIsNotNone(o._decision_record())
 
             second = orch.EventDecision(True, "main advanced", "push", head_sha="def456")
             o._persist_pending_events([second])
-            self.assertIsNone(o._decision_record())
+
+            record = o._decision_record()
+            self.assertIsNotNone(record)
+            self.assertEqual(record["event_keys"], [orch._event_key(first)])
+            self.assertEqual(
+                o.state.data["metrics"].get("events_queued_behind_cached_decision"),
+                1,
+            )
+
+            with mock.patch.object(o, "_schedule_pending"):
+                o._clear_completed_decision()
+
+            self.assertEqual(o._pending_events(), [second])
+
+    def test_cached_dispatch_revalidates_main_and_source_pr_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(
+                True,
+                "workflow completed",
+                "workflow_run",
+                action="completed",
+                head_sha="prhead",
+                pr_number=77,
+            )
+            o._persist_pending_events([event])
+            o._cache_decision(
+                {
+                    "decision": "DISPATCH",
+                    "lane": "Audit",
+                    "pr_number": 77,
+                    "reason": "bounded work",
+                },
+                [event],
+                {
+                    "main": "mainhead",
+                    "open_prs": [{"number": 77, "headRefOid": "prhead"}],
+                },
+            )
+            record = o._decision_record()
+
+            def same_run(args, **kwargs):
+                if args[:3] == ["git", "rev-parse", "HEAD"]:
+                    return orch.subprocess.CompletedProcess(args, 0, stdout="mainhead\n", stderr="")
+                return orch.subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+            with mock.patch.object(orch, "_run", side_effect=same_run), \
+                    mock.patch.object(
+                        orch,
+                        "_json_cmd",
+                        return_value={"state": "OPEN", "headRefOid": "prhead"},
+                    ):
+                self.assertTrue(o._cached_decision_still_current(record))
+
+            def moved_main(args, **kwargs):
+                if args[:3] == ["git", "rev-parse", "HEAD"]:
+                    return orch.subprocess.CompletedProcess(args, 0, stdout="newmain\n", stderr="")
+                return orch.subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+            with mock.patch.object(orch, "_run", side_effect=moved_main):
+                self.assertFalse(o._cached_decision_still_current(record))
+
+            with mock.patch.object(orch, "_run", side_effect=same_run), \
+                    mock.patch.object(
+                        orch,
+                        "_json_cmd",
+                        return_value={"state": "OPEN", "headRefOid": "new-pr-head"},
+                    ):
+                self.assertFalse(o._cached_decision_still_current(record))
+
+    def test_cached_terminal_decision_never_reclassifies_only_because_new_events_arrived(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            first = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            second = orch.EventDecision(
+                True,
+                "workflow completed",
+                "workflow_run",
+                action="completed",
+                head_sha="abc123",
+            )
+            o._persist_pending_events([first])
+            o._cache_decision(
+                {"decision": "NOOP", "reason": "already at human gate"},
+                [first],
+                {"main": "abc123", "open_prs": []},
+            )
+            o._persist_pending_events([second])
+
+            with mock.patch.object(o, "workflows_quiescent", return_value=True), \
+                    mock.patch.object(o, "sync_main"), \
+                    mock.patch.object(o, "_codex_classifier") as classifier, \
+                    mock.patch.object(o, "_schedule_pending"):
+                o.dispatch(o._pending_events())
+
+            classifier.assert_not_called()
+            self.assertEqual(o._pending_events(), [second])
 
     def test_new_event_preserves_inflight_worker_decision(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1040,6 +1147,45 @@ class DurableStateTests(unittest.TestCase):
             reloaded = self.make_orchestrator(root)
             for index in range(4):
                 self.assertEqual(reloaded.state.data[f"thread_{index}"], 19)
+
+    def test_operator_budget_reset_requires_pause_and_preserves_queue(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o._persist_pending_events([event])
+            o.state.data["classifier_calls_today"] = 22
+            o.state.data["luna_worker_calls_today"] = 1
+            o.state.data["worker_calls_today"] = 2
+            o.state.data["blocked_kind"] = "local_budget"
+            o.state.data["blocked_until_epoch"] = 9999999999.0
+            o.state.data["blocked_reason"] = "local budget exhausted"
+            o.state.save()
+
+            with self.assertRaisesRegex(RuntimeError, "requires the controller to be paused"):
+                o.reset_local_budget(actor="ni-da-ba")
+
+            o.set_paused(True, actor="ni-da-ba")
+            o.reset_local_budget(actor="ni-da-ba")
+
+            self.assertEqual(o.state.data["classifier_calls_today"], 0)
+            self.assertEqual(o.state.data["luna_worker_calls_today"], 0)
+            self.assertEqual(o.state.data["worker_calls_today"], 0)
+            self.assertIsNone(o.state.data["blocked_kind"])
+            self.assertEqual(o.state.data["blocked_until_epoch"], 0.0)
+            self.assertEqual(o._pending_events(), [event])
+            self.assertTrue(o.is_paused())
+            self.assertEqual(o.state.data["last_budget_reset_by"], "ni-da-ba")
+            self.assertIsNotNone(o.state.data["last_budget_reset_at"])
+            self.assertEqual(o.state.data["metrics"].get("operator_budget_resets"), 1)
+
+    def test_operator_budget_reset_rejects_pending_worker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.set_paused(True, actor="ni-da-ba")
+            o.state.data["pending_worker"] = {"branch": "codex/audit-test"}
+            o.state.save()
+            with self.assertRaisesRegex(RuntimeError, "forbidden while a worker is pending"):
+                o.reset_local_budget(actor="ni-da-ba")
 
     def test_local_budget_blocks_without_spending_beyond_limit(self):
         with tempfile.TemporaryDirectory() as tmp:
