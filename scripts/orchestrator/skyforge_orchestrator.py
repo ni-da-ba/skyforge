@@ -1342,6 +1342,7 @@ class Orchestrator:
             self.state.data["last_startup_reconcile_success_at"] = _utc_now()
             self.state.data["startup_reconcile_retry_at"] = None
             self.state.save()
+        self._schedule_periodic_reconcile()
         return True
 
     def _schedule_startup_reconcile_retry(self, delay_seconds: int | float) -> None:
@@ -1360,6 +1361,71 @@ class Orchestrator:
         with self._startup_reconcile_retry_lock:
             self._startup_reconcile_retry_timer = None
         self.attempt_startup_reconcile()
+
+    def _schedule_periodic_reconcile(self, delay_seconds: int | float | None = None) -> None:
+        if not self.startup_reconcile:
+            return
+        interval = (
+            float(delay_seconds)
+            if delay_seconds is not None
+            else float(
+                _env_int(
+                    "SKYFORGE_PERIODIC_RECONCILE_SECONDS",
+                    DEFAULT_PERIODIC_RECONCILE_SECONDS,
+                    minimum=60,
+                )
+            )
+        )
+        interval = max(1.0, interval)
+        next_at = datetime.now(timezone.utc) + timedelta(seconds=interval)
+        with self._state_lock:
+            self.state.data["next_periodic_reconcile_at"] = next_at.isoformat()
+            self.state.save()
+        with self._periodic_reconcile_lock:
+            if self._periodic_reconcile_timer is not None:
+                self._periodic_reconcile_timer.cancel()
+            timer = threading.Timer(interval, self._run_periodic_reconcile)
+            timer.daemon = True
+            self._periodic_reconcile_timer = timer
+            timer.start()
+
+    def _run_periodic_reconcile(self) -> None:
+        with self._periodic_reconcile_lock:
+            self._periodic_reconcile_timer = None
+        with self._state_lock:
+            self.state.data["next_periodic_reconcile_at"] = None
+            self.state.save()
+
+        try:
+            self.startup_reconcile_repository(source="periodic")
+        except Exception as exc:
+            retry_seconds = _env_int(
+                "SKYFORGE_STARTUP_RECONCILE_RETRY_SECONDS",
+                DEFAULT_STARTUP_RECONCILE_RETRY_SECONDS,
+                minimum=30,
+            )
+            with self._state_lock:
+                self.state.data["last_periodic_reconcile_error"] = {
+                    "at": _utc_now(),
+                    "kind": type(exc).__name__,
+                    "summary": str(exc)[:500],
+                }
+                self.state.save()
+            self._metric("periodic_reconcile_failures")
+            print(
+                f"[orchestrator] periodic repository reconciliation failed: "
+                f"{type(exc).__name__}: {exc}; retrying model-free in {retry_seconds}s",
+                flush=True,
+            )
+            self._schedule_periodic_reconcile(retry_seconds)
+            return
+
+        with self._state_lock:
+            self.state.data["last_periodic_reconcile_error"] = None
+            self.state.data["last_periodic_reconcile_success_at"] = _utc_now()
+            self.state.save()
+        self._metric("periodic_reconcile_checks")
+        self._schedule_periodic_reconcile()
 
     def _metric(self, name: str, amount: int = 1) -> None:
         with self._state_lock:
