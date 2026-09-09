@@ -736,6 +736,20 @@ class HostedTransportTests(unittest.TestCase):
         self.assertEqual(orch.DEFAULT_MAX_WORKER_CALLS_PER_DAY, 4)
         self.assertEqual(orch.DEFAULT_PERIODIC_RECONCILE_SECONDS, 900)
 
+    def test_runtime_refresh_set_covers_controller_dependency_contract(self):
+        self.assertIn(
+            "scripts/orchestrator/skyforge_orchestrator.py",
+            orch.CONTROLLER_RUNTIME_PATHS,
+        )
+        self.assertIn(
+            "scripts/orchestrator/requirements.txt",
+            orch.CONTROLLER_RUNTIME_PATHS,
+        )
+        self.assertIn(
+            "scripts/orchestrator/sync_runtime_dependencies.py",
+            orch.CONTROLLER_RUNTIME_PATHS,
+        )
+
     def test_reconcile_fingerprint_is_order_stable_for_mapping_keys(self):
         first = {
             "main": "abc",
