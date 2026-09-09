@@ -89,14 +89,21 @@ AUDIT-0024 must:
    avoiding duplicate synthetic wakes behind active work.
 5. If changed state still has active Actions, defer the synthetic wake until a quiescent observation.
 6. If an uncheckpointed quiescent change exists, journal one synthetic periodic `reconcile` event.
-7. Persist periodic reconciliation failures and expose them model-free.
-8. Surface persistent authentication/classifier-failure safety states durably rather than failing
+7. Recover new trusted issue/PR comments model-free as well: first-upgrade pre-start history is seeded
+   without replay, subsequent scans paginate from the prior scan boundary, and Audit
+   `RESTART RECOMMENDED` / `LOOP RISK` signals plus trusted `/skyforge-*` controls use the same
+   deterministic classifiers as webhook delivery.
+8. Persist periodic/comment reconciliation failures and expose them model-free.
+9. Surface persistent authentication/classifier-failure safety states durably rather than failing
    silently when GitHub comment authority remains available.
-9. Reconcile pinned Python runtime requirements via a fingerprinted helper on service start so a
-   requirements-only controller update does not require another bespoke manual package-install step.
-10. Keep privileged installer/systemd/Caddy changes as deliberate Audit deployment work; do not let
+10. Reconcile pinned Python runtime requirements via a fingerprinted helper on service start; controller
+    Python, `requirements.txt`, and the sync helper are runtime-refresh triggers so dependency-only
+    updates do not require another bespoke package-install visit.
+11. Make the hosted installer idempotent: preserve daily telemetry history and reuse durable host
+    hostname/secret/cost/report configuration during maintenance redeploy.
+12. Keep privileged installer/systemd/Caddy/UFW changes as deliberate Audit deployment work; do not let
     autonomous workers rewrite their own authority.
-11. Preserve all existing safety boundaries and run only exact-head Audit Smoke + CI.
+13. Preserve all existing safety boundaries and run only exact-head Audit Smoke + CI.
 
 Safety remains unchanged: **24 total Luna calls per UTC day, 4 Terra worker attempts per UTC day,
 auto-merge OFF, API-billing fallback OFF.**
