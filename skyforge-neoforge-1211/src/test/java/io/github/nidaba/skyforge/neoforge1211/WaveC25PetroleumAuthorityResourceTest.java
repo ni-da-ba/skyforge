@@ -64,7 +64,7 @@ final class WaveC25PetroleumAuthorityResourceTest {
     @Test
     void productionPumpjackRedirectRetainsCdgMechanicsButReplacesChunkOilAuthority() throws IOException {
         String mixinConfig = Files.readString(PROJECT_DIRECTORY.resolve("src/main/resources/skyforge.mixins.json"));
-        assertTrue(mixinConfig.contains("SkyforgeDieselPumpjackOilAuthorityMixin"));
+        assertTrue(mixinConfig.contains("SkyforgeDieselPumpjackOilAuthorityMixin"));\n        assertTrue(mixinConfig.contains("SkyforgeDieselNativeOilSuppressionMixin"));
 
         String mixin = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/"
@@ -76,6 +76,14 @@ final class WaveC25PetroleumAuthorityResourceTest {
         assertTrue(mixin.contains("SkyforgePetroleumPumpjackBridge.oilAmountForPumpjack"));
         assertTrue(mixin.contains("SkyforgePetroleumPumpjackBridge.setOilAmountForPumpjack"));
         assertFalse(mixin.contains("import com.jesz.createdieselgenerators"));
+
+        String suppressionMixin = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/"
+                        + "SkyforgeDieselNativeOilSuppressionMixin.java"));
+        assertTrue(suppressionMixin.contains("OilChunksSavedData"));
+        assertTrue(suppressionMixin.contains("getChunkOilAmount(Lnet/minecraft/world/level/ChunkPos;)I"));
+        assertTrue(suppressionMixin.contains("cir.setReturnValue(0)"));
+        assertFalse(suppressionMixin.contains("import com.jesz.createdieselgenerators"));
 
         String depositTag = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/resources/data/createdieselgenerators/tags/block/oil_deposit.json"));
