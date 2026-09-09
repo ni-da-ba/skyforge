@@ -262,14 +262,18 @@ Trusted GitHub actors can control and inspect the hosted dispatcher without spen
 /skyforge-pause
 /skyforge-resume
 /skyforge-status
+/skyforge-reset-budget
 ```
 
 Pause preserves incoming actionable events in the durable journal but starts no new classifier/worker
 dispatch. Resume schedules the retained batch. Status posts a controller-marked, non-secret snapshot
 to the issue or PR containing the command, including the loaded runtime head, checkout head, pause /
-breaker state, queued-event count, worker state, and daily Luna/Terra counters. The status comment is
-ignored by the webhook filter and therefore cannot recurse. Untrusted commenters cannot invoke these
-controls.
+breaker state, queued-event summaries, cached-decision ownership, worker state, and daily Luna/Terra
+counters. `/skyforge-reset-budget` is an explicit operator override for the controller's local daily
+counters only: it requires the controller to already be paused, refuses a pending worker, preserves
+the durable queue/decision, and does not reset provider-side account usage or quota. The status
+comment is ignored by the webhook filter and therefore cannot recurse. Untrusted commenters cannot
+invoke these controls.
 
 ## Manual wake
 
