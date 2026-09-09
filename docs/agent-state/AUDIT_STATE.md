@@ -82,7 +82,12 @@ AUDIT-0023 replaces that silent truncation with a soft-cap/coalescing contract:
 5. If protected authority itself exceeds the cap, preserve it above the soft cap and expose the
    pressure model-free instead of dropping it.
 6. Status and the daily zero-model value report expose queue high-water/compaction/overflow evidence.
-7. Run only cheap exact-head Audit gates; do not recreate producer evidence or race producer lanes.
+7. Durable local state is atomically mirrored to `state.json` + `state.json.bak`; recover from a
+   valid mirror when only the primary is unreadable, and fail closed if both are unreadable.
+8. A transient startup GitHub reconciliation failure is persisted as degraded state and retried
+   model-free on a bounded timer until repository observation succeeds.
+9. Status/daily telemetry expose state-backup recoveries and startup-reconciliation failures.
+10. Run only cheap exact-head Audit gates; do not recreate producer evidence or race producer lanes.
 
 After AUDIT-0023 merges, perform one combined host recovery:
 - synchronize the stable controller checkout to current merged `main`;
