@@ -1288,6 +1288,141 @@ class DurableStateTests(unittest.TestCase):
             reloaded = self.make_orchestrator(root)
             self.assertEqual(reloaded._pending_events(), [event])
 
+    def test_superseded_history_retirement_preserves_trusted_authority(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            signal = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=349,
+                source_id="loop-risk",
+                signal_kind="loop_risk",
+                signal_text="AUDIT — LOOP RISK",
+            )
+            captured = [
+                orch.EventDecision(
+                    True,
+                    "PR lifecycle changed",
+                    "pull_request",
+                    action="closed",
+                    head_sha="merged-421-head",
+                    pr_number=421,
+                ),
+                orch.EventDecision(
+                    True,
+                    "workflow completed",
+                    "workflow_run",
+                    action="completed",
+                    head_sha="merged-421-head",
+                    pr_number=421,
+                ),
+                orch.EventDecision(True, "main advanced", "push", head_sha="old-main"),
+                signal,
+            ]
+            later = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=349,
+                source_id="later-signal",
+                signal_kind="audit",
+                signal_text="AUDIT later authority",
+            )
+            o._persist_pending_events(captured)
+            o._persist_pending_events([later])
+
+            normalized = o._normalize_captured_events_for_snapshot(
+                captured,
+                {
+                    "main": "current-main",
+                    "open_prs": [{
+                        "number": 358,
+                        "headRefOid": "open-358-head",
+                    }],
+                },
+            )
+
+            self.assertIn(signal, normalized)
+            self.assertFalse(any(event.pr_number == 421 for event in normalized))
+            self.assertTrue(
+                any(
+                    event.event == "reconcile"
+                    and event.action == "superseded_history"
+                    and event.head_sha == "current-main"
+                    for event in normalized
+                )
+            )
+            pending = o._pending_events()
+            self.assertIn(later, pending)
+            self.assertIn(signal, pending)
+            self.assertFalse(any(event.pr_number == 421 for event in pending))
+            self.assertEqual(
+                o.state.data["metrics"].get("superseded_pending_events_retired"),
+                3,
+            )
+
+    def test_dispatch_target_guard_blocks_closed_or_merged_pr(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            decision = {
+                "decision": "DISPATCH",
+                "lane": "Audit",
+                "pr_number": 421,
+                "objective": "reconcile stale Audit history",
+                "stop_boundary": "record current state",
+                "worker_tier": "LUNA",
+                "allowed_paths": ["docs/agent-state/AUDIT_STATE.md"],
+                "reason": "retained history",
+            }
+            guarded = o._guard_dispatch_target(
+                decision,
+                {
+                    "main": "current-main",
+                    "open_prs": [{"number": 358, "headRefOid": "open-358-head"}],
+                },
+            )
+            self.assertEqual(guarded["decision"], "HUMAN_GATE")
+            self.assertEqual(guarded["pr_number"], 421)
+            self.assertIn("not open", guarded["reason"])
+            self.assertEqual(
+                o.state.data["metrics"].get("stale_dispatch_target_gates"),
+                1,
+            )
+
+            current = {**decision, "pr_number": 358}
+            self.assertEqual(
+                o._guard_dispatch_target(
+                    current,
+                    {
+                        "main": "current-main",
+                        "open_prs": [{"number": 358, "headRefOid": "open-358-head"}],
+                    },
+                ),
+                current,
+            )
+
+    def test_cached_dispatch_missing_open_pr_identity_is_stale(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            record = {
+                "decision": {
+                    "decision": "DISPATCH",
+                    "lane": "Audit",
+                    "pr_number": 421,
+                },
+                "snapshot_main": "current-main",
+                "source_pr_head": None,
+            }
+            with mock.patch.object(
+                orch,
+                "_run",
+                return_value=mock.Mock(stdout="current-main\n"),
+            ):
+                self.assertFalse(o._cached_decision_still_current(record))
+
     def test_queue_pressure_compacts_ordinary_history_to_reconcile(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
