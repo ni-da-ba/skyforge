@@ -801,6 +801,160 @@ class DurableStateTests(unittest.TestCase):
             reloaded = self.make_orchestrator(root)
             self.assertEqual(reloaded._pending_events(), [event])
 
+    def test_queue_pressure_compacts_ordinary_history_to_reconcile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            events = [
+                orch.EventDecision(
+                    True,
+                    "PR lifecycle changed",
+                    "pull_request",
+                    action="closed",
+                    head_sha=f"head-{index}",
+                    pr_number=index,
+                )
+                for index in range(12)
+            ]
+
+            with mock.patch.object(orch, "_env_int", return_value=10):
+                o._persist_pending_events(events)
+
+            pending = o._pending_events()
+            self.assertEqual(len(pending), 10)
+            self.assertTrue(
+                any(
+                    event.event == "reconcile" and event.action == "queue_compaction"
+                    for event in pending
+                )
+            )
+            self.assertGreater(
+                o.state.data["metrics"].get("pending_events_compacted", 0),
+                0,
+            )
+            report = o.state.data["last_pending_event_compaction"]
+            self.assertEqual(report["before"], 12)
+            self.assertEqual(report["after"], 10)
+            self.assertTrue(report["reconcile_inserted"])
+
+    def test_queue_pressure_never_drops_trusted_signals(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            ordinary = [
+                orch.EventDecision(
+                    True,
+                    "PR lifecycle changed",
+                    "pull_request",
+                    action="closed",
+                    head_sha=f"head-{index}",
+                    pr_number=index,
+                )
+                for index in range(12)
+            ]
+            signals = [
+                orch.EventDecision(
+                    True,
+                    "Audit/watchdog orchestration signal",
+                    "issue_comment",
+                    action="audit_signal",
+                    pr_number=349,
+                    source_id=f"signal-{index}",
+                    signal_kind="restart_recommended",
+                    signal_text=f"AUDIT restart {index}",
+                )
+                for index in range(2)
+            ]
+
+            with mock.patch.object(orch, "_env_int", return_value=10):
+                o._persist_pending_events(ordinary + signals)
+
+            pending = o._pending_events()
+            self.assertEqual(len(pending), 10)
+            source_ids = {event.source_id for event in pending}
+            self.assertIn("signal-0", source_ids)
+            self.assertIn("signal-1", source_ids)
+            self.assertTrue(
+                any(
+                    event.event == "reconcile" and event.action == "queue_compaction"
+                    for event in pending
+                )
+            )
+
+    def test_queue_pressure_never_drops_owned_event_keys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            owned = [
+                orch.EventDecision(
+                    True,
+                    "PR lifecycle changed",
+                    "pull_request",
+                    action="closed",
+                    head_sha=f"owned-{index}",
+                    pr_number=index,
+                )
+                for index in range(2)
+            ]
+            o._persist_pending_events(owned)
+            o._cache_decision(
+                {"decision": "NOOP", "reason": "owned batch"},
+                owned,
+                {"main": "mainhead", "open_prs": []},
+            )
+            later = [
+                orch.EventDecision(
+                    True,
+                    "PR lifecycle changed",
+                    "pull_request",
+                    action="closed",
+                    head_sha=f"later-{index}",
+                    pr_number=100 + index,
+                )
+                for index in range(12)
+            ]
+
+            with mock.patch.object(orch, "_env_int", return_value=10):
+                o._persist_pending_events(later)
+
+            pending_keys = {orch._event_key(event) for event in o._pending_events()}
+            owned_keys = set(o._decision_record()["event_keys"])
+            self.assertTrue(owned_keys.issubset(pending_keys))
+            self.assertEqual(len(o._pending_events()), 10)
+            self.assertTrue(
+                any(
+                    event.event == "reconcile" and event.action == "queue_compaction"
+                    for event in o._pending_events()
+                )
+            )
+
+    def test_priority_authority_may_exceed_soft_queue_cap_without_loss(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            signals = [
+                orch.EventDecision(
+                    True,
+                    "Audit/watchdog orchestration signal",
+                    "issue_comment",
+                    action="audit_signal",
+                    pr_number=349,
+                    source_id=f"signal-{index}",
+                    signal_kind="restart_recommended",
+                    signal_text=f"AUDIT restart {index}",
+                )
+                for index in range(11)
+            ]
+
+            with mock.patch.object(orch, "_env_int", return_value=10):
+                o._persist_pending_events(signals)
+
+            self.assertEqual(len(o._pending_events()), 11)
+            self.assertEqual(
+                {event.source_id for event in o._pending_events()},
+                {f"signal-{index}" for index in range(11)},
+            )
+            self.assertEqual(
+                o.state.data["metrics"].get("pending_event_protected_overflow"),
+                1,
+            )
+
     def test_new_event_queues_behind_cached_terminal_decision(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
