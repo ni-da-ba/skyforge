@@ -101,6 +101,10 @@ only when the snapshot shows substantive producer evidence strictly after the si
 new producer head/commit, genuinely new Actions work attributable to that producer, or an already
 controller-managed recovery). Otherwise honor the bounded restart objective and choose DISPATCH.
 A structured human_gate signal remains a HUMAN_GATE rather than a worker dispatch.
+A structured signal_kind="task" is explicit standalone task authority. Route that task on its own
+merits; unrelated managed PRs, human gates, or repository bookkeeping are not reasons to consume or
+replace it. For issue-backed task authority, use pr_number=null unless the directive explicitly names
+an existing source PR as the work target.
 
 Do not dispatch work merely because a lane exists. Do not poll CI. Do not expand expensive validation
 without a distinct risk. Honor VALIDATION_POLICY.md and ORCHESTRATION_PROTOCOL.md.
@@ -253,6 +257,12 @@ def _audit_signal_kind(body_lower: str) -> str | None:
         return "loop_risk"
     if "human_gate" in body_lower or "human gate" in body_lower:
         return "human_gate"
+    if (
+        "audit" in body_lower
+        and "new " in body_lower
+        and " task" in body_lower
+    ):
+        return "task"
     if "audit" in body_lower:
         return "audit"
     return None
@@ -1128,6 +1138,12 @@ class Orchestrator:
                 "isolated_authority_batches": int(
                     (self.state.data.get("metrics") or {}).get("isolated_authority_batches") or 0
                 ),
+                "task_authority_pending": sum(
+                    1
+                    for value in (self.state.data.get("pending_events") or [])
+                    if isinstance(value, dict)
+                    and EventDecision.from_state(value).signal_kind == "task"
+                ),
                 "retired_event_keys": len(self.state.data.get("retired_event_keys") or []),
                 "completed_authority_event_keys": len(
                     self.state.data.get("completed_authority_event_keys") or []
@@ -1835,9 +1851,16 @@ class Orchestrator:
 
         The classifier returns exactly one action. Trusted/manual directives therefore cannot share a
         classifier batch with repository-state noise or with another directive: doing so lets one
-        decision retire unrelated authority. Ordinary webhook transitions remain batched because they
-        are a coalesced wake to inspect current repository truth rather than independent task authority.
+        decision retire unrelated authority.
+
+        Explicit task authority outranks generic Audit/manual wakes so historical bookkeeping cannot
+        starve newly posted work. Multiple task directives remain FIFO relative to one another.
+        Ordinary webhook transitions remain batched because they are a coalesced wake to inspect
+        current repository truth rather than independent task authority.
         """
+        for event in pending:
+            if event.signal_kind == "task":
+                return [event]
         for event in pending:
             if self._pending_event_priority(event.to_state()):
                 return [event]
