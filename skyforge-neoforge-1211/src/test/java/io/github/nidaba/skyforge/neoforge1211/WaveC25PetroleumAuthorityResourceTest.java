@@ -64,7 +64,7 @@ final class WaveC25PetroleumAuthorityResourceTest {
     @Test
     void productionPumpjackRedirectRetainsCdgMechanicsButReplacesChunkOilAuthority() throws IOException {
         String mixinConfig = Files.readString(PROJECT_DIRECTORY.resolve("src/main/resources/skyforge.mixins.json"));
-        assertTrue(mixinConfig.contains("SkyforgeDieselPumpjackOilAuthorityMixin")); 
+        assertTrue(mixinConfig.contains("SkyforgeDieselPumpjackOilAuthorityMixin"));
         assertTrue(mixinConfig.contains("SkyforgeDieselNativeOilSuppressionMixin"));
 
         String mixin = Files.readString(PROJECT_DIRECTORY.resolve(
