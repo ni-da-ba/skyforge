@@ -104,6 +104,12 @@ A structured human_gate signal remains a HUMAN_GATE rather than a worker dispatc
 Do not dispatch work merely because a lane exists. Do not poll CI. Do not expand expensive validation
 without a distinct risk. Honor VALIDATION_POLICY.md and ORCHESTRATION_PROTOCOL.md.
 
+For DISPATCH, pr_number must be null or identify an OPEN PR present in the current compact snapshot.
+Never dispatch a worker against a merged/closed/superseded PR merely because retained event history
+mentions it. Controller/control-plane repairs that require edits under scripts/orchestrator/ or
+deploy/orchestrator/ are outside hosted worker authority; choose HUMAN_GATE for those repairs instead
+of dispatching a worker that cannot legally hand them off.
+
 For DISPATCH, choose the cheapest worker tier that can safely retire the stated uncertainty:
 - LUNA: documentation/lane-state/evidence reconciliation, acceptance recording, narrow low-risk text/config
   work, or similarly bounded tasks that do not require substantive source/runtime debugging.
@@ -1905,6 +1911,193 @@ class Orchestrator:
                 ) + 1
             self.state.save()
 
+    def _replace_captured_pending_events(
+        self,
+        captured: list[EventDecision],
+        replacement: list[EventDecision],
+    ) -> None:
+        """Replace only the dispatch-owned snapshot, preserving events queued behind it."""
+        captured_keys = {_event_key(event) for event in captured}
+        replacement_values = [event.to_state() for event in replacement]
+        with self._state_lock:
+            current = [
+                value
+                for value in (self.state.data.get("pending_events") or [])
+                if isinstance(value, dict)
+            ]
+            later = [
+                value for value in current if _event_key(value) not in captured_keys
+            ]
+            values: list[dict[str, Any]] = []
+            seen: set[str] = set()
+            for value in [*replacement_values, *later]:
+                key = _event_key(value)
+                if key in seen:
+                    continue
+                seen.add(key)
+                values.append(value)
+            compacted, report = self._compact_pending_event_values(values)
+            self.state.data["pending_events"] = compacted
+            if report:
+                self.state.data["last_pending_event_compaction"] = report
+            self.state.save()
+
+    def _normalize_captured_events_for_snapshot(
+        self,
+        events: list[EventDecision],
+        snapshot: dict[str, Any],
+    ) -> list[EventDecision]:
+        """Retire superseded repository history before classifier ownership.
+
+        Trusted Audit/manual authority is never retired here. Ordinary PR/workflow/push history that
+        no longer describes current main or an open PR is represented by one current-state reconcile
+        wake so the classifier reasons from present repository truth instead of resurrecting merged
+        work from a long retained queue.
+        """
+        current_main = str(snapshot.get("main") or "")
+        open_by_number: dict[int, dict[str, Any]] = {}
+        open_heads: set[str] = set()
+        for value in snapshot.get("open_prs") or []:
+            if not isinstance(value, dict):
+                continue
+            try:
+                number = int(value.get("number"))
+            except (TypeError, ValueError):
+                continue
+            open_by_number[number] = value
+            head = str(value.get("headRefOid") or "")
+            if head:
+                open_heads.add(head)
+
+        kept: list[EventDecision] = []
+        dropped = 0
+        for event in events:
+            if self._pending_event_priority(event.to_state()):
+                kept.append(event)
+                continue
+
+            keep = True
+            if event.event == "push":
+                keep = bool(current_main and event.head_sha == current_main)
+            elif event.event == "reconcile":
+                keep = not event.head_sha or not current_main or event.head_sha == current_main
+            elif event.event == "pull_request" and event.pr_number is not None:
+                current = open_by_number.get(int(event.pr_number))
+                current_head = str((current or {}).get("headRefOid") or "")
+                keep = bool(
+                    current
+                    and (
+                        not event.head_sha
+                        or not current_head
+                        or str(event.head_sha) == current_head
+                    )
+                )
+            elif event.event == "workflow_run":
+                if event.pr_number is not None:
+                    current = open_by_number.get(int(event.pr_number))
+                    current_head = str((current or {}).get("headRefOid") or "")
+                    keep = bool(
+                        current
+                        and (
+                            not event.head_sha
+                            or not current_head
+                            or str(event.head_sha) == current_head
+                        )
+                    )
+                elif event.head_sha:
+                    keep = str(event.head_sha) == current_main or str(event.head_sha) in open_heads
+
+            if keep:
+                kept.append(event)
+            else:
+                dropped += 1
+
+        if not dropped:
+            return events
+
+        if not any(
+            event.event == "reconcile"
+            and event.action == "superseded_history"
+            and (not current_main or event.head_sha == current_main)
+            for event in kept
+        ):
+            kept.append(
+                EventDecision(
+                    True,
+                    "superseded retained repository history retired; reconcile current truth",
+                    "reconcile",
+                    action="superseded_history",
+                    head_sha=current_main or None,
+                    observed_at=_utc_now(),
+                )
+            )
+
+        self._replace_captured_pending_events(events, kept)
+        with self._state_lock:
+            metrics = self.state.data.setdefault("metrics", {})
+            metrics["superseded_pending_events_retired"] = int(
+                metrics.get("superseded_pending_events_retired") or 0
+            ) + dropped
+            self.state.data["last_superseded_event_retirement"] = {
+                "at": _utc_now(),
+                "retired": dropped,
+                "before": len(events),
+                "after": len(kept),
+                "main": current_main or None,
+            }
+            self.state.save()
+        print(
+            f"[orchestrator] retired {dropped} superseded pending event(s); "
+            f"{len(kept)} current/protected event(s) remain",
+            flush=True,
+        )
+        return kept
+
+    def _guard_dispatch_target(
+        self,
+        decision: dict[str, Any],
+        snapshot: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Never launch a worker against a PR absent from the current open-PR snapshot."""
+        if str(decision.get("decision") or "NOOP").upper() != "DISPATCH":
+            return decision
+        pr_number = decision.get("pr_number")
+        if pr_number is None:
+            return decision
+        try:
+            target = int(pr_number)
+        except (TypeError, ValueError):
+            target = -1
+        open_numbers = {
+            int(value.get("number"))
+            for value in (snapshot.get("open_prs") or [])
+            if isinstance(value, dict) and value.get("number") is not None
+        }
+        if target in open_numbers:
+            return decision
+
+        self._metric("stale_dispatch_target_gates")
+        return {
+            "decision": "HUMAN_GATE",
+            "lane": decision.get("lane"),
+            "pr_number": pr_number,
+            "objective": None,
+            "stop_boundary": None,
+            "reusable_evidence": decision.get("reusable_evidence"),
+            "worker_tier": None,
+            "allowed_paths": None,
+            "reason": (
+                f"Refusing stale DISPATCH target PR #{pr_number}: it is not open in the "
+                "current repository snapshot."
+            ),
+            "human_message": (
+                f"SAFETY GATE: the classifier attempted to dispatch work against PR #{pr_number}, "
+                "but that PR is not open in current repository truth. The stale dispatch was blocked "
+                "before any worker launched. Reconcile the current lane/objective explicitly if work "
+                "is still required."
+            ),
+        }
+
     def _decision_record(self) -> dict[str, Any] | None:
         value = self.state.data.get("pending_decision")
         return value if isinstance(value, dict) else None
@@ -1995,8 +2188,12 @@ class Orchestrator:
 
         pr_number = decision.get("pr_number")
         expected_head = str(record.get("source_pr_head") or "")
-        if pr_number is None or not expected_head:
+        if pr_number is None:
             return True
+        # A DISPATCH that named a PR absent from the captured open-PR snapshot was stale at
+        # classification time; never let missing source identity make it implicitly current.
+        if not expected_head:
+            return False
         current = _json_cmd(
             [
                 "gh", "pr", "view", str(pr_number),
@@ -3111,6 +3308,9 @@ class Orchestrator:
                 self._metric("dispatch_latency_ms_total", latency_ms)
                 self._metric("dispatch_latency_samples")
             snap = self.snapshot()
+            events = self._normalize_captured_events_for_snapshot(events, snap)
+            if not events:
+                return
             summaries = [e.summary() for e in events]
             with self._state_lock:
                 self.state.data["last_events"] = summaries[-20:]
@@ -3160,6 +3360,7 @@ class Orchestrator:
                             "further autonomous dispatch."
                         ),
                     }
+            decision = self._guard_dispatch_target(decision, snap)
             with self._state_lock:
                 self.state.data["last_dispatch_epoch"] = now
                 self.state.save()
