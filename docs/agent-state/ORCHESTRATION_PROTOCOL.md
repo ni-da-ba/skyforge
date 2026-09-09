@@ -532,7 +532,10 @@ owned event/decision is terminal only after that visibility handoff succeeds (or
 controller gate is already visible); a GitHub posting failure preserves the owned batch and enters a
 bounded retry instead of consuming it. With auto-merge OFF, a classifier MERGE decision likewise
 becomes a once-per-current-head manual-merge HUMAN_GATE rather than a silent no-op; the controller
-does not merge autonomously. Human gates are surfaced once per current target-PR head by default:
+does not merge autonomously. Before reusing any locally recorded controller-managed branch, verify its
+PR is still OPEN at that branch. A manually merged/closed PR retires the stale local managed record so
+the next worker cannot be pinned to a completed branch. Human gates are surfaced once per current
+target-PR head by default:
 durable local gate records suppress
 repeat notifications, and on first observation the controller may seed suppression from an existing
 controller gate comment posted after the current PR head commit. A genuinely new PR head may resurface
