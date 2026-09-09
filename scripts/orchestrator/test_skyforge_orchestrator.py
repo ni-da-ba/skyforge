@@ -1339,6 +1339,29 @@ class DurableStateTests(unittest.TestCase):
             self.assertEqual(context[0]["body"], issue["body"])
             read_issue.assert_called_once()
 
+    def test_classifier_prompt_keeps_authoritative_issue_context_outside_snapshot_truncation(self):
+        event = orch.EventDecision(
+            True,
+            "Audit/watchdog orchestration signal",
+            "issue_comment",
+            action="audit_signal",
+            pr_number=431,
+            source_id="task-prompt",
+            signal_kind="task",
+            signal_text="AUDIT — NEW CONTENT TASK",
+        )
+        body = "AUTHORITATIVE-ISSUE-BODY-MARKER"
+        prompt = orch._classifier_prompt(
+            [event],
+            {
+                "task_issue_context": [{"number": 431, "title": "Task", "body": body}],
+                "orchestrator_metrics": {"padding": "x" * 30000},
+            },
+        )
+
+        self.assertIn("AUTHORITATIVE ISSUE-BACKED TASK CONTEXT", prompt)
+        self.assertIn(body, prompt)
+
     def test_current_external_evidence_requirement_is_detected(self):
         self.assertTrue(
             orch._requires_current_external_evidence(
@@ -1403,6 +1426,36 @@ class DurableStateTests(unittest.TestCase):
                 o.state.data["metrics"].get("external_research_capability_gates"),
                 1,
             )
+
+    def test_missing_issue_hydration_for_task_dispatch_is_forced_to_human_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            task = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=431,
+                source_id="task-missing-context",
+                signal_kind="task",
+                signal_text="AUDIT — NEW CONTENT TASK",
+            )
+            decision = {
+                "decision": "DISPATCH",
+                "lane": "Content",
+                "pr_number": None,
+                "objective": "Read issue #431.",
+                "stop_boundary": "Content handoff.",
+                "worker_tier": "LUNA",
+                "allowed_paths": ["docs/agent-state/CONTENT_STATE.md"],
+                "reason": "task",
+            }
+
+            guarded = o._guard_worker_capability(decision, [task], [])
+
+            self.assertEqual(guarded["decision"], "HUMAN_GATE")
+            self.assertIn("could not be hydrated", guarded["reason"])
+            self.assertEqual(o.state.data["metrics"].get("task_issue_hydration_gates"), 1)
 
     def test_duplicate_task_authority_for_same_issue_is_suppressed_while_pending(self):
         with tempfile.TemporaryDirectory() as tmp:
