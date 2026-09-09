@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -20,6 +21,7 @@ final class SkyforgePetroleumSourceSavedData extends SavedData {
             new SavedData.Factory<>(SkyforgePetroleumSourceSavedData::new, SkyforgePetroleumSourceSavedData::load);
 
     private final TreeMap<SkyforgePetroleumSourceAdapter.SourceAddress, Integer> remaining = new TreeMap<>();
+    private final Map<Long, SkyforgePetroleumSourceAdapter.SourceAddress> addressByTermination = new HashMap<>();
 
     private SkyforgePetroleumSourceSavedData() {}
 
@@ -42,9 +44,7 @@ final class SkyforgePetroleumSourceSavedData extends SavedData {
             }
             var address = new SkyforgePetroleumSourceAdapter.SourceAddress(
                     volume, BlockPos.of(entry.getLong("termination")));
-            if (data.remaining.putIfAbsent(address, amount) != null) {
-                throw new IllegalStateException("duplicate persisted Skyforge petroleum source: " + address);
-            }
+            data.putLoaded(address, amount);
         }
         return data;
     }
@@ -53,16 +53,60 @@ final class SkyforgePetroleumSourceSavedData extends SavedData {
         return Map.copyOf(remaining);
     }
 
+    int remainingAt(BlockPos termination) {
+        Objects.requireNonNull(termination, "termination");
+        var address = addressByTermination.get(termination.asLong());
+        return address == null ? 0 : remaining.getOrDefault(address, 0);
+    }
+
+    void setRemainingAt(BlockPos termination, int amount) {
+        Objects.requireNonNull(termination, "termination");
+        if (amount < 0) {
+            throw new IllegalArgumentException("petroleum amount must be nonnegative");
+        }
+        var address = addressByTermination.get(termination.asLong());
+        if (address == null) {
+            return;
+        }
+        Integer previous = remaining.put(address, amount);
+        if (!Objects.equals(previous, amount)) {
+            setDirty();
+        }
+    }
+
     void replace(Map<SkyforgePetroleumSourceAdapter.SourceAddress, Integer> next) {
         Objects.requireNonNull(next, "next");
         if (next.size() > MAXIMUM_SOURCES || next.values().stream().anyMatch(amount -> amount == null || amount < 0)) {
             throw new IllegalArgumentException("invalid Skyforge petroleum source state");
         }
         TreeMap<SkyforgePetroleumSourceAdapter.SourceAddress, Integer> ordered = new TreeMap<>(next);
+        HashMap<Long, SkyforgePetroleumSourceAdapter.SourceAddress> index = new HashMap<>();
+        ordered.keySet().forEach(address -> {
+            var previous = index.putIfAbsent(address.termination().asLong(), address);
+            if (previous != null && !previous.equals(address)) {
+                throw new IllegalArgumentException(
+                        "multiple exact petroleum sources cannot share one physical termination: "
+                                + address.termination());
+            }
+        });
         if (!remaining.equals(ordered)) {
             remaining.clear();
             remaining.putAll(ordered);
             setDirty();
+        }
+        addressByTermination.clear();
+        addressByTermination.putAll(index);
+    }
+
+    private void putLoaded(SkyforgePetroleumSourceAdapter.SourceAddress address, int amount) {
+        if (remaining.putIfAbsent(address, amount) != null) {
+            throw new IllegalStateException("duplicate persisted Skyforge petroleum source: " + address);
+        }
+        var previous = addressByTermination.putIfAbsent(address.termination().asLong(), address);
+        if (previous != null && !previous.equals(address)) {
+            throw new IllegalStateException(
+                    "multiple persisted Skyforge petroleum sources share one physical termination: "
+                            + address.termination());
         }
     }
 
