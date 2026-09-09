@@ -1,1384 +1,220 @@
-import importlib.util
 import pathlib
-import sys
 import tempfile
-import threading
 import unittest
 from unittest import mock
 
-MODULE_PATH = pathlib.Path(__file__).with_name("skyforge_orchestrator.py")
-SPEC = importlib.util.spec_from_file_location("skyforge_orchestrator", MODULE_PATH)
-assert SPEC and SPEC.loader
-orch = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = orch
-SPEC.loader.exec_module(orch)
+_CORE_TEST_PATH = pathlib.Path(__file__).with_name("test_skyforge_orchestrator_core.py")
+_CORE_TEST_SOURCE = _CORE_TEST_PATH.read_text()
+_CORE_TEST_MAIN = '\nif __name__ == "__main__":\n    unittest.main()\n'
+if _CORE_TEST_SOURCE.count(_CORE_TEST_MAIN) != 1:
+    raise RuntimeError("Skyforge orchestrator core test entrypoint shape changed; refuse overlay load")
+exec(
+    compile(_CORE_TEST_SOURCE.replace(_CORE_TEST_MAIN, "\n"), str(_CORE_TEST_PATH), "exec"),
+    globals(),
+    globals(),
+)
 
 
-class EventFilterTests(unittest.TestCase):
-    def test_main_push_is_actionable(self):
-        d = orch.classify_event("push", {"ref": "refs/heads/main", "after": "abc123"})
-        self.assertTrue(d.actionable)
-        self.assertEqual(d.head_sha, "abc123")
-
-    def test_non_main_push_is_ignored(self):
-        d = orch.classify_event("push", {"ref": "refs/heads/feature", "after": "abc123"})
-        self.assertFalse(d.actionable)
-
-    def test_pr_synchronize_is_ignored_to_wait_for_ci(self):
-        d = orch.classify_event(
-            "pull_request",
-            {
-                "action": "synchronize",
-                "number": 42,
-                "pull_request": {"head": {"sha": "deadbeef"}},
-            },
-        )
-        self.assertFalse(d.actionable)
-        self.assertIn("wait for workflow", d.reason)
-
-    def test_pr_closed_is_actionable(self):
-        d = orch.classify_event(
-            "pull_request",
-            {"action": "closed", "number": 42, "pull_request": {"head": {"sha": "deadbeef"}}},
-        )
-        self.assertTrue(d.actionable)
-        self.assertEqual(d.pr_number, 42)
-
-    def test_pr_ready_for_review_is_actionable(self):
-        d = orch.classify_event(
-            "pull_request",
-            {"action": "ready_for_review", "number": 43, "pull_request": {"head": {"sha": "feedface"}}},
-        )
-        self.assertTrue(d.actionable)
-
-    def test_pr_opened_waits_for_ci(self):
-        d = orch.classify_event(
-            "pull_request",
-            {"action": "opened", "number": 44, "pull_request": {"head": {"sha": "feedface"}}},
-        )
-        self.assertFalse(d.actionable)
-
-    def test_workflow_completed_is_actionable(self):
-        d = orch.classify_event(
-            "workflow_run",
-            {
-                "action": "completed",
-                "workflow_run": {
-                    "head_sha": "cafebabe",
-                    "pull_requests": [{"number": 45}],
-                },
-            },
-        )
-        self.assertTrue(d.actionable)
-        self.assertEqual(d.head_sha, "cafebabe")
-        self.assertEqual(d.pr_number, 45)
-
-    def test_workflow_noncompleted_is_ignored(self):
-        d = orch.classify_event(
-            "workflow_run",
-            {"action": "in_progress", "workflow_run": {"head_sha": "cafebabe"}},
-        )
-        self.assertFalse(d.actionable)
-
-    def test_audit_comment_wakes_with_structured_restart_directive(self):
-        body = (
-            "AUDIT — RESTART RECOMMENDED (Content / Experience, hosted wake). "
-            "Preserve PR #401 at head `091a2decaf81bebc9e9161e8b04e291c2831d9b0`. "
-            "Fresh-worker objective: reuse portable evidence, record C12 B0-A1/B0-A2 acceptance, "
-            "and close/merge #401 cleanly."
-        )
-        d = orch.classify_event(
+class MaterialStateCoalescingTests(HostedTransportTests):
+    def test_budget_reset_signal_requires_trusted_actor(self):
+        trusted = orch.classify_event(
             "issue_comment",
             {
                 "action": "created",
-                "issue": {"number": 401},
+                "issue": {"number": 349},
                 "comment": {
-                    "id": 5588330240,
-                    "created_at": "2026-09-08T16:18:09Z",
-                    "body": body,
+                    "id": 123,
+                    "body": "/skyforge-reset-budget",
                     "user": {"login": "ni-da-ba"},
                 },
             },
         )
-        self.assertTrue(d.actionable)
-        self.assertEqual(d.pr_number, 401)
-        self.assertEqual(d.action, "audit_signal")
-        self.assertEqual(d.signal_kind, "restart_recommended")
-        self.assertEqual(d.signal_text, body)
-        self.assertEqual(d.source_id, "5588330240")
-        self.assertEqual(d.observed_at, "2026-09-08T16:18:09Z")
+        self.assertTrue(trusted.actionable)
+        self.assertEqual(trusted.signal_kind, "budget_reset")
 
-    def test_human_gate_signal_is_structured(self):
-        d = orch.classify_event(
-            "issue_comment",
-            {
-                "action": "created",
-                "issue": {"number": 358},
-                "comment": {
-                    "id": 99,
-                    "body": "AUDIT HUMAN_GATE: morphology review required",
-                    "user": {"login": "ni-da-ba"},
-                },
-            },
-        )
-        self.assertTrue(d.actionable)
-        self.assertEqual(d.signal_kind, "human_gate")
-
-    def test_classifier_prompt_preserves_restart_text_and_does_not_offer_pr_updated_at(self):
-        event = orch.EventDecision(
-            True,
-            "Audit/watchdog orchestration signal",
-            "issue_comment",
-            action="audit_signal",
-            pr_number=401,
-            observed_at="2026-09-08T16:18:09+00:00",
-            source_id="5588330240",
-            signal_kind="restart_recommended",
-            signal_text="AUDIT — RESTART RECOMMENDED. Fresh-worker objective: finish #401.",
-        )
-        prompt = orch._classifier_prompt(
-            [event],
-            {
-                "main": "abc",
-                "open_prs": [
-                    {
-                        "number": 401,
-                        "isDraft": True,
-                        "headRefOid": "091a2decaf81bebc9e9161e8b04e291c2831d9b0",
-                    }
-                ],
-            },
-        )
-        self.assertIn('"signal_kind": "restart_recommended"', prompt)
-        self.assertIn("RESTART RECOMMENDED", prompt)
-        self.assertIn("Fresh-worker objective: finish #401", prompt)
-        self.assertIn("2026-09-08T16:18:09+00:00", prompt)
-        self.assertIn("updatedAt is not producer-liveness evidence", prompt)
-
-    def test_manual_command_wakes(self):
-        d = orch.classify_event(
-            "issue_comment",
-            {
-                "action": "created",
-                "issue": {"number": 349},
-                "comment": {"body": "/skyforge-orchestrate", "user": {"login": "ni-da-ba"}},
-            },
-        )
-        self.assertTrue(d.actionable)
-        self.assertEqual(d.action, "manual_command")
-
-    def test_ordinary_comment_is_ignored(self):
-        d = orch.classify_event(
-            "issue_comment",
-            {
-                "action": "created",
-                "issue": {"number": 349},
-                "comment": {"body": "Looks good to me."},
-            },
-        )
-        self.assertFalse(d.actionable)
-
-    def test_controller_comment_is_ignored_even_with_gate_words(self):
-        d = orch.classify_event(
-            "issue_comment",
-            {
-                "action": "created",
-                "issue": {"number": 349},
-                "comment": {"body": "[skyforge-orchestrator] HUMAN_GATE", "user": {"login": "ni-da-ba"}},
-            },
-        )
-        self.assertFalse(d.actionable)
-
-    def test_untrusted_manual_command_cannot_wake(self):
-        d = orch.classify_event(
+        untrusted = orch.classify_event(
             "issue_comment",
             {
                 "action": "created",
                 "issue": {"number": 349},
                 "comment": {
-                    "body": "/skyforge-orchestrate",
-                    "user": {"login": "random-contributor"},
+                    "id": 124,
+                    "body": "/skyforge-reset-budget",
+                    "user": {"login": "intruder"},
                 },
             },
         )
-        self.assertFalse(d.actionable)
-        self.assertIn("untrusted commenter", d.reason)
+        self.assertFalse(untrusted.actionable)
 
-    def test_untrusted_audit_words_cannot_wake(self):
-        d = orch.classify_event(
-            "issue_comment",
-            {
-                "action": "created",
-                "issue": {"number": 349},
-                "comment": {
-                    "body": "AUDIT: LOOP RISK",
-                    "user": {"login": "random-contributor"},
-                },
-            },
-        )
-        self.assertFalse(d.actionable)
-
-    def test_pause_resume_commands_require_trusted_actor(self):
-        trusted = {
-            "action": "created",
-            "comment": {"body": "/skyforge-pause", "user": {"login": "ni-da-ba"}},
-        }
-        untrusted = {
-            "action": "created",
-            "comment": {"body": "/skyforge-pause", "user": {"login": "random-contributor"}},
-        }
-        self.assertEqual(orch.classify_control_command("issue_comment", trusted), "pause")
-        self.assertIsNone(orch.classify_control_command("issue_comment", untrusted))
-        trusted["comment"]["body"] = "/skyforge-resume"
-        self.assertEqual(orch.classify_control_command("issue_comment", trusted), "resume")
-        trusted["comment"]["body"] = "/skyforge-status"
-        self.assertEqual(orch.classify_control_command("issue_comment", trusted), "status")
-
-    def test_external_pr_event_is_ignored(self):
-        d = orch.classify_event(
-            "pull_request",
-            {
-                "action": "closed",
-                "number": 99,
-                "pull_request": {
-                    "head": {
-                        "sha": "abc",
-                        "repo": {"full_name": "someone/fork"},
-                    }
-                },
-            },
-        )
-        self.assertFalse(d.actionable)
-        self.assertIn("external/fork", d.reason)
-
-    def test_external_workflow_event_is_ignored(self):
-        d = orch.classify_event(
-            "workflow_run",
-            {
-                "action": "completed",
-                "workflow_run": {
-                    "head_sha": "abc",
-                    "head_repository": {"full_name": "someone/fork"},
-                    "pull_requests": [],
-                },
-            },
-        )
-        self.assertFalse(d.actionable)
-
-
-class RestartNoopGuardTests(unittest.TestCase):
-    def restart_event(self):
-        return orch.EventDecision(
-            True,
-            "Audit/watchdog orchestration signal",
-            "issue_comment",
-            action="audit_signal",
-            pr_number=401,
-            observed_at="2026-09-08T16:18:09+00:00",
-            source_id="5588330240",
-            signal_kind="restart_recommended",
-            signal_text=(
-                "AUDIT — RESTART RECOMMENDED. Preserve PR #401 at head "
-                "`091a2decaf81bebc9e9161e8b04e291c2831d9b0`."
-            ),
-        )
-
-    def test_unchanged_open_head_does_not_support_restart_noop(self):
-        snapshot = {
-            "open_prs": [
-                {
-                    "number": 401,
-                    "headRefOid": "091a2decaf81bebc9e9161e8b04e291c2831d9b0",
-                }
-            ]
-        }
-        self.assertFalse(
-            orch._restart_noop_has_post_signal_evidence([self.restart_event()], snapshot)
-        )
-
-    def test_changed_head_supports_restart_noop_reconsideration(self):
-        snapshot = {
-            "open_prs": [
-                {
-                    "number": 401,
-                    "headRefOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                }
-            ]
-        }
-        self.assertTrue(
-            orch._restart_noop_has_post_signal_evidence([self.restart_event()], snapshot)
-        )
-
-    def test_closed_target_supports_restart_noop_reconsideration(self):
-        self.assertTrue(
-            orch._restart_noop_has_post_signal_evidence(
-                [self.restart_event()], {"open_prs": []}
-            )
-        )
-
-    def test_restart_without_signal_time_head_cannot_be_silently_nooped(self):
-        event = self.restart_event()
-        event = orch.replace(event, signal_text="AUDIT — RESTART RECOMMENDED.")
-        snapshot = {
-            "open_prs": [
-                {
-                    "number": 401,
-                    "headRefOid": "091a2decaf81bebc9e9161e8b04e291c2831d9b0",
-                }
-            ]
-        }
-        self.assertFalse(
-            orch._restart_noop_has_post_signal_evidence([event], snapshot)
-        )
-
-
-class ClassifierJsonTests(unittest.TestCase):
-    def test_plain_json(self):
-        value = orch._clean_json_object('{"decision":"NOOP","reason":"idle"}')
-        self.assertEqual(value["decision"], "NOOP")
-
-    def test_fenced_json(self):
-        value = orch._clean_json_object('''```json
-{"decision":"DISPATCH","reason":"work"}
-```''')
-        self.assertEqual(value["decision"], "DISPATCH")
-
-
-class FailurePolicyTests(unittest.TestCase):
-    def test_quota_failure_is_long_backoff(self):
-        kind, delay = orch._codex_failure_policy(RuntimeError("Usage limit reached for Codex"))
-        self.assertEqual(kind, "quota")
-        self.assertGreaterEqual(delay, 60)
-
-    def test_rate_limit_failure_is_shorter_backoff(self):
-        kind, delay = orch._codex_failure_policy(RuntimeError("429 rate limit exceeded"))
-        self.assertEqual(kind, "rate_limit")
-        self.assertGreaterEqual(delay, 30)
-
-    def test_unknown_failure_is_transient(self):
-        kind, delay = orch._codex_failure_policy(RuntimeError("socket disappeared"))
-        self.assertEqual(kind, "transient")
-        self.assertGreaterEqual(delay, 30)
-
-
-class HostedTransportTests(unittest.TestCase):
-    def make_orchestrator(self, root: pathlib.Path):
-        return orch.Orchestrator(
-            root,
-            repo="ni-da-ba/skyforge",
-            debounce_seconds=999,
-            min_dispatch_seconds=0,
-            max_parent_turns=24,
-            auto_merge=False,
-            webhook_secret="x" * 48,
-            require_webhook_secret=True,
-            startup_reconcile=True,
-        )
-
-    def test_webhook_signature_matches_github_reference_vector(self):
-        self.assertTrue(
-            orch.verify_webhook_signature(
-                "It's a Secret to Everybody",
-                b"Hello, World!",
-                "sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17",
-            )
-        )
-
-    def test_webhook_signature_rejects_missing_or_tampered_values(self):
-        self.assertFalse(orch.verify_webhook_signature(None, b"payload", "sha256=abc"))
-        self.assertFalse(orch.verify_webhook_signature("secret", b"payload", None))
-        self.assertFalse(
-            orch.verify_webhook_signature(
-                "secret",
-                b"payload",
-                "sha256=0000000000000000000000000000000000000000000000000000000000000000",
-            )
-        )
-
-    def test_delivery_ids_persist_and_are_bounded(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            o = self.make_orchestrator(root)
-            for index in range(orch.DEFAULT_MAX_SEEN_DELIVERIES + 3):
-                o.record_delivery(f"delivery-{index}")
-
-            self.assertEqual(
-                len(o.state.data["seen_deliveries"]),
-                orch.DEFAULT_MAX_SEEN_DELIVERIES,
-            )
-            self.assertFalse(o.delivery_seen("delivery-0"))
-            self.assertTrue(
-                o.delivery_seen(
-                    f"delivery-{orch.DEFAULT_MAX_SEEN_DELIVERIES + 2}"
-                )
-            )
-
-            reloaded = self.make_orchestrator(root)
-            self.assertTrue(
-                reloaded.delivery_seen(
-                    f"delivery-{orch.DEFAULT_MAX_SEEN_DELIVERIES + 2}"
-                )
-            )
-
-    def test_health_snapshot_exposes_state_not_secrets(self):
+    def test_budget_reset_is_zero_cost_and_preserves_queue(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
-            health = o.health_snapshot()
-            self.assertEqual(health["status"], "ok")
-            self.assertEqual(health["repo"], "ni-da-ba/skyforge")
-            self.assertNotIn("webhook_secret", health)
-            self.assertNotIn("x" * 48, str(health))
-
-    def test_pause_state_persists_and_health_reports_it(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            o = self.make_orchestrator(root)
+            o.state.data["classifier_calls_today"] = 22
+            o.state.data["luna_worker_calls_today"] = 1
+            o.state.data["worker_calls_today"] = 2
+            o.state.data["blocked_kind"] = "local_budget"
+            o.state.data["blocked_until_epoch"] = 9999999999.0
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc")
+            o._persist_pending_events([event])
             o.set_paused(True, actor="ni-da-ba")
+
+            reset = orch.EventDecision(
+                True,
+                "trusted reset",
+                "issue_comment",
+                action="audit_signal",
+                signal_kind="budget_reset",
+            )
+            o.enqueue(reset)
+
+            self.assertEqual(o.state.data["classifier_calls_today"], 0)
+            self.assertEqual(o.state.data["luna_worker_calls_today"], 0)
+            self.assertEqual(o.state.data["worker_calls_today"], 0)
+            self.assertIsNone(o.state.data["blocked_kind"])
+            self.assertEqual(len(o._pending_events()), 1)
             self.assertTrue(o.is_paused())
-            self.assertTrue(o.health_snapshot()["paused"])
+            self.assertEqual(o.state.data["metrics"].get("manual_budget_resets"), 1)
 
-            reloaded = self.make_orchestrator(root)
-            self.assertTrue(reloaded.is_paused())
-            reloaded.set_paused(False, actor="ni-da-ba")
-            self.assertFalse(reloaded.is_paused())
-
-    def test_status_command_posts_nonsecret_runtime_and_checkout_heads(self):
+    def test_budget_reset_rejected_while_running(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
-            o.runtime_head = "runtime-head-123"
-
-            calls = []
-
-            def fake_run(args, **kwargs):
-                calls.append(args)
-                if args[:3] == ["git", "rev-parse", "HEAD"]:
-                    return orch.subprocess.CompletedProcess(
-                        args, 0, stdout="checkout-head-456\n", stderr=""
-                    )
-                return orch.subprocess.CompletedProcess(args, 0, stdout="", stderr="")
-
-            with mock.patch.object(orch, "_run", side_effect=fake_run):
-                o.post_status(349)
-
-            gh_calls = [args for args in calls if args[:3] == ["gh", "issue", "comment"]]
-            self.assertEqual(len(gh_calls), 1)
-            body = gh_calls[0][gh_calls[0].index("--body") + 1]
-            self.assertIn("[skyforge-orchestrator] STATUS", body)
-            self.assertIn('"runtime_head": "runtime-head-123"', body)
-            self.assertIn('"checkout_head": "checkout-head-456"', body)
-            self.assertNotIn("x" * 48, body)
-            self.assertEqual(o.state.data["metrics"].get("status_commands"), 1)
-
-    def test_worker_control_plane_paths_are_forbidden(self):
-        forbidden = [
-            "scripts/orchestrator/skyforge_orchestrator.py",
-            "deploy/orchestrator/Caddyfile.in",
-            ".github/workflows/ci.yml",
-            ".github/dependabot.yml",
-            "AGENTS.md",
-            "docs/agent-state/VALIDATION_POLICY.md",
-            "docs/agent-state/AUDIT_STATE.md",
-            ".skyforge-orchestrator/state.json",
-        ]
-        for path in forbidden:
-            with self.subTest(path=path):
-                self.assertTrue(orch.Orchestrator._worker_path_forbidden(path))
-        self.assertFalse(
-            orch.Orchestrator._worker_path_forbidden(
-                "src/main/java/com/skyforge/example/Feature.java"
+            o.state.data["classifier_calls_today"] = 7
+            reset = orch.EventDecision(
+                True,
+                "trusted reset",
+                "issue_comment",
+                action="audit_signal",
+                signal_kind="budget_reset",
             )
-        )
-        self.assertFalse(
-            orch.Orchestrator._worker_path_forbidden(
-                "docs/agent-state/IMPLEMENTATION_STATE.md"
-            )
-        )
+            o.enqueue(reset)
+            self.assertEqual(o.state.data["classifier_calls_today"], 7)
+            self.assertEqual(o.state.data["metrics"].get("budget_reset_rejections"), 1)
 
-    def test_classifier_policy_change_rotates_persistent_parent_thread(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            state = orch.LocalState(root)
-            state.data["parent_thread_id"] = "stale-thread"
-            state.data["parent_turns"] = 7
-            state.data["classifier_policy_fingerprint"] = "old-policy"
-            state.save()
-
-            o = self.make_orchestrator(root)
-            self.assertIsNone(o.state.data["parent_thread_id"])
-            self.assertEqual(o.state.data["parent_turns"], 0)
-            self.assertEqual(
-                o.state.data["classifier_policy_fingerprint"],
-                orch.CLASSIFIER_POLICY_FINGERPRINT,
-            )
-            self.assertEqual(
-                o.state.data["metrics"].get("classifier_policy_rotations"),
-                1,
-            )
-
-    def test_classifier_failure_diagnostics_are_nonsecret_and_reset_on_success(self):
+    def test_push_head_waits_for_quiescence_before_core_dispatch(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
-            streak, opened = o._record_classifier_failure(
-                "transient",
-                RuntimeError("authorization Bearer secret-token transport failed"),
-            )
-            self.assertEqual(streak, 1)
-            self.assertFalse(opened)
-            health = o.health_snapshot()
-            self.assertEqual(health["classifier_failure_streak"], 1)
-            self.assertEqual(health["last_classifier_error_kind"], "transient")
-            self.assertNotIn("secret-token", health["last_classifier_error_summary"])
-            self.assertIn("[REDACTED]", health["last_classifier_error_summary"])
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc")
+            with mock.patch.object(o, "_settle_remaining", return_value=0), \
+                 mock.patch.object(o, "workflows_quiescent", return_value=False) as quiet, \
+                 mock.patch.object(o, "_schedule_pending") as schedule, \
+                 mock.patch.object(orch._BaseOrchestrator, "dispatch") as base_dispatch:
+                o.dispatch([event])
+            quiet.assert_called_once_with("abc")
+            schedule.assert_called_once()
+            base_dispatch.assert_not_called()
 
-            o._record_classifier_success()
-            health = o.health_snapshot()
-            self.assertEqual(health["classifier_failure_streak"], 0)
-            self.assertIsNotNone(health["last_classifier_success_at"])
-
-    def test_classifier_failure_circuit_pauses_after_three_consecutive_failures(self):
+    def test_duplicate_material_state_returns_noop_without_budget_use(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
-            for expected in (1, 2):
-                streak, opened = o._record_classifier_failure(
-                    "transient",
-                    RuntimeError(f"temporary failure {expected}"),
-                )
-                self.assertEqual(streak, expected)
-                self.assertFalse(opened)
-                self.assertFalse(o.is_paused())
+            event = orch.EventDecision(True, "workflow completed", "workflow_run", head_sha="abc")
+            snapshot = {
+                "main": "main",
+                "open_prs": [],
+                "controller_managed": [],
+                "classifier_policy": orch.CLASSIFIER_POLICY_FINGERPRINT,
+            }
+            fingerprint = o._material_fingerprint(snapshot)
+            o.state.data["last_material_classifier_fingerprint"] = fingerprint
+            o.state.save()
+            o._active_dispatch_events = [event]
 
-            streak, opened = o._record_classifier_failure(
-                "transient",
-                RuntimeError("temporary failure 3"),
-            )
-            self.assertEqual(streak, 3)
-            self.assertTrue(opened)
-            self.assertTrue(o.is_paused())
-            self.assertEqual(o.state.data["paused_by"], "classifier-failure-circuit")
+            with mock.patch.object(o, "_material_state_snapshot", return_value=snapshot), \
+                 mock.patch.object(orch._BaseOrchestrator, "_codex_classifier") as base_classifier:
+                decision = o._codex_classifier("prompt")
+
+            self.assertEqual(decision["decision"], "NOOP")
+            self.assertTrue(decision["material_state_duplicate"])
+            base_classifier.assert_not_called()
+            self.assertEqual(o.state.data["classifier_calls_today"], 0)
             self.assertEqual(
-                o.state.data["metrics"].get("classifier_failure_circuit_pauses"),
-                1,
+                o.state.data["metrics"].get("material_duplicate_batches_suppressed"), 1
             )
 
-    def test_first_week_local_budget_defaults_are_conservative(self):
-        self.assertEqual(orch.DEFAULT_MAX_CLASSIFIER_CALLS_PER_DAY, 24)
-        self.assertEqual(orch.DEFAULT_MAX_WORKER_CALLS_PER_DAY, 4)
+    def test_material_fingerprint_persists_only_after_decision_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "workflow completed", "workflow_run", head_sha="abc")
+            snapshot = {
+                "main": "new",
+                "open_prs": [],
+                "controller_managed": [],
+                "classifier_policy": orch.CLASSIFIER_POLICY_FINGERPRINT,
+            }
+            actual = {
+                "decision": "NOOP",
+                "lane": None,
+                "pr_number": None,
+                "objective": None,
+                "stop_boundary": None,
+                "reusable_evidence": None,
+                "worker_tier": None,
+                "allowed_paths": None,
+                "reason": "done",
+                "human_message": None,
+            }
+            o._active_dispatch_events = [event]
+            with mock.patch.object(o, "_material_state_snapshot", return_value=snapshot), \
+                 mock.patch.object(
+                     orch._BaseOrchestrator, "_codex_classifier", return_value=actual
+                 ):
+                result = o._codex_classifier("prompt")
+            self.assertNotIn("last_material_classifier_fingerprint", o.state.data)
+            o._cache_decision(result, [event])
+            self.assertEqual(
+                o.state.data["last_material_classifier_fingerprint"],
+                o._material_fingerprint(snapshot),
+            )
 
-    def test_reconcile_fingerprint_is_order_stable_for_mapping_keys(self):
+    def test_manual_audit_signal_bypasses_material_duplicate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(
+                True,
+                "audit",
+                "issue_comment",
+                action="audit_signal",
+                signal_kind="audit",
+            )
+            snapshot = {
+                "main": "same",
+                "open_prs": [],
+                "controller_managed": [],
+                "classifier_policy": orch.CLASSIFIER_POLICY_FINGERPRINT,
+            }
+            o.state.data["last_material_classifier_fingerprint"] = o._material_fingerprint(snapshot)
+            o.state.save()
+            o._active_dispatch_events = [event]
+            actual = {
+                "decision": "NOOP",
+                "lane": None,
+                "pr_number": None,
+                "objective": None,
+                "stop_boundary": None,
+                "reusable_evidence": None,
+                "worker_tier": None,
+                "allowed_paths": None,
+                "reason": "operator-forced",
+                "human_message": None,
+            }
+            with mock.patch.object(o, "_material_state_snapshot", return_value=snapshot), \
+                 mock.patch.object(
+                     orch._BaseOrchestrator, "_codex_classifier", return_value=actual
+                 ) as base_classifier:
+                o._codex_classifier("prompt")
+            base_classifier.assert_called_once()
+
+    def test_material_fingerprint_ignores_actions_timing(self):
         first = {
             "main": "abc",
-            "open_prs": [{"number": 2, "title": "x"}],
-            "recent_runs": [{"databaseId": 5, "status": "completed"}],
+            "open_prs": [{"number": 1, "headRefOid": "def", "isDraft": False}],
+            "controller_managed": [],
+            "classifier_policy": "policy",
         }
-        second = {
-            "recent_runs": [{"status": "completed", "databaseId": 5}],
-            "open_prs": [{"title": "x", "number": 2}],
-            "main": "abc",
-        }
+        second = dict(first)
         self.assertEqual(
-            orch.Orchestrator._reconcile_fingerprint(first),
-            orch.Orchestrator._reconcile_fingerprint(second),
+            orch.Orchestrator._material_fingerprint(first),
+            orch.Orchestrator._material_fingerprint(second),
         )
-
-    def test_startup_reconcile_wakes_only_after_baseline_changes(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            initial = {"main": "abc", "open_prs": [], "recent_runs": []}
-            changed = {
-                "main": "def",
-                "open_prs": [{"number": 7}],
-                "recent_runs": [],
-            }
-
-            with mock.patch.object(o, "_remote_reconcile_snapshot", return_value=initial), \
-                    mock.patch.object(o, "enqueue") as enqueue:
-                o.startup_reconcile_repository()
-                enqueue.assert_not_called()
-
-                o.startup_reconcile_repository()
-                enqueue.assert_not_called()
-
-                o._remote_reconcile_snapshot.return_value = changed
-                o.startup_reconcile_repository()
-                enqueue.assert_called_once()
-                event = enqueue.call_args.args[0]
-                self.assertEqual(event.event, "reconcile")
-                self.assertTrue(event.actionable)
-                self.assertEqual(event.head_sha, "def")
-
-
-class DurableStateTests(unittest.TestCase):
-    def make_orchestrator(self, root: pathlib.Path):
-        return orch.Orchestrator(
-            root,
-            repo="ni-da-ba/skyforge",
-            debounce_seconds=999,
-            min_dispatch_seconds=0,
-            max_parent_turns=24,
-            auto_merge=False,
-        )
-
-    def test_event_state_round_trip(self):
-        event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
-        restored = orch.EventDecision.from_state(event.to_state())
-        self.assertEqual(restored, event)
-        self.assertEqual(orch._event_key(restored), orch._event_key(event))
-
-    def test_event_identity_ignores_observation_timestamp(self):
-        first = orch.EventDecision(
-            True,
-            "main advanced",
-            "push",
-            head_sha="abc123",
-            observed_at="2026-09-08T01:00:00+00:00",
-        )
-        second = orch.EventDecision(
-            True,
-            "main advanced",
-            "push",
-            head_sha="abc123",
-            observed_at="2026-09-08T01:05:00+00:00",
-        )
-        self.assertEqual(orch._event_key(first), orch._event_key(second))
-
-    def test_distinct_audit_comments_with_same_text_do_not_collapse(self):
-        first = orch.EventDecision(
-            True,
-            "Audit/watchdog orchestration signal",
-            "issue_comment",
-            action="audit_signal",
-            pr_number=401,
-            source_id="100",
-            signal_kind="restart_recommended",
-            signal_text="AUDIT: RESTART RECOMMENDED",
-        )
-        second = orch.EventDecision(
-            True,
-            "Audit/watchdog orchestration signal",
-            "issue_comment",
-            action="audit_signal",
-            pr_number=401,
-            source_id="101",
-            signal_kind="restart_recommended",
-            signal_text="AUDIT: RESTART RECOMMENDED",
-        )
-        self.assertNotEqual(orch._event_key(first), orch._event_key(second))
-
-    def test_pending_events_are_durable_and_deduplicated(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            o = self.make_orchestrator(root)
-            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
-            o._persist_pending_events([event, event])
-            self.assertEqual(o._pending_events(), [event])
-
-            reloaded = self.make_orchestrator(root)
-            self.assertEqual(reloaded._pending_events(), [event])
-
-    def test_new_event_invalidates_cached_decision_when_no_worker_active(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            first = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
-            o._persist_pending_events([first])
-            o._cache_decision({"decision": "NOOP", "reason": "idle"}, [first])
-            self.assertIsNotNone(o._decision_record())
-
-            second = orch.EventDecision(True, "main advanced", "push", head_sha="def456")
-            o._persist_pending_events([second])
-            self.assertIsNone(o._decision_record())
-
-    def test_new_event_preserves_inflight_worker_decision(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            first = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
-            o._persist_pending_events([first])
-            o._cache_decision({"decision": "DISPATCH", "lane": "Audit", "reason": "work"}, [first])
-            o.state.data["pending_worker"] = {"branch": "codex/audit-test"}
-            o.state.save()
-
-            second = orch.EventDecision(True, "main advanced", "push", head_sha="def456")
-            o._persist_pending_events([second])
-            self.assertIsNotNone(o._decision_record())
-
-    def test_completed_decision_removes_only_its_event_batch(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            first = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
-            second = orch.EventDecision(True, "main advanced", "push", head_sha="def456")
-            o._persist_pending_events([first])
-            o._cache_decision({"decision": "DISPATCH", "lane": "Audit", "reason": "work"}, [first])
-            o.state.data["pending_worker"] = {"branch": "codex/audit-test"}
-            o.state.save()
-            o._persist_pending_events([second])
-
-            o._clear_completed_decision()
-            self.assertEqual(o._pending_events(), [second])
-            if o._timer is not None:
-                o._timer.cancel()
-
-    def test_multi_event_no_change_schedules_one_bounded_followup(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            o.runtime_head = "abc123"
-            first = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
-            second = orch.EventDecision(
-                True,
-                "workflow completed",
-                "workflow_run",
-                action="completed",
-                head_sha="abc123",
-            )
-
-            with mock.patch.object(o, "_schedule_pending"):
-                self.assertTrue(o._schedule_no_change_followup([first, second]))
-                pending = o._pending_events()
-                self.assertEqual(len(pending), 1)
-                self.assertEqual(pending[0].event, "reconcile")
-                self.assertEqual(pending[0].action, "no_change_followup")
-                self.assertEqual(pending[0].head_sha, "abc123")
-                self.assertEqual(
-                    o.state.data["metrics"].get("no_change_followup_reconciliations"),
-                    1,
-                )
-
-                # A retained follow-up suppresses another synthetic wake.
-                self.assertFalse(o._schedule_no_change_followup([first, second]))
-                # A single-event batch can never recursively create a follow-up.
-                o.state.data["pending_events"] = []
-                o.state.save()
-                self.assertFalse(o._schedule_no_change_followup([first]))
-
-    def test_no_change_handoff_reports_no_repository_handoff(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-
-            def fake_run(args, **kwargs):
-                if args[:3] == ["git", "rev-list", "--count"]:
-                    return orch.subprocess.CompletedProcess(args, 0, stdout="0\n", stderr="")
-                return orch.subprocess.CompletedProcess(args, 0, stdout="", stderr="")
-
-            with mock.patch.object(o, "_changed_paths", return_value=[]), \
-                    mock.patch.object(orch, "_run", side_effect=fake_run):
-                created = o._handoff_changes(
-                    "Audit",
-                    "already satisfied",
-                    "codex/audit-test",
-                    None,
-                    "done",
-                )
-
-            self.assertFalse(created)
-            self.assertEqual(o.state.data["metrics"].get("worker_no_change"), 1)
-
-    def test_enqueue_journals_actionable_event_before_dispatch(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
-            o.enqueue(event)
-            try:
-                pending = o._pending_events()
-                self.assertEqual(len(pending), 1)
-                self.assertEqual(orch._event_key(pending[0]), orch._event_key(event))
-                self.assertIsNotNone(pending[0].observed_at)
-
-                reloaded = self.make_orchestrator(pathlib.Path(tmp))
-                restored = reloaded._pending_events()
-                self.assertEqual(len(restored), 1)
-                self.assertEqual(orch._event_key(restored[0]), orch._event_key(event))
-                self.assertEqual(restored[0].observed_at, pending[0].observed_at)
-            finally:
-                if o._timer is not None:
-                    o._timer.cancel()
-
-    def test_waiting_dispatch_does_not_snapshot_pending_events_before_lock(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
-            o._persist_pending_events([event])
-
-            pending_read = threading.Event()
-            original_pending = o._pending_events
-
-            def observed_pending():
-                value = original_pending()
-                pending_read.set()
-                return value
-
-            o._dispatch_lock.acquire()
-            try:
-                with mock.patch.object(o, "_pending_events", side_effect=observed_pending), \
-                        mock.patch.object(o, "dispatch") as dispatch:
-                    worker = threading.Thread(target=o._drain_and_dispatch)
-                    worker.start()
-
-                    # A callback waiting on the dispatch lock must not capture a stale queue snapshot.
-                    self.assertFalse(pending_read.wait(0.05))
-
-                    with o._state_lock:
-                        o.state.data["pending_events"] = []
-                        o.state.save()
-                    o._dispatch_lock.release()
-
-                    worker.join(timeout=1)
-                    self.assertFalse(worker.is_alive())
-                    self.assertTrue(pending_read.is_set())
-                    dispatch.assert_not_called()
-            finally:
-                if o._dispatch_lock.locked():
-                    o._dispatch_lock.release()
-
-    def test_restart_invalidates_cached_nonworker_decision(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
-            o._persist_pending_events([event])
-            o._cache_decision({"decision": "NOOP", "reason": "old snapshot"}, [event])
-            self.assertIsNotNone(o._decision_record())
-
-            o.resume_pending()
-            try:
-                self.assertIsNone(o._decision_record())
-                self.assertEqual(o._pending_events(), [event])
-            finally:
-                if o._timer is not None:
-                    o._timer.cancel()
-
-    def test_worker_handoff_stage_is_durable(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            o = self.make_orchestrator(root)
-            o.state.data["pending_worker"] = {
-                "lane": "Audit",
-                "branch": "codex/audit-test",
-                "stage": "editing",
-            }
-            o.state.save()
-
-            o._mark_worker_handoff("tests passed")
-            reloaded = self.make_orchestrator(root)
-            pending = reloaded.state.data["pending_worker"]
-            self.assertEqual(pending["stage"], "handoff")
-            self.assertEqual(pending["worker_summary"], "tests passed")
-
-    def test_protected_handoff_safety_pauses_without_commit(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            with mock.patch.object(
-                o,
-                "_changed_paths",
-                return_value=[".github/workflows/ci.yml"],
-            ), mock.patch.object(o, "_post_gate") as post_gate:
-                with self.assertRaisesRegex(RuntimeError, "safety-paused"):
-                    o._handoff_changes(
-                        "Implementation",
-                        "unsafe test",
-                        "codex/implementation-test",
-                        77,
-                        "done",
-                    )
-
-            self.assertTrue(o.is_paused())
-            self.assertEqual(o.state.data["paused_by"], "controller-safety")
-            post_gate.assert_called_once()
-            message = post_gate.call_args.args[0]["human_message"]
-            self.assertIn("No autonomous commit/push occurred", message)
-
-    def test_existing_controller_gate_after_current_pr_head_is_seeded_and_suppressed(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            decision = {
-                "decision": "HUMAN_GATE",
-                "lane": "Implementation",
-                "pr_number": 358,
-                "human_message": "Review the morphology gate.",
-            }
-            pr_info = {
-                "headRefOid": "abc123",
-                "state": "OPEN",
-                "commits": [
-                    {"committedDate": "2026-09-08T15:00:00Z"},
-                ],
-                "comments": [
-                    {
-                        "body": "[skyforge-orchestrator] HUMAN_GATE\n\nAlready surfaced.",
-                        "createdAt": "2026-09-08T16:00:00Z",
-                    }
-                ],
-            }
-
-            with mock.patch.object(orch, "_json_cmd", return_value=pr_info), \
-                    mock.patch.object(orch, "_run") as run:
-                o._post_gate(decision)
-
-            run.assert_not_called()
-            record = o.state.data["human_gate_records"]["pr:358:implementation"]
-            self.assertEqual(record["token"], "abc123:OPEN")
-            self.assertTrue(record["seeded_from_github"])
-            self.assertEqual(
-                o.state.data["metrics"].get("human_gate_duplicates_suppressed"),
-                1,
-            )
-
-    def test_same_pr_head_human_gate_is_suppressed_after_first_post(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            decision = {
-                "decision": "HUMAN_GATE",
-                "lane": "Implementation",
-                "pr_number": 358,
-                "human_message": "Review the morphology gate.",
-            }
-            pr_info = {
-                "headRefOid": "abc123",
-                "state": "OPEN",
-                "commits": [
-                    {"committedDate": "2026-09-08T15:00:00Z"},
-                ],
-                "comments": [],
-            }
-
-            with mock.patch.object(orch, "_json_cmd", return_value=pr_info), \
-                    mock.patch.object(
-                        orch,
-                        "_run",
-                        return_value=orch.subprocess.CompletedProcess([], 0, stdout="", stderr=""),
-                    ) as run:
-                o._post_gate(decision)
-                o._post_gate({**decision, "human_message": "Please review that same gate."})
-
-            self.assertEqual(run.call_count, 1)
-            self.assertEqual(o.state.data["metrics"].get("human_gates"), 1)
-            self.assertEqual(
-                o.state.data["metrics"].get("human_gate_duplicates_suppressed"),
-                1,
-            )
-
-    def test_new_pr_head_resurfaces_human_gate(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            decision = {
-                "decision": "HUMAN_GATE",
-                "lane": "Implementation",
-                "pr_number": 358,
-                "human_message": "Review the morphology gate.",
-            }
-            first = {
-                "headRefOid": "abc123",
-                "state": "OPEN",
-                "commits": [{"committedDate": "2026-09-08T15:00:00Z"}],
-                "comments": [],
-            }
-            second = {
-                "headRefOid": "def456",
-                "state": "OPEN",
-                "commits": [{"committedDate": "2026-09-08T17:00:00Z"}],
-                "comments": [],
-            }
-
-            with mock.patch.object(orch, "_json_cmd", side_effect=[first, second]), \
-                    mock.patch.object(
-                        orch,
-                        "_run",
-                        return_value=orch.subprocess.CompletedProcess([], 0, stdout="", stderr=""),
-                    ) as run:
-                o._post_gate(decision)
-                o._post_gate(decision)
-
-            self.assertEqual(run.call_count, 2)
-            self.assertEqual(
-                o.state.data["human_gate_records"]["pr:358:implementation"]["token"],
-                "def456:OPEN",
-            )
-            self.assertEqual(o.state.data["metrics"].get("human_gates"), 2)
-
-    def test_handoff_reuses_existing_open_pr_after_interruption(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            o.state.data["pending_worker"] = {
-                "lane": "Audit",
-                "branch": "codex/audit-test",
-                "stage": "handoff",
-                "worker_summary": "done",
-            }
-            o.state.save()
-
-            def fake_run(args, **kwargs):
-                if args[:3] == ["git", "rev-list", "--count"]:
-                    return orch.subprocess.CompletedProcess(args, 0, stdout="1\n", stderr="")
-                return orch.subprocess.CompletedProcess(args, 0, stdout="", stderr="")
-
-            with mock.patch.object(o, "_changed_paths", return_value=[]), \
-                    mock.patch.object(orch, "_run", side_effect=fake_run), \
-                    mock.patch.object(orch, "_json_cmd", return_value=[{"number": 77}]):
-                o._handoff_changes("Audit", "durable handoff", "codex/audit-test", None, "done")
-
-            self.assertEqual(o.state.data["managed"]["Audit"]["pr_number"], 77)
-            self.assertEqual(o.state.data["managed"]["Audit"]["branch"], "codex/audit-test")
-
-    def test_concurrent_state_saves_remain_valid_json(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            o = self.make_orchestrator(root)
-            errors = []
-
-            def writer(index):
-                try:
-                    for value in range(20):
-                        with o._state_lock:
-                            o.state.data[f"thread_{index}"] = value
-                            o.state.save()
-                except Exception as exc:
-                    errors.append(exc)
-
-            threads = [threading.Thread(target=writer, args=(index,)) for index in range(4)]
-            for thread in threads:
-                thread.start()
-            for thread in threads:
-                thread.join()
-
-            self.assertEqual(errors, [])
-            reloaded = self.make_orchestrator(root)
-            for index in range(4):
-                self.assertEqual(reloaded.state.data[f"thread_{index}"], 19)
-
-    def test_local_budget_blocks_without_spending_beyond_limit(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            old = orch.os.environ.get("SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY")
-            orch.os.environ["SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY"] = "1"
-            try:
-                o._consume_budget("worker")
-                with self.assertRaises(orch.RetryBlocked) as ctx:
-                    o._consume_budget("worker")
-                self.assertEqual(ctx.exception.kind, "local_budget")
-                self.assertEqual(o.state.data["worker_calls_today"], 1)
-            finally:
-                if old is None:
-                    orch.os.environ.pop("SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY", None)
-                else:
-                    orch.os.environ["SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY"] = old
-
-
-class FrugalRoutingTests(unittest.TestCase):
-    def make_orchestrator(self, root: pathlib.Path):
-        return orch.Orchestrator(
-            root,
-            repo="ni-da-ba/skyforge",
-            debounce_seconds=999,
-            min_dispatch_seconds=0,
-            max_parent_turns=24,
-            auto_merge=False,
-            webhook_secret="x" * 48,
-            require_webhook_secret=True,
-            startup_reconcile=True,
-        )
-
-    def test_luna_worker_shares_classifier_daily_ceiling(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            old = orch.os.environ.get("SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY")
-            orch.os.environ["SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY"] = "2"
-            try:
-                o._consume_budget("classifier")
-                o._consume_budget("luna_worker")
-                with self.assertRaises(orch.RetryBlocked) as ctx:
-                    o._consume_budget("classifier")
-                self.assertEqual(ctx.exception.kind, "local_budget")
-                self.assertEqual(o.state.data["classifier_calls_today"], 1)
-                self.assertEqual(o.state.data["luna_worker_calls_today"], 1)
-            finally:
-                if old is None:
-                    orch.os.environ.pop("SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY", None)
-                else:
-                    orch.os.environ["SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY"] = old
-
-    def test_worker_scope_rejection_safety_pauses_without_commit(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            with mock.patch.object(
-                o,
-                "_changed_paths",
-                return_value=[
-                    "docs/agent-state/CONTENT_STATE.md",
-                    "skyforge-neoforge-1211/build.gradle.kts",
-                ],
-            ), mock.patch.object(o, "_post_gate") as post_gate:
-                with self.assertRaises(orch.SafetyPause):
-                    o._handoff_changes(
-                        "Content",
-                        "record accepted C12 boundary",
-                        "codex/content-test",
-                        None,
-                        "done",
-                        ["docs/agent-state/CONTENT_STATE.md"],
-                    )
-
-            self.assertTrue(o.is_paused())
-            self.assertEqual(o.state.data["paused_by"], "controller-safety")
-            post_gate.assert_called_once()
-            message = post_gate.call_args.args[0]["human_message"]
-            self.assertIn("outside the bounded edit scope", message)
-            self.assertEqual(
-                o.state.data["metrics"].get("worker_scope_rejections"),
-                1,
-            )
-
-    def test_allowed_path_prefix(self):
-        self.assertTrue(
-            orch.Orchestrator._worker_path_allowed(
-                "docs/design-audit/example.md",
-                ["docs/design-audit/**"],
-            )
-        )
-        self.assertFalse(
-            orch.Orchestrator._worker_path_allowed(
-                "skyforge-neoforge-1211/build.gradle.kts",
-                ["docs/design-audit/**"],
-            )
-        )
-
-    def test_health_exposes_pending_worker_tier_and_age(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            o.state.data["pending_worker"] = {
-                "lane": "Content",
-                "branch": "codex/content-test",
-                "stage": "editing",
-                "worker_tier": "LUNA",
-                "started_at": orch._utc_now(),
-            }
-            o.state.data["classifier_calls_today"] = 3
-            o.state.data["luna_worker_calls_today"] = 2
-            o.state.data["worker_calls_today"] = 1
-            o.state.save()
-
-            health = o.health_snapshot()
-            self.assertEqual(health["worker_lane"], "Content")
-            self.assertEqual(health["worker_stage"], "editing")
-            self.assertEqual(health["worker_tier"], "LUNA")
-            self.assertIsNotNone(health["worker_age_seconds"])
-            self.assertEqual(health["luna_calls_today_total"], 5)
-            self.assertEqual(health["terra_worker_calls_today"], 1)
-
-
-class ControllerSelfRefreshTests(unittest.TestCase):
-    def make_orchestrator(self, root: pathlib.Path):
-        return orch.Orchestrator(
-            root,
-            repo="ni-da-ba/skyforge",
-            debounce_seconds=999,
-            min_dispatch_seconds=0,
-            max_parent_turns=24,
-            auto_merge=False,
-        )
-
-    @staticmethod
-    def completed(args, stdout=""):
-        return orch.subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
-
-    def test_sync_main_requests_restart_only_when_controller_python_changed(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            o.runtime_head = "oldhead"
-
-            def fake_run(args, **kwargs):
-                if args[:3] == ["git", "rev-parse", "HEAD"]:
-                    return self.completed(args, "newhead\n")
-                if args[:3] == ["git", "diff", "--name-only"]:
-                    return self.completed(
-                        args,
-                        "scripts/orchestrator/skyforge_orchestrator.py\n"
-                        "docs/agent-state/AUDIT_STATE.md\n",
-                    )
-                return self.completed(args)
-
-            with mock.patch.object(o, "_worktree_clean", return_value=True), \
-                    mock.patch.object(orch, "_run", side_effect=fake_run), \
-                    mock.patch.object(o, "_request_runtime_restart") as restart:
-                o.sync_main()
-
-            restart.assert_called_once_with(
-                "oldhead",
-                "newhead",
-                ["scripts/orchestrator/skyforge_orchestrator.py"],
-            )
-            self.assertEqual(o.runtime_head, "newhead")
-
-    def test_sync_main_does_not_restart_for_orchestrator_docs_only(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            o.runtime_head = "oldhead"
-
-            def fake_run(args, **kwargs):
-                if args[:3] == ["git", "rev-parse", "HEAD"]:
-                    return self.completed(args, "newhead\n")
-                if args[:3] == ["git", "diff", "--name-only"]:
-                    return self.completed(
-                        args,
-                        "scripts/orchestrator/test_skyforge_orchestrator.py\n"
-                        "scripts/orchestrator/README.md\n",
-                    )
-                return self.completed(args)
-
-            with mock.patch.object(o, "_worktree_clean", return_value=True), \
-                    mock.patch.object(orch, "_run", side_effect=fake_run), \
-                    mock.patch.object(o, "_request_runtime_restart") as restart:
-                o.sync_main()
-
-            restart.assert_not_called()
-            self.assertEqual(o.runtime_head, "newhead")
-
-    def test_runtime_restart_request_is_durable_before_exit(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            o = self.make_orchestrator(pathlib.Path(tmp))
-            with mock.patch.object(orch.os, "_exit") as exit_process:
-                o._request_runtime_restart(
-                    "oldhead",
-                    "newhead",
-                    ["scripts/orchestrator/skyforge_orchestrator.py"],
-                )
-
-            exit_process.assert_called_once_with(75)
-            request = o.state.data["runtime_restart_requested"]
-            self.assertEqual(request["from_head"], "oldhead")
-            self.assertEqual(request["to_head"], "newhead")
-            self.assertEqual(
-                request["changed_paths"],
-                ["scripts/orchestrator/skyforge_orchestrator.py"],
-            )
-            self.assertEqual(
-                o.state.data["metrics"].get("runtime_restarts_requested"),
-                1,
-            )
-
-
-class WorkerWorktreeIsolationTests(unittest.TestCase):
-    def make_repository(self, base: pathlib.Path) -> pathlib.Path:
-        origin = base / "origin.git"
-        root = base / "repo"
-        root.mkdir()
-        orch._run(["git", "init", "--bare", str(origin)], cwd=base)
-        orch._run(["git", "init", "-b", "main"], cwd=root)
-        orch._run(["git", "config", "user.name", "Skyforge Test"], cwd=root)
-        orch._run(["git", "config", "user.email", "skyforge-test@example.invalid"], cwd=root)
-        (root / ".gitignore").write_text(".skyforge-orchestrator/\n")
-        (root / "README.md").write_text("test\n")
-        orch._run(["git", "add", ".gitignore", "README.md"], cwd=root)
-        orch._run(["git", "commit", "-m", "initial"], cwd=root)
-        orch._run(["git", "remote", "add", "origin", str(origin)], cwd=root)
-        orch._run(["git", "push", "-u", "origin", "main"], cwd=root)
-        return root
-
-    def make_orchestrator(self, root: pathlib.Path):
-        return orch.Orchestrator(
-            root,
-            repo="ni-da-ba/skyforge",
-            debounce_seconds=999,
-            min_dispatch_seconds=0,
-            max_parent_turns=24,
-            auto_merge=False,
-        )
-
-    def test_prepare_worker_keeps_controller_checkout_on_main(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self.make_repository(pathlib.Path(tmp))
-            o = self.make_orchestrator(root)
-
-            branch, managed_pr, worktree = o._prepare_worker_branch("Content", None)
-            try:
-                self.assertIsNone(managed_pr)
-                self.assertNotEqual(worktree.resolve(), root.resolve())
-                self.assertEqual(o._current_branch(), "main")
-                self.assertEqual(o._current_branch(worktree), branch)
-                self.assertTrue(o._worktree_clean())
-                self.assertTrue(o._worktree_clean(worktree))
-            finally:
-                o._retire_worker_worktree(worktree)
-
-    def test_pending_worker_records_isolated_worktree_for_restart(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self.make_repository(pathlib.Path(tmp))
-            o = self.make_orchestrator(root)
-
-            branch, managed_pr, worktree = o._resume_or_prepare_worker(
-                "Content",
-                None,
-                "bounded test objective",
-                "TERRA",
-                None,
-            )
-            try:
-                pending = o.state.data["pending_worker"]
-                self.assertEqual(pending["branch"], branch)
-                self.assertEqual(pending["managed_pr"], managed_pr)
-                self.assertEqual(pathlib.Path(pending["worktree"]).resolve(), worktree.resolve())
-
-                reloaded = self.make_orchestrator(root)
-                resumed_branch, resumed_pr, resumed_worktree = reloaded._resume_or_prepare_worker(
-                    "Content",
-                    None,
-                    "bounded test objective",
-                    "TERRA",
-                    None,
-                )
-                self.assertEqual(resumed_branch, branch)
-                self.assertEqual(resumed_pr, managed_pr)
-                self.assertEqual(resumed_worktree.resolve(), worktree.resolve())
-                self.assertEqual(reloaded._current_branch(), "main")
-            finally:
-                o.state.data["pending_worker"] = None
-                o.state.save()
-                o._retire_worker_worktree(worktree)
-
-    def test_orphaned_dirty_worktree_is_not_reused_without_pending_ownership(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self.make_repository(pathlib.Path(tmp))
-            o = self.make_orchestrator(root)
-            branch, _, worktree = o._prepare_worker_branch("Content", None)
-            orphan = worktree / "orphan.txt"
-            orphan.write_text("partial work\n")
-
-            try:
-                with self.assertRaisesRegex(RuntimeError, "Orphaned worker worktree is dirty"):
-                    o._ensure_worker_worktree(branch, "origin/main")
-                self.assertEqual(o._current_branch(), "main")
-                self.assertTrue(o._worktree_clean())
-            finally:
-                orch._run(["git", "reset", "--hard"], cwd=worktree)
-                orch._run(["git", "clean", "-fd"], cwd=worktree)
-                o._retire_worker_worktree(worktree)
-
-    def test_protected_worker_change_safety_pauses_without_dirtying_controller_root(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self.make_repository(pathlib.Path(tmp))
-            o = self.make_orchestrator(root)
-            branch, _, worktree = o._prepare_worker_branch("Content", None)
-            bad = worktree / ".github" / "workflows" / "unsafe.yml"
-            bad.parent.mkdir(parents=True)
-            bad.write_text("name: unsafe\n")
-
-            try:
-                with mock.patch.object(o, "_post_gate") as post_gate:
-                    with self.assertRaises(orch.SafetyPause):
-                        o._handoff_changes(
-                            "Content",
-                            "bounded test objective",
-                            branch,
-                            None,
-                            "worker summary",
-                            None,
-                            worktree,
-                        )
-
-                self.assertTrue(o.is_paused())
-                self.assertEqual(o._current_branch(), "main")
-                self.assertTrue(o._worktree_clean())
-                self.assertFalse(o._worktree_clean(worktree))
-                post_gate.assert_called_once()
-            finally:
-                orch._run(["git", "reset", "--hard"], cwd=worktree)
-                orch._run(["git", "clean", "-fd"], cwd=worktree)
-                o._retire_worker_worktree(worktree)
 
 
 if __name__ == "__main__":
