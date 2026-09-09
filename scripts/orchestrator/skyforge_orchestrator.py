@@ -1156,6 +1156,49 @@ class Orchestrator:
         )
         self._metric("status_commands")
 
+    @staticmethod
+    def _reconcile_projection(snapshot: dict[str, Any]) -> dict[str, Any]:
+        """Project any repository snapshot onto the model-free reconciliation contract."""
+        prs = []
+        for value in snapshot.get("open_prs") or []:
+            if not isinstance(value, dict):
+                continue
+            prs.append(
+                {
+                    "number": value.get("number"),
+                    "title": value.get("title"),
+                    "isDraft": value.get("isDraft"),
+                    "headRefName": value.get("headRefName"),
+                    "updatedAt": value.get("updatedAt"),
+                    "mergeStateStatus": value.get("mergeStateStatus"),
+                }
+            )
+        runs = []
+        for value in snapshot.get("recent_runs") or []:
+            if not isinstance(value, dict):
+                continue
+            runs.append(
+                {
+                    "databaseId": value.get("databaseId"),
+                    "name": value.get("name"),
+                    "status": value.get("status"),
+                    "conclusion": value.get("conclusion"),
+                    "headSha": value.get("headSha"),
+                    "headBranch": value.get("headBranch"),
+                    "event": value.get("event"),
+                    "updatedAt": value.get("updatedAt"),
+                }
+            )
+        return {
+            "main": snapshot.get("main"),
+            "open_prs": sorted(prs, key=lambda item: int(item.get("number") or 0)),
+            "recent_runs": sorted(
+                runs,
+                key=lambda item: int(item.get("databaseId") or 0),
+                reverse=True,
+            ),
+        }
+
     def _remote_reconcile_snapshot(self) -> dict[str, Any]:
         remote = _run(
             ["git", "ls-remote", "origin", "refs/heads/main"],
@@ -1186,51 +1229,83 @@ class Orchestrator:
             cwd=self.root,
             timeout=60,
         )
-        return {
-            "main": main_sha,
-            "open_prs": sorted(prs, key=lambda item: int(item.get("number") or 0)),
-            "recent_runs": sorted(
-                runs,
-                key=lambda item: int(item.get("databaseId") or 0),
-                reverse=True,
-            ),
-        }
+        return self._reconcile_projection(
+            {
+                "main": main_sha,
+                "open_prs": prs,
+                "recent_runs": runs,
+            }
+        )
 
     @staticmethod
     def _reconcile_fingerprint(snapshot: dict[str, Any]) -> str:
         encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
 
-    def startup_reconcile_repository(self) -> None:
-        snapshot = self._remote_reconcile_snapshot()
-        fingerprint = self._reconcile_fingerprint(snapshot)
+    def _record_reconcile_observation(
+        self,
+        snapshot: dict[str, Any],
+        *,
+        source: str,
+    ) -> tuple[str | None, str, dict[str, Any]]:
+        projected = self._reconcile_projection(snapshot)
+        fingerprint = self._reconcile_fingerprint(projected)
         with self._state_lock:
             previous = self.state.data.get("reconcile_fingerprint")
             self.state.data["reconcile_fingerprint"] = fingerprint
-            self.state.data["reconcile_snapshot"] = snapshot
+            self.state.data["reconcile_snapshot"] = projected
             self.state.data["last_reconcile_at"] = _utc_now()
+            self.state.data["last_reconcile_source"] = source
             self.state.save()
+        return previous, fingerprint, projected
+
+    def _checkpoint_classifier_reconcile_observation(self, snapshot: dict[str, Any]) -> None:
+        # This is intentionally the exact repository state already presented to the classifier.
+        # Never perform a fresh post-dispatch read here: doing so could acknowledge a later webhook
+        # transition that the classifier never saw.
+        with self._reconcile_observation_lock:
+            self._record_reconcile_observation(snapshot, source="classifier_snapshot")
+        self._metric("classifier_reconcile_checkpoints")
+
+    def startup_reconcile_repository(self, *, source: str = "startup") -> None:
+        with self._reconcile_observation_lock:
+            snapshot = self._remote_reconcile_snapshot()
+            previous, fingerprint, snapshot = self._record_reconcile_observation(
+                snapshot,
+                source=source,
+            )
 
         if not previous:
-            self._metric("startup_reconcile_baselines")
-            print("[orchestrator] established first hosted startup reconciliation baseline", flush=True)
+            metric = "startup_reconcile_baselines" if source == "startup" else "periodic_reconcile_baselines"
+            self._metric(metric)
+            print(
+                f"[orchestrator] established first hosted {source} reconciliation baseline",
+                flush=True,
+            )
             return
         if previous == fingerprint:
-            self._metric("startup_reconcile_noops")
-            print("[orchestrator] startup reconciliation found no repository-state change", flush=True)
+            metric = "startup_reconcile_noops" if source == "startup" else "periodic_reconcile_noops"
+            self._metric(metric)
+            print(
+                f"[orchestrator] {source} reconciliation found no repository-state change",
+                flush=True,
+            )
             return
 
-        self._metric("startup_reconciliations")
+        metric = "startup_reconciliations" if source == "startup" else "periodic_reconciliations"
+        self._metric(metric)
         self.enqueue(
             EventDecision(
                 True,
-                "repository state changed since previous controller startup",
+                "repository state changed since previous controller observation",
                 "reconcile",
+                action=source,
                 head_sha=snapshot.get("main"),
             )
         )
         print(
-            "[orchestrator] startup reconciliation journaled current repository state after offline change",
+            f"[orchestrator] {source} reconciliation journaled current repository state after "
+            "an uncheckpointed change",
             flush=True,
         )
 
