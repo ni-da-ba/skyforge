@@ -1473,6 +1473,7 @@ class Orchestrator:
         """Run model-free startup reconciliation and retry later if GitHub is temporarily unavailable."""
         try:
             self.startup_reconcile_repository()
+            self.reconcile_issue_comments(source="startup")
         except Exception as exc:
             retry_seconds = _env_int(
                 "SKYFORGE_STARTUP_RECONCILE_RETRY_SECONDS",
@@ -1567,6 +1568,7 @@ class Orchestrator:
             return
 
         try:
+            self.reconcile_issue_comments(source="periodic")
             self.startup_reconcile_repository(source="periodic")
         except Exception as exc:
             retry_seconds = _env_int(
@@ -3304,19 +3306,10 @@ class Handler(BaseHTTPRequestHandler):
                 trusted_actors=self.orchestrator.trusted_actors,
             )
             if control:
-                actor = str((((payload.get("comment") or {}).get("user") or {}).get("login")) or "")
-                if control == "status":
-                    issue = payload.get("issue") or {}
-                    target = issue.get("number") or 349
-                    self.orchestrator.post_status(target)
-                elif control == "reset_budget":
-                    self.orchestrator.reset_local_budget(actor=actor)
-                elif control == "refresh_runtime":
-                    self.orchestrator.refresh_runtime(actor=actor)
-                elif control == "discard_worker":
-                    self.orchestrator.discard_pending_worker(actor=actor)
-                else:
-                    self.orchestrator.set_paused(control == "pause", actor=actor)
+                self.orchestrator._apply_control_payload(control, payload)
+                comment = payload.get("comment") or {}
+                source_id = str(comment.get("id")) if comment.get("id") is not None else None
+                self.orchestrator.record_issue_comment(source_id)
                 self.orchestrator.record_delivery(delivery_id)
                 self._respond_json(
                     202,
@@ -3332,6 +3325,10 @@ class Handler(BaseHTTPRequestHandler):
             )
             self.orchestrator.enqueue(decision)
             # Record only after enqueue has durably journaled any actionable event.
+            if (event or "").strip().lower() == "issue_comment":
+                comment = payload.get("comment") or {}
+                source_id = str(comment.get("id")) if comment.get("id") is not None else None
+                self.orchestrator.record_issue_comment(source_id)
             self.orchestrator.record_delivery(delivery_id)
             self._respond_json(
                 202,
