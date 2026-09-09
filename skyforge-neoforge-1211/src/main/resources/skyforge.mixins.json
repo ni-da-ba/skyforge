@@ -18,7 +18,8 @@
     "SkyforgeWorldGenTickAccessFluidProvenanceMixin",
     "SkyforgeLakeFeatureAdmissionMixin",
     "SkyforgePortableEngineBlockEntityMixin",
-    "SkyforgePortableEngineBlockMixin"
+    "SkyforgePortableEngineBlockMixin",
+    "SkyforgeDieselPumpjackOilAuthorityMixin"
   ],
   "injectors": {
     "defaultRequire": 1
