@@ -1942,14 +1942,18 @@ class Orchestrator:
         classifier batch with repository-state noise or with another directive: doing so lets one
         decision retire unrelated authority.
 
-        Explicit task authority outranks generic Audit/manual wakes so historical bookkeeping cannot
-        starve newly posted work. Multiple task directives remain FIFO relative to one another.
-        Ordinary webhook transitions remain batched because they are a coalesced wake to inspect
-        current repository truth rather than independent task authority.
+        Protected authority is ordered by operational urgency, not only queue age. Explicit task
+        authority remains first. A trusted restart recommendation then outranks older generic Audit
+        bookkeeping so a stale/dead producer recovery cannot starve behind a repeatedly irrelevant
+        protected wake. Human gates and loop-risk signals likewise outrank generic Audit/manual wakes.
+        FIFO order is preserved within each authority class. Ordinary webhook transitions remain
+        batched because they are a coalesced wake to inspect current repository truth rather than
+        independent task authority.
         """
-        for event in pending:
-            if event.signal_kind == "task":
-                return [event]
+        for signal_kind in ("task", "restart_recommended", "human_gate", "loop_risk"):
+            for event in pending:
+                if event.signal_kind == signal_kind:
+                    return [event]
         for event in pending:
             if self._pending_event_priority(event.to_state()):
                 return [event]
