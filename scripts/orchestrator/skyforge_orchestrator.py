@@ -41,6 +41,7 @@ DEFAULT_MAX_WORKER_CALLS_PER_DAY = 4
 DEFAULT_QUOTA_BACKOFF_SECONDS = 3600
 DEFAULT_RATE_LIMIT_BACKOFF_SECONDS = 300
 DEFAULT_TRANSIENT_BACKOFF_SECONDS = 300
+DEFAULT_MAX_CONSECUTIVE_CLASSIFIER_FAILURES = 3
 DEFAULT_MAX_SEEN_DELIVERIES = 512
 DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
 CONTROLLER_RUNTIME_PATHS = {
@@ -582,6 +583,11 @@ class LocalState:
             "blocked_until_epoch": 0.0,
             "blocked_kind": None,
             "blocked_reason": None,
+            "classifier_failure_streak": 0,
+            "last_classifier_error_kind": None,
+            "last_classifier_error_at": None,
+            "last_classifier_error_summary": None,
+            "last_classifier_success_at": None,
             "metrics": {},
             "budget_day": _utc_day(),
             "classifier_calls_today": 0,
@@ -758,6 +764,13 @@ class Orchestrator:
                 "worker_age_seconds": worker_age_seconds,
                 "blocked_kind": self.state.data.get("blocked_kind"),
                 "blocked_until_epoch": float(self.state.data.get("blocked_until_epoch") or 0.0),
+                "classifier_failure_streak": int(
+                    self.state.data.get("classifier_failure_streak") or 0
+                ),
+                "last_classifier_error_kind": self.state.data.get("last_classifier_error_kind"),
+                "last_classifier_error_at": self.state.data.get("last_classifier_error_at"),
+                "last_classifier_error_summary": self.state.data.get("last_classifier_error_summary"),
+                "last_classifier_success_at": self.state.data.get("last_classifier_success_at"),
                 "classifier_calls_today": classifier_calls,
                 "luna_worker_calls_today": luna_worker_calls,
                 "luna_calls_today_total": classifier_calls + luna_worker_calls,
@@ -1279,6 +1292,48 @@ class Orchestrator:
             "orchestrator_metrics": self.state.data.get("metrics", {}),
         }
 
+    def _record_classifier_success(self) -> None:
+        with self._state_lock:
+            self.state.data["classifier_failure_streak"] = 0
+            self.state.data["last_classifier_success_at"] = _utc_now()
+            self.state.save()
+
+    def _record_classifier_failure(self, kind: str, exc: Exception) -> tuple[int, bool]:
+        summary = f"{type(exc).__name__}: {exc}"
+        summary = re.sub(
+            r"(?i)\b(authorization)\b\s*[:=]?\s*(?:bearer\s+)?\S+",
+            r"\1=[REDACTED]",
+            summary,
+        )
+        summary = re.sub(
+            r"(?i)\b(bearer)\b\s+\S+",
+            r"\1 [REDACTED]",
+            summary,
+        )
+        summary = re.sub(
+            r"(?i)\b(api[_ -]?key)\b\s*[:=]?\s*\S+",
+            r"\1=[REDACTED]",
+            summary,
+        )
+        with self._state_lock:
+            streak = int(self.state.data.get("classifier_failure_streak") or 0) + 1
+            self.state.data["classifier_failure_streak"] = streak
+            self.state.data["last_classifier_error_kind"] = kind
+            self.state.data["last_classifier_error_at"] = _utc_now()
+            self.state.data["last_classifier_error_summary"] = summary[:500]
+            self.state.save()
+        self._metric("classifier_failures")
+        threshold = _env_int(
+            "SKYFORGE_ORCHESTRATOR_MAX_CONSECUTIVE_CLASSIFIER_FAILURES",
+            DEFAULT_MAX_CONSECUTIVE_CLASSIFIER_FAILURES,
+            minimum=1,
+        )
+        circuit_open = streak >= threshold
+        if circuit_open:
+            self.set_paused(True, actor="classifier-failure-circuit")
+            self._metric("classifier_failure_circuit_pauses")
+        return streak, circuit_open
+
     def _codex_classifier(self, prompt: str) -> dict[str, Any]:
         self._consume_budget("classifier")
         try:
@@ -1323,15 +1378,23 @@ class Orchestrator:
                     turns = 0
 
                 result = thread.run(prompt, sandbox=Sandbox.read_only)
+                decision = _clean_json_object(result.final_response)
                 with self._state_lock:
                     self.state.data["parent_thread_id"] = thread.id
                     self.state.data["parent_turns"] = turns + 1
                     self.state.save()
-                return _clean_json_object(result.final_response)
+                self._record_classifier_success()
+                return decision
         except RetryBlocked:
             raise
         except Exception as exc:
             kind, retry = _codex_failure_policy(exc)
+            streak, circuit_open = self._record_classifier_failure(kind, exc)
+            if circuit_open:
+                raise SafetyPause(
+                    f"classifier failed {streak} consecutive attempts; controller safety-paused "
+                    f"with durable events retained (last kind={kind})"
+                ) from exc
             raise RetryBlocked(kind, retry, f"classifier call failed: {exc}") from exc
 
     def _worker(

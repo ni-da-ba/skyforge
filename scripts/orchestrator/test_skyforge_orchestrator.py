@@ -515,6 +515,51 @@ class HostedTransportTests(unittest.TestCase):
                 1,
             )
 
+    def test_classifier_failure_diagnostics_are_nonsecret_and_reset_on_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            streak, opened = o._record_classifier_failure(
+                "transient",
+                RuntimeError("authorization Bearer secret-token transport failed"),
+            )
+            self.assertEqual(streak, 1)
+            self.assertFalse(opened)
+            health = o.health_snapshot()
+            self.assertEqual(health["classifier_failure_streak"], 1)
+            self.assertEqual(health["last_classifier_error_kind"], "transient")
+            self.assertNotIn("secret-token", health["last_classifier_error_summary"])
+            self.assertIn("[REDACTED]", health["last_classifier_error_summary"])
+
+            o._record_classifier_success()
+            health = o.health_snapshot()
+            self.assertEqual(health["classifier_failure_streak"], 0)
+            self.assertIsNotNone(health["last_classifier_success_at"])
+
+    def test_classifier_failure_circuit_pauses_after_three_consecutive_failures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            for expected in (1, 2):
+                streak, opened = o._record_classifier_failure(
+                    "transient",
+                    RuntimeError(f"temporary failure {expected}"),
+                )
+                self.assertEqual(streak, expected)
+                self.assertFalse(opened)
+                self.assertFalse(o.is_paused())
+
+            streak, opened = o._record_classifier_failure(
+                "transient",
+                RuntimeError("temporary failure 3"),
+            )
+            self.assertEqual(streak, 3)
+            self.assertTrue(opened)
+            self.assertTrue(o.is_paused())
+            self.assertEqual(o.state.data["paused_by"], "classifier-failure-circuit")
+            self.assertEqual(
+                o.state.data["metrics"].get("classifier_failure_circuit_pauses"),
+                1,
+            )
+
     def test_first_week_local_budget_defaults_are_conservative(self):
         self.assertEqual(orch.DEFAULT_MAX_CLASSIFIER_CALLS_PER_DAY, 24)
         self.assertEqual(orch.DEFAULT_MAX_WORKER_CALLS_PER_DAY, 4)
