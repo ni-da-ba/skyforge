@@ -959,6 +959,13 @@ class DurableStateTests(unittest.TestCase):
             )
             self.assertTrue(
                 o._worker_path_forbidden(
+                    audit_state,
+                    lane="Audit",
+                    allowed_paths=["docs/agent-state/**"],
+                )
+            )
+            self.assertTrue(
+                o._worker_path_forbidden(
                     protocol,
                     lane="Audit",
                     allowed_paths=[protocol],
