@@ -232,6 +232,8 @@ class MarkdownRenderTests(unittest.TestCase):
         self.assertIn("| Dispatch failures | 3 |\n", rendered)
         self.assertIn("| Duplicate human gates suppressed | 0 |\n", rendered)
         self.assertIn("| Runtime refresh requests / completions | 0 / 0 |\n", rendered)
+        self.assertIn("| Startup reconciliation failures | 0 |\n", rendered)
+        self.assertIn("| State-backup recoveries | 0 |\n", rendered)
         self.assertIn("| Pending-event compactions | 0 |\n", rendered)
         self.assertIn("| Pending events compacted | 0 |\n", rendered)
         self.assertIn("Current pending events: **7**", rendered)
