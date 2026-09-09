@@ -3,10 +3,10 @@
 **Lane:** AUDIT
 **Status:** Canonical live lane handoff
 **Updated:** 2026-09-09 (America/Chicago)
-**Current reconciliation base:** `main@13cb06a575711aba83fafebbe894b081a19dde3d`
-**Highest live-accepted Audit milestone:** **AUDIT-0033**
+**Current reconciliation base:** `main@006d0eed31a632e1b101a11135e58995f555d38b`
+**Highest live-accepted Audit milestone:** **AUDIT-0034**
 **AUDIT-0022 through AUDIT-0032:** repository/live acceptance complete through the protected-task hardening boundary
-**AUDIT-0033:** repository and live authority-starvation recovery accepted\n**AUDIT-0034:** directive-line protected-signal classification repair in progress
+**AUDIT-0033:** repository and live authority-starvation recovery accepted\n**AUDIT-0034:** directive-line and durable protected-signal classification live accepted\n**AUDIT-0035:** queue efficiency repair in progress
 
 Repository evidence is authoritative. Read current `main`, canonical Audit/program documents, lane
 ledgers, issues #349/#369/#378/#424, active PRs, exact-head Actions, and hosted status evidence.
@@ -141,3 +141,30 @@ Live production evidence after AUDIT-0032 exposed a new control-plane liveness d
 AUDIT-0033 changes protected authority selection so explicit tasks remain highest priority while `restart_recommended`, `human_gate`, and `loop_risk` signals outrank generic Audit/manual wakes. FIFO order remains within each authority class. Regression coverage reproduces the exact older-generic-Audit-before-later-restart ordering and confirms explicit task authority still wins over restart authority.
 
 Acceptance completed: exact-head Orchestrator Smoke + CI passed on PR #446, the hosted runtime refreshed to merged `40f721019d85871a75ea71f14093f37411f0eec3`, and the retained #444 restart directive launched a fresh bounded Implementation/Terra recovery. That recovery advanced #444 through substantive petroleum work; #444 subsequently passed its exact-head gates and merged as `13cb06a575711aba83fafebbe894b081a19dde3d`. The restart-authority starvation defect is therefore live-accepted.\n\n## AUDIT-0034 — DIRECTIVE-LINE PROTECTED SIGNAL CLASSIFICATION\n\nPost-#444 restart preparation exposed a distinct deterministic parser defect. Issue #349 contained a later Audit acceptance-synchronization comment whose explanatory body mentioned the historical phrase `RESTART RECOMMENDED`; `_audit_signal_kind()` scanned the entire comment body for protected phrases, so that clearance update was journaled as new `restart_recommended` authority. The paused controller therefore retained a stale protected restart event even though AUDIT-0033 and #444 were already accepted.\n\nAUDIT-0034 restricts `restart_recommended`, `loop_risk`, and `human_gate` classification to the first non-empty Audit directive line. Explanatory paragraphs may refer to historical gates without manufacturing new protected authority. Explicit `AUDIT — NEW ... TASK` behavior remains intact, including its existing trusted multiline fallback. Regression coverage reproduces both the issue-#349 LOOP RISK text that mentions an earlier restart and the later acceptance-synchronization text that reports a cleared restart.\n\nExact-head PR #447 (`3b845acb7ede98ce3b7cbdf2833d303da7427e01`) passed Orchestrator Smoke and CI and merged as `2cea02a23391bff48cfc0366393762dbf2bb83b9`. The paused host refreshed to that runtime, proving the corrected parser for newly observed comments. Live status then showed the pre-upgrade #349 acceptance comment still serialized in the durable queue as `restart_recommended`; parser repair alone does not rewrite already-journaled authority.\n\nAUDIT-0034 therefore also migrates persisted Audit-signal kinds through the current deterministic directive parser whenever pending events are read or status is rendered. The migration rewrites only `signal_kind`, preserves the original event/comment text and source identity, records telemetry, and leaves genuine directive-line restart authority unchanged. Final acceptance requires exact-head Orchestrator Smoke + CI green for this durable migration, a paused runtime refresh, model-free status proving #349 is no longer `restart_recommended`, and one bounded resume with no stale #349 restart dispatch.
+
+
+## AUDIT-0035 — QUEUE EFFICIENCY
+
+Post-AUDIT-0034 live status proved the controller was healthy but exposed inefficient queue semantics:
+the durable queue reached a high-water mark of 99 while most producer lanes were parked. The backlog was
+predominantly wake history from CI, PR lifecycle, startup reconciliation, generic Audit synchronization
+comments, and manual wake requests rather than 99 independent development tasks.
+
+Two defects caused avoidable Luna spend and queue retention:
+
+1. `_pending_event_priority()` treated every `audit_signal`, every non-empty `signal_kind`, and every
+   `manual_command` as protected authority. Generic Audit/manual wakes were therefore isolated into
+   one-event classifier turns instead of joining the ordinary current-state batch.
+2. Semantic queue coalescing was skipped entirely until the queue exceeded the 100-event soft cap, so a
+   99-event queue could remain uncompressed despite many redundant subjects.
+
+AUDIT-0035 narrows protected authority to exactly `task`, `restart_recommended`, `human_gate`, and
+`loop_risk`. Generic Audit/manual wakes batch with ordinary repository-state evidence. Semantic
+latest-wins coalescing now runs on every persistence/read path, including pre-upgrade durable backlog,
+while cached-decision-owned keys remain immutable. Completion-ledger replay suppression is priority
+agnostic so historical generic Audit events do not revive merely because their priority class changed.
+
+Acceptance requires exact-head Orchestrator Smoke + CI, a paused runtime refresh, and model-free live
+status showing the retained backlog compacts materially and resumes without extra one-event generic
+Audit churn. Existing 24-Luna/4-Terra ceilings, auto-merge OFF, API-billing fallback OFF, and PR #358's
+human morphology gate remain unchanged.
