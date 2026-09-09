@@ -1299,10 +1299,21 @@ class Orchestrator:
             self.state.save()
 
     def _record_classifier_failure(self, kind: str, exc: Exception) -> tuple[int, bool]:
+        summary = f"{type(exc).__name__}: {exc}"
         summary = re.sub(
-            r"(?i)(api[_ -]?key|authorization|bearer)\s*[:=]?\s*\S+",
+            r"(?i)\b(authorization)\b\s*[:=]?\s*(?:bearer\s+)?\S+",
             r"\1=[REDACTED]",
-            f"{type(exc).__name__}: {exc}",
+            summary,
+        )
+        summary = re.sub(
+            r"(?i)\b(bearer)\b\s+\S+",
+            r"\1 [REDACTED]",
+            summary,
+        )
+        summary = re.sub(
+            r"(?i)\b(api[_ -]?key)\b\s*[:=]?\s*\S+",
+            r"\1=[REDACTED]",
+            summary,
         )
         with self._state_lock:
             streak = int(self.state.data.get("classifier_failure_streak") or 0) + 1
