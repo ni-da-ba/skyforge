@@ -1477,6 +1477,71 @@ class DurableStateTests(unittest.TestCase):
                 if o._dispatch_lock.locked():
                     o._dispatch_lock.release()
 
+    def test_authentication_block_surfaces_durable_operator_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o._persist_pending_events([event])
+
+            with mock.patch.object(
+                o,
+                "dispatch",
+                side_effect=orch.RetryBlocked("authentication", 3600, "auth unavailable"),
+            ), mock.patch.object(
+                o,
+                "_set_retry_block",
+            ) as set_block, mock.patch.object(
+                o,
+                "_post_gate",
+                return_value=True,
+            ) as post_gate:
+                o._drain_and_dispatch()
+
+            set_block.assert_called_once_with("authentication", 3600, "auth unavailable")
+            post_gate.assert_called_once()
+            message = post_gate.call_args.args[0]["human_message"]
+            self.assertIn("AUTHENTICATION BLOCK", message)
+            self.assertEqual(o._pending_events(), [event])
+
+    def test_classifier_failure_circuit_surfaces_operator_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o._persist_pending_events([event])
+
+            def fail_dispatch(_events):
+                o.set_paused(True, actor="classifier-failure-circuit")
+                raise orch.SafetyPause("classifier circuit open")
+
+            with mock.patch.object(o, "dispatch", side_effect=fail_dispatch), \
+                    mock.patch.object(o, "_post_gate", return_value=True) as post_gate:
+                o._drain_and_dispatch()
+
+            self.assertTrue(o.is_paused())
+            post_gate.assert_called_once()
+            self.assertIn(
+                "consecutive-failure circuit breaker",
+                post_gate.call_args.args[0]["human_message"],
+            )
+            self.assertEqual(o._pending_events(), [event])
+
+    def test_non_classifier_safety_pause_does_not_duplicate_existing_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o._persist_pending_events([event])
+
+            def fail_dispatch(_events):
+                o.set_paused(True, actor="controller-safety")
+                raise orch.SafetyPause("worker scope pause already surfaced")
+
+            with mock.patch.object(o, "dispatch", side_effect=fail_dispatch), \
+                    mock.patch.object(o, "_post_gate") as post_gate:
+                o._drain_and_dispatch()
+
+            post_gate.assert_not_called()
+            self.assertTrue(o.is_paused())
+
     def test_restart_preserves_cached_nonworker_decision(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
