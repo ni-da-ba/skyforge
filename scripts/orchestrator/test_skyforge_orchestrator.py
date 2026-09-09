@@ -604,6 +604,29 @@ class HostedTransportTests(unittest.TestCase):
             installer.index("sudo ufw --force enable"),
         )
 
+    def test_hosted_installer_reuses_durable_host_configuration(self):
+        installer = MODULE_PATH.with_name("install_hosted.sh").read_text()
+        self.assertIn(
+            "s/^SKYFORGE_PUBLIC_HOSTNAME=//p",
+            installer,
+        )
+        self.assertIn(
+            "s/^SKYFORGE_WEBHOOK_SECRET=//p",
+            installer,
+        )
+        self.assertIn(
+            "s/^SKYFORGE_DROPLET_HOURLY_USD=//p",
+            installer,
+        )
+        self.assertIn(
+            "s/^SKYFORGE_VALUE_REPORT_ISSUE=//p",
+            installer,
+        )
+        self.assertIn(
+            "SKYFORGE_PUBLIC_HOSTNAME=$SKYFORGE_PUBLIC_HOSTNAME",
+            installer,
+        )
+
     def test_hosted_installer_reconciles_runtime_without_resetting_existing_value_baseline(self):
         installer = MODULE_PATH.with_name("install_hosted.sh").read_text()
         self.assertIn(
