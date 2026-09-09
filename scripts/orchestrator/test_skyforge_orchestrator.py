@@ -872,7 +872,7 @@ class HostedTransportTests(unittest.TestCase):
 
     def test_json_pages_cmd_parses_gh_paginate_without_slurp(self):
         with tempfile.TemporaryDirectory() as tmp:
-            completed = mock.Mock(stdout='[{"id": 1}]\\n[{"id": 2}]\\n')
+            completed = mock.Mock(stdout='[{"id": 1}]\n[{"id": 2}]\n')
             with mock.patch.object(orch, "_run", return_value=completed) as run:
                 pages = orch._json_pages_cmd(
                     ["gh", "api", "--paginate", "repos/ni-da-ba/skyforge/issues/comments"],
