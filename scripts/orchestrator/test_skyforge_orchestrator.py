@@ -1003,6 +1003,9 @@ class HostedTransportTests(unittest.TestCase):
 
             with mock.patch.object(
                 o,
+                "reconcile_issue_comments",
+            ) as comments, mock.patch.object(
+                o,
                 "startup_reconcile_repository",
             ) as reconcile, mock.patch.object(
                 o,
@@ -1010,6 +1013,7 @@ class HostedTransportTests(unittest.TestCase):
             ) as schedule:
                 o._run_periodic_reconcile()
 
+            comments.assert_called_once_with(source="periodic")
             reconcile.assert_not_called()
             schedule.assert_called_once_with()
             self.assertEqual(
