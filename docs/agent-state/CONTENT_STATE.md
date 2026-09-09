@@ -436,6 +436,17 @@ Accepted retained stack: CC:Tweaked 1.119.0 + Create: Avionics 0.5.2 + Create 6.
 
 ## IN PROGRESS / RESERVED
 
+### C27 — Create:Aero automated logistics and NPC aviation — issue #431
+
+Bounded Content investigation and handoff recorded 2026-09-09. The retained Create/Sable/Create Aeronautics stack is treated as a capability library for two related but distinct experiences:
+
+- **Player logistics:** automation may move bulk cargo, fluids, entities, and contraptions between established sites, but it is a mature post-flight capability. It must not replace the manual first-flight loop, cheap personal mobility, or the need to establish routes and supporting infrastructure. Aircraft remain valuable through payload, repeatability, range, and throughput; Create logistics remains complementary rather than a universal teleport/storage bypass.
+- **NPC aviation:** traffic is derived from accepted coarse civilization route/support state, not from a continuously simulated independent economy. Civilian cargo, courier, service, patrol, or faction craft are eligible only where settlement/cluster capability supports the role (for example launch/parking, fuel, maintenance, navigation, or route importance). Wilderness stays sparse; developed and contested regions may show corresponding traffic differences.
+
+The accepted realization ladder is environmental evidence and parked infrastructure first, occasional local scripted/AI craft second, and active physical Sable/Aeronautics vehicles only where technically justified. Far-field traffic is coarse state; near-player craft may be materialized for relevant encounters. NPC craft do not require player-equivalent fuel, ammunition, maintenance, or service inventories, and most transient/patrol craft do not require autonomous landing. Destroying or restoring a key support site may change future traffic eligibility without simulating every service cycle.
+
+This Content boundary accepts no new aircraft physics, NPC AI, route-clearance Boolean, airfield selection rule, persistence/lifecycle behavior, or Create/Aeronautics adapter. Those are deferred to the owning Implementation work only after a concrete consumer is selected. Content handoff is the policy above plus the existing AUTH-0096/AUTH-0097 site/access evidence and civilization route semantics; open human aircraft-fidelity and player freight-comparison gates remain unchanged.
+
 ### Bootstrap Province — issue #224
 
 Central Content vertical slice:
