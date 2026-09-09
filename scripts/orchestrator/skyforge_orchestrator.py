@@ -1956,7 +1956,11 @@ class Orchestrator:
         for value in values:
             event = EventDecision.from_state(value)
             payload = dict(value)
-            if event.action == "audit_signal" and event.signal_text:
+            if (
+                event.action == "audit_signal"
+                and event.signal_kind in {"restart_recommended", "human_gate", "loop_risk"}
+                and event.signal_text
+            ):
                 current_kind = _audit_signal_kind(event.signal_text.lower())
                 if current_kind is not None and current_kind != event.signal_kind:
                     payload = event.to_state()
