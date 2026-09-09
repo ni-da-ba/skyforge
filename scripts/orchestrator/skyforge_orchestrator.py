@@ -322,6 +322,15 @@ def _internal_workflow_payload(payload: dict[str, Any], repo: str) -> bool:
 
 
 def _audit_signal_kind(body_lower: str) -> str | None:
+    directive_line = next((line.strip() for line in body_lower.splitlines() if line.strip()), "")
+    if (
+        "audit" in directive_line
+        and "new " in directive_line
+        and " task" in directive_line
+    ):
+        # An explicit task directive owns the comment even when the explanatory
+        # body mentions a downstream human gate or other protected boundary.
+        return "task"
     if "restart recommended" in body_lower:
         return "restart_recommended"
     if "loop risk" in body_lower:
