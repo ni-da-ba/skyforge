@@ -127,14 +127,18 @@ From any issue or pull request, `ni-da-ba` may post exactly:
 /skyforge-pause
 /skyforge-resume
 /skyforge-status
+/skyforge-reset-budget
 ```
 
 These commands are deterministic and spend zero model turns. Pause keeps receiving and journaling
 actionable repository events but starts no new Codex dispatch. Resume drains the retained batch.
 Status posts a controller-marked, non-secret snapshot back to the issuing issue/PR, including loaded
-runtime head, checkout head, pause/breaker state, queued-event count, worker state, and daily Luna/Terra
-counters. The status reply is filtered from orchestration input and cannot recurse. Untrusted commenters
-cannot invoke orchestration, Audit wake tokens, pause, resume, or status.
+runtime head, checkout head, pause/breaker state, queued-event summaries, cached-decision ownership,
+worker state, and daily Luna/Terra counters. Budget reset is intentionally paused-only and refuses a
+pending worker; it resets only the host controller's local daily counters, preserves durable work,
+and does not alter provider-side account usage/quota. The status reply is filtered from orchestration
+input and cannot recurse. Untrusted commenters cannot invoke orchestration, Audit wake tokens, pause,
+resume, status, or budget reset.
 
 ## Health
 

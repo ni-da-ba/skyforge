@@ -119,10 +119,12 @@ On each orchestrator heartbeat:
    - merge only if its existing acceptance policy permits;
    - otherwise leave a precise PR/issue handoff.
 9. If only RUNNING_EXTERNAL/WAIT_CI/DORMANT lanes remain, stop the run immediately.
-10. Actionable webhook transitions are debounced and classified as one durable batch, not one model call per event. If a multi-event batch dispatches a worker that produces no repository handoff and no newer event is already queued, preserve exactly one synthetic reconciliation event so a second independent runnable objective cannot be stranded. A single-event follow-up must never recursively create another follow-up.
-11. Repeated classifier transport/SDK/format failures must fail closed before exhausting the daily Luna budget. Persist a non-secret failure summary and consecutive-failure streak; after three consecutive classifier failures, safety-pause with the durable event batch retained until the failure is inspected and a trusted operator resumes.
-12. Timer callbacks are advisory wakeups, not durable event snapshots. A callback must acquire the single dispatch lock before reading the current durable pending-event batch; callbacks that waited behind another dispatch must re-read state and return if that earlier dispatch already retired the work.
-13. Do not spend agentic usage repeatedly polling for the same CI state.
+10. Actionable webhook transitions are debounced and classified as one durable batch, not one model call per event. A successful classifier decision owns exactly the event keys captured by that batch until the decision is completed or explicitly invalidated. New webhook events queue behind the owned batch; they do not erase the cached decision merely because they arrived later. In addition, semantic classifier input (policy + event keys + current main/open-PR/run state) is fingerprinted; an identical previously successful input restores its cached decision without another Luna call. Wall-clock timestamps and telemetry counters are excluded from that fingerprint. This prevents normal PR lifecycle bursts, replay, or bookkeeping defects from repeatedly paying Luna to rediscover the same decision.
+11. Cached DISPATCH decisions must be revalidated before execution. If current main or the source PR head/state no longer matches the decision-time identity, invalidate the cached decision once and reclassify the combined durable queue. NOOP/HUMAN_GATE decisions may retire only their captured keys while later events remain queued; MERGE retains its existing current-state checks.
+12. If a multi-event batch dispatches a worker that produces no repository handoff and no newer event is already queued, preserve exactly one synthetic reconciliation event so a second independent runnable objective cannot be stranded. A single-event follow-up must never recursively create another follow-up.
+13. Repeated classifier transport/SDK/format failures must fail closed before exhausting the daily Luna budget. Persist a non-secret failure summary and consecutive-failure streak; after three consecutive classifier failures, safety-pause with the durable event batch retained until the failure is inspected and a trusted operator resumes.
+14. Timer callbacks are advisory wakeups, not durable event snapshots. A callback must acquire the single dispatch lock before reading the current durable pending-event batch; callbacks that waited behind another dispatch must re-read state and return if that earlier dispatch already retired the work.
+15. Do not spend agentic usage repeatedly polling for the same CI state.
 
 ## 6. Dispatch priority
 
@@ -463,12 +465,16 @@ Ignored before Codex startup:
 - orchestration/Audit command text from untrusted commenters;
 - fork/external PR and workflow payloads.
 
-Trusted `/skyforge-pause`, `/skyforge-resume`, and `/skyforge-status` comments are deterministic
-control commands, not Codex wakes. Pause persists across restart, retains newly actionable events in
-the durable journal, and starts no new classifier/worker dispatch. Resume schedules the retained batch.
-Status posts a controller-marked, non-secret live snapshot to the command's issue/PR, including loaded
-runtime and checkout heads plus pause/breaker, queue, worker, and daily model-call state; that status
-comment is filtered from orchestration input and cannot recurse. A worker already in its bounded handoff
+Trusted `/skyforge-pause`, `/skyforge-resume`, `/skyforge-status`, and
+`/skyforge-reset-budget` comments are deterministic control commands, not Codex wakes. Pause
+persists across restart, retains newly actionable events in the durable journal, and starts no new
+classifier/worker dispatch. Resume schedules the retained batch. Status posts a controller-marked,
+non-secret live snapshot to the command's issue/PR, including loaded runtime and checkout heads,
+pause/breaker state, queued event summaries, cached-decision ownership, worker state, and daily
+model-call state. Budget reset is an explicit operator override for the controller's **local** daily
+Luna/Terra counters only: it requires the controller to already be paused, refuses to run while a
+worker is pending, preserves the durable queue/decision/gate state, and does not alter provider-side
+account usage or quota. Controller-authored status comments are filtered from orchestration input and cannot recurse. A worker already in its bounded handoff
 is not destructively interrupted merely because pause arrived.
 
 Events are debounced and subject to a minimum dispatch interval.
@@ -604,9 +610,12 @@ Worker completion and GitHub handoff are separate durable phases. Once the worke
 reuse an existing local commit, remote branch, or open PR rather than rerunning the worker or creating
 duplicate pull requests.
 
-A fresh event invalidates a cached non-worker classifier decision because repository truth may have
-changed. A genuinely in-flight worker decision remains stable until its bounded handoff completes;
-later events remain queued for a subsequent classification.
+A successful classifier decision owns exactly the durable event keys it captured until that decision
+reaches its terminal handoff or, for DISPATCH, fails the required current-main/source-PR identity
+revalidation. Later webhook events queue behind the owned batch and do **not** invalidate it merely
+because they arrived later. When the owned batch completes, only its captured keys are retired and the
+later queue is classified next. A genuinely in-flight worker decision remains stable until its bounded
+handoff completes.
 
 ### Local cost ceiling and telemetry
 
