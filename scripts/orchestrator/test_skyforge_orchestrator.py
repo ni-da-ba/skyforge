@@ -1423,6 +1423,61 @@ class DurableStateTests(unittest.TestCase):
             ):
                 self.assertFalse(o._cached_decision_still_current(record))
 
+    def test_retired_superseded_event_cannot_reenter_queue(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            stale = orch.EventDecision(
+                True,
+                "PR lifecycle changed",
+                "pull_request",
+                action="closed",
+                head_sha="merged-421-head",
+                pr_number=421,
+            )
+            o._persist_pending_events([stale])
+            o._normalize_captured_events_for_snapshot(
+                [stale],
+                {"main": "current-main", "open_prs": []},
+            )
+            o._persist_pending_events([stale])
+
+            self.assertFalse(any(event.pr_number == 421 for event in o._pending_events()))
+            self.assertGreaterEqual(
+                o.state.data["metrics"].get("retired_event_replays_suppressed", 0),
+                1,
+            )
+            self.assertTrue(o.state.data.get("retired_event_keys"))
+
+    def test_completed_trusted_authority_cannot_reenter_queue(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            signal = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=349,
+                source_id="authority-1",
+                signal_kind="restart_recommended",
+                signal_text="AUDIT — RESTART RECOMMENDED",
+            )
+            o._persist_pending_events([signal])
+            o._cache_decision(
+                {"decision": "NOOP", "reason": "resolved against current truth"},
+                [signal],
+                {"main": "current-main", "open_prs": []},
+            )
+            o._clear_completed_decision()
+            self.assertEqual(o._pending_events(), [])
+
+            o._persist_pending_events([signal])
+            self.assertEqual(o._pending_events(), [])
+            self.assertGreaterEqual(
+                o.state.data["metrics"].get("completed_authority_replays_suppressed", 0),
+                1,
+            )
+            self.assertTrue(o.state.data.get("completed_authority_event_keys"))
+
     def test_queue_pressure_compacts_ordinary_history_to_reconcile(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
