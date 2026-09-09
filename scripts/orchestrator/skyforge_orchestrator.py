@@ -43,6 +43,7 @@ DEFAULT_RATE_LIMIT_BACKOFF_SECONDS = 300
 DEFAULT_TRANSIENT_BACKOFF_SECONDS = 300
 DEFAULT_MAX_CONSECUTIVE_CLASSIFIER_FAILURES = 3
 DEFAULT_MAX_SEEN_DELIVERIES = 512
+DEFAULT_MAX_SEEN_ISSUE_COMMENTS = 512
 DEFAULT_MAX_PENDING_EVENTS = 100
 DEFAULT_STARTUP_RECONCILE_RETRY_SECONDS = 60
 DEFAULT_PERIODIC_RECONCILE_SECONDS = 900
@@ -667,6 +668,9 @@ class LocalState:
             "last_budget_reset_at": None,
             "last_budget_reset_by": None,
             "seen_deliveries": [],
+            "seen_issue_comment_ids": [],
+            "issue_comment_reconcile_initialized": False,
+            "last_issue_comment_reconcile_at": None,
             "reconcile_fingerprint": None,
             "reconcile_snapshot": None,
             "last_reconcile_at": None,
@@ -985,6 +989,12 @@ class Orchestrator:
                 ),
                 "last_periodic_reconcile_error": self.state.data.get(
                     "last_periodic_reconcile_error"
+                ),
+                "last_issue_comment_reconcile_at": self.state.data.get(
+                    "last_issue_comment_reconcile_at"
+                ),
+                "issue_comment_reconcile_initialized": bool(
+                    self.state.data.get("issue_comment_reconcile_initialized")
                 ),
                 "paused": bool(self.state.data.get("paused")),
                 "paused_at": self.state.data.get("paused_at"),
