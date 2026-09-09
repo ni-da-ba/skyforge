@@ -322,6 +322,15 @@ def _internal_workflow_payload(payload: dict[str, Any], repo: str) -> bool:
 
 
 def _audit_signal_kind(body_lower: str) -> str | None:
+    directive_line = next((line.strip() for line in body_lower.splitlines() if line.strip()), "")
+    if (
+        "audit" in directive_line
+        and "new " in directive_line
+        and " task" in directive_line
+    ):
+        # An explicit task directive owns the comment even when the explanatory
+        # body mentions a downstream human gate or other protected boundary.
+        return "task"
     if "restart recommended" in body_lower:
         return "restart_recommended"
     if "loop risk" in body_lower:
@@ -3494,6 +3503,35 @@ class Orchestrator:
         print(f"[orchestrator] handed off {lane} on {branch} / PR #{pr_number}", flush=True)
         return True
 
+    def _persist_task_no_change_handoff(
+        self,
+        events: list[EventDecision],
+        worker_summary: str,
+    ) -> bool:
+        task_issue = next(
+            (
+                issue
+                for issue in (_task_issue_number(event) for event in events)
+                if issue is not None
+            ),
+            None,
+        )
+        if task_issue is None:
+            return False
+        body = (
+            f"{SELF_COMMENT_MARKER} TASK_NO_CHANGE\n\n"
+            "The bounded worker completed without repository changes. "
+            "This is a durable no-change/blocker handoff, not task acceptance.\n\n"
+            f"{str(worker_summary or 'No worker summary was returned.')[:5000]}"
+        )
+        _run(
+            ["gh", "issue", "comment", str(task_issue), "--repo", self.repo, "--body", body],
+            cwd=self.root,
+            timeout=120,
+        )
+        self._metric("task_no_change_handoffs")
+        return True
+
     def _schedule_no_change_followup(self, events: list[EventDecision]) -> bool:
         """Preserve one bounded reclassification opportunity after a multi-event no-change dispatch."""
         if len(events) <= 1 or self._pending_events():
@@ -3972,7 +4010,8 @@ commit, push, open/merge PRs, or use network access."""
         # crashes during handoff, the retained worktree remains available for idempotent replay.
         self._clear_completed_decision()
         if not handoff_created:
-            self._schedule_no_change_followup(events)
+            if not self._persist_task_no_change_handoff(events, worker_summary):
+                self._schedule_no_change_followup(events)
         try:
             self._retire_worker_worktree(worker_root)
         except Exception as exc:
