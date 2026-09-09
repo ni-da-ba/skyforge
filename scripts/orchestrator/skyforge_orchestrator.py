@@ -859,7 +859,6 @@ class Orchestrator:
                 "worker_age_seconds": worker_age_seconds,
                 "blocked_kind": self.state.data.get("blocked_kind"),
                 "blocked_until_epoch": float(self.state.data.get("blocked_until_epoch") or 0.0),
-                "blocked_reason": self.state.data.get("blocked_reason"),
                 "classifier_failure_streak": int(
                     self.state.data.get("classifier_failure_streak") or 0
                 ),
