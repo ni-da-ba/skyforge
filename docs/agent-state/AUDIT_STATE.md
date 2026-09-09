@@ -3,12 +3,13 @@
 **Lane:** AUDIT  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-08 (America/Chicago)  
-**Current reconciliation base:** `main@cbc5bacccccf59d2ff355e89cd6ea040514baead`  
-**Highest MERGED / ACCEPTED Audit milestone:** **AUDIT-0021**  
-**AUDIT-0022:** automation recovery-contract hardening in progress
+**Current reconciliation base:** `main@61c06a71222c975be62029e9f8461de17efd0221`  
+**Highest live-accepted Audit milestone:** **AUDIT-0021**  
+**AUDIT-0022:** repository boundary merged/machine-green; combined live recovery gate pending  
+**AUDIT-0023:** pending-event journal coalescing hardening in progress
 
 Repository evidence is authoritative. Read the canonical program files, current lane ledgers, current
-`main`, issues #349/#369/#378, active PRs, source/tests, merged history, and exact-head Actions.
+`main`, issues #349/#369/#378/#424, active PRs, source/tests, merged history, and exact-head Actions.
 
 ## Durable Audit boundary
 
@@ -36,42 +37,60 @@ The live host self-refreshed to merged `cbc5bac...`. After the paused-only local
 03:09:45 UTC resume, Luna classified once at 03:09:59. Model-free statuses at 03:12:29 and 03:18:31
 both remained at exactly one Luna call while the same four-event tail remained queued, with zero Terra
 workers, zero classifier failure streak, and no retry blocker. This bounded observation accepts the
-AUDIT-0021 durable-decision ownership repair: later work no longer causes repeated overlapping Luna
-classification of the already-owned batch.
+AUDIT-0021 durable-decision ownership repair.
 
 ### Post-0021 recovery-contract incident
 
 At 03:21:45 UTC the hosted controller correctly safety-paused after its Audit worker changed
-`docs/agent-state/AUDIT_STATE.md`. No autonomous commit/push occurred. This exposed a control-contract
-contradiction rather than unsafe producer behavior: the classifier explicitly routes bounded
-lane-state/evidence reconciliation to an Audit/Luna worker, while the generic protected-path gate
-forbade every worker from handing off the Audit lane's own state file.
+`docs/agent-state/AUDIT_STATE.md`. No autonomous commit/push occurred. The incident exposed a
+control-contract contradiction: the classifier allowed bounded Audit lane-state/evidence reconciliation
+while the generic protected-path gate forbade the Audit lane's own durable state file.
 
-The host is intentionally safety-paused with the isolated dirty worker preserved until AUDIT-0022 is
-merged and the stable controller checkout is refreshed. Do not resume the old runtime into the same
-protected-path rejection loop.
+**AUDIT-0022 — REPOSITORY MERGED / MACHINE-GREEN; LIVE GATE PENDING.** PR #423 merged as
+`61c06a71222c975be62029e9f8461de17efd0221`. Exact head
+`bc341678ff94be020dec89031e31c15230ceff4a` passed Orchestrator Smoke `34308033302` and CI
+`34308033351`.
 
-## AUDIT-0022 bounded objective
+AUDIT-0022 repairs:
+- exact-scoped Audit-only `AUDIT_STATE.md` handoff while authority-defining governance remains protected;
+- classifier decision ownership across controller/process restart;
+- pre-classification quiescence for every represented event head;
+- paused-only model-free runtime refresh and safe isolated-worker discard controls;
+- serialized recovery against dispatch;
+- durable HUMAN_GATE posting/retry semantics;
+- visible manual-merge gate when auto-merge remains OFF;
+- richer model-free recovery/status telemetry.
 
-Harden only the orchestration recovery contract:
+The host remains intentionally safety-paused on the pre-0022 loaded runtime with the isolated dirty
+worker preserved. Do not resume that runtime. Because the old process cannot know the new recovery
+commands, one explicit host maintenance refresh is required after all current controller hardening is
+merged. The live AUDIT-0022 gate will be satisfied on the combined refreshed runtime rather than
+restarting the host twice.
 
-1. Allow `AUDIT_STATE.md` only for an **Audit-lane** worker whose explicit allowed-path scope includes
-   that exact file; keep all authority-defining governance/control-plane paths protected.
-2. Preserve successful non-worker classifier decision ownership across controller/process restart;
-   startup reconciliation queues later state behind it, while cached DISPATCH retains current-state
-   revalidation.
-3. Require Actions quiescence for every represented event head before first classification, not only
-   `workflow_run` heads.
-4. Expose safe last-decision/completion/recovery metadata in status.
-5. Add trusted paused-only model-free recovery controls for stable-runtime refresh and safe discard of
-   an isolated uncommitted worker, so a dirty worker cannot permanently deadlock controller refresh.
-6. Make HUMAN_GATE visibility durable: failed GitHub posting must retain the owned batch for bounded
-   retry, and MERGE with auto-merge OFF must surface a once-per-head manual-merge gate rather than
-   silently consuming the event.
+## AUDIT-0023 — pending-event durability pressure
+
+Issue #424 identified the final silent-loss path in the event journal: old code retained only the
+newest 100 unique pending events with `[-100:]`.
+
+AUDIT-0023 replaces that silent truncation with a soft-cap/coalescing contract:
+
+1. Trusted Audit/manual signals are never evicted.
+2. Event keys owned by a cached classifier decision are never evicted.
+3. Ordinary repository transitions first coalesce by semantic subject.
+4. If ordinary history still exceeds the soft cap, the newest bounded sample is retained and one
+   synthetic `reconcile | queue_compaction` event preserves current-repository reconstruction.
+5. If protected authority itself exceeds the cap, preserve it above the soft cap and expose the
+   pressure model-free instead of dropping it.
+6. Status and the daily zero-model value report expose queue high-water/compaction/overflow evidence.
 7. Run only cheap exact-head Audit gates; do not recreate producer evidence or race producer lanes.
-8. After merge, perform the smallest live recovery sample: load merged runtime, discard the superseded
-   isolated Audit worker, resume the durable batch, and verify no protected-path loop or duplicate
-   Luna spend.
+
+After AUDIT-0023 merges, perform one combined host recovery:
+- synchronize the stable controller checkout to current merged `main`;
+- restart the service onto the new runtime;
+- discard only the superseded isolated uncommitted Audit worker through the new trusted control;
+- verify durable queue/decision state with model-free status;
+- resume once;
+- verify no protected-path loop, duplicate Luna spend, queue-loss signal, or unexpected producer race.
 
 Safety remains unchanged: **24 total Luna calls per UTC day, 4 Terra worker attempts per UTC day,
 auto-merge OFF, API-billing fallback OFF.**
@@ -85,8 +104,9 @@ these producer/human-gated lanes.
 
 ## Next Audit work
 
-1. Merge AUDIT-0022 only after its exact-head Audit gates are green.
-2. Keep the host safety-paused until the merged controller is loaded.
-3. Recover the preserved dirty Audit worker without weakening protected-path policy.
-4. Verify model-free status after recovery and resume.
-5. Continue issue #378 value review and ordinary liveness/race/evidence-saturation supervision.
+1. Complete AUDIT-0023 exact-head Smoke + CI and merge when green.
+2. Keep the host safety-paused until the combined merged controller is loaded.
+3. Perform the one-time maintenance refresh and safe isolated-worker recovery.
+4. Resume the durable queue once and verify model-free stability.
+5. Record AUDIT-0022/AUDIT-0023 live acceptance durably on issue #349/#424.
+6. Continue issue #378 value review and ordinary liveness/race/evidence-saturation supervision.
