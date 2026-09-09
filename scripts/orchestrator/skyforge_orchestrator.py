@@ -987,17 +987,26 @@ class Orchestrator:
         if not worktree.exists():
             raise RuntimeError(f"Pending worker worktree is missing: {worktree}")
 
-        ahead = int(
-            _run(
-                ["git", "rev-list", "--count", "origin/main..HEAD"],
-                cwd=worktree,
-            ).stdout.strip()
-            or "0"
-        )
-        if ahead > 0:
-            raise RuntimeError(
-                f"Refusing to discard worker with {ahead} commit(s) ahead of origin/main"
+        current_head = _run(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip()
+        start_head = str(pending.get("start_head") or "").strip()
+        if start_head:
+            if current_head != start_head:
+                raise RuntimeError(
+                    "Refusing to discard a worker whose HEAD moved after worker preparation"
+                )
+        else:
+            # Backward-compatible guard for workers created before start-head tracking existed.
+            ahead = int(
+                _run(
+                    ["git", "rev-list", "--count", "origin/main..HEAD"],
+                    cwd=worktree,
+                ).stdout.strip()
+                or "0"
             )
+            if ahead > 0:
+                raise RuntimeError(
+                    f"Refusing to discard legacy worker with {ahead} commit(s) ahead of origin/main"
+                )
 
         changed_paths = self._changed_paths(worktree)
         _run(
@@ -1867,11 +1876,13 @@ class Orchestrator:
             return branch, managed_pr, worktree
 
         branch, managed_pr, worktree = self._prepare_worker_branch(lane, source_pr)
+        start_head = _run(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip()
         with self._state_lock:
             self.state.data["pending_worker"] = {
                 "lane": lane,
                 "branch": branch,
                 "worktree": str(worktree),
+                "start_head": start_head,
                 "managed_pr": managed_pr,
                 "objective": objective,
                 "worker_tier": worker_tier,
@@ -1906,10 +1917,13 @@ class Orchestrator:
             normalized = normalized[2:]
 
         if normalized == "docs/agent-state/AUDIT_STATE.md":
+            exact_scopes = {
+                str(entry or "").replace("\\", "/").lstrip("./")
+                for entry in (allowed_paths or [])
+            }
             return not (
                 str(lane or "").strip().lower() == "audit"
-                and allowed_paths is not None
-                and self._worker_path_allowed(normalized, allowed_paths)
+                and normalized in exact_scopes
             )
 
         return (
