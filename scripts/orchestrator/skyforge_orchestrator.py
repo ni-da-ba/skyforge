@@ -2890,6 +2890,7 @@ class Orchestrator:
                 snap,
                 classifier_input_fingerprint=input_fingerprint,
             )
+            self._checkpoint_classifier_reconcile_observation(snap)
         else:
             self._metric("cached_decision_reuses")
 
