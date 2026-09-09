@@ -870,6 +870,142 @@ class Orchestrator:
             self.state.data["seen_deliveries"] = values[-DEFAULT_MAX_SEEN_DELIVERIES:]
             self.state.save()
 
+    def issue_comment_seen(self, source_id: str | None) -> bool:
+        if not source_id:
+            return False
+        with self._state_lock:
+            return source_id in {
+                str(value)
+                for value in (self.state.data.get("seen_issue_comment_ids") or [])
+                if value is not None
+            }
+
+    def record_issue_comment(self, source_id: str | None) -> None:
+        if not source_id:
+            return
+        with self._state_lock:
+            values = [
+                str(value)
+                for value in (self.state.data.get("seen_issue_comment_ids") or [])
+                if value is not None
+            ]
+            if source_id not in values:
+                values.append(source_id)
+            self.state.data["seen_issue_comment_ids"] = values[
+                -DEFAULT_MAX_SEEN_ISSUE_COMMENTS:
+            ]
+            self.state.save()
+
+    def _apply_control_payload(self, control: str, payload: dict[str, Any]) -> None:
+        actor = str(
+            ((((payload.get("comment") or {}).get("user") or {}).get("login")) or "")
+        )
+        if control == "status":
+            issue = payload.get("issue") or {}
+            target = issue.get("number") or 349
+            self.post_status(target)
+        elif control == "reset_budget":
+            self.reset_local_budget(actor=actor)
+        elif control == "refresh_runtime":
+            self.refresh_runtime(actor=actor)
+        elif control == "discard_worker":
+            self.discard_pending_worker(actor=actor)
+        else:
+            self.set_paused(control == "pause", actor=actor)
+
+    @staticmethod
+    def _issue_number_from_comment(value: dict[str, Any]) -> int | None:
+        issue_url = str(value.get("issue_url") or "")
+        match = re.search(r"/issues/(\d+)$", issue_url)
+        return int(match.group(1)) if match else None
+
+    def reconcile_issue_comments(self, *, source: str) -> None:
+        """Recover trusted issue-comment wakes/controls when webhook transport is silent."""
+        comments = _json_cmd(
+            [
+                "gh",
+                "api",
+                f"repos/{self.repo}/issues/comments?sort=created&direction=desc&per_page=100",
+            ],
+            cwd=self.root,
+            timeout=60,
+        )
+        if not isinstance(comments, list):
+            raise RuntimeError("GitHub issue-comment reconciliation returned a non-list payload")
+
+        ordered = sorted(
+            (value for value in comments if isinstance(value, dict)),
+            key=lambda value: int(value.get("id") or 0),
+        )
+        with self._state_lock:
+            initialized = bool(self.state.data.get("issue_comment_reconcile_initialized"))
+
+        if not initialized:
+            for value in ordered:
+                source_id = str(value.get("id")) if value.get("id") is not None else None
+                self.record_issue_comment(source_id)
+            with self._state_lock:
+                self.state.data["issue_comment_reconcile_initialized"] = True
+                self.state.data["last_issue_comment_reconcile_at"] = _utc_now()
+                self.state.save()
+            self._metric("issue_comment_reconcile_baselines")
+            return
+
+        recovered_wakes = 0
+        recovered_controls = 0
+        for value in ordered:
+            source_id = str(value.get("id")) if value.get("id") is not None else None
+            if not source_id or self.issue_comment_seen(source_id):
+                continue
+            issue_number = self._issue_number_from_comment(value)
+            payload = {
+                "action": "created",
+                "comment": {
+                    "id": value.get("id"),
+                    "body": value.get("body"),
+                    "created_at": value.get("created_at"),
+                    "user": {"login": ((value.get("user") or {}).get("login"))},
+                },
+                "issue": {"number": issue_number},
+            }
+
+            control = classify_control_command(
+                "issue_comment",
+                payload,
+                trusted_actors=self.trusted_actors,
+            )
+            if control:
+                self._apply_control_payload(control, payload)
+                recovered_controls += 1
+            else:
+                decision = classify_event(
+                    "issue_comment",
+                    payload,
+                    repo=self.repo,
+                    trusted_actors=self.trusted_actors,
+                )
+                self.enqueue(decision)
+                if decision.actionable:
+                    recovered_wakes += 1
+
+            # Record only after the recovered control or durable enqueue succeeds.
+            self.record_issue_comment(source_id)
+
+        with self._state_lock:
+            self.state.data["last_issue_comment_reconcile_at"] = _utc_now()
+            self.state.save()
+        self._metric("issue_comment_reconcile_checks")
+        if recovered_wakes:
+            self._metric("issue_comment_recovered_wakes", recovered_wakes)
+        if recovered_controls:
+            self._metric("issue_comment_recovered_controls", recovered_controls)
+        if recovered_wakes or recovered_controls:
+            print(
+                f"[orchestrator] {source} issue-comment reconciliation recovered "
+                f"{recovered_wakes} wake(s) and {recovered_controls} control(s)",
+                flush=True,
+            )
+
     def health_snapshot(self) -> dict[str, Any]:
         with self._state_lock:
             pending = self.state.data.get("pending_worker")
