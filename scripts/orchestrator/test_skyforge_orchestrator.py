@@ -790,6 +790,43 @@ class DurableStateTests(unittest.TestCase):
                 if o._timer is not None:
                     o._timer.cancel()
 
+    def test_waiting_dispatch_does_not_snapshot_pending_events_before_lock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="abc123")
+            o._persist_pending_events([event])
+
+            pending_read = threading.Event()
+            original_pending = o._pending_events
+
+            def observed_pending():
+                value = original_pending()
+                pending_read.set()
+                return value
+
+            o._dispatch_lock.acquire()
+            try:
+                with mock.patch.object(o, "_pending_events", side_effect=observed_pending), \
+                        mock.patch.object(o, "dispatch") as dispatch:
+                    worker = threading.Thread(target=o._drain_and_dispatch)
+                    worker.start()
+
+                    # A callback waiting on the dispatch lock must not capture a stale queue snapshot.
+                    self.assertFalse(pending_read.wait(0.05))
+
+                    with o._state_lock:
+                        o.state.data["pending_events"] = []
+                        o.state.save()
+                    o._dispatch_lock.release()
+
+                    worker.join(timeout=1)
+                    self.assertFalse(worker.is_alive())
+                    self.assertTrue(pending_read.is_set())
+                    dispatch.assert_not_called()
+            finally:
+                if o._dispatch_lock.locked():
+                    o._dispatch_lock.release()
+
     def test_restart_invalidates_cached_nonworker_decision(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))

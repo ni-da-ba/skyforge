@@ -1074,12 +1074,17 @@ class Orchestrator:
         self._schedule_pending(remaining if remaining else self.debounce_seconds)
 
     def _drain_and_dispatch(self) -> None:
-        pending = self._pending_events()
-        if not pending:
-            return
+        # Timer callbacks may overlap while waiting for the single dispatch lock. Read the durable
+        # queue only after acquiring that lock so a delayed callback cannot classify an event snapshot
+        # that an earlier dispatch already retired.
         if self.is_paused():
             return
         with self._dispatch_lock:
+            if self.is_paused():
+                return
+            pending = self._pending_events()
+            if not pending:
+                return
             try:
                 self.dispatch(pending)
             except RetryBlocked as exc:
