@@ -256,7 +256,12 @@ def classify_control_command(
     if str(payload.get("action") or "").lower() != "created":
         return None
     body = str((payload.get("comment") or {}).get("body") or "").strip().lower()
-    if body not in {"/skyforge-pause", "/skyforge-resume", "/skyforge-status"}:
+    if body not in {
+        "/skyforge-pause",
+        "/skyforge-resume",
+        "/skyforge-status",
+        "/skyforge-reset-budget",
+    }:
         return None
     if not _trusted_actor(payload, trusted_actors):
         return None
@@ -264,7 +269,9 @@ def classify_control_command(
         return "pause"
     if body == "/skyforge-resume":
         return "resume"
-    return "status"
+    if body == "/skyforge-status":
+        return "status"
+    return "reset_budget"
 
 
 def classify_event(
@@ -593,6 +600,8 @@ class LocalState:
             "classifier_calls_today": 0,
             "luna_worker_calls_today": 0,
             "worker_calls_today": 0,
+            "last_budget_reset_at": None,
+            "last_budget_reset_by": None,
             "seen_deliveries": [],
             "reconcile_fingerprint": None,
             "reconcile_snapshot": None,
@@ -751,11 +760,40 @@ class Orchestrator:
             classifier_calls = int(self.state.data.get("classifier_calls_today") or 0)
             luna_worker_calls = int(self.state.data.get("luna_worker_calls_today") or 0)
             terra_worker_calls = int(self.state.data.get("worker_calls_today") or 0)
+            decision_record = self._decision_record()
+            decision_payload = (
+                decision_record.get("decision")
+                if isinstance(decision_record, dict)
+                and isinstance(decision_record.get("decision"), dict)
+                else None
+            )
             return {
                 "status": "ok",
                 "repo": self.repo,
                 "runtime_head": self.runtime_head,
                 "pending_events": len(self.state.data.get("pending_events") or []),
+                "pending_event_summaries": [
+                    EventDecision.from_state(value).summary()
+                    for value in (self.state.data.get("pending_events") or [])[-10:]
+                    if isinstance(value, dict)
+                ],
+                "pending_decision": bool(decision_payload),
+                "pending_decision_kind": (
+                    str(decision_payload.get("decision") or "").upper()
+                    if decision_payload
+                    else None
+                ),
+                "pending_decision_lane": (
+                    decision_payload.get("lane") if decision_payload else None
+                ),
+                "pending_decision_pr": (
+                    decision_payload.get("pr_number") if decision_payload else None
+                ),
+                "pending_decision_event_count": (
+                    len(decision_record.get("event_keys") or [])
+                    if isinstance(decision_record, dict)
+                    else 0
+                ),
                 "pending_worker": bool(pending),
                 "worker_lane": pending.get("lane") if pending else None,
                 "worker_stage": pending.get("stage") if pending else None,
@@ -764,6 +802,7 @@ class Orchestrator:
                 "worker_age_seconds": worker_age_seconds,
                 "blocked_kind": self.state.data.get("blocked_kind"),
                 "blocked_until_epoch": float(self.state.data.get("blocked_until_epoch") or 0.0),
+                "blocked_reason": self.state.data.get("blocked_reason"),
                 "classifier_failure_streak": int(
                     self.state.data.get("classifier_failure_streak") or 0
                 ),
@@ -776,6 +815,8 @@ class Orchestrator:
                 "luna_calls_today_total": classifier_calls + luna_worker_calls,
                 "worker_calls_today": terra_worker_calls,
                 "terra_worker_calls_today": terra_worker_calls,
+                "last_budget_reset_at": self.state.data.get("last_budget_reset_at"),
+                "last_budget_reset_by": self.state.data.get("last_budget_reset_by"),
                 "managed_prs": len(self.state.data.get("managed") or {}),
                 "last_reconcile_at": self.state.data.get("last_reconcile_at"),
                 "paused": bool(self.state.data.get("paused")),
@@ -795,6 +836,25 @@ class Orchestrator:
     def is_paused(self) -> bool:
         with self._state_lock:
             return bool(self.state.data.get("paused"))
+
+    def reset_local_budget(self, *, actor: str | None = None) -> None:
+        with self._state_lock:
+            if not self.state.data.get("paused"):
+                raise RuntimeError("Local budget reset requires the controller to be paused")
+            if isinstance(self.state.data.get("pending_worker"), dict):
+                raise RuntimeError("Local budget reset is forbidden while a worker is pending")
+            self.state.data["budget_day"] = _utc_day()
+            self.state.data["classifier_calls_today"] = 0
+            self.state.data["luna_worker_calls_today"] = 0
+            self.state.data["worker_calls_today"] = 0
+            if self.state.data.get("blocked_kind") == "local_budget":
+                self.state.data["blocked_until_epoch"] = 0.0
+                self.state.data["blocked_kind"] = None
+                self.state.data["blocked_reason"] = None
+            self.state.data["last_budget_reset_at"] = _utc_now()
+            self.state.data["last_budget_reset_by"] = actor
+            self.state.save()
+        self._metric("operator_budget_resets")
 
     def post_status(self, target: int | str = 349) -> None:
         status = dict(self.health_snapshot())
@@ -968,22 +1028,103 @@ class Orchestrator:
                     by_key[key] = payload
                     added = True
             self.state.data["pending_events"] = list(by_key.values())[-100:]
-            if added and not self.state.data.get("pending_worker"):
-                self.state.data["pending_decision"] = None
+            # A successful classifier decision owns exactly the event keys it captured. Later webhook
+            # events queue behind that batch; they must not erase the cached decision and force Luna
+            # to pay for the same earlier batch again. DISPATCH decisions are revalidated against
+            # current main/source-PR identity immediately before execution.
+            if added and self.state.data.get("pending_decision"):
+                metrics = self.state.data.setdefault("metrics", {})
+                metrics["events_queued_behind_cached_decision"] = int(
+                    metrics.get("events_queued_behind_cached_decision") or 0
+                ) + 1
             self.state.save()
 
     def _decision_record(self) -> dict[str, Any] | None:
         value = self.state.data.get("pending_decision")
         return value if isinstance(value, dict) else None
 
-    def _cache_decision(self, decision: dict[str, Any], events: list[EventDecision]) -> None:
+    def _cache_decision(
+        self,
+        decision: dict[str, Any],
+        events: list[EventDecision],
+        snapshot: dict[str, Any] | None = None,
+    ) -> None:
+        snapshot = snapshot or {}
+        source_pr_head = None
+        pr_number = decision.get("pr_number")
+        if pr_number is not None:
+            for pr in snapshot.get("open_prs") or []:
+                if (
+                    isinstance(pr, dict)
+                    and int(pr.get("number") or 0) == int(pr_number)
+                ):
+                    source_pr_head = pr.get("headRefOid")
+                    break
         with self._state_lock:
             self.state.data["pending_decision"] = {
                 "decision": decision,
                 "event_keys": [_event_key(e) for e in events],
                 "captured_at": _utc_now(),
+                "snapshot_main": snapshot.get("main"),
+                "source_pr_head": source_pr_head,
+            }
+            self.state.data["last_classifier_decision"] = {
+                "kind": str(decision.get("decision") or "NOOP").upper(),
+                "lane": decision.get("lane"),
+                "pr_number": decision.get("pr_number"),
+                "captured_at": _utc_now(),
+                "event_count": len(events),
             }
             self.state.save()
+
+    def _invalidate_cached_decision(self, reason: str) -> None:
+        with self._state_lock:
+            if not self.state.data.get("pending_decision"):
+                return
+            self.state.data["pending_decision"] = None
+            self.state.data["last_decision_invalidation"] = {
+                "reason": reason[:500],
+                "at": _utc_now(),
+            }
+            metrics = self.state.data.setdefault("metrics", {})
+            metrics["cached_decision_invalidations"] = int(
+                metrics.get("cached_decision_invalidations") or 0
+            ) + 1
+            self.state.save()
+
+    def _cached_decision_still_current(self, record: dict[str, Any]) -> bool:
+        decision = record.get("decision")
+        if not isinstance(decision, dict):
+            return False
+        kind = str(decision.get("decision") or "NOOP").upper()
+        if kind in {"NOOP", "HUMAN_GATE", "MERGE"}:
+            # These actions either only retire their captured batch or perform their own current-state
+            # validation. Newer events remain queued for the next batch.
+            return True
+        if kind != "DISPATCH":
+            return True
+
+        captured_main = str(record.get("snapshot_main") or "")
+        current_main = _run(["git", "rev-parse", "HEAD"], cwd=self.root).stdout.strip()
+        if captured_main and captured_main != current_main:
+            return False
+
+        pr_number = decision.get("pr_number")
+        expected_head = str(record.get("source_pr_head") or "")
+        if pr_number is None or not expected_head:
+            return True
+        current = _json_cmd(
+            [
+                "gh", "pr", "view", str(pr_number),
+                "--repo", self.repo,
+                "--json", "state,headRefOid",
+            ],
+            cwd=self.root,
+            timeout=60,
+        )
+        if str(current.get("state") or "").upper() != "OPEN":
+            return False
+        return str(current.get("headRefOid") or "") == expected_head
 
     def _clear_completed_decision(self) -> None:
         with self._state_lock:
@@ -994,6 +1135,15 @@ class Orchestrator:
                 pending = [v for v in pending if _event_key(v) not in completed]
             else:
                 pending = []
+            completed_decision = record.get("decision") if isinstance(record, dict) else None
+            if isinstance(completed_decision, dict):
+                self.state.data["last_completed_decision"] = {
+                    "kind": str(completed_decision.get("decision") or "NOOP").upper(),
+                    "lane": completed_decision.get("lane"),
+                    "pr_number": completed_decision.get("pr_number"),
+                    "completed_at": _utc_now(),
+                    "event_count": len(completed),
+                }
             self.state.data["pending_events"] = pending
             self.state.data["pending_decision"] = None
             self.state.data["pending_worker"] = None
@@ -1933,6 +2083,15 @@ class Orchestrator:
         else:
             decision = None
 
+        if record and not isinstance(pending_worker, dict):
+            if not self._cached_decision_still_current(record):
+                self._invalidate_cached_decision(
+                    "cached DISPATCH no longer matches current main/source PR identity"
+                )
+                record = None
+                decision = None
+                self._metric("cached_dispatch_reclassifications")
+
         if decision is None:
             observed_epochs = []
             for event in events:
@@ -1993,7 +2152,7 @@ class Orchestrator:
             with self._state_lock:
                 self.state.data["last_dispatch_epoch"] = now
                 self.state.save()
-            self._cache_decision(decision, events)
+            self._cache_decision(decision, events, snap)
         else:
             self._metric("cached_decision_reuses")
 
@@ -2184,6 +2343,8 @@ class Handler(BaseHTTPRequestHandler):
                     issue = payload.get("issue") or {}
                     target = issue.get("number") or 349
                     self.orchestrator.post_status(target)
+                elif control == "reset_budget":
+                    self.orchestrator.reset_local_budget(actor=actor)
                 else:
                     self.orchestrator.set_paused(control == "pause", actor=actor)
                 self.orchestrator.record_delivery(delivery_id)
