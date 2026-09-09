@@ -124,7 +124,9 @@ On each orchestrator heartbeat:
 12. If a multi-event batch dispatches a worker that produces no repository handoff and no newer event is already queued, preserve exactly one synthetic reconciliation event so a second independent runnable objective cannot be stranded. A single-event follow-up must never recursively create another follow-up.
 13. Repeated classifier transport/SDK/format failures must fail closed before exhausting the daily Luna budget. Persist a non-secret failure summary and consecutive-failure streak; after three consecutive classifier failures, safety-pause with the durable event batch retained until the failure is inspected and a trusted operator resumes.
 14. Timer callbacks are advisory wakeups, not durable event snapshots. A callback must acquire the single dispatch lock before reading the current durable pending-event batch; callbacks that waited behind another dispatch must re-read state and return if that earlier dispatch already retired the work.
-15. Do not spend agentic usage repeatedly polling for the same CI state.
+15. A successful classifier decision survives controller/process restart with its captured event ownership intact. Startup reconciliation may append newer durable work behind that decision, but restart alone must not erase it and spend Luna again. A cached DISPATCH still undergoes the normal current-main/source-PR identity revalidation before execution.
+16. Before the first classification of a batch, require visible Actions quiescence for every represented event head that has a SHA, not only `workflow_run` events. This prevents a main push or PR-lifecycle event from being classified while the same head is still materially changing through CI.
+17. Do not spend agentic usage repeatedly polling for the same CI state.
 
 ## 6. Dispatch priority
 
@@ -465,17 +467,25 @@ Ignored before Codex startup:
 - orchestration/Audit command text from untrusted commenters;
 - fork/external PR and workflow payloads.
 
-Trusted `/skyforge-pause`, `/skyforge-resume`, `/skyforge-status`, and
-`/skyforge-reset-budget` comments are deterministic control commands, not Codex wakes. Pause
+Trusted `/skyforge-pause`, `/skyforge-resume`, `/skyforge-status`,
+`/skyforge-reset-budget`, `/skyforge-refresh-runtime`, and
+`/skyforge-discard-worker` comments are deterministic control commands, not Codex wakes. Pause
 persists across restart, retains newly actionable events in the durable journal, and starts no new
 classifier/worker dispatch. Resume schedules the retained batch. Status posts a controller-marked,
 non-secret live snapshot to the command's issue/PR, including loaded runtime and checkout heads,
 pause/breaker state, queued event summaries, cached-decision ownership, worker state, and daily
-model-call state. Budget reset is an explicit operator override for the controller's **local** daily
-Luna/Terra counters only: it requires the controller to already be paused, refuses to run while a
-worker is pending, preserves the durable queue/decision/gate state, and does not alter provider-side
-account usage or quota. Controller-authored status comments are filtered from orchestration input and cannot recurse. A worker already in its bounded handoff
-is not destructively interrupted merely because pause arrived.
+model-call state plus the last safe classifier/completion/recovery metadata. Budget reset is an explicit
+operator override for the controller's **local** daily Luna/Terra counters only: it requires the
+controller to already be paused, refuses to run while a worker is pending, preserves the durable
+queue/decision/gate state, and does not alter provider-side account usage or quota. Runtime refresh is
+paused-only and model-free: it synchronizes the clean stable controller checkout to current `main`
+even while an isolated worker is pending, then lets the existing systemd self-refresh contract reload
+changed controller Python. Worker discard is paused-only and may remove only an isolated worker with
+no managed PR and no commits ahead of `origin/main`; it preserves the durable event batch and
+classifier decision so work can be safely reconstructed. Controller-authored status comments are
+filtered from orchestration input and cannot recurse. A worker already in its bounded handoff is not
+destructively interrupted merely because pause arrived unless the trusted owner explicitly uses that
+bounded discard control.
 
 Events are debounced and subject to a minimum dispatch interval.
 
@@ -612,8 +622,9 @@ duplicate pull requests.
 
 A successful classifier decision owns exactly the durable event keys it captured until that decision
 reaches its terminal handoff or, for DISPATCH, fails the required current-main/source-PR identity
-revalidation. Later webhook events queue behind the owned batch and do **not** invalidate it merely
-because they arrived later. When the owned batch completes, only its captured keys are retired and the
+revalidation. That ownership also survives controller/process restart. Later webhook events and
+startup-reconciliation events queue behind the owned batch and do **not** invalidate it merely because
+they arrived later. When the owned batch completes, only its captured keys are retired and the
 later queue is classified next. A genuinely in-flight worker decision remains stable until its bounded
 handoff completes.
 
@@ -633,7 +644,12 @@ pause/resume commands, human-gate posts/duplicate suppressions, controller runti
 requests/completions, protected-path rejections, bounded-scope rejections, and safety pauses.
 
 A bounded worker may edit lane-owned source/tests/docs but may not autonomously rewrite the control
-plane that defines its own authority. The hosted controller checkout remains a stable `main` checkout;
+plane that defines its own authority. The one narrow governance exception is
+`docs/agent-state/AUDIT_STATE.md`: an **Audit-lane** worker may update that lane-owned durable handoff
+only when the classifier explicitly includes that exact path in its allowed scope. Other lanes may not
+edit it, an unscoped Audit worker may not edit it, and authority-defining program/validation/
+orchestration/cross-lane documents remain protected. The hosted controller checkout remains a stable
+`main` checkout;
 each bounded worker runs in a separate ignored Git linked worktree under the controller state directory.
 This separation is a reliability boundary: a dirty, interrupted, or safety-paused worker must not pin
 the service process to stale worker-branch control-plane code.
