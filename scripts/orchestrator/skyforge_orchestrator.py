@@ -1298,8 +1298,12 @@ class Orchestrator:
             self.state.data["last_classifier_success_at"] = _utc_now()
             self.state.save()
 
-    def _record_classifier_failure(self, kind: str, exc: Exception) -> int:
-        summary = re.sub(r"(?i)(api[_ -]?key|authorization|bearer)\s*[:=]?\s*\S+", r"\1=[REDACTED]", f"{type(exc).__name__}: {exc}")
+    def _record_classifier_failure(self, kind: str, exc: Exception) -> tuple[int, bool]:
+        summary = re.sub(
+            r"(?i)(api[_ -]?key|authorization|bearer)\s*[:=]?\s*\S+",
+            r"\1=[REDACTED]",
+            f"{type(exc).__name__}: {exc}",
+        )
         with self._state_lock:
             streak = int(self.state.data.get("classifier_failure_streak") or 0) + 1
             self.state.data["classifier_failure_streak"] = streak
@@ -1308,7 +1312,16 @@ class Orchestrator:
             self.state.data["last_classifier_error_summary"] = summary[:500]
             self.state.save()
         self._metric("classifier_failures")
-        return streak
+        threshold = _env_int(
+            "SKYFORGE_ORCHESTRATOR_MAX_CONSECUTIVE_CLASSIFIER_FAILURES",
+            DEFAULT_MAX_CONSECUTIVE_CLASSIFIER_FAILURES,
+            minimum=1,
+        )
+        circuit_open = streak >= threshold
+        if circuit_open:
+            self.set_paused(True, actor="classifier-failure-circuit")
+            self._metric("classifier_failure_circuit_pauses")
+        return streak, circuit_open
 
     def _codex_classifier(self, prompt: str) -> dict[str, Any]:
         self._consume_budget("classifier")
@@ -1365,15 +1378,8 @@ class Orchestrator:
             raise
         except Exception as exc:
             kind, retry = _codex_failure_policy(exc)
-            streak = self._record_classifier_failure(kind, exc)
-            threshold = _env_int(
-                "SKYFORGE_ORCHESTRATOR_MAX_CONSECUTIVE_CLASSIFIER_FAILURES",
-                DEFAULT_MAX_CONSECUTIVE_CLASSIFIER_FAILURES,
-                minimum=1,
-            )
-            if streak >= threshold:
-                self.set_paused(True, actor="classifier-failure-circuit")
-                self._metric("classifier_failure_circuit_pauses")
+            streak, circuit_open = self._record_classifier_failure(kind, exc)
+            if circuit_open:
                 raise SafetyPause(
                     f"classifier failed {streak} consecutive attempts; controller safety-paused "
                     f"with durable events retained (last kind={kind})"
