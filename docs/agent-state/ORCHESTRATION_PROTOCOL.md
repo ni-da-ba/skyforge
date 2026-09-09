@@ -610,9 +610,12 @@ Worker completion and GitHub handoff are separate durable phases. Once the worke
 reuse an existing local commit, remote branch, or open PR rather than rerunning the worker or creating
 duplicate pull requests.
 
-A fresh event invalidates a cached non-worker classifier decision because repository truth may have
-changed. A genuinely in-flight worker decision remains stable until its bounded handoff completes;
-later events remain queued for a subsequent classification.
+A successful classifier decision owns exactly the durable event keys it captured until that decision
+reaches its terminal handoff or, for DISPATCH, fails the required current-main/source-PR identity
+revalidation. Later webhook events queue behind the owned batch and do **not** invalidate it merely
+because they arrived later. When the owned batch completes, only its captured keys are retired and the
+later queue is classified next. A genuinely in-flight worker decision remains stable until its bounded
+handoff completes.
 
 ### Local cost ceiling and telemetry
 
