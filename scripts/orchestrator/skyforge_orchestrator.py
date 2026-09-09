@@ -462,6 +462,61 @@ def _classifier_prompt(events: list[EventDecision], snapshot: dict[str, Any]) ->
     )
 
 
+def _classifier_input_fingerprint(
+    events: list[EventDecision],
+    snapshot: dict[str, Any],
+) -> str:
+    """Fingerprint only semantic classifier inputs; exclude wall-clock/metrics noise."""
+    open_prs = []
+    for pr in snapshot.get("open_prs") or []:
+        if not isinstance(pr, dict):
+            continue
+        author = pr.get("author") if isinstance(pr.get("author"), dict) else {}
+        open_prs.append(
+            {
+                "number": pr.get("number"),
+                "title": pr.get("title"),
+                "isDraft": pr.get("isDraft"),
+                "headRefName": pr.get("headRefName"),
+                "headRefOid": pr.get("headRefOid"),
+                "baseRefName": pr.get("baseRefName"),
+                "mergeStateStatus": pr.get("mergeStateStatus"),
+                "author": author.get("login") if isinstance(author, dict) else None,
+            }
+        )
+    open_prs.sort(key=lambda item: int(item.get("number") or 0))
+
+    recent_runs = []
+    for run in snapshot.get("recent_runs") or []:
+        if not isinstance(run, dict):
+            continue
+        recent_runs.append(
+            {
+                "databaseId": run.get("databaseId"),
+                "name": run.get("name"),
+                "status": run.get("status"),
+                "conclusion": run.get("conclusion"),
+                "headSha": run.get("headSha"),
+                "headBranch": run.get("headBranch"),
+                "event": run.get("event"),
+            }
+        )
+    recent_runs.sort(key=lambda item: int(item.get("databaseId") or 0), reverse=True)
+
+    payload = {
+        "policy": CLASSIFIER_POLICY_FINGERPRINT,
+        "events": sorted(_event_key(event) for event in events),
+        "snapshot": {
+            "main": snapshot.get("main"),
+            "open_prs": open_prs,
+            "recent_runs": recent_runs,
+            "controller_managed": snapshot.get("controller_managed") or {},
+        },
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _restart_signal_events(events: Iterable[EventDecision]) -> list[EventDecision]:
     return [
         event
@@ -580,6 +635,7 @@ class LocalState:
             "parent_thread_id": None,
             "parent_turns": 0,
             "classifier_policy_fingerprint": None,
+            "classifier_decision_cache": {},
             "last_dispatch_epoch": 0.0,
             "managed": {},
             "human_gate_records": {},
@@ -634,6 +690,7 @@ def _ensure_classifier_policy_state(state: LocalState) -> None:
     state.data["parent_thread_id"] = None
     state.data["parent_turns"] = 0
     state.data["classifier_policy_fingerprint"] = CLASSIFIER_POLICY_FINGERPRINT
+    state.data["classifier_decision_cache"] = {}
     if had_parent:
         metrics = state.data.setdefault("metrics", {})
         metrics["classifier_policy_rotations"] = int(
@@ -1048,6 +1105,7 @@ class Orchestrator:
         decision: dict[str, Any],
         events: list[EventDecision],
         snapshot: dict[str, Any] | None = None,
+        classifier_input_fingerprint: str | None = None,
     ) -> None:
         snapshot = snapshot or {}
         source_pr_head = None
@@ -1074,8 +1132,25 @@ class Orchestrator:
                 "pr_number": decision.get("pr_number"),
                 "captured_at": _utc_now(),
                 "event_count": len(events),
+                "input_fingerprint": classifier_input_fingerprint,
             }
+            if classifier_input_fingerprint:
+                cache = self.state.data.setdefault("classifier_decision_cache", {})
+                cache[classifier_input_fingerprint] = {
+                    "decision": decision,
+                    "cached_at": _utc_now(),
+                }
+                while len(cache) > 16:
+                    cache.pop(next(iter(cache)))
             self.state.save()
+
+    def _classifier_cache_lookup(self, input_fingerprint: str) -> dict[str, Any] | None:
+        with self._state_lock:
+            cache = self.state.data.get("classifier_decision_cache") or {}
+            value = cache.get(input_fingerprint) if isinstance(cache, dict) else None
+            if not isinstance(value, dict) or not isinstance(value.get("decision"), dict):
+                return None
+            return dict(value["decision"])
 
     def _invalidate_cached_decision(self, reason: str) -> None:
         with self._state_lock:
@@ -2111,7 +2186,13 @@ class Orchestrator:
                 self.state.data["last_events"] = summaries[-20:]
                 self.state.save()
             prompt = _classifier_prompt(events, snap)
-            decision = self._codex_classifier(prompt)
+            input_fingerprint = _classifier_input_fingerprint(events, snap)
+            cached_classifier_decision = self._classifier_cache_lookup(input_fingerprint)
+            if cached_classifier_decision is not None:
+                decision = cached_classifier_decision
+                self._metric("classifier_decision_cache_hits")
+            else:
+                decision = self._codex_classifier(prompt)
             if (
                 str(decision.get("decision") or "NOOP").upper() == "NOOP"
                 and _restart_signal_events(events)
@@ -2152,7 +2233,12 @@ class Orchestrator:
             with self._state_lock:
                 self.state.data["last_dispatch_epoch"] = now
                 self.state.save()
-            self._cache_decision(decision, events, snap)
+            self._cache_decision(
+                decision,
+                events,
+                snap,
+                classifier_input_fingerprint=input_fingerprint,
+            )
         else:
             self._metric("cached_decision_reuses")
 
