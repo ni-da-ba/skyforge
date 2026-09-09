@@ -146,6 +146,17 @@ stale DISPATCH decisions still undergo current-state revalidation. A transient G
 startup reconciliation is persisted as degraded state and retried model-free on a bounded timer until
 GitHub observation succeeds.
 
+### Live webhook-loss fallback
+
+Hosted mode does not rely exclusively on inbound webhook delivery. Every 15 minutes by default
+(`SKYFORGE_PERIODIC_RECONCILE_SECONDS=900`), the running controller compares a compact remote GitHub
+projection with the exact repository projection last presented to a successful classifier decision.
+When they match, the check is a zero-model NOOP. When they differ, the controller journals one
+synthetic periodic `reconcile` event. This keeps repository progress discoverable if the GitHub hook,
+public DNS, Caddy, or TLS delivery path silently stops while the process itself remains running.
+Failures of this model-free poll are retained in status/telemetry and retried on the bounded
+reconciliation backoff.
+
 ## Trusted remote control / status
 
 From any issue or pull request, `ni-da-ba` may post exactly:
