@@ -526,11 +526,15 @@ class HostedTransportTests(unittest.TestCase):
     def test_health_snapshot_exposes_state_not_secrets(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
+            o.state.data["blocked_reason"] = "authentication Bearer super-secret-token"
+            o.state.save()
             health = o.health_snapshot()
             self.assertEqual(health["status"], "ok")
             self.assertEqual(health["repo"], "ni-da-ba/skyforge")
             self.assertNotIn("webhook_secret", health)
+            self.assertNotIn("blocked_reason", health)
             self.assertNotIn("x" * 48, str(health))
+            self.assertNotIn("super-secret-token", str(health))
 
     def test_pause_state_persists_and_health_reports_it(self):
         with tempfile.TemporaryDirectory() as tmp:
