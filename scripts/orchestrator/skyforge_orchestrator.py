@@ -49,6 +49,12 @@ DEFAULT_MAX_RETIRED_EVENT_KEYS = 1024
 DEFAULT_STARTUP_RECONCILE_RETRY_SECONDS = 60
 DEFAULT_PERIODIC_RECONCILE_SECONDS = 900
 DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
+PROTECTED_AUTHORITY_SIGNAL_KINDS = frozenset({
+    "task",
+    "restart_recommended",
+    "human_gate",
+    "loop_risk",
+})
 CONTROLLER_RUNTIME_PATHS = {
     "scripts/orchestrator/skyforge_orchestrator.py",
     "scripts/orchestrator/requirements.txt",
@@ -1981,41 +1987,62 @@ class Orchestrator:
             self.state.save()
         return changed
 
+    def _record_pending_event_compaction_locked(
+        self,
+        values: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        compacted, report = self._compact_pending_event_values(values)
+        self.state.data["pending_events"] = compacted
+        if report:
+            self.state.data["last_pending_event_compaction"] = report
+            metrics = self.state.data.setdefault("metrics", {})
+            metrics["pending_event_compactions"] = int(
+                metrics.get("pending_event_compactions") or 0
+            ) + 1
+            metrics["pending_events_compacted"] = int(
+                metrics.get("pending_events_compacted") or 0
+            ) + int(report.get("coalesced") or 0) + int(
+                report.get("dropped_to_reconcile") or 0
+            )
+            metrics["pending_event_protected_overflow"] = max(
+                int(metrics.get("pending_event_protected_overflow") or 0),
+                int(report.get("protected_overflow") or 0),
+            )
+        return compacted
+
     def _pending_events(self) -> list[EventDecision]:
         with self._state_lock:
             self._reclassify_pending_audit_signals_locked()
             self._purge_suppressed_pending_events_locked()
-            values = self.state.data.get("pending_events") or []
-            return [EventDecision.from_state(v) for v in values if isinstance(v, dict)]
+            values = [
+                value
+                for value in (self.state.data.get("pending_events") or [])
+                if isinstance(value, dict)
+            ]
+            compacted = self._record_pending_event_compaction_locked(values)
+            if compacted != values:
+                self.state.save()
+            return [EventDecision.from_state(v) for v in compacted]
 
     def _select_dispatch_batch(self, pending: list[EventDecision]) -> list[EventDecision]:
         """Choose one decision-safe batch from the durable queue.
 
-        The classifier returns exactly one action. Trusted/manual directives therefore cannot share a
-        classifier batch with repository-state noise or with another directive: doing so lets one
-        decision retire unrelated authority.
-
-        Protected authority is ordered by operational urgency, not only queue age. Explicit task
-        authority remains first. A trusted restart recommendation then outranks older generic Audit
-        bookkeeping so a stale/dead producer recovery cannot starve behind a repeatedly irrelevant
-        protected wake. Human gates and loop-risk signals likewise outrank generic Audit/manual wakes.
-        FIFO order is preserved within each authority class. Ordinary webhook transitions remain
-        batched because they are a coalesced wake to inspect current repository truth rather than
-        independent task authority.
+        Only authority whose semantics must survive independently of repository-state noise is isolated.
+        Explicit tasks, restart recommendations, human gates, and loop-risk directives are processed one
+        at a time in urgency order. Generic Audit synchronization comments, trusted manual wake requests,
+        and ordinary repository transitions are all wake evidence for the same current repository truth
+        and therefore share one coalesced classifier batch.
         """
         for signal_kind in ("task", "restart_recommended", "human_gate", "loop_risk"):
             for event in pending:
                 if event.signal_kind == signal_kind:
                     return [event]
-        for event in pending:
-            if self._pending_event_priority(event.to_state()):
-                return [event]
         return pending
 
     @staticmethod
     def _pending_event_priority(value: dict[str, Any]) -> bool:
         event = EventDecision.from_state(value)
-        return bool(event.signal_kind) or event.action in {"audit_signal", "manual_command"}
+        return event.signal_kind in PROTECTED_AUTHORITY_SIGNAL_KINDS
 
     @staticmethod
     def _pending_event_compaction_slot(value: dict[str, Any]) -> tuple[str, ...]:
@@ -2039,19 +2066,19 @@ class Orchestrator:
         self,
         values: list[dict[str, Any]],
     ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
-        """Bound ordinary webhook history without silently losing durable authority.
+        """Coalesce redundant wake history and bound the remaining durable queue.
 
-        Trusted Audit/manual signals and event keys already owned by a cached classifier decision are
-        never compacted away. Ordinary repository transitions first coalesce by subject, then any
-        remaining excess is represented by one synthetic current-state reconcile event.
+        Semantic coalescing is always applied, even below the soft queue limit. Only the four protected
+        authority classes and event keys already owned by a cached classifier decision are exempt.
+        Generic Audit/manual wakes are latest-wins per issue/action just like other repository-state
+        wake evidence. If the coalesced queue still exceeds the soft limit, older ordinary history is
+        represented by one synthetic current-state reconcile event.
         """
         limit = _env_int(
             "SKYFORGE_ORCHESTRATOR_MAX_PENDING_EVENTS",
             DEFAULT_MAX_PENDING_EVENTS,
             minimum=10,
         )
-        if len(values) <= limit:
-            return values, None
 
         decision_record = self._decision_record() or {}
         owned_keys = set(decision_record.get("event_keys") or [])
@@ -2080,12 +2107,15 @@ class Orchestrator:
             for index, value in enumerate(values)
             if _event_key(value) in protected_keys or index in selected_indexes
         ]
+        coalesced = len(values) - len(first_pass)
         if len(first_pass) <= limit:
+            if not coalesced:
+                return values, None
             report = {
                 "at": _utc_now(),
                 "before": len(values),
                 "after": len(first_pass),
-                "coalesced": len(values) - len(first_pass),
+                "coalesced": coalesced,
                 "reconcile_inserted": False,
                 "protected_overflow": max(0, len(protected_keys) - limit),
             }
@@ -2169,12 +2199,12 @@ class Orchestrator:
                         metrics.get("duplicate_task_authorities_suppressed") or 0
                     ) + 1
                     continue
-                if priority and key in completed_authority_keys:
+                if key in completed_authority_keys:
                     metrics["completed_authority_replays_suppressed"] = int(
                         metrics.get("completed_authority_replays_suppressed") or 0
                     ) + 1
                     continue
-                if not priority and key in retired_keys:
+                if key in retired_keys:
                     metrics["retired_event_replays_suppressed"] = int(
                         metrics.get("retired_event_replays_suppressed") or 0
                     ) + 1
@@ -2190,22 +2220,7 @@ class Orchestrator:
                 int(metrics.get("pending_event_high_water") or 0),
                 len(values),
             )
-            compacted, report = self._compact_pending_event_values(values)
-            self.state.data["pending_events"] = compacted
-            if report:
-                self.state.data["last_pending_event_compaction"] = report
-                metrics["pending_event_compactions"] = int(
-                    metrics.get("pending_event_compactions") or 0
-                ) + 1
-                metrics["pending_events_compacted"] = int(
-                    metrics.get("pending_events_compacted") or 0
-                ) + int(report.get("coalesced") or 0) + int(
-                    report.get("dropped_to_reconcile") or 0
-                )
-                metrics["pending_event_protected_overflow"] = max(
-                    int(metrics.get("pending_event_protected_overflow") or 0),
-                    int(report.get("protected_overflow") or 0),
-                )
+            compacted = self._record_pending_event_compaction_locked(values)
 
             # A successful classifier decision owns exactly the event keys it captured. Later webhook
             # events queue behind that batch; they must not erase the cached decision and force Luna
