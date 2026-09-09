@@ -70,7 +70,7 @@ Codex SDK:
 gh auth login
 gh auth status
 python3 -m venv .skyforge-orchestrator/venv
-.skyforge-orchestrator/venv/bin/pip install -r scripts/orchestrator/requirements.txt
+.skyforge-orchestrator/venv/bin/python scripts/orchestrator/sync_runtime_dependencies.py --root .
 .skyforge-orchestrator/venv/bin/python scripts/orchestrator/codex_auth.py --device-login
 ```
 
@@ -104,14 +104,22 @@ export SKYFORGE_PUBLIC_HOSTNAME="orchestrator.example.com"
 ./scripts/orchestrator/install_hosted.sh
 ```
 
-The installer:
+The installer is deliberately repeatable:
 
-1. creates the ignored Python virtualenv if needed;
-2. writes the secret to `/etc/skyforge-orchestrator/env` with mode `0600`;
-3. installs/enables the systemd controller unit;
-4. installs the dedicated Caddy configuration and enables Caddy;
-5. waits for the trusted `/healthz` endpoint;
-6. creates or updates one GitHub repository webhook with the exact event allowlist.
+1. reuses the previously stored hostname/webhook secret/cost/report configuration unless explicitly
+   overridden;
+2. creates the ignored Python virtualenv if needed and reconciles pinned requirements by fingerprint;
+3. writes the secret/runtime configuration to `/etc/skyforge-orchestrator/env` with mode `0600`;
+4. installs/enables the systemd controller unit;
+5. installs the dedicated Caddy configuration and enables Caddy;
+6. preserves an existing daily value-report baseline rather than resetting history;
+7. waits for the trusted `/healthz` endpoint;
+8. creates or updates one GitHub repository webhook with the exact event allowlist.
+
+The systemd unit also runs the fingerprinted dependency synchronizer before controller start. Normal
+controller Python, `requirements.txt`, or dependency-sync-helper changes can therefore self-refresh
+after `sync_main()`; privileged systemd/Caddy/UFW installer changes remain deliberate Audit
+deployment work.
 
 It does **not** enable autonomous merge or API-key billing fallback. First-week hosted defaults are
 24 Luna classifier attempts and 4 Terra worker attempts per UTC day.
@@ -145,6 +153,21 @@ the host was unavailable, startup reconciliation queues that newer state behind 
 stale DISPATCH decisions still undergo current-state revalidation. A transient GitHub failure during
 startup reconciliation is persisted as degraded state and retried model-free on a bounded timer until
 GitHub observation succeeds.
+
+### Live webhook-loss fallback
+
+Hosted mode does not rely exclusively on inbound webhook delivery. Every 15 minutes by default
+(`SKYFORGE_PERIODIC_RECONCILE_SECONDS=900`), the running controller compares a compact remote GitHub
+projection with the exact repository projection last presented to a successful classifier decision.
+When they match, the check is a zero-model NOOP. When they differ, the controller journals one
+synthetic periodic `reconcile` event. This keeps repository progress discoverable if the GitHub hook,
+public DNS, Caddy, or TLS delivery path silently stops while the process itself remains running.
+Failures of this model-free poll are retained in status/telemetry and retried on the bounded
+reconciliation backoff. The same poll recovers new trusted repository issue/PR comments through the
+normal control/event classifiers. On first upgraded startup, pre-start historical comments are seeded
+without replay; comments created during/after startup remain actionable. Subsequent scans paginate
+from the prior scan boundary, so Audit `RESTART RECOMMENDED` / `LOOP RISK` signals and trusted
+`/skyforge-*` controls are not dependent on inbound webhook delivery either.
 
 ## Trusted remote control / status
 

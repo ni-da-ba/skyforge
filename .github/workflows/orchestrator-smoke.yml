@@ -48,6 +48,7 @@ jobs:
           python -m py_compile scripts/orchestrator/daily_value_report.py
           python -m py_compile scripts/orchestrator/verify_main_protection.py
           python -m py_compile scripts/orchestrator/codex_auth.py
+          python -m py_compile scripts/orchestrator/sync_runtime_dependencies.py
 
       - name: Check hosted shell syntax
         run: |
@@ -64,3 +65,4 @@ jobs:
           python -m unittest scripts/orchestrator/test_verify_main_protection.py
           python -m unittest scripts/orchestrator/test_decommission_contract.py
           python -m unittest scripts/orchestrator/test_codex_auth.py
+          python -m unittest scripts/orchestrator/test_sync_runtime_dependencies.py

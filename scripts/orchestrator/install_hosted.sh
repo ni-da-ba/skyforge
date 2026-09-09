@@ -23,6 +23,22 @@ VALUE_SERVICE_FILE="/etc/systemd/system/skyforge-value-report.service"
 VALUE_TIMER_FILE="/etc/systemd/system/skyforge-value-report.timer"
 CADDY_FILE="/etc/caddy/Caddyfile"
 
+# A maintenance redeploy should be repeatable from durable host configuration. Reuse existing
+# non-secret deployment settings and the existing root-readable webhook secret when the caller does
+# not explicitly override them.
+if [[ -z "${SKYFORGE_PUBLIC_HOSTNAME:-}" && -f "$ENV_FILE" ]]; then
+  SKYFORGE_PUBLIC_HOSTNAME="$(sudo sed -n 's/^SKYFORGE_PUBLIC_HOSTNAME=//p' "$ENV_FILE" | head -n 1)"
+fi
+if [[ -z "${SKYFORGE_WEBHOOK_SECRET:-}" && -f "$ENV_FILE" ]]; then
+  SKYFORGE_WEBHOOK_SECRET="$(sudo sed -n 's/^SKYFORGE_WEBHOOK_SECRET=//p' "$ENV_FILE" | head -n 1)"
+fi
+if [[ -z "${SKYFORGE_DROPLET_HOURLY_USD:-}" && -f "$VALUE_ENV_FILE" ]]; then
+  SKYFORGE_DROPLET_HOURLY_USD="$(sudo sed -n 's/^SKYFORGE_DROPLET_HOURLY_USD=//p' "$VALUE_ENV_FILE" | head -n 1)"
+fi
+if [[ -z "${SKYFORGE_VALUE_REPORT_ISSUE:-}" && -f "$VALUE_ENV_FILE" ]]; then
+  SKYFORGE_VALUE_REPORT_ISSUE="$(sudo sed -n 's/^SKYFORGE_VALUE_REPORT_ISSUE=//p' "$VALUE_ENV_FILE" | head -n 1)"
+fi
+
 : "${SKYFORGE_PUBLIC_HOSTNAME:?Set SKYFORGE_PUBLIC_HOSTNAME to the public HTTPS hostname.}"
 : "${SKYFORGE_WEBHOOK_SECRET:?Set SKYFORGE_WEBHOOK_SECRET to a high-entropy webhook secret.}"
 : "${SKYFORGE_DROPLET_HOURLY_USD:?Set SKYFORGE_DROPLET_HOURLY_USD to the selected Droplet hourly rate.}"
@@ -94,8 +110,10 @@ mkdir -p "$STATE_DIR"
 if [[ ! -x "$VENV_PYTHON" ]]; then
   python3 -m venv "$VENV"
   "$VENV_PYTHON" -m pip install --upgrade pip
-  "$VENV_PYTHON" -m pip install -r scripts/orchestrator/requirements.txt
 fi
+# Reconcile the pinned runtime on every deliberate deployment. The same fingerprinted helper is
+# also an ExecStartPre gate, so a requirements-only main update self-refreshes on service restart.
+"$VENV_PYTHON" scripts/orchestrator/sync_runtime_dependencies.py --root "$ROOT"
 
 if ! "$VENV_PYTHON" scripts/orchestrator/codex_auth.py >/dev/null 2>&1; then
   echo "Codex ChatGPT authentication is not active for the service user." >&2
@@ -155,11 +173,13 @@ SKYFORGE_ORCHESTRATOR_DEDICATED_CLONE=1
 SKYFORGE_REQUIRE_WEBHOOK_SECRET=1
 SKYFORGE_STARTUP_RECONCILE=1
 SKYFORGE_ORCHESTRATOR_AUTO_MERGE=0
+SKYFORGE_PUBLIC_HOSTNAME=$SKYFORGE_PUBLIC_HOSTNAME
 SKYFORGE_WEBHOOK_SECRET=$SKYFORGE_WEBHOOK_SECRET
 SKYFORGE_TRUSTED_GITHUB_ACTORS=${SKYFORGE_TRUSTED_GITHUB_ACTORS:-ni-da-ba}
 SKYFORGE_HOST_ACTIVATED_AT=$HOST_ACTIVATED_AT
 SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY=${SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY:-24}
 SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY=${SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY:-4}
+SKYFORGE_PERIODIC_RECONCILE_SECONDS=${SKYFORGE_PERIODIC_RECONCILE_SECONDS:-900}
 EOF
 
 cat >"$tmp_value_env" <<EOF
@@ -184,12 +204,17 @@ sudo systemctl enable --now caddy.service
 sudo systemctl restart skyforge-orchestrator.service
 sudo systemctl reload caddy.service
 
-# Establish the value-accounting baseline without posting a zero-value report.
-SKYFORGE_HOST_ACTIVATED_AT="$HOST_ACTIVATED_AT" \
-SKYFORGE_DROPLET_HOURLY_USD="$SKYFORGE_DROPLET_HOURLY_USD" \
-SKYFORGE_VALUE_REPORT_ISSUE="$SKYFORGE_VALUE_REPORT_ISSUE" \
-"$VENV_PYTHON" scripts/orchestrator/daily_value_report.py \
-  --root "$ROOT" --repo "$REPO" --issue "$SKYFORGE_VALUE_REPORT_ISSUE" --initialize
+# Establish the value-accounting baseline only on first install. A maintenance redeploy must not
+# reset the last-report timestamp/metric baseline and hide part of the hosted-value history.
+if [[ ! -f "$STATE_DIR/report_state.json" ]]; then
+  SKYFORGE_HOST_ACTIVATED_AT="$HOST_ACTIVATED_AT" \
+  SKYFORGE_DROPLET_HOURLY_USD="$SKYFORGE_DROPLET_HOURLY_USD" \
+  SKYFORGE_VALUE_REPORT_ISSUE="$SKYFORGE_VALUE_REPORT_ISSUE" \
+  "$VENV_PYTHON" scripts/orchestrator/daily_value_report.py \
+    --root "$ROOT" --repo "$REPO" --issue "$SKYFORGE_VALUE_REPORT_ISSUE" --initialize
+else
+  echo "Preserving existing hosted value-report baseline."
+fi
 
 health_url="https://$SKYFORGE_PUBLIC_HOSTNAME/healthz"
 webhook_url="https://$SKYFORGE_PUBLIC_HOSTNAME/webhook"

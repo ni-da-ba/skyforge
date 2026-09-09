@@ -127,6 +127,18 @@ On each orchestrator heartbeat:
 15. A successful classifier decision survives controller/process restart with its captured event ownership intact. Startup reconciliation may append newer durable work behind that decision, but restart alone must not erase it and spend Luna again. A cached DISPATCH still undergoes the normal current-main/source-PR identity revalidation before execution.
 16. Before the first classification of a batch, require visible Actions quiescence for every represented event head that has a SHA, not only `workflow_run` events. This prevents a main push or PR-lifecycle event from being classified while the same head is still materially changing through CI.
 17. Do not spend agentic usage repeatedly polling for the same CI state.
+18. Hosted transport must not depend exclusively on inbound webhooks. While hosted, run a model-free
+    repository reconciliation every 15 minutes by default. Checkpoint the exact repository projection
+    already presented to a successful classifier decision; do not perform a fresh post-dispatch read
+    that could acknowledge a later unseen transition. A periodic observation that matches the
+    classifier checkpoint is a zero-model NOOP. A changed quiescent observation journals one synthetic
+    `reconcile` event, allowing orchestration to continue if webhook/Caddy/TLS delivery silently
+    fails while the host remains up. The same poll must paginate issue/PR comments from its prior scan
+    boundary and recover new trusted Audit signals and `/skyforge-*` controls through the normal
+    deterministic classifiers. First-upgrade historical comments are seeded without replay, while
+    comments created during/after the upgraded process starts remain actionable.
+19. Authentication blocks and classifier-failure circuit pauses must be surfaced durably when GitHub
+    comment authority remains available. A safe silent stop is still an unattended-operation failure.
 
 ## 6. Dispatch priority
 
@@ -195,7 +207,9 @@ The orchestrator should fill these fields from repository evidence, not from mem
 
 **Preferred pilot:** event-driven local dispatch under Section 15. In that mode, there is no periodic
 Codex heartbeat while the controller is running; filtered GitHub events wake the persistent Luna
-classifier only when repository state may be actionable.
+classifier only when repository state may be actionable. Hosted mode may perform the Section 5
+model-free reconciliation poll as a transport fallback; that poll is not a Codex heartbeat and spends
+no model turn when repository state matches the last classifier observation.
 
 **Fallback:** if the local event receiver is unavailable, use a single Codex heartbeat roughly every
 two hours during active development. Reduce/pause it when lanes are dormant/human-gated.

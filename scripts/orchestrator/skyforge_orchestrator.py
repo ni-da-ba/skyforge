@@ -43,11 +43,15 @@ DEFAULT_RATE_LIMIT_BACKOFF_SECONDS = 300
 DEFAULT_TRANSIENT_BACKOFF_SECONDS = 300
 DEFAULT_MAX_CONSECUTIVE_CLASSIFIER_FAILURES = 3
 DEFAULT_MAX_SEEN_DELIVERIES = 512
+DEFAULT_MAX_SEEN_ISSUE_COMMENTS = 512
 DEFAULT_MAX_PENDING_EVENTS = 100
 DEFAULT_STARTUP_RECONCILE_RETRY_SECONDS = 60
+DEFAULT_PERIODIC_RECONCILE_SECONDS = 900
 DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
 CONTROLLER_RUNTIME_PATHS = {
     "scripts/orchestrator/skyforge_orchestrator.py",
+    "scripts/orchestrator/requirements.txt",
+    "scripts/orchestrator/sync_runtime_dependencies.py",
 }
 PROTECTED_WORKER_PATH_PREFIXES = (
     "scripts/orchestrator/",
@@ -665,6 +669,9 @@ class LocalState:
             "last_budget_reset_at": None,
             "last_budget_reset_by": None,
             "seen_deliveries": [],
+            "seen_issue_comment_ids": [],
+            "issue_comment_reconcile_initialized": False,
+            "last_issue_comment_reconcile_at": None,
             "reconcile_fingerprint": None,
             "reconcile_snapshot": None,
             "last_reconcile_at": None,
@@ -675,6 +682,10 @@ class LocalState:
             "last_startup_reconcile_error": None,
             "last_startup_reconcile_success_at": None,
             "startup_reconcile_retry_at": None,
+            "next_periodic_reconcile_at": None,
+            "last_periodic_reconcile_success_at": None,
+            "last_periodic_reconcile_error": None,
+            "controller_started_at": None,
         }
 
         primary_error: Exception | None = None
@@ -797,6 +808,9 @@ class Orchestrator:
         self._dispatch_lock = threading.Lock()
         self._startup_reconcile_retry_lock = threading.Lock()
         self._startup_reconcile_retry_timer: threading.Timer | None = None
+        self._periodic_reconcile_lock = threading.Lock()
+        self._periodic_reconcile_timer: threading.Timer | None = None
+        self._reconcile_observation_lock = threading.Lock()
         self.runtime_head: str | None = None
 
     def validate_environment(self) -> None:
@@ -827,6 +841,7 @@ class Orchestrator:
             cwd=self.root,
         ).stdout.strip()
         with self._state_lock:
+            self.state.data["controller_started_at"] = _utc_now()
             requested = self.state.data.pop("runtime_restart_requested", None)
             if requested:
                 self.state.data["last_runtime_restart"] = {
@@ -857,6 +872,182 @@ class Orchestrator:
                 values.append(delivery_id)
             self.state.data["seen_deliveries"] = values[-DEFAULT_MAX_SEEN_DELIVERIES:]
             self.state.save()
+
+    def issue_comment_seen(self, source_id: str | None) -> bool:
+        if not source_id:
+            return False
+        with self._state_lock:
+            return source_id in {
+                str(value)
+                for value in (self.state.data.get("seen_issue_comment_ids") or [])
+                if value is not None
+            }
+
+    def record_issue_comment(self, source_id: str | None) -> None:
+        if not source_id:
+            return
+        with self._state_lock:
+            values = [
+                str(value)
+                for value in (self.state.data.get("seen_issue_comment_ids") or [])
+                if value is not None
+            ]
+            if source_id not in values:
+                values.append(source_id)
+            self.state.data["seen_issue_comment_ids"] = values[
+                -DEFAULT_MAX_SEEN_ISSUE_COMMENTS:
+            ]
+            self.state.save()
+
+    def _apply_control_payload(self, control: str, payload: dict[str, Any]) -> None:
+        actor = str(
+            ((((payload.get("comment") or {}).get("user") or {}).get("login")) or "")
+        )
+        if control == "status":
+            issue = payload.get("issue") or {}
+            target = issue.get("number") or 349
+            self.post_status(target)
+        elif control == "reset_budget":
+            self.reset_local_budget(actor=actor)
+        elif control == "refresh_runtime":
+            self.refresh_runtime(actor=actor)
+        elif control == "discard_worker":
+            self.discard_pending_worker(actor=actor)
+        else:
+            self.set_paused(control == "pause", actor=actor)
+
+    @staticmethod
+    def _issue_number_from_comment(value: dict[str, Any]) -> int | None:
+        issue_url = str(value.get("issue_url") or "")
+        match = re.search(r"/issues/(\d+)$", issue_url)
+        return int(match.group(1)) if match else None
+
+    def reconcile_issue_comments(self, *, source: str) -> None:
+        """Recover trusted issue-comment wakes/controls when webhook transport is silent."""
+        scan_started_at = _utc_now()
+        with self._state_lock:
+            initialized = bool(self.state.data.get("issue_comment_reconcile_initialized"))
+            since = self.state.data.get("last_issue_comment_reconcile_at")
+            controller_started_at = self.state.data.get("controller_started_at")
+
+        args = [
+            "gh",
+            "api",
+            "--method",
+            "GET",
+            "--paginate",
+            "--slurp",
+            f"repos/{self.repo}/issues/comments",
+            "-f",
+            "sort=created",
+            "-f",
+            "direction=asc",
+            "-f",
+            "per_page=100",
+        ]
+        if initialized and since:
+            args.extend(["-f", f"since={since}"])
+
+        raw_comments = _json_cmd(args, cwd=self.root, timeout=120)
+        if not isinstance(raw_comments, list):
+            raise RuntimeError("GitHub issue-comment reconciliation returned a non-list payload")
+
+        # gh api --paginate --slurp returns one list per page. Accept a flat list too so tests and
+        # older gh behavior remain straightforward.
+        comments: list[dict[str, Any]] = []
+        for value in raw_comments:
+            if isinstance(value, list):
+                comments.extend(item for item in value if isinstance(item, dict))
+            elif isinstance(value, dict):
+                comments.append(value)
+
+        ordered = sorted(comments, key=lambda value: int(value.get("id") or 0))
+
+        if not initialized:
+            cutoff = None
+            if controller_started_at:
+                try:
+                    cutoff = datetime.fromisoformat(
+                        str(controller_started_at).replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    cutoff = None
+            for value in ordered:
+                created = None
+                try:
+                    created = datetime.fromisoformat(
+                        str(value.get("created_at") or "").replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    pass
+                # Migration safety: seed only comments that predate this controller process. A
+                # command created while the upgraded service is starting remains eligible below.
+                if cutoff is None or created is None or created < cutoff:
+                    source_id = (
+                        str(value.get("id")) if value.get("id") is not None else None
+                    )
+                    self.record_issue_comment(source_id)
+            with self._state_lock:
+                self.state.data["issue_comment_reconcile_initialized"] = True
+                self.state.save()
+            self._metric("issue_comment_reconcile_baselines")
+
+        recovered_wakes = 0
+        recovered_controls = 0
+        for value in ordered:
+            source_id = str(value.get("id")) if value.get("id") is not None else None
+            if not source_id or self.issue_comment_seen(source_id):
+                continue
+            issue_number = self._issue_number_from_comment(value)
+            payload = {
+                "action": "created",
+                "comment": {
+                    "id": value.get("id"),
+                    "body": value.get("body"),
+                    "created_at": value.get("created_at"),
+                    "user": {"login": ((value.get("user") or {}).get("login"))},
+                },
+                "issue": {"number": issue_number},
+            }
+
+            control = classify_control_command(
+                "issue_comment",
+                payload,
+                trusted_actors=self.trusted_actors,
+            )
+            if control:
+                self._apply_control_payload(control, payload)
+                recovered_controls += 1
+            else:
+                decision = classify_event(
+                    "issue_comment",
+                    payload,
+                    repo=self.repo,
+                    trusted_actors=self.trusted_actors,
+                )
+                self.enqueue(decision)
+                if decision.actionable:
+                    recovered_wakes += 1
+
+            # Record only after the recovered control or durable enqueue succeeds.
+            self.record_issue_comment(source_id)
+
+        # Store the instant from before the API read, not "now". A comment created while pagination
+        # was in progress is included again by the next inclusive since-scan and deduped by durable id.
+        with self._state_lock:
+            self.state.data["last_issue_comment_reconcile_at"] = scan_started_at
+            self.state.save()
+        self._metric("issue_comment_reconcile_checks")
+        if recovered_wakes:
+            self._metric("issue_comment_recovered_wakes", recovered_wakes)
+        if recovered_controls:
+            self._metric("issue_comment_recovered_controls", recovered_controls)
+        if recovered_wakes or recovered_controls:
+            print(
+                f"[orchestrator] {source} issue-comment reconciliation recovered "
+                f"{recovered_wakes} wake(s) and {recovered_controls} control(s)",
+                flush=True,
+            )
 
     def health_snapshot(self) -> dict[str, Any]:
         with self._state_lock:
@@ -968,6 +1159,21 @@ class Orchestrator:
                 ),
                 "startup_reconcile_retry_at": self.state.data.get(
                     "startup_reconcile_retry_at"
+                ),
+                "next_periodic_reconcile_at": self.state.data.get(
+                    "next_periodic_reconcile_at"
+                ),
+                "last_periodic_reconcile_success_at": self.state.data.get(
+                    "last_periodic_reconcile_success_at"
+                ),
+                "last_periodic_reconcile_error": self.state.data.get(
+                    "last_periodic_reconcile_error"
+                ),
+                "last_issue_comment_reconcile_at": self.state.data.get(
+                    "last_issue_comment_reconcile_at"
+                ),
+                "issue_comment_reconcile_initialized": bool(
+                    self.state.data.get("issue_comment_reconcile_initialized")
                 ),
                 "paused": bool(self.state.data.get("paused")),
                 "paused_at": self.state.data.get("paused_at"),
@@ -1140,6 +1346,49 @@ class Orchestrator:
         )
         self._metric("status_commands")
 
+    @staticmethod
+    def _reconcile_projection(snapshot: dict[str, Any]) -> dict[str, Any]:
+        """Project any repository snapshot onto the model-free reconciliation contract."""
+        prs = []
+        for value in snapshot.get("open_prs") or []:
+            if not isinstance(value, dict):
+                continue
+            prs.append(
+                {
+                    "number": value.get("number"),
+                    "title": value.get("title"),
+                    "isDraft": value.get("isDraft"),
+                    "headRefName": value.get("headRefName"),
+                    "headRefOid": value.get("headRefOid"),
+                    "baseRefName": value.get("baseRefName"),
+                    "mergeStateStatus": value.get("mergeStateStatus"),
+                }
+            )
+        runs = []
+        for value in snapshot.get("recent_runs") or []:
+            if not isinstance(value, dict):
+                continue
+            runs.append(
+                {
+                    "databaseId": value.get("databaseId"),
+                    "name": value.get("name"),
+                    "status": value.get("status"),
+                    "conclusion": value.get("conclusion"),
+                    "headSha": value.get("headSha"),
+                    "headBranch": value.get("headBranch"),
+                    "event": value.get("event"),
+                }
+            )
+        return {
+            "main": snapshot.get("main"),
+            "open_prs": sorted(prs, key=lambda item: int(item.get("number") or 0)),
+            "recent_runs": sorted(
+                runs,
+                key=lambda item: int(item.get("databaseId") or 0),
+                reverse=True,
+            ),
+        }
+
     def _remote_reconcile_snapshot(self) -> dict[str, Any]:
         remote = _run(
             ["git", "ls-remote", "origin", "refs/heads/main"],
@@ -1154,7 +1403,7 @@ class Orchestrator:
                 "--state", "open",
                 "--limit", "50",
                 "--json",
-                "number,title,isDraft,headRefName,updatedAt,mergeStateStatus",
+                "number,title,isDraft,headRefName,headRefOid,baseRefName,mergeStateStatus",
             ],
             cwd=self.root,
             timeout=60,
@@ -1165,56 +1414,119 @@ class Orchestrator:
                 "--repo", self.repo,
                 "--limit", "35",
                 "--json",
-                "databaseId,name,status,conclusion,headSha,headBranch,event,updatedAt",
+                "databaseId,name,status,conclusion,headSha,headBranch,event",
             ],
             cwd=self.root,
             timeout=60,
         )
-        return {
-            "main": main_sha,
-            "open_prs": sorted(prs, key=lambda item: int(item.get("number") or 0)),
-            "recent_runs": sorted(
-                runs,
-                key=lambda item: int(item.get("databaseId") or 0),
-                reverse=True,
-            ),
-        }
+        return self._reconcile_projection(
+            {
+                "main": main_sha,
+                "open_prs": prs,
+                "recent_runs": runs,
+            }
+        )
 
     @staticmethod
     def _reconcile_fingerprint(snapshot: dict[str, Any]) -> str:
         encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
 
-    def startup_reconcile_repository(self) -> None:
-        snapshot = self._remote_reconcile_snapshot()
-        fingerprint = self._reconcile_fingerprint(snapshot)
+    def _record_reconcile_observation(
+        self,
+        snapshot: dict[str, Any],
+        *,
+        source: str,
+    ) -> tuple[str | None, str, dict[str, Any]]:
+        projected = self._reconcile_projection(snapshot)
+        fingerprint = self._reconcile_fingerprint(projected)
         with self._state_lock:
             previous = self.state.data.get("reconcile_fingerprint")
             self.state.data["reconcile_fingerprint"] = fingerprint
-            self.state.data["reconcile_snapshot"] = snapshot
+            self.state.data["reconcile_snapshot"] = projected
             self.state.data["last_reconcile_at"] = _utc_now()
+            self.state.data["last_reconcile_source"] = source
             self.state.save()
+        return previous, fingerprint, projected
 
-        if not previous:
-            self._metric("startup_reconcile_baselines")
-            print("[orchestrator] established first hosted startup reconciliation baseline", flush=True)
-            return
-        if previous == fingerprint:
-            self._metric("startup_reconcile_noops")
-            print("[orchestrator] startup reconciliation found no repository-state change", flush=True)
-            return
+    def _checkpoint_classifier_reconcile_observation(self, snapshot: dict[str, Any]) -> None:
+        # This is intentionally the exact repository state already presented to the classifier.
+        # Never perform a fresh post-dispatch read here: doing so could acknowledge a later webhook
+        # transition that the classifier never saw.
+        with self._reconcile_observation_lock:
+            self._record_reconcile_observation(snapshot, source="classifier_snapshot")
+        self._metric("classifier_reconcile_checkpoints")
 
-        self._metric("startup_reconciliations")
-        self.enqueue(
-            EventDecision(
-                True,
-                "repository state changed since previous controller startup",
-                "reconcile",
-                head_sha=snapshot.get("main"),
+    def startup_reconcile_repository(self, *, source: str = "startup") -> None:
+        with self._reconcile_observation_lock:
+            snapshot = self._reconcile_projection(self._remote_reconcile_snapshot())
+            fingerprint = self._reconcile_fingerprint(snapshot)
+            with self._state_lock:
+                previous = self.state.data.get("reconcile_fingerprint")
+
+            if not previous:
+                self._record_reconcile_observation(snapshot, source=source)
+                metric = (
+                    "startup_reconcile_baselines"
+                    if source == "startup"
+                    else "periodic_reconcile_baselines"
+                )
+                self._metric(metric)
+                print(
+                    f"[orchestrator] established first hosted {source} reconciliation baseline",
+                    flush=True,
+                )
+                return
+
+            if previous == fingerprint:
+                self._record_reconcile_observation(snapshot, source=source)
+                metric = (
+                    "startup_reconcile_noops"
+                    if source == "startup"
+                    else "periodic_reconcile_noops"
+                )
+                self._metric(metric)
+                print(
+                    f"[orchestrator] {source} reconciliation found no repository-state change",
+                    flush=True,
+                )
+                return
+
+            if source == "periodic" and any(
+                str(run.get("status") or "").lower() in ACTIVE_RUN_STATUSES
+                for run in snapshot.get("recent_runs") or []
+                if isinstance(run, dict)
+            ):
+                # Active Actions are an observation boundary, not a dispatch boundary. It is safe to
+                # checkpoint them because the later terminal status changes the semantic fingerprint.
+                self._record_reconcile_observation(snapshot, source=source)
+                self._metric("periodic_reconcile_deferred_active_runs")
+                print(
+                    "[orchestrator] periodic reconciliation observed changed state but Actions are "
+                    "still active; checkpointed model-free and waiting for a quiescent observation",
+                    flush=True,
+                )
+                return
+
+            # Durability ordering is intentional: enqueue the changed-state wake before advancing the
+            # observation fingerprint. A crash after enqueue but before checkpoint can only replay an
+            # event whose durable event key will deduplicate; the inverse ordering could lose work.
+            self.enqueue(
+                EventDecision(
+                    True,
+                    "repository state changed since previous controller observation",
+                    "reconcile",
+                    action=source,
+                    head_sha=snapshot.get("main"),
+                )
             )
-        )
+            self._record_reconcile_observation(snapshot, source=source)
+
+        metric = "startup_reconciliations" if source == "startup" else "periodic_reconciliations"
+        self._metric(metric)
         print(
-            "[orchestrator] startup reconciliation journaled current repository state after offline change",
+            f"[orchestrator] {source} reconciliation journaled current repository state after "
+            "an uncheckpointed change",
             flush=True,
         )
 
@@ -1222,6 +1534,7 @@ class Orchestrator:
         """Run model-free startup reconciliation and retry later if GitHub is temporarily unavailable."""
         try:
             self.startup_reconcile_repository()
+            self.reconcile_issue_comments(source="startup")
         except Exception as exc:
             retry_seconds = _env_int(
                 "SKYFORGE_STARTUP_RECONCILE_RETRY_SECONDS",
@@ -1251,6 +1564,7 @@ class Orchestrator:
             self.state.data["last_startup_reconcile_success_at"] = _utc_now()
             self.state.data["startup_reconcile_retry_at"] = None
             self.state.save()
+        self._schedule_periodic_reconcile()
         return True
 
     def _schedule_startup_reconcile_retry(self, delay_seconds: int | float) -> None:
@@ -1269,6 +1583,83 @@ class Orchestrator:
         with self._startup_reconcile_retry_lock:
             self._startup_reconcile_retry_timer = None
         self.attempt_startup_reconcile()
+
+    def _schedule_periodic_reconcile(self, delay_seconds: int | float | None = None) -> None:
+        if not self.startup_reconcile:
+            return
+        interval = (
+            float(delay_seconds)
+            if delay_seconds is not None
+            else float(
+                _env_int(
+                    "SKYFORGE_PERIODIC_RECONCILE_SECONDS",
+                    DEFAULT_PERIODIC_RECONCILE_SECONDS,
+                    minimum=60,
+                )
+            )
+        )
+        interval = max(1.0, interval)
+        next_at = datetime.now(timezone.utc) + timedelta(seconds=interval)
+        with self._state_lock:
+            self.state.data["next_periodic_reconcile_at"] = next_at.isoformat()
+            self.state.save()
+        with self._periodic_reconcile_lock:
+            if self._periodic_reconcile_timer is not None:
+                self._periodic_reconcile_timer.cancel()
+            timer = threading.Timer(interval, self._run_periodic_reconcile)
+            timer.daemon = True
+            self._periodic_reconcile_timer = timer
+            timer.start()
+
+    def _run_periodic_reconcile(self) -> None:
+        with self._periodic_reconcile_lock:
+            self._periodic_reconcile_timer = None
+        with self._state_lock:
+            self.state.data["next_periodic_reconcile_at"] = None
+            self.state.save()
+
+        try:
+            # Trusted controls/Audit comments remain recoverable even when the controller already
+            # owns work. Only an additional synthetic repository wake is suppressed while busy.
+            self.reconcile_issue_comments(source="periodic")
+            with self._state_lock:
+                busy = bool(
+                    self.state.data.get("pending_events")
+                    or self.state.data.get("pending_decision")
+                    or isinstance(self.state.data.get("pending_worker"), dict)
+                )
+            if busy:
+                self._metric("periodic_reconcile_deferred_busy")
+            else:
+                self.startup_reconcile_repository(source="periodic")
+        except Exception as exc:
+            retry_seconds = _env_int(
+                "SKYFORGE_STARTUP_RECONCILE_RETRY_SECONDS",
+                DEFAULT_STARTUP_RECONCILE_RETRY_SECONDS,
+                minimum=30,
+            )
+            with self._state_lock:
+                self.state.data["last_periodic_reconcile_error"] = {
+                    "at": _utc_now(),
+                    "kind": type(exc).__name__,
+                    "summary": str(exc)[:500],
+                }
+                self.state.save()
+            self._metric("periodic_reconcile_failures")
+            print(
+                f"[orchestrator] periodic repository reconciliation failed: "
+                f"{type(exc).__name__}: {exc}; retrying model-free in {retry_seconds}s",
+                flush=True,
+            )
+            self._schedule_periodic_reconcile(retry_seconds)
+            return
+
+        with self._state_lock:
+            self.state.data["last_periodic_reconcile_error"] = None
+            self.state.data["last_periodic_reconcile_success_at"] = _utc_now()
+            self.state.save()
+        self._metric("periodic_reconcile_checks")
+        self._schedule_periodic_reconcile()
 
     def _metric(self, name: str, amount: int = 1) -> None:
         with self._state_lock:
@@ -1714,9 +2105,33 @@ class Orchestrator:
                     flush=True,
                 )
                 self._set_retry_block(exc.kind, exc.retry_after_seconds, str(exc))
+                if exc.kind == "authentication":
+                    self._post_gate(
+                        {
+                            "human_message": (
+                                "AUTHENTICATION BLOCK: hosted Codex/ChatGPT authentication is "
+                                "unavailable. Durable work is preserved and the controller will retry "
+                                "on its normal backoff. Re-authenticate the Skyforge service user if "
+                                "this persists."
+                            ),
+                        }
+                    )
             except SafetyPause as exc:
                 self._metric("safety_pauses")
                 print(f"[orchestrator] safety pause: {exc}", flush=True)
+                with self._state_lock:
+                    paused_by = self.state.data.get("paused_by")
+                if paused_by == "classifier-failure-circuit":
+                    self._post_gate(
+                        {
+                            "human_message": (
+                                "SAFETY PAUSE: the hosted classifier hit its consecutive-failure "
+                                "circuit breaker. Durable events and decision state are preserved. "
+                                "Inspect the classifier/authentication/provider condition before a "
+                                "trusted /skyforge-resume."
+                            ),
+                        }
+                    )
             except Exception as exc:
                 self._metric("dispatch_failures")
                 delay = _env_int(
@@ -2733,6 +3148,7 @@ class Orchestrator:
                 snap,
                 classifier_input_fingerprint=input_fingerprint,
             )
+            self._checkpoint_classifier_reconcile_observation(snap)
         else:
             self._metric("cached_decision_reuses")
 
@@ -2952,19 +3368,10 @@ class Handler(BaseHTTPRequestHandler):
                 trusted_actors=self.orchestrator.trusted_actors,
             )
             if control:
-                actor = str((((payload.get("comment") or {}).get("user") or {}).get("login")) or "")
-                if control == "status":
-                    issue = payload.get("issue") or {}
-                    target = issue.get("number") or 349
-                    self.orchestrator.post_status(target)
-                elif control == "reset_budget":
-                    self.orchestrator.reset_local_budget(actor=actor)
-                elif control == "refresh_runtime":
-                    self.orchestrator.refresh_runtime(actor=actor)
-                elif control == "discard_worker":
-                    self.orchestrator.discard_pending_worker(actor=actor)
-                else:
-                    self.orchestrator.set_paused(control == "pause", actor=actor)
+                self.orchestrator._apply_control_payload(control, payload)
+                comment = payload.get("comment") or {}
+                source_id = str(comment.get("id")) if comment.get("id") is not None else None
+                self.orchestrator.record_issue_comment(source_id)
                 self.orchestrator.record_delivery(delivery_id)
                 self._respond_json(
                     202,
@@ -2980,6 +3387,10 @@ class Handler(BaseHTTPRequestHandler):
             )
             self.orchestrator.enqueue(decision)
             # Record only after enqueue has durably journaled any actionable event.
+            if (event or "").strip().lower() == "issue_comment":
+                comment = payload.get("comment") or {}
+                source_id = str(comment.get("id")) if comment.get("id") is not None else None
+                self.orchestrator.record_issue_comment(source_id)
             self.orchestrator.record_delivery(delivery_id)
             self._respond_json(
                 202,
