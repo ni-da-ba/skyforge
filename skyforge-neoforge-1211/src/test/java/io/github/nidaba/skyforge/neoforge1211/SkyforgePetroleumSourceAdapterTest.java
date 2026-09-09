@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
 import io.github.nidaba.skyforge.world.SkyIslandPetroleumSystemOpportunityCell;
 import io.github.nidaba.skyforge.world.SkyIslandPetroleumSystemOpportunityProfiler;
@@ -14,6 +16,7 @@ import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 
 final class SkyforgePetroleumSourceAdapterTest {
+    private static final long WORLD = 0x4155544830303938L;
     private static final ResourceLocation LOWER = ResourceLocation.fromNamespaceAndPath("skyforge", "lower");
     private static final ResourceLocation UPPER = ResourceLocation.fromNamespaceAndPath("skyforge", "upper");
     private static final BlockPos LOWER_POS = new BlockPos(24, 96, -8);
@@ -61,3 +64,24 @@ final class SkyforgePetroleumSourceAdapterTest {
                         new SkyforgePetroleumSourceAdapter.SourceAddress(LOWER, LOWER_POS), cell)));
     }
 
+    private static List<SkyIslandPetroleumSystemOpportunityCell> cells() {
+        SkyIslandDescriptor base = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(WORLD, 9L, 98L, 98005L));
+        SkyIslandDescriptor descriptor = new SkyIslandDescriptor(
+                base.schemaVersion(),
+                base.identity(),
+                base.authorshipSeed(),
+                base.morphologyFamily(),
+                180.0,
+                base.reliefBudget(),
+                0.72,
+                0.68,
+                0.70,
+                0.70,
+                base.exposureTendency(),
+                0.60,
+                0.76,
+                base.ecologicalPotential());
+        return new SkyIslandPetroleumSystemOpportunityProfiler().profile(descriptor).cells();
+    }
+}
