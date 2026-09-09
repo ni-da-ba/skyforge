@@ -1,0 +1,175 @@
+name: AUDIT-0033 Recovery Bootstrap
+
+on:
+  push:
+    branches:
+      - audit/audit-0033-live-authority-starvation-recovery
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply recovery patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          orchestrator = Path('scripts/orchestrator/skyforge_orchestrator.py')
+          text = orchestrator.read_text()
+          old = '''    def _select_dispatch_batch(self, pending: list[EventDecision]) -> list[EventDecision]:
+        """Choose one decision-safe batch from the durable queue.
+
+        The classifier returns exactly one action. Trusted/manual directives therefore cannot share a
+        classifier batch with repository-state noise or with another directive: doing so lets one
+        decision retire unrelated authority.
+
+        Explicit task authority outranks generic Audit/manual wakes so historical bookkeeping cannot
+        starve newly posted work. Multiple task directives remain FIFO relative to one another.
+        Ordinary webhook transitions remain batched because they are a coalesced wake to inspect
+        current repository truth rather than independent task authority.
+        """
+        for event in pending:
+            if event.signal_kind == "task":
+                return [event]
+        for event in pending:
+            if self._pending_event_priority(event.to_state()):
+                return [event]
+        return pending
+'''
+          new = '''    def _select_dispatch_batch(self, pending: list[EventDecision]) -> list[EventDecision]:
+        """Choose one decision-safe batch from the durable queue.
+
+        The classifier returns exactly one action. Trusted/manual directives therefore cannot share a
+        classifier batch with repository-state noise or with another directive: doing so lets one
+        decision retire unrelated authority.
+
+        Protected authority is ordered by operational urgency, not only queue age. Explicit task
+        authority remains first. A trusted restart recommendation then outranks older generic Audit
+        bookkeeping so a stale/dead producer recovery cannot starve behind a repeatedly irrelevant
+        protected wake. Human gates and loop-risk signals likewise outrank generic Audit/manual wakes.
+        FIFO order is preserved within each authority class. Ordinary webhook transitions remain
+        batched because they are a coalesced wake to inspect current repository truth rather than
+        independent task authority.
+        """
+        for signal_kind in ("task", "restart_recommended", "human_gate", "loop_risk"):
+            for event in pending:
+                if event.signal_kind == signal_kind:
+                    return [event]
+        for event in pending:
+            if self._pending_event_priority(event.to_state()):
+                return [event]
+        return pending
+'''
+          if old not in text:
+              raise SystemExit('orchestrator dispatch block did not match expected AUDIT-0032 main')
+          orchestrator.write_text(text.replace(old, new, 1))
+
+          tests = Path('scripts/orchestrator/test_skyforge_orchestrator.py')
+          t = tests.read_text()
+          marker = '\n\nif __name__ == "__main__":\n'
+          if marker not in t:
+              raise SystemExit('test module main marker not found')
+          addition = r'''
+
+class Audit0033AuthorityPriorityTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(root, repo="ni-da-ba/skyforge")
+
+    def test_restart_recommendation_outranks_older_generic_audit_authority(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            older_audit = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=432,
+                source_id="older-audit",
+                signal_kind="audit",
+                signal_text="AUDIT — acceptance-boundary synchronization update",
+            )
+            restart = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=444,
+                source_id="restart-444",
+                signal_kind="restart_recommended",
+                signal_text="AUDIT — RESTART RECOMMENDED (Implementation / #387 petroleum bridge)",
+            )
+            workflow = orch.EventDecision(
+                True,
+                "workflow completed; controller will require head quiescence",
+                "workflow_run",
+                action="completed",
+                head_sha="failed-444-head",
+                pr_number=444,
+            )
+            selected = o._select_dispatch_batch([older_audit, workflow, restart])
+            self.assertEqual(selected, [restart])
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_explicit_task_still_outranks_restart_recommendation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            restart = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=444,
+                source_id="restart-444",
+                signal_kind="restart_recommended",
+                signal_text="AUDIT — RESTART RECOMMENDED",
+            )
+            task = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=500,
+                source_id="task-500",
+                signal_kind="task",
+                signal_text="AUDIT — NEW IMPLEMENTATION TASK",
+            )
+            self.assertEqual(o._select_dispatch_batch([restart, task]), [task])
+            if o._timer is not None:
+                o._timer.cancel()
+'''
+          tests.write_text(t.replace(marker, addition + marker, 1))
+
+          audit = Path('docs/agent-state/AUDIT_STATE.md')
+          a = audit.read_text()
+          a = a.replace('**Updated:** 2026-09-08 (America/Chicago)  ', '**Updated:** 2026-09-09 (America/Chicago)  ', 1)
+          a = a.replace('**Current reconciliation base:** `main@e621a15818849b0f29d8075b90295eca28d02fa2`  ', '**Current reconciliation base:** `main@121bcf81cb612509232b2acd5d8f93245b3e424f`  ', 1)
+          a = a.replace('**Highest live-accepted Audit milestone:** **AUDIT-0021**  ', '**Highest live-accepted Audit milestone:** **AUDIT-0032**  ', 1)
+          a = a.replace('**AUDIT-0022:** repository merged/machine-green; combined live recovery gate pending  \n**AUDIT-0023:** repository merged/machine-green; combined live recovery gate pending  \n**AUDIT-0024:** unattended transport/dependency fallback hardening in progress', '**AUDIT-0022 through AUDIT-0032:** repository/live acceptance complete through the protected-task hardening boundary  \n**AUDIT-0033:** live authority-starvation recovery in progress', 1)
+          a += '''\n\n## AUDIT-0033 — LIVE AUTHORITY STARVATION RECOVERY\n\nLive production evidence after AUDIT-0032 exposed a new control-plane liveness defect. Draft Implementation PR #444 stopped at head `7f622ba60cdde6f0ef9ededb72439dc5e58d8e12` after all exact-head workflows failed on a Java parser error. Audit issued a trusted `RESTART RECOMMENDED` directive, but the hosted controller remained unblocked/unpaused with no worker while the durable queue held 55 events and `isolated_authority_batches` climbed to 393. The later restart directive remained behind older protected Audit bookkeeping.\n\nAUDIT-0033 changes protected authority selection so explicit tasks remain highest priority while `restart_recommended`, `human_gate`, and `loop_risk` signals outrank generic Audit/manual wakes. FIFO order remains within each authority class. Regression coverage reproduces the exact older-generic-Audit-before-later-restart ordering and confirms explicit task authority still wins over restart authority.\n\nAcceptance requires exact-head Orchestrator Smoke + CI green, hosted runtime refresh, and one live proof that the retained #444 restart directive produces a fresh bounded Implementation recovery rather than remaining queued. Until that proof completes, autonomous producer dispatch remains paused.\n'''
+          audit.write_text(a)
+
+          Path('.github/workflows/audit-0033-recovery-bootstrap.yml').unlink()
+          PY
+      - name: Run orchestrator regression suite
+        run: python3 -m unittest scripts/orchestrator/test_skyforge_orchestrator.py
+      - name: Check patch hygiene
+        run: git diff --check
+      - name: Commit recovery
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "AUDIT-0033: prevent restart authority starvation"
+          git push origin HEAD:audit/audit-0033-live-authority-starvation-recovery
