@@ -45,6 +45,7 @@ DEFAULT_MAX_CONSECUTIVE_CLASSIFIER_FAILURES = 3
 DEFAULT_MAX_SEEN_DELIVERIES = 512
 DEFAULT_MAX_SEEN_ISSUE_COMMENTS = 512
 DEFAULT_MAX_PENDING_EVENTS = 100
+DEFAULT_MAX_RETIRED_EVENT_KEYS = 1024
 DEFAULT_STARTUP_RECONCILE_RETRY_SECONDS = 60
 DEFAULT_PERIODIC_RECONCILE_SECONDS = 900
 DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
@@ -679,6 +680,8 @@ class LocalState:
             "human_gate_records": {},
             "last_events": [],
             "pending_events": [],
+            "retired_event_keys": [],
+            "completed_authority_event_keys": [],
             "pending_decision": None,
             "pending_worker": None,
             "blocked_until_epoch": 0.0,
@@ -1120,6 +1123,18 @@ class Orchestrator:
                 ),
                 "pending_event_protected_overflow": int(
                     (self.state.data.get("metrics") or {}).get("pending_event_protected_overflow") or 0
+                ),
+                "retired_event_keys": len(self.state.data.get("retired_event_keys") or []),
+                "completed_authority_event_keys": len(
+                    self.state.data.get("completed_authority_event_keys") or []
+                ),
+                "retired_event_replays_suppressed": int(
+                    (self.state.data.get("metrics") or {}).get("retired_event_replays_suppressed") or 0
+                ),
+                "completed_authority_replays_suppressed": int(
+                    (self.state.data.get("metrics") or {}).get(
+                        "completed_authority_replays_suppressed"
+                    ) or 0
                 ),
                 "last_pending_event_compaction": self.state.data.get(
                     "last_pending_event_compaction"
@@ -1870,16 +1885,37 @@ class Orchestrator:
         with self._state_lock:
             current = [v for v in (self.state.data.get("pending_events") or []) if isinstance(v, dict)]
             by_key = {_event_key(v): v for v in current}
+            retired_keys = {
+                str(value)
+                for value in (self.state.data.get("retired_event_keys") or [])
+                if value
+            }
+            completed_authority_keys = {
+                str(value)
+                for value in (self.state.data.get("completed_authority_event_keys") or [])
+                if value
+            }
+            metrics = self.state.data.setdefault("metrics", {})
             added = False
             for event in events:
                 payload = event.to_state()
                 key = _event_key(payload)
+                priority = self._pending_event_priority(payload)
+                if priority and key in completed_authority_keys:
+                    metrics["completed_authority_replays_suppressed"] = int(
+                        metrics.get("completed_authority_replays_suppressed") or 0
+                    ) + 1
+                    continue
+                if not priority and key in retired_keys:
+                    metrics["retired_event_replays_suppressed"] = int(
+                        metrics.get("retired_event_replays_suppressed") or 0
+                    ) + 1
+                    continue
                 if key not in by_key:
                     by_key[key] = payload
                     added = True
 
             values = list(by_key.values())
-            metrics = self.state.data.setdefault("metrics", {})
             metrics["pending_event_high_water"] = max(
                 int(metrics.get("pending_event_high_water") or 0),
                 len(values),
@@ -1970,6 +2006,7 @@ class Orchestrator:
                 open_heads.add(head)
 
         kept: list[EventDecision] = []
+        dropped_keys: list[str] = []
         dropped = 0
         for event in events:
             if self._pending_event_priority(event.to_state()):
@@ -2011,6 +2048,7 @@ class Orchestrator:
                 kept.append(event)
             else:
                 dropped += 1
+                dropped_keys.append(_event_key(event))
 
         if not dropped:
             return events
@@ -2034,6 +2072,17 @@ class Orchestrator:
 
         self._replace_captured_pending_events(events, kept)
         with self._state_lock:
+            retired = [
+                str(value)
+                for value in (self.state.data.get("retired_event_keys") or [])
+                if value
+            ]
+            retired_seen = set(retired)
+            for key in dropped_keys:
+                if key not in retired_seen:
+                    retired.append(key)
+                    retired_seen.add(key)
+            self.state.data["retired_event_keys"] = retired[-DEFAULT_MAX_RETIRED_EVENT_KEYS:]
             metrics = self.state.data.setdefault("metrics", {})
             metrics["superseded_pending_events_retired"] = int(
                 metrics.get("superseded_pending_events_retired") or 0
@@ -2212,6 +2261,25 @@ class Orchestrator:
             record = self._decision_record() or {}
             completed = set(record.get("event_keys") or [])
             pending = [v for v in (self.state.data.get("pending_events") or []) if isinstance(v, dict)]
+            completed_authority = [
+                _event_key(value)
+                for value in pending
+                if _event_key(value) in completed and self._pending_event_priority(value)
+            ]
+            if completed_authority:
+                ledger = [
+                    str(value)
+                    for value in (self.state.data.get("completed_authority_event_keys") or [])
+                    if value
+                ]
+                seen = set(ledger)
+                for key in completed_authority:
+                    if key not in seen:
+                        ledger.append(key)
+                        seen.add(key)
+                self.state.data["completed_authority_event_keys"] = ledger[
+                    -DEFAULT_MAX_RETIRED_EVENT_KEYS:
+                ]
             if completed:
                 pending = [v for v in pending if _event_key(v) not in completed]
             else:
