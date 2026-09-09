@@ -527,8 +527,13 @@ instead of clearing the durable restart event as if recovery had been proven. Cl
 rotate the persistent Luna parent thread automatically so superseded liveness policy cannot survive a
 control-plane deployment as conversational inertia.
 
-If Codex reaches a human gate, it posts a controller-marked GitHub gate comment and stops. Human
-gates are surfaced once per current target-PR head by default: durable local gate records suppress
+If Codex reaches a human gate, it posts a controller-marked GitHub gate comment and stops. The
+owned event/decision is terminal only after that visibility handoff succeeds (or an equivalent
+controller gate is already visible); a GitHub posting failure preserves the owned batch and enters a
+bounded retry instead of consuming it. With auto-merge OFF, a classifier MERGE decision likewise
+becomes a once-per-current-head manual-merge HUMAN_GATE rather than a silent no-op; the controller
+does not merge autonomously. Human gates are surfaced once per current target-PR head by default:
+durable local gate records suppress
 repeat notifications, and on first observation the controller may seed suppression from an existing
 controller gate comment posted after the current PR head commit. A genuinely new PR head may resurface
 the gate. This implements the "owner is asked once" contract without making the controller infer
