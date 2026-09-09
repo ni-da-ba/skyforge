@@ -923,35 +923,73 @@ class Orchestrator:
 
     def reconcile_issue_comments(self, *, source: str) -> None:
         """Recover trusted issue-comment wakes/controls when webhook transport is silent."""
-        comments = _json_cmd(
-            [
-                "gh",
-                "api",
-                f"repos/{self.repo}/issues/comments?sort=created&direction=desc&per_page=100",
-            ],
-            cwd=self.root,
-            timeout=60,
-        )
-        if not isinstance(comments, list):
-            raise RuntimeError("GitHub issue-comment reconciliation returned a non-list payload")
-
-        ordered = sorted(
-            (value for value in comments if isinstance(value, dict)),
-            key=lambda value: int(value.get("id") or 0),
-        )
+        scan_started_at = _utc_now()
         with self._state_lock:
             initialized = bool(self.state.data.get("issue_comment_reconcile_initialized"))
+            since = self.state.data.get("last_issue_comment_reconcile_at")
+            controller_started_at = self.state.data.get("controller_started_at")
+
+        args = [
+            "gh",
+            "api",
+            "--method",
+            "GET",
+            "--paginate",
+            "--slurp",
+            f"repos/{self.repo}/issues/comments",
+            "-f",
+            "sort=created",
+            "-f",
+            "direction=asc",
+            "-f",
+            "per_page=100",
+        ]
+        if initialized and since:
+            args.extend(["-f", f"since={since}"])
+
+        raw_comments = _json_cmd(args, cwd=self.root, timeout=120)
+        if not isinstance(raw_comments, list):
+            raise RuntimeError("GitHub issue-comment reconciliation returned a non-list payload")
+
+        # gh api --paginate --slurp returns one list per page. Accept a flat list too so tests and
+        # older gh behavior remain straightforward.
+        comments: list[dict[str, Any]] = []
+        for value in raw_comments:
+            if isinstance(value, list):
+                comments.extend(item for item in value if isinstance(item, dict))
+            elif isinstance(value, dict):
+                comments.append(value)
+
+        ordered = sorted(comments, key=lambda value: int(value.get("id") or 0))
 
         if not initialized:
+            cutoff = None
+            if controller_started_at:
+                try:
+                    cutoff = datetime.fromisoformat(
+                        str(controller_started_at).replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    cutoff = None
             for value in ordered:
-                source_id = str(value.get("id")) if value.get("id") is not None else None
-                self.record_issue_comment(source_id)
+                created = None
+                try:
+                    created = datetime.fromisoformat(
+                        str(value.get("created_at") or "").replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    pass
+                # Migration safety: seed only comments that predate this controller process. A
+                # command created while the upgraded service is starting remains eligible below.
+                if cutoff is None or created is None or created < cutoff:
+                    source_id = (
+                        str(value.get("id")) if value.get("id") is not None else None
+                    )
+                    self.record_issue_comment(source_id)
             with self._state_lock:
                 self.state.data["issue_comment_reconcile_initialized"] = True
-                self.state.data["last_issue_comment_reconcile_at"] = _utc_now()
                 self.state.save()
             self._metric("issue_comment_reconcile_baselines")
-            return
 
         recovered_wakes = 0
         recovered_controls = 0
@@ -993,8 +1031,10 @@ class Orchestrator:
             # Record only after the recovered control or durable enqueue succeeds.
             self.record_issue_comment(source_id)
 
+        # Store the instant from before the API read, not "now". A comment created while pagination
+        # was in progress is included again by the next inclusive since-scan and deduped by durable id.
         with self._state_lock:
-            self.state.data["last_issue_comment_reconcile_at"] = _utc_now()
+            self.state.data["last_issue_comment_reconcile_at"] = scan_started_at
             self.state.save()
         self._metric("issue_comment_reconcile_checks")
         if recovered_wakes:
