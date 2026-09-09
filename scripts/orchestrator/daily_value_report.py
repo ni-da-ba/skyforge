@@ -434,6 +434,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"| Startup reconciliations | {d.get('startup_reconciliations', 0)} |",
         f"| Startup reconciliation failures | {d.get('startup_reconcile_failures', 0)} |",
         f"| State-backup recoveries | {d.get('state_backup_recoveries', 0)} |",
+        f"| Stale managed PR records retired | {d.get('stale_managed_records_retired', 0)} |",
         f"| Pending-event compactions | {d.get('pending_event_compactions', 0)} |",
         f"| Pending events compacted | {d.get('pending_events_compacted', 0)} |",
         f"| Mean actionable-event → classifier latency | "
