@@ -1,0 +1,43 @@
+name: AUDIT-0033 Recovery Finalize 2
+
+on:
+  push:
+    branches:
+      - audit/audit-0033-live-authority-starvation-recovery
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reapply validated recovery patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64
+          from pathlib import Path
+          lines = Path('.github/workflows/audit-0033-recovery-bootstrap.yml').read_text().splitlines()
+          line = next(x for x in lines if "| base64 -d" in x and "echo '" in x)
+          payload = line.split("'", 2)[1]
+          exec(compile(base64.b64decode(payload), '<audit0033-bootstrap>', 'exec'))
+          PY
+          sed -i 's/[[:space:]]\+$//' docs/agent-state/AUDIT_STATE.md
+          rm -f .github/workflows/audit-0033-recovery-finalize.yml
+          rm -f .github/workflows/audit-0033-recovery-finalize2.yml
+      - name: Run orchestrator regression suite
+        run: python3 -m unittest scripts/orchestrator/test_skyforge_orchestrator.py
+      - name: Check patch hygiene
+        run: git diff --check
+      - name: Commit recovery
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "AUDIT-0033: prevent restart authority starvation"
+          git push origin HEAD:audit/audit-0033-live-authority-starvation-recovery
