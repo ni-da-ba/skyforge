@@ -87,7 +87,9 @@ AUDIT-0023 replaces that silent truncation with a soft-cap/coalescing contract:
 8. A transient startup GitHub reconciliation failure is persisted as degraded state and retried
    model-free on a bounded timer until repository observation succeeds.
 9. Status/daily telemetry expose state-backup recoveries and startup-reconciliation failures.
-10. Run only cheap exact-head Audit gates; do not recreate producer evidence or race producer lanes.
+10. The hosted installer enforces UFW default-deny inbound with only 22/tcp, 80/tcp, and 443/tcp
+    admitted; the Python controller remains localhost-only on 127.0.0.1:3000.
+11. Run only cheap exact-head Audit gates; do not recreate producer evidence or race producer lanes.
 
 After AUDIT-0023 merges, perform one combined host recovery:
 - synchronize the stable controller checkout to current merged `main`;
