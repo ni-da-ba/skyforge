@@ -108,6 +108,39 @@ class EventFilterTests(unittest.TestCase):
         self.assertEqual(d.source_id, "5588330240")
         self.assertEqual(d.observed_at, "2026-09-08T16:18:09Z")
 
+    def test_loop_risk_directive_outranks_contextual_restart_text(self):
+        body = (
+            "AUDIT — LOOP RISK (hosted controller)\n\n"
+            "The earlier RESTART RECOMMENDED wake was information-bearing and is now superseded."
+        )
+        d = orch.classify_event(
+            "issue_comment",
+            {
+                "action": "created",
+                "issue": {"number": 349},
+                "comment": {"id": 101, "body": body, "user": {"login": "ni-da-ba"}},
+            },
+        )
+        self.assertTrue(d.actionable)
+        self.assertEqual(d.signal_kind, "loop_risk")
+
+    def test_acceptance_sync_mention_does_not_reissue_restart_authority(self):
+        body = (
+            "AUDIT — acceptance-boundary synchronization\n\n"
+            "The retained #444 RESTART RECOMMENDED authority launched a fresh worker; "
+            "the restart-authority starvation LOOP RISK is cleared."
+        )
+        d = orch.classify_event(
+            "issue_comment",
+            {
+                "action": "created",
+                "issue": {"number": 349},
+                "comment": {"id": 102, "body": body, "user": {"login": "ni-da-ba"}},
+            },
+        )
+        self.assertTrue(d.actionable)
+        self.assertEqual(d.signal_kind, "audit")
+
     def test_human_gate_signal_is_structured(self):
         d = orch.classify_event(
             "issue_comment",

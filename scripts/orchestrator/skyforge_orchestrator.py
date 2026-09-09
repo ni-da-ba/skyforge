@@ -331,12 +331,20 @@ def _audit_signal_kind(body_lower: str) -> str | None:
         # An explicit task directive owns the comment even when the explanatory
         # body mentions a downstream human gate or other protected boundary.
         return "task"
-    if "restart recommended" in body_lower:
+
+    # Protected Audit authority is issued by the directive line, not by historical
+    # language in explanatory paragraphs. Otherwise an acceptance/clearance update
+    # that merely quotes an earlier "RESTART RECOMMENDED" or "HUMAN GATE" can
+    # manufacture a new protected wake long after the original condition cleared.
+    if "restart recommended" in directive_line:
         return "restart_recommended"
-    if "loop risk" in body_lower:
+    if "loop risk" in directive_line:
         return "loop_risk"
-    if "human_gate" in body_lower or "human gate" in body_lower:
+    if "human_gate" in directive_line or "human gate" in directive_line:
         return "human_gate"
+
+    # Retain the legacy broad task fallback for trusted multiline task notices whose
+    # first line is formatting-only, while generic Audit prose remains a generic wake.
     if (
         "audit" in body_lower
         and "new " in body_lower
