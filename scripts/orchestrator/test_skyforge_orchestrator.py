@@ -2176,7 +2176,7 @@ class DurableStateTests(unittest.TestCase):
                     pr_number=349,
                     source_id=f"signal-{index}",
                     signal_kind="restart_recommended",
-                    signal_text=f"AUDIT restart {index}",
+                    signal_text=f"AUDIT — RESTART RECOMMENDED {index}",
                 )
                 for index in range(2)
             ]
@@ -2254,7 +2254,7 @@ class DurableStateTests(unittest.TestCase):
                     pr_number=349,
                     source_id=f"signal-{index}",
                     signal_kind="restart_recommended",
-                    signal_text=f"AUDIT restart {index}",
+                    signal_text=f"AUDIT — RESTART RECOMMENDED {index}",
                 )
                 for index in range(11)
             ]
