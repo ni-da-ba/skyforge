@@ -1297,6 +1297,7 @@ class Orchestrator:
         # protected authority itself exceeds the soft cap, preserve it all and append one reconcile.
         ordinary_slots = max(0, limit - len(protected) - 1)
         kept_ordinary = ordinary[-ordinary_slots:] if ordinary_slots else []
+        kept_ordinary_keys = {_event_key(value) for value in kept_ordinary}
         dropped_ordinary = max(0, len(ordinary) - len(kept_ordinary))
 
         reconcile = EventDecision(
@@ -1307,7 +1308,11 @@ class Orchestrator:
             observed_at=_utc_now(),
         ).to_state()
 
-        compacted = protected + kept_ordinary
+        compacted = [
+            value
+            for value in first_pass
+            if _event_key(value) in protected_keys or _event_key(value) in kept_ordinary_keys
+        ]
         if dropped_ordinary:
             compacted.append(reconcile)
 
