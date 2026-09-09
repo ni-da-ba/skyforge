@@ -702,6 +702,7 @@ class HostedTransportTests(unittest.TestCase):
     def test_first_week_local_budget_defaults_are_conservative(self):
         self.assertEqual(orch.DEFAULT_MAX_CLASSIFIER_CALLS_PER_DAY, 24)
         self.assertEqual(orch.DEFAULT_MAX_WORKER_CALLS_PER_DAY, 4)
+        self.assertEqual(orch.DEFAULT_PERIODIC_RECONCILE_SECONDS, 900)
 
     def test_reconcile_fingerprint_is_order_stable_for_mapping_keys(self):
         first = {
@@ -745,6 +746,106 @@ class HostedTransportTests(unittest.TestCase):
                 self.assertTrue(event.actionable)
                 self.assertEqual(event.head_sha, "def")
 
+    def test_classifier_checkpoint_suppresses_periodic_reconcile_for_same_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            classifier_snapshot = {
+                "main": "abc",
+                "open_prs": [
+                    {
+                        "number": 7,
+                        "title": "test",
+                        "isDraft": False,
+                        "headRefName": "feature",
+                        "headRefOid": "ignored-extra",
+                        "baseRefName": "main",
+                        "url": "https://example.invalid/7",
+                        "author": {"login": "ni-da-ba"},
+                        "updatedAt": "2026-09-09T04:00:00Z",
+                        "mergeStateStatus": "CLEAN",
+                    }
+                ],
+                "recent_runs": [
+                    {
+                        "databaseId": 9,
+                        "name": "CI",
+                        "status": "completed",
+                        "conclusion": "success",
+                        "headSha": "abc",
+                        "headBranch": "main",
+                        "event": "push",
+                        "updatedAt": "2026-09-09T04:01:00Z",
+                    }
+                ],
+                "recent_commits": ["ignored"],
+                "controller_managed": {},
+                "orchestrator_metrics": {},
+            }
+            o._checkpoint_classifier_reconcile_observation(classifier_snapshot)
+            remote = o._reconcile_projection(classifier_snapshot)
+
+            with mock.patch.object(o, "_remote_reconcile_snapshot", return_value=remote), \
+                    mock.patch.object(o, "enqueue") as enqueue:
+                o.startup_reconcile_repository(source="periodic")
+
+            enqueue.assert_not_called()
+            self.assertEqual(
+                o.state.data["metrics"].get("periodic_reconcile_noops"),
+                1,
+            )
+            self.assertEqual(
+                o.state.data["last_reconcile_source"],
+                "periodic",
+            )
+
+    def test_periodic_reconcile_wakes_only_for_uncheckpointed_change(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            initial = {"main": "abc", "open_prs": [], "recent_runs": []}
+            changed = {"main": "def", "open_prs": [], "recent_runs": []}
+
+            o._checkpoint_classifier_reconcile_observation(initial)
+            with mock.patch.object(o, "_remote_reconcile_snapshot", return_value=changed), \
+                    mock.patch.object(o, "enqueue") as enqueue:
+                o.startup_reconcile_repository(source="periodic")
+
+            enqueue.assert_called_once()
+            event = enqueue.call_args.args[0]
+            self.assertEqual(event.event, "reconcile")
+            self.assertEqual(event.action, "periodic")
+            self.assertEqual(event.head_sha, "def")
+            self.assertEqual(
+                o.state.data["metrics"].get("periodic_reconciliations"),
+                1,
+            )
+
+    def test_periodic_reconcile_failure_retries_model_free(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.startup_reconcile = True
+            with mock.patch.object(
+                o,
+                "startup_reconcile_repository",
+                side_effect=RuntimeError("github unavailable"),
+            ), mock.patch.object(
+                o,
+                "_schedule_periodic_reconcile",
+            ) as schedule, mock.patch.object(
+                orch,
+                "_env_int",
+                return_value=30,
+            ):
+                o._run_periodic_reconcile()
+
+            schedule.assert_called_once_with(30)
+            error = o.state.data["last_periodic_reconcile_error"]
+            self.assertEqual(error["kind"], "RuntimeError")
+            self.assertIn("github unavailable", error["summary"])
+            self.assertEqual(
+                o.state.data["metrics"].get("periodic_reconcile_failures"),
+                1,
+            )
+
     def test_startup_reconcile_failure_is_durable_and_retried_model_free(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
@@ -781,8 +882,11 @@ class HostedTransportTests(unittest.TestCase):
             o.state.data["startup_reconcile_retry_at"] = "later"
             o.state.save()
 
-            with mock.patch.object(o, "startup_reconcile_repository"):
+            with mock.patch.object(o, "startup_reconcile_repository"), \
+                    mock.patch.object(o, "_schedule_periodic_reconcile") as schedule:
                 self.assertTrue(o.attempt_startup_reconcile())
+
+            schedule.assert_called_once_with()
 
             self.assertIsNone(o.state.data["last_startup_reconcile_error"])
             self.assertIsNone(o.state.data["startup_reconcile_retry_at"])
