@@ -435,6 +435,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"| Startup reconciliation failures | {d.get('startup_reconcile_failures', 0)} |",
         f"| Periodic reconcile checks | {d.get('periodic_reconcile_checks', 0)} |",
         f"| Periodic reconcile NOOPs | {d.get('periodic_reconcile_noops', 0)} |",
+        f"| Periodic deferrals for active Actions | {d.get('periodic_reconcile_deferred_active_runs', 0)} |",
         f"| Periodic fallback wakes | {d.get('periodic_reconciliations', 0)} |",
         f"| Periodic reconcile failures | {d.get('periodic_reconcile_failures', 0)} |",
         f"| Classifier reconcile checkpoints | {d.get('classifier_reconcile_checkpoints', 0)} |",
