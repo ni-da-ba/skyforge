@@ -591,6 +591,19 @@ class HostedTransportTests(unittest.TestCase):
             self.assertNotIn("x" * 48, body)
             self.assertEqual(o.state.data["metrics"].get("status_commands"), 1)
 
+    def test_hosted_installer_enforces_minimal_ufw_surface(self):
+        installer = MODULE_PATH.with_name("install_hosted.sh").read_text()
+        self.assertIn("sudo ufw default deny incoming", installer)
+        self.assertIn("sudo ufw default allow outgoing", installer)
+        self.assertIn("sudo ufw allow 22/tcp", installer)
+        self.assertIn("sudo ufw allow 80/tcp", installer)
+        self.assertIn("sudo ufw allow 443/tcp", installer)
+        self.assertIn("sudo ufw --force enable", installer)
+        self.assertLess(
+            installer.index("sudo ufw allow 22/tcp"),
+            installer.index("sudo ufw --force enable"),
+        )
+
     def test_worker_control_plane_paths_are_forbidden(self):
         forbidden = [
             "scripts/orchestrator/skyforge_orchestrator.py",
