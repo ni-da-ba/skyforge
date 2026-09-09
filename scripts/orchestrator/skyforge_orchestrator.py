@@ -1597,21 +1597,22 @@ class Orchestrator:
             self._periodic_reconcile_timer = None
         with self._state_lock:
             self.state.data["next_periodic_reconcile_at"] = None
-            busy = bool(
-                self.state.data.get("pending_events")
-                or self.state.data.get("pending_decision")
-                or isinstance(self.state.data.get("pending_worker"), dict)
-            )
             self.state.save()
 
-        if busy:
-            self._metric("periodic_reconcile_deferred_busy")
-            self._schedule_periodic_reconcile()
-            return
-
         try:
+            # Trusted controls/Audit comments remain recoverable even when the controller already
+            # owns work. Only an additional synthetic repository wake is suppressed while busy.
             self.reconcile_issue_comments(source="periodic")
-            self.startup_reconcile_repository(source="periodic")
+            with self._state_lock:
+                busy = bool(
+                    self.state.data.get("pending_events")
+                    or self.state.data.get("pending_decision")
+                    or isinstance(self.state.data.get("pending_worker"), dict)
+                )
+            if busy:
+                self._metric("periodic_reconcile_deferred_busy")
+            else:
+                self.startup_reconcile_repository(source="periodic")
         except Exception as exc:
             retry_seconds = _env_int(
                 "SKYFORGE_STARTUP_RECONCILE_RETRY_SECONDS",
