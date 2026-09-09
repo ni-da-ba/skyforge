@@ -536,6 +536,72 @@ neighbor-redstone shutdown play gate**. Machine acceptance items #1-#9 are now s
 
 ## PROPOSED / OPEN CONTENT QUESTIONS
 
+### Create:Aero Automated Logistics (AAL) — issue #431 Content audit (2026-09-09)
+
+This is a bounded Content investigation only. It does not accept a new dependency, change player
+progression, or authorize Implementation work. Supplied AUDIT-0031 evidence (checked 2026-09-09)
+identifies AAL 0.6.2 as Minecraft 1.21.1 NeoForge and MIT-licensed, with current-stack compatibility
+in principle. Its README/changelog evidence is recorded in issue #431.
+
+#### Independent dispositions
+
+- **Player-facing: HIDDEN / NPC ONLY.** AAL replays a recorded vehicle-specific route and compresses
+  schedule playback, docking, cargo orchestration, unloaded progress, and recovery. It does not
+  provide pathfinding, obstacle avoidance, rerouting, or general live autopilot. It therefore
+  preserves aircraft construction, route design/safety, and reactive control, but its player UI,
+  ownership, safety, fuel, throughput, chunk-loading, and cargo semantics are not accepted. The
+  retained Create Aeronautics + Create + CC:Tweaked/redstone stack remains the expressive alternative.
+  Reconsider only as late P4/P5 optional logistics, never first-flight/P2, after a separate gate.
+- **NPC/runtime: LIMITED ROUTE-BOUND USE.** AAL is a credible substrate for routine civilian/faction
+  cargo craft, ferries, couriers, merchant traffic, and patrol circuits where Skyforge owns why the
+  traffic exists and the route is safety-validated. It is not NPC flight AI: investigation,
+  interception, combat, emergency diversion, and other reactive behavior require a Skyforge
+  controller. Strong-infrastructure-candidate status is deferred pending the prototype below.
+
+#### Benefits, risks, and bespoke work avoided
+
+Benefits are removal of repetitive route execution, docking queues/reservations, cargo transfer,
+unloaded recorded-route progress, materialization/recovery, and runtime administration. If the
+adapter succeeds, this likely avoids **medium-to-large** bespoke work across approximately **5-7
+subsystem seams** (routine route execution, docking, schedule playback, coarse travel, and much of
+persistence/recovery); this is directional, not an implementation commitment.
+
+Content risks include teleportation/geography bypass, unsafe recorded paths, hidden chunk-loading,
+fuel/throughput advantages, cargo loss/duplication, station contention, and meaningless routine
+traffic. Technical risks include no evidence yet for programmatic generated stations/routes/
+schedules or NPC ownership; vehicle-specific routes; Sable storage constraints; and unknown
+long-duration, destruction/removal, stale-state, and persistence behavior. Historical lifecycle
+fixes show maturation, not reliability proof. MIT licensing makes adaptation plausible, but API and
+state-format stability and adapter maintenance remain unknown; prefer upstream contribution over a
+local fork unless a demonstrated gap requires otherwise.
+
+Named unknowns: programmatic route/station/schedule construction; NPC ownership; routine-to-reactive
+override and route reacquisition; exact pinned-stack unload, rematerialization, restart, cargo,
+contention, and long-duration behavior; failure-order recovery; and persistence/API stability.
+If route creation requires a human recording pass, that is the principal NPC-integration blocker.
+
+#### Exact next prototype / acceptance gate
+
+Before dependency adoption or implementation expansion, run one bounded proof on the exact pinned
+stack:
+
+`generated/Skyforge-owned cargo craft -> two generated stations -> programmatic route assignment ->
+physical departure -> chunk unload -> unloaded progression -> rematerialization -> docking -> cargo
+transfer -> return trip -> server restart mid-lifecycle -> successful continuation`,
+
+plus one deliberate station/vehicle-removal or unsafe-route-interruption failure/recovery case.
+Acceptance requires no duplication/loss, stale runtime, route desynchronization, unsafe bypass, or
+unrecoverable state, with observable chunk-loading, fuel, cargo, and contention behavior. If feasible,
+a second proof must demonstrate routine-route -> reactive Skyforge-controller override -> route
+reacquisition/resume. Failure of automated state construction or lifecycle boundaries stops this
+proposal for a new Content decision; it does not authorize bespoke replacement infrastructure.
+
+Required human/manual evidence is a recorded server/client play review of departure, docking, cargo,
+unload/rematerialization, restart continuation, and recovery, including visual confirmation that
+craft do not teleport or bypass geography. A representative multi-ship contention/soak run is needed
+before unattended NPC logistics is accepted. Any later player exposure also needs human judgment that
+hidden NPC-only behavior and P4/P5 logistics choices remain legible and meaningful.
+
 ### Computing after C19
 
 C9/C14/C16/C17/C18/C19 now establish substrate, real avionics capability, wireless-envelope behavior, GPS infrastructure topology, the base turtle freight/ticking envelope, and base mining extraction behavior. Remaining questions are gameplay/bypass questions only:
