@@ -149,6 +149,19 @@ worker and preserves the durable event/decision for reconstruction. The status r
 orchestration input and cannot recurse. Untrusted commenters cannot invoke any orchestration or
 recovery control.
 
+## Queue pressure
+
+The durable event journal uses a soft default limit of 100 pending events. The limit is not allowed to
+silently discard orchestration authority. Trusted Audit/manual signals and classifier-owned event keys
+are preserved. Ordinary webhook history is coalesced by semantic subject under pressure; any remaining
+elided transition history is represented by one durable `queue_compaction` reconcile wake so current
+GitHub truth is reconstructed. If protected authority itself exceeds the soft cap, the queue may
+temporarily exceed the cap and reports that condition in status rather than losing the protected work.
+
+Status exposes the configured soft limit, queue high-water mark, protected overflow, and last
+compaction record. `SKYFORGE_ORCHESTRATOR_MAX_PENDING_EVENTS` may adjust the soft limit but should not
+be raised merely to hide poor coalescing behavior.
+
 ## Health
 
 ```text
