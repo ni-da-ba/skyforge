@@ -370,12 +370,18 @@ Hosted mode also runs a **model-free periodic repository reconciliation** every 
 (`SKYFORGE_PERIODIC_RECONCILE_SECONDS`). The classifier snapshot used for a successful decision is
 checkpointed as the exact last-observed repository state. Periodic polling therefore remains a NOOP
 when webhooks already covered the state, but journals one synthetic reconcile event when GitHub state
-changes without having been observed by the classifier. This is transport fallback, not a periodic
-Codex heartbeat, and consumes zero model turns unless a genuinely uncheckpointed change is found.
+changes without having been observed by the classifier. It also paginates new issue/PR comments from
+the prior scan boundary and sends trusted Audit signals / `/skyforge-*` controls through the same
+deterministic classifiers as webhook delivery. First-upgrade history is seeded without replay. This is
+transport fallback, not a periodic Codex heartbeat, and consumes zero model turns unless a genuinely
+uncheckpointed actionable change is found.
 
-Dependency/installer/systemd/Caddy changes remain an explicit deployment concern rather than an
-automatic privileged package installation. Autonomous workers cannot modify those protected paths, so
-the unattended control plane should remain frozen between deliberate Audit deployment changes.
+Pinned Python dependency changes are fingerprinted. Controller Python, `requirements.txt`, and the
+dependency-sync helper trigger a runtime reload; systemd reconciles changed requirements before the
+replacement controller starts. Privileged installer/systemd/Caddy/UFW changes remain an explicit
+deployment concern rather than an automatic authority-changing installation. Autonomous workers cannot
+modify those protected paths, so the unattended control plane should remain frozen between deliberate
+Audit deployment changes.
 
 The hourly Audit watchdog remains the independent path for a prolonged outage or a human decision that
 should not wait for the retry timer.
