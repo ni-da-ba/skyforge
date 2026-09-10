@@ -198,17 +198,35 @@ def _wait_response(
             error = message.get("error")
             code = error.get("code") if isinstance(error, dict) else None
             raise CodexQuotaError(
-                f"Codex app-server rejected quota request"
+                "Codex app-server rejected quota request"
                 + (f" (code {code})" if code is not None else "")
             )
         return message.get("result")
 
 
+def _bundled_codex_path() -> str | None:
+    """Resolve the runtime bundled with the pinned openai-codex SDK when available."""
+    try:
+        from codex_cli_bin import bundled_codex_path
+    except (ImportError, AttributeError):
+        return None
+    try:
+        path = bundled_codex_path()
+    except Exception:
+        return None
+    return str(path) if path else None
+
+
 def _default_command(codex_bin: str | None = None) -> list[str]:
-    candidate = codex_bin or os.environ.get("SKYFORGE_CODEX_BIN") or shutil.which("codex")
+    candidate = (
+        codex_bin
+        or os.environ.get("SKYFORGE_CODEX_BIN")
+        or shutil.which("codex")
+        or _bundled_codex_path()
+    )
     if not candidate:
         raise CodexQuotaError(
-            "Could not locate the codex CLI; set SKYFORGE_CODEX_BIN or install codex in PATH"
+            "Could not locate the Codex runtime; set SKYFORGE_CODEX_BIN or install the pinned openai-codex runtime"
         )
     return [candidate, "app-server"]
 
