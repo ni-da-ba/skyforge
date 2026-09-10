@@ -95,6 +95,13 @@ Classify each lane as one of:
 - **RESTART** — prior producer execution is dead/stale; launch fresh reconstruction rather than
   continuing conversational history.
 
+A failed machine check on a controller-managed PR is not, by itself, a HUMAN_GATE. After the exact
+head is quiescent, route a repository-local repair back to the managed producer lane when no explicit
+human/product/permission boundary applies. Prefer scoped Luna for narrow text/config/build-script or
+syntax repairs and Terra for substantive source/runtime/debugging repair. Preserve the failed workflow
+name/conclusion as reusable evidence so the repair is driven by the new machine result rather than by
+broad reconstruction.
+
 A lane may be healthy while DORMANT.
 
 ## 5. Wake algorithm
