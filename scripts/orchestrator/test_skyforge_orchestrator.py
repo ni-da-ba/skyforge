@@ -291,6 +291,16 @@ class EventFilterTests(unittest.TestCase):
             orch.classify_control_command("issue_comment", trusted),
             "reset_budget",
         )
+        trusted["comment"]["body"] = "/skyforge-budget-profile-standard"
+        self.assertEqual(
+            orch.classify_control_command("issue_comment", trusted),
+            "budget_profile_standard",
+        )
+        trusted["comment"]["body"] = "/skyforge-budget-profile-expanded"
+        self.assertEqual(
+            orch.classify_control_command("issue_comment", trusted),
+            "budget_profile_expanded",
+        )
         trusted["comment"]["body"] = "/skyforge-refresh-runtime"
         self.assertEqual(
             orch.classify_control_command("issue_comment", trusted),
@@ -3891,6 +3901,49 @@ class Audit0036TerminalReplayRetirementTests(unittest.TestCase):
             )
             if o._timer is not None:
                 o._timer.cancel()
+
+
+class Audit0039BudgetProfileTests(unittest.TestCase):
+    def test_expanded_profile_overrides_host_environment_limits(self):
+        with tempfile.TemporaryDirectory() as td:
+            state = orch.LocalState(Path(td) / "state.json")
+            o = orch.Orchestrator.__new__(orch.Orchestrator)
+            o.state = state
+            o._state_lock = threading.RLock()
+            o.state.data["paused"] = True
+            o.state.save()
+
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY": "24",
+                    "SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY": "4",
+                },
+                clear=False,
+            ):
+                self.assertEqual(o._luna_daily_limit(), 24)
+                self.assertEqual(o._terra_daily_limit(), 4)
+                o.set_local_budget_profile("expanded", actor="ni-da-ba")
+                self.assertEqual(o._luna_daily_limit(), 48)
+                self.assertEqual(o._terra_daily_limit(), 8)
+                self.assertEqual(o.state.data["local_budget_profile"], "expanded")
+
+    def test_budget_profile_change_requires_pause_and_no_pending_worker(self):
+        with tempfile.TemporaryDirectory() as td:
+            state = orch.LocalState(Path(td) / "state.json")
+            o = orch.Orchestrator.__new__(orch.Orchestrator)
+            o.state = state
+            o._state_lock = threading.RLock()
+            o.state.data["paused"] = False
+            o.state.save()
+            with self.assertRaises(RuntimeError):
+                o.set_local_budget_profile("expanded", actor="ni-da-ba")
+
+            o.state.data["paused"] = True
+            o.state.data["pending_worker"] = {"stage": "editing"}
+            o.state.save()
+            with self.assertRaises(RuntimeError):
+                o.set_local_budget_profile("expanded", actor="ni-da-ba")
 
 
 class Audit0038CanonicalEventIdentityTests(unittest.TestCase):
