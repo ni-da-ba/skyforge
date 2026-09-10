@@ -4858,9 +4858,7 @@ tasks.register("sfImp0084AalValidation") {
             .digest(aalArtifact.readBytes())
             .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
         check(digest == sfImp0084AalPin("sha256")) {
-            "SF-IMP-0084 AAL SHA-256 mismatch for $expectedName: expected "
-                + sfImp0084AalPin("sha256")
-                + ", got $digest"
+            "SF-IMP-0084 AAL SHA-256 mismatch for $expectedName: expected ${sfImp0084AalPin("sha256")}, got $digest"
         }
 
         ZipFile(aalArtifact).use { archive ->
