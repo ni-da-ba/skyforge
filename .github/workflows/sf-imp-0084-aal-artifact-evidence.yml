@@ -119,6 +119,12 @@ jobs:
           done
 
           echo "Verified immutable AAL 0.6.2 artifact and captured exact released public signatures."
+          echo "--- artifact identity ---"
+          cat aal-artifact-identity.txt
+          echo "--- exact class map ---"
+          cat aal-class-map.txt
+          echo "--- exact public signatures ---"
+          cat aal-public-signatures.txt
 
       - name: Upload exact-artifact evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
