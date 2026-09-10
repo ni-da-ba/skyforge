@@ -211,3 +211,28 @@ records. Regression coverage removes captured events from physical queue storage
 ordinary replay retirement, protected-authority retirement, and same-issue task suppression remain
 durable. AUDIT-0036 is not live-accepted until this follow-up is machine-green, merged, loaded, and the
 host demonstrates that the inherited historical tail no longer cycles.
+
+
+## AUDIT-0037 — GUARDED PENDING-TIMER LIVENESS
+
+After AUDIT-0036 follow-up #451 merged and loaded as `main@9df89e2a41b7cefbe086d259a1e7b0ea960adf83`,
+the controller remained unpaused/unblocked with a seven-event ordinary queue, zero active workflow heads,
+no pending decision, and no worker, yet neither the one-second resume schedule nor a forced
+`/skyforge-orchestrate` wake produced a classifier turn after a full debounce window. Enqueue and eager
+coalescing did run, proving webhook/control transport and queue persistence were alive.
+
+The pending timer previously invoked `_drain_and_dispatch` directly while the exception handler began
+only after pending queue read and batch selection. A queue-read/batch-selection exception could therefore
+terminate the daemon timer silently without durable block/error telemetry. There was also no model-free
+repair when a non-empty unpaused queue had no live timer.
+
+AUDIT-0037 adds a guarded timer callback that records schedule/fire telemetry, catches failures around the
+entire drain boundary, persists `last_pending_timer_error`, and retries through the existing
+`controller_error` backoff. Model-free status now self-heals a missing schedule whenever the controller
+is unpaused with durable pending work. Status exposes timer alive/due/scheduled/fired/error fields.
+Regression coverage verifies paused safety, missing-timer repair, pre-dispatch exception visibility, and
+fire-before-drain ordering.
+
+Acceptance requires exact-head Orchestrator Smoke + CI, paused runtime refresh, then resume/status proving
+either the queue drains or a concrete durable timer error is surfaced. No producer semantics, budgets,
+auto-merge policy, or human gates are changed; PR #358 remains untouched.
