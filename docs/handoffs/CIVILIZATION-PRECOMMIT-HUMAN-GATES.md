@@ -1,402 +1,329 @@
-# Civilization precommit: human-gates checklist
+# Civilization precommit: remaining human and executable gates
 
-**Status:** Active design-gate record
-**Date:** 2026-09-10
-**Scope:** Human decisions that can be cleared before the dedicated civilization implementation stage
+**Status:** CONCEPTUAL SWEEP COMPLETE / POST-PRECOMMIT HANDOFF  
+**Date:** 2026-09-10  
+**Scope:** Information-bearing gates that remain after CIV-0042 closes the civilization/Guild conceptual sweep.
 
 ## Purpose
 
-This checklist separates decisions that can be locked now from choices that should remain deferred until prototype evidence exists. It is intended to prevent future civilization agents from reopening settled conceptual questions while also preventing premature commitment to implementation-sensitive parameters.
-
-## A. Gates cleared now
-
-### A1. Civilization semantic authority — CLEARED
-
-Decision:
-
-- settlements possess authoritative semantic state independent of loaded Minecraft chunks;
-- loaded Minecraft entities are a realization of that state, not the sole source of truth;
-- unloaded settlements advance coarsely and reconcile on observation.
-
-Canonical rule:
-
-> Simulate physically when observed; simulate semantically when unobserved.
-
-### A2. Guild role — CLEARED
-
-Decision:
-
-The Skyfarer's Guild is the principal inter-settlement commercial / aviation institution connecting the player to freight, registry, insurance, recovery, accounts, standards, routes, stores, arbitration, and professional certification.
-
-Its fundamental commodity is trust.
-
-### A3. Guild sovereignty boundary — CLEARED
-
-Decision:
-
-The Guild is powerful but not sovereign. Its authority comes from delegated settlement authority, contract, and network effects. It does not automatically own criminal law, taxation, elections, ordinary policing, local government, land, or domestic trade.
-
-### A4. Guild origin model — CLEARED IN PRINCIPLE
-
-Decision:
-
-Use an early Interport Charter / Compact model rather than creation by one sovereign. The Guild grows from pilot associations, merchants, shipwrights, insurers, freight brokers, and mutual-aid organizations coordinating long-distance sky commerce.
-
-Deferred: exact charter language, dates, founders, and named historical events.
-
-### A5. Settlement relationship classes — CLEARED IN PRINCIPLE
-
-Decision:
-
-Support multiple degrees of Guild recognition rather than universal membership. Initial conceptual classes:
-
-- full member;
-- associate;
-- independent / non-charter;
-- hostile / excluded.
-
-Exact labels may change during authorship, but the systemic distinction should remain.
-
-### A6. Player opening — CLEARED
-
-Decision:
-
-The player begins at the crashed Bellanca B0-A, reaches civilization with registration/transponder evidence, encounters the Guild through the first claim, and thereby enters the account / Scrip / insurance / registry systems.
-
-Preferred claim structure includes a path that lets an engineering-focused player keep and rebuild the wreck.
-
-### A7. Certified aircraft philosophy — CLEARED
-
-Decision:
-
-The Guild certifies a small number of standardized aircraft families. Standardization supports parts, insurance, blueprints, performance expectations, training, and asset reuse. Custom player aircraft remain legal/playable but require more certification/insurance effort.
-
-### A8. Contract provenance model — CLEARED
-
-Decision:
-
-Contracts are not all morally or legally equivalent. Preserve distinct provenance classes such as:
-
-- Guild Contract;
-- Chapter Contract;
-- Private Commission;
-- Discretionary Contract;
-- Illicit Contract.
-
-This enables jurisdiction disputes and chapter-level misconduct without making the entire Guild monolithic.
-
-### A9. Routine vs exceptional contract split — CLEARED
-
-Decision:
-
-Routine contracts should derive from settlement/economic state. Exceptional contracts should expose politics, danger, disaster, or unusual world events and may perturb actual settlement state.
-
-Canonical rule:
-
-> Routine contracts sustain the economy. Exceptional contracts reveal the world.
-
-### A10. Blueprint contract philosophy — CLEARED
-
-Decision:
-
-Construction/repair contracts validate desired state rather than forcing one building sequence. Preserve flexible requirement classes analogous to:
-
-- exact block;
-- block tag;
-- material class;
-- optional;
-- functional interface.
-
-### A11. Currency / trust separation — CLEARED
-
-Decision:
-
-Maintain distinct concepts:
-
-- Guild Scrip = money;
-- Guild Standing = professional trust;
-- Financial Credit = banking/financial reliability.
-
-Do not collapse these into one reputation number.
-
-### A12. Emerald boundary — CLEARED
-
-Decision:
-
-Emeralds are not the serious foundation of the Guild economy. They may remain part of local Minecraft retail/trading, but Guild settlement-state economics uses its own accounting/value system.
-
-### A13. Bank MVP scope — CLEARED
-
-Decision:
-
-Initial banking scope is intentionally narrow:
-
-- account balance;
-- escrow;
-- insurance billing/claims;
-- financial record used by other Guild systems.
-
-Advanced finance remains deferred.
-
-### A14. Trader career viability — CLEARED
-
-Decision:
-
-Players must be able to profit through spatial/informational arbitrage without owning factories.
-
-Canonical rule:
-
-> Manufacturers create margin through production efficiency. Traders create margin through spatial and informational differences.
-
-### A15. Procurement source neutrality — CLEARED
-
-Decision:
-
-A routine contract generally cares whether valid goods arrive, not whether the player personally manufactured them. Buying, hauling, assembling, manufacturing, and automating are all valid economic paths.
-
-### A16. Coarse autonomous logistics — CLEARED
-
-Decision:
-
-Autonomous logistics persists through semantic route state while unloaded. Do not require physical ticking of every aircraft across the world.
-
-### A17. External logistics-mod audit — CLEARED AS REQUIRED RESEARCH
-
-Decision:
-
-During civilization implementation, explicitly audit Create Aeronautics: Automated Logistics before implementing equivalent route/station/transponder/materialization systems from scratch.
-
-This is a required compatibility / buy-vs-build investigation, not an adoption commitment.
-
-### A18. Lost-asset recovery institutional relationship — CLEARED
-
-Decision:
-
-The Guild is the civilization-facing institution for many recovery interactions. Recovery should feel like salvage, insurance, registry, and controlled restoration rather than magical save rollback.
-
-### A19. Architecture production strategy — CLEARED
-
-Decision:
-
-Guild architecture is a design system, not a list of bespoke buildings. Use shared material roles, proportions, motif families, modules, interface standards, regional material resolution, and authored exceptions.
-
-Production invariant:
-
-> No new systemic feature may assume a unique physical asset for every instance.
-
-### A20. Donor-asset strategy — CLEARED
-
-Decision:
-
-Community builds may be used as whole-build donors, module donors, systems donors, or composition references where rights permit. Search by morphology as well as literal function. Every production derivative receives a Skyforge standardization pass and rights/provenance review.
-
-### A21. Rights classification — CLEARED
-
-Decision:
-
-Track donor design quality separately from legal usability:
-
-- GREEN = explicit reuse/adaptation permission supports intended use;
-- YELLOW = permission/redistribution scope needs verification;
-- RED = reference-only until permission/provenance is resolved.
-
-Do not discard excellent RED references; do not canonize weak GREEN assets merely because they are easy to license.
-
-### A22. District ownership hierarchy — CLEARED
-
-Decision:
-
-Settlements should contain local vernacular and local industry in addition to Guild structures. The Guild should be visually legible without making every building Guild-owned.
-
-### A23. Architecture standardization level — CLEARED IN PRINCIPLE
-
-Decision:
-
-Standardize through material roles, proportions, roof language, repeated motifs, freight/service dimensions, signage, and functional modules rather than forcing every branch to use identical blocks or blueprints.
-
-### A24. Standard freight interfaces — CLEARED IN PRINCIPLE
-
-Decision:
-
-The Guild should standardize freight geometry/hardpoints strongly enough that warehouses, cranes, containers, contracts, airships, and autonomous logistics interoperate.
-
-The provisional GFU-3 concept is preserved as a candidate standard; exact dimensions remain open.
-
-### A25. Specialized Guild functions — CLEARED
-
-Decision:
-
-Guild architecture may include specialized navigation, weather, survey, recovery, underwriting, academy, signal, and exchange facilities. The institution should not collapse into repeated generic halls.
-
-## B. Gates intentionally NOT cleared yet
-
-These require implementation or visual evidence and should not be guessed now.
-
-### B1. Exact economic equations — DEFER
-
-Need prototype evidence for:
-
-- stock consumption rates;
-- production rates;
-- price elasticity / response curves;
-- contract generation thresholds;
-- supply recovery behavior;
-- unloaded simulation interval / catch-up strategy.
-
-### B2. Exact starting economy — DEFER
-
-Do not yet freeze:
-
-- first claim payout;
-- replacement Bellanca cost;
-- starting account balance;
-- basic freight margins;
-- insurance premiums;
-- early-game contract rewards.
-
-These must be tuned against actual playtime and progression.
-
-### B3. Standing and rank thresholds — DEFER
-
-Do not yet freeze rank names, score ranges, certification requirements, or unlock thresholds.
-
-### B4. Central Guild governance — DEFER
-
-The Guild's non-sovereign / compact origin is settled, but the exact General Council, voting system, chapter representation, corporate participants, and constitutional mechanics belong to civilization authorship.
-
-### B5. Charter text and historical chronology — DEFER
-
-Write exact lore only once the civilization stage has enough settlement/political context to avoid locking incompatible history.
-
-### B6. Certified aircraft catalog — DEFER
-
-Bellanca B0-A remains the anchor, but do not freeze the full certified fleet until aircraft gameplay and donor/authoring tests establish useful classes.
-
-### B7. GFU final dimensions — DEFER
-
-The standard freight-unit idea is accepted; final dimensions must be tested against actual warehouse bays, cranes, vehicle balance, Minecraft movement clearances, and Create/Aeronautics constraints.
-
-### B8. Guild architectural palette — DEFER UNTIL VISUAL TEST
-
-Do not pick a final block palette from screenshots or prose. Import high-value donors into an authoring world and compare standardized variants first.
-
-### B9. Final reusable module dimensions — DEFER
-
-Window, bay, floor-height, hangar-door, dock, and roof standards should be derived from successful prototypes, not invented numerically in advance.
-
-### B10. Donor acceptance — DEFER PER ASSET
-
-The current donor list is intentionally inclusive. Actual acceptance requires:
-
-1. in-game visual inspection;
-2. architecture/composition audit;
-3. compatibility check;
-4. rights/provenance verification;
-5. standardization test;
-6. determination of whether the derivative meaningfully saves production work.
-
-### B11. Automated schematic standardizer — DEFER
-
-The semantic-material-role concept is promising, but do not implement a custom transformer until manual Axiom/WorldEdit prototype work demonstrates repetitive labor worth automating.
-
-### B12. NPC granularity — DEFER
-
-Do not decide yet whether persistent individual NPC identities are required for every economic process. Aggregate settlement state remains authoritative; authored named NPCs can be added where gameplay demands them.
-
-### B13. Advanced banking — DEFER
-
-Loans, interest, collateral, securities, insolvency, bank runs, or investment products require explicit gameplay justification.
-
-### B14. Exact jurisdiction enforcement mechanics — DEFER
-
-The political concept is accepted, but the exact mechanics for warrants, contract disputes, settlement hostility, asset seizure, fines, appeals, or Guild sanctions require civilization-stage design.
-
-## C. Human-eye gates that can be prepared now but require manual review later
-
-### C1. Guild architecture comparison board
-
-Prepare/import the strongest current donor candidates and compare them after a first-pass common palette. Minimum useful comparison set:
-
-- Warehouse Row;
-- Harbour Storehouse;
-- The Market;
-- Koin Train Station;
-- Koin Victorian Factory;
-- Koin Factory Yard;
-- Medieval Manor;
-- House + Stable;
-- one observatory/signal reference;
-- Survival-Friendly Airship.
-
-Human question:
-
-> Do these sources converge into one institutional culture after standardization, or do they still read as unrelated community builds?
-
-### C2. First Guild branch prototype
-
-Build one test branch containing:
-
-- signal / transponder landmark;
-- Guild hall;
-- Guild store / commodity counter;
-- warehouse and freight yard;
-- crane / loading apron;
-- maintenance bay;
-- light air dock;
-- certified light aircraft.
-
-Human question:
-
-> Does the branch read immediately as a functioning aviation/commercial institution rather than a themed village set?
-
-### C3. Bellanca opening playthrough
-
-Once civilization systems exist, manually test the crash → registration → first claim → return-to-flight loop.
+The original version of this checklist was created near the beginning of the civilization precommit. Many items it listed as deferred were subsequently resolved by the CIV-0001 through CIV-0042 design sweep.
+
+Do not use the old early-gate assumptions as a reason to reopen settled design.
+
+Fresh agents should instead read:
+
+1. `docs/civilization/CIVILIZATION-PRECOMMIT-COMPILATION.md`;
+2. `docs/civilization/CIV-0041-bellanca-onboarding-and-bootstrap-civilization-integration.md` for onboarding/Bootstrap;
+3. `docs/civilization/CIV-0042-civilization-implementation-and-acceptance-contract.md` for runtime and validation ownership;
+4. the specific subsystem CIV records required by the bounded task.
+
+This file now records only the remaining evidence-dependent gates.
+
+# A. Conceptual state — CLOSED
+
+The following areas are no longer open conceptual questions at the precommit level:
+
+- semantic civilization authority versus Minecraft realization;
+- province → cluster → island-role civilization hierarchy;
+- Guild role, origin, authority sources, and non-sovereign boundary;
+- Guild membership/associate/non-charter/hostile relationships;
+- Open Sky emblem and regional Guild architectural treatment;
+- Guild Hall functional/service model and donor strategy;
+- Bellanca crash, recorder evidence, liability reversal, restitution, and tutorial role;
+- Scrip / Standing / Credit separation;
+- membership versus scoped professional authorization and delegated Guild authority;
+- vessel registration / certification / recertification distinction;
+- insurance and incident evidence principles;
+- productive-asset financing and staged delinquency/default principles;
+- contract structure, provenance, risk, bonds/collateral, and authorization;
+- Scrip ledger/store/capital-backing model;
+- semantic autonomous freight and physical realization boundary;
+- piracy attribution, incident realization, route-security response, and institutional consequences;
+- sparse route topology, route formation/evolution, navigation-network role, and route inertia;
+- Guild information UI, communications freshness/provenance, and programmable economic-action boundary;
+- physical logistics, warehouses, manifests, cargo custody, and one-authority anti-duplication principle;
+- player factories/supply-chain participation and absence of a hidden player market-share cap;
+- local catalogues, stock, prices, market depth, and economy-driven restocking;
+- economic shocks, adaptation, production chains, and settlement specialization;
+- persistent NPC productive potential rather than universal hidden resource depletion;
+- population-derived demand without household simulation;
+- deterministic economic warm start for previously unobserved civilization;
+- latent civilization plans, economic activation, lazy reconciliation, dormancy, and consequential persistence;
+- functional-anchor semantic/physical reconciliation;
+- bounded regional trade-flow resolution rather than global optimization;
+- slow structural population versus coarse economic condition/prosperity;
+- sovereignty, faction control, Guild recognition, access, and minimal allegiance primitives;
+- player economic principals, multiplayer/shared ownership, and bounded permissions;
+- Bellanca-to-Guild onboarding sequence and its relationship to the Bootstrap Province;
+- implementation ownership, persistence, conservation, validation, and evidence-economy contract.
+
+A new conceptual CIV gate is justified only by executable evidence showing that the corpus leaves a material product question unanswered.
+
+# B. Required human/play gates
+
+Machines should make each gate information-bearing before escalating it.
+
+## H1. Bellanca opening and tutorial pacing
+
+Prerequisite:
+
+- an executable crash-site/onboarding specimen with FTB Quest guidance and persisted authoritative tutorial state.
 
 Human questions:
 
-- Is the Guild introduction diegetic rather than tutorial-heavy?
-- Does retaining/rebuilding the wreck feel viable?
-- Does the first claim create stakes without trivializing loss?
-- Is the player given meaningful agency in how they re-enter aviation?
+- Does waking beside the Bellanca establish the game premise clearly?
+- Does the wreck invite investigation without overwhelming the player?
+- Do survival, Create, gliding, and first-powered-mobility teaching feel naturally connected to the goal of reaching civilization?
+- Is FTB Quest guidance sufficient without feeling like the authoritative game state?
+- Does the tutorial remain recoverable when the player explores in an unexpected order?
 
-### C4. Trader-only progression test
+## H2. First sight and arrival at civilization
 
-Run a player path that deliberately avoids industrial manufacturing.
+Prerequisite:
+
+- a representative Bootstrap Province with the intended sparse travel distance and one realized civilization/Guild destination.
+
+Human questions:
+
+- Does reaching civilization feel consequential after the crash/wilderness journey?
+- Is the inhabited destination legible at distance without destroying negative space?
+- Does infrastructure communicate that this is a working skyborne society rather than decorative structure spam?
+- Is the approach/navigation language understandable from the air?
+
+## H3. First Guild Hall / branch functional prototype
+
+Prerequisite:
+
+- one executable Hall/branch using the accepted Guild design system and real service anchors.
+
+Minimum useful functions/areas should include enough of:
+
+- Open Sky recognition/signage;
+- account/claim counter or interface;
+- basic market;
+- route/settlement information;
+- warehouse/cargo handling relationship;
+- aircraft approach/handling relationship.
+
+Human questions:
+
+- Does it read immediately as one coherent aviation/commercial institution?
+- Does regional treatment remain visible without obscuring Guild identity?
+- Are services spatially/functionally comprehensible?
+- Does the institution feel substantial without reading as a sovereign palace or military base?
+
+## H4. Bellanca claim, evidence reversal, and restitution
+
+Prerequisite:
+
+- authoritative claim state, recorder evidence, Guild liability transition, and idempotent restitution implementation.
+
+Human questions:
+
+- Is the initial unfavorable claim credible rather than arbitrary punishment?
+- Is the recorder evidence understandable and satisfying?
+- Does the Guild's reversal feel procedural/credible rather than scripted generosity?
+- Are replacement Bellanca, Scrip settlement, and retain-wreck/partial-settlement choices meaningfully distinct and fair?
+- Does resolving the transaction feel like the natural end of the tutorial?
+
+## H5. First post-tutorial freight / market loop
+
+Prerequisite:
+
+- one real producer/consumer relationship, local market state, physical cargo transition, aircraft transport, destination reconciliation, and one-time Scrip settlement.
+
+Human questions:
+
+- Does the opportunity arise from understandable world/economic conditions?
+- Are source, destination, cargo, route, and payment legible?
+- Does loading/flying/unloading feel like professional freedom rather than Tutorial Part II?
+- Does the player understand that markets differ spatially?
+- Is the reward adequate without immediately trivializing later logistics?
+
+## H6. Trader-only viability
+
+Prerequisite:
+
+- enough connected markets and freight capacity to test buying/hauling/reselling without relying on a player factory.
 
 Human question:
 
-> Can a player become economically successful through discovery, buying, hauling, timing, route choice, and risk management alone?
+> Can a player become economically successful through discovery, information, capital allocation, route choice, hauling, and risk management without being forced into manufacturing?
 
-### C5. Coarse-vs-physical settlement reconciliation test
+## H7. Player-industry integration
 
-Leave a settlement unloaded through meaningful economic change, return, and inspect the realized result.
+Prerequisite:
+
+- a registered player commercial facility that can deposit production into commercial custody and receive real civilization demand.
+
+Human questions:
+
+- Does a Create factory feel like part of the same economy rather than a special player-only subsystem?
+- Do finite demand, route capacity, transport cost, and input requirements limit scale naturally?
+- Can successful player industry materially reshape a regional market without making geography irrelevant?
+
+## H8. Semantic/physical capability damage and repair
+
+Prerequisite:
+
+- one realized capability binding such as navigation, fuel service, cargo transfer, or warehouse capacity.
+
+Human questions:
+
+- Does dismantling a critical functional anchor produce a believable institutional/world consequence?
+- Is the difference between intended role and currently offline/degraded capability visible enough to understand?
+- Does repair/restoration feel physical rather than like repairing an invisible spreadsheet?
+
+## H9. Civilization density and inhabited-airspace feel
+
+Prerequisite:
+
+- representative active settlement(s) plus any retained sparse civilian/faction traffic realization.
+
+Human questions:
+
+- Does civilization make the sky feel inhabited without making it crowded?
+- Are traffic frequency and infrastructure density consistent with settlement/route importance?
+- Does quiet sky still dominate where it should?
+
+# C. Visual/manual asset gates
+
+## V1. Guild architecture donor convergence
+
+Before production donor adoption, compare the strongest rights-eligible candidates after a common Skyforge standardization pass.
 
 Human question:
 
-> Does the world appear to have continued without producing obvious discontinuities or fake simulation artifacts?
+> Do standardized donor-derived pieces converge into one institutional design language, or do they still read as unrelated community builds?
 
-## D. Required civilization-stage research queue
+Legal/provenance review is separate from visual judgment and remains mandatory per asset.
 
-Before implementation begins in earnest, the civilization agent should explicitly investigate:
+## V2. Open Sky emblem in-world validation
 
-1. Create Aeronautics: Automated Logistics source/API/behavior and compatibility implications.
-2. Actual donor-schematic licenses and derivative/redistribution rights for selected production candidates.
-3. Current Create/Aeronautics vessel persistence and docking APIs relevant to registry, recovery, and logistics.
-4. Axiom / WorldEdit / Litematica workflow for rapid palette and morphology normalization.
-5. Viable persistence schema for settlement state and autonomous routes.
-6. Existing Minecraft merchant/economy mod hooks that should be integrated rather than duplicated.
-7. Performance envelope for lazy economic catch-up across many settlements.
+Test the accepted emblem across:
 
-## E. Definition of ready for civilization implementation
+- Hall signage;
+- route/navigation installations;
+- vessel markings where applicable;
+- small-scale UI/icon usage;
+- at least two regional material treatments.
 
-The civilization stage may begin without reopening the cleared conceptual gates when all of the following are true:
+Human question:
 
-- world/terrain authoring provides stable settlement-placement inputs;
-- Minecraft backend structure-placement and persistence hooks are mature enough for settlement prototypes;
-- the selected Aeronautics stack is stable enough to support route/registry experiments;
-- at least one Guild branch visual prototype can be built;
-- at least one settlement-state persistence prototype can be tested;
-- open implementation-sensitive gates above can be resolved from evidence rather than speculation.
+> Is the mark recognizable as one institution across scale and regional treatment without becoming visually nationalistic or militaristic?
 
-Until then, the records in `docs/civilization/` are the authoritative precommit for Guild/civilization direction.
+## V3. Bellanca final visual/functional asset
+
+The Bellanca family is conceptually accepted, but the final player-facing standardized aircraft still requires visual/functional acceptance against real Create/Aeronautics behavior and early-game progression.
+
+# D. Machine/executable gates still intentionally unfrozen
+
+These are not conceptual holes. They are parameters or techniques that require implementation evidence.
+
+## D1. Exact economic tuning
+
+Do not freeze before play/evidence:
+
+- production/consumption magnitudes;
+- desired-stock bands/reserve horizons;
+- price response curves;
+- buy/sell spreads;
+- contract-generation thresholds;
+- route throughput units;
+- supplier candidate limits;
+- prosperity hysteresis/transition thresholds;
+- unloaded reconciliation cadence/quantization where analytical integration is insufficient.
+
+## D2. Starting/tutorial economy values
+
+Do not freeze before actual pacing tests:
+
+- Bellanca value;
+- restitution/payout values;
+- starting/initial Scrip conditions;
+- early freight margins;
+- premiums/deductibles;
+- basic fees;
+- first contract payments.
+
+## D3. Exact certification/authorization thresholds
+
+The registration/certification/authorization model is settled. Exact proving-flight, inspection, configuration-change, Standing, bond, and safety thresholds remain evidence-driven.
+
+## D4. Exact freight-interface/container geometry
+
+The standard-interface principle is accepted. Exact dimensions must be tested against actual Create/Aeronautics vessels, warehouses, cranes, movement clearances, and player ergonomics.
+
+## D5. Persistence implementation/schema
+
+The semantic persistence contract is settled. Implementation still owns concrete serialization technology, schemas, migration mechanism, indexing, storage footprint, and lifecycle integration.
+
+## D6. Automated Logistics / Aeronautics execution technique
+
+The semantic role is settled: Skyforge owns shipment/route/economic meaning; a retained logistics mod may execute physical movement where its public behavior/API supports the contract.
+
+Exact adapter technique remains dependent on the active AAL compatibility/feasibility work and must not use guessed/internal APIs merely to force adoption.
+
+## D7. CC/programmatic API surface
+
+The information/permission/action boundary is settled. Exact method names, peripheral topology, event schema, cache behavior, and integration details remain implementation/content work after the retained CC/Avionics capability surface is confirmed.
+
+## D8. Exact jurisdiction enforcement
+
+The sovereignty/access/allegiance semantics are settled. Exact local guard response, Guild sanctions, seizure/warrant/fine mechanics, faction hostility transitions, and dispute-resolution UI require executable content evidence before being frozen.
+
+## D9. Multiplayer organization UX
+
+Economic principals and bounded permissions are settled. Exact organization creation UX, default role bundles, naming rules, and server administration integration remain implementation/content decisions.
+
+# E. Required technical research / integration queue
+
+The current post-precommit queue is narrower than the original research list because several questions have already been answered in the design sweep or active repo work.
+
+Relevant remaining work includes:
+
+1. complete the current Create Aeronautics: Automated Logistics pinned-stack/public-API feasibility work and preserve Skyforge semantic authority;
+2. verify exact Create/Aeronautics vessel/docking/persistence surfaces needed for cargo, registration, recovery, and physical realization;
+3. select the smallest persistence prototype that can prove stable settlement identity, dormant detailed state, and idempotent cargo/payment transitions;
+4. prove a two-node producer/consumer economic specimen before building broad regional optimization;
+5. prove one functional-anchor damage/repair lifecycle;
+6. prove one Guild information/UI path and only then add programmatic CC access to the same curated state;
+7. audit donor schematic licenses/provenance before production redistribution/adaptation;
+8. profile lazy reconciliation and dormant-state footprint at exploration-scale synthetic cluster counts;
+9. use existing Authorship AUTH-0096/AUTH-0097 and published association evidence for settlement/site selection rather than creating a duplicate geometry graph.
+
+# F. Ready-to-implement boundary
+
+The conceptual civilization stage is ready to decompose into executable work now.
+
+Implementation does **not** need every visual donor, final parameter, or mature economy feature resolved before beginning. The correct first work is the smallest bounded integration seam that can prove the accepted contracts.
+
+The current high-value progression is:
+
+```text
+CONTENT / EXPERIENCE
+Bootstrap civilization role + Bellanca/Guild onboarding requirement
+        ↕ explicit contract
+IMPLEMENTATION
+stable semantic state + persistence + custody/reconciliation primitive
+        ↓
+CONTENT / IMPLEMENTATION INTEGRATION
+one Hall + one producer/consumer market + one physical freight loop
+        ↓
+HUMAN PLAY GATES
+arrival / claim / restitution / first professional choice
+```
+
+Do not wait for the full mature economy before testing the first end-to-end slice.
+
+# G. Escalation rule
+
+Escalate to the project owner when progress requires:
+
+- a human visual/play/taste decision listed above;
+- reversal of an accepted CIV invariant;
+- a product question genuinely absent from the compiled corpus;
+- a destructive/external action requiring approval;
+- use of a retained mod through unsafe/private/internal APIs that would materially change the integration strategy.
+
+Do not escalate merely because a fresh agent has not read the accepted records.
