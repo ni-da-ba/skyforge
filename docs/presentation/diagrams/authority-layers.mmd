@@ -1,0 +1,34 @@
+%% PRES-0005 — Who owns what
+%% Downstream layers consume upstream evidence; they do not redefine upstream authority.
+flowchart TB
+    A["AUTHORSHIP<br/><b>World meaning</b><br/>morphology • geology • hydrology • ecology • provenance"]
+    N["NEUTRAL SKYFORGE ENGINE<br/><b>Construction + evidence</b><br/>recipes • graphs • fields • exact ownership • deterministic identities"]
+    I["IMPLEMENTATION<br/><b>Physical realization</b><br/>NeoForge lifecycle • persistence • native features • fluids • structures"]
+    C["CONTENT / EXPERIENCE<br/><b>Gameplay policy</b><br/>availability • guarantees • mobility • industry • progression requirements"]
+    P["PRESENTATION<br/><b>Communication</b><br/>claim compression • diagrams • demos • reviewer paths"]
+
+    A -->|"evidence / intent"| N
+    N -->|"exact world model"| I
+    I -->|"runtime capability"| C
+    A -->|"semantic evidence"| C
+    A -.->|"accepted truth"| P
+    N -.->|"accepted truth"| P
+    I -.->|"accepted truth"| P
+    C -.->|"accepted truth"| P
+
+    X["RULE<br/>Consumption does not transfer authority.<br/>Opportunity ≠ physical resource.<br/>Policy ≠ realization.<br/>Presentation ≠ technical truth."]
+    P --- X
+
+    classDef world fill:#e8eef7,stroke:#526b8d,color:#111;
+    classDef neutral fill:#eef4ed,stroke:#587356,color:#111;
+    classDef implementation fill:#f8efe2,stroke:#8e6b3f,color:#111;
+    classDef content fill:#f4ecec,stroke:#8b5b5b,color:#111;
+    classDef presentation fill:#f2eef8,stroke:#6f5b8f,color:#111;
+    classDef rule fill:#ffffff,stroke:#333,color:#111;
+
+    class A world;
+    class N neutral;
+    class I implementation;
+    class C content;
+    class P presentation;
+    class X rule;

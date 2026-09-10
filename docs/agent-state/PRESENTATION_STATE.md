@@ -2,7 +2,7 @@
 
 **Canonical lane:** PRESENTATION  
 **Updated:** 2026-09-07 (America/Chicago)  
-**Status:** issue #348 canonical runtime capture acquisition established by PR #362  
+**Status:** PRES-0005 explanatory graphics suite in progress under issue #383  
 **Highest merged Presentation milestone:** **PRES-0004**  
 **PRES-0004 merge:** PR #355, `993fba2a7da0725b1f64571bf17b25a9c0525204`
 
@@ -92,6 +92,24 @@ A rigorously matched pre-save/post-reopen image pair remains unavailable; use a 
 - In personal-authorship contexts, prefer **“architected and led development of”** over wording that implies every implementation line was manually authored by one developer.
 - Do not make Presentation work a blocker on production convergence.
 
+## IN PROGRESS
+
+### PRES-0005 — explanatory graphics suite
+
+Issue #383. Branch `presentation/pres-0005-explanatory-graphics`.
+
+The first five exact source diagrams and the controlled rendering guide are now present under `docs/presentation/diagrams/`:
+
+- `how-skyforge-works.mmd`;
+- `authority-layers.mmd`;
+- `volume-not-heightmap.mmd`;
+- `evidence-architecture.mmd`;
+- `current-vs-roadmap.mmd`;\n- `PRES-0005-rendering-guide.md`.
+
+This milestone intentionally does not depend on production-quality runtime screenshots. It exists to communicate Skyforge's architecture, authority model, volumetric ownership, validation philosophy, and current-vs-roadmap boundary using claim-controlled vector-first graphics.
+
+The deterministic five-panel infographic candidate has also been rendered outside the repository from these controlled sources. Generated island artwork is used only as an explicitly labeled explanatory illustration; all factual copy is repository-controlled. The remaining acceptance gate is human-eye communication quality of that rendered set. That gate may approve the visual language, request bounded restyling, or identify one diagram that is not legible enough. It does not reopen technical producer evidence.
+
 ## Recommended next work
 
-Do not invent another Presentation milestone merely to remain active. Use the acquired runtime source set to enrich PRES-0003/PRES-0004 when a concrete publication target exists, and refresh claims/artifacts only when material producer milestones change what can defensibly be shown. If publication-quality framing requires camera behavior beyond the current engineering viewers, request that as a bounded producer/viewer improvement rather than modifying generation semantics from Presentation.
+Take the first five rendered PRES-0005 graphics through the bounded human-eye presentation gate. If the visual language is accepted, persist any final rendering/style guidance, take PRES-0005 through exact-head CI, and merge. Afterward, use these diagrams as the stable explanatory layer while runtime screenshots remain maturity-dependent.
