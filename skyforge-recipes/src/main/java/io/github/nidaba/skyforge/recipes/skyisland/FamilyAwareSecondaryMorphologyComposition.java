@@ -97,7 +97,7 @@ final class FamilyAwareSecondaryMorphologyComposition {
     static double minimumUpperFactor(MorphologyFamily family) {
         return switch (family) {
             case MASSIF -> SecondaryMorphologySkyIslandVolumeRecipe.MINIMUM_UPPER_FACTOR;
-            case TABLELAND -> 0.93;
+            case TABLELAND -> 0.96;
             case SPINE -> 0.86;
             case BASIN -> 0.88;
             case LOBED -> 0.90;
@@ -107,7 +107,7 @@ final class FamilyAwareSecondaryMorphologyComposition {
     static double maximumUpperFactor(MorphologyFamily family) {
         return switch (family) {
             case MASSIF -> SecondaryMorphologySkyIslandVolumeRecipe.MAXIMUM_UPPER_FACTOR;
-            case TABLELAND -> 1.15;
+            case TABLELAND -> 1.09;
             case SPINE -> 1.32;
             case BASIN -> 1.18;
             case LOBED -> 1.24;
@@ -207,7 +207,7 @@ final class FamilyAwareSecondaryMorphologyComposition {
         NodeId valley = addBasis(nodes, type, prefix + ".edge-cut", ALONG, ACROSS,
                 new BasisShape(angle - 0.55, 0.20, -0.06, 0.66, 0.13));
         return gatedThreeTermFactor(
-                nodes, type, descriptor, prefix, gate, ridge, 0.10, shoulder, 0.05, valley, 0.07);
+                nodes, type, descriptor, prefix, gate, ridge, 0.06, shoulder, 0.03, valley, 0.04);
     }
 
     private static NodeId addSpineFactor(

@@ -527,8 +527,10 @@ public final class MorphologyFamilySkyIslandVolumeRecipe {
                 }
                 default -> throw new IllegalStateException("unknown morphology family: " + family);
             }
-            double lobeStrength = 1.44
-                    + 0.32 * unit(descriptor.seed(), prefix + ".lobe-strength");
+            // Retain the established < 1.76 support-envelope maximum while raising the
+            // low-strength end of the existing Lobed family control range.
+            double lobeStrength = 1.60
+                    + 0.16 * unit(descriptor.seed(), prefix + ".lobe-strength");
             double majorRadius = descriptor.nominalRadius() * radiusScale * majorFactor;
             double minorRadius = descriptor.nominalRadius() * radiusScale * minorFactor;
             requireFinitePositive("family major radius", majorRadius);
