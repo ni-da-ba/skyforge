@@ -5,6 +5,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from unittest import mock
 
 
 MODULE_PATH = pathlib.Path(__file__).with_name("codex_quota.py")
@@ -117,7 +118,7 @@ class CodexQuotaTransportTests(unittest.TestCase):
                         initialized = True
                     elif message.get("method") == "account/rateLimits/read":
                         assert initialized
-                        assert message.get("params", {{}}).get("excludeResetCreditDetails") is True
+                        assert "params" not in message
                         print(json.dumps({{"id": message["id"], "result": response}}), flush=True)
                         break
                 """
@@ -170,6 +171,13 @@ class CodexQuotaTransportTests(unittest.TestCase):
                 )
         self.assertIn("code 401", str(ctx.exception))
         self.assertNotIn("SECRET_TOKEN", str(ctx.exception))
+
+    def test_default_command_falls_back_to_pinned_sdk_runtime(self):
+        with mock.patch.object(quota.shutil, "which", return_value=None), mock.patch.object(
+            quota, "_bundled_codex_path", return_value="/opt/pinned/codex"
+        ), mock.patch.dict(quota.os.environ, {}, clear=False):
+            quota.os.environ.pop("SKYFORGE_CODEX_BIN", None)
+            self.assertEqual(quota._default_command(), ["/opt/pinned/codex", "app-server"])
 
 
 if __name__ == "__main__":
