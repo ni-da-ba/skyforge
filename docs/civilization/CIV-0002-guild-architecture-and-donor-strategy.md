@@ -35,7 +35,117 @@ That language should operate at multiple levels:
 7. institutional signage and heraldry;
 8. Create / Aeronautics functionality.
 
-## 3. Material-role approach
+### 2.1 Institutional character
+
+The Skyfarer's Guild is an old and prestigious institution populated primarily by practical professionals. Its architecture should express prestige through continuity, durability, accumulated competence, and public trust rather than extravagance.
+
+The Guild standardizes what improves safety, maintenance, interchangeability, service legibility, and efficiency. It normally uses local construction materials and climate-appropriate techniques. Guild buildings should therefore be recognizable to locals without appearing as identical prefabricated structures imposed everywhere.
+
+Preferred model: **hybrid institutional standardization**.
+
+- Standardize: heraldry, service markings, engineering interfaces, selected dimensions, loading and docking standards, signage hardware, public-facing service modules, lamps, counters, registry/inspection fittings, and selected structural motifs.
+- Localize: wall materials, stone species, timber species, roofing, climate adaptations, weathering, local ornament, inherited building shells, and compatible vernacular construction.
+- Permit historical accretion: old halls may carry newer signal masts, reinforced freight doors, added workshops, standardized machinery, or newer Guild service wings.
+
+## 3. Canonical Guild emblem — Open Sky
+
+**Decision status: locked for civilization authorship.**
+
+The canonical institutional emblem of the Skyfarer's Guild is the **Open Sky** mark.
+
+### 3.1 Core geometry
+
+The emblem consists of four inseparable symbolic elements:
+
+1. **an open circular sky field** — the shared world, connection, continuity, and the many settlements under one sky;
+2. **a central navigation star / beacon** — guidance, safety, professional competence, reliable return, and common purpose;
+3. **two upward-opening wing forms** — freedom of movement, mutual aid, skyfaring, and routes kept open;
+4. **an open lower horizon / cradle gesture** — opportunity and welcome rather than enclosure or sovereignty.
+
+The wings should be heraldically stylized rather than rendered as a literal eagle or military bird. The mark must not read primarily as a national, royal, or military insignia.
+
+### 3.2 Identity principles
+
+The emblem should communicate:
+
+- old institutional continuity;
+- practical competence;
+- trusted passage;
+- navigation and rescue;
+- commerce and connection;
+- openness rather than territorial sovereignty;
+- prestige without aristocratic excess.
+
+Avoid crowns, swords, martial shields, national eagles, or excessive Victorian scrollwork as primary identity elements.
+
+### 3.3 Canonical color family
+
+The Guild's core color identity is **deep navy with aged brass / muted gold**, supported by warm neutral materials.
+
+Intent:
+
+- **deep navy:** sky, navigation, professionalism, continuity, institutional seriousness;
+- **aged brass / muted gold:** old instruments, durable fittings, prestige, craft, navigation hardware;
+- **warm neutral / parchment / stone:** local materials and historical continuity.
+
+The navy-and-brass pairing is an institutional constant where color is available. Regional buildings may resolve most other surfaces through local palettes.
+
+Exact RGB/hex values and Minecraft blocks remain implementation-stage decisions and should be selected from actual in-game lighting tests.
+
+### 3.4 Render hierarchy
+
+There is one emblem, not a family of unrelated logos. It may be simplified according to application:
+
+- **ceremonial/full:** chapter halls, charters, major exchanges, formal interiors, monuments;
+- **standard:** buildings, aircraft markings, uniforms, signs, flags;
+- **utility:** crates, stamps, inspection plates, cargo markings, equipment castings;
+- **low-resolution:** banner/pixel realization retaining the central star, open circular field, and upward wing/cradle silhouette.
+
+All render tiers must remain immediately traceable to the same Open Sky emblem.
+
+### 3.5 Regional and chapter adaptation rule
+
+Regional and chapter identity may modify the **context around the emblem**, not replace its core geometry.
+
+Permitted adaptations include:
+
+- local material realization of the crest;
+- chapter-specific secondary mark beneath or adjacent to the crest;
+- regional border patterns;
+- local masonry/timber mounting architecture;
+- climate-specific flag construction;
+- patina/weathering appropriate to local conditions;
+- restrained secondary colors subordinate to Guild navy and brass.
+
+The star, open sky field, and upward-opening wing/cradle form remain invariant.
+
+Examples of chapter secondary marks may include mountain, wave, pine, desert mesa, gear, grain, or other locally meaningful motifs. These are subordinate chapter identifiers, not alternate Guild crests.
+
+### 3.6 Recognition hierarchy
+
+Guild identity should work at three distances:
+
+- **distance:** flag silhouette, crest placement, signal mast/beacon, and navy/brass identity;
+- **street level:** crest plaque, hanging signs, standardized lamps, service markings, certified doors/loading fittings;
+- **interior/operational:** counters, registry fixtures, contract boards, inspection plates, equipment markings, and service layouts.
+
+The architectural standard should not depend on color alone; the emblem and physical service grammar must remain legible in monochrome or weathered environments.
+
+### 3.7 Acceptance tests for final asset work
+
+Before final heraldry implementation, the canonical emblem should pass:
+
+1. full façade / monumental-scale legibility;
+2. hanging-sign legibility;
+3. vertical flag / banner legibility;
+4. aircraft-tail / hull-marking legibility;
+5. crate / equipment-stamp legibility;
+6. monochrome carving / etching legibility;
+7. approximate 5×5 or 7×7 Minecraft-pixel recognizability.
+
+These are implementation validation gates, not invitations to redesign the symbol unless the core mark demonstrably fails at practical scale.
+
+## 4. Material-role approach
 
 Canonical architecture should prefer semantic material roles over one frozen block list.
 
@@ -57,7 +167,7 @@ Candidate roles:
 
 A temperate Guild chapter and a dry highland chapter can therefore share the same design grammar while resolving material roles differently.
 
-## 4. Proportion and motif standards
+## 5. Proportion and motif standards
 
 The civilization stage should define a compact builder-facing standard covering at least:
 
@@ -75,7 +185,7 @@ The civilization stage should define a compact builder-facing standard covering 
 
 Experienced Minecraft-builder practice supports the same general direction: coherence is usually achieved through repeated palette, proportion, roof, and motif logic rather than literal duplication of whole buildings.
 
-## 5. Reusable module family
+## 6. Reusable module family
 
 Initial candidate module vocabulary:
 
@@ -109,7 +219,7 @@ Modules should carry metadata for:
 - optional sockets;
 - functional interface requirements.
 
-## 6. District composition hierarchy
+## 7. District composition hierarchy
 
 Civilization architecture should not make every building Guild-owned.
 
@@ -132,7 +242,7 @@ Preferred hierarchy:
 
 This preserves local identity while allowing the Guild to impose recognizable standards at interfaces it controls.
 
-## 7. Morphological donor strategy
+## 8. Morphological donor strategy
 
 Donor discovery should search by spatial morphology, not only by literal Guild keywords.
 
@@ -166,7 +276,7 @@ Functional remapping is explicitly encouraged. Examples:
 - manor → regional chapter headquarters;
 - observatory → navigation / meteorology station.
 
-## 8. Donor integration pipeline
+## 9. Donor integration pipeline
 
 Preferred process:
 
@@ -187,7 +297,7 @@ Preferred process:
 
 The donor should save labor without becoming stylistic authority.
 
-## 9. Donor acceptance classes
+## 10. Donor acceptance classes
 
 Use three broad authorship classes:
 
@@ -211,7 +321,7 @@ Rights status is separate from quality:
 
 A high-quality RED reference remains valuable; a low-quality GREEN donor does not become canonical merely because it is easy to license.
 
-## 10. Highest-value known donor candidates
+## 11. Highest-value known donor candidates
 
 The following should be preserved for future civilization authorship review:
 
@@ -264,7 +374,7 @@ The following should be preserved for future civilization authorship review:
 
 This list is intentionally inclusive. Future authorship passes may reject individual assets after direct in-game visual inspection.
 
-## 11. First Guild branch composition
+## 12. First Guild branch composition
 
 A useful first branch prototype should test whether unrelated donors can be transformed into one coherent institutional language.
 
@@ -283,7 +393,7 @@ The key empirical question is:
 
 > Can existing donor assets be standardized strongly enough that the player perceives one civilization rather than a collection of downloaded schematics?
 
-## 12. Builder-tool workflow
+## 13. Builder-tool workflow
 
 Likely authorship tooling during the civilization stage:
 
@@ -296,7 +406,7 @@ Likely authorship tooling during the civilization stage:
 
 The preferred long-term donor record is version-controlled, machine-readable metadata adjacent to accepted assets; external visual tools are convenience layers, not authority.
 
-## 13. Future automation opportunity
+## 14. Future automation opportunity
 
 A Skyforge-specific schematic standardizer may eventually map donor blocks to semantic material roles and then resolve those roles into a Guild or regional palette.
 
@@ -316,7 +426,7 @@ followed by:
 
 This should never be treated as a substitute for an artistic cleanup pass. It is a labor-saving normalization stage.
 
-## 14. Deferred implementation decisions
+## 15. Deferred implementation decisions
 
 The civilization stage should decide, after prototype imports:
 
@@ -328,6 +438,8 @@ The civilization stage should decide, after prototype imports:
 - which imported donors are legally shippable;
 - whether an automated schematic standardizer is worth implementation cost;
 - whether Guild architecture needs procedural kit assembly or curated variants are sufficient;
-- how strongly regional vernacular overrides Guild standardization.
+- how strongly regional vernacular overrides Guild standardization;
+- exact navy/brass color values and Minecraft block realizations;
+- final production geometry for the Open Sky emblem after practical scale tests.
 
 These decisions should be made from actual in-game comparisons rather than screenshots alone.
