@@ -482,7 +482,7 @@ class ClassifierIdempotencyTests(unittest.TestCase):
             orch._classifier_input_fingerprint([event], self.snapshot(run_status="completed")),
         )
 
-    def test_identical_semantic_input_reuses_paid_classifier_decision(self):
+    def test_completed_exact_replay_is_suppressed_before_classifier(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
             event = orch.EventDecision(True, "main advanced", "push", head_sha="mainhead")
@@ -502,15 +502,17 @@ class ClassifierIdempotencyTests(unittest.TestCase):
                 self.assertEqual(classifier.call_count, 1)
                 self.assertEqual(o._pending_events(), [])
 
-                # Re-observing the exact same semantic input may happen after replay/reconciliation.
-                # It must restore the cached decision rather than paying Luna a second time.
+                # Once a terminal decision consumes this exact event identity, replay suppression is
+                # cheaper and stronger than reconstructing the queue merely to hit the semantic cache.
                 o._persist_pending_events([event])
-                o.dispatch(o._pending_events())
+                self.assertEqual(o._pending_events(), [])
 
             self.assertEqual(classifier.call_count, 1)
-            self.assertEqual(o._pending_events(), [])
+            self.assertIsNone(
+                o.state.data["metrics"].get("classifier_decision_cache_hits")
+            )
             self.assertEqual(
-                o.state.data["metrics"].get("classifier_decision_cache_hits"),
+                o.state.data["metrics"].get("retired_event_replays_suppressed"),
                 1,
             )
 
@@ -3627,6 +3629,185 @@ class Audit0035QueueEfficiencyTests(unittest.TestCase):
             self.assertEqual(
                 o.state.data["metrics"].get("completed_authority_replays_suppressed"),
                 1,
+            )
+            if o._timer is not None:
+                o._timer.cancel()
+
+
+class Audit0036TerminalReplayRetirementTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=1,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+        )
+
+    def test_completed_generic_manual_wake_is_durably_retired(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            manual = orch.EventDecision(
+                True,
+                "manual orchestration command",
+                "issue_comment",
+                action="manual_command",
+                pr_number=349,
+                source_id="manual-completed",
+            )
+            o._persist_pending_events([manual])
+            o._cache_decision(
+                {"decision": "NOOP", "reason": "current state requires no work"},
+                [manual],
+                {"main": "main-head", "open_prs": []},
+            )
+
+            o._clear_completed_decision()
+
+            self.assertEqual(o._pending_events(), [])
+            key = orch._event_key(manual)
+            self.assertIn(key, o.state.data.get("retired_event_keys") or [])
+            self.assertNotIn(
+                key,
+                o.state.data.get("completed_authority_event_keys") or [],
+            )
+
+            o._persist_pending_events([manual])
+            self.assertEqual(o._pending_events(), [])
+            self.assertEqual(
+                o.state.data["metrics"].get("retired_event_replays_suppressed"),
+                1,
+            )
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_completed_ordinary_batch_is_durably_retired(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            push = orch.EventDecision(
+                True,
+                "main advanced",
+                "push",
+                head_sha="current-main",
+            )
+            workflow = orch.EventDecision(
+                True,
+                "workflow completed; controller will require head quiescence",
+                "workflow_run",
+                action="completed",
+                head_sha="current-main",
+            )
+            o._persist_pending_events([push, workflow])
+            o._cache_decision(
+                {"decision": "NOOP", "reason": "repository already reconciled"},
+                [push, workflow],
+                {"main": "current-main", "open_prs": []},
+            )
+
+            o._clear_completed_decision()
+
+            retired = set(o.state.data.get("retired_event_keys") or [])
+            self.assertIn(orch._event_key(push), retired)
+            self.assertIn(orch._event_key(workflow), retired)
+            o._persist_pending_events([push, workflow])
+            self.assertEqual(o._pending_events(), [])
+            self.assertEqual(
+                o.state.data["metrics"].get("retired_event_replays_suppressed"),
+                2,
+            )
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_replay_purge_is_priority_classification_agnostic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            generic = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=349,
+                source_id="generic-copy",
+                signal_kind="audit",
+                signal_text="AUDIT — synchronization",
+            )
+            protected = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=444,
+                source_id="restart-copy",
+                signal_kind="restart_recommended",
+                signal_text="AUDIT — RESTART RECOMMENDED",
+            )
+            o.state.data["pending_events"] = [generic.to_state(), protected.to_state()]
+            # Deliberately cross the ledgers: suppression must follow exact identity, not today's
+            # priority classification.
+            o.state.data["completed_authority_event_keys"] = [orch._event_key(generic)]
+            o.state.data["retired_event_keys"] = [orch._event_key(protected)]
+            o.state.save()
+
+            self.assertEqual(o._pending_events(), [])
+            self.assertEqual(
+                o.state.data["metrics"].get("suppressed_pending_events_purged"),
+                2,
+            )
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_stale_history_plus_manual_noop_cannot_reconstruct_tail(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            closed_pr = orch.EventDecision(
+                True,
+                "PR lifecycle changed",
+                "pull_request",
+                action="closed",
+                head_sha="old-pr-head",
+                pr_number=406,
+            )
+            old_workflow = orch.EventDecision(
+                True,
+                "workflow completed; controller will require head quiescence",
+                "workflow_run",
+                action="completed",
+                head_sha="old-workflow-head",
+            )
+            manual = orch.EventDecision(
+                True,
+                "manual orchestration command",
+                "issue_comment",
+                action="manual_command",
+                pr_number=349,
+                source_id="old-manual",
+            )
+            original = [closed_pr, old_workflow, manual]
+            o._persist_pending_events(original)
+
+            normalized = o._normalize_captured_events_for_snapshot(
+                o._pending_events(),
+                {"main": "current-main", "open_prs": []},
+            )
+            self.assertEqual(
+                [event.action for event in normalized],
+                ["manual_command", "superseded_history"],
+            )
+            o._cache_decision(
+                {"decision": "NOOP", "reason": "historical wakes require no work"},
+                normalized,
+                {"main": "current-main", "open_prs": []},
+            )
+            o._clear_completed_decision()
+            self.assertEqual(o._pending_events(), [])
+
+            # Re-delivery of the exact original transport events must not rebuild the tail.
+            o._persist_pending_events(original)
+            self.assertEqual(o._pending_events(), [])
+            self.assertGreaterEqual(
+                o.state.data["metrics"].get("retired_event_replays_suppressed", 0),
+                3,
             )
             if o._timer is not None:
                 o._timer.cancel()

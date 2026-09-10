@@ -1919,12 +1919,10 @@ class Orchestrator:
         removed = 0
         for value in values:
             key = _event_key(value)
-            priority = self._pending_event_priority(value)
-            suppressed = (
-                priority and key in completed_authority_keys
-            ) or (
-                not priority and key in retired_keys
-            )
+            # Replay ledgers remain authoritative across queue-policy upgrades. An event completed
+            # while protected may later become ordinary (or vice versa); its exact durable identity
+            # must still remain retired without depending on its current priority classification.
+            suppressed = key in completed_authority_keys or key in retired_keys
             if suppressed:
                 removed += 1
             else:
@@ -2270,10 +2268,10 @@ class Orchestrator:
     ) -> list[EventDecision]:
         """Retire superseded repository history before classifier ownership.
 
-        Trusted Audit/manual authority is never retired here. Ordinary PR/workflow/push history that
-        no longer describes current main or an open PR is represented by one current-state reconcile
-        wake so the classifier reasons from present repository truth instead of resurrecting merged
-        work from a long retained queue.
+        Protected authority is never retired here. Ordinary PR/workflow/push history that no longer
+        describes current main or an open PR is represented by one current-state reconcile wake so the
+        classifier reasons from present repository truth instead of resurrecting merged work from a
+        long retained queue. Generic Audit/manual wakes are ordinary coalescible evidence.
         """
         current_main = str(snapshot.get("main") or "")
         open_by_number: dict[int, dict[str, Any]] = {}
@@ -2641,6 +2639,11 @@ class Orchestrator:
                 for value in pending
                 if _event_key(value) in completed and self._pending_event_priority(value)
             ]
+            completed_ordinary = [
+                _event_key(value)
+                for value in pending
+                if _event_key(value) in completed and not self._pending_event_priority(value)
+            ]
             if completed_authority:
                 ledger = [
                     str(value)
@@ -2653,6 +2656,20 @@ class Orchestrator:
                         ledger.append(key)
                         seen.add(key)
                 self.state.data["completed_authority_event_keys"] = ledger[
+                    -DEFAULT_MAX_RETIRED_EVENT_KEYS:
+                ]
+            if completed_ordinary:
+                retired = [
+                    str(value)
+                    for value in (self.state.data.get("retired_event_keys") or [])
+                    if value
+                ]
+                seen = set(retired)
+                for key in completed_ordinary:
+                    if key not in seen:
+                        retired.append(key)
+                        seen.add(key)
+                self.state.data["retired_event_keys"] = retired[
                     -DEFAULT_MAX_RETIRED_EVENT_KEYS:
                 ]
             if completed:
