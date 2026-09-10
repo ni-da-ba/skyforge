@@ -41,13 +41,16 @@ jobs:
 
           curl --fail --location --retry 3             --user-agent "Skyforge-SF-IMP-0084/1.0 (ni-da-ba/skyforge)"             "${api}" -o aal-version.json
 
+          jq '{id, project_id, version_number, game_versions, loaders, files: [.files[] | {filename, primary, hashes, url}]}' aal-version.json
+
           jq -e --arg v "${expected_version}" '.version_number == $v' aal-version.json >/dev/null
           jq -e '.game_versions | index("1.21.1") != null' aal-version.json >/dev/null
-          jq -e '.loaders | index("neoforge") != null' aal-version.json >/dev/null
+          jq -e '.loaders | map(ascii_downcase) | index("neoforge") != null' aal-version.json >/dev/null
 
-          url="$(jq -er --arg f "${expected_filename}" '.files[] | select(.filename == $f) | .url' aal-version.json)"
-          expected_sha256="$(jq -er --arg f "${expected_filename}" '.files[] | select(.filename == $f) | .hashes.sha256' aal-version.json)"
-          expected_sha1="$(jq -er --arg f "${expected_filename}" '.files[] | select(.filename == $f) | .hashes.sha1' aal-version.json)"
+          selected="$(jq -er --arg f "${expected_filename}" '[.files[] | select(.filename == $f)] | if length == 1 then .[0] else error("expected exact AAL jar filename once") end' aal-version.json)"
+          url="$(jq -er '.url' <<<"${selected}")"
+          expected_sha256="$(jq -er '.hashes.sha256' <<<"${selected}")"
+          expected_sha1="$(jq -er '.hashes.sha1' <<<"${selected}")"
 
           curl --fail --location --retry 3             --user-agent "Skyforge-SF-IMP-0084/1.0 (ni-da-ba/skyforge)"             "${url}" -o "${expected_filename}"
 
