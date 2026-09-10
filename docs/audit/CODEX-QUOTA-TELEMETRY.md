@@ -34,12 +34,17 @@ to the hosted service account and performs:
 
 1. `initialize`;
 2. `initialized` notification;
-3. `account/rateLimits/read` with reset-credit detail rows excluded.
+3. `account/rateLimits/read` with no request params.
+
+The no-params form is intentional. The currently pinned Codex 0.147.0 protocol defines this request as
+an optional unit payload, while newer Codex versions accept optional structured params. Omitting params
+therefore preserves compatibility across both contracts. Older runtimes may return reset-credit detail
+rows as part of the raw response; the adapter discards those rows and retains only the available count.
 
 The normalized snapshot records:
 
 - capture timestamp;
-- `ordinary_usage_allowed`;
+- `ordinary_usage_allowed`, when supplied by the installed runtime;
 - reset-credit available count, when supplied;
 - every returned limit id;
 - plan/rate-limit metadata safe for telemetry;
@@ -57,7 +62,9 @@ Window semantics are derived from duration rather than primary/secondary positio
 - other known durations -> `rolling_<minutes>m`;
 - missing duration -> `unknown`.
 
-No unknown bucket is silently promoted to a five-hour or weekly allowance.
+No unknown bucket is silently promoted to a five-hour or weekly allowance. A provider/runtime that
+returns only a weekly bucket remains valid telemetry; Skyforge must not synthesize a missing five-hour
+percentage.
 
 ## Remote command
 
@@ -93,7 +100,9 @@ Optional overrides:
 python scripts/orchestrator/codex_quota.py --codex-bin /path/to/codex --timeout 20
 ```
 
-The CLI prints only the normalized safe snapshot or a redacted error.
+The CLI first prefers an explicit binary/environment override or a `codex` executable on PATH, then
+falls back to the Codex binary bundled by the pinned `openai-codex` Python package. It prints only the
+normalized safe snapshot or a redacted error.
 
 ## Hosted runtime integration
 
@@ -118,7 +127,8 @@ Do not replace the current local budget policy merely because the probe compiles
 1. deploy the merged quota-aware service while the controller is safely paused;
 2. verify `/skyforge-status` reports the expected loaded runtime;
 3. issue `/skyforge-quota`;
-4. compare the returned five-hour and weekly percentages/reset times with the visible Codex usage UI;
+4. compare every returned bucket with the visible Codex usage UI; if the installed runtime exposes both
+   five-hour and weekly windows, both should agree within display rounding;
 5. issue a second `/skyforge-quota` without starting model work and verify the meter does not materially
    move from the read itself;
 6. complete one known worker attempt and sample again to establish an initial cost delta;
@@ -133,9 +143,13 @@ Once the provider signal is validated, the next control-plane milestone should r
 ceilings with a shared account governor based on:
 
 - provider weekly remaining percentage and reset time as the long-run resource;
-- provider five-hour remaining percentage and reset time as the burst resource;
+- provider five-hour remaining percentage and reset time as the burst resource when exposed;
 - an explicit owner reserve;
 - bounded same-task retry/circuit-break rules;
 - LUNA/TERRA retained only as capability/routing choices.
+
+If the installed Codex runtime exposes weekly but not five-hour quota, the weekly meter can still become
+the authoritative long-run governor while short-window pacing remains conservatively local until a
+second machine-readable source is validated. No missing provider bucket should be guessed into existence.
 
 That pacing change is deliberately outside this telemetry milestone.
