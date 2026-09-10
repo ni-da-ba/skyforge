@@ -3813,6 +3813,133 @@ class Audit0036TerminalReplayRetirementTests(unittest.TestCase):
                 o._timer.cancel()
 
 
+class Audit0036CapturedCompletionIdentityTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=1,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+        )
+
+    def test_ordinary_completion_identity_survives_queue_replacement_before_clear(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            manual = orch.EventDecision(
+                True,
+                "manual orchestration command",
+                "issue_comment",
+                action="manual_command",
+                pr_number=349,
+                source_id="captured-manual",
+            )
+            o._persist_pending_events([manual])
+            o._cache_decision(
+                {"decision": "NOOP", "reason": "no current work"},
+                [manual],
+                {"main": "current-main", "open_prs": []},
+            )
+            record = o._decision_record()
+            self.assertEqual(record["ordinary_event_keys"], [orch._event_key(manual)])
+            self.assertEqual(record["authority_event_keys"], [])
+
+            # Reproduce the live race: mutable queue storage changes after capture but before
+            # terminal clear. Completion identity must come from the decision record, not this queue.
+            o.state.data["pending_events"] = []
+            o.state.save()
+            o._clear_completed_decision()
+
+            self.assertIn(
+                orch._event_key(manual),
+                o.state.data.get("retired_event_keys") or [],
+            )
+            o._persist_pending_events([manual])
+            self.assertEqual(o._pending_events(), [])
+            self.assertEqual(
+                o.state.data["metrics"].get("retired_event_replays_suppressed"),
+                1,
+            )
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_protected_completion_identity_survives_queue_replacement_before_clear(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            restart = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=444,
+                source_id="captured-restart",
+                signal_kind="restart_recommended",
+                signal_text="AUDIT — RESTART RECOMMENDED",
+            )
+            o._persist_pending_events([restart])
+            o._cache_decision(
+                {"decision": "NOOP", "reason": "recovery already evidenced"},
+                [restart],
+                {"main": "current-main", "open_prs": []},
+            )
+            o.state.data["pending_events"] = []
+            o.state.save()
+            o._clear_completed_decision()
+
+            self.assertIn(
+                orch._event_key(restart),
+                o.state.data.get("completed_authority_event_keys") or [],
+            )
+            o._persist_pending_events([restart])
+            self.assertEqual(o._pending_events(), [])
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_captured_task_issue_suppresses_later_same_issue_authority_after_replacement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            captured = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=500,
+                source_id="task-captured",
+                signal_kind="task",
+                signal_text="AUDIT — NEW IMPLEMENTATION TASK",
+            )
+            later = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=500,
+                source_id="task-later",
+                signal_kind="task",
+                signal_text="AUDIT — NEW IMPLEMENTATION TASK follow-up",
+            )
+            o._persist_pending_events([captured])
+            o._cache_decision(
+                {"decision": "NOOP", "reason": "task already satisfied"},
+                [captured],
+                {"main": "current-main", "open_prs": []},
+            )
+            self.assertEqual(o._decision_record()["task_issue_numbers"], [500])
+
+            # Captured physical event is gone, but a later same-issue authority was queued behind it.
+            o.state.data["pending_events"] = [later.to_state()]
+            o.state.save()
+            o._clear_completed_decision()
+
+            self.assertEqual(o._pending_events(), [])
+            authority = set(o.state.data.get("completed_authority_event_keys") or [])
+            self.assertIn(orch._event_key(captured), authority)
+            self.assertIn(orch._event_key(later), authority)
+            if o._timer is not None:
+                o._timer.cancel()
+
+
 class Audit0034DurableSignalMigrationTests(unittest.TestCase):
     def make_orchestrator(self, root: pathlib.Path):
         return orch.Orchestrator(

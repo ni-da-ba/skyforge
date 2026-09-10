@@ -2524,10 +2524,31 @@ class Orchestrator:
                 ):
                     source_pr_head = pr.get("headRefOid")
                     break
+        event_keys = [_event_key(event) for event in events]
+        authority_event_keys = [
+            _event_key(event)
+            for event in events
+            if self._pending_event_priority(event.to_state())
+        ]
+        ordinary_event_keys = [
+            _event_key(event)
+            for event in events
+            if not self._pending_event_priority(event.to_state())
+        ]
+        task_issue_numbers = sorted(
+            {
+                issue
+                for event in events
+                if (issue := _task_issue_number(event)) is not None
+            }
+        )
         with self._state_lock:
             self.state.data["pending_decision"] = {
                 "decision": decision,
-                "event_keys": [_event_key(e) for e in events],
+                "event_keys": event_keys,
+                "authority_event_keys": authority_event_keys,
+                "ordinary_event_keys": ordinary_event_keys,
+                "task_issue_numbers": task_issue_numbers,
                 "captured_at": _utc_now(),
                 "snapshot_main": snapshot.get("main"),
                 "source_pr_head": source_pr_head,
@@ -2616,12 +2637,49 @@ class Orchestrator:
             record = self._decision_record() or {}
             completed = set(record.get("event_keys") or [])
             pending = [v for v in (self.state.data.get("pending_events") or []) if isinstance(v, dict)]
+
+            # New decision records capture replay-ledger identity at classification time. Do not
+            # reconstruct it from mutable pending_events during terminal clear: compaction,
+            # normalization, or concurrent enqueue may already have replaced/removed a captured key.
+            has_captured_classes = (
+                "authority_event_keys" in record or "ordinary_event_keys" in record
+            )
+            if has_captured_classes:
+                completed_authority = {
+                    str(value)
+                    for value in (record.get("authority_event_keys") or [])
+                    if value
+                }
+                completed_ordinary = {
+                    str(value)
+                    for value in (record.get("ordinary_event_keys") or [])
+                    if value
+                }
+            else:
+                # Backward-compatible recovery for pre-upgrade pending decisions.
+                completed_authority = {
+                    _event_key(value)
+                    for value in pending
+                    if _event_key(value) in completed and self._pending_event_priority(value)
+                }
+                completed_ordinary = {
+                    _event_key(value)
+                    for value in pending
+                    if _event_key(value) in completed and not self._pending_event_priority(value)
+                }
+
             completed_task_issues = {
-                issue
-                for value in pending
-                if _event_key(value) in completed
-                if (issue := _task_issue_number(value)) is not None
+                int(value)
+                for value in (record.get("task_issue_numbers") or [])
+                if str(value).isdigit()
             }
+            if not completed_task_issues:
+                completed_task_issues = {
+                    issue
+                    for value in pending
+                    if _event_key(value) in completed
+                    if (issue := _task_issue_number(value)) is not None
+                }
             duplicate_task_keys = {
                 _event_key(value)
                 for value in pending
@@ -2634,16 +2692,7 @@ class Orchestrator:
                     metrics.get("duplicate_task_authorities_suppressed") or 0
                 ) + len(duplicate_task_keys)
                 completed.update(duplicate_task_keys)
-            completed_authority = [
-                _event_key(value)
-                for value in pending
-                if _event_key(value) in completed and self._pending_event_priority(value)
-            ]
-            completed_ordinary = [
-                _event_key(value)
-                for value in pending
-                if _event_key(value) in completed and not self._pending_event_priority(value)
-            ]
+                completed_authority.update(duplicate_task_keys)
             if completed_authority:
                 ledger = [
                     str(value)

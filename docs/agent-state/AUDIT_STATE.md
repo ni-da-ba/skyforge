@@ -193,3 +193,21 @@ redelivery cannot rebuild it, and preserves semantic classifier-cache reuse for 
 Acceptance requires exact-head Orchestrator Smoke + CI, paused runtime refresh to the merged head, then a
 bounded resume proving the residual queue drains to zero (or only genuinely new repository events remain)
 without repeated cached-NOOP cycling. PR #358 remains a human morphology gate and is not crossed.
+
+
+### AUDIT-0036 live race follow-up
+
+The first AUDIT-0036 merge (#450, `c1c9ed0d19145cbb14046cec8f3451edfea52b48`) passed exact-head
+Smoke + CI and loaded on the paused host. Live resume improved physical replay purging but did not fully
+retire the three-event historical tail. The decisive observation was that terminal completion metadata
+was still derived from the mutable `pending_events` queue: if normalization/compaction/concurrent enqueue
+removed or replaced a captured event before `_clear_completed_decision()`, that key could be absent when
+the controller decided which replay ledger should own it.
+
+The follow-up makes the cached decision record itself carry `authority_event_keys`,
+`ordinary_event_keys`, and `task_issue_numbers` captured at classification time. Terminal clear uses
+those immutable captured classes, with a backward-compatible fallback only for pre-upgrade decision
+records. Regression coverage removes captured events from physical queue storage before clear and proves
+ordinary replay retirement, protected-authority retirement, and same-issue task suppression remain
+durable. AUDIT-0036 is not live-accepted until this follow-up is machine-green, merged, loaded, and the
+host demonstrates that the inherited historical tail no longer cycles.
