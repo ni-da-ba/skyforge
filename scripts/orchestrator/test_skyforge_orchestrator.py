@@ -3914,7 +3914,7 @@ class Audit0039BudgetProfileTests(unittest.TestCase):
             o.state.save()
 
             with mock.patch.dict(
-                os.environ,
+                orch.os.environ,
                 {
                     "SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY": "24",
                     "SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY": "4",
