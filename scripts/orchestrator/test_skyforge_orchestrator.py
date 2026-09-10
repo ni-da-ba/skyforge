@@ -3933,7 +3933,10 @@ class Audit0038CanonicalEventIdentityTests(unittest.TestCase):
                 {"main": "current-main", "open_prs": []},
             )
             self.assertFalse(
-                any(\n                    event.event == "pull_request" and event.pr_number == 406\n                    for event in o._pending_events()\n                )
+                any(
+                    event.event == "pull_request" and event.pr_number == 406
+                    for event in o._pending_events()
+                )
             )
             self.assertEqual(
                 [event.action for event in normalized],
