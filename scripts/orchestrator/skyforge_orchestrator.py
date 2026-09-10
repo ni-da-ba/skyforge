@@ -949,6 +949,9 @@ class Orchestrator:
         self._state_lock = threading.RLock()
         self._timer_lock = threading.Lock()
         self._timer: threading.Timer | None = None
+        self._timer_due_epoch: float | None = None
+        self._timer_scheduled_at: str | None = None
+        self._timer_last_fired_at: str | None = None
         self._dispatch_lock = threading.Lock()
         self._startup_reconcile_retry_lock = threading.Lock()
         self._startup_reconcile_retry_timer: threading.Timer | None = None
@@ -1193,6 +1196,15 @@ class Orchestrator:
             )
 
     def health_snapshot(self) -> dict[str, Any]:
+        # Status is a model-free liveness observation. If an earlier timer callback died before
+        # dispatch telemetry was recorded, a status probe should repair the missing schedule rather
+        # than merely report a permanently non-empty queue.
+        self._ensure_pending_schedule(1)
+        with self._timer_lock:
+            pending_timer_alive = bool(self._timer and self._timer.is_alive())
+            pending_timer_due_epoch = self._timer_due_epoch
+            pending_timer_scheduled_at = self._timer_scheduled_at
+            pending_timer_last_fired_at = self._timer_last_fired_at
         with self._state_lock:
             self._reclassify_pending_audit_signals_locked()
             self._purge_suppressed_pending_events_locked()
@@ -1294,6 +1306,11 @@ class Orchestrator:
                     else 0
                 ),
                 "pending_worker": bool(pending),
+                "pending_timer_alive": pending_timer_alive,
+                "pending_timer_due_epoch": pending_timer_due_epoch,
+                "last_pending_timer_scheduled_at": pending_timer_scheduled_at,
+                "last_pending_timer_fired_at": pending_timer_last_fired_at,
+                "last_pending_timer_error": self.state.data.get("last_pending_timer_error"),
                 "worker_lane": pending.get("lane") if pending else None,
                 "worker_stage": pending.get("stage") if pending else None,
                 "worker_tier": pending.get("worker_tier") if pending else None,
@@ -2767,12 +2784,67 @@ class Orchestrator:
                 return 0
             return remaining
 
+    def _pending_timer_is_alive(self) -> bool:
+        with self._timer_lock:
+            return bool(self._timer and self._timer.is_alive())
+
+    def _ensure_pending_schedule(self, delay_seconds: int | float = 1) -> bool:
+        if self.is_paused():
+            return False
+        with self._state_lock:
+            has_pending = bool(self.state.data.get("pending_events"))
+        if not has_pending or self._pending_timer_is_alive():
+            return False
+        remaining = self._blocked_remaining()
+        self._schedule_pending(remaining if remaining else delay_seconds)
+        self._metric("pending_timer_self_heals")
+        return True
+
+    def _pending_timer_callback(self) -> None:
+        fired_at = _utc_now()
+        with self._timer_lock:
+            self._timer = None
+            self._timer_due_epoch = None
+            self._timer_last_fired_at = fired_at
+        self._metric("pending_timer_fires")
+        try:
+            self._drain_and_dispatch()
+        except Exception as exc:
+            # _drain_and_dispatch already handles failures raised by dispatch(). This guard covers
+            # queue read/normalization/batch-selection failures that occur before that inner handler.
+            self._metric("pending_timer_failures")
+            with self._state_lock:
+                self.state.data["last_pending_timer_error"] = {
+                    "at": fired_at,
+                    "kind": type(exc).__name__,
+                    "summary": str(exc)[:500],
+                }
+                self.state.save()
+            delay = _env_int(
+                "SKYFORGE_ORCHESTRATOR_TRANSIENT_BACKOFF_SECONDS",
+                DEFAULT_TRANSIENT_BACKOFF_SECONDS,
+                minimum=30,
+            )
+            print(
+                f"[orchestrator] pending timer error: {type(exc).__name__}: {exc}; retry in {delay}s",
+                flush=True,
+            )
+            self._set_retry_block(
+                "controller_error",
+                delay,
+                f"pending timer {type(exc).__name__}: {exc}",
+            )
+
     def _schedule_pending(self, delay_seconds: int | float) -> None:
         delay = max(0.1, float(delay_seconds))
+        scheduled_at = _utc_now()
+        due_epoch = time.time() + delay
         with self._timer_lock:
             if self._timer is not None:
                 self._timer.cancel()
-            self._timer = threading.Timer(delay, self._drain_and_dispatch)
+            self._timer_scheduled_at = scheduled_at
+            self._timer_due_epoch = due_epoch
+            self._timer = threading.Timer(delay, self._pending_timer_callback)
             self._timer.daemon = True
             self._timer.start()
 
