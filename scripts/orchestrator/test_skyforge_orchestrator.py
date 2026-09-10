@@ -3893,6 +3893,65 @@ class Audit0036TerminalReplayRetirementTests(unittest.TestCase):
                 o._timer.cancel()
 
 
+
+
+class Audit0038CanonicalEventIdentityTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=1,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+        )
+
+    def test_legacy_missing_optional_fields_retire_with_reconstructed_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            legacy_closed_pr = {
+                "actionable": True,
+                "reason": "PR lifecycle changed",
+                "event": "pull_request",
+                "action": "closed",
+                "head_sha": "legacy-pr-head",
+                "pr_number": 406,
+            }
+            reconstructed = orch.EventDecision.from_state(legacy_closed_pr)
+
+            # Reproduce a durable queue entry written before later optional EventDecision fields
+            # existed. Identity must not depend on whether those absent fields are serialized as
+            # missing keys or reconstructed as explicit nulls.
+            self.assertEqual(
+                orch._event_key(legacy_closed_pr),
+                orch._event_key(reconstructed),
+            )
+            o.state.data["pending_events"] = [legacy_closed_pr]
+            o.state.save()
+
+            captured = o._pending_events()
+            normalized = o._normalize_captured_events_for_snapshot(
+                captured,
+                {"main": "current-main", "open_prs": []},
+            )
+            self.assertFalse(
+                any(event.event == "pull_request" and event.pr_number == 406 for event in o._pending_events())
+            )
+            self.assertEqual(
+                [event.action for event in normalized],
+                ["superseded_history"],
+            )
+
+            o._cache_decision(
+                {"decision": "NOOP", "reason": "legacy retained history requires no work"},
+                normalized,
+                {"main": "current-main", "open_prs": []},
+            )
+            o._clear_completed_decision()
+            self.assertEqual(o._pending_events(), [])
+            if o._timer is not None:
+                o._timer.cancel()
+
 class Audit0036CapturedCompletionIdentityTests(unittest.TestCase):
     def make_orchestrator(self, root: pathlib.Path):
         return orch.Orchestrator(
