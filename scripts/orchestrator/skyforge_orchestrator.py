@@ -247,7 +247,15 @@ class EventDecision:
 
 
 def _event_key(value: EventDecision | dict[str, Any]) -> str:
-    payload = dict(value.to_state() if isinstance(value, EventDecision) else value)
+    # Durable queue records may outlive EventDecision schema additions. Canonicalize mappings through
+    # the current schema before hashing so a legacy record that omits newer optional fields has the
+    # same identity as the reconstructed EventDecision. Unknown historical fields are likewise not
+    # allowed to make a semantically identical repository transition immortal in the queue.
+    payload = (
+        value.to_state()
+        if isinstance(value, EventDecision)
+        else EventDecision.from_state(value).to_state()
+    )
     # Observation time is telemetry, not event identity. Redelivery/replay must deduplicate the same
     # repository transition even when it is observed at a different wall-clock instant.
     payload.pop("observed_at", None)
