@@ -132,7 +132,7 @@ Coastal Guild architecture may retain stronger cultural ancestry from maritime p
 
 ## 4. Structural silhouette direction
 
-The common Guild silhouette language is provisionally locked as:
+The common Guild silhouette language is locked at a general level as:
 
 > **strong masonry base + expressed structural frame + prominent roofline + disciplined repeated bays + unmistakably engineered additions**
 
@@ -176,7 +176,60 @@ Guild buildings should often reveal adaptation over time:
 
 Historical accretion is desirable. The Guild should feel old because it has continuously upgraded useful buildings, not because every structure is ancient and untouched.
 
-## 5. Donor-standardization test
+## 5. General design language — Guild Mercantile Functionalism
+
+The Guild's broad architectural language is **Guild Mercantile Functionalism**. This is a design direction, not a requirement to reproduce one historical style.
+
+Its real-world reference families are late mercantile warehouses, railway stations, customs houses, postal and dispatch buildings, harbor infrastructure, restrained civic-commercial buildings, and locally adapted vernacular construction. These references are useful because they solve a similar problem: a large network of practical transport and commercial infrastructure must remain trustworthy, permanent, legible, and adaptable across many places.
+
+The governing principles are:
+
+- **dignity without luxury;** prestige comes from durability, continuity, competence, and care rather than ostentation;
+- **structure without brutality;** practical construction should be visibly legible, but public buildings should still feel welcoming and civic;
+- **standardization without uniformity;** interfaces, proportions, signs, hardware, and service patterns may repeat while local materials and climate responses vary;
+- **ornament where identity matters;** concentrate decorative effort around entrances, the Open Sky crest, major public rooms, plaques, and other institutional focal points;
+- **utility where work happens;** loading elevations, yards, workshops, warehouses, docks, and machinery zones should look operational rather than ceremonial;
+- **local material where geography matters;** Guild standards should adapt to local stone, timber, roofing, weather, and inherited building traditions rather than overwrite them.
+
+### 5.1 Public and working faces
+
+Larger Guild facilities may deliberately have two architectural characters within one coherent building:
+
+- a **public face** with a clear entrance, crest, ordered openings, durable finish, and restrained civic dignity;
+- a **working face** with freight doors, cranes, service yards, repair access, docking equipment, gantries, and direct circulation between storage and transport.
+
+This duality is desirable because the Guild is simultaneously a public institution and a working logistics network.
+
+### 5.2 Base / body / crown hierarchy
+
+Where scale permits, Guild buildings should generally read in three layers:
+
+- **base:** durable masonry or equivalent heavy construction, entrances, arcades, freight handling, and highest-wear public interfaces;
+- **body:** repeated structural bays, offices, windows, workshops, and service rooms;
+- **crown:** roof, cornice, parapet, signal mast, clock, crest, ventilation, or other skyline termination.
+
+Small frontier structures can express the same hierarchy in simplified form rather than reproducing monumental urban architecture.
+
+### 5.3 Openings and arches
+
+Do not force one opening type everywhere. The general preference is:
+
+- tall, rationally repeated windows for public and administrative spaces;
+- larger repetitive multi-pane openings for industrial buildings;
+- practical clerestories and service openings for freight structures;
+- reduced or recessed openings where climate demands it;
+- round or shallow segmental arches where masonry structure or civic emphasis supports them;
+- rectangular timber or metal lintels where they are more appropriate.
+
+Pointed Gothic arches are not a core Guild motif and should be used only where local architectural tradition justifies them.
+
+### 5.4 Historical accretion
+
+Old Guild facilities should be allowed to show layered construction history. A long-lived chapter may combine an original local hall with a later warehouse wing, iron loading canopy, signal mast, communications office, or Aeronautics docking equipment.
+
+The resulting architecture should feel continuously maintained and upgraded rather than frozen in one historical moment.
+
+## 6. Donor-standardization test
 
 The first architectural validation should normalize several morphologically different donors into the temperate reference grammar while preserving their useful massing:
 
@@ -191,7 +244,7 @@ The human-eye question is:
 
 Only after this test should exact block palettes, bay dimensions, roof-module dimensions, window modules, and freight clearances be frozen.
 
-## 6. Acceptance criteria
+## 7. Acceptance criteria
 
 The regionalization and structural grammar succeeds if:
 
