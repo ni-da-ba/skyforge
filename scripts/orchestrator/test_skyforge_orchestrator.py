@@ -3906,7 +3906,7 @@ class Audit0036TerminalReplayRetirementTests(unittest.TestCase):
 class Audit0039BudgetProfileTests(unittest.TestCase):
     def test_expanded_profile_overrides_host_environment_limits(self):
         with tempfile.TemporaryDirectory() as td:
-            state = orch.LocalState(Path(td) / "state.json")
+            state = orch.LocalState(pathlib.Path(td) / "state.json")
             o = orch.Orchestrator.__new__(orch.Orchestrator)
             o.state = state
             o._state_lock = threading.RLock()
@@ -3930,7 +3930,7 @@ class Audit0039BudgetProfileTests(unittest.TestCase):
 
     def test_budget_profile_change_requires_pause_and_no_pending_worker(self):
         with tempfile.TemporaryDirectory() as td:
-            state = orch.LocalState(Path(td) / "state.json")
+            state = orch.LocalState(pathlib.Path(td) / "state.json")
             o = orch.Orchestrator.__new__(orch.Orchestrator)
             o.state = state
             o._state_lock = threading.RLock()
