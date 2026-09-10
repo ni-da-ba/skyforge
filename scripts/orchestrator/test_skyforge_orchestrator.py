@@ -3893,8 +3893,6 @@ class Audit0036TerminalReplayRetirementTests(unittest.TestCase):
                 o._timer.cancel()
 
 
-
-
 class Audit0038CanonicalEventIdentityTests(unittest.TestCase):
     def make_orchestrator(self, root: pathlib.Path):
         return orch.Orchestrator(
@@ -3935,7 +3933,7 @@ class Audit0038CanonicalEventIdentityTests(unittest.TestCase):
                 {"main": "current-main", "open_prs": []},
             )
             self.assertFalse(
-                any(event.event == "pull_request" and event.pr_number == 406 for event in o._pending_events())
+                any(\n                    event.event == "pull_request" and event.pr_number == 406\n                    for event in o._pending_events()\n                )
             )
             self.assertEqual(
                 [event.action for event in normalized],
