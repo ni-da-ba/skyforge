@@ -175,22 +175,26 @@ Read [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md). Most important near-ter
 
 ### SF-IMP-0084 — AAL 0.6.2 pinned-stack adapter feasibility
 
-Issue **#441** completed its bounded Stage 1 local feasibility check and is **STOPPED at the
-exact-artifact acquisition/build-harness gate**. Current main pins Minecraft `1.21.1`, NeoForge
-`21.1.249`, Create `6.0.10+mc1.21.1`, Sable `2.0.5+mc1.21.1`, and Create Aeronautics
-`1.3.2+mc1.21.1`, but provides no AAL coordinate/source snapshot and the local Gradle cache contained
-no AAL 0.6.2 candidate artifact/source. The supplied current-upstream reconnaissance is not evidence
-of the pinned-release API.
+Issue **#441** has trusted exact released-artifact evidence for AAL `0.6.2`: Modrinth
+`maven.modrinth:73ZXeRfx:EgPi4wq9`, SHA-256
+`b966fe666212da694ef19b292516643081b402c0af18549f94152dd387cc268e`. Current main retains Minecraft
+`1.21.1`, NeoForge `21.1.249`, Create `6.0.10+mc1.21.1`, Sable `2.0.5+mc1.21.1`, and Create
+Aeronautics `1.3.2+mc1.21.1`.
 
-Stage 2 did not run: no dependency, fixture, route contract, reflection/mixin access, or production
-adapter was added. The Stage 3 handoff is **STOP — exact compatible AAL artifact/source must be
-supplied locally before the seam can be classified**; this is not an AAL-design rejection and does not
-yet establish an upstream-hook or local-fork candidate. See
+SF-IMP-0084 now has an isolated `aalValidation` source set and an ordinary-`check`
+`sfImp0084AalValidation` gate. CI must resolve only that source set's AAL plus retained flight
+classpath, compile/link it, verify the immutable SHA-256, and verify the exact released class surfaces
+reported in issue evidence. AAL remains absent from production and ordinary development runtime
+configurations. No generated-route fixture or direct adapter source is present: the trusted handoff
+names public types/high-level signatures but does not provide sufficient exact packages and parameter
+types to compile direct API calls without guessing.
+
+**Stage 3 remains PROVISIONAL pending CI evidence.** A resolution, compile, checksum, or class-surface
+failure is the concrete compatibility boundary. Only a passing CI gate with exact callable signatures
+may authorize the next minimal direct-public-API specimen; it must still stop at player-only binding,
+unsafe/internal access, or inability to keep canonical Skyforge identity independent. See
 [`sf-imp-0084-aal-pinned-stack-feasibility-v0.1.md`](../design-audit/sf-imp-0084-aal-pinned-stack-feasibility-v0.1.md).
 
-Do not reopen this task with a guessed API. A future isolated validation-only source set needs the
-immutable AAL 0.6.2 jar (or matching release source) plus coordinate/checksum, then must verify the
-released signatures against this retained stack before attempting the deterministic two-station fixture.
 SF-IMP-0083/#358 and its morphology gates remain separate.
 
 

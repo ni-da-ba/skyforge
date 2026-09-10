@@ -2,7 +2,9 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.jvm.toolchain.JavaLanguageVersion
+import java.security.MessageDigest
 import java.util.Properties
+import java.util.zip.ZipFile
 
 plugins {
     `java-library`
@@ -128,6 +130,18 @@ val waveC25Runtime = sourceSets.create("waveC25Runtime") {
 }
 
 
+// SF-IMP-0084 deliberately keeps AAL outside Skyforge's production configurations and ordinary
+// development runs. This source set exists solely to compile/link the exact released artifact in
+// CI before any runtime/adaptation claim is made. Its runtime classpath is separate so a future
+// disposable AAL run cannot accidentally alter the regular Skyforge runtime.
+val aalValidation = sourceSets.create("aalValidation") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
 // Wave C13 performs a black-box baseline-vs-suppressed Elytra test. Only the suppressed run loads
 // the pinned No More Elytra Boosting jar; ordinary Skyforge and the baseline acceptance stay vanilla.
 val waveC13Runtime = sourceSets.create("waveC13Runtime") {
@@ -171,6 +185,28 @@ check(waveC25Pin("minecraft", "version") == "1.21.1") {
 }
 check(waveC25Pin("neoforge", "version") == "21.1.249") {
     "Wave C25 NeoForge pin must match the adapter runtime"
+}
+
+// The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
+// intentionally a validation manifest, not a production dependency declaration or API contract.
+val sfImp0084AalPinFile = layout.projectDirectory.file("sf-imp-0084-aal.properties")
+val sfImp0084AalPins = Properties().apply {
+    sfImp0084AalPinFile.asFile.inputStream().use(::load)
+}
+
+fun sfImp0084AalPin(field: String): String =
+    requireNotNull(sfImp0084AalPins.getProperty("$field")) {
+        "missing SF-IMP-0084 AAL pin: $field in " + sfImp0084AalPinFile.asFile
+    }
+
+check(sfImp0084AalPin("minecraft.version") == "1.21.1") {
+    "SF-IMP-0084 AAL validation is defined only for Minecraft 1.21.1"
+}
+check(sfImp0084AalPin("neoforge.version") == "21.1.249") {
+    "SF-IMP-0084 AAL validation must match the adapter runtime"
+}
+check(sfImp0084AalPin("coordinate") == "maven.modrinth:73ZXeRfx:EgPi4wq9") {
+    "SF-IMP-0084 must use the exact AAL released coordinate authorized by #441"
 }
 
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
@@ -4767,6 +4803,25 @@ dependencies {
         waveC25Pin("createdieselgenerators", "coordinate"),
     )
 
+    // AAL is exposed only to the SF-IMP-0084 validation source set. No production configuration
+    // receives this coordinate. Retain the exact C1 flight substrate only on this isolated
+    // classpath so CI can expose an immediate dependency/linkage incompatibility without making a
+    // runtime-boot or generated-route claim.
+    add(
+        aalValidation.compileOnlyConfigurationName,
+        sfImp0084AalPin("coordinate"),
+    )
+    listOf("create", "sable", "aeronautics").forEach { mod ->
+        add(
+            aalValidation.runtimeOnlyConfigurationName,
+            waveC1Pin(mod, "coordinate"),
+        )
+    }
+    add(
+        aalValidation.runtimeOnlyConfigurationName,
+        sfImp0084AalPin("coordinate"),
+    )
+
     // C13's suppressed run contains exactly the pinned server-side no-boost mod. The baseline run
     // deliberately uses the ordinary source set and therefore has vanilla Elytra/firework behavior.
     add(
@@ -4784,6 +4839,56 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+
+tasks.register("sfImp0084AalValidation") {
+    group = "verification"
+    description = "Compile/link the exact validation-only AAL 0.6.2 artifact against the retained flight stack."
+    dependsOn(aalValidation.classesTaskName)
+
+    val expectedCoordinate = sfImp0084AalPin("coordinate")
+    val expectedFilename = sfImp0084AalPin("filename")
+    val expectedSha256 = sfImp0084AalPin("sha256")
+    val aalArtifacts = configurations
+        .named(aalValidation.runtimeClasspathConfigurationName)
+        .get()
+        .incoming
+        .artifactView {
+            componentFilter { component ->
+                component is org.gradle.api.artifacts.component.ModuleComponentIdentifier &&
+                    "${component.group}:${component.module}:${component.version}" == expectedCoordinate
+            }
+        }.files
+    inputs.files(aalArtifacts)
+
+    doLast {
+        val resolvedArtifacts = inputs.files.files
+        val aalArtifact = resolvedArtifacts.singleOrNull()
+            ?: error("SF-IMP-0084 expected exactly one AAL artifact for $expectedCoordinate on the isolated validation runtime, found " + resolvedArtifacts.map { it.name }.sorted())
+        val digest = MessageDigest.getInstance("SHA-256").digest(aalArtifact.readBytes())
+            .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+        check(digest == expectedSha256) {
+            "SF-IMP-0084 AAL SHA-256 mismatch for $expectedFilename: expected $expectedSha256, got $digest"
+        }
+
+        ZipFile(aalArtifact).use { archive ->
+            listOf(
+                "route/Route.class", "route/RoutePoint.class", "route/RouteStop.class",
+                "service/RouteStorageService.class", "service/RoutePlaybackService.class",
+                "service/VehicleRoutePlaybackService.class", "vehicle/VehicleController.class",
+                "identity/AirshipStationRegistry.class", "service/AutomationRuntimeSavedData.class",
+            ).forEach { expectedSuffix ->
+                val entries = archive.entries()
+                check(generateSequence { if (entries.hasMoreElements()) entries.nextElement() else null }.any { entry -> entry.name.endsWith(expectedSuffix) }) {
+                    "SF-IMP-0084 exact AAL artifact is missing expected released class suffix $expectedSuffix"
+                }
+            }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn("sfImp0084AalValidation")
+}
 
 val sfImp0069AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0069")
 val sfImp0069AcceptanceServerProperties = """
