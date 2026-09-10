@@ -4844,38 +4844,38 @@ tasks.register("sfImp0084AalValidation") {
     group = "verification"
     description = "Compile/link the exact validation-only AAL 0.6.2 artifact against the retained flight stack."
     dependsOn(aalValidation.classesTaskName)
-    inputs.file(sfImp0084AalPinFile)
+
+    val expectedCoordinate = sfImp0084AalPin("coordinate")
+    val expectedFilename = sfImp0084AalPin("filename")
+    val expectedSha256 = sfImp0084AalPin("sha256")
+    val aalArtifacts = aalValidation.runtimeClasspath.incoming.artifactView {
+        componentFilter { component ->
+            component is org.gradle.api.artifacts.component.ModuleComponentIdentifier &&
+                "${component.group}:${component.module}:${component.version}" == expectedCoordinate
+        }
+    }.files
+    inputs.files(aalArtifacts)
 
     doLast {
-        val expectedName = sfImp0084AalPin("filename")
-        val aalArtifact = aalValidation.runtimeClasspath.files.singleOrNull { it.name == expectedName }
-            ?: error(
-                "SF-IMP-0084 expected exactly one AAL artifact named '$expectedName' on the isolated "
-                    + "validation runtime, found "
-                    + aalValidation.runtimeClasspath.files.map { it.name }.sorted(),
-            )
-        val digest = MessageDigest.getInstance("SHA-256")
-            .digest(aalArtifact.readBytes())
+        val resolvedArtifacts = inputs.files.files
+        val aalArtifact = resolvedArtifacts.singleOrNull()
+            ?: error("SF-IMP-0084 expected exactly one AAL artifact for $expectedCoordinate on the isolated validation runtime, found " + resolvedArtifacts.map { it.name }.sorted())
+        val digest = MessageDigest.getInstance("SHA-256").digest(aalArtifact.readBytes())
             .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
-        check(digest == sfImp0084AalPin("sha256")) {
-            "SF-IMP-0084 AAL SHA-256 mismatch for $expectedName: expected ${sfImp0084AalPin("sha256")}, got $digest"
+        check(digest == expectedSha256) {
+            "SF-IMP-0084 AAL SHA-256 mismatch for $expectedFilename: expected $expectedSha256, got $digest"
         }
 
         ZipFile(aalArtifact).use { archive ->
             listOf(
-                "route/Route.class",
-                "route/RoutePoint.class",
-                "route/RouteStop.class",
-                "service/RouteStorageService.class",
-                "service/RoutePlaybackService.class",
-                "service/VehicleRoutePlaybackService.class",
-                "vehicle/VehicleController.class",
-                "identity/AirshipStationRegistry.class",
-                "service/AutomationRuntimeSavedData.class",
+                "route/Route.class", "route/RoutePoint.class", "route/RouteStop.class",
+                "service/RouteStorageService.class", "service/RoutePlaybackService.class",
+                "service/VehicleRoutePlaybackService.class", "vehicle/VehicleController.class",
+                "identity/AirshipStationRegistry.class", "service/AutomationRuntimeSavedData.class",
             ).forEach { expectedSuffix ->
                 val entries = archive.entries()
                 check(generateSequence { if (entries.hasMoreElements()) entries.nextElement() else null }.any { entry -> entry.name.endsWith(expectedSuffix) }) {
-                    "SF-IMP-0084 exact AAL artifact is missing expected released class suffix '$expectedSuffix'"
+                    "SF-IMP-0084 exact AAL artifact is missing expected released class suffix $expectedSuffix"
                 }
             }
         }
