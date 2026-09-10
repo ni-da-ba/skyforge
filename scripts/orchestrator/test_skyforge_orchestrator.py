@@ -64,6 +64,8 @@ class EventFilterTests(unittest.TestCase):
             {
                 "action": "completed",
                 "workflow_run": {
+                    "name": "CI",
+                    "conclusion": "failure",
                     "head_sha": "cafebabe",
                     "pull_requests": [{"number": 45}],
                 },
@@ -72,6 +74,17 @@ class EventFilterTests(unittest.TestCase):
         self.assertTrue(d.actionable)
         self.assertEqual(d.head_sha, "cafebabe")
         self.assertEqual(d.pr_number, 45)
+        self.assertIn("CI completed with conclusion=failure", d.reason)
+
+    def test_classifier_policy_routes_machine_fixable_managed_ci_failure_to_dispatch(self):
+        self.assertIn(
+            "A failed machine check on a controller-managed PR is NOT a HUMAN_GATE",
+            orch.CLASSIFIER_INSTRUCTIONS,
+        )
+        self.assertIn(
+            "Prefer LUNA for narrow",
+            orch.CLASSIFIER_INSTRUCTIONS,
+        )
 
     def test_workflow_noncompleted_is_ignored(self):
         d = orch.classify_event(
