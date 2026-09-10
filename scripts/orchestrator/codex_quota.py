@@ -51,11 +51,7 @@ def _safe_int(value: Any) -> int | None:
 
 
 def classify_window(window_duration_mins: int | None) -> str:
-    """Classify by duration rather than primary/secondary position.
-
-    Backend ordering is not a semantic contract. Tolerances permit small provider-side duration
-    changes without silently relabeling some unrelated bucket as the 5-hour or weekly allowance.
-    """
+    """Classify by duration rather than primary/secondary position."""
     if window_duration_mins is None:
         return "unknown"
     if 240 <= window_duration_mins <= 360:
@@ -288,12 +284,13 @@ def read_codex_rate_limits(
         _wait_response(output, 1, deadline=deadline)
 
         _send_line(proc.stdin, {"method": "initialized"})
+        # Codex 0.147.0 defines this request with optional unit params. Omitting params is also
+        # accepted by newer runtimes and therefore provides the widest supported compatibility.
         _send_line(
             proc.stdin,
             {
                 "id": 2,
                 "method": "account/rateLimits/read",
-                "params": {"excludeResetCreditDetails": True},
             },
         )
         result = _wait_response(output, 2, deadline=deadline)
