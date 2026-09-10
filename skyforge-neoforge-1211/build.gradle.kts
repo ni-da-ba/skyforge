@@ -4848,12 +4848,16 @@ tasks.register("sfImp0084AalValidation") {
     val expectedCoordinate = sfImp0084AalPin("coordinate")
     val expectedFilename = sfImp0084AalPin("filename")
     val expectedSha256 = sfImp0084AalPin("sha256")
-    val aalArtifacts = aalValidation.runtimeClasspath.incoming.artifactView {
-        componentFilter { component ->
-            component is org.gradle.api.artifacts.component.ModuleComponentIdentifier &&
-                "${component.group}:${component.module}:${component.version}" == expectedCoordinate
-        }
-    }.files
+    val aalArtifacts = configurations
+        .named(aalValidation.runtimeClasspathConfigurationName)
+        .get()
+        .incoming
+        .artifactView {
+            componentFilter { component ->
+                component is org.gradle.api.artifacts.component.ModuleComponentIdentifier &&
+                    "${component.group}:${component.module}:${component.version}" == expectedCoordinate
+            }
+        }.files
     inputs.files(aalArtifacts)
 
     doLast {
