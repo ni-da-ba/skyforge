@@ -482,25 +482,10 @@ class ClassifierIdempotencyTests(unittest.TestCase):
             orch._classifier_input_fingerprint([event], self.snapshot(run_status="completed")),
         )
 
-    def test_identical_semantic_input_reuses_paid_classifier_decision(self):
+    def test_completed_exact_replay_is_suppressed_before_classifier(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
-            event = orch.EventDecision(
-                True,
-                "manual orchestration command",
-                "issue_comment",
-                action="manual_command",
-                pr_number=349,
-                source_id="wake-1",
-            )
-            replay = orch.EventDecision(
-                True,
-                "manual orchestration command",
-                "issue_comment",
-                action="manual_command",
-                pr_number=349,
-                source_id="wake-2",
-            )
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="mainhead")
             snap = self.snapshot()
             o._persist_pending_events([event])
 
@@ -517,16 +502,17 @@ class ClassifierIdempotencyTests(unittest.TestCase):
                 self.assertEqual(classifier.call_count, 1)
                 self.assertEqual(o._pending_events(), [])
 
-                # A distinct wake can encode the same semantic classifier input. It should remain a
-                # distinct durable event, then reuse the semantic decision cache instead of paying
-                # Luna again.
-                o._persist_pending_events([replay])
-                o.dispatch(o._pending_events())
+                # Once a terminal decision consumes this exact event identity, replay suppression is
+                # cheaper and stronger than reconstructing the queue merely to hit the semantic cache.
+                o._persist_pending_events([event])
+                self.assertEqual(o._pending_events(), [])
 
             self.assertEqual(classifier.call_count, 1)
-            self.assertEqual(o._pending_events(), [])
+            self.assertIsNone(
+                o.state.data["metrics"].get("classifier_decision_cache_hits")
+            )
             self.assertEqual(
-                o.state.data["metrics"].get("classifier_decision_cache_hits"),
+                o.state.data["metrics"].get("retired_event_replays_suppressed"),
                 1,
             )
 
