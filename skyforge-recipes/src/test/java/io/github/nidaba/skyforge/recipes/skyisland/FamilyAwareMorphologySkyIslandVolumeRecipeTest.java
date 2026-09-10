@@ -11,6 +11,7 @@ import io.github.nidaba.skyforge.kernel.coordinate.Coordinate3;
 import io.github.nidaba.skyforge.kernel.evaluation.ReferenceEvaluator;
 import io.github.nidaba.skyforge.kernel.field.ScalarField2;
 import io.github.nidaba.skyforge.kernel.field.ScalarField3;
+import io.github.nidaba.skyforge.kernel.graph.ConstantNode;
 import io.github.nidaba.skyforge.kernel.graph.NodeId;
 import io.github.nidaba.skyforge.kernel.graph.ProceduralGraph;
 import io.github.nidaba.skyforge.kernel.serialization.CanonicalGraphJson;
@@ -29,6 +30,31 @@ final class FamilyAwareMorphologySkyIslandVolumeRecipeTest {
     private final ComposedMorphologySkyIslandVolumeRecipe genericRecipe =
             new ComposedMorphologySkyIslandVolumeRecipe();
     private final ReferenceEvaluator evaluator = new ReferenceEvaluator();
+
+    @Test
+    void tablelandSecondaryEnvelopePreservesAQuieterBoundedOuterDetailControl() {
+        assertEquals(
+                0.96,
+                FamilyAwareMorphologySkyIslandVolumeRecipe.minimumUpperFactor(
+                        MorphologyFamily.TABLELAND));
+        assertEquals(
+                1.09,
+                FamilyAwareMorphologySkyIslandVolumeRecipe.maximumUpperFactor(
+                        MorphologyFamily.TABLELAND));
+    }
+
+    @Test
+    void lobedPrimaryControlRaisesEverySeededLobeStrengthWithoutWideningItsSupportBound() {
+        for (long seed : List.of(Long.MIN_VALUE, 0L, 0x534B59464F524745L)) {
+            CompiledSkyIslandVolume compiled = primaryRecipe.compile(
+                    descriptor(seed, 0.0), MorphologyFamily.LOBED);
+            ConstantNode lobeStrength = (ConstantNode) compiled.upperSurfaceGraph()
+                    .requireNode(new NodeId("family.lobe-strength"));
+            assertTrue(lobeStrength.value() >= 1.60, () -> "unexpected low lobe strength for " + seed);
+            assertTrue(lobeStrength.value() < 1.76, () -> "support bound widened for " + seed);
+        }
+    }
+
     private final CanonicalGraphJson codec = new CanonicalGraphJson();
 
     @Test

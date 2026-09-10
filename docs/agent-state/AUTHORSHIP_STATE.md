@@ -2,7 +2,7 @@
 
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
-**Updated:** 2026-09-08 (America/Chicago)  
+**Updated:** 2026-09-10 (America/Chicago)
 **Main snapshot at latest Authorship acceptance:** `28393616a8be298ffb1692c294db6c6cddc9d069`  
 **Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0101**
 
@@ -410,7 +410,29 @@ A finding such as “this Massif is too lumpy for the starting role” does **no
 
 ## IN PROGRESS
 
-No Authorship milestone is currently in progress.
+### AUTH-0102 — Tableland/Lobed reviewed recipe refinement
+
+Issue #442 is executing the post-review bounded Authorship successor authorized by trusted evidence
+comment `5622909247`. The precise reviewed members are:
+
+- `builtin-tableland-medium-seed-skyforge` — authored Tableland upper-surface control defect;
+- `builtin-lobed-medium-seed-skyforge` — authored Lobed identity-strength defect;
+- `builtin-massif-medium-seed-skyforge` and `builtin-massif-large-seed-skyforge` — passing
+  negative controls, preserved without source or provenance change.
+
+The minimal neutral recipe adjustment narrows Tableland's existing outer-gated full-detail envelope
+from `[0.93, 1.15]` to `[0.96, 1.09]` while preserving its primary crown/rim relationship, and raises
+only the lower end of Lobed's existing seeded footprint-modulation range from `[1.44, 1.76)` to
+`[1.60, 1.76)`. No descriptor schema, generator primitive, random namespace, support envelope,
+Minecraft carrier/runtime, Content role selection, underside, meso-scale, or Massif recipe changes.
+
+AUTH-0095/AUTH-0101 remain the exact threshold-free diagnostic seam. The required before/after
+evidence is limited to the two affected reviewed members, with the accepted Massif -> Tableland
+seed-skyforge comparison retained as descriptive context and the passing Massif controls preserved.
+The remaining acceptance is downstream human qualitative re-review; this work makes no
+visual-quality claim.
+
+Reference: `docs/authorship/MORPHOLOGY_CONTROL_ATLAS.md`.
 
 ### AUTH-0099 — cave-system site capability — PARKED / NOT ACCEPTED
 
@@ -545,4 +567,3 @@ sites/approaches.
    and Implementation consume AUTH-0098/AUTH-0100 only through accepted Content petroleum policy.
 5. AUTH-0099 remains an unaccepted historical gap. Do not enumerate cave/geothermal/civilization/
    exceptional-phenomenon semantics without an executable consumer.
-

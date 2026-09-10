@@ -1,7 +1,7 @@
 # Skyforge Morphology Control Atlas
 
 **Status:** canonical control/ownership contract; descriptive atlas population is incremental  
-**Updated:** 2026-09-08 (America/Chicago)
+**Updated:** 2026-09-10 (America/Chicago)
 
 ## Purpose
 
@@ -156,6 +156,53 @@ If the current #214/#267/#283 review identifies a concrete need, the next Author
 - primary/detail contributions to underside character.
 
 Do not create arbitrary aesthetic thresholds. Use descriptive neutral evidence plus matched Minecraft/human observations, and add a new semantic control only when existing controls cannot deliberately reach the needed terrain character.
+
+## AUTH-0102 — reviewed Tableland/Lobed recipe refinement — IN PROGRESS
+
+The #442 project-owner evidence bundle (comment `5622909247`) identifies two authored-intent defects
+in the exact accepted review specimens: `builtin-tableland-medium-seed-skyforge` lacks persistent
+broad elevated benches under its full-detail recipe, and `builtin-lobed-medium-seed-skyforge` has
+weak lobed silhouette legibility. The matching Minecraft carrier/coherence review passed; this is
+not a carrier, traversal, role-selection, underside, or meso-scale change. The reviewed
+`builtin-massif-medium-seed-skyforge` and `builtin-massif-large-seed-skyforge` remain explicit
+negative controls and are not retuned.
+
+Two existing recipe relationships are sufficient; no descriptor schema, generator primitive, random
+namespace, support envelope, or new semantic axis is required.
+
+### `tableland.quiet-outer-detail`
+
+- **Intent:** retain a broad elevated primary crown and dramatic rim while reducing the full-detail
+  secondary contribution that breaks its upper-surface cadence.
+- **Control definition:** the existing Tableland outer-gated ridge / shoulder / edge-cut composition
+  keeps its shapes and seed namespaces, with strengths changed from `0.10 / 0.05 / 0.07` to
+  `0.06 / 0.03 / 0.04`.
+- **Deterministic before/after control evidence:** its analytical full-amplitude factor envelope
+  contracts from `[0.93, 1.15]` to `[0.96, 1.09]`. The neutral primary crown, rim gate, descriptor
+  fields, and seed derivation are unchanged.
+- **Canonical specimen and diagnostics:** compare the exact reviewed member before/after with the
+  existing AUTH-0095 threshold-free upper-relief, gradient, curvature, fixed-lag, and local-window
+  distributions; retain the AUTH-0101 Massif MEDIUM -> Tableland MEDIUM seed-skyforge row as
+  descriptive context only.
+
+### `lobed.minimum-footprint-modulation`
+
+- **Intent:** make the already-authored Lobed footprint read as lobed more consistently without
+  changing its five-family vocabulary, carrier, or support contract.
+- **Control definition:** the existing seeded `family.lobe-strength` relation changes from
+  `[1.44, 1.76)` to `[1.60, 1.76)`. It uses the same seed namespace and leaves the certified
+  upper support maximum unchanged.
+- **Deterministic before/after control evidence:** each seed's lobed directional radial factor is
+  increased or unchanged, while the prior maximum remains the certified bound. The exact reviewed
+  member is `builtin-lobed-medium-seed-skyforge`; use the existing AUTH-0095 diagnostics alongside
+  its reproducible visual evidence, without introducing a lobe score or aesthetic threshold.
+
+### Acceptance boundary
+
+The change is deliberately limited to those two family recipes. It does not assert that the result
+is beautiful, sufficiently plateau-like, or sufficiently lobed; downstream human qualitative
+re-review owns that acceptance. Implementation must realize these exact authored recipes faithfully,
+and Content still owns any production role selection.
 
 ## Acceptance principle
 
