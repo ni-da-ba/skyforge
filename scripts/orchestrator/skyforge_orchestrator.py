@@ -128,6 +128,15 @@ infer, fabricate, or silently omit required external evidence.
 Do not dispatch work merely because a lane exists. Do not poll CI. Do not expand expensive validation
 without a distinct risk. Honor VALIDATION_POLICY.md and ORCHESTRATION_PROTOCOL.md.
 
+A failed machine check on a controller-managed PR is NOT a HUMAN_GATE merely because CI is red. Once
+the exact head is quiescent, if no explicit human/product/permission gate exists and the repair remains
+within hosted worker authority, choose DISPATCH against that open managed PR. Prefer LUNA for narrow
+text/config/build-script/syntax repairs; use TERRA for substantive source/runtime/debugging repairs.
+Treat the failed workflow name/conclusion in the structured event/repository snapshot as reusable
+machine evidence. Choose HUMAN_GATE only when the failure genuinely requires human judgment,
+protected control-plane edits, unavailable external evidence, credentials/permissions, or another
+declared human-only boundary.
+
 For DISPATCH, pr_number must be null or identify an OPEN PR present in the current compact snapshot.
 Never dispatch a worker against a merged/closed/superseded PR merely because retained event history
 mentions it. Controller/control-plane repairs that require edits under scripts/orchestrator/ or
@@ -461,9 +470,11 @@ def classify_event(
         run = payload.get("workflow_run") or {}
         if action != "completed":
             return EventDecision(False, "workflow has not completed", event, action)
+        workflow_name = str(run.get("name") or "workflow")
+        conclusion = str(run.get("conclusion") or "unknown").lower()
         return EventDecision(
             True,
-            "workflow completed; controller will require head quiescence",
+            f"{workflow_name} completed with conclusion={conclusion}; controller will require head quiescence",
             event,
             action,
             run.get("head_sha"),
