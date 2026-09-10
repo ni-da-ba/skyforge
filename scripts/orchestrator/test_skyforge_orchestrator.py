@@ -517,6 +517,86 @@ class ClassifierIdempotencyTests(unittest.TestCase):
             )
 
 
+class PendingTimerLivenessTests(unittest.TestCase):
+    def make_orchestrator(self, root: pathlib.Path):
+        return orch.Orchestrator(
+            root,
+            repo="ni-da-ba/skyforge",
+            debounce_seconds=1,
+            min_dispatch_seconds=0,
+            max_parent_turns=24,
+            auto_merge=False,
+        )
+
+    def test_status_self_heals_missing_pending_timer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="main-head")
+            o._persist_pending_events([event])
+
+            with mock.patch.object(o, "_schedule_pending") as schedule:
+                snapshot = o.health_snapshot()
+
+            schedule.assert_called_once_with(1)
+            self.assertEqual(snapshot["pending_events"], 1)
+            self.assertEqual(
+                o.state.data["metrics"].get("pending_timer_self_heals"),
+                1,
+            )
+
+    def test_status_does_not_self_heal_while_paused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="main-head")
+            o._persist_pending_events([event])
+            o.set_paused(True, actor="test")
+
+            with mock.patch.object(o, "_schedule_pending") as schedule:
+                snapshot = o.health_snapshot()
+
+            schedule.assert_not_called()
+            self.assertTrue(snapshot["paused"])
+
+    def test_timer_callback_surfaces_pre_dispatch_failure_and_retries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            event = orch.EventDecision(True, "main advanced", "push", head_sha="main-head")
+            o._persist_pending_events([event])
+
+            with mock.patch.object(
+                o,
+                "_drain_and_dispatch",
+                side_effect=ValueError("malformed durable queue entry"),
+            ), mock.patch.object(o, "_schedule_pending") as schedule:
+                o._pending_timer_callback()
+
+            self.assertEqual(o.state.data.get("blocked_kind"), "controller_error")
+            error = o.state.data.get("last_pending_timer_error") or {}
+            self.assertEqual(error.get("kind"), "ValueError")
+            self.assertIn("malformed durable queue entry", error.get("summary", ""))
+            self.assertEqual(
+                o.state.data["metrics"].get("pending_timer_failures"),
+                1,
+            )
+            schedule.assert_called_once()
+
+    def test_pending_timer_callback_records_fire_before_drain(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            observations = {}
+
+            def inspect():
+                observations["fired"] = o._timer_last_fired_at
+                observations["timer"] = o._timer
+
+            with mock.patch.object(o, "_drain_and_dispatch", side_effect=inspect):
+                o._pending_timer_callback()
+
+            self.assertIsNotNone(observations["fired"])
+            self.assertIsNone(observations["timer"])
+            self.assertEqual(o.state.data["metrics"].get("pending_timer_fires"), 1)
+
+
 class FailurePolicyTests(unittest.TestCase):
     def test_quota_failure_is_long_backoff(self):
         kind, delay = orch._codex_failure_policy(RuntimeError("Usage limit reached for Codex"))
