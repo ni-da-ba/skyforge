@@ -386,6 +386,8 @@ def classify_control_command(
         "/skyforge-resume",
         "/skyforge-status",
         "/skyforge-reset-budget",
+        "/skyforge-budget-profile-standard",
+        "/skyforge-budget-profile-expanded",
         "/skyforge-refresh-runtime",
         "/skyforge-discard-worker",
     }:
@@ -397,6 +399,8 @@ def classify_control_command(
         "/skyforge-resume": "resume",
         "/skyforge-status": "status",
         "/skyforge-reset-budget": "reset_budget",
+        "/skyforge-budget-profile-standard": "budget_profile_standard",
+        "/skyforge-budget-profile-expanded": "budget_profile_expanded",
         "/skyforge-refresh-runtime": "refresh_runtime",
         "/skyforge-discard-worker": "discard_worker",
     }[body]
@@ -1064,6 +1068,10 @@ class Orchestrator:
             self.post_status(target)
         elif control == "reset_budget":
             self.reset_local_budget(actor=actor)
+        elif control == "budget_profile_standard":
+            self.set_local_budget_profile("standard", actor=actor)
+        elif control == "budget_profile_expanded":
+            self.set_local_budget_profile("expanded", actor=actor)
         elif control == "refresh_runtime":
             self.refresh_runtime(actor=actor)
         elif control == "discard_worker":
@@ -1336,8 +1344,11 @@ class Orchestrator:
                 "classifier_calls_today": classifier_calls,
                 "luna_worker_calls_today": luna_worker_calls,
                 "luna_calls_today_total": classifier_calls + luna_worker_calls,
+                "luna_daily_limit": self._luna_daily_limit(),
                 "worker_calls_today": terra_worker_calls,
                 "terra_worker_calls_today": terra_worker_calls,
+                "terra_daily_limit": self._terra_daily_limit(),
+                "local_budget_profile": self.state.data.get("local_budget_profile") or "environment/default",
                 "last_budget_reset_at": self.state.data.get("last_budget_reset_at"),
                 "last_budget_reset_by": self.state.data.get("last_budget_reset_by"),
                 "last_classifier_decision": self.state.data.get("last_classifier_decision"),
@@ -1391,6 +1402,51 @@ class Orchestrator:
     def is_paused(self) -> bool:
         with self._state_lock:
             return bool(self.state.data.get("paused"))
+
+    def _luna_daily_limit(self) -> int:
+        override = self.state.data.get("luna_daily_limit_override")
+        if isinstance(override, int) and override >= 1:
+            return override
+        return _env_int(
+            "SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY",
+            DEFAULT_MAX_CLASSIFIER_CALLS_PER_DAY,
+            minimum=1,
+        )
+
+    def _terra_daily_limit(self) -> int:
+        override = self.state.data.get("terra_daily_limit_override")
+        if isinstance(override, int) and override >= 1:
+            return override
+        return _env_int(
+            "SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY",
+            DEFAULT_MAX_WORKER_CALLS_PER_DAY,
+            minimum=1,
+        )
+
+    def set_local_budget_profile(self, profile: str, *, actor: str | None = None) -> None:
+        profiles = {
+            "standard": (24, 4),
+            "expanded": (48, 8),
+        }
+        if profile not in profiles:
+            raise ValueError(f"unknown local budget profile: {profile}")
+        luna_limit, terra_limit = profiles[profile]
+        with self._state_lock:
+            if not self.state.data.get("paused"):
+                raise RuntimeError("Local budget profile change requires the controller to be paused")
+            if isinstance(self.state.data.get("pending_worker"), dict):
+                raise RuntimeError("Local budget profile change is forbidden while a worker is pending")
+            self.state.data["luna_daily_limit_override"] = luna_limit
+            self.state.data["terra_daily_limit_override"] = terra_limit
+            self.state.data["local_budget_profile"] = profile
+            self.state.data["last_budget_profile_change_at"] = _utc_now()
+            self.state.data["last_budget_profile_change_by"] = actor
+            if self.state.data.get("blocked_kind") == "local_budget":
+                self.state.data["blocked_until_epoch"] = 0.0
+                self.state.data["blocked_kind"] = None
+                self.state.data["blocked_reason"] = None
+            self.state.save()
+        self._metric("operator_budget_profile_changes")
 
     def reset_local_budget(self, *, actor: str | None = None) -> None:
         with self._state_lock:
@@ -1881,11 +1937,7 @@ class Orchestrator:
                 classifier_used = int(self.state.data.get("classifier_calls_today") or 0)
                 luna_worker_used = int(self.state.data.get("luna_worker_calls_today") or 0)
                 used = classifier_used + luna_worker_used
-                limit = _env_int(
-                    "SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY",
-                    DEFAULT_MAX_CLASSIFIER_CALLS_PER_DAY,
-                    minimum=1,
-                )
+                limit = self._luna_daily_limit()
                 if used >= limit:
                     raise RetryBlocked(
                         "local_budget",
@@ -1897,11 +1949,7 @@ class Orchestrator:
             elif kind == "worker":
                 key = "worker_calls_today"
                 used = int(self.state.data.get(key) or 0)
-                limit = _env_int(
-                    "SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY",
-                    DEFAULT_MAX_WORKER_CALLS_PER_DAY,
-                    minimum=1,
-                )
+                limit = self._terra_daily_limit()
                 if used >= limit:
                     raise RetryBlocked(
                         "local_budget",
