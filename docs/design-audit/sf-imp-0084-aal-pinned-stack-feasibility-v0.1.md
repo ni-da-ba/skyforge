@@ -1,6 +1,6 @@
 # SF-IMP-0084 — AAL 0.6.2 pinned-stack feasibility handoff
 
-**Status:** STOPPED — exact-artifact acquisition/build-harness gate
+**Status:** PROVISIONAL — CI validation specimen pending
 **Issue:** #441
 **Date:** 2026-09-10
 **Repository head inspected:** `c5cc8cf6`
@@ -8,11 +8,11 @@
 
 ## Stage 3 decision
 
-**STOP — AAL not worth adapting yet in this worker environment.** This is an acquisition/capability
-stop, not a claim that AAL's design is unsuitable. The exact Minecraft 1.21.1 / NeoForge-compatible
-AAL 0.6.2 artifact or matching release source was unavailable locally, and this worker has no network
-authority. The pinned binary API therefore cannot be inferred from the supplied current-upstream
-reconnaissance. Stage 2 did not run.
+**PROVISIONAL — pending ordinary CI validation.** Issue #441 now supplies immutable released-artifact
+evidence for AAL 0.6.2, so the exact coordinate is confined to the `aalValidation` Gradle source set.
+The regular `check` task must resolve the artifact, compile/link the isolated classpath, verify its
+SHA-256, and confirm the reported released class surfaces. This is not a runtime boot, generated-route,
+or adapter-feasibility result.
 
 Neither **UPSTREAM HOOK REQUIRED** nor **LOCAL FORK CANDIDATE** is justified: the exact artifact has
 not been inspected, so no narrow missing hook or source/API incompatibility has been established.
