@@ -1,7 +1,7 @@
 # Skyforge Implementation lane state
 
 **Canonical lane:** IMPLEMENTATION  
-**Updated:** 2026-09-07  
+**Updated:** 2026-09-10
 **Repository snapshot observed at migration:** `main@3f300346e598a6bc87a3a1468ec028bdee7eec0b`  
 **Highest merged Implementation milestone:** **SF-IMP-0082**  
 **SF-IMP-0082 merge:** PR #273, `3c48828924b0cf4ac7f1184c493d60ef605bf84a`
@@ -172,6 +172,27 @@ Read [CROSS_LANE_CONTRACTS.md](CROSS_LANE_CONTRACTS.md). Most important near-ter
 - Content structure/progression requirements should use generic realization contracts.
 
 ## IN PROGRESS
+
+### SF-IMP-0084 — AAL 0.6.2 pinned-stack adapter feasibility
+
+Issue **#441** completed its bounded Stage 1 local feasibility check and is **STOPPED at the
+exact-artifact acquisition/build-harness gate**. Current main pins Minecraft `1.21.1`, NeoForge
+`21.1.249`, Create `6.0.10+mc1.21.1`, Sable `2.0.5+mc1.21.1`, and Create Aeronautics
+`1.3.2+mc1.21.1`, but provides no AAL coordinate/source snapshot and the local Gradle cache contained
+no AAL 0.6.2 candidate artifact/source. The supplied current-upstream reconnaissance is not evidence
+of the pinned-release API.
+
+Stage 2 did not run: no dependency, fixture, route contract, reflection/mixin access, or production
+adapter was added. The Stage 3 handoff is **STOP — exact compatible AAL artifact/source must be
+supplied locally before the seam can be classified**; this is not an AAL-design rejection and does not
+yet establish an upstream-hook or local-fork candidate. See
+[`sf-imp-0084-aal-pinned-stack-feasibility-v0.1.md`](../design-audit/sf-imp-0084-aal-pinned-stack-feasibility-v0.1.md).
+
+Do not reopen this task with a guessed API. A future isolated validation-only source set needs the
+immutable AAL 0.6.2 jar (or matching release source) plus coordinate/checksum, then must verify the
+released signatures against this retained stack before attempting the deterministic two-station fixture.
+SF-IMP-0083/#358 and its morphology gates remain separate.
+
 
 ### SF-IMP-0083 — AUTH-0083 built-in seed/scale Minecraft matrix
 
