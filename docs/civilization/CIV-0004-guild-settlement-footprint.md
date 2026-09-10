@@ -71,11 +71,46 @@ Most of the settlement remains non-Guild space: local houses, workshops, markets
 
 A local merchant, insurer, mechanic, or warehouse may participate in Guild systems without being Guild-owned. This distinction prevents the Guild from visually or economically swallowing the settlement.
 
+## Siting and settlement association
+
+A Guild Hall belongs to a settlement **institutionally and economically, not necessarily spatially**.
+
+Its placement should be driven primarily by practical access requirements:
+
+- safe and convenient aircraft approach;
+- usable landing or mooring terrain;
+- freight-handling space;
+- route access;
+- workshop and storage requirements;
+- expansion room;
+- local topography and hazards;
+- convenient connection to the associated town without requiring physical integration into the town core.
+
+Accordingly, a Hall may be:
+
+- embedded in the settlement where an existing port, square, or edge site is convenient;
+- located on the town edge beside a natural landing shelf or freight route;
+- positioned a short distance outside the built-up area at a superior landing or logistics site;
+- paired with its own purpose-built landing field, mooring apron, dock, or freight court;
+- expanded into a compact Guild campus where route importance justifies it.
+
+The associated town and the Guild site should remain recognizably connected through paths, roads, bridges, lifts, signs, traffic, or other settlement infrastructure, but they do not need to occupy the same generated structure footprint.
+
+This decoupling is intentional. It improves world plausibility, allows Guild infrastructure to respond to terrain and aviation requirements, and reduces implementation pressure to splice every Guild Hall directly into a procedurally generated town center.
+
+A useful implementation model is therefore:
+
+**settlement semantic entity**
+→ **associated Guild service node**
+→ **independently resolved physical site within an allowed relationship envelope**
+
+The civilization system should preserve the relationship even when the Hall and town are physically separated.
+
 ## Architectural consequence
 
 Guild Mercantile Functionalism should support **composite buildings** particularly well. A Hall may combine:
 
-- dignified public frontage toward town;
+- dignified public frontage toward town or its principal access route;
 - service counters and administrative rooms in the central body;
 - freight court or loading elevation behind it;
 - attached workshop / repair shed;
@@ -85,14 +120,18 @@ Guild Mercantile Functionalism should support **composite buildings** particular
 
 This makes the public-face / working-face architectural distinction a gameplay tool rather than merely an aesthetic rule.
 
+A detached or edge-sited Guild Hall does not need to imitate the settlement's orientation. Its working side should face the logistics geometry that actually matters, while its public face should address the route by which local people arrive.
+
 ## Exceptions
 
 Scattered Guild assets are allowed only when their physical function requires separation. Examples may include remote beacons, route markers, rescue stations, isolated mooring infrastructure, or a heavy industrial facility that cannot plausibly fit at the Hall.
 
 Such assets should be treated as **infrastructure**, not additional player-service destinations. Routine administrative interaction should remain concentrated at the Hall whenever practical.
 
-## Precommitted rule
+## Precommitted rules
 
 > **One settlement, one Guild destination. Scale the destination by adding capabilities, attached modules, or a contiguous campus—not by making the player run between scattered Guild offices.**
 
-Exact Hall layouts, service-module counts, footprint thresholds, and settlement classes remain civilization-stage implementation decisions.
+> **A Guild Hall is associated with a settlement, not required to be embedded in its town center. Site it where landing, logistics, terrain, and access make sense.**
+
+Exact Hall layouts, service-module counts, footprint thresholds, settlement classes, maximum Hall-to-town separation, and site-selection scoring remain civilization-stage implementation decisions.
