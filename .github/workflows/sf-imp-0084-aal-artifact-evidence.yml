@@ -1,0 +1,128 @@
+name: SF-IMP-0084 AAL Artifact Evidence
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/sf-imp-0084-aal-artifact-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-imp-0084-aal-artifact-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-artifact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Resolve and verify immutable AAL 0.6.2 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version_id="EgPi4wq9"
+          expected_version="0.6.2"
+          expected_filename="create_aeronautics_automated_logistics-0.6.2.jar"
+          api="https://api.modrinth.com/v2/version/${version_id}"
+
+          curl --fail --location --retry 3             --user-agent "Skyforge-SF-IMP-0084/1.0 (ni-da-ba/skyforge)"             "${api}" -o aal-version.json
+
+          jq -e --arg v "${expected_version}" '.version_number == $v' aal-version.json >/dev/null
+          jq -e '.game_versions | index("1.21.1") != null' aal-version.json >/dev/null
+          jq -e '.loaders | index("neoforge") != null' aal-version.json >/dev/null
+
+          url="$(jq -er --arg f "${expected_filename}" '.files[] | select(.filename == $f) | .url' aal-version.json)"
+          expected_sha256="$(jq -er --arg f "${expected_filename}" '.files[] | select(.filename == $f) | .hashes.sha256' aal-version.json)"
+          expected_sha1="$(jq -er --arg f "${expected_filename}" '.files[] | select(.filename == $f) | .hashes.sha1' aal-version.json)"
+
+          curl --fail --location --retry 3             --user-agent "Skyforge-SF-IMP-0084/1.0 (ni-da-ba/skyforge)"             "${url}" -o "${expected_filename}"
+
+          actual_sha256="$(sha256sum "${expected_filename}" | awk '{print $1}')"
+          actual_sha1="$(sha1sum "${expected_filename}" | awk '{print $1}')"
+
+          test "${actual_sha256}" = "${expected_sha256}"
+          test "${actual_sha1}" = "${expected_sha1}"
+
+          {
+            echo "AAL_VERSION_ID=${version_id}"
+            echo "AAL_VERSION=${expected_version}"
+            echo "AAL_FILENAME=${expected_filename}"
+            echo "AAL_SHA256=${actual_sha256}"
+            echo "AAL_SHA1=${actual_sha1}"
+            echo "AAL_DOWNLOAD_URL=${url}"
+          } | tee aal-artifact-identity.txt
+
+          jar tf "${expected_filename}" | sort > aal-jar-entries.txt
+
+          metadata="$(grep -E '^META-INF/(neoforge\.mods\.toml|mods\.toml)$' aal-jar-entries.txt | head -n1 || true)"
+          if [[ -z "${metadata}" ]]; then
+            echo "No NeoForge mod metadata found" >&2
+            exit 1
+          fi
+          unzip -p "${expected_filename}" "${metadata}" > aal-mod-metadata.toml
+
+          classes=(
+            Route
+            RoutePoint
+            RouteStop
+            RouteStorageService
+            RoutePlaybackService
+            VehicleRoutePlaybackService
+            VehicleController
+            AirshipStationRegistry
+            AirshipStationSnapshot
+            AirshipStationBlockEntity
+            AutomationRuntimeSavedData
+            RouteRecordingService
+            AirshipScheduleExecutionService
+          )
+
+          : > aal-class-map.txt
+          : > aal-public-signatures.txt
+          for simple in "${classes[@]}"; do
+            mapfile -t matches < <(grep -E "/${simple}\.class$" aal-jar-entries.txt || true)
+            if [[ "${#matches[@]}" -eq 0 ]]; then
+              echo "${simple}=ABSENT" | tee -a aal-class-map.txt
+              continue
+            fi
+            for entry in "${matches[@]}"; do
+              fqcn="${entry%.class}"
+              fqcn="${fqcn//\//.}"
+              echo "${simple}=${fqcn}" | tee -a aal-class-map.txt
+              {
+                echo "===== ${fqcn} ====="
+                javap -public -classpath "${expected_filename}" "${fqcn}" || true
+                echo
+              } >> aal-public-signatures.txt
+            done
+          done
+
+          echo "Verified immutable AAL 0.6.2 artifact and captured exact released public signatures."
+
+      - name: Upload exact-artifact evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sf-imp-0084-aal-0.6.2-exact-artifact
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            aal-version.json
+            aal-artifact-identity.txt
+            aal-jar-entries.txt
+            aal-mod-metadata.toml
+            aal-class-map.txt
+            aal-public-signatures.txt
