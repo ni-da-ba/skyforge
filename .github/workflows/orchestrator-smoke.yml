@@ -85,6 +85,7 @@ jobs:
           python -m unittest scripts/orchestrator/test_skyforge_quota_runtime.py
           python -m unittest scripts/orchestrator/test_skyforge_control_replay_runtime.py
           python -m unittest scripts/orchestrator/test_skyforge_roadmap_runtime.py
+          python -m unittest scripts/orchestrator/test_skyforge_roadmap_binding.py
           python -m unittest scripts/orchestrator/test_daily_value_report.py
           python -m unittest scripts/orchestrator/test_verify_main_protection.py
           python -m unittest scripts/orchestrator/test_decommission_contract.py
