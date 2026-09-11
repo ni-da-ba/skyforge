@@ -47,13 +47,12 @@ final class SkyforgeIronDepositAdapterTest {
         var constructor = io.github.nidaba.skyforge.world.SkyIslandBaseMetalOpportunityProfile.class
                 .getDeclaredConstructor(io.github.nidaba.skyforge.world.SkyIslandMaterialFamilyPlan.class, java.util.List.class);
         constructor.setAccessible(true);
-        var zero = (io.github.nidaba.skyforge.world.SkyIslandBaseMetalOpportunityProfile) constructor.newInstance(source, zeroCells);
+        var zero = constructor.newInstance(source, zeroCells);
 
         assertEquals(0.0, zero.peakOpportunity(io.github.nidaba.skyforge.world.SkyIslandBaseMetalKind.IRON));
         assertTrue(SkyforgeIronDepositAdapter.plan(
                 zero, fixture.volume(), terrain(fixture.catalog()), SPECIFICATION).isEmpty());
     }
-
 
     @Test
     void placementIsIdempotentAndSaveReloadReproducesTheAuthoritativeBlock() throws Exception {
