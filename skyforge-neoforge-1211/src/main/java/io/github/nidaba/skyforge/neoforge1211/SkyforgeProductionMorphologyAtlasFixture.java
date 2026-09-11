@@ -2,7 +2,12 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
 import io.github.nidaba.skyforge.recipes.skyisland.MorphologyFamily;
+import io.github.nidaba.skyforge.recipes.skyisland.MorphologyProviderBlend;
+import io.github.nidaba.skyforge.recipes.skyisland.MorphologyProviderId;
+import io.github.nidaba.skyforge.recipes.skyisland.SkyIslandMorphologyProvider;
+import io.github.nidaba.skyforge.recipes.skyisland.SkyIslandMorphologyProviderRegistry;
 import io.github.nidaba.skyforge.recipes.skyisland.SkyIslandMorphologyProviders;
+import io.github.nidaba.skyforge.recipes.skyisland.group.ProviderBlendMorphologySpec;
 import io.github.nidaba.skyforge.recipes.skyisland.group.ProviderMorphologySpec;
 import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandMorphologySpecCompiler;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
@@ -32,12 +37,15 @@ final class SkyforgeProductionMorphologyAtlasFixture {
     private static final long ROOT_SEED = 0x5346494d50303082L;
     private static final double SOURCE_SUSPENSION = 512.0;
     private static final int TARGET_MINIMUM_SOLID_Y = 96;
-    private static final Map<Member, Fixture> FIXTURES = buildFixtures();
+    private static final Map<Member, Fixture> FIXTURES = new EnumMap<>(Member.class);
 
     private SkyforgeProductionMorphologyAtlasFixture() {}
 
     static Fixture fixture(Member member) {
-        return Objects.requireNonNull(FIXTURES.get(Objects.requireNonNull(member, "member")));
+        synchronized (FIXTURES) {
+            return FIXTURES.computeIfAbsent(Objects.requireNonNull(member, "member"),
+                    SkyforgeProductionMorphologyAtlasFixture::buildFixture);
+        }
     }
 
     static Member member(String id) {
@@ -72,19 +80,10 @@ final class SkyforgeProductionMorphologyAtlasFixture {
         return integer;
     }
 
-    private static Map<Member, Fixture> buildFixtures() {
-        EnumMap<Member, Fixture> fixtures = new EnumMap<>(Member.class);
-        for (Member member : Member.values()) {
-            fixtures.put(member, buildFixture(member));
-        }
-        return Map.copyOf(fixtures);
-    }
-
     private static Fixture buildFixture(Member member) {
-        ProviderMorphologySpec morphology = ProviderMorphologySpec.full(
-                SkyIslandMorphologyProviders.builtInId(member.family()));
+        var morphology = member.morphology();
         var compiler = new SkyIslandMorphologySpecCompiler();
-        var registry = SkyIslandMorphologyProviders.builtInRegistry();
+        var registry = registry(member);
         SkyIslandTerrainProfile profile = SkyIslandTerrainProfile.reference();
 
         SkyIslandVolumeDescriptor sourceDescriptor = descriptor(SOURCE_SUSPENSION);
@@ -142,6 +141,23 @@ final class SkyforgeProductionMorphologyAtlasFixture {
                 footprint);
     }
 
+    private static SkyIslandMorphologyProviderRegistry registry(Member member) {
+        if (!member.requiresReferenceCrescent()) {
+            return SkyIslandMorphologyProviders.builtInRegistry();
+        }
+        SkyIslandMorphologyProviderRegistry.Builder builder = SkyIslandMorphologyProviderRegistry.builder();
+        for (SkyIslandMorphologyProvider provider : SkyIslandMorphologyProviders.builtInRegistry().providers()) {
+            builder.register(provider);
+        }
+        try {
+            Class<?> type = Class.forName("io.github.nidaba.skyforge.reference.provider.ReferenceCrescentMorphologyProvider");
+            builder.register((SkyIslandMorphologyProvider) type.getConstructor().newInstance());
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("HS-03 reference:crescent fixture provider is unavailable", exception);
+        }
+        return builder.build();
+    }
+
     private static SkyIslandVolumeDescriptor descriptor(double suspensionElevation) {
         return new SkyIslandVolumeDescriptor(
                 SkyIslandVolumeDescriptor.SCHEMA_VERSION_1,
@@ -181,7 +197,9 @@ final class SkyforgeProductionMorphologyAtlasFixture {
         TABLELAND("builtin-tableland-small-seed-skyforge", MorphologyFamily.TABLELAND),
         SPINE("builtin-spine-small-seed-skyforge", MorphologyFamily.SPINE),
         BASIN("builtin-basin-small-seed-skyforge", MorphologyFamily.BASIN),
-        LOBED("builtin-lobed-small-seed-skyforge", MorphologyFamily.LOBED);
+        LOBED("builtin-lobed-small-seed-skyforge", MorphologyFamily.LOBED),
+        HYBRID_MASSIF_SPINE("hybrid-massif-spine-midpoint", MorphologyFamily.MASSIF),
+        PROVIDER_CRESCENT_LOBED("provider-crescent-to-lobed-midpoint", MorphologyFamily.LOBED);
 
         private final String id;
         private final MorphologyFamily family;
@@ -200,7 +218,23 @@ final class SkyforgeProductionMorphologyAtlasFixture {
         }
 
         String commandId() {
-            return family.identifier();
+            return id;
+        }
+
+        boolean requiresReferenceCrescent() {
+            return this == PROVIDER_CRESCENT_LOBED;
+        }
+
+        io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandMorphologySpec morphology() {
+            return switch (this) {
+                case HYBRID_MASSIF_SPINE -> ProviderBlendMorphologySpec.full(new MorphologyProviderBlend(
+                        SkyIslandMorphologyProviders.builtInId(MorphologyFamily.MASSIF),
+                        SkyIslandMorphologyProviders.builtInId(MorphologyFamily.SPINE), 0.5));
+                case PROVIDER_CRESCENT_LOBED -> ProviderBlendMorphologySpec.full(new MorphologyProviderBlend(
+                        new MorphologyProviderId("reference", "crescent"),
+                        SkyIslandMorphologyProviders.builtInId(MorphologyFamily.LOBED), 0.5));
+                default -> ProviderMorphologySpec.full(SkyIslandMorphologyProviders.builtInId(family));
+            };
         }
     }
 
