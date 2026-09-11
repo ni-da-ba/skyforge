@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - ".github/workflows/low-end-scalability.yml"
+      - "skyforge-neoforge-1211/src/main/java/**"
+      - "skyforge-neoforge-1211/src/test/java/**"
 
 permissions:
   contents: read
@@ -15,6 +17,7 @@ concurrency:
 
 jobs:
   headless-scaling:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'perf/')
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     steps:
@@ -106,6 +109,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import csv
           import re
 
           root = Path("build/low-end-benchmark")
@@ -128,6 +132,10 @@ jobs:
               "ores_s": "perf.interior.UNDERGROUND_ORES.totalNanos",
               "cave_pump_s": "perf.catchup.composedCavePump.totalNanos",
           }
+          latency_buckets = [
+              "lt1ms", "1to2ms", "2to4ms", "4to8ms", "8to16ms", "16to32ms",
+              "32to64ms", "64to128ms", "128to256ms", "256to512ms", "ge512ms",
+          ]
 
           def read_props(path):
               data = {}
@@ -156,8 +164,11 @@ jobs:
               )
 
           rows = []
+          feature_rows = []
+          props_by_profile = {}
           for name, cpus, heap in profiles:
               props = read_props(root / name / "stacked.properties")
+              props_by_profile[name] = props
               rss_mib, cpu_pct = time_metrics(root / name / "time.txt")
               row = {
                   "profile": name,
@@ -171,6 +182,28 @@ jobs:
                   row[out_key] = seconds(props, prop_key)
               rows.append(row)
 
+              for prop_key, value in props.items():
+                  if not (prop_key.startswith("perf.nativeFeature.") and prop_key.endswith(".totalNanos")):
+                      continue
+                  prefix = prop_key[:-len(".totalNanos")]
+                  calls = int(props.get(prefix + ".calls", "0"))
+                  total_ns = int(value)
+                  max_ns = int(props.get(prefix + ".maxNanos", "0"))
+                  feature_row = {
+                      "profile": name,
+                      "stage": prefix[len("perf."):],
+                      "calls": calls,
+                      "total_s": total_ns / 1_000_000_000,
+                      "avg_ms": 0.0 if calls == 0 else total_ns / calls / 1_000_000,
+                      "max_ms": max_ns / 1_000_000,
+                      "placed": int(props.get(prefix + ".placed.total", "0")),
+                      "attachment_writes": int(props.get(prefix + ".attachmentWrites.total", "0")),
+                  }
+                  for bucket in latency_buckets:
+                      feature_row[bucket] = int(props.get(
+                          prefix + ".latencyBucket." + bucket + ".samples", "0"))
+                  feature_rows.append(feature_row)
+
           ref = rows[0].get("process_s")
           for row in rows:
               p = row.get("process_s")
@@ -178,11 +211,19 @@ jobs:
 
           csv_columns = ["profile", "cpus", "heap_gib", "status", "process_s", "slowdown", "rss_mib", "cpu_pct"] + list(keys.keys())[1:]
           with (root / "summary.csv").open("w", newline="") as f:
-              import csv
               w = csv.DictWriter(f, fieldnames=csv_columns)
               w.writeheader()
               for row in rows:
                   w.writerow({k: row.get(k) for k in csv_columns})
+
+          feature_columns = [
+              "profile", "stage", "calls", "total_s", "avg_ms", "max_ms", "placed", "attachment_writes",
+          ] + latency_buckets
+          with (root / "native-features.csv").open("w", newline="") as f:
+              w = csv.DictWriter(f, fieldnames=feature_columns)
+              w.writeheader()
+              for row in sorted(feature_rows, key=lambda r: (r["profile"], -r["total_s"], r["stage"])):
+                  w.writerow({k: row.get(k) for k in feature_columns})
 
           def fmt(v, digits=2):
               if v is None:
@@ -206,6 +247,21 @@ jobs:
                   f"{fmt(r.get('cpu_pct'))} | {fmt(r.get('admission_s'))} | {fmt(r.get('deferred_s'))} | "
                   f"{fmt(r.get('surface_s'))} | {fmt(r.get('underground_decoration_s'))} |"
               )
+
+          reference_features = [r for r in feature_rows if r["profile"] == "reference-4cpu-8g"]
+          if reference_features:
+              lines.extend([
+                  "",
+                  "## Native placed-feature attribution — reference profile",
+                  "",
+                  "| Stage | Calls | Total (s) | Avg (ms) | Max (ms) | Placed |",
+                  "| --- | ---: | ---: | ---: | ---: | ---: |",
+              ])
+              for r in sorted(reference_features, key=lambda row: -row["total_s"])[:12]:
+                  lines.append(
+                      f"| `{r['stage']}` | {r['calls']} | {r['total_s']:.3f} | "
+                      f"{r['avg_ms']:.2f} | {r['max_ms']:.2f} | {r['placed']} |"
+                  )
 
           (root / "summary.md").write_text("\n".join(lines) + "\n")
           print((root / "summary.md").read_text())
