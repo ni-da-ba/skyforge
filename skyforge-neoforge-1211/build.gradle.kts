@@ -4636,16 +4636,15 @@ tasks.register("waveC13ResolvePinnedMods") {
 dependencies {
     api(project(":skyforge-world"))
 
-    // HS-03 executes one external-provider specimen through the Minecraft carrier. The
-    // reference module remains absent from the distributable jar; it is available only to
-    // adapter tests and development run classpaths.
+    // HS-03 executes one external-provider specimen through the Minecraft carrier fixture. The
+    // reference module remains absent from the distributable jar and from unrelated ModDev
+    // acceptance servers; the focused adapter test is its executable carrier.
     testImplementation(project(":skyforge-reference"))
 
     // Minecraft 1.21.1 ModDev runs load Java libraries only when they are explicitly added to the
     // additional runtime classpath. skyforge-world's runtime elements bring the transitive
     // recipes/model/kernel engine modules with it without pretending those modules are mods.
     add("additionalRuntimeClasspath", project(":skyforge-world"))
-    add("additionalRuntimeClasspath", project(":skyforge-reference"))
 
     // SF-IMP-0035 makes the distributable mod self-contained using NeoForge's supported Jar-in-Jar
     // mechanism. Keep each backend-neutral module as an ordinary Java library: the Minecraft
