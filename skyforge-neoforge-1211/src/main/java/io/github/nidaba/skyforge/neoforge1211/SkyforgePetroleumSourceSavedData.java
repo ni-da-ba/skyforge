@@ -2,7 +2,9 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.TreeMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -21,7 +23,8 @@ final class SkyforgePetroleumSourceSavedData extends SavedData {
             new SavedData.Factory<>(SkyforgePetroleumSourceSavedData::new, SkyforgePetroleumSourceSavedData::load);
 
     private final TreeMap<SkyforgePetroleumSourceAdapter.SourceAddress, Integer> remaining = new TreeMap<>();
-    private final Map<Long, SkyforgePetroleumSourceAdapter.SourceAddress> addressByTermination = new HashMap<>();
+    private final Map<Long, NavigableMap<Integer, SkyforgePetroleumSourceAdapter.SourceAddress>> addressesByColumn =
+            new HashMap<>();
 
     private SkyforgePetroleumSourceSavedData() {}
 
@@ -39,11 +42,12 @@ final class SkyforgePetroleumSourceSavedData extends SavedData {
             CompoundTag entry = entries.getCompound(index);
             ResourceLocation volume = ResourceLocation.tryParse(entry.getString("volume"));
             int amount = entry.getInt("remaining");
-            if (volume == null || amount < 0) {
+            String anchorKey = entry.contains("source_anchor", Tag.TAG_LONG) ? "source_anchor" : "termination";
+            if (volume == null || amount < 0 || !entry.contains(anchorKey, Tag.TAG_LONG)) {
                 throw new IllegalStateException("invalid persisted Skyforge petroleum source at index " + index);
             }
             var address = new SkyforgePetroleumSourceAdapter.SourceAddress(
-                    volume, BlockPos.of(entry.getLong("termination")));
+                    volume, BlockPos.of(entry.getLong(anchorKey)));
             data.putLoaded(address, amount);
         }
         return data;
@@ -53,25 +57,31 @@ final class SkyforgePetroleumSourceSavedData extends SavedData {
         return Map.copyOf(remaining);
     }
 
-    int remainingAt(BlockPos termination) {
-        Objects.requireNonNull(termination, "termination");
-        var address = addressByTermination.get(termination.asLong());
-        return address == null ? 0 : remaining.getOrDefault(address, 0);
+    int remainingForWell(BlockPos wellPosition) {
+        return sourceForWell(wellPosition).map(address -> remaining.getOrDefault(address, 0)).orElse(0);
     }
 
-    void setRemainingAt(BlockPos termination, int amount) {
-        Objects.requireNonNull(termination, "termination");
+    void setRemainingForWell(BlockPos wellPosition, int amount) {
+        Objects.requireNonNull(wellPosition, "wellPosition");
         if (amount < 0) {
             throw new IllegalArgumentException("petroleum amount must be nonnegative");
         }
-        var address = addressByTermination.get(termination.asLong());
-        if (address == null) {
-            return;
-        }
-        Integer previous = remaining.put(address, amount);
-        if (!Objects.equals(previous, amount)) {
-            setDirty();
-        }
+        sourceForWell(wellPosition).ifPresent(address -> {
+            Integer previous = remaining.put(address, amount);
+            if (!Objects.equals(previous, amount)) {
+                setDirty();
+            }
+        });
+    }
+
+    Optional<SkyforgePetroleumSourceAdapter.SourceAddress> sourceForWell(BlockPos wellPosition) {
+        Objects.requireNonNull(wellPosition, "wellPosition");
+        NavigableMap<Integer, SkyforgePetroleumSourceAdapter.SourceAddress> column =
+                addressesByColumn.get(columnKey(wellPosition));
+        if (column == null) return Optional.empty();
+        Map.Entry<Integer, SkyforgePetroleumSourceAdapter.SourceAddress> source =
+                column.lowerEntry(wellPosition.getY());
+        return source == null ? Optional.empty() : Optional.of(source.getValue());
     }
 
     void replace(Map<SkyforgePetroleumSourceAdapter.SourceAddress, Integer> next) {
@@ -80,34 +90,49 @@ final class SkyforgePetroleumSourceSavedData extends SavedData {
             throw new IllegalArgumentException("invalid Skyforge petroleum source state");
         }
         TreeMap<SkyforgePetroleumSourceAdapter.SourceAddress, Integer> ordered = new TreeMap<>(next);
-        HashMap<Long, SkyforgePetroleumSourceAdapter.SourceAddress> index = new HashMap<>();
-        ordered.keySet().forEach(address -> {
-            var previous = index.putIfAbsent(address.termination().asLong(), address);
-            if (previous != null && !previous.equals(address)) {
-                throw new IllegalArgumentException(
-                        "multiple exact petroleum sources cannot share one physical termination: "
-                                + address.termination());
-            }
-        });
+        Map<Long, NavigableMap<Integer, SkyforgePetroleumSourceAdapter.SourceAddress>> index = buildIndex(ordered);
         if (!remaining.equals(ordered)) {
             remaining.clear();
             remaining.putAll(ordered);
             setDirty();
         }
-        addressByTermination.clear();
-        addressByTermination.putAll(index);
+        addressesByColumn.clear();
+        addressesByColumn.putAll(index);
     }
 
     private void putLoaded(SkyforgePetroleumSourceAdapter.SourceAddress address, int amount) {
         if (remaining.putIfAbsent(address, amount) != null) {
             throw new IllegalStateException("duplicate persisted Skyforge petroleum source: " + address);
         }
-        var previous = addressByTermination.putIfAbsent(address.termination().asLong(), address);
-        if (previous != null && !previous.equals(address)) {
-            throw new IllegalStateException(
-                    "multiple persisted Skyforge petroleum sources share one physical termination: "
-                            + address.termination());
+        try {
+            index(addressesByColumn, address);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException(exception.getMessage(), exception);
         }
+    }
+
+    private static Map<Long, NavigableMap<Integer, SkyforgePetroleumSourceAdapter.SourceAddress>> buildIndex(
+            Map<SkyforgePetroleumSourceAdapter.SourceAddress, Integer> sources) {
+        Map<Long, NavigableMap<Integer, SkyforgePetroleumSourceAdapter.SourceAddress>> index = new HashMap<>();
+        sources.keySet().forEach(address -> index(index, address));
+        return index;
+    }
+
+    private static void index(
+            Map<Long, NavigableMap<Integer, SkyforgePetroleumSourceAdapter.SourceAddress>> index,
+            SkyforgePetroleumSourceAdapter.SourceAddress address) {
+        BlockPos anchor = address.sourceAnchor();
+        NavigableMap<Integer, SkyforgePetroleumSourceAdapter.SourceAddress> column =
+                index.computeIfAbsent(columnKey(anchor), ignored -> new TreeMap<>());
+        var previous = column.putIfAbsent(anchor.getY(), address);
+        if (previous != null && !previous.equals(address)) {
+            throw new IllegalArgumentException(
+                    "multiple exact petroleum sources cannot share one source-field coordinate: " + anchor);
+        }
+    }
+
+    private static long columnKey(BlockPos position) {
+        return ((long) position.getX() << 32) ^ (position.getZ() & 0xffffffffL);
     }
 
     @Override
@@ -116,7 +141,7 @@ final class SkyforgePetroleumSourceSavedData extends SavedData {
         remaining.forEach((address, amount) -> {
             CompoundTag entry = new CompoundTag();
             entry.putString("volume", address.volumeId().toString());
-            entry.putLong("termination", address.termination().asLong());
+            entry.putLong("source_anchor", address.sourceAnchor().asLong());
             entry.putInt("remaining", amount);
             entries.add(entry);
         });
