@@ -15,7 +15,7 @@ final class SkyforgePetroleumSourceSavedDataTest {
     private static final ResourceLocation UPPER = ResourceLocation.fromNamespaceAndPath("skyforge", "upper");
 
     @Test
-    void savesAndReloadsSortedExactVolumeTerminationAddresses() {
+    void savesAndReloadsSortedSourceFieldAnchorsAndResolvesNearestSourceBelowWell() {
         SkyforgePetroleumSourceSavedData data = SkyforgePetroleumSourceSavedData.load(new CompoundTag(), null);
         var upper = new SkyforgePetroleumSourceAdapter.SourceAddress(UPPER, new BlockPos(24, 176, -8));
         var lower = new SkyforgePetroleumSourceAdapter.SourceAddress(LOWER, new BlockPos(24, 96, -8));
@@ -26,14 +26,30 @@ final class SkyforgePetroleumSourceSavedDataTest {
 
         assertEquals(Map.of(upper, 1_000, lower, 725), restored.snapshot());
         assertEquals("skyforge:lower", encoded.getList("sources", 10).getCompound(0).getString("volume"));
-        assertEquals(725, restored.remainingAt(lower.termination()));
-        assertEquals(1_000, restored.remainingAt(upper.termination()));
+        assertEquals(lower.sourceAnchor().asLong(), encoded.getList("sources", 10).getCompound(0).getLong("source_anchor"));
+        assertEquals(725, restored.remainingForWell(new BlockPos(24, 128, -8)));
+        assertEquals(1_000, restored.remainingForWell(new BlockPos(24, 208, -8)));
 
-        restored.setRemainingAt(lower.termination(), 300);
-        assertEquals(300, restored.remainingAt(lower.termination()));
-        assertEquals(1_000, restored.remainingAt(upper.termination()));
-        restored.setRemainingAt(new BlockPos(0, 64, 0), 1);
-        assertEquals(0, restored.remainingAt(new BlockPos(0, 64, 0)));
+        restored.setRemainingForWell(new BlockPos(24, 128, -8), 300);
+        assertEquals(300, restored.remainingForWell(new BlockPos(24, 128, -8)));
+        assertEquals(1_000, restored.remainingForWell(new BlockPos(24, 208, -8)));
+        restored.setRemainingForWell(new BlockPos(0, 64, 0), 1);
+        assertEquals(0, restored.remainingForWell(new BlockPos(0, 64, 0)));
+    }
+
+    @Test
+    void legacyTerminationKeyStillMigratesIntoSourceFieldState() {
+        CompoundTag legacy = new CompoundTag();
+        ListTag entries = new ListTag();
+        CompoundTag entry = new CompoundTag();
+        entry.putString("volume", "skyforge:lower");
+        entry.putLong("termination", new BlockPos(24, 96, -8).asLong());
+        entry.putInt("remaining", 725);
+        entries.add(entry);
+        legacy.put("sources", entries);
+
+        SkyforgePetroleumSourceSavedData restored = SkyforgePetroleumSourceSavedData.load(legacy, null);
+        assertEquals(725, restored.remainingForWell(new BlockPos(24, 128, -8)));
     }
 
     @Test
@@ -42,7 +58,7 @@ final class SkyforgePetroleumSourceSavedDataTest {
         ListTag entries = new ListTag();
         CompoundTag entry = new CompoundTag();
         entry.putString("volume", "skyforge:lower");
-        entry.putLong("termination", BlockPos.ZERO.asLong());
+        entry.putLong("source_anchor", BlockPos.ZERO.asLong());
         entry.putInt("remaining", -1);
         entries.add(entry);
         invalid.put("sources", entries);
@@ -51,11 +67,11 @@ final class SkyforgePetroleumSourceSavedDataTest {
     }
 
     @Test
-    void onePhysicalTerminationCannotAliasTwoExactVolumes() {
+    void oneSourceFieldCoordinateCannotAliasTwoExactVolumes() {
         SkyforgePetroleumSourceSavedData data = SkyforgePetroleumSourceSavedData.load(new CompoundTag(), null);
-        BlockPos termination = new BlockPos(24, 96, -8);
-        var lower = new SkyforgePetroleumSourceAdapter.SourceAddress(LOWER, termination);
-        var upper = new SkyforgePetroleumSourceAdapter.SourceAddress(UPPER, termination);
+        BlockPos anchor = new BlockPos(24, 96, -8);
+        var lower = new SkyforgePetroleumSourceAdapter.SourceAddress(LOWER, anchor);
+        var upper = new SkyforgePetroleumSourceAdapter.SourceAddress(UPPER, anchor);
 
         assertThrows(IllegalArgumentException.class, () -> data.replace(Map.of(lower, 725, upper, 1_000)));
     }
