@@ -19,12 +19,21 @@ import skyforge_control_replay_base as _base
 sys.modules[__name__] = _base
 
 # Importing these modules installs bounded roadmap continuation and paused-only open-handoff recovery
-# on _base.core. The roadmap runtime imports ``skyforge_control_replay_runtime`` during initialization;
-# that lookup now resolves directly to _base, so there is no duplicate replay-runtime state.
+# on _base.core. When this compatibility module itself is reached through a direct
+# ``skyforge_roadmap_runtime`` import, that roadmap module is still partially initialized; defer the
+# closed-active-issue extension in that one import direction. Hosted entrypoint startup imports the
+# roadmap here first, so it is fully initialized before the extension is loaded.
 import skyforge_roadmap_runtime as _roadmap_runtime  # noqa: E402,F401
+
+_roadmap_closed_issue_recovery_runtime = None
+if hasattr(_roadmap_runtime, "core"):
+    import skyforge_roadmap_closed_issue_recovery_runtime as _roadmap_closed_issue_recovery_runtime  # noqa: E402,F401
+
 import skyforge_handoff_recovery_runtime as _handoff_recovery_runtime  # noqa: E402,F401
 
 _base._roadmap_runtime = _roadmap_runtime
+if _roadmap_closed_issue_recovery_runtime is not None:
+    _base._roadmap_closed_issue_recovery_runtime = _roadmap_closed_issue_recovery_runtime
 _base._handoff_recovery_runtime = _handoff_recovery_runtime
 
 
