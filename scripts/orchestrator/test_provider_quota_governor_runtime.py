@@ -1,5 +1,6 @@
 import importlib
 import pathlib
+import subprocess
 import sys
 import tempfile
 import threading
@@ -22,6 +23,7 @@ class ProviderQuotaGovernorRuntimeTests(unittest.TestCase):
         o.repo = "ni-da-ba/skyforge"
         o.state = core.LocalState(root / "state.json")
         o._state_lock = threading.RLock()
+        o._dispatch_lock = threading.Lock()
         return o
 
     def test_authoritative_provider_allowance_ignores_separate_terra_daily_cap(self):
@@ -132,6 +134,75 @@ class ProviderQuotaGovernorRuntimeTests(unittest.TestCase):
                 o.state.data["last_quota_governor_decision"]["attempted_kind"],
                 "classifier",
             )
+
+    def test_merged_managed_handoff_can_be_retired_with_forensic_archive(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            worktree = root / "worker"
+            worktree.mkdir()
+            o = self.make_orchestrator(root)
+            o.state.data["paused"] = True
+            o.state.data["pending_worker"] = {
+                "branch": "codex/content-test",
+                "stage": "handoff",
+                "managed_pr": 470,
+                "worktree": str(worktree),
+            }
+            o.state.data["pending_decision"] = {"decision": {"decision": "DISPATCH", "pr_number": 470}}
+            o.state.save()
+
+            pr = {
+                "state": "MERGED",
+                "mergedAt": "2026-09-11T00:15:56Z",
+                "headRefName": "codex/content-test",
+                "headRefOid": "pr-head",
+                "mergeCommit": {"oid": "merge-head"},
+            }
+
+            def fake_run(args, **kwargs):
+                stdout = ""
+                if args[:3] == ["git", "diff", "--binary"]:
+                    stdout = "diff --git a/test b/test\n"
+                elif args[:3] == ["git", "rev-parse", "HEAD"]:
+                    stdout = "worker-head\n"
+                return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
+            with mock.patch.object(core, "_json_cmd", return_value=pr), mock.patch.object(
+                core, "_run", side_effect=fake_run
+            ), mock.patch.object(o, "_changed_paths", return_value=["test"]):
+                quota_runtime.discard_pending_worker(o, actor="unit-test")
+
+            self.assertIsNone(o.state.data["pending_worker"])
+            record = o.state.data["last_worker_discard"]
+            self.assertEqual(record["managed_pr"], 470)
+            self.assertEqual(record["reason"], "managed PR already merged; stale local handoff retired with forensic archive")
+            self.assertTrue((root / record["preserved_patch"]).exists())
+            self.assertTrue((root / record["preserved_metadata"]).exists())
+            # Cached decision/events remain for normal closed-PR invalidation/replay.
+            self.assertIsNotNone(o.state.data["pending_decision"])
+
+    def test_open_managed_pr_cannot_use_terminal_retirement_path(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            worktree = root / "worker"
+            worktree.mkdir()
+            o = self.make_orchestrator(root)
+            o.state.data["paused"] = True
+            o.state.data["pending_worker"] = {
+                "branch": "codex/content-test",
+                "stage": "handoff",
+                "managed_pr": 470,
+                "worktree": str(worktree),
+            }
+            o.state.save()
+            with mock.patch.object(
+                core,
+                "_json_cmd",
+                return_value={"state": "OPEN", "mergedAt": None},
+            ):
+                with self.assertRaisesRegex(RuntimeError, "not merged"):
+                    quota_runtime.discard_pending_worker(o, actor="unit-test")
+            self.assertIsNotNone(o.state.data["pending_worker"])
 
     def test_runtime_paths_include_governor(self):
         self.assertIn(
