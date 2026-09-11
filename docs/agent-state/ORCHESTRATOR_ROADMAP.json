@@ -4,44 +4,223 @@
   "enabled": true,
   "max_auto_claims_per_utc_day": 4,
   "notes": [
-    "PROGRAM_ROADMAP.md is the semantic authority; this manifest is only a bounded execution allowlist.",
-    "Version 1 tasks must be issue-backed. The PROGRAM_ROADMAP missing-issue rule remains fail-closed until a separately accepted synthesis mechanism exists.",
+    "PROGRAM_ROADMAP.md remains the long-range semantic authority. The project-owner morphology reconciliation recorded on issue #214 and docs/agent-state/PROGRAM_ROADMAP_PHASE_RECONCILIATION_2026-09-11.md establishes Phase 1 COMPLETE and Phase 2 PRIMARY_ACTIVE where older roadmap prose is stale.",
+    "Version 1 tasks are issue-backed. Missing-issue synthesis remains fail-closed.",
     "At most one task-owned controller PR may be in flight when the roadmap seeds work.",
-    "A roadmap node never weakens lane ownership, validation policy, human gates, quota pacing, or safe auto-merge constraints."
+    "Human gates constrain only dependent work. A blocked gate must not globally pause unrelated eligible roadmap nodes.",
+    "No autonomous node may modify or advance the manual asset-compiler proof tracked by #488/#489.",
+    "Authorship and Audit have no standing make-work nodes: they wake only from a concrete consumer gap, reliability/safety defect, or explicit project-owner change.",
+    "A roadmap node never weakens lane ownership, validation policy, quota pacing, safe auto-merge constraints, protected paths, or genuine human/manual gates."
   ],
   "nodes": [
     {
-      "id": "phase1-sf-imp-0083-machine-closeout",
+      "id": "p2-base-metals-realization",
       "kind": "task",
       "lane": "Implementation",
-      "issue_number": 284,
-      "priority": 120,
-      "max_runs": 2,
-      "prerequisites": [],
-      "objective_hint": "Advance only the next still-unaccepted machine-verifiable tranche of SF-IMP-0083 using current main and portable accepted evidence. Prefer cheap deterministic/profile evidence and only representative runtime evidence that retires a distinct remaining risk. Do not widen the expensive matrix merely because specimens remain.",
-      "stop_boundary": "Stop before the #214/#267/#283 human morphology judgment, any new aesthetic tuning choice, or evidence-saturated expansion. If machine evidence is already sufficient and the remaining boundary is human review, return HUMAN_GATE or NOOP rather than manufacturing more work."
-    },
-    {
-      "id": "phase1-human-morphology-transition",
-      "kind": "gate",
-      "lane": "Implementation",
-      "priority": 110,
+      "issue_number": 491,
+      "priority": 160,
       "max_runs": 1,
-      "prerequisites": [
-        "phase1-sf-imp-0083-machine-closeout"
-      ],
-      "human_message": "Phase-1 machine closeout reached the roadmap transition. Review the representative morphology evidence for #214/#267/#283 (HS-04). Do not begin broad isolated morphology tuning or Phase-2 production work until this visual/product boundary is resolved."
+      "prerequisites": [],
+      "objective_hint": "Advance the smallest still-unaccepted machine-verifiable tranche of #491: concrete Iron/Copper/Zinc realization on production Skyforge geography using accepted AUTH-0093/0094 and C20/C21 authority. Reuse retained resource identities and current exact-volume lifecycle.",
+      "stop_boundary": "Stop before inventing progression, rarity, trade, reserve/grade policy, petroleum scope, new Authorship semantics without a demonstrated gap, or any human/product judgment. Do not touch #488/#489."
     },
     {
-      "id": "bootstrap-civilization-content-followthrough",
+      "id": "bootstrap-civilization-content-v2",
       "kind": "task",
       "lane": "Content",
       "issue_number": 466,
-      "priority": 90,
+      "priority": 155,
       "max_runs": 1,
       "prerequisites": [],
-      "objective_hint": "Advance the smallest still-unaccepted machine-verifiable Content tranche of the accepted Bellanca/Guild Bootstrap civilization slice, consuming the merged #467 runtime foundation/integration and existing CIV contracts. Reuse accepted policy/data rather than broadening the economy.",
-      "stop_boundary": "Stop at the first genuine Bellanca pacing, civilization arrival, Guild prototype, claim/restitution, freight-loop play judgment, new product rule, or other human/cross-lane gate. Do not implement the whole #466 issue in one worker."
+      "objective_hint": "Advance the next still-unaccepted machine-verifiable Content tranche of the accepted Bellanca/Guild Bootstrap slice, consuming merged #467 runtime capability and current CIV/Authorship contracts. Prefer the smallest executable semantic gap needed by #497/#498.",
+      "stop_boundary": "Stop at genuine pacing, first-civilization, Guild usability, Bellanca claim/restitution, freight-loop play judgment, new product rule, or cross-lane contract gap. Do not implement the whole mature economy and do not touch #488/#489."
+    },
+    {
+      "id": "bootstrap-civilization-runtime-v2",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 467,
+      "priority": 150,
+      "max_runs": 1,
+      "prerequisites": [],
+      "objective_hint": "Advance the next still-unaccepted machine-verifiable civilization runtime tranche after the accepted persistence/custody work: close the smallest remaining integration gap needed by #466/#497/#498 while preserving stable identity, authoritative custody, idempotent settlement, dormancy and bounded reconciliation.",
+      "stop_boundary": "Stop before broad economy/fleet simulation, UI policy, new gameplay rules, human play judgment, unsafe retained-mod APIs, or unrelated infrastructure. Do not touch #488/#489."
+    },
+    {
+      "id": "p2-authored-hydrology-realization",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 492,
+      "priority": 145,
+      "max_runs": 1,
+      "prerequisites": [
+        "p2-base-metals-realization"
+      ],
+      "objective_hint": "Advance the smallest representative machine-verifiable AUTH-0085/0086 visible-hydrology realization on production terrain: channel, retained water, vertical discharge and boundary behavior through the current exact-volume fluid lifecycle.",
+      "stop_boundary": "Stop before inventing watershed/gameplay/aesthetic policy, exhaustive watershed matrices, new Authorship semantics without a demonstrated gap, or human visual judgment. Do not touch #488/#489."
+    },
+    {
+      "id": "bootstrap-portable-engine-cutoff",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 237,
+      "priority": 140,
+      "max_runs": 1,
+      "prerequisites": [],
+      "objective_hint": "Complete the smallest still-unaccepted machine-verifiable portion of #237: opt-in Portable Engine cutoff with exact burn preservation, deterministic toggle/save-reload behavior and assembled-contraption compatibility where automation permits.",
+      "stop_boundary": "Stop before the human shutdown-feel/neighbor-redstone play judgment, generic Create kinetic changes, efficiency buffs, unrelated engine classes, or production aircraft beautification."
+    },
+    {
+      "id": "p2-structure-reintegration",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 493,
+      "priority": 135,
+      "max_runs": 1,
+      "prerequisites": [
+        "p2-authored-hydrology-realization"
+      ],
+      "objective_hint": "Advance the smallest machine-verifiable generic structure reintegration against production geography using accepted AUTH-0096/0097 evidence and current exact-volume admission/accommodation/persistence. Cover only distinct physical-placement risk classes needed downstream.",
+      "stop_boundary": "Stop before final architecture, settlement layout, civilization role, route meaning, aesthetic judgment, or any use/modification of the manual asset compiler #488/#489."
+    },
+    {
+      "id": "p2-production-ecology-composition",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 494,
+      "priority": 130,
+      "max_runs": 1,
+      "prerequisites": [
+        "p2-structure-reintegration"
+      ],
+      "objective_hint": "Advance one deterministic production-geography ecology composition using accepted AUTH-0088/0089/0090/0091 opportunity and the accepted native ecology carrier, integrating terrain/substrate/water/altitude/isolation without inventing final population policy.",
+      "stop_boundary": "Stop before final density/carrying-capacity/predator/aesthetic tuning, new Authorship ecological semantics without a demonstrated gap, or human product judgment."
+    },
+    {
+      "id": "bootstrap-minimum-atmosphere",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 495,
+      "priority": 125,
+      "max_runs": 1,
+      "prerequisites": [],
+      "objective_hint": "Implement the smallest machine-verifiable shared Bootstrap atmospheric truth needed by player/glider/fauna/aircraft consumers: wind, trusted lift, bounded turbulence/shear and altitude/pressure behavior with deterministic/server-safe authority.",
+      "stop_boundary": "Stop before full Phase-4 climatology/rendering, shaders, volumetric-cloud production, Distant Horizons visual convergence, lower-cloud-deck presentation, or any new unresolved product rule."
+    },
+    {
+      "id": "p2-dressed-region-machine-proof",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 496,
+      "priority": 120,
+      "max_runs": 1,
+      "prerequisites": [
+        "p2-base-metals-realization",
+        "p2-authored-hydrology-realization",
+        "p2-structure-reintegration",
+        "p2-production-ecology-composition"
+      ],
+      "objective_hint": "Assemble the smallest current-main deterministic dressed-region specimen combining production geography, materials/deposits, authored water, caves/interior lifecycle, structures and ecology, with objective integration rejection gates and a compact exact review packet.",
+      "stop_boundary": "Stop once objective integration is green. Do not machine-tune aesthetics, family balance, ecology density, structure beauty or player pacing, and do not touch #488/#489."
+    },
+    {
+      "id": "p2-dressed-region-human-review",
+      "kind": "gate",
+      "lane": "Implementation",
+      "priority": 119,
+      "max_runs": 1,
+      "prerequisites": [
+        "p2-dressed-region-machine-proof"
+      ],
+      "human_message": "Phase-2 dressed-region machine proof is ready. Review the exact #496 specimen for overall place coherence: landform/materials/water/caves/ecology/structures, visible procedural artifacts, and flight-view quality. This gate blocks only work that requires that visual/product judgment; unrelated eligible Bootstrap/AAL/computing work should continue."
+    },
+    {
+      "id": "bootstrap-bellanca-b0-machine",
+      "kind": "task",
+      "lane": "Content",
+      "issue_number": 239,
+      "priority": 115,
+      "max_runs": 1,
+      "prerequisites": [
+        "bootstrap-portable-engine-cutoff"
+      ],
+      "objective_hint": "Advance the smallest automation-safe machine-verifiable portion of the GB-1A B0 engineering mule after #237: assembly/persistence/physics/ground/flight evidence that can be produced without substituting for human feel. Keep it an engineering specimen, not an art pass.",
+      "stop_boundary": "Stop before human flight-feel/usability judgment, production massing/beautification, or any task requiring manual pilot input unavailable to the autonomous worker."
+    },
+    {
+      "id": "bootstrap-first-flight-human-review",
+      "kind": "gate",
+      "lane": "Content",
+      "priority": 114,
+      "max_runs": 1,
+      "prerequisites": [
+        "bootstrap-bellanca-b0-machine"
+      ],
+      "human_message": "The autonomous Bellanca/first-flight machine tranche has reached its human boundary. Review controllability, shutdown/restart feel, useful-aircraft behavior and any remaining manual flight observations. This gate blocks only Bellanca/first-flight-dependent acceptance; unrelated machine work should continue."
+    },
+    {
+      "id": "bootstrap-province-plan-fixture",
+      "kind": "task",
+      "lane": "Content",
+      "issue_number": 497,
+      "priority": 110,
+      "max_runs": 1,
+      "prerequisites": [
+        "p2-base-metals-realization",
+        "bootstrap-civilization-content-v2",
+        "bootstrap-civilization-runtime-v2"
+      ],
+      "objective_hint": "Materialize one deterministic backend-neutral Bootstrap Province plan from accepted spatial/CIV/resource/site contracts: crash/start roles, first-flight closure, post-flight specialization, reachable Guild destination, freight opportunity and explicit replan outcomes.",
+      "stop_boundary": "Stop before final distances/timing/navigation-cue strength, settlement aesthetics, opening pacing, Guild architecture or human play acceptance. Do not touch #488/#489."
+    },
+    {
+      "id": "bootstrap-province-runtime-integration",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 498,
+      "priority": 105,
+      "max_runs": 1,
+      "prerequisites": [
+        "bootstrap-province-plan-fixture",
+        "bootstrap-minimum-atmosphere",
+        "bootstrap-bellanca-b0-machine",
+        "p2-dressed-region-machine-proof"
+      ],
+      "objective_hint": "Assemble the smallest machine-complete Bootstrap Province specimen connecting accepted world, atmosphere, mobility, civilization, Bellanca and one authoritative physical freight transaction end-to-end with deterministic persistence/idempotency evidence.",
+      "stop_boundary": "Stop before opening/tutorial pacing judgment, first-flight feel, first sight of civilization, Guild usability, Bellanca closure feel, freight/market play judgment, mature regional sandbox, Phase-4 visuals, or #488/#489."
+    },
+    {
+      "id": "bootstrap-province-play-review",
+      "kind": "gate",
+      "lane": "Content",
+      "priority": 104,
+      "max_runs": 1,
+      "prerequisites": [
+        "bootstrap-province-runtime-integration"
+      ],
+      "human_message": "The machine-complete Bootstrap Province integration specimen is ready. Human play review now owns opening/tutorial pacing, first powered-flight feel, first civilization/Guild arrival, Bellanca claim/restitution closure, and the first post-tutorial freight/market loop. This gate does not globally pause unrelated eligible machine work."
+    },
+    {
+      "id": "aal-route-followthrough",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 441,
+      "priority": 60,
+      "max_runs": 1,
+      "prerequisites": [],
+      "objective_hint": "Use #441 only as a low-priority reserve: advance the smallest still-unaccepted AAL 0.6.2 public/generated-route feasibility tranche against the exact pinned stack, preserving canonical Skyforge route/cargo identity and treating AAL as replaceable execution substrate.",
+      "stop_boundary": "Stop at unavailable exact artifacts, player-recording-only/private/unsafe APIs, need for an upstream hook, human intervention, or production-adoption choice. Do not let AAL displace the primary Phase-2/Bootstrap path."
+    },
+    {
+      "id": "bootstrap-computing-preflight",
+      "kind": "task",
+      "lane": "Content",
+      "issue_number": 227,
+      "priority": 55,
+      "max_runs": 1,
+      "prerequisites": [],
+      "objective_hint": "Use #227 only as a low-priority reserve: advance the smallest still-unaccepted CC:Tweaked/Create-Aeronautics reuse-first compatibility proof or bypass characterization that is machine-verifiable and useful to Bootstrap infrastructure.",
+      "stop_boundary": "Stop before bespoke computing systems, early-game autopilot/progression policy, human gameplay tuning, or work that displaces the primary Phase-2/Bootstrap convergence path."
     }
   ]
 }
