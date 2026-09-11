@@ -1,0 +1,254 @@
+import java.util.Properties
+
+/*
+ * HS-03 opt-in current-main NeoForge carrier overlay.
+ *
+ * This is deliberately an init script instead of production build wiring. Ordinary Skyforge
+ * builds are unchanged. Invoke Gradle with:
+ *
+ *   --init-script scripts/hs03_morphology_carrier.init.gradle
+ *
+ * The overlay reuses the accepted SF-IMP-0082 morphology-atlas runtime, but gives the two HS-03
+ * blended specimens their own deterministic worlds, evidence directories, machine-verification
+ * tasks, and interactive review launchers.
+ */
+
+def hs03Specs = [
+    'hybrid-massif-spine-midpoint': [
+        task: 'HybridMassifSpine',
+        slug: 'hybrid-massif-spine-midpoint',
+        family: 'massif',
+        member: 'hybrid-massif-spine-midpoint',
+    ],
+    'provider-crescent-to-lobed-midpoint': [
+        task: 'ProviderCrescentLobed',
+        slug: 'provider-crescent-to-lobed-midpoint',
+        family: 'lobed',
+        member: 'provider-crescent-to-lobed-midpoint',
+    ],
+]
+
+def requested = gradle.startParameter.projectProperties['skyforgeHs03Specimen']
+if (requested == null || requested.trim().isEmpty()) {
+    throw new GradleException(
+        'HS-03 carrier overlay requires -PskyforgeHs03Specimen=' + hs03Specs.keySet().join('|'))
+}
+
+def spec = hs03Specs[requested]
+if (spec == null) {
+    throw new GradleException(
+        "unknown HS-03 specimen '${requested}'; expected one of ${hs03Specs.keySet()}")
+}
+
+gradle.afterProject { project, state ->
+    if (project.path != ':skyforge-neoforge-1211' || state.failure != null) {
+        return
+    }
+
+    def neoForge = project.extensions.getByName('neoForge')
+    def development = project.sourceSets.getByName('development')
+    def taskStem = "Hs03${spec.task}"
+    def gameDirectory = project.layout.projectDirectory.dir("run-skyforge-hs03-${spec.slug}").asFile
+    def worldName = "hs03-${spec.slug}"
+    def resultDirectory = project.layout.buildDirectory.dir("acceptance/hs03/${spec.slug}")
+    def prepareResult = resultDirectory.get().file('prepare.properties').asFile
+    def viewerResult = resultDirectory.get().file('viewer.properties').asFile
+
+    def serverProperties = """\
+level-name=${worldName}
+level-seed=1405130932537311389
+level-type=skyforge:development
+online-mode=false
+spawn-protection=0
+gamemode=spectator
+difficulty=peaceful
+allow-flight=true
+view-distance=12
+simulation-distance=4
+max-tick-time=0
+server-port=0
+"""
+
+    def loadProperties = { File file ->
+        if (!file.isFile()) {
+            throw new GradleException("HS-03 evidence missing: ${file}")
+        }
+        def properties = new Properties()
+        file.withInputStream { properties.load(it) }
+        properties
+    }
+
+    def verifyPrepare = {
+        def properties = loadProperties(prepareResult)
+        def claimed = (properties.getProperty('sampledClaims') ?: '0') as int
+        def footprint = (properties.getProperty('footprintChunks') ?: '0') as int
+        def required = (properties.getProperty('required') ?: '0') as int
+        def maximumY = (properties.getProperty('maximumY') ?: '2147483647') as int
+        def ok = properties.getProperty('status') == 'PASS' &&
+            properties.getProperty('memberId') == spec.member &&
+            properties.getProperty('family') == spec.family &&
+            properties.getProperty('state') == 'ADMITTED' &&
+            properties.getProperty('observed') == properties.getProperty('required') &&
+            footprint > 0 && footprint == required &&
+            properties.getProperty('pendingCatchup') == '0' &&
+            properties.getProperty('minimumY') == '96' && maximumY < 320 &&
+            claimed > 0 &&
+            (properties.getProperty('storedTop') as int) == claimed &&
+            (properties.getProperty('airAbove') as int) == claimed &&
+            (properties.getProperty('storedUnderside') as int) == claimed &&
+            (properties.getProperty('airBelow') as int) == claimed &&
+            properties.getProperty('heightMismatches') == '0' &&
+            (properties.getProperty('landTop') as int) > 0 &&
+            (properties.getProperty('grassTop') as int) > 0 &&
+            properties.getProperty('surfaceDigest') != null &&
+            !properties.getProperty('surfaceDigest').isBlank()
+        if (!ok) {
+            throw new GradleException(
+                "HS-03 ${spec.member} preparation did not PASS: " +
+                    (properties.getProperty('failure') ?: properties.toString()))
+        }
+        properties
+    }
+
+    def verifyViewer = {
+        def prepare = verifyPrepare()
+        def viewer = loadProperties(viewerResult)
+        def claimed = (viewer.getProperty('viewerSampledClaims') ?: '0') as int
+        def ok = viewer.getProperty('status') == 'PASS' &&
+            viewer.getProperty('viewerMemberId') == spec.member &&
+            viewer.getProperty('viewerFamily') == spec.family &&
+            viewer.getProperty('viewerTerrainOwnershipRestored') == 'true' &&
+            viewer.getProperty('viewerMutationBindingsInert') == 'true' &&
+            viewer.getProperty('viewerClientPass') == 'true' &&
+            viewer.getProperty('viewerFootprintChunks') == prepare.getProperty('footprintChunks') &&
+            claimed > 0 &&
+            (viewer.getProperty('viewerStoredTop') as int) == claimed &&
+            (viewer.getProperty('viewerAirAbove') as int) == claimed &&
+            (viewer.getProperty('viewerStoredUnderside') as int) == claimed &&
+            (viewer.getProperty('viewerAirBelow') as int) == claimed &&
+            viewer.getProperty('viewerHeightMismatches') == '0' &&
+            (viewer.getProperty('viewerLandTop') as int) > 0 &&
+            (viewer.getProperty('viewerGrassTop') as int) > 0 &&
+            viewer.getProperty('viewerSurfaceDigest') == prepare.getProperty('surfaceDigest')
+        if (!ok) {
+            throw new GradleException(
+                "HS-03 ${spec.member} persistence/reopen did not PASS: " +
+                    (viewer.getProperty('failure') ?: viewer.toString()))
+        }
+        viewer
+    }
+
+    neoForge.runs.create("hs03${spec.task}Prepare") {
+        server()
+        gameDirectory = gameDirectory
+        programArgument('--nogui')
+        programArgument('--universe')
+        programArgument('saves')
+        programArgument('--world')
+        programArgument(worldName)
+        systemProperty('skyforge.dev.productionMorphologyAtlasMember', spec.member)
+        systemProperty('skyforge.dev.acceptanceHarness', 'true')
+        systemProperty('skyforge.dev.acceptanceMode', 'server')
+        systemProperty('skyforge.dev.acceptanceCase', "hs-03-${spec.slug}")
+        systemProperty('skyforge.dev.acceptanceTimeoutSeconds', '900')
+        systemProperty('skyforge.dev.acceptanceResultFile', prepareResult.absolutePath)
+        taskBefore(project.tasks.named(development.processResourcesTaskName))
+    }
+
+    neoForge.runs.create("hs03${spec.task}Client") {
+        client()
+        gameDirectory = gameDirectory
+        programArgument('--quickPlaySingleplayer')
+        programArgument(worldName)
+        systemProperty('skyforge.dev.productionMorphologyAtlasViewerMember', spec.member)
+        taskBefore(project.tasks.named(development.processResourcesTaskName))
+    }
+
+    neoForge.runs.create("hs03${spec.task}ViewerAcceptanceClient") {
+        client()
+        gameDirectory = gameDirectory
+        programArgument('--quickPlaySingleplayer')
+        programArgument(worldName)
+        systemProperty('skyforge.dev.productionMorphologyAtlasViewerMember', spec.member)
+        systemProperty('skyforge.dev.acceptanceHarness', 'true')
+        systemProperty('skyforge.dev.acceptanceMode', 'client')
+        systemProperty('skyforge.dev.acceptanceCase', "hs-03-${spec.slug}-viewer")
+        systemProperty('skyforge.dev.acceptanceTimeoutSeconds', '300')
+        systemProperty('skyforge.dev.acceptanceResultFile', viewerResult.absolutePath)
+        taskBefore(project.tasks.named(development.processResourcesTaskName))
+    }
+
+    def prepareRun = "run${taskStem}Prepare"
+    def clientRun = "run${taskStem}Client"
+    def viewerRun = "run${taskStem}ViewerAcceptanceClient"
+
+    project.tasks.named(prepareRun).configure {
+        notCompatibleWithConfigurationCache(
+            'NeoForge ModDev RunGameTask and HS-03 filesystem orchestration are runtime-bound.')
+        doFirst {
+            project.delete(resultDirectory)
+            project.delete(gameDirectory)
+            gameDirectory.mkdirs()
+            new File(gameDirectory, 'eula.txt').text = 'eula=true\n'
+            new File(gameDirectory, 'server.properties').text = serverProperties
+        }
+        doLast {
+            verifyPrepare()
+        }
+    }
+
+    project.tasks.named(clientRun).configure {
+        notCompatibleWithConfigurationCache(
+            'NeoForge ModDev RunGameTask is interactive and intentionally not configuration-cache serialized.')
+        mustRunAfter(prepareRun)
+        doFirst {
+            verifyPrepare()
+            def levelDat = new File(gameDirectory, "saves/${worldName}/level.dat")
+            if (!levelDat.isFile()) {
+                throw new GradleException("HS-03 persisted world missing before review: ${levelDat}")
+            }
+            new File(gameDirectory, 'options.txt').text = 'onboardAccessibility:false\nnarrator:0\n'
+        }
+    }
+
+    project.tasks.named(viewerRun).configure {
+        notCompatibleWithConfigurationCache(
+            'NeoForge ModDev RunGameTask is an actual persisted-world HS-03 acceptance process.')
+        mustRunAfter(prepareRun)
+        doFirst {
+            verifyPrepare()
+            def levelDat = new File(gameDirectory, "saves/${worldName}/level.dat")
+            if (!levelDat.isFile()) {
+                throw new GradleException("HS-03 persisted world missing before reopen: ${levelDat}")
+            }
+            project.delete(viewerResult)
+            new File(gameDirectory, 'options.txt').text = 'onboardAccessibility:false\nnarrator:0\n'
+        }
+    }
+
+    project.tasks.register("hs03${spec.task}PrepareVerify") {
+        group = 'verification'
+        description = "Prepare and verify HS-03 ${spec.member}."
+        dependsOn(prepareRun)
+        doLast {
+            verifyPrepare()
+            println("HS-03 PREPARATION PASS: ${spec.member}")
+        }
+    }
+
+    project.tasks.register("hs03${spec.task}ViewerVerify") {
+        group = 'verification'
+        description = "Reopen and verify persisted HS-03 ${spec.member} in an actual client."
+        dependsOn(viewerRun)
+        doLast {
+            verifyViewer()
+            println("HS-03 PERSISTENCE/REOPEN PASS: ${spec.member}")
+        }
+    }
+
+    project.tasks.register("launchHs03${spec.task}") {
+        group = 'application'
+        description = "Rebuild HS-03 ${spec.member}, then launch the deterministic review world."
+        dependsOn(prepareRun, clientRun)
+    }
+}
