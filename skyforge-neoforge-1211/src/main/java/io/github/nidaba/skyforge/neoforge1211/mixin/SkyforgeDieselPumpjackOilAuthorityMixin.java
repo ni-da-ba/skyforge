@@ -13,9 +13,9 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 /**
  * Replaces CDG's chunk-oil persistence calls only at the retained pumpjack extraction point.
  *
- * <p>The pinned CDG pumpjack still owns pipe validation, crank throughput, tank fill and output
- * fluid selection. Skyforge substitutes only petroleum quantity/depletion authority, resolving the
- * exact admitted source from the physical Skyforge termination beneath this pumpjack.
+ * <p>The pinned CDG pumpjack still owns physical bore/pipe validation, crank throughput, tank fill
+ * and output-fluid selection. Skyforge substitutes petroleum richness/depletion authority from the
+ * realized C26 source field below the well column; no bespoke petroleum block participates.
  */
 @Pseudo
 @Mixin(
@@ -32,7 +32,7 @@ abstract class SkyforgeDieselPumpjackOilAuthorityMixin {
                     remap = false),
             require = 1,
             remap = false)
-    private int skyforge$readExactSourceAmount(ServerLevel level, ChunkPos ignoredChunk) {
+    private int skyforge$readSourceFieldAmount(ServerLevel level, ChunkPos ignoredChunk) {
         BlockPos pumpjackPosition = ((BlockEntity) (Object) this).getBlockPos();
         return SkyforgePetroleumPumpjackBridge.oilAmountForPumpjack(level, pumpjackPosition);
     }
@@ -47,7 +47,7 @@ abstract class SkyforgeDieselPumpjackOilAuthorityMixin {
                     remap = false),
             require = 1,
             remap = false)
-    private void skyforge$persistExactSourceAmount(
+    private void skyforge$persistSourceFieldAmount(
             ServerLevel level,
             ChunkPos ignoredChunk,
             int remainingMillibuckets) {
