@@ -31,8 +31,9 @@ jobs:
           python tools/asset_compiler/compile.py
           tools/asset_compiler/specimens/bootstrap_guild_branch_v0.4.json
           --out build/asset-compiler-v04
+          --minecraft-structure
 
-      - name: Upload v0.4 QA artifact
+      - name: Upload v0.4 QA and structure artifact
         uses: actions/upload-artifact@v4
         with:
           name: guild-branch-v04-qa
