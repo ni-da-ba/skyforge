@@ -13,6 +13,17 @@ Read first:
 
 ## MERGED / ACCEPTED
 
+### CIV/Bootstrap #466 — Guild destination, Bellanca closure, and first freight proof — IN PROGRESS
+
+Issue #466 now has a backend-neutral Content specimen in `skyforge-world`:
+
+- deterministic Guild Hall candidates preserve exact AUTH-0096/AUTH-0097 association and anchor order, require only accepted physical-surface plus observed-open-ray evidence, and fail closed to `REPLAN_REQUIRED` unless an explicitly route-planned reachable candidate exists;
+- every eligible Hall carries the Bootstrap MVP service core: account access, Bellanca claim/restitution, basic market, basic contracts, and route/settlement information, so another eligible Hall can resolve the network-owned claim;
+- the authoritative Bellanca state machine covers crash, unfavorable initial claim, recoverable recorder evidence, liability reversal, exactly one restitution outcome, and tutorial completion;
+- the first post-tutorial opportunity is a routine recognized physical-cargo copper delivery from a distinct producer settlement to a Guild consumer. It consumes C20’s accepted post-flight copper policy and remains an economic contract, not a mandatory quest step.
+
+This is deliberately Content semantics only. Minecraft persistence/lifecycle, physical cargo materialization and settlement realization remain Implementation work. Human play, arrival, Hall, and freight-loop judgment remain the CIV-0041 human gates.
+
 ### Highest accepted executable Content milestone: C26
 
 **C26 / PR #382** binds accepted AUTH-0098 local petroleum-system evidence to the literal-source
