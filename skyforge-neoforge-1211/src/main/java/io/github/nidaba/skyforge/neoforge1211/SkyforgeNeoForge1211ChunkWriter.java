@@ -111,11 +111,18 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                     }
 
                     blockPos.set(worldX, worldY, worldZ);
-                    BlockState previousState = chunk.getBlockState(blockPos);
-                    chunk.setBlockState(blockPos, state, false);
+                    // ChunkAccess#setBlockState already returns the previous state. Reuse that result
+                    // rather than performing an immediately redundant pre-write lookup. A null return
+                    // denotes no retained mutation; after the mandatory read-back proves the requested
+                    // state is present, treating the stored state as the previous state preserves the
+                    // deferred lifecycle's no-change behavior.
+                    BlockState previousState = chunk.setBlockState(blockPos, state, false);
                     BlockState stored = chunk.getBlockState(blockPos);
                     if (!stored.equals(state)) {
                         throw new IllegalStateException("ChunkAccess did not retain the resolved BlockState");
+                    }
+                    if (previousState == null) {
+                        previousState = stored;
                     }
                     SkyforgeDeferredChunkMutationLifecycle.afterWrite(chunk, blockPos, previousState, stored);
                     assigned++;
