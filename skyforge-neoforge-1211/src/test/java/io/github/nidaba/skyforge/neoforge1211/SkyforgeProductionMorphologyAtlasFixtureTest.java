@@ -14,7 +14,7 @@ final class SkyforgeProductionMorphologyAtlasFixtureTest {
         Set<String> ids = new HashSet<>();
         Set<Object> volumeIds = new HashSet<>();
 
-        for (var member : SkyforgeProductionMorphologyAtlasFixture.Member.values()) {
+        for (var member : SkyforgeProductionMorphologyAtlasFixture.Member.builtInMembers()) {
             var fixture = SkyforgeProductionMorphologyAtlasFixture.fixture(member);
             var source = fixture.sourceDescriptor();
             var translated = fixture.translatedDescriptor();
@@ -54,6 +54,22 @@ final class SkyforgeProductionMorphologyAtlasFixtureTest {
                     source.suspensionElevation() + fixture.verticalTranslation(),
                     translated.suspensionElevation());
         }
+    }
+
+    @Test
+    void hs03SpecimensHaveDistinctExecutableCompositionIdentities() {
+        var hybrid = SkyforgeProductionMorphologyAtlasFixture.fixture(
+                SkyforgeProductionMorphologyAtlasFixture.Member.HYBRID_MASSIF_SPINE);
+        var provider = SkyforgeProductionMorphologyAtlasFixture.fixture(
+                SkyforgeProductionMorphologyAtlasFixture.Member.PROVIDER_CRESCENT_LOBED);
+
+        assertEquals("hybrid-massif-spine-midpoint", hybrid.member().id());
+        assertEquals("provider-crescent-to-lobed-midpoint", provider.member().id());
+        assertNotEquals(hybrid.morphologyIdentifier(), provider.morphologyIdentifier());
+        assertTrue(hybrid.morphologyIdentifier().contains("skyforge:massif"));
+        assertTrue(hybrid.morphologyIdentifier().contains("skyforge:spine"));
+        assertTrue(provider.morphologyIdentifier().contains("reference:crescent"));
+        assertTrue(provider.morphologyIdentifier().contains("skyforge:lobed"));
     }
 
     @Test

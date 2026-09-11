@@ -4636,6 +4636,10 @@ tasks.register("waveC13ResolvePinnedMods") {
 dependencies {
     api(project(":skyforge-world"))
 
+    // HS-03's reference:crescent specimen is implemented by a fixture-only provider in this
+    // JVM-21 Minecraft adapter. Do not put skyforge-reference (built for the newer reference
+    // toolchain) on this module's test or runtime classpaths.
+
     // Minecraft 1.21.1 ModDev runs load Java libraries only when they are explicitly added to the
     // additional runtime classpath. skyforge-world's runtime elements bring the transitive
     // recipes/model/kernel engine modules with it without pretending those modules are mods.

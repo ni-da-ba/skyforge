@@ -1,9 +1,16 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
+import io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume;
 import io.github.nidaba.skyforge.recipes.skyisland.MorphologyFamily;
+import io.github.nidaba.skyforge.recipes.skyisland.MorphologyProviderBlend;
+import io.github.nidaba.skyforge.recipes.skyisland.MorphologyProviderId;
+import io.github.nidaba.skyforge.recipes.skyisland.SkyIslandMorphologyProvider;
+import io.github.nidaba.skyforge.recipes.skyisland.SkyIslandMorphologyProviderRegistry;
 import io.github.nidaba.skyforge.recipes.skyisland.SkyIslandMorphologyProviders;
+import io.github.nidaba.skyforge.recipes.skyisland.group.ProviderBlendMorphologySpec;
 import io.github.nidaba.skyforge.recipes.skyisland.group.ProviderMorphologySpec;
+import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandMorphologySpec;
 import io.github.nidaba.skyforge.recipes.skyisland.group.SkyIslandMorphologySpecCompiler;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
 import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
@@ -19,12 +26,18 @@ import java.util.Set;
 import net.minecraft.world.level.ChunkPos;
 
 /**
- * Exact Minecraft carrier fixtures for the remaining AUTH-0083 SMALL / seed-skyforge built-ins.
+ * Exact Minecraft carrier fixtures for the accepted AUTH-0083 morphology review corpus.
  *
  * <p>AUTH-0083's canonical SMALL descriptor is reconstructed exactly in the backend adapter rather
  * than introducing a dependency on the reference-evidence module. The only Minecraft adjustment is
  * an integer suspension-Y translation into the build interval. Full detail and full provider
  * secondary morphology remain enabled through the provider-neutral production compiler.
+ *
+ * <p>AUTH-0052 intentionally does not certify true non-endpoint provider blends. HS-03 therefore
+ * derives their finite horizontal scan domain from the constituent positive-inside support proofs.
+ * Outside both constituent domains both footprint residuals are non-positive, so their convex blend
+ * is also non-positive. The crescent fixture's radius is proved directly from its normalized
+ * along/across equations. Exact voxel scanning then rejects any result that touches the proof bound.
  */
 final class SkyforgeProductionMorphologyAtlasFixture {
     static final long GEOMETRY_SEED = 0x534b59464f524745L;
@@ -32,12 +45,17 @@ final class SkyforgeProductionMorphologyAtlasFixture {
     private static final long ROOT_SEED = 0x5346494d50303082L;
     private static final double SOURCE_SUSPENSION = 512.0;
     private static final int TARGET_MINIMUM_SOLID_Y = 96;
-    private static final Map<Member, Fixture> FIXTURES = buildFixtures();
+    private static final MorphologyProviderId REFERENCE_CRESCENT =
+            new MorphologyProviderId("reference", "crescent");
+    private static final Map<Member, Fixture> FIXTURES = new EnumMap<>(Member.class);
 
     private SkyforgeProductionMorphologyAtlasFixture() {}
 
     static Fixture fixture(Member member) {
-        return Objects.requireNonNull(FIXTURES.get(Objects.requireNonNull(member, "member")));
+        synchronized (FIXTURES) {
+            return FIXTURES.computeIfAbsent(Objects.requireNonNull(member, "member"),
+                    SkyforgeProductionMorphologyAtlasFixture::buildFixture);
+        }
     }
 
     static Member member(String id) {
@@ -46,7 +64,7 @@ final class SkyforgeProductionMorphologyAtlasFixture {
                 return member;
             }
         }
-        throw new IllegalArgumentException("unknown SF-IMP-0082 atlas member: " + id);
+        throw new IllegalArgumentException("unknown production morphology atlas member: " + id);
     }
 
     static Set<Long> footprintChunkKeys(WorldBounds bounds) {
@@ -72,39 +90,35 @@ final class SkyforgeProductionMorphologyAtlasFixture {
         return integer;
     }
 
-    private static Map<Member, Fixture> buildFixtures() {
-        EnumMap<Member, Fixture> fixtures = new EnumMap<>(Member.class);
-        for (Member member : Member.values()) {
-            fixtures.put(member, buildFixture(member));
-        }
-        return Map.copyOf(fixtures);
-    }
-
     private static Fixture buildFixture(Member member) {
-        ProviderMorphologySpec morphology = ProviderMorphologySpec.full(
-                SkyIslandMorphologyProviders.builtInId(member.family()));
+        SkyIslandMorphologySpec morphology = member.morphology();
         var compiler = new SkyIslandMorphologySpecCompiler();
-        var registry = SkyIslandMorphologyProviders.builtInRegistry();
+        var registry = registry(member);
         SkyIslandTerrainProfile profile = SkyIslandTerrainProfile.reference();
 
         SkyIslandVolumeDescriptor sourceDescriptor = descriptor(SOURCE_SUSPENSION);
-        var sourceCompilation = compiler.compileWithSupport(sourceDescriptor, morphology, registry);
-        var sourceCertificate = sourceCompilation.supportEnvelope()
-                .orElseThrow(() -> new IllegalStateException(
-                        member.id() + " unexpectedly lost its certified support envelope"));
-        var sourceSupport = SkyforgeExactVoxelSupportBounds.derive(
-                sourceCompilation.volume(), sourceCertificate, profile);
+        SupportCompilation sourceCompilation = compileExactSupport(
+                member,
+                sourceDescriptor,
+                morphology,
+                registry,
+                compiler,
+                profile);
+        var sourceSupport = sourceCompilation.support();
 
         int verticalTranslation = Math.subtractExact(
                 TARGET_MINIMUM_SOLID_Y,
                 toExactInt(sourceSupport.bounds().minimumY()));
         SkyIslandVolumeDescriptor translatedDescriptor =
                 descriptor(SOURCE_SUSPENSION + verticalTranslation);
-        var translatedCompilation =
-                compiler.compileWithSupport(translatedDescriptor, morphology, registry);
-        var translatedCertificate = translatedCompilation.supportEnvelope().orElseThrow();
-        var translatedSupport = SkyforgeExactVoxelSupportBounds.derive(
-                translatedCompilation.volume(), translatedCertificate, profile);
+        SupportCompilation translatedCompilation = compileExactSupport(
+                member,
+                translatedDescriptor,
+                morphology,
+                registry,
+                compiler,
+                profile);
+        var translatedSupport = translatedCompilation.support();
 
         requirePureIntegerTranslation(
                 member, sourceSupport.bounds(), translatedSupport.bounds(), verticalTranslation);
@@ -140,6 +154,87 @@ final class SkyforgeProductionMorphologyAtlasFixture {
                 catalog,
                 volumeId,
                 footprint);
+    }
+
+    private static SupportCompilation compileExactSupport(
+            Member member,
+            SkyIslandVolumeDescriptor descriptor,
+            SkyIslandMorphologySpec morphology,
+            SkyIslandMorphologyProviderRegistry registry,
+            SkyIslandMorphologySpecCompiler compiler,
+            SkyIslandTerrainProfile profile) {
+        var compilation = compiler.compileWithSupport(descriptor, morphology, registry);
+        var certificate = compilation.supportEnvelope();
+        if (certificate.isPresent()) {
+            return new SupportCompilation(
+                    compilation.volume(),
+                    SkyforgeExactVoxelSupportBounds.derive(
+                            compilation.volume(), certificate.orElseThrow(), profile));
+        }
+        if (!(morphology instanceof ProviderBlendMorphologySpec blend)) {
+            throw new IllegalStateException(
+                    member.id() + " lacks both AUTH-0052 support and an HS-03 blend-domain proof");
+        }
+        double horizontalRadius = provenBlendHorizontalRadius(descriptor, blend.blend(), registry);
+        return new SupportCompilation(
+                compilation.volume(),
+                SkyforgeExactVoxelSupportBounds.deriveWithinHorizontalRadius(
+                        compilation.volume(),
+                        horizontalRadius,
+                        profile,
+                        "hs03-provider-blend-horizontal-proof-v1:" + blend.blend().pairIdentifier()));
+    }
+
+    private static double provenBlendHorizontalRadius(
+            SkyIslandVolumeDescriptor descriptor,
+            MorphologyProviderBlend blend,
+            SkyIslandMorphologyProviderRegistry registry) {
+        double first = provenProviderHorizontalRadius(descriptor, blend.first(), registry);
+        double second = provenProviderHorizontalRadius(descriptor, blend.second(), registry);
+        return Math.nextUp(Math.max(first, second));
+    }
+
+    private static double provenProviderHorizontalRadius(
+            SkyIslandVolumeDescriptor descriptor,
+            MorphologyProviderId providerId,
+            SkyIslandMorphologyProviderRegistry registry) {
+        SkyIslandMorphologyProvider provider = registry.require(providerId);
+        var certificate = provider.certifiedPrimarySupportEnvelope(descriptor);
+        if (certificate.isPresent()) {
+            return certificate.orElseThrow().maximumHorizontalRadius();
+        }
+        if (REFERENCE_CRESCENT.equals(providerId)) {
+            return referenceCrescentHorizontalRadius(descriptor);
+        }
+        throw new IllegalStateException(
+                "HS-03 true blend constituent has no analytical horizontal support proof: " + providerId);
+    }
+
+    /**
+     * Conservative radial support proof for the fixture-only reference crescent.
+     *
+     * <p>Positive footprint requires |along| &lt; 1 and |across| &lt; 1. The normalized bend is
+     * 0.62 * (along^2 - 0.22), whose maximum absolute value over |along| &lt;= 1 is 0.62 * 0.78.
+     * Rotation preserves Euclidean radius, so the hypotenuse of the resulting longitudinal and
+     * transverse bounds contains every positive-inside point.
+     */
+    private static double referenceCrescentHorizontalRadius(SkyIslandVolumeDescriptor descriptor) {
+        double radius = descriptor.nominalRadius();
+        double maximumAlong = 1.05 * radius;
+        double maximumAcross = 0.58 * radius * (1.0 + 0.62 * 0.78);
+        return Math.nextUp(Math.hypot(maximumAlong, maximumAcross));
+    }
+
+    private static SkyIslandMorphologyProviderRegistry registry(Member member) {
+        if (!member.requiresReferenceCrescent()) {
+            return SkyIslandMorphologyProviders.builtInRegistry();
+        }
+        SkyIslandMorphologyProviderRegistry.Builder builder = SkyIslandMorphologyProviderRegistry.builder();
+        for (SkyIslandMorphologyProvider provider : SkyIslandMorphologyProviders.builtInRegistry().providers()) {
+            builder.register(provider);
+        }
+        builder.register(new SkyforgeHs03ReferenceCrescentFixtureProvider());
+        return builder.build();
     }
 
     private static SkyIslandVolumeDescriptor descriptor(double suspensionElevation) {
@@ -181,7 +276,9 @@ final class SkyforgeProductionMorphologyAtlasFixture {
         TABLELAND("builtin-tableland-small-seed-skyforge", MorphologyFamily.TABLELAND),
         SPINE("builtin-spine-small-seed-skyforge", MorphologyFamily.SPINE),
         BASIN("builtin-basin-small-seed-skyforge", MorphologyFamily.BASIN),
-        LOBED("builtin-lobed-small-seed-skyforge", MorphologyFamily.LOBED);
+        LOBED("builtin-lobed-small-seed-skyforge", MorphologyFamily.LOBED),
+        HYBRID_MASSIF_SPINE("hybrid-massif-spine-midpoint", MorphologyFamily.MASSIF),
+        PROVIDER_CRESCENT_LOBED("provider-crescent-to-lobed-midpoint", MorphologyFamily.LOBED);
 
         private final String id;
         private final MorphologyFamily family;
@@ -201,6 +298,35 @@ final class SkyforgeProductionMorphologyAtlasFixture {
 
         String commandId() {
             return family.identifier();
+        }
+
+        static java.util.List<Member> builtInMembers() {
+            return java.util.List.of(TABLELAND, SPINE, BASIN, LOBED);
+        }
+
+        boolean requiresReferenceCrescent() {
+            return this == PROVIDER_CRESCENT_LOBED;
+        }
+
+        SkyIslandMorphologySpec morphology() {
+            return switch (this) {
+                case HYBRID_MASSIF_SPINE -> ProviderBlendMorphologySpec.full(new MorphologyProviderBlend(
+                        SkyIslandMorphologyProviders.builtInId(MorphologyFamily.MASSIF),
+                        SkyIslandMorphologyProviders.builtInId(MorphologyFamily.SPINE), 0.5));
+                case PROVIDER_CRESCENT_LOBED -> ProviderBlendMorphologySpec.full(new MorphologyProviderBlend(
+                        REFERENCE_CRESCENT,
+                        SkyIslandMorphologyProviders.builtInId(MorphologyFamily.LOBED), 0.5));
+                default -> ProviderMorphologySpec.full(SkyIslandMorphologyProviders.builtInId(family));
+            };
+        }
+    }
+
+    private record SupportCompilation(
+            CompiledSkyIslandVolume volume,
+            SkyforgeExactVoxelSupportBounds.Result support) {
+        SupportCompilation {
+            Objects.requireNonNull(volume, "volume");
+            Objects.requireNonNull(support, "support");
         }
     }
 
