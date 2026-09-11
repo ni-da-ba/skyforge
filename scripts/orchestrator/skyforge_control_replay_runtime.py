@@ -18,13 +18,16 @@ import skyforge_control_replay_base as _base
 # regression hooks continue to operate exactly as before.
 sys.modules[__name__] = _base
 
-# Importing these modules installs bounded roadmap continuation and paused-only open-handoff recovery
-# on _base.core. The roadmap runtime imports ``skyforge_control_replay_runtime`` during initialization;
-# that lookup now resolves directly to _base, so there is no duplicate replay-runtime state.
+# Importing these modules installs bounded roadmap continuation, active-roadmap closed-issue
+# reconciliation, and paused-only open-handoff recovery on _base.core. The roadmap runtime imports
+# ``skyforge_control_replay_runtime`` during initialization; that lookup now resolves directly to
+# _base, so there is no duplicate replay-runtime state.
 import skyforge_roadmap_runtime as _roadmap_runtime  # noqa: E402,F401
+import skyforge_roadmap_closed_issue_recovery_runtime as _roadmap_closed_issue_recovery_runtime  # noqa: E402,F401
 import skyforge_handoff_recovery_runtime as _handoff_recovery_runtime  # noqa: E402,F401
 
 _base._roadmap_runtime = _roadmap_runtime
+_base._roadmap_closed_issue_recovery_runtime = _roadmap_closed_issue_recovery_runtime
 _base._handoff_recovery_runtime = _handoff_recovery_runtime
 
 
