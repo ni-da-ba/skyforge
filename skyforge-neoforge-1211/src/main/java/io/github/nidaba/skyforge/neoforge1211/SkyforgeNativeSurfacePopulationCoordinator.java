@@ -51,6 +51,12 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
         SkyforgeRuntimePerformanceMetrics.recordSample(
                 "surfacePopulation.findSurface.heightQueries",
                 search.heightQueries());
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "surfacePopulation.findSurface.exactSupportQueries",
+                search.exactSupportQueries());
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "surfacePopulation.findSurface.fallbackHeightQueries",
+                search.fallbackHeightQueries());
         Optional<SurfaceSample> surface = search.surface();
         if (surface.isEmpty()) {
             return new Result(plan.volumeId(), chunkPos, false, List.of());
@@ -120,28 +126,62 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
             ChunkPos chunkPos) {
         int minimumX = chunkPos.getMinBlockX();
         int minimumZ = chunkPos.getMinBlockZ();
+        int minimumY = level.getMinBuildHeight();
+        int maximumYExclusive = Math.addExact(minimumY, level.getHeight());
         int heightQueries = 0;
+        int exactSupportQueries = 0;
+        int fallbackHeightQueries = 0;
 
         for (ColumnProbe probe : SURFACE_PROBE_ORDER) {
             int x = minimumX + probe.localX();
             int z = minimumZ + probe.localZ();
             heightQueries++;
+            exactSupportQueries++;
+
+            var exactSupport = SkyforgeNeoForge1211SurfaceStage.integerSolidRange(volumeId, x, z);
+            if (exactSupport.isEmpty()) {
+                continue;
+            }
+            var solidRange = exactSupport.orElseThrow();
+            if (solidRange.maximumY() < minimumY) {
+                continue;
+            }
+
+            if (solidRange.maximumY() < maximumYExclusive) {
+                return new SurfaceSearchResult(
+                        Optional.of(new SurfaceSample(x, z, solidRange.maximumY() + 1)),
+                        heightQueries,
+                        exactSupportQueries,
+                        fallbackHeightQueries);
+            }
+
+            // A caller whose build span truncates the exact column below its global top still needs
+            // the historical arbitrary-span height semantics. This path is not expected for admitted
+            // production islands, but retaining it keeps surface discovery exact for test/custom
+            // dimensions rather than assuming the support maximum is always inside the build range.
+            fallbackHeightQueries++;
             var claim = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
                     volumeId,
                     x,
                     z,
                     Heightmap.Types.WORLD_SURFACE_WG,
-                    level.getMinBuildHeight(),
+                    minimumY,
                     level.getHeight());
             if (claim.isEmpty()) {
                 continue;
             }
             return new SurfaceSearchResult(
                     Optional.of(new SurfaceSample(x, z, claim.orElseThrow().height())),
-                    heightQueries);
+                    heightQueries,
+                    exactSupportQueries,
+                    fallbackHeightQueries);
         }
 
-        return new SurfaceSearchResult(Optional.empty(), heightQueries);
+        return new SurfaceSearchResult(
+                Optional.empty(),
+                heightQueries,
+                exactSupportQueries,
+                fallbackHeightQueries);
     }
 
     static List<ColumnProbe> surfaceProbeOrder() {
@@ -199,11 +239,18 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
 
     record SurfaceSample(int x, int z, int firstFreeY) {}
 
-    private record SurfaceSearchResult(Optional<SurfaceSample> surface, int heightQueries) {
+    private record SurfaceSearchResult(
+            Optional<SurfaceSample> surface,
+            int heightQueries,
+            int exactSupportQueries,
+            int fallbackHeightQueries) {
         private SurfaceSearchResult {
             Objects.requireNonNull(surface, "surface");
-            if (heightQueries < 0 || heightQueries > CHUNK_WIDTH * CHUNK_WIDTH) {
-                throw new IllegalArgumentException("surface search height-query count is out of range");
+            int maximumQueries = CHUNK_WIDTH * CHUNK_WIDTH;
+            if (heightQueries < 0 || heightQueries > maximumQueries
+                    || exactSupportQueries < 0 || exactSupportQueries > heightQueries
+                    || fallbackHeightQueries < 0 || fallbackHeightQueries > exactSupportQueries) {
+                throw new IllegalArgumentException("surface search query evidence is out of range");
             }
         }
     }
