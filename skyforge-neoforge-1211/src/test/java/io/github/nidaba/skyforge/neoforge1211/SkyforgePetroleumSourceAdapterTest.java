@@ -19,49 +19,57 @@ final class SkyforgePetroleumSourceAdapterTest {
     private static final long WORLD = 0x4155544830303938L;
     private static final ResourceLocation LOWER = ResourceLocation.fromNamespaceAndPath("skyforge", "lower");
     private static final ResourceLocation UPPER = ResourceLocation.fromNamespaceAndPath("skyforge", "upper");
-    private static final BlockPos LOWER_POS = new BlockPos(24, 96, -8);
-    private static final BlockPos UPPER_POS = new BlockPos(24, 176, -8);
+    private static final BlockPos LOWER_SOURCE = new BlockPos(24, 96, -8);
+    private static final BlockPos UPPER_SOURCE = new BlockPos(24, 176, -8);
+    private static final BlockPos LOWER_WELL = new BlockPos(24, 128, -8);
+    private static final BlockPos UPPER_WELL = new BlockPos(24, 208, -8);
 
     @Test
-    void c26AdmissionRejectsZeroSupportAndBaseWorldOrUnownedLocations() {
+    void c26AdmissionRejectsZeroSupportAndBaseWorldOrUnownedColumns() {
         var eligible = cells().stream().filter(cell -> cell.systemOpportunity() > 0.0).findFirst().orElseThrow();
         var zero = cells().stream().filter(cell -> cell.systemOpportunity() == 0.0).findFirst().orElseThrow();
         var adapter = adapter(eligible);
-        assertTrue(adapter.pumpjackTermination(LOWER, LOWER_POS, false).isPresent());
-        assertFalse(adapter.pumpjackTermination(LOWER, LOWER_POS, true).isPresent());
-        assertFalse(adapter.pumpjackTermination(LOWER, LOWER_POS.above(), false).isPresent());
+        assertTrue(adapter.pumpjackSource(LOWER, LOWER_WELL, false).isPresent());
+        assertFalse(adapter.pumpjackSource(LOWER, LOWER_WELL, true).isPresent());
+        assertFalse(adapter.pumpjackSource(LOWER, LOWER_WELL.east(), false).isPresent());
+        assertFalse(adapter.pumpjackSource(UPPER, LOWER_WELL, false).isPresent());
         assertThrows(IllegalArgumentException.class, () -> new SkyforgePetroleumSourceAdapter.AdmissibleSupport(
-                new SkyforgePetroleumSourceAdapter.SourceAddress(LOWER, LOWER_POS.above()), zero));
+                new SkyforgePetroleumSourceAdapter.SourceAddress(LOWER, LOWER_SOURCE.above()), zero));
     }
 
     @Test
     void quantityPressureDepletionReloadAndStackedVolumeIsolationAreExplicit() {
         var eligible = cells().stream().filter(cell -> cell.systemOpportunity() > 0.0).findFirst().orElseThrow();
         var spec = new SkyforgePetroleumSourceAdapter.Specification(1_000, 40);
-        var lowerAddress = new SkyforgePetroleumSourceAdapter.SourceAddress(LOWER, LOWER_POS);
-        var upperAddress = new SkyforgePetroleumSourceAdapter.SourceAddress(UPPER, UPPER_POS);
+        var lowerAddress = new SkyforgePetroleumSourceAdapter.SourceAddress(LOWER, LOWER_SOURCE);
+        var upperAddress = new SkyforgePetroleumSourceAdapter.SourceAddress(UPPER, UPPER_SOURCE);
         var adapter = new SkyforgePetroleumSourceAdapter(spec, List.of(
                 new SkyforgePetroleumSourceAdapter.AdmissibleSupport(lowerAddress, eligible),
                 new SkyforgePetroleumSourceAdapter.AdmissibleSupport(upperAddress, eligible)));
-        var lower = adapter.pumpjackTermination(LOWER, LOWER_POS, false).orElseThrow();
+        var lower = adapter.pumpjackSource(LOWER, LOWER_WELL, false).orElseThrow();
+        assertEquals(lowerAddress, lower.address());
         assertEquals(40, lower.pressure());
         assertEquals(275, adapter.extract(lower, 275));
         assertEquals(725, adapter.save().get(lowerAddress));
         assertEquals(1_000, adapter.save().get(upperAddress));
+
+        var upper = adapter.pumpjackSource(UPPER, UPPER_WELL, false).orElseThrow();
+        assertEquals(upperAddress, upper.address());
+
         var reloaded = new SkyforgePetroleumSourceAdapter(spec, List.of(
                 new SkyforgePetroleumSourceAdapter.AdmissibleSupport(lowerAddress, eligible),
                 new SkyforgePetroleumSourceAdapter.AdmissibleSupport(upperAddress, eligible)));
         reloaded.reload(adapter.save());
         assertEquals(adapter.save(), reloaded.save());
-        assertEquals(725, reloaded.extract(reloaded.pumpjackTermination(LOWER, LOWER_POS, false).orElseThrow(), 9_999));
-        assertFalse(reloaded.pumpjackTermination(LOWER, LOWER_POS, false).isPresent());
-        assertTrue(reloaded.pumpjackTermination(UPPER, UPPER_POS, false).isPresent());
+        assertEquals(725, reloaded.extract(reloaded.pumpjackSource(LOWER, LOWER_WELL, false).orElseThrow(), 9_999));
+        assertFalse(reloaded.pumpjackSource(LOWER, LOWER_WELL, false).isPresent());
+        assertTrue(reloaded.pumpjackSource(UPPER, UPPER_WELL, false).isPresent());
     }
 
     private static SkyforgePetroleumSourceAdapter adapter(SkyIslandPetroleumSystemOpportunityCell cell) {
         return new SkyforgePetroleumSourceAdapter(new SkyforgePetroleumSourceAdapter.Specification(1_000, 40), List.of(
                 new SkyforgePetroleumSourceAdapter.AdmissibleSupport(
-                        new SkyforgePetroleumSourceAdapter.SourceAddress(LOWER, LOWER_POS), cell)));
+                        new SkyforgePetroleumSourceAdapter.SourceAddress(LOWER, LOWER_SOURCE), cell)));
     }
 
     private static List<SkyIslandPetroleumSystemOpportunityCell> cells() {
