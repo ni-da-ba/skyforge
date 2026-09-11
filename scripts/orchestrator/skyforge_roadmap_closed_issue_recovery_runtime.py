@@ -30,6 +30,23 @@ def _manifest_node(
     return next((node for node in manifest.nodes if node.node_id == node_id), None)
 
 
+def _matching_managed_pr(self: core.Orchestrator, issue_number: int) -> int | None:
+    """Return a durable task-owned PR before considering issue-closure retirement.
+
+    The base roadmap runtime deliberately binds a newly created managed PR before applying the global
+    open-task guard. Preserve that race-safety invariant here: once a PR exists, its lifecycle is
+    authoritative even if the issue closes concurrently.
+    """
+    authority_key = f"task:{int(issue_number)}"
+    for record in roadmap_runtime._task_managed_records(self):
+        if (
+            str(record.get("authority_key") or "") == authority_key
+            and record.get("pr_number")
+        ):
+            return int(record["pr_number"])
+    return None
+
+
 def _resolve_active_closed_issue(
     self: core.Orchestrator,
     manifest: roadmap_runtime.roadmap_policy.RoadmapManifest,
@@ -44,6 +61,11 @@ def _resolve_active_closed_issue(
 
     # A bound PR remains the durable work surface and must follow the normal PR lifecycle.
     if active.get("pr_number") or not issue_number:
+        return _ORIGINAL_RESOLVE_ACTIVE(self, manifest, state)
+
+    # A just-created managed PR may exist before active.pr_number has been persisted. Delegate first
+    # so the accepted binding-race behavior can attach it and enforce the normal PR lifecycle.
+    if _matching_managed_pr(self, int(issue_number)) is not None:
         return _ORIGINAL_RESOLVE_ACTIVE(self, manifest, state)
 
     issue_open = roadmap_runtime._roadmap_issue_open(self, int(issue_number))
