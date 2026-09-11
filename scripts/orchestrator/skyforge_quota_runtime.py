@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from pathlib import Path
 from typing import Any, Iterable
 
 import codex_quota
@@ -37,6 +38,7 @@ _ORIGINAL_CLASSIFY_CONTROL_COMMAND = core.classify_control_command
 _ORIGINAL_APPLY_CONTROL_PAYLOAD = core.Orchestrator._apply_control_payload
 _ORIGINAL_HEALTH_SNAPSHOT = core.Orchestrator.health_snapshot
 _ORIGINAL_CONSUME_BUDGET = core.Orchestrator._consume_budget
+_ORIGINAL_DISCARD_PENDING_WORKER = core.Orchestrator.discard_pending_worker
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -235,6 +237,125 @@ def _consume_budget(self: core.Orchestrator, kind: str) -> None:
     _record_governed_attempt(self, kind)
 
 
+def _retire_merged_managed_handoff(
+    self: core.Orchestrator,
+    pending: dict[str, Any],
+    *,
+    actor: str | None,
+) -> None:
+    """Retire a stale handoff only after its managed PR is already merged.
+
+    The remote merged PR/main history is the durable source of truth. Any residual local dirty state is
+    archived under the ignored recovery directory before the linked worktree is removed. Pending
+    events and the cached decision are intentionally preserved so normal replay can invalidate the
+    now-closed PR against current repository state.
+    """
+    if pending.get("stage") != "handoff":
+        raise RuntimeError("Refusing to retire a managed worker that has not reached durable handoff")
+    try:
+        pr_number = int(pending.get("managed_pr") or 0)
+    except (TypeError, ValueError):
+        pr_number = 0
+    if pr_number <= 0:
+        raise RuntimeError("Managed handoff is missing a valid PR number")
+
+    pr = core._json_cmd(
+        [
+            "gh", "pr", "view", str(pr_number),
+            "--repo", self.repo,
+            "--json", "state,mergedAt,headRefName,headRefOid,mergeCommit",
+        ],
+        cwd=self.root,
+        timeout=60,
+    )
+    if str(pr.get("state") or "").upper() != "MERGED" or not pr.get("mergedAt"):
+        raise RuntimeError(
+            f"Refusing to retire managed PR #{pr_number} handoff because the PR is not merged"
+        )
+
+    raw_worktree = pending.get("worktree")
+    if not raw_worktree:
+        raise RuntimeError("Refusing to retire a managed handoff without an isolated worktree")
+    worktree = Path(str(raw_worktree))
+    if not worktree.is_absolute():
+        worktree = self.root / worktree
+    if worktree.resolve() == self.root.resolve():
+        raise RuntimeError("Refusing to retire the controller checkout as a worker")
+    if not worktree.exists():
+        raise RuntimeError(f"Pending worker worktree is missing: {worktree}")
+
+    changed_paths = self._changed_paths(worktree)
+    recovery_dir = self.root / core.STATE_DIR / "recovery"
+    recovery_dir.mkdir(parents=True, exist_ok=True)
+    stamp = str(int(time.time()))
+    prefix = recovery_dir / f"managed-pr-{pr_number}-handoff-{stamp}"
+    diff = core._run(
+        ["git", "diff", "--binary", "HEAD"],
+        cwd=worktree,
+        check=False,
+    ).stdout
+    (prefix.with_suffix(".patch")).write_text(diff)
+    metadata = {
+        "archived_at": core._utc_now(),
+        "actor": actor,
+        "managed_pr": pr_number,
+        "branch": pending.get("branch"),
+        "worker_stage": pending.get("stage"),
+        "worker_head": core._run(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip(),
+        "pr_head": pr.get("headRefOid"),
+        "merge_commit": (pr.get("mergeCommit") or {}).get("oid") if isinstance(pr.get("mergeCommit"), dict) else None,
+        "changed_paths": changed_paths[:100],
+    }
+    (prefix.with_suffix(".json")).write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")
+
+    core._run(
+        ["git", "worktree", "remove", "--force", str(worktree)],
+        cwd=self.root,
+        timeout=120,
+    )
+    core._run(["git", "worktree", "prune"], cwd=self.root, check=False)
+
+    with self._state_lock:
+        current = self.state.data.get("pending_worker")
+        if not isinstance(current, dict) or current.get("branch") != pending.get("branch"):
+            raise RuntimeError("Pending worker ownership changed during merged-handoff retirement")
+        self.state.data["pending_worker"] = None
+        self.state.data["last_worker_discard"] = {
+            "discarded_at": core._utc_now(),
+            "discarded_by": actor,
+            "branch": pending.get("branch"),
+            "stage": pending.get("stage"),
+            "managed_pr": pr_number,
+            "changed_paths": changed_paths[:50],
+            "preserved_patch": str(prefix.with_suffix(".patch").relative_to(self.root)),
+            "preserved_metadata": str(prefix.with_suffix(".json").relative_to(self.root)),
+            "reason": "managed PR already merged; stale local handoff retired with forensic archive",
+        }
+        self.state.data["last_startup_reconcile_error"] = None
+        self.state.data["startup_reconcile_retry_at"] = None
+        self.state.save()
+    self._metric("operator_merged_handoff_retirements")
+
+
+def discard_pending_worker(self: core.Orchestrator, *, actor: str | None = None) -> None:
+    """Preserve the original discard guard, plus a merged-PR-only terminal handoff path."""
+    with self._state_lock:
+        if not self.state.data.get("paused"):
+            raise RuntimeError("Worker discard requires the controller to be paused")
+        pending = self.state.data.get("pending_worker")
+        if not isinstance(pending, dict):
+            raise RuntimeError("No pending worker exists to discard")
+        pending = dict(pending)
+
+    if not pending.get("managed_pr"):
+        _ORIGINAL_DISCARD_PENDING_WORKER(self, actor=actor)
+        return
+
+    # Serialize only the merged-PR retirement path. The original path owns its own dispatch lock.
+    with self._dispatch_lock:
+        _retire_merged_managed_handoff(self, pending, actor=actor)
+
+
 def post_quota(self: core.Orchestrator, target: int | str = 378) -> None:
     """Read provider quota and post only the redacted normalized snapshot and pacing decision."""
     try:
@@ -322,6 +443,7 @@ def install_extension() -> None:
     core.Orchestrator._apply_control_payload = _apply_control_payload
     core.Orchestrator.health_snapshot = health_snapshot
     core.Orchestrator._consume_budget = _consume_budget
+    core.Orchestrator.discard_pending_worker = discard_pending_worker
     core._skyforge_quota_extension_installed = True
 
 
