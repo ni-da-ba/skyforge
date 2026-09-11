@@ -6,5 +6,9 @@ out/
 *.iml
 hs_err_pid*
 
+# Python runtime bytecode/cache
+__pycache__/
+*.py[cod]
+
 # Local event-driven Codex orchestration pilot state/venv
 .skyforge-orchestrator/
