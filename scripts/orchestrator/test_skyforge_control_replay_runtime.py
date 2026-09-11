@@ -14,6 +14,7 @@ if str(MODULE_DIR) not in sys.path:
 
 runtime = importlib.import_module("skyforge_control_replay_runtime")
 core = runtime.core
+fairness = runtime._pending_timer_fairness_runtime
 
 
 def completed(args, stdout=""):
@@ -302,6 +303,75 @@ class ControlReplayRuntimeTests(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(RuntimeError, "changed-path drift"):
                     runtime._merge_managed(o, "Implementation", 481)
+
+
+class PendingTimerFairnessIntegrationTests(unittest.TestCase):
+    class FakeTimer:
+        def __init__(self, delay, callback):
+            self.delay = delay
+            self.callback = callback
+            self.daemon = False
+            self.started = False
+            self.cancelled = False
+
+        def start(self):
+            self.started = True
+
+        def cancel(self):
+            self.cancelled = True
+
+        def is_alive(self):
+            return self.started and not self.cancelled
+
+    def make_orchestrator(self):
+        o = core.Orchestrator.__new__(core.Orchestrator)
+        o._timer_lock = threading.Lock()
+        o._timer = None
+        o._timer_due_epoch = None
+        o._timer_scheduled_at = None
+        o._timer_last_fired_at = None
+        o._pending_timer_callback = mock.Mock()
+        o._metric = mock.Mock()
+        return o
+
+    def test_later_event_cannot_postpone_but_earlier_event_can_pull_forward(self):
+        o = self.make_orchestrator()
+        with mock.patch.object(fairness.threading, "Timer", self.FakeTimer), mock.patch.object(
+            fairness.time, "time", side_effect=[100.0, 101.0, 102.0]
+        ):
+            o._schedule_pending(25)
+            first = o._timer
+            first_due = o._timer_due_epoch
+
+            o._schedule_pending(40)
+            self.assertIs(o._timer, first)
+            self.assertEqual(o._timer_due_epoch, first_due)
+            self.assertFalse(first.cancelled)
+
+            o._schedule_pending(5)
+            second = o._timer
+
+        self.assertIsNot(second, first)
+        self.assertTrue(first.cancelled)
+        self.assertEqual(second.delay, 5.0)
+        self.assertEqual(o._timer_due_epoch, 107.0)
+        o._metric.assert_called_once_with("pending_timer_postpone_suppressed")
+
+    def test_dead_timer_is_replaceable_and_runtime_path_is_refresh_tracked(self):
+        o = self.make_orchestrator()
+        with mock.patch.object(fairness.threading, "Timer", self.FakeTimer), mock.patch.object(
+            fairness.time, "time", side_effect=[100.0, 150.0]
+        ):
+            o._schedule_pending(25)
+            first = o._timer
+            first.cancel()
+            o._schedule_pending(40)
+            second = o._timer
+
+        self.assertIsNot(second, first)
+        self.assertEqual(second.delay, 40.0)
+        self.assertEqual(o._timer_due_epoch, 190.0)
+        self.assertIn(fairness.RUNTIME_PATH, core.CONTROLLER_RUNTIME_PATHS)
 
 
 if __name__ == "__main__":
