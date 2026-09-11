@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -118,12 +119,19 @@ final class SkyforgePopulationExecutionStage {
         if (ACTIVE.get() != null) {
             throw new IllegalStateException("nested Skyforge population executions are not supported");
         }
+
+        CachedBlockPredicate cachedOwnerSolid = new CachedBlockPredicate(ownerSolid);
+        CachedBlockPredicate cachedForeignSolid = new CachedBlockPredicate(foreignSolid);
         Execution execution = new Execution(
                 level,
                 operation,
                 domainBiome,
-                ownerSolid,
-                new SkyforgePopulationAttachmentEnvelope(ownerSolid, foreignSolid, maximumAttachmentDepth));
+                cachedOwnerSolid,
+                cachedForeignSolid,
+                new SkyforgePopulationAttachmentEnvelope(
+                        cachedOwnerSolid,
+                        cachedForeignSolid,
+                        maximumAttachmentDepth));
         ACTIVE.set(execution);
         return new Scope(execution);
     }
@@ -132,19 +140,22 @@ final class SkyforgePopulationExecutionStage {
         private final Optional<WorldGenLevel> level;
         private final SkyforgePopulationOperation operation;
         private final Optional<Holder<Biome>> domainBiome;
-        private final Predicate<BlockPos> ownerSolid;
+        private final CachedBlockPredicate ownerSolid;
+        private final CachedBlockPredicate foreignSolid;
         private final SkyforgePopulationAttachmentEnvelope attachmentEnvelope;
 
         private Execution(
                 Optional<WorldGenLevel> level,
                 SkyforgePopulationOperation operation,
                 Optional<Holder<Biome>> domainBiome,
-                Predicate<BlockPos> ownerSolid,
+                CachedBlockPredicate ownerSolid,
+                CachedBlockPredicate foreignSolid,
                 SkyforgePopulationAttachmentEnvelope attachmentEnvelope) {
             this.level = Objects.requireNonNull(level, "level");
             this.operation = Objects.requireNonNull(operation, "operation");
             this.domainBiome = Objects.requireNonNull(domainBiome, "domainBiome");
             this.ownerSolid = Objects.requireNonNull(ownerSolid, "ownerSolid");
+            this.foreignSolid = Objects.requireNonNull(foreignSolid, "foreignSolid");
             this.attachmentEnvelope = Objects.requireNonNull(attachmentEnvelope, "attachmentEnvelope");
         }
 
@@ -198,6 +209,57 @@ final class SkyforgePopulationExecutionStage {
         int attachmentCount() {
             return attachmentEnvelope.attachmentCount();
         }
+
+        private void recordPerformanceEvidence() {
+            ownerSolid.recordPerformanceEvidence("population.ownerSolidCache");
+            foreignSolid.recordPerformanceEvidence("population.foreignSolidCache");
+        }
+    }
+
+    /**
+     * Caches one immutable compiled-geometry predicate for the lifetime of one native feature call.
+     * Mutable Minecraft block/fluid state and attachment ownership deliberately remain uncached.
+     */
+    private static final class CachedBlockPredicate implements Predicate<BlockPos> {
+        private static final byte UNKNOWN = 0;
+        private static final byte FALSE = 1;
+        private static final byte TRUE = 2;
+
+        private final Predicate<BlockPos> delegate;
+        private final Long2ByteOpenHashMap values = new Long2ByteOpenHashMap();
+        private long hits;
+        private long misses;
+
+        private CachedBlockPredicate(Predicate<BlockPos> delegate) {
+            this.delegate = Objects.requireNonNull(delegate, "delegate");
+            values.defaultReturnValue(UNKNOWN);
+        }
+
+        @Override
+        public boolean test(BlockPos position) {
+            Objects.requireNonNull(position, "position");
+            long key = position.asLong();
+            byte cached = values.get(key);
+            if (cached != UNKNOWN) {
+                hits++;
+                return cached == TRUE;
+            }
+
+            boolean value = delegate.test(position);
+            values.put(key, value ? TRUE : FALSE);
+            misses++;
+            return value;
+        }
+
+        private void recordPerformanceEvidence(String metricPrefix) {
+            if (!SkyforgeRuntimePerformanceMetrics.enabled()) {
+                return;
+            }
+            SkyforgeRuntimePerformanceMetrics.recordSample(metricPrefix + ".queries", hits + misses);
+            SkyforgeRuntimePerformanceMetrics.recordSample(metricPrefix + ".hits", hits);
+            SkyforgeRuntimePerformanceMetrics.recordSample(metricPrefix + ".misses", misses);
+            SkyforgeRuntimePerformanceMetrics.recordSample(metricPrefix + ".uniquePositions", values.size());
+        }
     }
 
     static final class Scope implements AutoCloseable {
@@ -222,6 +284,7 @@ final class SkyforgePopulationExecutionStage {
         @Override
         public void close() {
             requireActive();
+            execution.recordPerformanceEvidence();
             closed = true;
             ACTIVE.remove();
         }
