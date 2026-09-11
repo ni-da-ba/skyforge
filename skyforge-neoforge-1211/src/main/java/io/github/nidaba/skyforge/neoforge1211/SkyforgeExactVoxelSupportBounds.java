@@ -9,12 +9,14 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Derives the tight closed integer-voxel support bounds of one certified compiled island.
+ * Derives the tight closed integer-voxel support bounds of one compiled island inside a proven
+ * finite horizontal search domain.
  *
- * <p>The provider certificate remains the proof that the finite horizontal search domain is
- * complete. This adapter then evaluates only integer Minecraft columns inside that certified
- * domain and shrinks the backend query/admission box to coordinates that can actually contain a
- * solid voxel. It changes no authored geometry and introduces no new morphology policy.
+ * <p>AUTH-0052 certificates remain the normal proof that the horizontal search domain is complete.
+ * HS-03 additionally exercises true provider blends, for which AUTH-0052 deliberately returns no
+ * certificate. Those fixtures may supply an independently proven horizontal radius while retaining
+ * the same exact integer-column boundary check. Finite sampling is never promoted into an AUTH-0052
+ * certificate.
  */
 final class SkyforgeExactVoxelSupportBounds {
     private SkyforgeExactVoxelSupportBounds() {}
@@ -23,15 +25,40 @@ final class SkyforgeExactVoxelSupportBounds {
             CompiledSkyIslandVolume volume,
             CertifiedSkyIslandSupportEnvelope certificate,
             SkyIslandTerrainProfile terrainProfile) {
-        Objects.requireNonNull(volume, "volume");
         Objects.requireNonNull(certificate, "certificate");
+        return deriveWithinHorizontalRadius(
+                volume,
+                certificate.maximumHorizontalRadius(),
+                terrainProfile,
+                certificate.certificateKind());
+    }
+
+    /**
+     * Derives exact voxel support inside an independently proven horizontal radius.
+     *
+     * <p>The caller owns the analytical proof for {@code maximumHorizontalRadius}. This method
+     * verifies the proof domain operationally by rejecting any result that touches its boundary.
+     */
+    static Result deriveWithinHorizontalRadius(
+            CompiledSkyIslandVolume volume,
+            double maximumHorizontalRadius,
+            SkyIslandTerrainProfile terrainProfile,
+            String evidenceKind) {
+        Objects.requireNonNull(volume, "volume");
         Objects.requireNonNull(terrainProfile, "terrainProfile");
+        Objects.requireNonNull(evidenceKind, "evidenceKind");
+        if (!Double.isFinite(maximumHorizontalRadius) || maximumHorizontalRadius <= 0.0) {
+            throw new IllegalArgumentException("maximumHorizontalRadius must be finite and positive");
+        }
+        if (evidenceKind.isBlank()) {
+            throw new IllegalArgumentException("evidenceKind must not be blank");
+        }
 
         var descriptor = volume.descriptor();
-        int scanMinimumX = floorToInt(descriptor.centerX() - certificate.maximumHorizontalRadius());
-        int scanMaximumX = ceilToInt(descriptor.centerX() + certificate.maximumHorizontalRadius());
-        int scanMinimumZ = floorToInt(descriptor.centerZ() - certificate.maximumHorizontalRadius());
-        int scanMaximumZ = ceilToInt(descriptor.centerZ() + certificate.maximumHorizontalRadius());
+        int scanMinimumX = floorToInt(descriptor.centerX() - maximumHorizontalRadius);
+        int scanMaximumX = ceilToInt(descriptor.centerX() + maximumHorizontalRadius);
+        int scanMinimumZ = floorToInt(descriptor.centerZ() - maximumHorizontalRadius);
+        int scanMaximumZ = ceilToInt(descriptor.centerZ() + maximumHorizontalRadius);
 
         SkyIslandTerrainInterpreter interpreter =
                 new SkyIslandTerrainInterpreter(volume, terrainProfile);
@@ -63,14 +90,14 @@ final class SkyforgeExactVoxelSupportBounds {
         }
 
         if (occupiedColumns == 0) {
-            throw new IllegalStateException("certified compiled island has no integer Minecraft voxel support");
+            throw new IllegalStateException("finite-domain compiled island has no integer Minecraft voxel support");
         }
         if (minimumX == scanMinimumX
                 || maximumX == scanMaximumX
                 || minimumZ == scanMinimumZ
                 || maximumZ == scanMaximumZ) {
             throw new IllegalStateException(
-                    "compiled integer support touched the certified horizontal search boundary");
+                    "compiled integer support touched the proven horizontal search boundary");
         }
 
         return new Result(
@@ -83,7 +110,7 @@ final class SkyforgeExactVoxelSupportBounds {
                         maximumZ),
                 occupiedColumns,
                 scannedColumns,
-                certificate.certificateKind());
+                evidenceKind);
     }
 
     static Optional<ColumnRange> integerSolidRange(
