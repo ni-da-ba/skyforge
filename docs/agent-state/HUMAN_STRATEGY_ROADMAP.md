@@ -1,7 +1,7 @@
 # Skyforge Human Strategy Roadmap
 
 **Status:** Canonical human-decision backlog for cross-lane strategy  
-**Updated:** 2026-09-07 (America/Chicago)
+**Updated:** 2026-09-11 (America/Chicago)
 
 ## Purpose
 
@@ -185,7 +185,6 @@ cutoffs:
 
 Heavy acceptance work is not rerun solely because unrelated documentation/state moved on main.
 
-
 ### HS-R10 — morphology capacity, control, selection, and realization are separate
 
 **Resolved direction:** production tuning must not shrink Skyforge's neutral terrain capacity merely because some valid terrain is poor for ordinary traversal or for a particular gameplay role.
@@ -220,6 +219,38 @@ Canonical coordination contract:
 
 Authorship control artifact:
 `docs/authorship/MORPHOLOGY_CONTROL_ATLAS.md`
+
+### HS-R11 — Bootstrap first-hours progression and spatial guarantees
+
+**Resolved direction:** Bootstrap progression is a capability-gated spatial sequence rather than a fixed map or lucky exploration outcome.
+
+Canonical contract: `docs/civilization/CIV-0043-bootstrap-province-spatial-recipe.md`.
+
+The accepted hierarchy is:
+
+```text
+CRASH ISLAND      -> survival + recovery
+STARTING GROUP    -> gliding + local traversal
+STARTING CLUSTER  -> first powered-flight closure
+BOOTSTRAP PROVINCE-> regional resources + civilization + freight
+```
+
+Key rules:
+
+- directed-path timing is a calibration target, not a deadline; players may spend substantially longer exploring, building, and experimenting;
+- exploration may delay progression voluntarily but must not hide the critical path behind chance;
+- food/shelter/basic Iron and workshop entry are guaranteed at the crash foothold scale;
+- glider closure is guaranteed at starting-island/group scale;
+- all mandatory first-aircraft materials are guaranteed inside the `WALK_BUILD` + `GLIDE` closure of the starting cluster;
+- reasonable early failures receive deterministic rebuild/recovery paths rather than world-soft-locks;
+- Copper and Zinc are post-flight Bootstrap Province guarantees and should prefer distinct regional specialization zones;
+- at least one eligible Guild-connected settlement is deliberately placed within the tested crude-aircraft envelope;
+- at least one economically motivated producer/consumer pair opens the first freight sandbox;
+- Petroleum and Levitite are not Bootstrap guarantees;
+- random loot never satisfies a mandatory Bootstrap guarantee unless the entire access/service/stock path is itself deterministic;
+- exact block distances, island counts, rebuild multiplier, navigation-cue strength, Copper/Zinc geometry, and exact timing remain playtest-tunable.
+
+The next evidence should be a deterministic backend-neutral role-graph specimen with capability-labelled edges and validation/rejection evidence before deep production terrain coupling.
 
 ---
 
@@ -323,33 +354,6 @@ Do not require complete Nether/End reauthoring, mature fleet automation, or ever
 feature for first alpha.
 
 **Trigger:** before final Bootstrap Province implementation begins.
-
----
-
-## HS-06 — Bootstrap Province first-hours progression and guarantee philosophy
-
-**Status:** OPEN — discuss before geology/resources/structures are locked into the starting recipe.
-
-The repository establishes the sequence but not the exact experiential contract.
-
-Human choices include:
-
-- intended time-to-glider and time-to-first-powered-flight;
-- how much experimentation failure/retry should the province support;
-- whether Iron/Andesite/wool/adhesive/workshop closure is guaranteed on the starting island, group,
-  cluster, or province;
-- whether first Copper/Zinc discovery is guaranteed directly through geology or may be satisfied by a
-  guaranteed trade/salvage route;
-- whether the first civilization encounter is optional, probable, or guaranteed after flight;
-- how much quest text is acceptable before observation should teach the system.
-
-### Existing constraint
-
-No lucky loot roll may be required for bootstrap closure. Trade/salvage can satisfy a hard guarantee
-only when the world recipe guarantees access to that path.
-
-**Trigger:** before Content turns C20/base-metal opportunity into concrete province selection and before
-production resource realization is locked.
 
 ---
 
@@ -565,7 +569,6 @@ AFTER SF-IMP-0083 CLEAN BOUNDARY
 
 BEFORE / DURING BOOTSTRAP PROVINCE
     HS-05 first-alpha scope
-    HS-06 first-hours/guarantees
     HS-07 population tone
     HS-08 civilization interaction when executable
 
