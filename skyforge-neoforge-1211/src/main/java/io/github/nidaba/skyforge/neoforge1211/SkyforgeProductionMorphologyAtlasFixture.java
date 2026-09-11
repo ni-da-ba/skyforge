@@ -218,7 +218,11 @@ final class SkyforgeProductionMorphologyAtlasFixture {
         }
 
         String commandId() {
-            return id;
+            return family.identifier();
+        }
+
+        static java.util.List<Member> builtInMembers() {
+            return java.util.List.of(TABLELAND, SPINE, BASIN, LOBED);
         }
 
         boolean requiresReferenceCrescent() {
