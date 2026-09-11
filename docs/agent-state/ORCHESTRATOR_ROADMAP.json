@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "roadmap_id": "skyforge-program-convergence-v1",
+  "enabled": true,
+  "max_auto_claims_per_utc_day": 4,
+  "notes": [
+    "PROGRAM_ROADMAP.md is the semantic authority; this manifest is only a bounded execution allowlist.",
+    "Version 1 tasks must be issue-backed. The PROGRAM_ROADMAP missing-issue rule remains fail-closed until a separately accepted synthesis mechanism exists.",
+    "At most one task-owned controller PR may be in flight when the roadmap seeds work.",
+    "A roadmap node never weakens lane ownership, validation policy, human gates, quota pacing, or safe auto-merge constraints."
+  ],
+  "nodes": [
+    {
+      "id": "phase1-sf-imp-0083-machine-closeout",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 284,
+      "priority": 120,
+      "max_runs": 2,
+      "prerequisites": [],
+      "objective_hint": "Advance only the next still-unaccepted machine-verifiable tranche of SF-IMP-0083 using current main and portable accepted evidence. Prefer cheap deterministic/profile evidence and only representative runtime evidence that retires a distinct remaining risk. Do not widen the expensive matrix merely because specimens remain.",
+      "stop_boundary": "Stop before the #214/#267/#283 human morphology judgment, any new aesthetic tuning choice, or evidence-saturated expansion. If machine evidence is already sufficient and the remaining boundary is human review, return HUMAN_GATE or NOOP rather than manufacturing more work."
+    },
+    {
+      "id": "phase1-human-morphology-transition",
+      "kind": "gate",
+      "lane": "Implementation",
+      "priority": 110,
+      "max_runs": 1,
+      "prerequisites": [
+        "phase1-sf-imp-0083-machine-closeout"
+      ],
+      "human_message": "Phase-1 machine closeout reached the roadmap transition. Review the representative morphology evidence for #214/#267/#283 (HS-04). Do not begin broad isolated morphology tuning or Phase-2 production work until this visual/product boundary is resolved."
+    },
+    {
+      "id": "bootstrap-civilization-content-followthrough",
+      "kind": "task",
+      "lane": "Content",
+      "issue_number": 466,
+      "priority": 90,
+      "max_runs": 1,
+      "prerequisites": [],
+      "objective_hint": "Advance the smallest still-unaccepted machine-verifiable Content tranche of the accepted Bellanca/Guild Bootstrap civilization slice, consuming the merged #467 runtime foundation/integration and existing CIV contracts. Reuse accepted policy/data rather than broadening the economy.",
+      "stop_boundary": "Stop at the first genuine Bellanca pacing, civilization arrival, Guild prototype, claim/restitution, freight-loop play judgment, new product rule, or other human/cross-lane gate. Do not implement the whole #466 issue in one worker."
+    }
+  ]
+}
