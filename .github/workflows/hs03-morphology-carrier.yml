@@ -1,0 +1,95 @@
+name: HS-03 Morphology Carrier
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "scripts/hs03_morphology_carrier.init.gradle"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeHs03ReferenceCrescentFixtureProvider.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeProductionMorphologyAtlasFixture.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeExactVoxelSupportBounds.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeProductionMorphologyAtlasFixtureTest.java"
+      - ".github/workflows/hs03-morphology-carrier.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hs03-morphology-carrier-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  carrier:
+    name: carrier (${{ matrix.specimen }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - specimen: hybrid-massif-spine-midpoint
+            task: HybridMassifSpine
+          - specimen: provider-crescent-to-lobed-midpoint
+            task: ProviderCrescentLobed
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Verify HS-03 overlay task registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          tasks="$(./gradlew :skyforge-neoforge-1211:tasks --all \
+            -PskyforgeHs03Specimen=${{ matrix.specimen }} \
+            --init-script scripts/hs03_morphology_carrier.init.gradle \
+            --no-configuration-cache)"
+          printf '%s\n' "$tasks" | grep -F "hs03${{ matrix.task }}PrepareVerify"
+          printf '%s\n' "$tasks" | grep -F "hs03${{ matrix.task }}ViewerVerify"
+          printf '%s\n' "$tasks" | grep -F "launchHs03${{ matrix.task }}"
+
+      - name: Prepare exact HS-03 specimen
+        timeout-minutes: 22
+        run: >
+          ./gradlew
+          :skyforge-neoforge-1211:hs03${{ matrix.task }}PrepareVerify
+          -PskyforgeHs03Specimen=${{ matrix.specimen }}
+          --init-script scripts/hs03_morphology_carrier.init.gradle
+          --stacktrace --no-configuration-cache
+
+      - name: Reopen persisted HS-03 specimen in actual client
+        timeout-minutes: 14
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: >
+          xvfb-run -a ./gradlew
+          :skyforge-neoforge-1211:hs03${{ matrix.task }}ViewerVerify
+          -PskyforgeHs03Specimen=${{ matrix.specimen }}
+          --init-script scripts/hs03_morphology_carrier.init.gradle
+          --stacktrace --no-configuration-cache
+
+      - name: Publish HS-03 carrier evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hs03-${{ matrix.specimen }}-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            skyforge-neoforge-1211/build/acceptance/hs03/${{ matrix.specimen }}/*.properties
+            skyforge-neoforge-1211/run-skyforge-hs03-${{ matrix.specimen }}/logs/*.log
+            skyforge-neoforge-1211/run-skyforge-hs03-${{ matrix.specimen }}/crash-reports/*.txt
