@@ -52,7 +52,7 @@ final class SkyforgeNativeSurfacePopulationProbeOrderTest {
                         assertEquals(
                                 legacyWinner,
                                 optimizedWinner,
-                                () -> "probe order changed legacy tie/nearest selection for ("
+                                "probe order changed legacy tie/nearest selection for ("
                                         + ax + "," + az + ") versus (" + bx + "," + bz + ")");
                     }
                 }
