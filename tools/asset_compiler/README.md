@@ -16,19 +16,31 @@ AssetSpec
   -> exact Minecraft export only after visual credibility
 ```
 
-## Current v0.2 boundary
+## Current v0.3 boundary
 
-The implementation is deliberately narrow but is now a real compiler pipeline rather than one hard-coded specimen script:
+The implementation is still deliberately narrow, but now has two explicit lowering layers:
 
 - `model.py` — backend-neutral compiler IR (`BlockState`, cells, voxel model, semantic volumes);
-- `guild_branch.py` — Guild-branch spec validation, parameter resolution, geometry lowering, block-state lowering, semantic anchors, deterministic digest, and static validation;
+- `guild_branch.py` — stable v0.1/v0.2 structural pass: dimensions, bay rhythm, shell, openings, rooms, block states, anchors, digest, validation;
+- `guild_branch_detail.py` — v0.3 detail pass layered over the structural result;
 - `render.py` — front/east/top orthographic QA, semantic floorplan, and isometric voxel preview;
-- `compile.py` — CLI wrapper;
-- `specimens/bootstrap_guild_branch_v0.2.json` — primary three-bay specimen;
-- `specimens/bootstrap_guild_branch_4bay_v0.2.json` — sibling specimen proving bay-count variation without compiler changes;
-- `tests/test_guild_branch.py` — deterministic, semantic-anchor, fail-closed, QA-output, and sibling-variant tests.
+- `compile.py` — CLI dispatcher;
+- v0.2 and v0.3 three-bay/four-bay specimens;
+- focused tests for both structural and detail passes.
 
-The compiler currently fixes the first proof family to:
+The v0.3 detail pass adds, without changing the underlying interior/service grammar:
+
+- masonry base-course articulation;
+- repeated window sill/lintel treatment;
+- directional stair/slab roof states;
+- roof overhang and closed gable ends;
+- a more legible public entrance hierarchy;
+- restrained Guild navy/brass identity treatment;
+- public canopy and approach apron;
+- separate repair and freight canopies/aprons on the working face;
+- task lighting and an airfield interface moved beyond the working canopies.
+
+The compiler still fixes the first proof family to:
 
 - temperate Guild Mercantile Functionalism;
 - south public access;
@@ -45,7 +57,7 @@ Unsupported orientations fail closed rather than silently producing misleading g
 From `tools/asset_compiler`:
 
 ```bash
-python3 compile.py specimens/bootstrap_guild_branch_v0.2.json --out build/bootstrap-branch
+python3 compile.py specimens/bootstrap_guild_branch_v0.3.json --out build/bootstrap-branch-v03
 python3 -m unittest discover -s tests -v
 ```
 
@@ -89,4 +101,4 @@ The compiler hypothesis is not accepted merely because it can place blocks. It m
 6. a materially cheaper sibling revision/variant;
 7. editable/comprehensible exported geometry.
 
-The current v0.2 spike intentionally stops before `.schem` / structure-NBT export. The next gate is human inspection of the generated structure. If the structural language is not credible, improve or redesign the representation before adding runtime/export complexity.
+The current v0.3 spike still intentionally stops before `.schem` / structure-NBT export. The next gate is human inspection of the refined generated structure. If the visual language is credible enough, proceed to one exact Minecraft export path rather than continuing to polish an offline representation indefinitely.
