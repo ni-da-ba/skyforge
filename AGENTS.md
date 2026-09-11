@@ -41,6 +41,20 @@ If summaries disagree with `main`, source/tests, or merged history, the reposito
 
 Do not seize another lane's technical or product authority merely to keep work moving.
 
+## Orchestrator phase routing
+
+The lightweight orchestrator still uses the fast path in `ORCHESTRATION_PROTOCOL.md`: current supervisory state plus relevant PR/issue/Actions movement first.
+
+It must additionally read `PROGRAM_ROADMAP.md` **before** classifying the program as directionless/dormant or escalating merely because no pre-created next issue exists when:
+
+- the current primary milestone/phase has just reached an acceptance boundary;
+- a lane ledger names no next task after its accepted boundary;
+- the remaining work appears to be only future/speculative work;
+- a human-strategy trigger may have been superseded by an explicit owner-approved roadmap resolution;
+- multiple technically valid next tasks exist and product-convergence priority is unclear.
+
+Use the roadmap's state/entry/exit/missing-issue rules. Do not fully reread it on every ordinary wake when an active bounded issue/PR already determines the next action.
+
 ## Worker reconstruction
 
 A producer starting or resuming bounded work should:
