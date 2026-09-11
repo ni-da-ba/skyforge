@@ -16,7 +16,6 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211ChunkGenerators.register(modEventBus);
         SkyforgeNeoForge1211PlacementModifiers.register(modEventBus);
         SkyforgeNeoForge1211StructurePieces.register(modEventBus);
-        SkyforgePetroleumSourceBlocks.register(modEventBus);
 
         // Normal packaged Skyforge remains inert until a runtime binding is configured. Isolated
         // ModDevGradle runs opt into exactly one finite development specimen through JVM properties.
