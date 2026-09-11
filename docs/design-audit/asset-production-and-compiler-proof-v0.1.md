@@ -1,6 +1,6 @@
 # Asset Production and Compiler Proof v0.1
 
-**Status:** Owner-authorized feasibility strategy; executable proof beginning
+**Status:** Owner-authorized feasibility strategy; executable proof active  
 **Date:** 2026-09-11
 
 ## Purpose
@@ -57,18 +57,13 @@ Bulk NPC production is deferred until renderer/texture-density decisions are nee
 
 ## 2. Structure and aircraft problem
 
-Skyforge still needs similarly repeatable methods for:
-
-- architecture / structures;
-- aircraft / physical vehicles.
+Skyforge still needs similarly repeatable methods for architecture / structures and aircraft / physical vehicles.
 
 The intended solution is not literal image-to-block copying. Instead, purpose-built concept sources should be interpreted into a structured design representation, which can then be deterministically lowered into Minecraft geometry.
 
 ## 3. Compiler role
 
 The proposed asset compiler sits between **design intent** and **explicit blocks**.
-
-Conceptually:
 
 ```text
 AssetSpec
@@ -85,270 +80,37 @@ The compiler does not decide what is beautiful. Art direction, concept generatio
 
 ## 4. Inputs
 
-A compiled asset may consume four input classes.
+A compiled asset may consume four input classes:
 
-### 4.1 Instance specification
-
-Describes the particular requested asset.
-
-Example structure intent:
-
-```json
-{
-  "type": "guild_branch",
-  "scale": "small",
-  "region": "temperate",
-  "bayCount": 3,
-  "modules": [
-    "public_hall",
-    "service_counter",
-    "warehouse",
-    "light_repair"
-  ]
-}
-```
-
-Example aircraft intent:
-
-```json
-{
-  "type": "utility_cargo_aircraft",
-  "length": 25,
-  "wingspan": 31,
-  "crew": 2,
-  "cargoClass": "medium",
-  "engineCount": 2
-}
-```
-
-### 4.2 Family grammar
-
-Reusable knowledge defining what a family means visually and structurally.
-
-For Guild architecture, accepted precommit direction already includes:
-
-- strong durable base;
-- expressed structural frame;
-- prominent roofline;
-- disciplined repeated bays;
-- engineered additions;
-- public face / working face distinction;
-- institutional recognition through more than color alone;
-- regional adaptation of materials, climate response, roof forms, and local construction tradition.
-
-The compiler must preserve these rules rather than reducing regionalization to palette swaps.
-
-### 4.3 Module library
-
-Reusable functional or geometric components such as:
-
-```text
-PUBLIC_ENTRANCE
-WINDOW_BAY
-SERVICE_COUNTER
-WAREHOUSE
-FREIGHT_DOOR
-REPAIR_SHED
-SIGNAL_MAST
-AIRCRAFT_BERTH
-```
-
-Aircraft modules may include:
-
-```text
-COCKPIT
-CARGO_BAY
-WING
-ENGINE_NACELLE
-TAILPLANE
-VERTICAL_STABILIZER
-LANDING_GEAR
-PROPELLER_CLEARANCE
-DOCKING_INTERFACE
-```
-
-Modules may carry both geometry and constraints.
-
-### 4.4 Context / physical constraints
-
-For structures, site evidence may provide an allowed envelope and meaningful approach/access directions without becoming final concrete admission authority.
-
-Example:
-
-```json
-{
-  "siteEnvelope": [27, 14, 22],
-  "settlementAccess": "south",
-  "airfieldDirection": "east",
-  "freightAccess": "east",
-  "downslopeDirection": "north"
-}
-```
-
-For aircraft, constraints are more directly physical:
-
-```text
-maximum dimensions
-required cargo volume
-propeller clearance
-cockpit access
-required Aeronautics/Create functional components
-assembly/connectivity constraints
-```
+1. **Instance specification** — the requested asset and bounded family parameters.
+2. **Family grammar** — reusable visual/structural rules.
+3. **Module library** — reusable functional/geometric components.
+4. **Context / physical constraints** — site envelope/access for structures or engineering constraints for aircraft.
 
 ## 5. Compiler process
 
-### Pass 1 — parameter resolution
+The intended passes remain:
 
-Convert semantic parameters to exact dimensions while preserving deterministic identity.
+1. parameter resolution;
+2. layout / geometry IR;
+3. geometry generation;
+4. voxelization;
+5. material and block-state assignment;
+6. functional realization / semantic anchors;
+7. static validation;
+8. exact Minecraft export only after offline geometry proves visually credible.
 
-Example:
-
-```text
-small branch + 3 bays
-    -> 5-block bay width
-    -> 6-block wall height
-    -> 16/17-block main frontage
-    -> explicit roof plate and service-wing dimensions
-```
-
-### Pass 2 — layout / geometry IR
-
-Resolve abstract spatial volumes and relationships before individual Minecraft block choice.
-
-For a building:
-
-```text
-public hall volume
-warehouse volume
-working yard edge
-entrance axis
-freight door
-structural frame
-roof envelope
-service anchors
-```
-
-For an aircraft:
-
-```text
-centerline
-fuselage stations / cross-sections
-wing root / tip / planform
-cockpit volume
-cargo volume
-engine centers
-tail geometry
-landing gear
-functional hardpoints
-```
-
-### Pass 3 — geometry generation
-
-Generate the actual surfaces/volumes implied by the IR.
-
-### Pass 4 — voxelization
-
-Convert geometry to discrete Minecraft-space occupancy.
-
-The intermediate voxel model should distinguish at least:
-
-```text
-EMPTY
-SOLID
-OPENING
-WINDOW
-STRUCTURAL
-FUNCTIONAL
-ANCHOR
-```
-
-or equivalent semantic categories.
-
-### Pass 5 — material and block-state assignment
-
-Resolve semantic material roles into concrete block IDs and exact block states, including orientation-dependent states such as stairs, doors, logs, panes, or retained-mod blocks.
-
-### Pass 6 — functional realization
-
-Emit gameplay-relevant blocks and/or metadata such as:
-
-```text
-SERVICE_COUNTER
-CONTRACT_BOARD
-NPC_WORK_POINT
-FREIGHT_PICKUP
-FREIGHT_DROPOFF
-AIRCRAFT_BERTH
-REPAIR_BAY
-```
-
-For aircraft, this includes actual required Create/Aeronautics components rather than producing only a sculpture.
-
-### Pass 7 — validation
-
-Static validation should catch cheap errors before Minecraft is launched.
-
-Examples:
-
-- structure exceeds site envelope;
-- entrance does not connect outside to inside;
-- inaccessible room/service anchor;
-- freight door lacks required clearance;
-- roof/module intersection;
-- invalid orientation/block-state assignment;
-- disconnected aircraft geometry;
-- asymmetric geometry where symmetry is required;
-- propeller/nacelle/fuselage collision;
-- inaccessible cockpit/cargo area;
-- missing required Aeronautics component or interface.
-
-Runtime validation remains authoritative for behavior the compiler cannot prove statically.
-
-## 6. Outputs
+## 6. Expected outputs
 
 A successful compilation should eventually emit:
 
-1. **Concrete Minecraft asset**
-   - Sponge `.schem`, Minecraft structure NBT, or another exact interchange chosen by Implementation.
-2. **Skyforge semantic metadata**
-   - asset identity;
-   - bounds;
-   - entrances/interfaces;
-   - service/activity anchors;
-   - role/capability markers;
-   - deterministic source/spec provenance.
-3. **QA artifacts**
-   - front/side/top/isometric previews;
-   - dimensions;
-   - material counts;
-   - validation report;
-   - deterministic digest where useful.
+- concrete Minecraft asset;
+- Skyforge semantic metadata;
+- QA artifacts: orthographic/isometric previews, dimensions, counts, validation, deterministic digest.
 
-## 7. Expected utility
+## 7. Scope guardrail
 
-The compiler is expected to provide leverage primarily through:
-
-- cheap sibling variants after the first family is authored;
-- consistent architectural/aircraft grammar;
-- cheap global revisions to repeated modules or rules;
-- deterministic site adaptation;
-- semantic anchors emitted alongside geometry;
-- automated validation;
-- reuse of accepted visual/functional modules;
-- ability to analyze donor assets into reusable grammar later.
-
-The compiler is **not** expected to outperform human visual judgment. Its quality advantage should come from preserving already-approved design decisions consistently across a larger corpus.
-
-## 8. Scope guardrail
-
-Do not build:
-
-- a universal Minecraft architect;
-- freeform text-to-building generation;
-- a generalized CAD framework;
-- broad procedural-city generation;
-- abstractions without a demonstrated need from the current specimen.
+Do not build a universal Minecraft architect, freeform text-to-building generator, generalized CAD framework, or procedural-city system.
 
 Prefer:
 
@@ -360,60 +122,54 @@ known asset family
 = valid realization
 ```
 
-Any abstraction added during the proof must be justified by the first real specimen or an immediately following sibling variant.
+## 8. First proof — Bootstrap Guild branch
 
-## 9. First proof — Bootstrap Guild branch
+The first specimen remains a small temperate Guild branch associated with the Bootstrap civilization slice.
 
-The first specimen should be a **small temperate Guild branch associated with the Bootstrap civilization slice**.
+### v0.1 / v0.2 result
 
-It is a good benchmark because accepted design already constrains its meaning while leaving enough geometric freedom to test the compiler.
+The first executable passes established that a compact spec can deterministically lower into:
 
-Required conceptual characteristics:
+- dimensions and bay rhythm;
+- public hall / working wing / warehouse / repair semantic volumes;
+- explicit voxel/block-state geometry;
+- public and working openings;
+- machine-readable activity/service anchors;
+- deterministic digest and static reachability/volume validation;
+- front/east/top, semantic floorplan, and isometric QA views.
 
-- compact branch / Hall, not a monumental regional headquarters;
-- practical aviation/logistics site relationship;
-- one concentrated Guild destination rather than scattered services;
-- public entrance/readable Open Sky identity;
-- universal service core consolidated through a compact interaction surface;
-- working-side freight/storage relationship;
-- light repair capability;
-- signal/navigation presence where useful;
-- public face and working face distinguishable but coherent;
-- temperate Guild Mercantile Functionalism;
-- enough historical/functional detail to feel operated, not decorative.
+A four-bay sibling compiles through the same structural code path, providing the first leverage evidence rather than merely scripting one fixed structure.
 
-The first compiler proof should not attempt to solve full settlement placement or exact procedural town integration.
+### v0.3 visual-grammar pass
 
-### First proof inputs
+Owner review of v0.2 concluded the result was better than expected and authorized continuation.
 
-At minimum:
+The next bounded pass therefore adds visual grammar **without** jumping immediately to Minecraft export:
 
-```text
-scale = small
-region = temperate
-bay count = 3
-public access direction = south
-working / airfield direction = east
-services = universal core
-additional capabilities = warehouse + light repair
-```
+- stable structural v0.2 lowering remains intact;
+- `guild_branch_detail.py` performs a second pass over the compiled model;
+- masonry base-course articulation;
+- repeated window sill/lintel treatment;
+- directional stair/slab roof states;
+- roof overhang and closed gable ends;
+- stronger public entrance hierarchy;
+- restrained navy/brass Guild identity treatment;
+- public canopy / approach apron;
+- separate repair and freight canopies/aprons;
+- working-side task lighting;
+- airfield-interface anchor moved beyond the physical working canopies.
 
-### First proof outputs
+A v0.3 four-bay sibling uses the same detail pass.
 
-Before Minecraft runtime integration, produce:
+The architectural reason for layering rather than rewriting is deliberate: **stable structural grammar first, visual/functional detailing second**. This keeps the compiler understandable and makes it easier to determine whether a future rule belongs to layout authority or presentation/detail authority.
 
-- resolved layout IR;
-- voxel/block occupancy representation;
-- deterministic material/block-state plan;
-- semantic anchor manifest;
-- automated validation report;
-- inspectable orthographic/isometric preview.
+### Current gate
 
-Then, if the representation is credible, add one exact Minecraft export path and inspect the specimen in-game.
+The v0.3 output is now at the human visual gate. If accepted as a credible direction, the next implementation step is one exact Minecraft export path and in-game inspection. Do not continue adding offline polish indefinitely once the representation is good enough to expose runtime/placement problems.
 
-## 10. Second proof — utility cargo aircraft
+## 9. Second proof — utility cargo aircraft
 
-Only after the structure proof demonstrates useful leverage, apply the same architecture to one **non-Bellanca utility/cargo aircraft** appropriate for the first Guild destination.
+Only after the structure proof demonstrates useful leverage, apply the same architecture to one non-Bellanca utility/cargo aircraft appropriate for the first Guild destination.
 
 The aircraft proof must add genuinely physical acceptance:
 
@@ -425,27 +181,21 @@ The aircraft proof must add genuinely physical acceptance:
 
 Do not begin by parameterizing the Bellanca hero asset.
 
-## 11. Evaluation / kill criteria
+## 10. Evaluation / kill criteria
 
 The compiler hypothesis is supported only if the proof demonstrates most of the following:
 
-- compiled result is visually credible enough to continue, not merely technically valid;
-- the structured representation is easier to revise than raw block editing;
-- one meaningful sibling variant is materially cheaper than building another structure from scratch;
+- compiled result is visually credible enough to continue;
+- structured representation is easier to revise than raw block editing;
+- one meaningful sibling variant is materially cheaper than rebuilding;
 - repeated modules/rules remain consistent automatically;
 - validation catches real authoring errors;
-- exported geometry is comprehensible and manually editable when needed;
-- compiler code remains narrow rather than accumulating specimen-specific hacks.
+- exported geometry remains comprehensible and manually editable;
+- compiler code stays narrow rather than accumulating specimen-specific hacks.
 
-Stop or redesign if:
+Stop or redesign if visual quality remains inferior to ordinary manual authoring, the spec approaches raw block enumeration, every asset needs exceptions, output becomes difficult to hand-correct, or the project starts becoming a generic CAD/framework effort.
 
-- visual quality is persistently inferior to ordinary manual authoring;
-- the specification becomes nearly as verbose as enumerating blocks;
-- every asset requires extensive one-off exceptions;
-- generated output is difficult to hand-correct;
-- runtime/mod constraints dominate the compiler to the point that little reusable logic remains.
-
-## 12. Decision principle
+## 11. Decision principle
 
 The project is **confident enough to prototype, not confident enough to overbuild**.
 
@@ -457,5 +207,3 @@ smallest representative specimen
     -> compare against manual workflow
     -> decide whether to productionize
 ```
-
-If the Guild branch proof succeeds, the next investment is a sibling-variant/revision bake-off before expanding the abstraction surface.
