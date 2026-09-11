@@ -39,7 +39,8 @@ final class SkyforgeCivilizationRuntimeStateTest {
         SkyforgeCivilizationRuntimeState reloaded = SkyforgeCivilizationRuntimeState.load(state.save());
         var delivered = reloaded.deliver(physical.id(), physical.cargoId());
         assertEquals(SkyforgeCivilizationRuntimeState.ShipmentStatus.DELIVERED, delivered.status());
-        assertEquals(100, reloaded.settlement(CONSUMER).stock());
+        assertEquals(10, reloaded.settlement(CONSUMER).stock());
+        assertEquals(100, reloaded.settlement(PRODUCER).stock() + reloaded.settlement(CONSUMER).stock());
         assertEquals(17, reloaded.settledPaymentTotal());
         assertEquals(delivered, reloaded.deliver(physical.id(), physical.cargoId()));
         SkyforgeCivilizationRuntimeState afterReload = SkyforgeCivilizationRuntimeState.load(reloaded.save());
