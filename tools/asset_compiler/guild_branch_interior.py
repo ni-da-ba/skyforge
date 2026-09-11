@@ -55,6 +55,9 @@ def compile_guild_branch_v04(spec: dict[str, Any]) -> CompiledAsset:
 
     base_spec = copy.deepcopy(spec)
     base_spec["schemaVersion"] = "0.3"
+    base_spec["requestedAnchors"] = [
+        name for name in base_spec.get("requestedAnchors", []) if name != "BACK_OFFICE_WORK"
+    ]
     compiled = compile_guild_branch_v03(base_spec)
     if not compiled.summary["validation"]["passed"]:
         return compiled
@@ -80,13 +83,10 @@ def compile_guild_branch_v04(spec: dict[str, Any]) -> CompiledAsset:
     warehouse = layout["volumes"]["warehouse"]
     repair = layout["volumes"]["lightRepair"]
 
-    # Remove the v0.2 divider that incorrectly put the administrative partition between the entrance
-    # and the service counter. v0.4 re-creates a compact staff/records zone north of the counter.
     for pos, cell in list(model.cells.items()):
         if cell.module == "back_office":
             model.clear(*pos)
 
-    # Correct the semantic sides of the counter: +Z is south/public, -Z is staff.
     layout["anchors"]["SERVICE_COUNTER"] = [public_center, 1, counter_z + 1]
     layout["anchors"]["NPC_WORK_POINT"] = [public_center, 1, counter_z - 1]
     layout["anchors"]["BACK_OFFICE_WORK"] = [public_center, 1, hall_z0 + 2]
@@ -119,7 +119,6 @@ def compile_guild_branch_v04(spec: dict[str, Any]) -> CompiledAsset:
     desk = _state(materials, "desk", "structuralFrame", type="bottom")
     lantern = BlockState.of(materials["lighting"], hanging=True)
 
-    # Public information surfaces: boards remain near the entrance and are physically represented.
     contract_x = max(1, door_x0 - 3)
     route_x = min(hall_w - 2, door_x1 + 3)
     board_z = hall_z1 - 1
@@ -128,22 +127,18 @@ def compile_guild_branch_v04(spec: dict[str, Any]) -> CompiledAsset:
     layout["anchors"]["CONTRACT_BOARD"] = [contract_x, 1, board_z - 1]
     layout["anchors"]["ROUTE_INFO"] = [route_x, 1, board_z - 1]
 
-    # Waiting benches are intentionally peripheral so the central entrance -> counter lane remains clear.
     bench_z = min(public_wait_z1, hall_z1 - 3)
     for x in range(2, min(5, hall_w - 2)):
         model.set(x, 2, bench_z, "seating", seating, "waiting_bench")
     for x in range(max(hall_w - 5, 1), hall_w - 2):
         model.set(x, 2, bench_z, "seating", seating, "waiting_bench")
 
-    # Clerk backbar and records storage sit north of the counter, leaving the clerk work point free.
     backbar_z = max(hall_z0 + 2, counter_z - 3)
     for x in range(max(2, door_x0 - 2), min(hall_w - 3, door_x1 + 2) + 1):
         model.set(x, 2, backbar_z, "records", shelf, "clerk_backbar")
         if x % 2 == 0:
             model.set(x, 3, backbar_z, "records", shelf, "clerk_backbar")
 
-    # Compact rear desk/records cluster. It should imply administration without turning the Hall into
-    # a bureaucratic maze.
     rear_z = hall_z0 + 1
     for x in range(2, min(5, hall_w - 2)):
         model.set(x, 2, rear_z, "desk", desk, "back_office_desk")
@@ -151,15 +146,11 @@ def compile_guild_branch_v04(spec: dict[str, Any]) -> CompiledAsset:
         model.set(x, 2, rear_z, "records", shelf, "records_shelves")
         model.set(x, 3, rear_z, "records", shelf, "records_shelves")
 
-    # Public/staff task lighting. Keep the main aisle and counter interaction cells empty.
     for x in (max(2, door_x0 - 2), min(hall_w - 3, door_x1 + 2)):
         model.set(x, wall_h - 1, counter_z + 2, "lighting", lantern, "public_interior_lighting")
     model.set(public_center, wall_h - 1, counter_z - 2, "lighting", lantern, "staff_interior_lighting")
 
-    # Freight storage hugs the non-door edges. Preserve a two-block-wide clear lane from the working
-    # opening to the pickup/dropoff anchors.
     freight_pick = layout["anchors"]["FREIGHT_PICKUP"]
-    freight_drop = layout["anchors"]["FREIGHT_DROPOFF"]
     freight_lane_z = freight_pick[2]
     for z in range(warehouse["min"][2], warehouse["max"][2] + 1):
         if abs(z - freight_lane_z) <= 1:
@@ -169,8 +160,6 @@ def compile_guild_branch_v04(spec: dict[str, Any]) -> CompiledAsset:
             if (z - warehouse["min"][2]) % 3 == 0:
                 model.set(x, 3, z, "storage", freight, "freight_stack")
 
-    # Repair bench/tool storage sit against the west side of the working wing; the central repair floor
-    # and east opening remain unobstructed.
     repair_z0 = repair["min"][2]
     repair_z1 = repair["max"][2]
     bench_x = repair["min"][0]
@@ -181,8 +170,6 @@ def compile_guild_branch_v04(spec: dict[str, Any]) -> CompiledAsset:
     model.set(bench_x + 1, 2, repair_z0 + 1, "tool_storage", tools, "repair_tools")
     model.set(bench_x + 1, 3, repair_z0 + 1, "tool_storage", tools, "repair_tools")
 
-    # Explicit circulation reservation: clear the public centerline between entrance and counter and
-    # preserve interaction/work cells on both sides of the counter.
     for z in range(counter_z + 1, hall_z1):
         for y in (2, 3):
             cell = model.cells.get((public_center, y, z))
@@ -205,7 +192,6 @@ def compile_guild_branch_v04(spec: dict[str, Any]) -> CompiledAsset:
     if missing_anchors:
         issues.append(f"missing requested anchors: {', '.join(missing_anchors)}")
 
-    # Required module presence.
     required_modules = {
         "contract_board",
         "route_info_panel",
@@ -221,7 +207,6 @@ def compile_guild_branch_v04(spec: dict[str, Any]) -> CompiledAsset:
     for module in sorted(required_modules - present):
         issues.append(f"missing interior module: {module}")
 
-    # Semantic anchor-side checks.
     sc = layout["anchors"]["SERVICE_COUNTER"]
     npc = layout["anchors"]["NPC_WORK_POINT"]
     if not sc[2] > counter_z:
@@ -231,14 +216,12 @@ def compile_guild_branch_v04(spec: dict[str, Any]) -> CompiledAsset:
     if not _inside(layout["volumes"]["backOffice"], layout["anchors"]["BACK_OFFICE_WORK"]):
         issues.append("BACK_OFFICE_WORK outside backOffice volume")
 
-    # Central public aisle must remain clear at head/body levels.
     for z in range(counter_z + 1, hall_z1):
         for y in (2, 3):
             cell = model.cells.get((public_center, y, z))
             if cell and cell.module not in {"public_entrance", "service_counter"}:
                 issues.append(f"public circulation blocked at {(public_center, y, z)} by {cell.module or cell.role}")
 
-    # Freight and repair anchors stay in their authoritative semantic volumes.
     for anchor, volume in (
         ("FREIGHT_PICKUP", "warehouse"),
         ("FREIGHT_DROPOFF", "warehouse"),
@@ -247,7 +230,6 @@ def compile_guild_branch_v04(spec: dict[str, Any]) -> CompiledAsset:
         if not _inside(layout["volumes"][volume], layout["anchors"][anchor]):
             issues.append(f"{anchor} outside {volume} volume")
 
-    # Interior furniture must not occupy the exact functional anchors.
     for anchor_name in (
         "SERVICE_COUNTER",
         "NPC_WORK_POINT",
