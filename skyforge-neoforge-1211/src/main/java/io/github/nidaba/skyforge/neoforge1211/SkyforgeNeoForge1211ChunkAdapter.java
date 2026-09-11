@@ -15,6 +15,7 @@ import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
 import io.github.nidaba.skyforge.world.TerrainBoxObservation;
 import io.github.nidaba.skyforge.world.TerrainBoxObservationRequirements;
 import io.github.nidaba.skyforge.world.WorldBounds;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -91,6 +92,11 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
      * <p>This is the deferred-realization seam used after whole-volume physical admission. It never
      * consults another Skyforge volume and therefore allows a pending catch-up key to contain only
      * {@code (volumeId, chunkPos)} rather than retaining mutable generation-region state.
+     *
+     * <p>The exact-volume path starts from the already-authoritative discrete column support bridge.
+     * Positions outside that support are proven AIR and therefore do not require 3-D density/material
+     * classification. Every Y inside the exact support range is still classified normally, preserving
+     * authoritative material roles and any internal AIR exactly.
      */
     public MinecraftChunkMaterialization materialize(
             SkyIslandWorldVolumeId volumeId,
@@ -98,7 +104,78 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             int minimumY,
             int height) {
         Objects.requireNonNull(volumeId, "volumeId");
-        return materialize(chunkPos, minimumY, height, List.of(requireInterpreter(volumeId)), 1);
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+
+        SkyIslandTerrainInterpreter interpreter = requireInterpreter(volumeId);
+        int voxelCount = Math.multiplyExact(Math.multiplyExact(CHUNK_WIDTH, CHUNK_WIDTH), height);
+        ResourceLocation[] blockKeys = new ResourceLocation[voxelCount];
+        Arrays.fill(blockKeys, SkyforgeMinecraftBlockPalette.AIR);
+
+        int minimumX = chunkPos.getMinBlockX();
+        int minimumZ = chunkPos.getMinBlockZ();
+        int maximumYExclusive = Math.addExact(minimumY, height);
+        long classifiedVoxels = 0L;
+        long provenAirSkippedVoxels = 0L;
+
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            int worldZ = Math.addExact(minimumZ, localZ);
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+                int worldX = Math.addExact(minimumX, localX);
+                Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> range =
+                        SkyforgeExactVoxelSupportBounds.integerSolidRange(interpreter, worldX, worldZ);
+                if (range.isEmpty()) {
+                    provenAirSkippedVoxels = Math.addExact(provenAirSkippedVoxels, height);
+                    continue;
+                }
+
+                var solidRange = range.orElseThrow();
+                int classifiedMinimumY = Math.max(minimumY, solidRange.minimumY());
+                int classifiedMaximumYExclusive = (int) Math.min(
+                        (long) maximumYExclusive,
+                        Math.addExact((long) solidRange.maximumY(), 1L));
+                if (classifiedMaximumYExclusive <= classifiedMinimumY) {
+                    provenAirSkippedVoxels = Math.addExact(provenAirSkippedVoxels, height);
+                    continue;
+                }
+
+                int classifiedCount = classifiedMaximumYExclusive - classifiedMinimumY;
+                classifiedVoxels = Math.addExact(classifiedVoxels, classifiedCount);
+                provenAirSkippedVoxels = Math.addExact(
+                        provenAirSkippedVoxels,
+                        height - classifiedCount);
+
+                SkyIslandTerrainInterpreter.ColumnInterpreter column = interpreter.column(worldX, worldZ);
+                for (int worldY = classifiedMinimumY; worldY < classifiedMaximumYExclusive; worldY++) {
+                    SkyIslandTerrainSemantic semantic = column.classify(worldY);
+                    ResourceLocation blockKey = palette.blockKey(semantic);
+                    if (!palette.preservesOccupancy(semantic, blockKey)) {
+                        throw new IllegalStateException("Minecraft palette changed authoritative Skyforge occupancy");
+                    }
+                    int localY = worldY - minimumY;
+                    blockKeys[linearIndex(localX, localY, localZ)] = blockKey;
+                }
+            }
+        }
+
+        if (Math.addExact(classifiedVoxels, provenAirSkippedVoxels) != voxelCount) {
+            throw new IllegalStateException("exact-volume materialization accounting does not cover the requested chunk interval");
+        }
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.exactMaterialization.classifiedVoxels",
+                classifiedVoxels);
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.exactMaterialization.provenAirSkippedVoxels",
+                provenAirSkippedVoxels);
+
+        return new MinecraftChunkMaterialization(
+                chunkPos,
+                minimumY,
+                height,
+                blockKeys,
+                1);
     }
 
     private MinecraftChunkMaterialization materialize(
