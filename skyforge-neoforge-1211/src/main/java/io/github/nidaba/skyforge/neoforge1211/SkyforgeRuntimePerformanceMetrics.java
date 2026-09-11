@@ -38,11 +38,28 @@ final class SkyforgeRuntimePerformanceMetrics {
         return enabled() ? System.nanoTime() : 0L;
     }
 
-    static void recordSince(String stage, long startNanos) {
+    static long elapsedSince(long startNanos) {
         if (!enabled() || startNanos == 0L) {
+            return 0L;
+        }
+        return Math.max(0L, System.nanoTime() - startNanos);
+    }
+
+    static void recordElapsed(String stage, long elapsedNanos) {
+        if (!enabled()) {
             return;
         }
-        long elapsed = Math.max(0L, System.nanoTime() - startNanos);
+        if (elapsedNanos < 0L) {
+            throw new IllegalArgumentException("performance elapsed time must be nonnegative");
+        }
+        record(stage, elapsedNanos);
+    }
+
+    static void recordSince(String stage, long startNanos) {
+        long elapsed = elapsedSince(startNanos);
+        if (startNanos == 0L || !enabled()) {
+            return;
+        }
         record(stage, elapsed);
     }
 
