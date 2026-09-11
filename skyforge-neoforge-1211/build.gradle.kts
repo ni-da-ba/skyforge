@@ -4636,10 +4636,9 @@ tasks.register("waveC13ResolvePinnedMods") {
 dependencies {
     api(project(":skyforge-world"))
 
-    // HS-03 executes one external-provider specimen through the Minecraft carrier fixture. The
-    // reference module remains absent from the distributable jar and from unrelated ModDev
-    // acceptance servers; the focused adapter test is its executable carrier.
-    testImplementation(project(":skyforge-reference"))
+    // HS-03's reference:crescent specimen is implemented by a fixture-only provider in this
+    // JVM-21 Minecraft adapter. Do not put skyforge-reference (built for the newer reference
+    // toolchain) on this module's test or runtime classpaths.
 
     // Minecraft 1.21.1 ModDev runs load Java libraries only when they are explicitly added to the
     // additional runtime classpath. skyforge-world's runtime elements bring the transitive

@@ -149,12 +149,7 @@ final class SkyforgeProductionMorphologyAtlasFixture {
         for (SkyIslandMorphologyProvider provider : SkyIslandMorphologyProviders.builtInRegistry().providers()) {
             builder.register(provider);
         }
-        try {
-            Class<?> type = Class.forName("io.github.nidaba.skyforge.reference.provider.ReferenceCrescentMorphologyProvider");
-            builder.register((SkyIslandMorphologyProvider) type.getConstructor().newInstance());
-        } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("HS-03 reference:crescent fixture provider is unavailable", exception);
-        }
+        builder.register(new SkyforgeHs03ReferenceCrescentFixtureProvider());
         return builder.build();
     }
 
