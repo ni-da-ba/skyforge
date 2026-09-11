@@ -28,10 +28,10 @@ def hs03Specs = [
     ],
 ]
 
-def requested = gradle.startParameter.projectProperties['skyforgeHs03Specimen']
+def requested = System.getProperty('skyforgeHs03Specimen')
 if (requested == null || requested.trim().isEmpty()) {
     throw new GradleException(
-        'HS-03 carrier overlay requires -PskyforgeHs03Specimen=' + hs03Specs.keySet().join('|'))
+        'HS-03 carrier overlay requires -DskyforgeHs03Specimen=' + hs03Specs.keySet().join('|'))
 }
 
 def spec = hs03Specs[requested]
