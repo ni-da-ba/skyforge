@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.world.SkyIslandBaseMetalOpportunityProfiler;
@@ -100,6 +101,7 @@ final class SkyforgeIronDepositAdapterTest {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(deployment.chunkPos());
         try (AutoCloseable binding = SkyforgeNeoForge1211SurfaceStage.install(
                 terrain, new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(binding);
             SkyforgeNeoForge1211SurfaceStage.realize(chunk).orElseThrow();
         }
         return chunk;
