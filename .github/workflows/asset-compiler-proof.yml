@@ -1,0 +1,41 @@
+name: Asset compiler proof
+
+on:
+  pull_request:
+    paths:
+      - 'tools/asset_compiler/**'
+      - '.github/workflows/asset-compiler-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run asset compiler tests
+        run: python -m unittest discover -s tools/asset_compiler/tests -v
+
+      - name: Compile v0.4 Guild branch
+        run: >-
+          python tools/asset_compiler/compile.py
+          tools/asset_compiler/specimens/bootstrap_guild_branch_v0.4.json
+          --out build/asset-compiler-v04
+
+      - name: Upload v0.4 QA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guild-branch-v04-qa
+          path: build/asset-compiler-v04
+          if-no-files-found: error
+          retention-days: 14
