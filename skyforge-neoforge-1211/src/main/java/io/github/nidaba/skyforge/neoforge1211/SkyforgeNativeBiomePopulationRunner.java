@@ -20,6 +20,7 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 /** Executes one native biome generation step inside one exact Skyforge world volume. */
 final class SkyforgeNativeBiomePopulationRunner {
     private static final String BIOME_PROOF_PROPERTY = "skyforge.dev.biomePopulation";
+    private static final long SLOW_FEATURE_LOG_THRESHOLD_NANOS = 50_000_000L;
     private static final System.Logger LOGGER = System.getLogger(SkyforgeNativeBiomePopulationRunner.class.getName());
 
     private SkyforgeNativeBiomePopulationRunner() {}
@@ -138,6 +139,7 @@ final class SkyforgeNativeBiomePopulationRunner {
         long lakeDecisionDigest = 0xcbf29ce484222325L;
         List<BlockPos> admittedLakeOrigins = new ArrayList<>();
         List<BlockPos> rejectedLakeOrigins = new ArrayList<>();
+        boolean performanceMetricsEnabled = SkyforgeRuntimePerformanceMetrics.enabled();
 
         int featureOrdinal = 0;
         for (Holder<PlacedFeature> placedFeature : featureSteps.get(stepIndex)) {
@@ -183,6 +185,9 @@ final class SkyforgeNativeBiomePopulationRunner {
                                 + ", spruceSurvives=" + probe.spruceSurvives());
             }
 
+            long featurePerformanceStart = performanceMetricsEnabled
+                    ? SkyforgeRuntimePerformanceMetrics.start()
+                    : 0L;
             var result = SkyforgeNativePlacedFeatureRunner.place(
                     level,
                     generator,
@@ -191,6 +196,38 @@ final class SkyforgeNativeBiomePopulationRunner {
                     operation,
                     nativeChunkOrigin,
                     maximumAttachmentDepth);
+            if (performanceMetricsEnabled) {
+                long elapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(featurePerformanceStart);
+                String performanceStage = featurePerformanceStage(
+                        generationStep,
+                        biomeKey.location(),
+                        featureKey,
+                        occurrenceIndex);
+                SkyforgeRuntimePerformanceMetrics.recordElapsed(performanceStage, elapsedNanos);
+                SkyforgeRuntimePerformanceMetrics.recordSample(
+                        performanceStage + ".placed",
+                        result.placed() ? 1L : 0L);
+                SkyforgeRuntimePerformanceMetrics.recordSample(
+                        performanceStage + ".attachmentWrites",
+                        result.attachmentWrites());
+                SkyforgeRuntimePerformanceMetrics.recordSample(
+                        performanceStage + ".latencyBucket." + latencyBucket(elapsedNanos),
+                        1L);
+                if (elapsedNanos >= SLOW_FEATURE_LOG_THRESHOLD_NANOS) {
+                    LOGGER.log(
+                            System.Logger.Level.INFO,
+                            "SKYFORGE PERF NATIVE FEATURE: elapsedNanos=" + elapsedNanos
+                                    + ", volume=" + volumeId.path()
+                                    + ", chunk=" + originChunk
+                                    + ", biome=" + biomeKey.location()
+                                    + ", phase=" + generationStep.name()
+                                    + ", feature=" + featureKey
+                                    + ", ordinal=" + occurrenceIndex
+                                    + ", placed=" + result.placed()
+                                    + ", attachmentWrites=" + result.attachmentWrites());
+                }
+            }
+
             attempted++;
             if (result.placed()) {
                 successful++;
@@ -245,6 +282,73 @@ final class SkyforgeNativeBiomePopulationRunner {
                                 List.copyOf(admittedLakeOrigins),
                                 List.copyOf(rejectedLakeOrigins))
                         : LakeEvidence.empty());
+    }
+
+    static String featurePerformanceStage(
+            GenerationStep.Decoration generationStep,
+            ResourceLocation biomeKey,
+            ResourceLocation featureKey,
+            int occurrenceIndex) {
+        Objects.requireNonNull(generationStep, "generationStep");
+        Objects.requireNonNull(biomeKey, "biomeKey");
+        Objects.requireNonNull(featureKey, "featureKey");
+        if (occurrenceIndex < 0) {
+            throw new IllegalArgumentException("feature occurrence index must be non-negative");
+        }
+        return "nativeFeature."
+                + generationStep.name()
+                + ".biome."
+                + biomeKey.getNamespace()
+                + "."
+                + encodeMetricPath(biomeKey.getPath())
+                + ".feature."
+                + featureKey.getNamespace()
+                + "."
+                + encodeMetricPath(featureKey.getPath())
+                + ".ordinal."
+                + occurrenceIndex;
+    }
+
+    static String latencyBucket(long elapsedNanos) {
+        if (elapsedNanos < 0L) {
+            throw new IllegalArgumentException("elapsed time must be non-negative");
+        }
+        long elapsedMillis = elapsedNanos / 1_000_000L;
+        if (elapsedMillis < 1L) {
+            return "lt1ms";
+        }
+        if (elapsedMillis < 2L) {
+            return "1to2ms";
+        }
+        if (elapsedMillis < 4L) {
+            return "2to4ms";
+        }
+        if (elapsedMillis < 8L) {
+            return "4to8ms";
+        }
+        if (elapsedMillis < 16L) {
+            return "8to16ms";
+        }
+        if (elapsedMillis < 32L) {
+            return "16to32ms";
+        }
+        if (elapsedMillis < 64L) {
+            return "32to64ms";
+        }
+        if (elapsedMillis < 128L) {
+            return "64to128ms";
+        }
+        if (elapsedMillis < 256L) {
+            return "128to256ms";
+        }
+        if (elapsedMillis < 512L) {
+            return "256to512ms";
+        }
+        return "ge512ms";
+    }
+
+    private static String encodeMetricPath(String path) {
+        return path.replace('/', '~');
     }
 
     record FeatureResult(
