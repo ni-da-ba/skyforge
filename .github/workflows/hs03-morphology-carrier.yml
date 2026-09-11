@@ -55,7 +55,7 @@ jobs:
         run: |
           set -euo pipefail
           tasks="$(./gradlew :skyforge-neoforge-1211:tasks --all \
-            -PskyforgeHs03Specimen=${{ matrix.specimen }} \
+            -DskyforgeHs03Specimen=${{ matrix.specimen }} \
             --init-script scripts/hs03_morphology_carrier.init.gradle \
             --no-configuration-cache)"
           printf '%s\n' "$tasks" | grep -F "hs03${{ matrix.task }}PrepareVerify"
@@ -67,7 +67,7 @@ jobs:
         run: >
           ./gradlew
           :skyforge-neoforge-1211:hs03${{ matrix.task }}PrepareVerify
-          -PskyforgeHs03Specimen=${{ matrix.specimen }}
+          -DskyforgeHs03Specimen=${{ matrix.specimen }}
           --init-script scripts/hs03_morphology_carrier.init.gradle
           --stacktrace --no-configuration-cache
 
@@ -78,7 +78,7 @@ jobs:
         run: >
           xvfb-run -a ./gradlew
           :skyforge-neoforge-1211:hs03${{ matrix.task }}ViewerVerify
-          -PskyforgeHs03Specimen=${{ matrix.specimen }}
+          -DskyforgeHs03Specimen=${{ matrix.specimen }}
           --init-script scripts/hs03_morphology_carrier.init.gradle
           --stacktrace --no-configuration-cache
 
