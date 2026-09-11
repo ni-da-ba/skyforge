@@ -62,7 +62,7 @@ final class WaveC25PetroleumAuthorityResourceTest {
     }
 
     @Test
-    void productionPumpjackRedirectRetainsCdgMechanicsButReplacesChunkOilAuthority() throws IOException {
+    void productionPumpjackRedirectRetainsCdgMechanicsButUsesSkyforgeSourceFieldAuthority() throws IOException {
         String mixinConfig = Files.readString(PROJECT_DIRECTORY.resolve("src/main/resources/skyforge.mixins.json"));
         assertTrue(mixinConfig.contains("SkyforgeDieselPumpjackOilAuthorityMixin"));
         assertTrue(mixinConfig.contains("SkyforgeDieselNativeOilSuppressionMixin"));
@@ -76,7 +76,15 @@ final class WaveC25PetroleumAuthorityResourceTest {
         assertTrue(mixin.contains("setChunkOilAmount"));
         assertTrue(mixin.contains("SkyforgePetroleumPumpjackBridge.oilAmountForPumpjack"));
         assertTrue(mixin.contains("SkyforgePetroleumPumpjackBridge.setOilAmountForPumpjack"));
+        assertTrue(mixin.contains("source field"));
         assertFalse(mixin.contains("import com.jesz.createdieselgenerators"));
+
+        String bridge = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePetroleumPumpjackBridge.java"));
+        assertTrue(bridge.contains("remainingForWell"));
+        assertTrue(bridge.contains("setRemainingForWell"));
+        assertFalse(bridge.contains("SkyforgePetroleumSourceBlocks"));
+        assertFalse(bridge.contains("getBlockState"));
 
         String suppressionMixin = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/"
@@ -89,8 +97,17 @@ final class WaveC25PetroleumAuthorityResourceTest {
         String depositTag = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/resources/data/createdieselgenerators/tags/block/oil_deposit.json"));
         assertTrue(depositTag.contains("\"replace\": true"));
-        assertTrue(depositTag.contains("skyforge:petroleum_source"));
+        assertTrue(depositTag.contains("#minecraft:base_stone_overworld"));
+        assertFalse(depositTag.contains("skyforge:petroleum_source"));
         assertFalse(depositTag.contains("minecraft:bedrock"));
+
+        Path bespokeBlock = PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePetroleumSourceBlocks.java");
+        assertFalse(Files.exists(bespokeBlock));
+
+        String entrypoint = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"));
+        assertFalse(entrypoint.contains("SkyforgePetroleumSourceBlocks"));
     }
 
     @Test
