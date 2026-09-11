@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - ".github/workflows/low-end-scalability.yml"
+      - "skyforge-neoforge-1211/src/main/java/**"
+      - "skyforge-neoforge-1211/src/test/java/**"
 
 permissions:
   contents: read
@@ -15,6 +17,7 @@ concurrency:
 
 jobs:
   headless-scaling:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'perf/')
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     steps:
