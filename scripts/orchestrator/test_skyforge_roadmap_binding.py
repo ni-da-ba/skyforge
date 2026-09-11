@@ -13,6 +13,7 @@ if str(MODULE_DIR) not in sys.path:
 
 policy = importlib.import_module("roadmap_policy")
 entrypoint = importlib.import_module("skyforge_control_replay_runtime")
+base = importlib.import_module("skyforge_control_replay_base")
 runtime = importlib.import_module("skyforge_roadmap_runtime")
 core = runtime.core
 
@@ -53,10 +54,12 @@ class RoadmapBindingRaceTests(unittest.TestCase):
         )
 
     def test_installed_replay_entrypoint_loads_bounded_roadmap_extension(self):
+        self.assertIs(entrypoint, base)
         self.assertIs(entrypoint.core, core)
         self.assertTrue(getattr(core, "_skyforge_bounded_roadmap_extension_installed", False))
         self.assertTrue(hasattr(core.Orchestrator, "_roadmap_maybe_advance"))
-        self.assertIs(entrypoint.main, entrypoint._base.main)
+        self.assertIs(entrypoint.main, base.main)
+        self.assertIs(entrypoint._roadmap_runtime, runtime)
 
     def test_active_node_binds_new_managed_pr_before_global_open_pr_guard(self):
         with tempfile.TemporaryDirectory() as td:
