@@ -12,8 +12,6 @@ import java.util.Objects;
  * custody transitions to the per-level state container.
  */
 final class BootstrapCivilizationIntegration {
-    static final String GUILD_CARGO_TRANSFER_CAPABILITY = "CARGO_TRANSFER";
-
     record SettlementIdentities(String producerSettlementId, String guildConsumerSettlementId) {
         SettlementIdentities {
             producerSettlementId = requireId(producerSettlementId, "producerSettlementId");
@@ -75,12 +73,16 @@ final class BootstrapCivilizationIntegration {
     /** Binds only the accepted Guild cargo interface, through one explicit tracked anchor. */
     void bindGuildCargoTransfer(SkyforgeCivilizationRuntimeState state, String anchorId) {
         Objects.requireNonNull(state, "state").bindCapability(
-                settlements.guildConsumerSettlementId(), GUILD_CARGO_TRANSFER_CAPABILITY, anchorId);
+                settlements.guildConsumerSettlementId(), cargoTransferCapabilityId(), anchorId);
     }
 
     void guildCargoAnchorAvailabilityChanged(SkyforgeCivilizationRuntimeState state, String anchorId, boolean available) {
         Objects.requireNonNull(state, "state").anchorAvailabilityChanged(
-                settlements.guildConsumerSettlementId(), GUILD_CARGO_TRANSFER_CAPABILITY, anchorId, available);
+                settlements.guildConsumerSettlementId(), cargoTransferCapabilityId(), anchorId, available);
+    }
+
+    private String cargoTransferCapabilityId() {
+        return opportunity.requiredConsumerCapability().capabilityId();
     }
 
     private String commodityId() {

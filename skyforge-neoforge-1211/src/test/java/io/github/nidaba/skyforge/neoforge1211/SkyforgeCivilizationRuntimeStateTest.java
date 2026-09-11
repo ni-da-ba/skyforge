@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 final class SkyforgeCivilizationRuntimeStateTest {
     private static final String PRODUCER = SkyforgeCivilizationRuntimeState.stableSettlementId("bootstrap-copper-producer");
     private static final String CONSUMER = SkyforgeCivilizationRuntimeState.stableSettlementId("bootstrap-guild-consumer");
+    private static final String GUILD_CARGO_TRANSFER_CAPABILITY =
+            BootstrapFreightOpportunity.ConsumerCapability.CARGO_TRANSFER.capabilityId();
 
     @Test
     void persistentDormancyAndBoundedReactivationDoNotWarmStartStock() {
@@ -53,12 +55,14 @@ final class SkyforgeCivilizationRuntimeStateTest {
     @Test
     void explicitAnchorEventsDriveCapabilityWithoutSettlementScanning() {
         SkyforgeCivilizationRuntimeState state = initialized();
-        state.bindCapability(CONSUMER, "CARGO_TRANSFER", "guild-cargo-terminal-01");
-        state.anchorAvailabilityChanged(CONSUMER, "CARGO_TRANSFER", "guild-cargo-terminal-01", false);
-        assertEquals(SkyforgeCivilizationRuntimeState.CapabilityStatus.OFFLINE, state.capability(CONSUMER, "CARGO_TRANSFER").status());
+        state.bindCapability(CONSUMER, GUILD_CARGO_TRANSFER_CAPABILITY, "guild-cargo-terminal-01");
+        state.anchorAvailabilityChanged(CONSUMER, GUILD_CARGO_TRANSFER_CAPABILITY, "guild-cargo-terminal-01", false);
+        assertEquals(SkyforgeCivilizationRuntimeState.CapabilityStatus.OFFLINE,
+                state.capability(CONSUMER, GUILD_CARGO_TRANSFER_CAPABILITY).status());
         SkyforgeCivilizationRuntimeState restored = SkyforgeCivilizationRuntimeState.load(state.save());
-        restored.anchorAvailabilityChanged(CONSUMER, "CARGO_TRANSFER", "guild-cargo-terminal-01", true);
-        assertEquals(SkyforgeCivilizationRuntimeState.CapabilityStatus.OPERATIONAL, restored.capability(CONSUMER, "CARGO_TRANSFER").status());
+        restored.anchorAvailabilityChanged(CONSUMER, GUILD_CARGO_TRANSFER_CAPABILITY, "guild-cargo-terminal-01", true);
+        assertEquals(SkyforgeCivilizationRuntimeState.CapabilityStatus.OPERATIONAL,
+                restored.capability(CONSUMER, GUILD_CARGO_TRANSFER_CAPABILITY).status());
     }
 
     @Test
@@ -75,7 +79,7 @@ final class SkyforgeCivilizationRuntimeStateTest {
         integration.registerSettlements(state, opportunity.quantity(), 40L);
         integration.bindGuildCargoTransfer(state, "bootstrap-guild-cargo-terminal-01");
         assertEquals(SkyforgeCivilizationRuntimeState.CapabilityStatus.OPERATIONAL,
-                state.capability(CONSUMER, BootstrapCivilizationIntegration.GUILD_CARGO_TRANSFER_CAPABILITY).status());
+                state.capability(CONSUMER, GUILD_CARGO_TRANSFER_CAPABILITY).status());
 
         var authorized = integration.authorizePickup(state, 17L);
         assertEquals(SkyforgeCivilizationRuntimeState.ShipmentStatus.SOURCE_COMMITTED, authorized.status());
@@ -89,7 +93,7 @@ final class SkyforgeCivilizationRuntimeStateTest {
         SkyforgeCivilizationRuntimeState reloaded = SkyforgeCivilizationRuntimeState.load(state.save());
         integration.guildCargoAnchorAvailabilityChanged(reloaded, "bootstrap-guild-cargo-terminal-01", false);
         assertEquals(SkyforgeCivilizationRuntimeState.CapabilityStatus.OFFLINE,
-                reloaded.capability(CONSUMER, BootstrapCivilizationIntegration.GUILD_CARGO_TRANSFER_CAPABILITY).status());
+                reloaded.capability(CONSUMER, GUILD_CARGO_TRANSFER_CAPABILITY).status());
         var delivered = integration.deliver(reloaded, cargo.cargoId());
         assertEquals(SkyforgeCivilizationRuntimeState.ShipmentStatus.DELIVERED, delivered.status());
         assertTrue(delivered.paymentSettled());
@@ -103,7 +107,7 @@ final class SkyforgeCivilizationRuntimeStateTest {
         assertEquals(17L, settledReload.settledPaymentTotal());
         integration.guildCargoAnchorAvailabilityChanged(settledReload, "bootstrap-guild-cargo-terminal-01", true);
         assertEquals(SkyforgeCivilizationRuntimeState.CapabilityStatus.OPERATIONAL,
-                settledReload.capability(CONSUMER, BootstrapCivilizationIntegration.GUILD_CARGO_TRANSFER_CAPABILITY).status());
+                settledReload.capability(CONSUMER, GUILD_CARGO_TRANSFER_CAPABILITY).status());
     }
 
     private static SkyforgeCivilizationRuntimeState initialized() {

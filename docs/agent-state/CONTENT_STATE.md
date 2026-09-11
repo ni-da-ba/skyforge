@@ -21,6 +21,7 @@ Issue #466 now has a backend-neutral Content specimen in `skyforge-world`:
 - every eligible Hall carries the Bootstrap MVP service core: account access, Bellanca claim/restitution, basic market, basic contracts, and route/settlement information, so another eligible Hall can resolve the network-owned claim;
 - the authoritative Bellanca state machine covers crash, unfavorable initial claim, recoverable recorder evidence, liability reversal, exactly one restitution outcome, and tutorial completion;
 - the first post-tutorial opportunity is a routine recognized physical-cargo copper delivery from a distinct producer settlement to a Guild consumer. It consumes C20’s accepted post-flight copper policy and remains an economic contract, not a mandatory quest step.
+- the freight contract explicitly requires the Content-owned `CARGO_TRANSFER` consumer capability; merged #467 consumes that stable requirement through its one tracked Guild cargo anchor, while anchor realization/lifecycle remains Implementation-owned.
 
 This is deliberately Content semantics only. Minecraft persistence/lifecycle, physical cargo materialization and settlement realization remain Implementation work. Human play, arrival, Hall, and freight-loop judgment remain the CIV-0041 human gates.
 
