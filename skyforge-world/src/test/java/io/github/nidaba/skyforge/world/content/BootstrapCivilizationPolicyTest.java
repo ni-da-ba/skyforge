@@ -65,7 +65,7 @@ final class BootstrapCivilizationPolicyTest {
 
     @Test
     void noReachableCandidateFailsClosedForReplanRatherThanInventingRouteGeometry() {
-        SkyIslandSurfaceAccessCapabilityProfile access = access(fixture(270002L).catalog().associations().getFirst());
+        SkyIslandSurfaceAccessCapabilityProfile access = access(fixture(270002L).associationCatalog().associations().getFirst());
         BootstrapGuildDestinationPolicy policy = new BootstrapGuildDestinationPolicy();
         BootstrapGuildDestinationPolicy.Plan plan = policy.plan(policy.candidates("bootstrap-hall", access, false));
         assertEquals(BootstrapGuildDestinationPolicy.Outcome.REPLAN_REQUIRED, plan.outcome());
@@ -106,7 +106,7 @@ final class BootstrapCivilizationPolicyTest {
 
     private static SkyIslandSurfaceAccessCapabilityProfile accessWithCandidate(
             SkyIslandPublishedAuthoredRealizationBinding binding) {
-        return binding.catalog().associations().stream()
+        return binding.associationCatalog().associations().stream()
                 .map(BootstrapCivilizationPolicyTest::access)
                 .filter(profile -> profile.cells().stream().anyMatch(cell ->
                         cell.sourceCell().physicalSurfacePresent()
