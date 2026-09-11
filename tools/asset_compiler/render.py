@@ -10,6 +10,7 @@ ROLE_FILL = {
     "foundation": "#6f6f6f", "floor": "#98704c", "wall_infill": "#dedbcf",
     "structural_frame": "#49301f", "window": "#8fc4df", "roof": "#424752",
     "door": "#75533a", "counter": "#263d5e", "hardware": "#b38a3c",
+    "institutional_accent": "#173a73",
     "lighting": "#d7b55b", "signal_mast": "#4e5965", "board": "#34506f",
     "seating": "#8a6848", "records": "#6a4a32", "desk": "#705238",
     "storage": "#9a7447", "workbench": "#60666b", "tool_storage": "#4d555d",
@@ -219,7 +220,7 @@ def emit_outputs(compiled: CompiledAsset, out: Path) -> None:
         write_orthographic_svg(out / f"{view}.svg", compiled, view)
     write_floorplan_svg(out / "floorplan.svg", compiled)
     write_isometric_svg(out / "isometric.svg", compiled)
-    if str(s.get("compilerVersion")) == "0.4":
+    if str(s.get("compilerVersion")) in {"0.4", "0.5"}:
         write_interior_plan_svg(out / "interior_plan.svg", compiled)
         write_cutaway_isometric_svg(out / "cutaway_isometric.svg", compiled)
         write_section_svg(out / "interior_section.svg", compiled)
