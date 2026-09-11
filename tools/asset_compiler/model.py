@@ -14,10 +14,14 @@ class BlockState:
         props = tuple(sorted((str(k), str(v).lower() if isinstance(v, bool) else str(v)) for k, v in properties.items()))
         return cls(name, props)
 
+    def property_dict(self) -> dict[str, str]:
+        """Return block-state properties as a normal mapping for compiler-side inspection."""
+        return dict(self.properties)
+
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {"name": self.name}
         if self.properties:
-            out["properties"] = dict(self.properties)
+            out["properties"] = self.property_dict()
         return out
 
     def canonical(self) -> str:
