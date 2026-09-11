@@ -54,7 +54,6 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
         "hardware",
         "exteriorTrimSlab",
         "masonryTrimSlab",
-        # v0.9 still requires these roles even though v0.10 audits their use.
         "exteriorTrimStair",
         "masonryTrimStair",
         "bayTransom",
@@ -80,7 +79,6 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
     wall_h = int(rp["wallHeight"])
     wing_w = int(rp["workingWingWidth"])
     counter_z = int(rp["counterZ"])
-    divider_z = int(rp["dividerZ"])
     repair_a, repair_b = map(int, rp["repairOpeningZ"])
     freight_a, freight_b = map(int, rp["freightOpeningZ"])
     door_x0, door_x1 = map(int, rp["publicEntranceSpan"])
@@ -107,7 +105,6 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
     tools = BlockState.of(_material(materials, "toolStorage", "hardware"))
     desk = BlockState.of(_material(materials, "desk", "structuralFrame"), type="top")
     hardware = BlockState.of(_material(materials, "hardware"))
-    accent = BlockState.of(_material(materials, "institutionalAccent", "structuralFrame"))
     brass = BlockState.of(_material(materials, "brassAccent", "hardware"))
     transom = BlockState.of(_material(materials, "bayTransom", "window"))
     lantern = BlockState.of(_material(materials, "lighting"), hanging=True)
@@ -115,12 +112,9 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
     # 1. DOOR-HEAD CLOSURE --------------------------------------------------
     door_cfg = finish_cfg.get("doorHeads", {})
     if door_cfg.get("enabled", True):
-        # The public doors terminate directly into a full timber header in the wall plane.
         for x in range(door_x0, door_x1 + 1):
             model.set(x, 4, hall_z1, "structural_frame", frame_x, "public_door_header_v10")
 
-        # v0.9's recessed slab rail did not visually cap the working doors from the apron.
-        # Put a full beam on both reveal planes, with the transom still recessed above it.
         def finish_portal(a: int, b: int, name: str) -> None:
             for z in range(a, b + 1):
                 for x in (inner_x, outer_x):
@@ -137,20 +131,18 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
     rear_cfg = finish_cfg.get("rearElevation", {})
     north_groups: list[tuple[int, int]] = []
     if rear_cfg.get("enabled", True):
-        # Free the north interior wall before recessing its windows; furnishings are rebuilt below.
-        removable = {
-            "back_office_desk",
-            "records_shelves",
-            "clerk_backbar",
-        }
+        removable = {"back_office_desk", "records_shelves", "clerk_backbar"}
         for pos, cell in list(model.cells.items()):
             if cell.module in removable:
                 model.clear(*pos)
 
+        # Strictly limit the rear-elevation pass to the public-hall width. The east working
+        # portal crosses z=hall_z0 too, so an unconstrained z-plane query can accidentally
+        # consume its door/transom cells.
         north_windows = [
             (x, y, z, cell)
             for (x, y, z), cell in list(model.cells.items())
-            if z == hall_z0 and cell.role == "window"
+            if z == hall_z0 and 0 <= x < hall_w and cell.role == "window"
         ]
         north_xs = sorted({x for x, _y, _z, _cell in north_windows})
         north_groups = contiguous_groups(north_xs)
@@ -174,7 +166,6 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
                     for y in (3, 4):
                         model.set(jamb_x, y, z, "structural_frame", frame_y, module)
 
-        # Give the rear face the same base/body/crown logic but keep it quieter than the public face.
         for x in range(0, hall_w):
             model.set(x, 2, hall_z0 - 1, "foundation", masonry_slab, "north_plinth_band_v10")
             model.set(x, wall_h, hall_z0 - 1, "structural_frame", trim_slab_top, "north_eave_band_v10")
@@ -183,7 +174,6 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
             for y in range(3, wall_h):
                 model.set(x, y, hall_z0 - 1, "structural_frame", frame_y, "north_projected_pilaster_v10")
 
-        # One restrained service marker prevents the rear from becoming a second public facade.
         service_x = max(1, min(hall_w - 2, hall_w - bay_w // 2 - 1))
         model.set(service_x, 3, hall_z0 - 1, "hardware", hardware, "north_service_marker_v10")
 
@@ -201,14 +191,19 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
             module = cell.module or ""
             if module in suspect_modules or "west_window_sill_stair_v09_" in module or "west_window_hood_stair_v09_" in module:
                 replacement = masonry_slab if cell.role == "foundation" else trim_slab_top
-                model.set(*pos, cell.role, replacement, module.replace("stair_v09", "slab_v10").replace("_v09_", "_v10_"))
+                if module in suspect_modules:
+                    new_module = module.replace("_v09", "_slab_v10")
+                elif "west_window_sill_stair_v09_" in module:
+                    new_module = module.replace("west_window_sill_stair_v09_", "west_window_sill_slab_v10_")
+                else:
+                    new_module = module.replace("west_window_hood_stair_v09_", "west_window_hood_slab_v10_")
+                model.set(*pos, cell.role, replacement, new_module)
                 audited_positions.append(list(pos))
 
     # 4. INTERIOR FINISH ----------------------------------------------------
     interior_cfg = finish_cfg.get("interior", {})
     interior_modules: list[str] = []
     if interior_cfg.get("enabled", True):
-        # Remove the old proof-grade furnishing/lighting while leaving shell, anchors and circulation intact.
         replace_modules = {
             "waiting_bench",
             "public_interior_lighting",
@@ -221,7 +216,6 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
             if cell.module in replace_modules:
                 model.clear(*pos)
 
-        # Service counter: replace vertical-log blocks with a quieter dark-wood public-service front.
         counter_cells = [
             (pos, cell) for pos, cell in list(model.cells.items())
             if cell.module == "service_counter" and cell.role == "counter"
@@ -233,7 +227,6 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
             for x in (counter_xs[0], counter_xs[-1]):
                 model.set(x, 3, counter_z, "hardware", brass, "service_counter_endcap_v10")
 
-        # Two transverse ceiling beams give the hall a finished structural interior and support lighting.
         beam_zs = sorted({max(hall_z0 + 2, counter_z - 2), min(hall_z1 - 2, counter_z + 2)})
         for beam_z in beam_zs:
             for x in range(1, hall_w - 1):
@@ -241,18 +234,14 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
             for x in (max(2, public_center - 3), min(hall_w - 3, public_center + 3)):
                 model.set(x, wall_h - 2, beam_z, "lighting", lantern, "interior_lighting_v10")
 
-        # Waiting area: paired low benches, intentionally clear of the central entrance/counter aisle.
         bench_z = min(hall_z1 - 3, counter_z + 3)
-        left_bench = range(2, min(5, hall_w - 2))
-        right_bench = range(max(hall_w - 5, 1), hall_w - 2)
-        for x in left_bench:
+        for x in range(2, min(5, hall_w - 2)):
             model.set(x, 2, bench_z, "seating", seating, "public_waiting_bench_v10")
-        for x in right_bench:
+        for x in range(max(hall_w - 5, 1), hall_w - 2):
             model.set(x, 2, bench_z, "seating", seating, "public_waiting_bench_v10")
         for x in (1, hall_w - 2):
             model.set(x, 2, bench_z, "desk", trim_slab_bottom, "public_waiting_side_table_v10")
 
-        # Frame the existing public information points instead of leaving isolated board blocks.
         for anchor_name, module in (("CONTRACT_BOARD", "contract_board_frame_v10"), ("ROUTE_INFO", "route_info_frame_v10")):
             ax, _ay, az = layout["anchors"][anchor_name]
             board_z = az + 1
@@ -262,7 +251,6 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
             if ax + 1 <= hall_w - 2:
                 model.set(ax + 1, 3, board_z, "structural_frame", frame_y, module)
 
-        # Clerk backbar and records: move them off the rear glazing and onto side-wall furniture zones.
         staff_z0 = hall_z0 + 2
         staff_z1 = max(staff_z0, counter_z - 2)
         for z in range(staff_z0, staff_z1 + 1):
@@ -278,11 +266,9 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
             model.set(x, 2, desk_z, "desk", desk, "back_office_desk_v10")
         model.set(2, 3, desk_z, "hardware", brass, "back_office_desk_detail_v10")
 
-        # Staff light is supported by the northern ceiling beam rather than floating independently.
         staff_beam_z = max(hall_z0 + 2, counter_z - 2)
         model.set(public_center, wall_h - 2, staff_beam_z, "lighting", lantern, "staff_task_lighting_v10")
 
-        # Working wing: keep the freight/repair lanes clear and finish the wall-side work zones.
         warehouse = layout["volumes"]["warehouse"]
         repair = layout["volumes"]["lightRepair"]
         freight_lane_z = int(layout["anchors"]["FREIGHT_PICKUP"][2])
@@ -314,7 +300,6 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
             if cell.module and cell.module.endswith("_v10")
         })
 
-        # Reassert the semantic circulation/anchor clearances after furnishing.
         for z in range(counter_z + 1, hall_z1):
             for y in (2, 3):
                 cell = model.cells.get((public_center, y, z))
@@ -356,7 +341,6 @@ def compile_guild_branch_v10(spec: dict[str, Any]) -> CompiledAsset:
         "interiorFinishVersion": "0.10",
     })
 
-    # VALIDATION ------------------------------------------------------------
     issues: list[str] = []
     requested = set(spec.get("requestedAnchors", []))
     missing_anchors = sorted(requested - set(layout["anchors"]))
