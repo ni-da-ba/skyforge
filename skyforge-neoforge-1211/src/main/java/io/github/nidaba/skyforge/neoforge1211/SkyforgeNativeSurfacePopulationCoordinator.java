@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,10 @@ import net.minecraft.world.level.levelgen.Heightmap;
  * duplicate calls caused by neighboring-chunk orchestration or adapter re-entry during generation.
  */
 final class SkyforgeNativeSurfacePopulationCoordinator {
+    private static final int CHUNK_WIDTH = 16;
+    private static final int CHUNK_MIDDLE_LOCAL = 8;
+    private static final List<ColumnProbe> SURFACE_PROBE_ORDER = createSurfaceProbeOrder();
+
     private final Map<PopulationKey, CachedPhase> completed = new HashMap<>();
 
     synchronized Result populate(
@@ -102,31 +107,53 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
             WorldGenLevel level,
             SkyIslandWorldVolumeId volumeId,
             ChunkPos chunkPos) {
-        int middleX = chunkPos.getMiddleBlockX();
-        int middleZ = chunkPos.getMiddleBlockZ();
-        SurfaceSample best = null;
-        int bestDistance = Integer.MAX_VALUE;
+        int minimumX = chunkPos.getMinBlockX();
+        int minimumZ = chunkPos.getMinBlockZ();
+        int heightQueries = 0;
 
-        for (int x = chunkPos.getMinBlockX(); x <= chunkPos.getMaxBlockX(); x++) {
-            for (int z = chunkPos.getMinBlockZ(); z <= chunkPos.getMaxBlockZ(); z++) {
-                var claim = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
-                        volumeId,
-                        x,
-                        z,
-                        Heightmap.Types.WORLD_SURFACE_WG,
-                        level.getMinBuildHeight(),
-                        level.getHeight());
-                if (claim.isEmpty()) {
-                    continue;
-                }
-                int distance = Math.abs(x - middleX) + Math.abs(z - middleZ);
-                if (distance < bestDistance) {
-                    best = new SurfaceSample(x, z, claim.orElseThrow().height());
-                    bestDistance = distance;
-                }
+        for (ColumnProbe probe : SURFACE_PROBE_ORDER) {
+            int x = minimumX + probe.localX();
+            int z = minimumZ + probe.localZ();
+            heightQueries++;
+            var claim = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
+                    volumeId,
+                    x,
+                    z,
+                    Heightmap.Types.WORLD_SURFACE_WG,
+                    level.getMinBuildHeight(),
+                    level.getHeight());
+            if (claim.isEmpty()) {
+                continue;
+            }
+            SkyforgeRuntimePerformanceMetrics.recordSample(
+                    "surfacePopulation.findSurface.heightQueries",
+                    heightQueries);
+            return Optional.of(new SurfaceSample(x, z, claim.orElseThrow().height()));
+        }
+
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "surfacePopulation.findSurface.heightQueries",
+                heightQueries);
+        return Optional.empty();
+    }
+
+    static List<ColumnProbe> surfaceProbeOrder() {
+        return SURFACE_PROBE_ORDER;
+    }
+
+    private static List<ColumnProbe> createSurfaceProbeOrder() {
+        List<ColumnProbe> probes = new ArrayList<>(CHUNK_WIDTH * CHUNK_WIDTH);
+        for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+            for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+                int distance = Math.abs(localX - CHUNK_MIDDLE_LOCAL)
+                        + Math.abs(localZ - CHUNK_MIDDLE_LOCAL);
+                probes.add(new ColumnProbe(localX, localZ, distance));
             }
         }
-        return Optional.ofNullable(best);
+        probes.sort(Comparator.comparingInt(ColumnProbe::distance)
+                .thenComparingInt(ColumnProbe::localX)
+                .thenComparingInt(ColumnProbe::localZ));
+        return List.copyOf(probes);
     }
 
     private static void requireStableReplay(
@@ -160,6 +187,8 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
             Objects.requireNonNull(phase, "phase");
         }
     }
+
+    record ColumnProbe(int localX, int localZ, int distance) {}
 
     record SurfaceSample(int x, int z, int firstFreeY) {}
 
