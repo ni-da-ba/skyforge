@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandPetroleumSystemOpportunityCell;
 import io.github.nidaba.skyforge.world.content.SkyIslandPetroleumLocalSourcePolicy;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -10,23 +11,28 @@ import java.util.TreeMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 
-/** Exact-volume petroleum source/depletion and retained-CDG pumpjack termination boundary. */
+/** Exact-volume petroleum source-field/depletion boundary for the retained CDG pumpjack. */
 final class SkyforgePetroleumSourceAdapter {
-    static final ResourceLocation TERMINATION_BLOCK =
-            ResourceLocation.fromNamespaceAndPath("skyforge", "petroleum_source");
-
-    record SourceAddress(ResourceLocation volumeId, BlockPos termination) implements Comparable<SourceAddress> {
+    record SourceAddress(ResourceLocation volumeId, BlockPos sourceAnchor) implements Comparable<SourceAddress> {
         SourceAddress {
             Objects.requireNonNull(volumeId, "volumeId");
-            Objects.requireNonNull(termination, "termination");
+            Objects.requireNonNull(sourceAnchor, "sourceAnchor");
         }
-        @Override public int compareTo(SourceAddress other) {
+
+        boolean matchesWellColumn(BlockPos wellPosition) {
+            return sourceAnchor.getX() == wellPosition.getX()
+                    && sourceAnchor.getZ() == wellPosition.getZ()
+                    && sourceAnchor.getY() < wellPosition.getY();
+        }
+
+        @Override
+        public int compareTo(SourceAddress other) {
             int volume = volumeId.toString().compareTo(other.volumeId.toString());
             if (volume != 0) return volume;
-            int x = Integer.compare(termination.getX(), other.termination.getX());
+            int x = Integer.compare(sourceAnchor.getX(), other.sourceAnchor.getX());
             if (x != 0) return x;
-            int y = Integer.compare(termination.getY(), other.termination.getY());
-            return y != 0 ? y : Integer.compare(termination.getZ(), other.termination.getZ());
+            int y = Integer.compare(sourceAnchor.getY(), other.sourceAnchor.getY());
+            return y != 0 ? y : Integer.compare(sourceAnchor.getZ(), other.sourceAnchor.getZ());
         }
     }
 
@@ -39,7 +45,7 @@ final class SkyforgePetroleumSourceAdapter {
         }
     }
 
-    /** C26 exact-cell provenance paired with a concrete exact-volume termination position. */
+    /** C26 exact-cell provenance paired with one realized exact-volume source-field anchor. */
     record AdmissibleSupport(SourceAddress address, SkyIslandPetroleumSystemOpportunityCell cell) {
         AdmissibleSupport {
             Objects.requireNonNull(address, "address");
@@ -50,8 +56,8 @@ final class SkyforgePetroleumSourceAdapter {
         }
     }
 
-    /** Explicit pumpjack seam; CDG's termination tag contains only {@link #TERMINATION_BLOCK}. */
-    record PumpjackTermination(SourceAddress address, int pressure) {}
+    /** Logical source selected by exact volume and well column; no petroleum block is implied. */
+    record PumpjackSource(SourceAddress address, int pressure) {}
 
     private final Specification specification;
     private final Map<SourceAddress, AdmissibleSupport> supported = new LinkedHashMap<>();
@@ -67,32 +73,42 @@ final class SkyforgePetroleumSourceAdapter {
         supported.keySet().forEach(address -> remaining.put(address, specification.initialMillibuckets()));
     }
 
-    Optional<PumpjackTermination> pumpjackTermination(ResourceLocation exactVolume, BlockPos termination, boolean baseWorld) {
+    Optional<PumpjackSource> pumpjackSource(ResourceLocation exactVolume, BlockPos wellPosition, boolean baseWorld) {
+        Objects.requireNonNull(exactVolume, "exactVolume");
+        Objects.requireNonNull(wellPosition, "wellPosition");
         if (baseWorld) return Optional.empty();
-        SourceAddress address = new SourceAddress(exactVolume, termination);
-        return supported.containsKey(address) && remaining.get(address) > 0
-                ? Optional.of(new PumpjackTermination(address, specification.pumpjackPressure())) : Optional.empty();
+        return supported.keySet().stream()
+                .filter(address -> address.volumeId().equals(exactVolume) && address.matchesWellColumn(wellPosition))
+                .max(Comparator.comparingInt(address -> address.sourceAnchor().getY()))
+                .filter(address -> remaining.getOrDefault(address, 0) > 0)
+                .map(address -> new PumpjackSource(address, specification.pumpjackPressure()));
     }
 
-    int extract(PumpjackTermination termination, int requestedMillibuckets) {
-        Objects.requireNonNull(termination, "termination");
-        if (requestedMillibuckets < 0 || !supported.containsKey(termination.address())) {
+    int extract(PumpjackSource source, int requestedMillibuckets) {
+        Objects.requireNonNull(source, "source");
+        if (requestedMillibuckets < 0 || !supported.containsKey(source.address())) {
             throw new IllegalArgumentException("pumpjack request is not an admitted Skyforge source");
         }
-        int available = remaining.get(termination.address());
+        int available = remaining.get(source.address());
         int extracted = Math.min(available, requestedMillibuckets);
-        remaining.put(termination.address(), available - extracted);
+        remaining.put(source.address(), available - extracted);
         return extracted;
     }
 
     /** Deterministic save payload for host SavedData. */
-    Map<SourceAddress, Integer> save() { return Map.copyOf(remaining); }
+    Map<SourceAddress, Integer> save() {
+        return Map.copyOf(remaining);
+    }
 
     void reload(Map<SourceAddress, Integer> saved) {
         Objects.requireNonNull(saved, "saved");
-        if (!saved.keySet().equals(supported.keySet())) throw new IllegalArgumentException("saved state does not match exact source support");
+        if (!saved.keySet().equals(supported.keySet())) {
+            throw new IllegalArgumentException("saved state does not match exact source support");
+        }
         saved.forEach((address, amount) -> {
-            if (amount < 0 || amount > specification.initialMillibuckets()) throw new IllegalArgumentException("invalid saved amount");
+            if (amount < 0 || amount > specification.initialMillibuckets()) {
+                throw new IllegalArgumentException("invalid saved amount");
+            }
         });
         remaining.clear();
         remaining.putAll(saved);
