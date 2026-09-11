@@ -46,6 +46,7 @@ final class SkyforgePopulationExecutionStageCacheTest {
                             return false;
                         },
                         0)) {
+            domain.requireActive();
             var execution = scope.execution();
 
             assertTrue(execution.isVisible(owned));
