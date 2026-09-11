@@ -2,7 +2,7 @@
   "schema_version": 1,
   "roadmap_id": "skyforge-program-convergence-v1",
   "enabled": true,
-  "max_auto_claims_per_utc_day": 4,
+  "max_auto_claims_per_utc_day": 6,
   "notes": [
     "PROGRAM_ROADMAP.md remains the long-range semantic authority. The project-owner morphology reconciliation recorded on issue #214 and docs/agent-state/PROGRAM_ROADMAP_PHASE_RECONCILIATION_2026-09-11.md establishes Phase 1 COMPLETE and Phase 2 PRIMARY_ACTIVE where older roadmap prose is stale.",
     "Version 1 tasks are issue-backed. Missing-issue synthesis remains fail-closed.",
