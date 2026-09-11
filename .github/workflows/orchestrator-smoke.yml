@@ -45,6 +45,7 @@ jobs:
         run: |
           python -m py_compile scripts/orchestrator/skyforge_orchestrator.py
           python -m py_compile scripts/orchestrator/skyforge_quota_runtime.py
+          python -m py_compile scripts/orchestrator/skyforge_control_replay_runtime.py
           python -m py_compile scripts/orchestrator/codex_quota.py
           python -m py_compile scripts/orchestrator/run_pilot.py
           python -m py_compile scripts/orchestrator/daily_value_report.py
@@ -65,6 +66,7 @@ jobs:
           python -m unittest scripts/orchestrator/test_skyforge_orchestrator.py
           python -m unittest scripts/orchestrator/test_codex_quota.py
           python -m unittest scripts/orchestrator/test_skyforge_quota_runtime.py
+          python -m unittest scripts/orchestrator/test_skyforge_control_replay_runtime.py
           python -m unittest scripts/orchestrator/test_daily_value_report.py
           python -m unittest scripts/orchestrator/test_verify_main_protection.py
           python -m unittest scripts/orchestrator/test_decommission_contract.py
