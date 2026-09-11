@@ -3,9 +3,9 @@
 
 This layer sits above the replay-safe/task-owned/auto-merge runtime. It does not invent work. When the
 ordinary authorized queue is genuinely idle, it may synthesize exactly one task authority from the
-machine-readable ORCHESTRATOR_ROADMAP manifest. Every roadmap task must already be issue-backed,
-bounded, and explicitly listed in that manifest. Human gates, closed/unmerged handoffs, missing
-authority, quota/controller blocks, and manifest exhaustion all fail closed.
+machine-readable ORCHESTRATOR_ROADMAP manifest. Every v1 roadmap task must already be issue-backed,
+bounded, and explicitly listed in that manifest. Human gates, unmerged handoffs, missing authority,
+quota/controller blocks, and manifest exhaustion all fail closed.
 """
 
 from __future__ import annotations
@@ -70,15 +70,12 @@ def _roadmap_state_locked(
     if state.get("claims_day") != core._utc_day():
         state["claims_day"] = core._utc_day()
         state["claims_today"] = 0
-    for key, default in (
-        ("completed_runs", {}),
-        ("blocked_nodes", {}),
-        ("active", None),
-        ("claims_today", 0),
-        ("last_error", None),
-        ("last_trigger", None),
-    ):
-        state.setdefault(key, default)
+    state.setdefault("completed_runs", {})
+    state.setdefault("blocked_nodes", {})
+    state.setdefault("active", None)
+    state.setdefault("claims_today", 0)
+    state.setdefault("last_error", None)
+    state.setdefault("last_trigger", None)
     self.state.save()
     return state
 
@@ -116,40 +113,36 @@ def _roadmap_event(
     )
 
 
-def _roadmap_live_task_prs(self: core.Orchestrator) -> list[int]:
-    """Return open controller-managed PRs with durable task ownership.
-
-    Legacy managed PRs without an authority key do not block the roadmap. This lets old human-gated
-    drafts coexist with unrelated roadmap work without restoring the old lane-level coupling.
-    """
+def _task_managed_records(self: core.Orchestrator) -> list[dict[str, Any]]:
     with self._state_lock:
-        managed = [
+        return [
             dict(value)
             for value in (self.state.data.get("managed") or {}).values()
             if isinstance(value, dict)
             and str(value.get("authority_key") or "").startswith("task:")
             and value.get("pr_number")
         ]
+
+
+def _roadmap_live_task_prs(self: core.Orchestrator) -> list[int]:
+    """Return open task-owned controller PRs.
+
+    Legacy managed PRs without durable task ownership do not block the roadmap. Visibility uncertainty
+    does block: inability to prove a task PR terminal is never permission to launch parallel work.
+    """
     open_prs: list[int] = []
-    for record in managed:
+    for record in _task_managed_records(self):
         number = int(record["pr_number"])
         try:
             pr = core._json_cmd(
                 [
-                    "gh",
-                    "pr",
-                    "view",
-                    str(number),
-                    "--repo",
-                    self.repo,
-                    "--json",
-                    "state,mergedAt",
+                    "gh", "pr", "view", str(number), "--repo", self.repo,
+                    "--json", "state,mergedAt",
                 ],
                 cwd=self.root,
                 timeout=60,
             )
         except Exception:
-            # Visibility uncertainty is not permission to launch parallel work.
             return [number]
         if str(pr.get("state") or "").upper() == "OPEN" and not pr.get("mergedAt"):
             open_prs.append(number)
@@ -162,8 +155,10 @@ def _roadmap_mark_blocked_locked(
     node_id: str,
     reason: str,
 ) -> None:
-    blocked = state.setdefault("blocked_nodes", {})
-    blocked[node_id] = {"at": core._utc_now(), "reason": reason[:1000]}
+    state.setdefault("blocked_nodes", {})[node_id] = {
+        "at": core._utc_now(),
+        "reason": reason[:1000],
+    }
     state["active"] = None
     state["last_blocked_at"] = core._utc_now()
     state["last_error"] = None
@@ -190,10 +185,7 @@ def _roadmap_resolve_active(
     manifest: roadmap_policy.RoadmapManifest,
     state: dict[str, Any],
 ) -> bool:
-    """Resolve active roadmap ownership.
-
-    Returns True when the active node still owns work and therefore blocks another roadmap seed.
-    """
+    """Resolve active roadmap ownership; return True while that node still owns work."""
     active = state.get("active")
     if not isinstance(active, dict):
         return False
@@ -202,15 +194,16 @@ def _roadmap_resolve_active(
     issue_number = active.get("issue_number")
     authority_key = f"task:{int(issue_number)}" if issue_number else None
 
-    managed_record: dict[str, Any] | None = None
-    with self._state_lock:
-        for value in (self.state.data.get("managed") or {}).values():
-            if not isinstance(value, dict):
-                continue
-            if authority_key and str(value.get("authority_key") or "") == authority_key:
-                managed_record = dict(value)
-                break
-
+    # Bind the managed PR as soon as handoff creates it. This happens before the global open-task-PR
+    # guard so a very fast CI/auto-merge cycle cannot erase the only durable PR association.
+    managed_record = next(
+        (
+            value
+            for value in _task_managed_records(self)
+            if authority_key and str(value.get("authority_key") or "") == authority_key
+        ),
+        None,
+    )
     if managed_record and managed_record.get("pr_number"):
         active["pr_number"] = int(managed_record["pr_number"])
         self.state.save()
@@ -220,14 +213,8 @@ def _roadmap_resolve_active(
         try:
             pr = core._json_cmd(
                 [
-                    "gh",
-                    "pr",
-                    "view",
-                    str(int(pr_number)),
-                    "--repo",
-                    self.repo,
-                    "--json",
-                    "state,mergedAt",
+                    "gh", "pr", "view", str(int(pr_number)), "--repo", self.repo,
+                    "--json", "state,mergedAt",
                 ],
                 cwd=self.root,
                 timeout=60,
@@ -272,7 +259,7 @@ def _roadmap_resolve_active(
             )
             return False
 
-        # Crash-safe replay: replay the exact authority only when it has not been durably consumed.
+        # Crash-safe replay: replay exactly the same authority only if it was not durably consumed.
         self.enqueue(core.EventDecision.from_state(event_state))
         self._metric("roadmap_active_replays")
         return True
@@ -290,14 +277,8 @@ def _roadmap_issue_open(self: core.Orchestrator, issue_number: int) -> bool | No
     try:
         issue = core._json_cmd(
             [
-                "gh",
-                "issue",
-                "view",
-                str(issue_number),
-                "--repo",
-                self.repo,
-                "--json",
-                "state,title",
+                "gh", "issue", "view", str(issue_number), "--repo", self.repo,
+                "--json", "state,title",
             ],
             cwd=self.root,
             timeout=60,
@@ -305,6 +286,24 @@ def _roadmap_issue_open(self: core.Orchestrator, issue_number: int) -> bool | No
     except Exception:
         return None
     return str(issue.get("state") or "").upper() == "OPEN"
+
+
+def _roadmap_record_error(
+    self: core.Orchestrator,
+    *,
+    trigger: str,
+    exc: Exception,
+) -> None:
+    with self._state_lock:
+        state = self.state.data.setdefault("roadmap", {})
+        state["last_error"] = {
+            "at": core._utc_now(),
+            "kind": type(exc).__name__,
+            "summary": str(exc)[:1000],
+        }
+        state["last_trigger"] = trigger
+        self.state.save()
+    self._metric("roadmap_advance_failures")
 
 
 def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
@@ -320,22 +319,10 @@ def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
         ):
             return False
 
-    # Never overlap a task-owned controller PR, even if it came from ordinary explicit authority.
-    if _roadmap_live_task_prs(self):
-        return False
-
     try:
         manifest = _roadmap_manifest(self)
     except Exception as exc:
-        with self._state_lock:
-            state = self.state.data.setdefault("roadmap", {})
-            state["last_error"] = {
-                "at": core._utc_now(),
-                "kind": type(exc).__name__,
-                "summary": str(exc)[:1000],
-            }
-            state["last_trigger"] = trigger
-            self.state.save()
+        _roadmap_record_error(self, trigger=trigger, exc=exc)
         self._metric("roadmap_manifest_errors")
         return False
     if not manifest.enabled:
@@ -355,10 +342,13 @@ def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
             state["last_trigger"] = trigger
             self.state.save()
 
+        # Resolve/bind this roadmap's current PR before the global task-PR guard. This closes the
+        # handoff/auto-merge race while still preventing unrelated parallel task work.
         if _roadmap_resolve_active(self, manifest, state):
             return False
+        if _roadmap_live_task_prs(self):
+            return False
 
-        # Closed issue means the explicit authority has already completed elsewhere; skip it.
         while True:
             with self._state_lock:
                 completed_runs = {
@@ -380,6 +370,22 @@ def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
                 return False
 
             if node.kind == "gate":
+                gate = {
+                    "decision": "HUMAN_GATE",
+                    "lane": node.lane,
+                    "pr_number": None,
+                    "reason": f"bounded roadmap gate {node.node_id}",
+                    "human_message": node.human_message,
+                }
+                if not self._post_gate(gate):
+                    with self._state_lock:
+                        state["last_error"] = {
+                            "at": core._utc_now(),
+                            "kind": "RoadmapGateVisibilityError",
+                            "summary": f"could not surface roadmap gate {node.node_id}",
+                        }
+                        self.state.save()
+                    return False
                 with self._state_lock:
                     _roadmap_mark_blocked_locked(
                         self,
@@ -387,15 +393,6 @@ def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
                         node.node_id,
                         node.human_message or "roadmap human gate",
                     )
-                self._post_gate(
-                    {
-                        "decision": "HUMAN_GATE",
-                        "lane": node.lane,
-                        "pr_number": None,
-                        "reason": f"bounded roadmap gate {node.node_id}",
-                        "human_message": node.human_message,
-                    }
-                )
                 return False
 
             issue_state = _roadmap_issue_open(self, int(node.issue_number))
@@ -435,6 +432,7 @@ def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
                 self.state.save()
                 self._metric("roadmap_daily_bound_hits")
                 return False
+
             run_number = int((state.get("completed_runs") or {}).get(node.node_id) or 0) + 1
             event = _roadmap_event(manifest, node, run_number=run_number)
             state["active"] = {
@@ -474,15 +472,7 @@ def _drain_and_dispatch(self: core.Orchestrator) -> None:
         try:
             _roadmap_maybe_advance(self, trigger="queue-drained")
         except Exception as exc:
-            with self._state_lock:
-                state = self.state.data.setdefault("roadmap", {})
-                state["last_error"] = {
-                    "at": core._utc_now(),
-                    "kind": type(exc).__name__,
-                    "summary": str(exc)[:1000],
-                }
-                self.state.save()
-            self._metric("roadmap_advance_failures")
+            _roadmap_record_error(self, trigger="queue-drained", exc=exc)
             print(
                 f"[orchestrator] bounded roadmap advance failed closed: "
                 f"{type(exc).__name__}: {exc}",
@@ -495,15 +485,7 @@ def _run_periodic_reconcile(self: core.Orchestrator) -> None:
     try:
         _roadmap_maybe_advance(self, trigger="periodic-idle")
     except Exception as exc:
-        with self._state_lock:
-            state = self.state.data.setdefault("roadmap", {})
-            state["last_error"] = {
-                "at": core._utc_now(),
-                "kind": type(exc).__name__,
-                "summary": str(exc)[:1000],
-            }
-            self.state.save()
-        self._metric("roadmap_advance_failures")
+        _roadmap_record_error(self, trigger="periodic-idle", exc=exc)
 
 
 def health_snapshot(self: core.Orchestrator) -> dict[str, Any]:
