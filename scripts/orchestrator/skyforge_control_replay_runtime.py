@@ -1,26 +1,29 @@
 #!/usr/bin/env python3
 """Compatibility entrypoint for the hosted Skyforge controller.
 
-The installed systemd unit on existing hosts still launches this path. Keep that deployment stable
-while layering the bounded roadmap runtime on top of the accepted replay-safe controller implementation.
+Existing hosts still launch this path. Preserve the accepted replay-safe module object exactly, then
+load the bounded roadmap extension onto its shared controller core. This keeps old test hooks and
+runtime globals authoritative while avoiding a privileged systemd entrypoint migration.
 """
 
 from __future__ import annotations
 
+import sys
+
 import skyforge_control_replay_base as _base
 
-# Re-export the full replay-safe runtime surface, including private test hooks relied on by the
-# deterministic orchestrator suite.
-for _name in dir(_base):
-    if not _name.startswith("__"):
-        globals()[_name] = getattr(_base, _name)
+# Make imports of the historical entrypoint resolve to the actual replay-safe implementation module,
+# not a copied namespace. Functions therefore retain one set of module globals and existing patches /
+# regression hooks continue to operate exactly as before.
+sys.modules[__name__] = _base
 
-# Importing the roadmap runtime installs its extension onto the shared controller core. Its own main()
-# delegates back to this module's replay-safe main, so keep main bound to the accepted base runtime.
+# Importing this module installs the bounded roadmap extension on _base.core. The roadmap runtime
+# imports ``skyforge_control_replay_runtime`` during initialization; that lookup now resolves directly
+# to _base, so there is no duplicate replay-runtime state.
 import skyforge_roadmap_runtime as _roadmap_runtime  # noqa: E402,F401
 
-main = _base.main
+_base._roadmap_runtime = _roadmap_runtime
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(_base.main())
