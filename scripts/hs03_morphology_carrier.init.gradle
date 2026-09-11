@@ -48,7 +48,7 @@ gradle.afterProject { project, state ->
     def neoForge = project.extensions.getByName('neoForge')
     def development = project.sourceSets.getByName('development')
     def taskStem = "Hs03${spec.task}"
-    def gameDirectory = project.layout.projectDirectory.dir("run-skyforge-hs03-${spec.slug}").asFile
+    def hs03GameDirectory = project.layout.projectDirectory.dir("run-skyforge-hs03-${spec.slug}").asFile
     def worldName = "hs03-${spec.slug}"
     def resultDirectory = project.layout.buildDirectory.dir("acceptance/hs03/${spec.slug}")
     def prepareResult = resultDirectory.get().file('prepare.properties').asFile
@@ -140,7 +140,7 @@ server-port=0
 
     neoForge.runs.create("hs03${spec.task}Prepare") {
         server()
-        gameDirectory = gameDirectory
+        gameDirectory = hs03GameDirectory
         programArgument('--nogui')
         programArgument('--universe')
         programArgument('saves')
@@ -157,7 +157,7 @@ server-port=0
 
     neoForge.runs.create("hs03${spec.task}Client") {
         client()
-        gameDirectory = gameDirectory
+        gameDirectory = hs03GameDirectory
         programArgument('--quickPlaySingleplayer')
         programArgument(worldName)
         systemProperty('skyforge.dev.productionMorphologyAtlasViewerMember', spec.member)
@@ -166,7 +166,7 @@ server-port=0
 
     neoForge.runs.create("hs03${spec.task}ViewerAcceptanceClient") {
         client()
-        gameDirectory = gameDirectory
+        gameDirectory = hs03GameDirectory
         programArgument('--quickPlaySingleplayer')
         programArgument(worldName)
         systemProperty('skyforge.dev.productionMorphologyAtlasViewerMember', spec.member)
@@ -187,10 +187,10 @@ server-port=0
             'NeoForge ModDev RunGameTask and HS-03 filesystem orchestration are runtime-bound.')
         doFirst {
             project.delete(resultDirectory)
-            project.delete(gameDirectory)
-            gameDirectory.mkdirs()
-            new File(gameDirectory, 'eula.txt').text = 'eula=true\n'
-            new File(gameDirectory, 'server.properties').text = serverProperties
+            project.delete(hs03GameDirectory)
+            hs03GameDirectory.mkdirs()
+            new File(hs03GameDirectory, 'eula.txt').text = 'eula=true\n'
+            new File(hs03GameDirectory, 'server.properties').text = serverProperties
         }
         doLast {
             verifyPrepare()
@@ -203,11 +203,11 @@ server-port=0
         mustRunAfter(prepareRun)
         doFirst {
             verifyPrepare()
-            def levelDat = new File(gameDirectory, "saves/${worldName}/level.dat")
+            def levelDat = new File(hs03GameDirectory, "saves/${worldName}/level.dat")
             if (!levelDat.isFile()) {
                 throw new GradleException("HS-03 persisted world missing before review: ${levelDat}")
             }
-            new File(gameDirectory, 'options.txt').text = 'onboardAccessibility:false\nnarrator:0\n'
+            new File(hs03GameDirectory, 'options.txt').text = 'onboardAccessibility:false\nnarrator:0\n'
         }
     }
 
@@ -217,12 +217,12 @@ server-port=0
         mustRunAfter(prepareRun)
         doFirst {
             verifyPrepare()
-            def levelDat = new File(gameDirectory, "saves/${worldName}/level.dat")
+            def levelDat = new File(hs03GameDirectory, "saves/${worldName}/level.dat")
             if (!levelDat.isFile()) {
                 throw new GradleException("HS-03 persisted world missing before reopen: ${levelDat}")
             }
             project.delete(viewerResult)
-            new File(gameDirectory, 'options.txt').text = 'onboardAccessibility:false\nnarrator:0\n'
+            new File(hs03GameDirectory, 'options.txt').text = 'onboardAccessibility:false\nnarrator:0\n'
         }
     }
 
