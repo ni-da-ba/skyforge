@@ -44,10 +44,14 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
         Objects.requireNonNull(chunkPos, "chunkPos");
 
         long findSurfaceStart = SkyforgeRuntimePerformanceMetrics.start();
-        Optional<SurfaceSample> surface = findSurface(level, plan.volumeId(), chunkPos);
+        SurfaceSearchResult search = findSurfaceWithEvidence(level, plan.volumeId(), chunkPos);
         SkyforgeRuntimePerformanceMetrics.recordSince(
                 "surfacePopulation.findSurface",
                 findSurfaceStart);
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "surfacePopulation.findSurface.heightQueries",
+                search.heightQueries());
+        Optional<SurfaceSample> surface = search.surface();
         if (surface.isEmpty()) {
             return new Result(plan.volumeId(), chunkPos, false, List.of());
         }
@@ -107,6 +111,13 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
             WorldGenLevel level,
             SkyIslandWorldVolumeId volumeId,
             ChunkPos chunkPos) {
+        return findSurfaceWithEvidence(level, volumeId, chunkPos).surface();
+    }
+
+    private static SurfaceSearchResult findSurfaceWithEvidence(
+            WorldGenLevel level,
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos chunkPos) {
         int minimumX = chunkPos.getMinBlockX();
         int minimumZ = chunkPos.getMinBlockZ();
         int heightQueries = 0;
@@ -125,16 +136,12 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
             if (claim.isEmpty()) {
                 continue;
             }
-            SkyforgeRuntimePerformanceMetrics.recordSample(
-                    "surfacePopulation.findSurface.heightQueries",
+            return new SurfaceSearchResult(
+                    Optional.of(new SurfaceSample(x, z, claim.orElseThrow().height())),
                     heightQueries);
-            return Optional.of(new SurfaceSample(x, z, claim.orElseThrow().height()));
         }
 
-        SkyforgeRuntimePerformanceMetrics.recordSample(
-                "surfacePopulation.findSurface.heightQueries",
-                heightQueries);
-        return Optional.empty();
+        return new SurfaceSearchResult(Optional.empty(), heightQueries);
     }
 
     static List<ColumnProbe> surfaceProbeOrder() {
@@ -191,6 +198,15 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
     record ColumnProbe(int localX, int localZ, int distance) {}
 
     record SurfaceSample(int x, int z, int firstFreeY) {}
+
+    private record SurfaceSearchResult(Optional<SurfaceSample> surface, int heightQueries) {
+        private SurfaceSearchResult {
+            Objects.requireNonNull(surface, "surface");
+            if (heightQueries < 0 || heightQueries > CHUNK_WIDTH * CHUNK_WIDTH) {
+                throw new IllegalArgumentException("surface search height-query count is out of range");
+            }
+        }
+    }
 
     private record CachedPhase(
             SurfaceSample surface,
