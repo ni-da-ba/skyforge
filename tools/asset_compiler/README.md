@@ -16,29 +16,47 @@ AssetSpec
   -> exact Minecraft export only after visual credibility
 ```
 
-## Current v0.3 boundary
+## Current v0.4 boundary
 
-The implementation is still deliberately narrow, but now has two explicit lowering layers:
+The implementation remains deliberately narrow and now has three explicit lowering layers:
 
 - `model.py` — backend-neutral compiler IR (`BlockState`, cells, voxel model, semantic volumes);
 - `guild_branch.py` — stable v0.1/v0.2 structural pass: dimensions, bay rhythm, shell, openings, rooms, block states, anchors, digest, validation;
-- `guild_branch_detail.py` — v0.3 detail pass layered over the structural result;
-- `render.py` — front/east/top orthographic QA, semantic floorplan, and isometric voxel preview;
+- `guild_branch_detail.py` — v0.3 exterior/detail pass: roof articulation, public identity, canopies/aprons, working-face grammar;
+- `guild_branch_interior.py` — v0.4 interior pass: corrected public/staff circulation, bounded furnishing modules, interior anchors/volumes, freight/repair furnishing, interior validation;
+- `render.py` — exterior orthographic/isometric QA plus semantic floorplan, interior plan, cutaway isometric, and longitudinal interior section;
 - `compile.py` — CLI dispatcher;
-- v0.2 and v0.3 three-bay/four-bay specimens;
-- focused tests for both structural and detail passes.
+- v0.2/v0.3/v0.4 specimens and focused tests.
 
-The v0.3 detail pass adds, without changing the underlying interior/service grammar:
+The v0.4 pass deliberately corrects the circulation problem exposed by the v0.3 floorplan:
 
-- masonry base-course articulation;
-- repeated window sill/lintel treatment;
-- directional stair/slab roof states;
-- roof overhang and closed gable ends;
-- a more legible public entrance hierarchy;
-- restrained Guild navy/brass identity treatment;
-- public canopy and approach apron;
-- separate repair and freight canopies/aprons on the working face;
-- task lighting and an airfield interface moved beyond the working canopies.
+```text
+PUBLIC ENTRANCE
+  -> contract / route information
+  -> compact waiting space
+  -> SERVICE_COUNTER (player/public side)
+  -> NPC_WORK_POINT (staff side)
+  -> compact back office / records
+```
+
+The working wing remains split into:
+
+```text
+light repair <-> repair apron / airfield
+warehouse    <-> freight apron / airfield
+```
+
+Interior furnishing is semantic and sparse rather than decorative noise. Current reusable modules include:
+
+- contract board and route-information panel;
+- waiting benches;
+- clerk backbar / records shelving;
+- compact back-office desk;
+- freight stacks with preserved handling lane;
+- repair workbench and tool storage;
+- public/staff task lighting.
+
+The central public entrance-to-counter aisle is explicitly reserved and validated. Functional anchors are kept out of furnishing occupancy.
 
 The compiler still fixes the first proof family to:
 
@@ -54,14 +72,17 @@ Unsupported orientations fail closed rather than silently producing misleading g
 
 ## Running the proof
 
-From `tools/asset_compiler`:
+From repository root:
 
 ```bash
-python3 compile.py specimens/bootstrap_guild_branch_v0.3.json --out build/bootstrap-branch-v03
-python3 -m unittest discover -s tests -v
+python tools/asset_compiler/compile.py \
+  tools/asset_compiler/specimens/bootstrap_guild_branch_v0.4.json \
+  --out build/asset-compiler-v04
+
+python -m unittest discover -s tools/asset_compiler/tests -v
 ```
 
-Expected QA outputs include:
+v0.4 QA outputs include:
 
 ```text
 resolved.json
@@ -73,7 +94,12 @@ east.svg
 top.svg
 floorplan.svg
 isometric.svg
+interior_plan.svg
+cutaway_isometric.svg
+interior_section.svg
 ```
+
+The dedicated `Asset compiler proof` GitHub Actions workflow runs the tests, compiles the v0.4 specimen, and uploads the complete QA directory as a short-lived artifact for visual review.
 
 The exact digest and block count are evidence for one compiler/spec version, not long-lived product constants.
 
@@ -101,4 +127,4 @@ The compiler hypothesis is not accepted merely because it can place blocks. It m
 6. a materially cheaper sibling revision/variant;
 7. editable/comprehensible exported geometry.
 
-The current v0.3 spike still intentionally stops before `.schem` / structure-NBT export. The next gate is human inspection of the refined generated structure. If the visual language is credible enough, proceed to one exact Minecraft export path rather than continuing to polish an offline representation indefinitely.
+The v0.4 proof still intentionally stops before `.schem` / structure-NBT export. The next material gate is visual inspection of the compiled interior/cutaway output. If that reads as a credible working Guild branch, proceed to one exact Minecraft export path rather than continuing to polish the offline representation indefinitely.
