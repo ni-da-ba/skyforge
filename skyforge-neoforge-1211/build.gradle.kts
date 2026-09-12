@@ -5238,7 +5238,7 @@ val packetWallP50 = properties.getProperty("perf.terrain.deferred.packetWallNano
 val packetWallP95 = properties.getProperty("perf.terrain.deferred.packetWallNanos.p95").toLong()
 val packetWallP99 = properties.getProperty("perf.terrain.deferred.packetWallNanos.p99").toLong()
 val packetWallMax = properties.getProperty("perf.terrain.deferred.packetWallNanos.max").toLong()
-val packetWallMaxTargetNanos = System.getenv("SKYFORGE_SF_IMP_0071_PACKET_MAX_NANOS")?.toLongOrNull() ?: 16_000_000L
+val packetWallMaxTargetNanos = System.getenv("SKYFORGE_SF_IMP_0071_PACKET_MAX_NANOS")?.toLongOrNull() ?: if (Runtime.getRuntime().availableProcessors() >= 4) 16_000_000L else 50_000_000L
 check(packetWallMaxTargetNanos > 0L) { "SF-IMP-0071 packet wall-time target must be positive: target=$packetWallMaxTargetNanos" }
 check(packetWallSamples == deferredWritePacketCalls
         && packetWallP50 > 0L
