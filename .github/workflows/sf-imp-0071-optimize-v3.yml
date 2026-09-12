@@ -1,0 +1,56 @@
+name: SF-IMP-0071 Optimize Packet Path V3
+
+on:
+  push:
+    branches:
+      - perf/524-packetize-catchup
+    paths:
+      - .github/workflows/sf-imp-0071-optimize-v3.yml
+
+permissions:
+  contents: write
+
+jobs:
+  optimize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/524-packetize-catchup
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Reuse the already-tested anchored patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+          workflow = Path('.github/workflows/sf-imp-0071-optimize-v2.yml').read_text()
+          start_marker = "          python3 - <<'PY'\n"
+          end_marker = "\n          PY\n\n      - name: Run focused tests and verifier compilation"
+          start = workflow.index(start_marker) + len(start_marker)
+          end = workflow.index(end_marker, start)
+          Path('/tmp/sf_imp_0071_patch.py').write_text(textwrap.dedent(workflow[start:end]))
+          PY
+          python3 /tmp/sf_imp_0071_patch.py
+
+      - name: Run focused tests and verifier compilation
+        run: ./gradlew :skyforge-neoforge-1211:test :skyforge-neoforge-1211:compileJava --stacktrace --no-configuration-cache
+
+      - name: Commit only production, tests, and benchmark verifier
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDeferredTerrainWriteProgressData.java \
+                  skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/MinecraftChunkMaterialization.java \
+                  skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211ChunkWriter.java \
+                  skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211SurfaceStage.java \
+                  skyforge-neoforge-1211/build.gradle.kts
+          git diff --cached --check
+          git commit -m "SF-IMP-0071: cache and characterize packetized catch-up"
+          git push origin HEAD:perf/524-packetize-catchup
