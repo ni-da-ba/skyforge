@@ -53,7 +53,7 @@ def write_orthographic_svg(path: Path, compiled: CompiledAsset, view: str, scale
     ]
     for (a, b), cell in sorted(visible.items()):
         x, y = transform(a, b)
-        parts.append(f'<rect x="{x}" y="{y}" width="{scale}" height="{scale}" fill="{ROLE_FILL.get(cell.role, "#aaa")}" stroke="#d0d0d0" stroke-width="0.5"/>')
+        parts.append(f'<rect x="{x}" y="{y}" width="{scale}" height="{scale}" fill="{ROLE_FILL.get(cell.role, "#aaaaaa")}" stroke="#d0d0d0" stroke-width="0.5"/>')
     parts.append("</svg>")
     path.write_text("\n".join(parts), encoding="utf-8")
 
@@ -103,7 +103,7 @@ def _write_iso_cells(path: Path, cells: dict[tuple[int, int, int], Cell], bounds
     ]
     occupied = set(cells)
     for (x, y, z), cell in sorted(cells.items(), key=lambda item: (sum(item[0]), item[0][1], item[0][0])):
-        base = ROLE_FILL.get(cell.role, "#aaa")
+        base = ROLE_FILL.get(cell.role, "#aaaaaa")
         faces = []
         if (x, y+1, z) not in occupied:
             faces.append(([project(x,y+1,z), project(x+1,y+1,z), project(x+1,y+1,z+1), project(x,y+1,z+1)], _shade(base,1.10)))
@@ -198,7 +198,7 @@ def write_section_svg(path: Path, compiled: CompiledAsset, scale: int = 22) -> N
         if x != section_x:
             continue
         rx=(z-min_z+1)*scale; ry=(max_y-y+1)*scale
-        parts.append(f'<rect x="{rx}" y="{ry}" width="{scale}" height="{scale}" fill="{ROLE_FILL.get(cell.role,"#aaa")}" stroke="#d2d2d2" stroke-width="0.5"/>')
+        parts.append(f'<rect x="{rx}" y="{ry}" width="{scale}" height="{scale}" fill="{ROLE_FILL.get(cell.role,"#aaaaaa")}" stroke="#d2d2d2" stroke-width="0.5"/>')
     for name,(x,y,z) in layout["anchors"].items():
         if x != section_x or name == "AIRFIELD_INTERFACE":
             continue
@@ -220,7 +220,7 @@ def emit_outputs(compiled: CompiledAsset, out: Path) -> None:
         write_orthographic_svg(out / f"{view}.svg", compiled, view)
     write_floorplan_svg(out / "floorplan.svg", compiled)
     write_isometric_svg(out / "isometric.svg", compiled)
-    if str(s.get("compilerVersion")) in {"0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "0.10", "0.11", "0.12", "0.13-first-principles"}:
+    if str(s.get("compilerVersion")) in {"0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "0.10", "0.11", "0.12", "0.13-first-principles", "0.14-first-principles-detail"}:
         write_interior_plan_svg(out / "interior_plan.svg", compiled)
         write_cutaway_isometric_svg(out / "cutaway_isometric.svg", compiled)
         write_section_svg(out / "interior_section.svg", compiled)
