@@ -334,6 +334,17 @@ class PendingTimerFairnessIntegrationTests(unittest.TestCase):
         o._metric = mock.Mock()
         return o
 
+    @staticmethod
+    def ordinary_event(event, *, head=None, pr_number=None):
+        return core.EventDecision(
+            True,
+            "test ordinary event",
+            event,
+            action="completed",
+            pr_number=pr_number,
+            head_sha=head,
+        )
+
     def test_later_event_cannot_postpone_but_earlier_event_can_pull_forward(self):
         o = self.make_orchestrator()
         with mock.patch.object(fairness.threading, "Timer", self.FakeTimer), mock.patch.object(
@@ -372,6 +383,88 @@ class PendingTimerFairnessIntegrationTests(unittest.TestCase):
         self.assertEqual(second.delay, 40.0)
         self.assertEqual(o._timer_due_epoch, 190.0)
         self.assertIn(fairness.RUNTIME_PATH, core.CONTROLLER_RUNTIME_PATHS)
+
+    def test_ready_ordinary_heads_are_isolated_from_unrelated_active_heads(self):
+        o = self.make_orchestrator()
+        active_head = "a" * 40
+        ready_head = "b" * 40
+        pending = [
+            self.ordinary_event("workflow_run", head=active_head, pr_number=489),
+            self.ordinary_event("reconcile", head=ready_head),
+            self.ordinary_event("workflow_run", head=ready_head, pr_number=507),
+            self.ordinary_event("issue_comment"),
+        ]
+        o.workflows_quiescent = mock.Mock(side_effect=lambda head: head == ready_head)
+
+        selected = fairness.select_dispatch_batch(o, pending)
+
+        self.assertEqual(selected, pending[1:3])
+        self.assertEqual(
+            o.workflows_quiescent.call_args_list,
+            [mock.call(active_head), mock.call(ready_head)],
+        )
+        o._metric.assert_has_calls(
+            [
+                mock.call("ordinary_quiescent_batch_splits"),
+                mock.call("ordinary_active_events_deferred", 1),
+            ]
+        )
+
+    def test_each_unique_head_is_checked_once_when_splitting_batch(self):
+        o = self.make_orchestrator()
+        active_head = "a" * 40
+        ready_head = "b" * 40
+        pending = [
+            self.ordinary_event("workflow_run", head=active_head, pr_number=489),
+            self.ordinary_event("pull_request", head=active_head, pr_number=489),
+            self.ordinary_event("workflow_run", head=ready_head, pr_number=507),
+            self.ordinary_event("pull_request", head=ready_head, pr_number=507),
+        ]
+        o.workflows_quiescent = mock.Mock(side_effect=lambda head: head == ready_head)
+
+        selected = fairness.select_dispatch_batch(o, pending)
+
+        self.assertEqual(selected, pending[2:])
+        self.assertEqual(o.workflows_quiescent.call_count, 2)
+
+    def test_all_ready_or_all_blocked_preserves_original_coalesced_batch(self):
+        ready = self.make_orchestrator()
+        blocked = self.make_orchestrator()
+        first_head = "a" * 40
+        second_head = "b" * 40
+        pending = [
+            self.ordinary_event("workflow_run", head=first_head, pr_number=516),
+            self.ordinary_event("workflow_run", head=second_head, pr_number=517),
+            self.ordinary_event("issue_comment"),
+        ]
+        ready.workflows_quiescent = mock.Mock(return_value=True)
+        blocked.workflows_quiescent = mock.Mock(return_value=False)
+
+        self.assertEqual(fairness.select_dispatch_batch(ready, pending), pending)
+        self.assertEqual(fairness.select_dispatch_batch(blocked, pending), pending)
+        ready._metric.assert_not_called()
+        blocked._metric.assert_not_called()
+
+    def test_protected_authority_keeps_one_at_a_time_precedence(self):
+        o = self.make_orchestrator()
+        ordinary = self.ordinary_event("workflow_run", head="a" * 40, pr_number=489)
+        task = core.EventDecision(
+            True,
+            "explicit task",
+            "roadmap",
+            action="advance",
+            pr_number=491,
+            source_id="roadmap:test:run:3",
+            signal_kind="task",
+            signal_text="bounded task authority",
+        )
+        o.workflows_quiescent = mock.Mock(return_value=True)
+
+        selected = fairness.select_dispatch_batch(o, [ordinary, task])
+
+        self.assertEqual(selected, [task])
+        o.workflows_quiescent.assert_not_called()
+        o._metric.assert_not_called()
 
 
 if __name__ == "__main__":
