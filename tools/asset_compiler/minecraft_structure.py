@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Iterable
 
 from minecraft_adapter import MinecraftAdapter
+from minecraft_block_entities import BlockEntityPayload, block_entity_payload_for
 from model import BlockState, CompiledAsset, SpecError
 
 MINECRAFT_1_21_1_DATA_VERSION = 3955
@@ -76,6 +77,13 @@ def _block_state_payload(state: BlockState) -> bytes:
     return _compound_payload(tags)
 
 
+def _block_entity_named_tags(payload: BlockEntityPayload) -> list[bytes]:
+    tags = [_tag_string("id", payload.block_entity_id)]
+    if payload.empty_items:
+        tags.append(_named(TAG_LIST, "Items", _list_payload(TAG_COMPOUND, [])))
+    return tags
+
+
 def _validate_state_syntax(state: BlockState) -> None:
     """NBT/resource-location syntax only; semantic legality belongs to the target adapter."""
     if not _RESOURCE_RE.match(state.name):
@@ -99,6 +107,21 @@ def _adapter_for(compiled: CompiledAsset) -> MinecraftAdapter:
         from minecraft_guild_profile import guild_v014_adapter
         return guild_v014_adapter()
     return MinecraftAdapter()
+
+
+def _block_entity_payload_count(compiled: CompiledAsset) -> int:
+    return sum(1 for cell in compiled.model.cells.values() if block_entity_payload_for(cell.state) is not None)
+
+
+def _validate_block_entity_coverage(compiled: CompiledAsset, adapter_report: dict) -> int:
+    expected = int(adapter_report.get("blockEntityBlockCount", 0))
+    encoded = _block_entity_payload_count(compiled)
+    if expected != encoded:
+        raise SpecError(
+            "Minecraft target block-entity coverage mismatch: "
+            f"adapter reports {expected} block-entity blocks but exporter has payload policy for {encoded}"
+        )
+    return encoded
 
 
 def _encode_realized_structure(compiled: CompiledAsset, *, data_version: int) -> bytes:
@@ -129,12 +152,14 @@ def _encode_realized_structure(compiled: CompiledAsset, *, data_version: int) ->
         local = [x - min_x, y - min_y, z - min_z]
         if not all(0 <= local[i] < size[i] for i in range(3)):
             raise SpecError(f"block outside normalized structure bounds at {(x, y, z)}")
-        block_payloads.append(
-            _compound_payload([
-                _tag_int_list("pos", local),
-                _tag_int("state", palette_index[cell.state]),
-            ])
-        )
+        tags = [
+            _tag_int_list("pos", local),
+            _tag_int("state", palette_index[cell.state]),
+        ]
+        block_entity_payload = block_entity_payload_for(cell.state)
+        if block_entity_payload is not None:
+            tags.append(_tag_compound("nbt", _block_entity_named_tags(block_entity_payload)))
+        block_payloads.append(_compound_payload(tags))
 
     root_payload = _compound_payload([
         _tag_int("DataVersion", int(data_version)),
@@ -155,7 +180,8 @@ def encode_structure_nbt(
 ) -> bytes:
     target = compiled
     if use_adapter:
-        target, _report = _adapter_for(compiled).adapt(compiled)
+        target, report = _adapter_for(compiled).adapt(compiled)
+        _validate_block_entity_coverage(target, report)
     return _encode_realized_structure(target, data_version=data_version)
 
 
@@ -171,6 +197,10 @@ def write_structure_nbt(
     report = None
     if use_adapter:
         target, report = _adapter_for(compiled).adapt(compiled)
+        block_entity_nbt_count = _validate_block_entity_coverage(target, report)
+        report = dict(report)
+        report["blockEntityNbtCount"] = block_entity_nbt_count
+        report["blockEntityPolicy"] = "explicit_empty_container_nbt_v0.4"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(_encode_realized_structure(target, data_version=data_version))
     return report
