@@ -16,6 +16,7 @@ from guild_branch_articulation import compile_guild_branch_v08
 from guild_branch_detail_resolution import compile_guild_branch_v09
 from guild_branch_finish import compile_guild_branch_v10
 from guild_branch_continuity import compile_guild_branch_v11
+from guild_branch_math_optimization import compile_guild_branch_v12
 from minecraft_structure import structure_filename, write_structure_nbt
 from model import SpecError
 from render import emit_outputs
@@ -33,7 +34,9 @@ def main() -> int:
     args = parser.parse_args()
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
-        if spec.get("schemaVersion") == "0.11":
+        if spec.get("schemaVersion") == "0.12":
+            compiled = compile_guild_branch_v12(spec)
+        elif spec.get("schemaVersion") == "0.11":
             compiled = compile_guild_branch_v11(spec)
         elif spec.get("schemaVersion") == "0.10":
             compiled = compile_guild_branch_v10(spec)
