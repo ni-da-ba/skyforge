@@ -1,80 +1,125 @@
-# ASSET-001 Minecraft adapter v0.2
+# ASSET-001 Minecraft adapter v0.3
 
-The second adapter pass moves the target boundary from syntactic validation toward actual Minecraft
-realization semantics while keeping the accepted v0.14 architecture unchanged.
+The Minecraft adapter is now an actual target-realization boundary for the v0.14 Guild path rather
+than only a validator around concrete block choices.
 
 ```text
-architectural / voxel result
-    -> erase concrete resource identity into semantic block intent
-    -> capability-based Minecraft block selection
-    -> explicit default-state normalization
-    -> neighbor-dependent topology realization
-    -> collision/support-shape validation
+first-principles architecture + detail
+    -> semantic Guild material/shape intent profile
+    -> Minecraft capability solver
+    -> explicit Java 1.21.1 default-state normalization
+    -> pane/fence/stair neighborhood realization
+    -> coarse collision/support-shape validation
+    -> bounded minimum-edit support repair when legal
     -> structure-template NBT
 ```
 
-## Semantic re-resolution
+## Strong independence proof
 
-Every v0.14 cell is converted to a `BlockIntent` containing semantic material families, required
-shape/runtime capabilities, and state-independent geometric properties. The intent resolver does not
-receive the original Minecraft resource name. It chooses a legal registered block by deterministic
-family/capability cost, then fills explicit Minecraft default properties.
+`minecraft_guild_profile.py` maps v0.14 architectural `role`, `module`, and geometric orientation
+properties into `BlockIntent`. It never reads the source Minecraft resource location.
 
-This is still a transitional boundary because the architectural compiler internally constructs
-`BlockState`s before they are erased into intent. However, NBT export now treats the adapter's
-re-realized model as authoritative. A later pass can move the intent model upstream without changing
-the target resolver.
+The test suite now performs a deliberately destructive proof: compile the complete v0.14 Guild Hall,
+replace the resource name on every one of its 1,885 cells with the invalid placeholder
+`ignored:architecture_preview_only`, preserve only architectural role/module and geometric properties,
+and run the Minecraft target adapter. The adapter successfully reconstructs the complete legal Guild
+palette and passes its target constraints.
+
+This proves that concrete material identity is no longer required from the architecture compiler for
+v0.14 export. The architecture still uses `BlockState` as a transitional in-memory carrier, but its
+resource name can be erased before target lowering.
+
+## Capability resolution
+
+`BlockIntent` requests semantic families and target capabilities rather than block IDs. Examples:
+
+```text
+structural_frame + ordinary beam
+    -> families = dark_timber, structural_timber
+    -> requires = full_cube, solid_support, axis_orientable
+
+roof + eave
+    -> family = dark_roof
+    -> requires = stair, directional, neighbor_sensitive
+    -> carries only facing + half
+
+window
+    -> family = glazing
+    -> requires = pane, neighbor_sensitive, thin
+```
+
+The bounded Java 1.21.1 registry then selects a legal concrete block deterministically. Unsupported or
+ambiguous intent fails closed.
 
 ## Neighbor topology
 
-v0.2 resolves three neighbor-sensitive families after semantic block selection:
+After material selection, the adapter realizes local state that depends on Minecraft neighborhood
+semantics:
 
 - glass-pane cardinal connections;
 - fence cardinal connections;
 - stair `shape` (`straight`, inner-left/right, outer-left/right).
 
-Stair corner derivation follows the same local dependency structure as vanilla Java stairs: compare
-the stair in the facing direction for compatible perpendicular outer corners, then the opposite
-direction for compatible perpendicular inner corners, with a same-facing/same-half side guard.
-The algorithm is deterministic and depends only on the final target neighborhood.
+Stair corner derivation follows the same local dependency structure as vanilla Java stairs: the
+adapter compares compatible same-half stairs in front/behind and applies perpendicular corner state
+only when side-neighbor guards permit it. Current v0.14 eave geometry is straight, so its canonical
+artifact legitimately reports zero stair-shape changes; dedicated corner fixtures exercise and verify
+the non-straight cases.
 
 ## Shape/support model
 
-The adapter now assigns a bounded target shape descriptor to every current Guild block family. The
-descriptor records a coarse collision-volume fraction, whether collision is partial, whether shape is
-neighbor-dependent, and which block-boundary faces are sturdy attachment surfaces.
+Every registered Guild block family has a bounded target shape descriptor recording:
 
-This is deliberately not a replacement for Minecraft's full `VoxelShape` implementation. It is an
-explicit compiler model sufficient to distinguish full cubes, slabs, stairs, panes, fences, doors,
-carpet, containers, lanterns and lightning rods for current Guild validation. It can later be
-replaced by authoritative NeoForge-generated shape evidence behind the same interface.
+- coarse collision-volume fraction;
+- partial-vs-full collision;
+- neighbor dependence;
+- sturdy attachment faces.
 
-Hanging-lantern, standing-lantern, lightning-rod and door-ground support checks now consult these
-support faces instead of accepting any occupied neighboring voxel.
+This is not claimed to be the full Minecraft `VoxelShape` implementation. It is an explicit bounded
+compiler model sufficient for current Guild full cubes, slabs, stairs, panes, fences, doors, carpet,
+containers, lanterns and lightning rods. It can later be replaced by NeoForge-generated authoritative
+shape evidence behind the same interface.
 
-## Explicit defaults
+Doors and attachment-sensitive blocks validate against those support faces. This immediately found a
+real target-realization defect that the architectural compiler and v0.1 adapter had not modeled: the
+Guild roof signal sat on a bottom ridge slab, whose top boundary is not a sturdy attachment face.
 
-The adapter fills bounded Java 1.21.1 default state for the registered palette: waterlogging flags,
-pane/fence connections, stair shape, slab type, door open/powered state, chest/barrel orientation,
-lantern hanging state, log axis and lightning-rod state. This eliminates reliance on unspecified
-parser/runtime defaults in generated structure palettes.
+The adapter does not weaken the validation. For this bounded roof-attachment case it searches legal
+same-family target repairs and chooses the minimum deterministic edit. The accepted realization
+promotes the single ridge slab under the signal to a double deepslate-tile slab, preserving the
+architectural location while making its Minecraft support explicit. The repair is recorded in
+`minecraft_adapter.json`.
 
-## Acceptance
+## Explicit state defaults
 
-The v0.14 architecture digest is not expected to change because architecture remains upstream. The
-Minecraft structure artifact may change because the adapter now emits more complete and
-neighbor-correct block states.
+The target registry carries bounded Java 1.21.1 default state for the accepted palette. Generated NBT
+therefore explicitly resolves waterlogging, pane/fence connections, stair shape, slab type, door
+open/powered state, chest/barrel orientation, lantern hanging state, log axis and lightning-rod state
+instead of depending on unspecified parser/runtime defaults.
 
-Acceptance requires:
+## Current acceptance result
 
-- all asset-compiler tests green;
-- zero adapter issues;
-- semantic re-resolution does not require concrete resource names;
-- all doors and attachment-sensitive Guild blocks have legal support;
-- no illegal state/property combinations;
-- deterministic neighbor realization;
-- in-game A/B review confirms that roof corners, panes/fences, fixtures and doors behave at least as
-  well as the previous v0.14 artifact.
+Dedicated compiler CI passes the complete historical compiler suite plus adapter tests and v0.14
+export. The canonical v0.14 architecture remains 1,885 cells with architecture digest
+`cbb02ebaea269bbb836d96fe11edf2ac2716fbfd0e7bac8b963fa9430b2991b8`.
 
-Block-entity NBT, authoritative generated registry data, and Create/Create Aeronautics capability
-providers remain later adapter stages.
+The adapter report is required to pass with zero issues. It also records semantic re-resolution,
+neighbor-state changes, shape statistics, door/attachment checks, block-entity-bearing cells and any
+bounded target repairs.
+
+## Remaining target work
+
+The largest remaining backend tasks are narrower than the original abstraction problem:
+
+1. replace the handwritten bounded capability/shape registry with authoritative Minecraft/NeoForge
+   generated data;
+2. compile explicit block-entity NBT for containers and later functional/modded blocks;
+3. promote the semantic `BlockIntent` carrier into the architecture IR itself so concrete
+   `BlockState` construction disappears from the v0.14 architecture code rather than merely becoming
+   irrelevant at export;
+4. add Create/Create Aeronautics capability providers when functional Guild machinery and aircraft
+   enter this pipeline.
+
+The human gate should now be primarily an A/B check of target fidelity: roof signal/ridge, panes,
+fences, doors, lanterns and roof edge states. Architectural massing and spatial organization are not
+being reopened by this adapter pass.
