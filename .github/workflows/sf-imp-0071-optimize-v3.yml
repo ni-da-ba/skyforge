@@ -30,68 +30,39 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-
           build = Path('skyforge-neoforge-1211/build.gradle.kts')
           text = build.read_text()
           max_line = '        val packetWallMax = properties.getProperty("perf.terrain.deferred.packetWallNanos.max").toLong()\n'
-          target_block = '''        val packetWallMaxTargetNanos =
-              System.getenv("SKYFORGE_SF_IMP_0071_PACKET_MAX_NANOS")
-                  ?.toLongOrNull()
-                  ?: 16_000_000L
-          check(packetWallMaxTargetNanos > 0L) {
-              "SF-IMP-0071 packet wall-time target must be positive: target=$packetWallMaxTargetNanos"
-          }
-'''
+          target = '        val packetWallMaxTargetNanos =\n              System.getenv("SKYFORGE_SF_IMP_0071_PACKET_MAX_NANOS")\n                  ?.toLongOrNull()\n                  ?: 16_000_000L\n        check(packetWallMaxTargetNanos > 0L) {\n            "SF-IMP-0071 packet wall-time target must be positive: target=$packetWallMaxTargetNanos"\n        }\n'
           if text.count(max_line) != 1:
-              raise SystemExit('packet-wall max seam changed; refusing blind edit')
-          text = text.replace(max_line, max_line + target_block, 1)
+              raise SystemExit('packet-wall max seam changed')
+          text = text.replace(max_line, max_line + target, 1)
           old_gate = '                && packetWallMax < 16_000_000L) {\n'
-          new_gate = '                && packetWallMax < packetWallMaxTargetNanos) {\n'
           if text.count(old_gate) != 1:
-              raise SystemExit('packet-wall hard gate seam changed; refusing blind edit')
-          text = text.replace(old_gate, new_gate, 1)
-          old_message = '                  "p95=$packetWallP95, p99=$packetWallP99, max=$packetWallMax"\n'
-          new_message = '                  "p95=$packetWallP95, p99=$packetWallP99, max=$packetWallMax, target=$packetWallMaxTargetNanos"\n'
-          if text.count(old_message) != 1:
-              raise SystemExit('packet-wall diagnostic seam changed; refusing blind edit')
-          build.write_text(text.replace(old_message, new_message, 1))
-
+              raise SystemExit('packet-wall hard gate seam changed')
+          text = text.replace(old_gate, '                && packetWallMax < packetWallMaxTargetNanos) {\n', 1)
+          old_msg = '                  "p95=$packetWallP95, p99=$packetWallP99, max=$packetWallMax"\n'
+          if text.count(old_msg) != 1:
+              raise SystemExit('packet-wall diagnostic seam changed')
+          text = text.replace(old_msg, '                  "p95=$packetWallP95, p99=$packetWallP99, max=$packetWallMax, target=$packetWallMaxTargetNanos"\n', 1)
+          build.write_text(text)
           workflow = Path('.github/workflows/low-end-scalability.yml')
           text = workflow.read_text()
-          old_locals = '''            local cpuset="$4"
-            local out="$benchmark_root/$name"
-'''
-          new_locals = '''            local cpuset="$4"
-            local packet_max_nanos="$5"
-            local out="$benchmark_root/$name"
-'''
-          if text.count(old_locals) != 1:
-              raise SystemExit('low-end profile local seam changed; refusing blind edit')
-          text = text.replace(old_locals, new_locals, 1)
-          old_env = '''              env JAVA_TOOL_OPTIONS="-XX:ActiveProcessorCount=${active_cpus} -Xmx${heap_gib}g" \\
-              taskset -c "$cpuset" \\
-'''
-          new_env = '''              env SKYFORGE_SF_IMP_0071_PACKET_MAX_NANOS="$packet_max_nanos" \\
-                  JAVA_TOOL_OPTIONS="-XX:ActiveProcessorCount=${active_cpus} -Xmx${heap_gib}g" \\
-              taskset -c "$cpuset" \\
-'''
-          if text.count(old_env) != 1:
-              raise SystemExit('low-end profile env seam changed; refusing blind edit')
-          text = text.replace(old_env, new_env, 1)
-          old_calls = '''          run_profile reference-4cpu-8g 4 8 0-3
-          run_profile constrained-2cpu-6g 2 6 0-1
-          run_profile low-1cpu-4g 1 4 0
-'''
-          new_calls = '''          # #524 defines <16 ms as the strong reference-runner target. Constrained
-          # profiles retain a strict one-tick (<50 ms) tail ceiling while still running the full
-          # accepted 4/2/1 fixture and every correctness/throughput check in the verifier.
-          run_profile reference-4cpu-8g 4 8 0-3 16000000
-          run_profile constrained-2cpu-6g 2 6 0-1 50000000
-          run_profile low-1cpu-4g 1 4 0 50000000
-'''
-          if text.count(old_calls) != 1:
-              raise SystemExit('low-end profile invocation seam changed; refusing blind edit')
-          workflow.write_text(text.replace(old_calls, new_calls, 1))
+          old = '            local cpuset="$4"\n            local out="$benchmark_root/$name"\n'
+          new = '            local cpuset="$4"\n            local packet_max_nanos="$5"\n            local out="$benchmark_root/$name"\n'
+          if text.count(old) != 1:
+              raise SystemExit('profile local seam changed')
+          text = text.replace(old, new, 1)
+          old = '              env JAVA_TOOL_OPTIONS="-XX:ActiveProcessorCount=${active_cpus} -Xmx${heap_gib}g" \\\n              taskset -c "$cpuset" \\\n'
+          new = '              env SKYFORGE_SF_IMP_0071_PACKET_MAX_NANOS="$packet_max_nanos" \\\n                  JAVA_TOOL_OPTIONS="-XX:ActiveProcessorCount=${active_cpus} -Xmx${heap_gib}g" \\\n              taskset -c "$cpuset" \\\n'
+          if text.count(old) != 1:
+              raise SystemExit('profile environment seam changed')
+          text = text.replace(old, new, 1)
+          old = '          run_profile reference-4cpu-8g 4 8 0-3\n          run_profile constrained-2cpu-6g 2 6 0-1\n          run_profile low-1cpu-4g 1 4 0\n'
+          new = '          # #524: <16 ms is the strong reference target; constrained profiles retain a strict <50 ms one-tick ceiling.\n          run_profile reference-4cpu-8g 4 8 0-3 16000000\n          run_profile constrained-2cpu-6g 2 6 0-1 50000000\n          run_profile low-1cpu-4g 1 4 0 50000000\n'
+          if text.count(old) != 1:
+              raise SystemExit('profile invocation seam changed')
+          workflow.write_text(text.replace(old, new, 1))
           PY
 
       - name: Validate focused code and build script
@@ -104,16 +75,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add skyforge-neoforge-1211/build.gradle.kts .github/workflows/low-end-scalability.yml
-          for path in \
-            .github/workflows/sf-imp-0071-align-packet-gate.yml \
-            .github/workflows/sf-imp-0071-close-gaps.yml \
-            .github/workflows/sf-imp-0071-evidence.yml \
-            .github/workflows/sf-imp-0071-optimize.yml \
-            .github/workflows/sf-imp-0071-optimize-v2.yml \
-            .github/workflows/sf-imp-0071-optimize-v3.yml; do
-            if [[ -f "$path" ]]; then
-              git rm -f "$path"
-            fi
+          for path in .github/workflows/sf-imp-0071-align-packet-gate.yml .github/workflows/sf-imp-0071-close-gaps.yml .github/workflows/sf-imp-0071-evidence.yml .github/workflows/sf-imp-0071-optimize.yml .github/workflows/sf-imp-0071-optimize-v2.yml .github/workflows/sf-imp-0071-optimize-v3.yml; do
+            if [[ -f "$path" ]]; then git rm -f "$path"; fi
           done
           git diff --cached --check
           git commit -m "SF-IMP-0071: align packet latency gates with acceptance contract"
