@@ -67,6 +67,20 @@ def main() -> int:
 
     emit_outputs(compiled, args.out)
     s = compiled.summary
+    realization_intent_path = None
+    if str(s.get("compilerVersion")) == "0.14-first-principles-detail":
+        try:
+            from guild_realization_intent import project_guild_v014_realization_ir
+
+            intent_model = project_guild_v014_realization_ir(compiled)
+            realization_intent_path = args.out / "realization_intent.json"
+            realization_intent_path.write_text(
+                json.dumps(intent_model.to_dict(), indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+        except (OSError, SpecError) as exc:
+            raise SystemExit(f"asset compiler realization-intent export error: {exc}") from exc
+
     minecraft_path = None
     minecraft_adapter_report = None
     if args.minecraft_structure:
@@ -96,6 +110,7 @@ def main() -> int:
         "validation": s["validation"],
         "digestSha256": s["digestSha256"],
         "output": str(args.out),
+        "realizationIntent": str(realization_intent_path) if realization_intent_path else None,
         "minecraftStructure": str(minecraft_path) if minecraft_path else None,
         "minecraftAdapter": minecraft_adapter_report,
     }, indent=2))
