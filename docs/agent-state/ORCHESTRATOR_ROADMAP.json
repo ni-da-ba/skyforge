@@ -1,11 +1,12 @@
 {
   "schema_version": 1,
-  "roadmap_id": "skyforge-dressed-region-convergence-v1",
+  "roadmap_id": "skyforge-dressed-region-convergence-v2",
   "enabled": true,
   "max_auto_claims_per_utc_day": 6,
   "notes": [
     "This machine-readable manifest implements the project-owner-authorized docs/agent-state/DRESSED_REGION_CONVERGENCE_ROADMAP.md directive on main.",
     "All DR work converges on one canonical specimen and advances strictly DR-00 -> DR-10 -> DR-20 -> DR-30 -> DR-40 -> DR-50 -> DR-60 -> HUMAN REVIEW.",
+    "DR-00 selection authority is deterministic and non-aesthetic: among current-main candidates that already satisfy accepted morphology and production-geography machine constraints, order by stable specimen/member ID and choose the first eligible candidate; if it fails an objective DR-00 machine invariant, advance to the next candidate in the same ordering. This is an integration fixture only, not aesthetic acceptance or issue #214 closure.",
     "DR-10 must not redispatch accepted Iron/Copper/Zinc physical realization. It owns only the remaining Content C20 STARTING_CLUSTER guarantee/scope proof and may close #491 after that proof is accepted.",
     "Every task remains issue-backed and fail-closed on missing authority, human/product judgment, or unavailable accepted semantics.",
     "No autonomous node may modify or advance #488/#489 or machine-optimize aesthetics, density, pacing, beauty, or final Skyforge visual identity.",
@@ -21,8 +22,8 @@
       "priority": 200,
       "max_runs": 1,
       "prerequisites": [],
-      "objective_hint": "Lock exactly one deterministic production-geography specimen with stable ID, seed/config, exact volume/bounds, accepted provenance, regeneration procedure and launch/test entry point. Persist machine-readable DR-00 specimen identity for every downstream milestone.",
-      "stop_boundary": "Do not rank candidates by beauty or other subjective quality, invent new Authorship/Content semantics, or touch #488/#489. Stop at an authority/human gate if accepted machine-valid criteria cannot select the specimen."
+      "objective_hint": "Lock exactly one deterministic production-geography specimen. Consider only current-main candidates already satisfying accepted morphology and production-geography machine constraints; sort eligible candidates by stable specimen/member ID and choose the first. If that candidate fails an objective DR-00 machine invariant, advance to the next candidate using the same stable ordering. Persist stable specimen ID, seed/config, exact volume/bounds, accepted provenance, regeneration procedure and launch/test entry point as the machine-readable DR-00 lock for every downstream milestone. This is an integration fixture, not aesthetic acceptance.",
+      "stop_boundary": "Do not rank candidates by beauty or any subjective quality, invent new Authorship/Content semantics, change the selected fixture because another candidate looks better, claim issue #214 aesthetic acceptance/closure, or touch #488/#489. Human aesthetic/exploration judgment remains deferred to DR-60. Stop only for a genuinely missing machine authority or invariant unrelated to the authorized deterministic tie-breaker."
     },
     {
       "id": "dr-10-starting-cluster-closure",
