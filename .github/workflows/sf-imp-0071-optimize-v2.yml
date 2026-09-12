@@ -1,0 +1,396 @@
+name: SF-IMP-0071 Optimize Packet Path V2
+
+on:
+  push:
+    branches:
+      - perf/524-packetize-catchup
+    paths:
+      - .github/workflows/sf-imp-0071-optimize-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  optimize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/524-packetize-catchup
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Apply measured packet-path optimization
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          progress = Path('skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDeferredTerrainWriteProgressData.java')
+          text = progress.read_text()
+          field = '    private final Map<Key, Progress> progressByObligation = new HashMap<>();\n'
+          if text.count(field) != 1:
+              raise SystemExit('progress ledger field seam changed')
+          text = text.replace(
+              field,
+              field + '    private final Map<Key, MinecraftChunkMaterialization> activeMaterializationByObligation = new HashMap<>();\n',
+              1,
+          )
+          marker = '    Progress getOrCreate(\n'
+          if text.count(marker) != 1:
+              raise SystemExit('progress getOrCreate seam changed')
+          cache_methods = '''    Optional<MinecraftChunkMaterialization> cachedMaterialization(
+                  SkyIslandWorldVolumeId volumeId,
+                  long chunkKey) {
+              Objects.requireNonNull(volumeId, "volumeId");
+              return Optional.ofNullable(activeMaterializationByObligation.get(new Key(volumeId, chunkKey)));
+          }
+
+          void cacheMaterialization(
+                  SkyIslandWorldVolumeId volumeId,
+                  long chunkKey,
+                  MinecraftChunkMaterialization materialization) {
+              Objects.requireNonNull(volumeId, "volumeId");
+              Objects.requireNonNull(materialization, "materialization");
+              if (materialization.chunkPos().toLong() != chunkKey) {
+                  throw new IllegalArgumentException("cached deferred materialization differs from obligation chunk");
+              }
+              Key key = new Key(volumeId, chunkKey);
+              MinecraftChunkMaterialization previous = activeMaterializationByObligation.putIfAbsent(key, materialization);
+              if (previous != null && previous != materialization) {
+                  throw new IllegalStateException("deferred obligation already has a different active materialization");
+              }
+          }
+
+          void discardCachedMaterialization(SkyIslandWorldVolumeId volumeId, long chunkKey) {
+              Objects.requireNonNull(volumeId, "volumeId");
+              activeMaterializationByObligation.remove(new Key(volumeId, chunkKey));
+          }
+
+          '''
+          progress.write_text(text.replace(marker, cache_methods + marker, 1))
+
+          materialization = Path('skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/MinecraftChunkMaterialization.java')
+          text = materialization.read_text()
+          marker = '    /** Number of projected non-air block positions. */\n'
+          if text.count(marker) != 1:
+              raise SystemExit('materialization solid-count seam changed')
+          linear_accessor = '''    /** Package-private zero-allocation access for resumable writer traversal. */
+          ResourceLocation blockKeyAtLinearIndex(int linearIndex) {
+              if (linearIndex < 0 || linearIndex >= blockKeys.length) {
+                  throw new IndexOutOfBoundsException("linear materialization index outside projected interval");
+              }
+              return blockKeys[linearIndex];
+          }
+
+          '''
+          materialization.write_text(text.replace(marker, linear_accessor + marker, 1))
+
+          writer = Path('skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211ChunkWriter.java')
+          text = writer.read_text()
+          start = text.index('    DeferredSolidWriteAdvance writeDeferredSolidOverlayPacket(')
+          end = text.index('    private MinecraftChunkWriteResult writeInternal(', start)
+          optimized_writer = '''    DeferredSolidWriteAdvance writeDeferredSolidOverlayPacket(
+                  ChunkAccess chunk,
+                  MinecraftChunkMaterialization materialization,
+                  DeferredSolidWriteCursor cursor,
+                  int maximumAssignedSolidWrites,
+                  boolean enforcePhysicalAdmission) {
+              validateOwnership(chunk, materialization);
+              Objects.requireNonNull(cursor, "cursor");
+              if (maximumAssignedSolidWrites <= 0) {
+                  throw new IllegalArgumentException("deferred solid-write packet budget must be positive");
+              }
+
+              int totalCells = Math.multiplyExact(materialization.height(), CHUNK_AREA);
+              if (cursor.nextLinearIndex() < 0 || cursor.nextLinearIndex() > totalCells) {
+                  throw new IllegalArgumentException("deferred solid-write cursor exceeds materialization bounds");
+              }
+              if (cursor.cumulativeAssignedSolidWrites() < 0 || cursor.cumulativeSolidWrites() < 0
+                      || cursor.cumulativeSolidWrites() > cursor.cumulativeAssignedSolidWrites()) {
+                  throw new IllegalArgumentException("invalid deferred solid-write cumulative accounting");
+              }
+              if (cursor.nextLinearIndex() == totalCells) {
+                  return new DeferredSolidWriteAdvance(cursor, 0, 0, true, false);
+              }
+
+              int minimumX = materialization.chunkPos().getMinBlockX();
+              int minimumZ = materialization.chunkPos().getMinBlockZ();
+              int nextLinearIndex = cursor.nextLinearIndex();
+              int localY = nextLinearIndex / CHUNK_AREA;
+              int withinLayer = nextLinearIndex % CHUNK_AREA;
+              int localZ = withinLayer / CHUNK_WIDTH;
+              int localX = withinLayer % CHUNK_WIDTH;
+              int assignedThisPacket = 0;
+              int solidThisPacket = 0;
+              BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
+
+              while (nextLinearIndex < totalCells && assignedThisPacket < maximumAssignedSolidWrites) {
+                  int worldY = Math.addExact(materialization.minimumY(), localY);
+                  ResourceLocation key = materialization.blockKeyAtLinearIndex(nextLinearIndex);
+                  if (!SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
+                      int worldX = Math.addExact(minimumX, localX);
+                      int worldZ = Math.addExact(minimumZ, localZ);
+                      if (enforcePhysicalAdmission
+                              && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(worldX, worldY, worldZ)) {
+                          DeferredSolidWriteCursor blockedCursor = new DeferredSolidWriteCursor(
+                                  nextLinearIndex,
+                                  Math.addExact(cursor.cumulativeAssignedSolidWrites(), assignedThisPacket),
+                                  Math.addExact(cursor.cumulativeSolidWrites(), solidThisPacket));
+                          return new DeferredSolidWriteAdvance(
+                                  blockedCursor,
+                                  assignedThisPacket,
+                                  solidThisPacket,
+                                  false,
+                                  true);
+                      }
+
+                      BlockState state = blockStateResolver.resolve(key);
+                      if (state.isAir()) {
+                          throw new IllegalStateException(
+                                  "resolved BlockState changed authoritative Skyforge occupancy for " + key);
+                      }
+
+                      blockPos.set(worldX, worldY, worldZ);
+                      BlockState previousState = chunk.getBlockState(blockPos);
+                      chunk.setBlockState(blockPos, state, false);
+                      BlockState stored = chunk.getBlockState(blockPos);
+                      if (!stored.equals(state)) {
+                          throw new IllegalStateException("ChunkAccess did not retain the resolved BlockState");
+                      }
+                      SkyforgeDeferredChunkMutationLifecycle.afterWrite(chunk, blockPos, previousState, stored);
+                      assignedThisPacket++;
+                      solidThisPacket++;
+                  }
+
+                  nextLinearIndex++;
+                  localX++;
+                  if (localX == CHUNK_WIDTH) {
+                      localX = 0;
+                      localZ++;
+                      if (localZ == CHUNK_WIDTH) {
+                          localZ = 0;
+                          localY++;
+                      }
+                  }
+              }
+
+              DeferredSolidWriteCursor nextCursor = new DeferredSolidWriteCursor(
+                      nextLinearIndex,
+                      Math.addExact(cursor.cumulativeAssignedSolidWrites(), assignedThisPacket),
+                      Math.addExact(cursor.cumulativeSolidWrites(), solidThisPacket));
+              return new DeferredSolidWriteAdvance(
+                      nextCursor,
+                      assignedThisPacket,
+                      solidThisPacket,
+                      nextLinearIndex == totalCells,
+                      false);
+          }
+
+          '''
+          writer.write_text(text[:start] + optimized_writer + text[end:])
+
+          surface = Path('skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211SurfaceStage.java')
+          text = surface.read_text()
+          start = text.index('    private static DeferredCatchupPacketResult realizeDeferredPacket(')
+          end = text.index('    record DeferredCatchupPacketResult(', start)
+          packet_method = '''    private static DeferredCatchupPacketResult realizeDeferredPacket(
+                  RuntimeBinding binding,
+                  ChunkAccess chunk,
+                  SkyforgePhysicalVolumeAdmissionStage.PendingRealization pending,
+                  SkyforgeDeferredTerrainWriteProgressData progressData,
+                  int maximumAssignedSolidWrites) {
+              long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
+              WorldBounds volumeBounds = binding.adapter().volumeBounds(pending.volumeId())
+                      .orElseThrow(() -> new IllegalStateException(
+                              "deferred realization requires exact bound volume " + pending.volumeId().path()));
+              VerticalRange range = boundedVerticalRange(chunk, volumeBounds);
+              if (range.height() <= 0) {
+                  throw new IllegalStateException(
+                          "deferred exact-volume realization has no vertical overlap with target chunk");
+              }
+
+              var existing = progressData.find(pending.volumeId(), pending.chunkKey());
+              MinecraftChunkMaterialization materialization = progressData
+                      .cachedMaterialization(pending.volumeId(), pending.chunkKey())
+                      .orElse(null);
+              boolean rematerialized = materialization == null;
+              if (rematerialized) {
+                  SkyforgeRuntimePerformanceMetrics.recordSample("terrain.deferredVerticalSamples", range.height());
+                  long materializeStart = SkyforgeRuntimePerformanceMetrics.start();
+                  materialization = binding.adapter().materialize(
+                          pending.volumeId(), chunk.getPos(), range.minimumY(), range.height());
+                  SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.materialize", materializeStart);
+                  if (binding.nativeSurfaceTopAdapter().isPresent()) {
+                      MinecraftNativeSurfaceSnapshot snapshot = pending.nativeSurfaceSnapshot()
+                              .orElseThrow(() -> new IllegalStateException(
+                                      "native-surface-adapted deferred realization lost its pre-decoration snapshot"));
+                      long adaptStart = SkyforgeRuntimePerformanceMetrics.start();
+                      materialization = binding.nativeSurfaceTopAdapter().orElseThrow().adapt(snapshot, materialization);
+                      SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.adaptSurface", adaptStart);
+                  }
+                  progressData.cacheMaterialization(pending.volumeId(), pending.chunkKey(), materialization);
+              }
+
+              int expectedSolidBlocks;
+              if (existing.isPresent()) {
+                  expectedSolidBlocks = existing.orElseThrow().expectedSolidBlocks();
+                  if (rematerialized) {
+                      long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
+                      int reproducedSolidBlocks = materialization.solidBlockCount();
+                      SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.solidCount", solidCountStart);
+                      if (reproducedSolidBlocks != expectedSolidBlocks) {
+                          throw new IllegalStateException(
+                                  "deferred terrain materialization changed across persisted resume");
+                      }
+                  }
+              } else {
+                  long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
+                  expectedSolidBlocks = materialization.solidBlockCount();
+                  SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.solidCount", solidCountStart);
+                  SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                          "terrain.deferred.expectedSolidBlocks", expectedSolidBlocks);
+              }
+              var progress = progressData.getOrCreate(pending.volumeId(), pending.chunkKey(), expectedSolidBlocks);
+              if (progress.terminal()) {
+                  progressData.discardCachedMaterialization(pending.volumeId(), pending.chunkKey());
+                  SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+                  long quantumElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(performanceStart);
+                  SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.realizeDeferredPacket", quantumElapsedNanos);
+                  SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                          "terrain.deferred.quantumWallNanos", quantumElapsedNanos);
+                  return new DeferredCatchupPacketResult(true, true, 0);
+              }
+
+              boolean exactAdmissionFastPath = SkyforgePhysicalVolumeAdmissionStage.canUseExactDeferredWriteFastPath(
+                      pending, chunk, range.minimumY(), range.height());
+              SkyforgeRuntimePerformanceMetrics.recordSample(
+                      "terrain.deferredExactAdmissionFastPath", exactAdmissionFastPath ? 1L : 0L);
+              long writeStart = SkyforgeRuntimePerformanceMetrics.start();
+              var advance = binding.writer().writeDeferredSolidOverlayPacket(
+                      chunk,
+                      materialization,
+                      progress.cursor(),
+                      maximumAssignedSolidWrites,
+                      !exactAdmissionFastPath);
+              long writeElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(writeStart);
+              SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.deferred.writePacket", writeElapsedNanos);
+              SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                      "terrain.deferred.packetWallNanos", writeElapsedNanos);
+              SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                      "terrain.deferred.packetAssignedSolidWrites", advance.assignedSolidWrites());
+
+              if (advance.complete()
+                      && advance.cursor().cumulativeAssignedSolidWrites() != expectedSolidBlocks) {
+                  throw new IllegalStateException(
+                          "completed deferred terrain packet count differs from authoritative solid count");
+              }
+              boolean terminal = advance.complete();
+              progressData.store(progress.advance(advance, terminal));
+              if (terminal) {
+                  long completeStart = SkyforgeRuntimePerformanceMetrics.start();
+                  SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+                  progressData.discardCachedMaterialization(pending.volumeId(), pending.chunkKey());
+                  SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.completeCatchup", completeStart);
+              }
+              long quantumElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(performanceStart);
+              SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.realizeDeferredPacket", quantumElapsedNanos);
+              SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                      "terrain.deferred.quantumWallNanos", quantumElapsedNanos);
+              boolean worked = terminal || advance.assignedSolidWrites() > 0;
+              return new DeferredCatchupPacketResult(worked, terminal, advance.assignedSolidWrites());
+          }
+
+          '''
+          surface.write_text(text[:start] + packet_method + text[end:])
+
+          build = Path('skyforge-neoforge-1211/build.gradle.kts')
+          text = build.read_text()
+          text = text.replace('"perf.terrain.realizeDeferred.totalNanos",', '"perf.terrain.realizeDeferredPacket.totalNanos",')
+          text = text.replace('"perf.terrain.deferred.write.totalNanos",', '"perf.terrain.deferred.writePacket.totalNanos",')
+          block_start = text.index('        val deferredSubphases = listOf(')
+          block_end = text.index('        val terrainRealizeCalls = properties.getProperty("perf.terrain.realize.calls").toLong()', block_start)
+          verifier = '''        val deferredOneTimeSubphases = listOf(
+              "materialize",
+              "adaptSurface",
+              "solidCount",
+              "completeCatchup",
+          )
+          for (subphase in deferredOneTimeSubphases) {
+              val calls = properties.getProperty("perf.terrain.deferred.$subphase.calls").toLong()
+              check(calls == 390L) {
+                  "SF-IMP-0077 deferred one-time subphase call count changed: subphase=$subphase, calls=$calls"
+              }
+          }
+
+          val deferredWritePacketCalls = properties.getProperty("perf.terrain.deferred.writePacket.calls").toLong()
+          val deferredPacketCalls = properties.getProperty("perf.terrain.realizeDeferredPacket.calls").toLong()
+          check(deferredWritePacketCalls > 390L && deferredPacketCalls == deferredWritePacketCalls) {
+              "SF-IMP-0071 packet call accounting changed: writePackets=$deferredWritePacketCalls, quanta=$deferredPacketCalls"
+          }
+
+          val packetWallSamples = properties.getProperty("perf.terrain.deferred.packetWallNanos.samples").toLong()
+          val packetWallP50 = properties.getProperty("perf.terrain.deferred.packetWallNanos.p50").toLong()
+          val packetWallP95 = properties.getProperty("perf.terrain.deferred.packetWallNanos.p95").toLong()
+          val packetWallP99 = properties.getProperty("perf.terrain.deferred.packetWallNanos.p99").toLong()
+          val packetWallMax = properties.getProperty("perf.terrain.deferred.packetWallNanos.max").toLong()
+          check(packetWallSamples == deferredWritePacketCalls
+                  && packetWallP50 > 0L
+                  && packetWallP50 <= packetWallP95
+                  && packetWallP95 <= packetWallP99
+                  && packetWallP99 <= packetWallMax
+                  && packetWallMax < 16_000_000L) {
+              "SF-IMP-0071 packet wall-time gate failed: samples=$packetWallSamples, p50=$packetWallP50, " +
+                  "p95=$packetWallP95, p99=$packetWallP99, max=$packetWallMax"
+          }
+
+          val packetAssignedSamples = properties.getProperty("perf.terrain.deferred.packetAssignedSolidWrites.samples").toLong()
+          val packetAssignedTotal = properties.getProperty("perf.terrain.deferred.packetAssignedSolidWrites.total").toLong()
+          val packetAssignedMax = properties.getProperty("perf.terrain.deferred.packetAssignedSolidWrites.max").toLong()
+          val expectedSolidSamples = properties.getProperty("perf.terrain.deferred.expectedSolidBlocks.samples").toLong()
+          val expectedSolidTotal = properties.getProperty("perf.terrain.deferred.expectedSolidBlocks.total").toLong()
+          check(packetAssignedSamples == deferredWritePacketCalls
+                  && packetAssignedMax <= 1024L
+                  && expectedSolidSamples == 390L
+                  && packetAssignedTotal == expectedSolidTotal) {
+              "SF-IMP-0071 packet block accounting failed: packetSamples=$packetAssignedSamples, " +
+                  "packetTotal=$packetAssignedTotal, packetMax=$packetAssignedMax, " +
+                  "expectedSamples=$expectedSolidSamples, expectedTotal=$expectedSolidTotal"
+          }
+
+          val deferredSubphases = deferredOneTimeSubphases + "writePacket"
+          val deferredSubphaseSummary = deferredSubphases.joinToString(",") { subphase ->
+              val totalNanos = properties.getProperty("perf.terrain.deferred.$subphase.totalNanos").toLong()
+              "$subphase=" + (totalNanos / 1_000_000.0) + "ms"
+          }
+
+          '''
+          build.write_text(text[:block_start] + verifier + text[block_end:])
+
+          low_end = Path('.github/workflows/low-end-scalability.yml')
+          text = low_end.read_text()
+          text = text.replace('"deferred_s": "perf.terrain.realizeDeferred.totalNanos",', '"deferred_s": "perf.terrain.realizeDeferredPacket.totalNanos",')
+          text = text.replace('"write_s": "perf.terrain.deferred.write.totalNanos",', '"write_s": "perf.terrain.deferred.writePacket.totalNanos",')
+          low_end.write_text(text)
+          PY
+
+      - name: Run focused tests and verifier compilation
+        run: ./gradlew :skyforge-neoforge-1211:test :skyforge-neoforge-1211:compileJava --stacktrace --no-configuration-cache
+
+      - name: Commit optimization
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDeferredTerrainWriteProgressData.java \
+                  skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/MinecraftChunkMaterialization.java \
+                  skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211ChunkWriter.java \
+                  skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211SurfaceStage.java \
+                  skyforge-neoforge-1211/build.gradle.kts \
+                  .github/workflows/low-end-scalability.yml
+          git diff --cached --check
+          git commit -m "SF-IMP-0071: cache and characterize packetized catch-up"
+          git push origin HEAD:perf/524-packetize-catchup
