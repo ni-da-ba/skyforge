@@ -94,6 +94,12 @@ final class SkyforgeCivilizationRuntimeStateTest {
         integration.guildCargoAnchorAvailabilityChanged(reloaded, "bootstrap-guild-cargo-terminal-01", false);
         assertEquals(SkyforgeCivilizationRuntimeState.CapabilityStatus.OFFLINE,
                 reloaded.capability(CONSUMER, GUILD_CARGO_TRANSFER_CAPABILITY).status());
+        assertThrows(IllegalStateException.class, () -> integration.deliver(reloaded, cargo.cargoId()));
+        assertEquals(SkyforgeCivilizationRuntimeState.ShipmentStatus.PHYSICAL_CUSTODY,
+                reloaded.materializePhysicalCargo(cargo.id()).status());
+        assertEquals(0L, reloaded.settlement(CONSUMER).stock());
+        assertEquals(0L, reloaded.settledPaymentTotal());
+        integration.guildCargoAnchorAvailabilityChanged(reloaded, "bootstrap-guild-cargo-terminal-01", true);
         var delivered = integration.deliver(reloaded, cargo.cargoId());
         assertEquals(SkyforgeCivilizationRuntimeState.ShipmentStatus.DELIVERED, delivered.status());
         assertTrue(delivered.paymentSettled());
@@ -105,6 +111,8 @@ final class SkyforgeCivilizationRuntimeStateTest {
         SkyforgeCivilizationRuntimeState settledReload = SkyforgeCivilizationRuntimeState.load(reloaded.save());
         assertEquals(delivered, integration.deliver(settledReload, cargo.cargoId()));
         assertEquals(17L, settledReload.settledPaymentTotal());
+        integration.guildCargoAnchorAvailabilityChanged(settledReload, "bootstrap-guild-cargo-terminal-01", false);
+        assertThrows(IllegalStateException.class, () -> integration.deliver(settledReload, cargo.cargoId()));
         integration.guildCargoAnchorAvailabilityChanged(settledReload, "bootstrap-guild-cargo-terminal-01", true);
         assertEquals(SkyforgeCivilizationRuntimeState.CapabilityStatus.OPERATIONAL,
                 settledReload.capability(CONSUMER, GUILD_CARGO_TRANSFER_CAPABILITY).status());
