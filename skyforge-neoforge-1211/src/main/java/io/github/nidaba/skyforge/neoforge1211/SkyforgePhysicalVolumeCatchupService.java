@@ -32,6 +32,7 @@ final class SkyforgePhysicalVolumeCatchupService {
      * guard, but no tick can start more than the hard work cap.
      */
     static final int MAX_TERRAIN_CATCHUP_CHUNKS_PER_LEVEL_TICK = 64;
+    static final int MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM = 1024;
     static final long TERRAIN_CATCHUP_TIME_BUDGET_NANOS = 8_000_000L;
     static final int MAX_COMPOSED_CAVE_QUANTA_PER_LEVEL_TICK = 128;
     static final long COMPOSED_CAVE_TIME_BUDGET_NANOS = 8_000_000L;
@@ -60,17 +61,24 @@ final class SkyforgePhysicalVolumeCatchupService {
                 continue;
             }
 
-            int completed;
+            SkyforgeNeoForge1211SurfaceStage.DeferredCatchupPacketResult packet;
             var mutationLifecycle = SkyforgeDeferredChunkMutationLifecycle.open(level, chunk);
             try {
-                completed = SkyforgeNeoForge1211SurfaceStage.serviceOneCatchup(chunk);
+                packet = SkyforgeNeoForge1211SurfaceStage.serviceOneCatchupPacket(
+                        level,
+                        chunk,
+                        MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM);
             } finally {
                 mutationLifecycle.close();
             }
-            if (completed <= 0) {
+            if (!packet.worked()) {
                 return false;
             }
-            if (SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
+            if (packet.assignedSolidWrites() > MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM) {
+                throw new IllegalStateException("deferred terrain packet exceeded scheduler write budget");
+            }
+            if (packet.completed()
+                    && SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
                 SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
             }
             return true;

@@ -13,6 +13,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicReference;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
@@ -156,6 +157,113 @@ public final class SkyforgeNeoForge1211SurfaceStage {
      * per-chunk iteration order while allowing the outer elapsed-time guard to yield between
      * independent exact volumes.
      */
+    /** Advances one bounded persisted deferred-terrain packet for the canonical obligation. */
+    static DeferredCatchupPacketResult serviceOneCatchupPacket(
+            ServerLevel level,
+            ChunkAccess chunk,
+            int maximumAssignedSolidWrites) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(chunk, "chunk");
+        if (maximumAssignedSolidWrites <= 0) {
+            throw new IllegalArgumentException("maximumAssignedSolidWrites must be positive");
+        }
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return new DeferredCatchupPacketResult(false, false, 0);
+        }
+        var progressData = SkyforgeDeferredTerrainWriteProgressData.get(level);
+        for (var pending : SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos())) {
+            return realizeDeferredPacket(binding, chunk, pending, progressData, maximumAssignedSolidWrites);
+        }
+        return new DeferredCatchupPacketResult(false, false, 0);
+    }
+
+    private static DeferredCatchupPacketResult realizeDeferredPacket(
+            RuntimeBinding binding,
+            ChunkAccess chunk,
+            SkyforgePhysicalVolumeAdmissionStage.PendingRealization pending,
+            SkyforgeDeferredTerrainWriteProgressData progressData,
+            int maximumAssignedSolidWrites) {
+        long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
+        WorldBounds volumeBounds = binding.adapter().volumeBounds(pending.volumeId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "deferred realization requires exact bound volume " + pending.volumeId().path()));
+        VerticalRange range = boundedVerticalRange(chunk, volumeBounds);
+        if (range.height() <= 0) {
+            throw new IllegalStateException(
+                    "deferred exact-volume realization has no vertical overlap with target chunk");
+        }
+        SkyforgeRuntimePerformanceMetrics.recordSample("terrain.deferredVerticalSamples", range.height());
+        long materializeStart = SkyforgeRuntimePerformanceMetrics.start();
+        MinecraftChunkMaterialization materialization = binding.adapter().materialize(
+                pending.volumeId(), chunk.getPos(), range.minimumY(), range.height());
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.materialize", materializeStart);
+        if (binding.nativeSurfaceTopAdapter().isPresent()) {
+            MinecraftNativeSurfaceSnapshot snapshot = pending.nativeSurfaceSnapshot()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "native-surface-adapted deferred realization lost its pre-decoration snapshot"));
+            long adaptStart = SkyforgeRuntimePerformanceMetrics.start();
+            materialization = binding.nativeSurfaceTopAdapter().orElseThrow().adapt(snapshot, materialization);
+            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.adaptSurface", adaptStart);
+        }
+
+        var existing = progressData.find(pending.volumeId(), pending.chunkKey());
+        int expectedSolidBlocks;
+        if (existing.isPresent()) {
+            expectedSolidBlocks = existing.orElseThrow().expectedSolidBlocks();
+        } else {
+            long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
+            expectedSolidBlocks = materialization.solidBlockCount();
+            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.solidCount", solidCountStart);
+        }
+        var progress = progressData.getOrCreate(pending.volumeId(), pending.chunkKey(), expectedSolidBlocks);
+        if (progress.terminal()) {
+            SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realizeDeferredPacket", performanceStart);
+            return new DeferredCatchupPacketResult(true, true, 0);
+        }
+
+        boolean exactAdmissionFastPath = SkyforgePhysicalVolumeAdmissionStage.canUseExactDeferredWriteFastPath(
+                pending, chunk, range.minimumY(), range.height());
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.deferredExactAdmissionFastPath", exactAdmissionFastPath ? 1L : 0L);
+        long writeStart = SkyforgeRuntimePerformanceMetrics.start();
+        var advance = binding.writer().writeDeferredSolidOverlayPacket(
+                chunk,
+                materialization,
+                progress.cursor(),
+                maximumAssignedSolidWrites,
+                !exactAdmissionFastPath);
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.writePacket", writeStart);
+
+        if (advance.complete()
+                && advance.cursor().cumulativeAssignedSolidWrites() != expectedSolidBlocks) {
+            throw new IllegalStateException(
+                    "completed deferred terrain packet count differs from authoritative solid count");
+        }
+        boolean terminal = advance.complete();
+        progressData.store(progress.advance(advance, terminal));
+        if (terminal) {
+            long completeStart = SkyforgeRuntimePerformanceMetrics.start();
+            SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.completeCatchup", completeStart);
+        }
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realizeDeferredPacket", performanceStart);
+        boolean worked = terminal || advance.assignedSolidWrites() > 0;
+        return new DeferredCatchupPacketResult(worked, terminal, advance.assignedSolidWrites());
+    }
+
+    record DeferredCatchupPacketResult(boolean worked, boolean completed, int assignedSolidWrites) {
+        DeferredCatchupPacketResult {
+            if (assignedSolidWrites < 0) {
+                throw new IllegalArgumentException("assignedSolidWrites must be nonnegative");
+            }
+            if (completed && !worked) {
+                throw new IllegalArgumentException("completed packet must count as worked");
+            }
+        }
+    }
+
     static int serviceOneCatchup(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
         RuntimeBinding binding = ACTIVE.get();
