@@ -77,11 +77,7 @@ def _block_state_payload(state: BlockState) -> bytes:
 
 
 def _validate_state_syntax(state: BlockState) -> None:
-    """NBT/resource-location syntax only.
-
-    Minecraft semantic state validation belongs to minecraft_adapter.py. Keeping the distinction
-    explicit prevents the serializer from being mistaken for target-domain validation.
-    """
+    """NBT/resource-location syntax only; semantic legality belongs to the target adapter."""
     if not _RESOURCE_RE.match(state.name):
         raise SpecError(f"invalid block resource location for Minecraft export: {state.name}")
     for key, value in state.properties:
@@ -97,11 +93,15 @@ def structure_filename(asset_id: str) -> str:
     return f"{leaf}.nbt"
 
 
-def _encode_realized_structure(
-    compiled: CompiledAsset,
-    *,
-    data_version: int,
-) -> bytes:
+def _adapter_for(compiled: CompiledAsset) -> MinecraftAdapter:
+    """Select target intent policy without coupling the NBT serializer to architecture."""
+    if str(compiled.summary.get("compilerVersion", "")) == "0.14-first-principles-detail":
+        from minecraft_guild_profile import guild_v014_adapter
+        return guild_v014_adapter()
+    return MinecraftAdapter()
+
+
+def _encode_realized_structure(compiled: CompiledAsset, *, data_version: int) -> bytes:
     if not compiled.summary.get("validation", {}).get("passed", False):
         raise SpecError("refusing Minecraft export for a compiler result that failed validation")
     if not compiled.model.cells:
@@ -130,23 +130,19 @@ def _encode_realized_structure(
         if not all(0 <= local[i] < size[i] for i in range(3)):
             raise SpecError(f"block outside normalized structure bounds at {(x, y, z)}")
         block_payloads.append(
-            _compound_payload(
-                [
-                    _tag_int_list("pos", local),
-                    _tag_int("state", palette_index[cell.state]),
-                ]
-            )
+            _compound_payload([
+                _tag_int_list("pos", local),
+                _tag_int("state", palette_index[cell.state]),
+            ])
         )
 
-    root_payload = _compound_payload(
-        [
-            _tag_int("DataVersion", int(data_version)),
-            _tag_int_list("size", size),
-            _named(TAG_LIST, "palette", _list_payload(TAG_COMPOUND, palette_payloads)),
-            _named(TAG_LIST, "blocks", _list_payload(TAG_COMPOUND, block_payloads)),
-            _named(TAG_LIST, "entities", _list_payload(TAG_COMPOUND, [])),
-        ]
-    )
+    root_payload = _compound_payload([
+        _tag_int("DataVersion", int(data_version)),
+        _tag_int_list("size", size),
+        _named(TAG_LIST, "palette", _list_payload(TAG_COMPOUND, palette_payloads)),
+        _named(TAG_LIST, "blocks", _list_payload(TAG_COMPOUND, block_payloads)),
+        _named(TAG_LIST, "entities", _list_payload(TAG_COMPOUND, [])),
+    ])
     raw = bytes([TAG_COMPOUND]) + _string_payload("") + root_payload
     return gzip.compress(raw, compresslevel=9, mtime=0)
 
@@ -159,7 +155,7 @@ def encode_structure_nbt(
 ) -> bytes:
     target = compiled
     if use_adapter:
-        target, _report = MinecraftAdapter().adapt(compiled)
+        target, _report = _adapter_for(compiled).adapt(compiled)
     return _encode_realized_structure(target, data_version=data_version)
 
 
@@ -174,7 +170,7 @@ def write_structure_nbt(
     target = compiled
     report = None
     if use_adapter:
-        target, report = MinecraftAdapter().adapt(compiled)
+        target, report = _adapter_for(compiled).adapt(compiled)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(_encode_realized_structure(target, data_version=data_version))
     return report
