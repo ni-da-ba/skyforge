@@ -164,8 +164,6 @@ def _candidate_solver(spec: dict[str, Any], profile: dict[str, Any]) -> dict[str
         ("roof.nonzero_overhang", lambda c: c["roofOverhang"] >= 1),
     ]
 
-    # Bounds from the current profile are evidence envelopes, not inviolable physical law. Keep
-    # grossly implausible candidates out, but let the objective decide within/near the envelope.
     for key in required_ratio_keys:
         entry = ratios[key]
         hard_rules.append(
@@ -211,33 +209,19 @@ def _candidate_solver(spec: dict[str, Any], profile: dict[str, Any]) -> dict[str
             (
                 "program.compactness",
                 float(weights.get("compactness", 0.5)),
-                lambda c: (
-                    (
-                        (_volume_area(c)[0] + _volume_area(c)[1] + _volume_area(c)[2])
-                        / required_area
-                    )
-                    - 1.0
-                )
-                ** 2,
+                lambda c: (((_volume_area(c)[0] + _volume_area(c)[1] + _volume_area(c)[2]) / required_area) - 1.0) ** 2,
             ),
             (
                 "program.working_balance",
                 float(weights.get("workingBalance", 0.25)),
-                lambda c: (
-                    (_volume_area(c)[1] - _volume_area(c)[2])
-                    / max(_volume_area(c)[1] + _volume_area(c)[2], 1)
-                )
-                ** 2,
+                lambda c: ((_volume_area(c)[1] - _volume_area(c)[2]) / max(_volume_area(c)[1] + _volume_area(c)[2], 1)) ** 2,
             ),
             (
                 "grammar.rule_count_proxy",
                 float(weights.get("grammarComplexity", 0.15)),
                 lambda c: grammar_description_length_proxy(
-                    facade_bay_grammar(
-                        c["bayCount"], c["bayWidth"], c["windowWidth"], [c["bayCount"] // 2]
-                    )[1]
-                )
-                / 10.0,
+                    facade_bay_grammar(c["bayCount"], c["bayWidth"], c["windowWidth"], [c["bayCount"] // 2])[1]
+                ) / 10.0,
             ),
         ]
     )
@@ -254,7 +238,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
     geometry is inherited. It solves a bounded semantic/architectural design space first, then derives
     volumes, openings, structure, roof, furnishings and validation evidence from that solved state.
     """
-
     if spec.get("schemaVersion") != "0.13":
         raise SpecError("first-principles Guild compiler requires schemaVersion=0.13")
     if spec.get("assetType") != "guild_branch":
@@ -266,31 +249,10 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
 
     materials = spec.get("materialRoles", {})
     required_materials = {
-        "foundation",
-        "structuralFrame",
-        "wallInfill",
-        "floor",
-        "roof",
-        "roofStair",
-        "roofSlab",
-        "window",
-        "publicDoor",
-        "workingDoor",
-        "hardware",
-        "lighting",
-        "institutionalAccent",
-        "brassAccent",
-        "canopy",
-        "seating",
-        "recordsShelf",
-        "publicBoard",
-        "freightContainer",
-        "repairBench",
-        "toolStorage",
-        "desk",
-        "exteriorTrimSlab",
-        "masonryTrimSlab",
-        "bayTransom",
+        "foundation", "structuralFrame", "wallInfill", "floor", "roof", "roofStair", "roofSlab",
+        "window", "publicDoor", "workingDoor", "hardware", "lighting", "institutionalAccent",
+        "brassAccent", "canopy", "seating", "recordsShelf", "publicBoard", "freightContainer",
+        "repairBench", "toolStorage", "desk", "exteriorTrimSlab", "masonryTrimSlab", "bayTransom",
     }
     missing = sorted(required_materials - set(materials))
     if missing:
@@ -357,9 +319,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
     desk = BlockState.of(_material(materials, "desk"), type="top")
     transom = BlockState.of(_material(materials, "bayTransom"))
 
-    # ------------------------------------------------------------------
-    # 1. SEMANTIC VOLUMES -> PRIMARY ENVELOPE
-    # ------------------------------------------------------------------
     def in_hall(x: int, z: int) -> bool:
         return hall_x0 <= x <= hall_x1 and hall_z0 <= z <= hall_z1
 
@@ -373,8 +332,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
             model.set(x, 0, z, "foundation", foundation, "fp_foundation")
             model.set(x, 1, z, "floor", floor, "fp_floor")
 
-    # Public hall outer envelope. East wall is a deliberate staff/working separator rather than an
-    # accidental outer-boundary result.
     for x in range(hall_x0, hall_x1 + 1):
         for y in range(2, wall_h + 1):
             model.set(x, y, hall_z0, "wall_infill", wall, "fp_public_envelope")
@@ -384,7 +341,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
             model.set(hall_x0, y, z, "wall_infill", wall, "fp_public_envelope")
             model.set(hall_x1, y, z, "wall_infill", wall, "fp_staff_separator")
 
-    # Working wing outer envelope; west side remains attached to the hall separator.
     for x in range(wing_x0, wing_x1 + 1):
         for y in range(2, wall_h + 1):
             model.set(x, y, hall_z0, "wall_infill", wall, "fp_working_envelope")
@@ -393,9 +349,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
         for y in range(2, wall_h + 1):
             model.set(wing_x1, y, z, "wall_infill", wall, "fp_working_envelope")
 
-    # ------------------------------------------------------------------
-    # 2. STRUCTURAL GRAPH FROM BAY GRAMMAR
-    # ------------------------------------------------------------------
     public_posts = sorted(set(range(0, hall_w, bay_w)) | {hall_x1})
     for x in public_posts:
         for z in (hall_z0, hall_z1):
@@ -424,9 +377,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
         for x in (wing_x0, wing_x1):
             model.set(x, wall_h, z, "structural_frame", frame_z, "fp_working_wall_plate")
 
-    # ------------------------------------------------------------------
-    # 3. ATTRIBUTED FACADE GRAMMAR / LAYERED OPENINGS
-    # ------------------------------------------------------------------
     south_groups, south_trace = facade_bay_grammar(bays, bay_w, window_w, [entrance_bay])
     north_groups, north_trace = facade_bay_grammar(bays, bay_w, window_w)
     west_segment = max(5, depth // 2)
@@ -465,7 +415,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
                 for y in (3, 4):
                     model.set(hall_x0, y, jamb_z, "structural_frame", frame_y, f"fp_west_window_jamb_{i}")
 
-    # Public entrance is the semantic interruption in the south split grammar.
     for x in range(entrance_x0, entrance_x1 + 1):
         for y in range(2, 5):
             model.clear(x, y, hall_z1)
@@ -482,7 +431,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
     model.set(public_center, 5, hall_z1 + 1, "institutional_accent", accent, "fp_guild_identity")
     model.set(public_center, 4, hall_z1 + 1, "hardware", brass, "fp_guild_identity")
 
-    # Staff-only connection between public and working domains is derived from service adjacency.
     staff_z = max(2, min(depth - 3, counter_z - 1))
     for y in (2, 3):
         model.clear(hall_x1, y, staff_z)
@@ -512,9 +460,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
     repair_open = working_portal(repair_z0, repair_z1, 3, "repair")
     freight_open = working_portal(warehouse_z0, warehouse_z1, 4, "freight")
 
-    # ------------------------------------------------------------------
-    # 4. SEMANTIC INTERIOR GRAPH -> FURNISHINGS
-    # ------------------------------------------------------------------
     counter_x0 = max(2, entrance_x0 - 2)
     counter_x1 = min(hall_x1 - 2, entrance_x1 + 2)
     for x in range(counter_x0, counter_x1 + 1):
@@ -528,14 +473,12 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
     for x in range(max(1, hall_x1 - 4), hall_x1 - 1):
         model.set(x, 2, waiting_z, "seating", seating, "fp_waiting_bench")
 
-    # Information fixtures live on structural piers by grammar contract, never in glazing.
     info_left = max(1, entrance_x0 - 2)
     info_right = min(hall_x1 - 1, entrance_x1 + 2)
     for x, module in ((info_left, "fp_contract_board"), (info_right, "fp_route_info")):
         model.set(x, 3, hall_z1 - 1, "board", board, module)
         model.set(x, 4, hall_z1 - 1, "structural_frame", trim_top, module + "_cap")
 
-    # Back-office furniture uses the east separator and avoids north/west glazing.
     for z in range(backoffice_z0 + 1, backoffice_z1 + 1):
         if z == staff_z:
             continue
@@ -546,7 +489,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
     for x in range(2, min(5, hall_x1 - 1)):
         model.set(x, 2, desk_z, "desk", desk, "fp_backoffice_desk")
 
-    # Working zoning comes directly from repair/warehouse program areas.
     for x in range(wing_x0 + 1, wing_x1):
         if x not in (wing_x0 + 2, wing_x0 + 3):
             for y in range(2, 5):
@@ -567,9 +509,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
         if z % 2 == 0:
             model.set(freight_x, 3, z, "storage", freight, "fp_freight_rack")
 
-    # ------------------------------------------------------------------
-    # 5. ONE ROOF FIELD -> WEATHER SKIN, RIDGE, EAVES, RAFTERS, TIES
-    # ------------------------------------------------------------------
     public_field = TwoEaveGableField(hall_z0, hall_z1, roof_rise, roof_base)
     wing_rise = max(2, round(roof_rise * 0.6))
     working_field = TwoEaveGableField(hall_z0, hall_z1, wing_rise, roof_base)
@@ -613,17 +552,14 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
                 roof_targets.add((x, y, z))
         return positions
 
-    public_rafter_xs = public_posts
     public_rafter_cells: list[list[int]] = []
-    for x in public_rafter_xs:
+    for x in public_posts:
         public_rafter_cells.extend([list(p) for p in realize_rafter(x, public_field, "fp_public_rafter")])
-
     working_rafter_xs = sorted({wing_x0, wing_x0 + wing_w // 2, wing_x1})
     working_rafter_cells: list[list[int]] = []
     for x in working_rafter_xs:
         working_rafter_cells.extend([list(p) for p in realize_rafter(x, working_field, "fp_working_rafter")])
 
-    # Tie beams are placed where the semantic rooms tolerate overhead structure, not at random z.
     public_tie_zs = sorted({max(2, backoffice_z1), counter_z, min(hall_z1 - 2, waiting_z)})
     for z in public_tie_zs:
         for x in range(hall_x0 + 1, hall_x1):
@@ -635,15 +571,12 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
             model.set(x, wall_h, z, "structural_frame", frame_x, "fp_working_tie_beam")
             roof_targets.add((x, wall_h, z))
 
-    # ------------------------------------------------------------------
-    # 6. SEMANTIC ANCHORS, SPACE GRAPH, VISIBILITY
-    # ------------------------------------------------------------------
     repair_center_z = sum(repair_open) // 2
     freight_center_z = sum(freight_open) // 2
-    service_anchor = (public_center, counter_z - 1)
+    service_anchor = (public_center, counter_z + 1)
     entrance_anchor = (public_center, hall_z1 - 1)
     waiting_anchor = (max(2, public_center - 3), waiting_z - 1)
-    staff_anchor = (public_center, counter_z + 1)
+    staff_anchor = (public_center, counter_z - 1)
     backoffice_anchor = (3, desk_z + 1)
     repair_anchor = (wing_x1 - 2, repair_center_z)
     freight_anchor = (wing_x1 - 2, freight_center_z)
@@ -666,7 +599,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
         for z in range(hall_z0 + 1, hall_z1):
             if all(model.cells.get((x, y, z)) is None for y in (2, 3)):
                 walkable.add((x, z))
-    # Service anchor is intentionally the public cell immediately before the counter.
     walkable.add(service_anchor)
     walkable.add(entrance_anchor)
 
@@ -682,30 +614,17 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
 
     semantic_graph = {
         "nodes": {
-            "publicEntrance": list(entrance_anchor),
-            "waiting": list(waiting_anchor),
-            "serviceCounter": list(service_anchor),
-            "staffWork": list(staff_anchor),
-            "backOffice": list(backoffice_anchor),
-            "repairBay": list(repair_anchor),
-            "warehouse": list(freight_anchor),
-            "airfield": [wing_x1 + 3, (repair_center_z + freight_center_z) // 2],
+            "publicEntrance": list(entrance_anchor), "waiting": list(waiting_anchor), "serviceCounter": list(service_anchor),
+            "staffWork": list(staff_anchor), "backOffice": list(backoffice_anchor), "repairBay": list(repair_anchor),
+            "warehouse": list(freight_anchor), "airfield": [wing_x1 + 3, (repair_center_z + freight_center_z) // 2],
         },
         "requiredEdges": [
-            ["publicEntrance", "waiting"],
-            ["waiting", "serviceCounter"],
-            ["serviceCounter", "staffWork"],
-            ["staffWork", "backOffice"],
-            ["staffWork", "repairBay"],
-            ["staffWork", "warehouse"],
-            ["repairBay", "airfield"],
-            ["warehouse", "airfield"],
+            ["publicEntrance", "waiting"], ["waiting", "serviceCounter"], ["serviceCounter", "staffWork"],
+            ["staffWork", "backOffice"], ["staffWork", "repairBay"], ["staffWork", "warehouse"],
+            ["repairBay", "airfield"], ["warehouse", "airfield"],
         ],
     }
 
-    # ------------------------------------------------------------------
-    # 7. FACADE LAYER CONTRACTS
-    # ------------------------------------------------------------------
     layer_claims: list[LayerClaim] = []
     for pos, cell in model.cells.items():
         if cell.role == "structural_frame":
@@ -718,9 +637,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
             layer_claims.append(LayerClaim(pos, "hardware", cell.module or cell.role))
         elif cell.role in {"board", "records", "desk", "counter", "seating", "storage", "workbench", "tool_storage"}:
             layer_claims.append(LayerClaim(pos, "furnishing", cell.module or cell.role))
-
-    # Opening-void claims live on the exterior closure plane. They are semantic claims even though
-    # the VoxelModel cell is intentionally empty there.
     for a, b in south_groups:
         for x in range(a, b + 1):
             for y in (3, 4):
@@ -735,17 +651,9 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
                 layer_claims.append(LayerClaim((hall_x0, y, z), "opening_void", "fp_west_opening"))
     layer_issues = layer_conflicts(layer_claims)
 
-    # ------------------------------------------------------------------
-    # 8. STRUCTURAL CONNECTIVITY / FINAL VALIDATION
-    # ------------------------------------------------------------------
-    structural_nodes = {
-        pos
-        for pos, cell in model.cells.items()
-        if cell.role in {"foundation", "structural_frame"}
-    }
+    structural_nodes = {pos for pos, cell in model.cells.items() if cell.role in {"foundation", "structural_frame"}}
     supports = {pos for pos in structural_nodes if pos[1] <= 1}
     unsupported = unsupported_targets(structural_nodes, supports, roof_targets)
-
     grammar_trace = south_trace + north_trace + west_trace
     grammar_complexity = grammar_description_length_proxy(grammar_trace)
     required_anchors = set(spec.get("requestedAnchors", []))
@@ -783,112 +691,60 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
         "anchors": anchors,
         "volumes": volumes,
         "resolvedParameters": {
-            "bayCount": bays,
-            "bayWidth": bay_w,
-            "hallWidth": hall_w,
-            "hallDepth": depth,
-            "wallHeight": wall_h,
-            "workingWingWidth": wing_w,
-            "counterZ": counter_z,
-            "publicEntranceSpan": [entrance_x0, entrance_x1],
-            "repairOpeningZ": list(repair_open),
-            "freightOpeningZ": list(freight_open),
-            "mainRoofRise": roof_rise,
-            "workingRoofRise": wing_rise,
-            "roofOverhang": overhang,
-            "publicWindowWidth": window_w,
+            "bayCount": bays, "bayWidth": bay_w, "hallWidth": hall_w, "hallDepth": depth, "wallHeight": wall_h,
+            "workingWingWidth": wing_w, "counterZ": counter_z, "publicEntranceSpan": [entrance_x0, entrance_x1],
+            "repairOpeningZ": list(repair_open), "freightOpeningZ": list(freight_open), "mainRoofRise": roof_rise,
+            "workingRoofRise": wing_rise, "roofOverhang": overhang, "publicWindowWidth": window_w,
             "generationAuthority": "semantic_program_constraint_optimization_grammar_fields",
         },
         "firstPrinciples": {
             "program": spec["program"],
             "referenceProfile": {
-                "profileId": reference.get("profileId"),
-                "status": reference.get("status"),
-                "provenance": reference.get("provenance"),
+                "profileId": reference.get("profileId"), "status": reference.get("status"), "provenance": reference.get("provenance"),
             },
             "optimization": {
-                "chosen": chosen,
-                "score": optimization["score"],
-                "candidateCount": optimization["candidateCount"],
-                "feasibleCount": optimization["feasibleCount"],
-                "terms": optimization["terms"],
-                "ratioMetrics": ratios,
+                "chosen": chosen, "score": optimization["score"], "candidateCount": optimization["candidateCount"],
+                "feasibleCount": optimization["feasibleCount"], "terms": optimization["terms"], "ratioMetrics": ratios,
             },
             "semanticGraph": semantic_graph,
             "facadeGrammar": {
-                "southWindowGroups": [list(v) for v in south_groups],
-                "northWindowGroups": [list(v) for v in north_groups],
-                "westWindowGroups": [list(v) for v in west_groups],
-                "trace": grammar_trace,
+                "southWindowGroups": [list(v) for v in south_groups], "northWindowGroups": [list(v) for v in north_groups],
+                "westWindowGroups": [list(v) for v in west_groups], "trace": grammar_trace,
                 "descriptionLengthProxy": grammar_complexity,
             },
-            "facadeLayers": {
-                "claimCount": len(layer_claims),
-                "conflicts": layer_issues,
-            },
+            "facadeLayers": {"claimCount": len(layer_claims), "conflicts": layer_issues},
             "roofFields": {
-                "public": {
-                    "type": "two_eave_wavefront",
-                    "zRange": [public_field.z0, public_field.z1],
-                    "rise": public_field.rise,
-                    "baseY": public_field.base_y,
-                    "pitchRatio": public_field.pitch_ratio,
-                    "ridgeStations": public_ridges,
-                },
-                "working": {
-                    "type": "two_eave_wavefront",
-                    "zRange": [working_field.z0, working_field.z1],
-                    "rise": working_field.rise,
-                    "baseY": working_field.base_y,
-                    "pitchRatio": working_field.pitch_ratio,
-                    "ridgeStations": working_ridges,
-                },
-                "publicRafterCells": public_rafter_cells,
-                "workingRafterCells": working_rafter_cells,
+                "public": {"type": "two_eave_wavefront", "zRange": [public_field.z0, public_field.z1], "rise": public_field.rise,
+                           "baseY": public_field.base_y, "pitchRatio": public_field.pitch_ratio, "ridgeStations": public_ridges},
+                "working": {"type": "two_eave_wavefront", "zRange": [working_field.z0, working_field.z1], "rise": working_field.rise,
+                            "baseY": working_field.base_y, "pitchRatio": working_field.pitch_ratio, "ridgeStations": working_ridges},
+                "publicRafterCells": public_rafter_cells, "workingRafterCells": working_rafter_cells,
             },
             "spaceGraph": {
-                "walkableNodeCount": len(walkable),
-                "entranceReachableCount": len(distances),
-                "entranceConnectedFraction": len(distances) / max(len(walkable), 1),
-                "entranceToServiceDistance": service_distance,
+                "walkableNodeCount": len(walkable), "entranceReachableCount": len(distances),
+                "entranceConnectedFraction": len(distances) / max(len(walkable), 1), "entranceToServiceDistance": service_distance,
                 "entranceToServicePathStretch": path_stretch(service_distance, entrance_anchor, service_anchor),
                 "entranceCloseness": closeness_centrality(walkable, entrance_anchor),
                 "serviceCloseness": closeness_centrality(walkable, service_anchor),
-                "entranceVisibilityCount": entrance_visibility,
-                "entranceSeesService": entrance_sees_service,
+                "entranceVisibilityCount": entrance_visibility, "entranceSeesService": entrance_sees_service,
             },
             "structuralGraph": {
-                "nodeCount": len(structural_nodes),
-                "supportCount": len(supports),
-                "roofTargetCount": len(roof_targets),
-                "unsupportedTargets": [list(v) for v in sorted(unsupported)],
-                "claim": "structural_legibility_only_not_load_capacity",
+                "nodeCount": len(structural_nodes), "supportCount": len(supports), "roofTargetCount": len(roof_targets),
+                "unsupportedTargets": [list(v) for v in sorted(unsupported)], "claim": "structural_legibility_only_not_load_capacity",
             },
         },
         "paletteReview": spec.get("paletteReview", {"status": "provisional"}),
     }
 
     canonical = json.dumps(
-        {
-            "assetId": spec["assetId"],
-            "layout": layout,
-            "cells": [
-                {"pos": [x, y, z], **cell.to_dict()}
-                for (x, y, z), cell in sorted(model.cells.items())
-            ],
-        },
-        sort_keys=True,
-        separators=(",", ":"),
+        {"assetId": spec["assetId"], "layout": layout,
+         "cells": [{"pos": [x, y, z], **cell.to_dict()} for (x, y, z), cell in sorted(model.cells.items())]},
+        sort_keys=True, separators=(",", ":"),
     )
     summary = {
-        "schemaVersion": "0.13",
-        "compilerVersion": "0.13-first-principles",
-        "assetId": spec["assetId"],
-        "blockCount": len(model.cells),
-        "layout": layout,
-        "materialCounts": _counter(model, "material"),
-        "roleCounts": _counter(model, "role"),
-        "moduleBlockCounts": _counter(model, "module"),
+        "schemaVersion": "0.13", "compilerVersion": "0.13-first-principles", "assetId": spec["assetId"],
+        "blockCount": len(model.cells), "layout": layout, "materialCounts": _counter(model, "material"),
+        "roleCounts": _counter(model, "role"), "moduleBlockCounts": _counter(model, "module"),
         "digestSha256": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
         "validation": {"passed": not issues, "issues": issues},
     }
