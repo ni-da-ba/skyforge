@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import gzip
-import io
 import re
 import struct
 from pathlib import Path
 from typing import Iterable
 
+from minecraft_adapter import MinecraftAdapter
 from model import BlockState, CompiledAsset, SpecError
 
 MINECRAFT_1_21_1_DATA_VERSION = 3955
@@ -76,7 +76,12 @@ def _block_state_payload(state: BlockState) -> bytes:
     return _compound_payload(tags)
 
 
-def _validate_state(state: BlockState) -> None:
+def _validate_state_syntax(state: BlockState) -> None:
+    """NBT/resource-location syntax only.
+
+    Minecraft semantic state validation belongs to minecraft_adapter.py. Keeping the distinction
+    explicit prevents the serializer from being mistaken for target-domain validation.
+    """
     if not _RESOURCE_RE.match(state.name):
         raise SpecError(f"invalid block resource location for Minecraft export: {state.name}")
     for key, value in state.properties:
@@ -92,10 +97,10 @@ def structure_filename(asset_id: str) -> str:
     return f"{leaf}.nbt"
 
 
-def encode_structure_nbt(
+def _encode_realized_structure(
     compiled: CompiledAsset,
     *,
-    data_version: int = MINECRAFT_1_21_1_DATA_VERSION,
+    data_version: int,
 ) -> bytes:
     if not compiled.summary.get("validation", {}).get("passed", False):
         raise SpecError("refusing Minecraft export for a compiler result that failed validation")
@@ -115,9 +120,8 @@ def encode_structure_nbt(
 
     states = sorted({cell.state for cell in compiled.model.cells.values()}, key=lambda s: s.canonical())
     for state in states:
-        _validate_state(state)
+        _validate_state_syntax(state)
     palette_index = {state: index for index, state in enumerate(states)}
-
     palette_payloads = [_block_state_payload(state) for state in states]
 
     block_payloads: list[bytes] = []
@@ -147,14 +151,33 @@ def encode_structure_nbt(
     return gzip.compress(raw, compresslevel=9, mtime=0)
 
 
+def encode_structure_nbt(
+    compiled: CompiledAsset,
+    *,
+    data_version: int = MINECRAFT_1_21_1_DATA_VERSION,
+    use_adapter: bool = False,
+) -> bytes:
+    target = compiled
+    if use_adapter:
+        target, _report = MinecraftAdapter().adapt(compiled)
+    return _encode_realized_structure(target, data_version=data_version)
+
+
 def write_structure_nbt(
     path: Path,
     compiled: CompiledAsset,
     *,
     data_version: int = MINECRAFT_1_21_1_DATA_VERSION,
-) -> None:
+    use_adapter: bool = False,
+) -> dict | None:
+    """Write a structure template and return the target-adapter report when enabled."""
+    target = compiled
+    report = None
+    if use_adapter:
+        target, report = MinecraftAdapter().adapt(compiled)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(encode_structure_nbt(compiled, data_version=data_version))
+    path.write_bytes(_encode_realized_structure(target, data_version=data_version))
+    return report
 
 
 def inspect_export_header(data: bytes) -> dict[str, int]:

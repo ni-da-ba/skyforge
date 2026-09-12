@@ -68,10 +68,23 @@ def main() -> int:
     emit_outputs(compiled, args.out)
     s = compiled.summary
     minecraft_path = None
+    minecraft_adapter_report = None
     if args.minecraft_structure:
         try:
             minecraft_path = args.out / structure_filename(s["assetId"])
-            write_structure_nbt(minecraft_path, compiled)
+            # v0.14 is the first architecture path required to cross the explicit Minecraft
+            # realization adapter. Historical specimens remain exportable as regression evidence.
+            use_adapter = str(s.get("compilerVersion")) == "0.14-first-principles-detail"
+            minecraft_adapter_report = write_structure_nbt(
+                minecraft_path,
+                compiled,
+                use_adapter=use_adapter,
+            )
+            if minecraft_adapter_report is not None:
+                (args.out / "minecraft_adapter.json").write_text(
+                    json.dumps(minecraft_adapter_report, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
         except (OSError, SpecError) as exc:
             raise SystemExit(f"asset compiler Minecraft export error: {exc}") from exc
 
@@ -84,6 +97,7 @@ def main() -> int:
         "digestSha256": s["digestSha256"],
         "output": str(args.out),
         "minecraftStructure": str(minecraft_path) if minecraft_path else None,
+        "minecraftAdapter": minecraft_adapter_report,
     }, indent=2))
     return 0 if s["validation"]["passed"] else 2
 
