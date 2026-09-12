@@ -57,7 +57,8 @@ def laplacian_detail_map(patch: SourcePatch, levels: int = 3) -> tuple[float, ..
     if not flat or max(flat) <= 1e-12:
         return tuple(0.0 for _ in flat)
     ordered = sorted(flat)
-    hi = ordered[min(len(ordered) - 1, max(0, int(round(0.95 * (len(ordered) - 1))))]
+    hi_index = min(len(ordered) - 1, max(0, int(round(0.95 * (len(ordered) - 1)))))
+    hi = ordered[hi_index]
     denom = max(hi, 1e-9)
     return tuple(min(1.0, v / denom) for v in flat)
 
