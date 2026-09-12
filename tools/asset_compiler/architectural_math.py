@@ -58,6 +58,17 @@ def normalized_square_error(value: float, target: float, minimum: float, maximum
     return ((value - target) / scale) ** 2
 
 
+def normalized_bound_violation(value: float, minimum: float, maximum: float) -> float:
+    """Squared distance outside an evidence envelope, normalized by envelope width."""
+
+    width = max(maximum - minimum, 1e-12)
+    if value < minimum:
+        return ((minimum - value) / width) ** 2
+    if value > maximum:
+        return ((value - maximum) / width) ** 2
+    return 0.0
+
+
 def ratio_in_bounds(value: float, profile: Mapping[str, float]) -> bool:
     return float(profile["min"]) <= value <= float(profile["max"])
 
