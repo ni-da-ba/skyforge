@@ -1,0 +1,494 @@
+name: SF-IMP-0071 packet catch-up integration
+
+on:
+  push:
+    branches:
+      - perf/524-packetize-catchup
+    paths:
+      - .github/workflows/sf-imp-0071-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/524-packetize-catchup
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Add persisted packet progress
+        shell: bash
+        run: |
+          cat > skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDeferredTerrainWriteProgressData.java <<'EOF'
+          package io.github.nidaba.skyforge.neoforge1211;
+
+          import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+          import java.util.ArrayList;
+          import java.util.Comparator;
+          import java.util.HashMap;
+          import java.util.List;
+          import java.util.Map;
+          import java.util.Objects;
+          import java.util.Optional;
+          import net.minecraft.core.HolderLookup;
+          import net.minecraft.nbt.CompoundTag;
+          import net.minecraft.nbt.Tag;
+          import net.minecraft.server.level.ServerLevel;
+          import net.minecraft.world.level.saveddata.SavedData;
+
+          /** Persistent per-level cursor ledger for deferred physical-volume terrain packets. */
+          final class SkyforgeDeferredTerrainWriteProgressData extends SavedData {
+              private static final String DATA_NAME = "skyforge_deferred_terrain_write_progress";
+              private static final Factory<SkyforgeDeferredTerrainWriteProgressData> FACTORY = new Factory<>(
+                      SkyforgeDeferredTerrainWriteProgressData::new,
+                      SkyforgeDeferredTerrainWriteProgressData::load);
+
+              private final Map<Key, Progress> progressByObligation = new HashMap<>();
+
+              static SkyforgeDeferredTerrainWriteProgressData get(ServerLevel level) {
+                  Objects.requireNonNull(level, "level");
+                  return level.getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+              }
+
+              Optional<Progress> find(SkyIslandWorldVolumeId volumeId, long chunkKey) {
+                  Objects.requireNonNull(volumeId, "volumeId");
+                  return Optional.ofNullable(progressByObligation.get(new Key(volumeId, chunkKey)));
+              }
+
+              Progress getOrCreate(
+                      SkyIslandWorldVolumeId volumeId,
+                      long chunkKey,
+                      int expectedSolidBlocks) {
+                  Objects.requireNonNull(volumeId, "volumeId");
+                  if (expectedSolidBlocks < 0) {
+                      throw new IllegalArgumentException("expectedSolidBlocks must be nonnegative");
+                  }
+                  Key key = new Key(volumeId, chunkKey);
+                  Progress existing = progressByObligation.get(key);
+                  if (existing != null) {
+                      if (existing.expectedSolidBlocks() != expectedSolidBlocks) {
+                          throw new IllegalStateException(
+                                  "deferred terrain materialization solid count changed for persisted obligation "
+                                          + volumeId.path());
+                      }
+                      return existing;
+                  }
+                  Progress created = new Progress(
+                          volumeId,
+                          chunkKey,
+                          0,
+                          0,
+                          0,
+                          expectedSolidBlocks,
+                          false);
+                  progressByObligation.put(key, created);
+                  setDirty();
+                  return created;
+              }
+
+              void store(Progress progress) {
+                  Objects.requireNonNull(progress, "progress");
+                  progressByObligation.put(new Key(progress.volumeId(), progress.chunkKey()), progress);
+                  setDirty();
+              }
+
+              static SkyforgeDeferredTerrainWriteProgressData load(
+                      CompoundTag tag,
+                      HolderLookup.Provider registries) {
+                  Objects.requireNonNull(tag, "tag");
+                  SkyforgeDeferredTerrainWriteProgressData data = new SkyforgeDeferredTerrainWriteProgressData();
+                  int count = tag.getInt("count");
+                  if (count < 0) {
+                      throw new IllegalStateException("negative deferred terrain progress count");
+                  }
+                  for (int index = 0; index < count; index++) {
+                      String key = "entry_" + index;
+                      if (!tag.contains(key, Tag.TAG_COMPOUND)) {
+                          throw new IllegalStateException("missing deferred terrain progress entry " + index);
+                      }
+                      CompoundTag entry = tag.getCompound(key);
+                      SkyIslandWorldVolumeId volumeId = new SkyIslandWorldVolumeId(
+                              entry.getLong("archipelagoRootSeed"),
+                              entry.getString("groupIdentifier"),
+                              entry.getInt("groupOrdinal"),
+                              entry.getInt("memberOrdinal"),
+                              entry.getLong("geometrySeed"));
+                      Progress progress = new Progress(
+                              volumeId,
+                              entry.getLong("chunkKey"),
+                              entry.getInt("nextLinearIndex"),
+                              entry.getInt("cumulativeAssignedSolidWrites"),
+                              entry.getInt("cumulativeSolidWrites"),
+                              entry.getInt("expectedSolidBlocks"),
+                              entry.getBoolean("terminal"));
+                      Key progressKey = new Key(volumeId, progress.chunkKey());
+                      if (data.progressByObligation.put(progressKey, progress) != null) {
+                          throw new IllegalStateException("duplicate deferred terrain progress obligation");
+                      }
+                  }
+                  return data;
+              }
+
+              @Override
+              public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+                  Objects.requireNonNull(tag, "tag");
+                  List<Progress> ordered = new ArrayList<>(progressByObligation.values());
+                  ordered.sort(Comparator
+                          .comparing((Progress progress) -> progress.volumeId().path())
+                          .thenComparingLong(Progress::chunkKey));
+                  tag.putInt("count", ordered.size());
+                  for (int index = 0; index < ordered.size(); index++) {
+                      Progress progress = ordered.get(index);
+                      CompoundTag entry = new CompoundTag();
+                      SkyIslandWorldVolumeId volumeId = progress.volumeId();
+                      entry.putLong("archipelagoRootSeed", volumeId.archipelagoRootSeed());
+                      entry.putString("groupIdentifier", volumeId.groupIdentifier());
+                      entry.putInt("groupOrdinal", volumeId.groupOrdinal());
+                      entry.putInt("memberOrdinal", volumeId.memberOrdinal());
+                      entry.putLong("geometrySeed", volumeId.geometrySeed());
+                      entry.putLong("chunkKey", progress.chunkKey());
+                      entry.putInt("nextLinearIndex", progress.nextLinearIndex());
+                      entry.putInt("cumulativeAssignedSolidWrites", progress.cumulativeAssignedSolidWrites());
+                      entry.putInt("cumulativeSolidWrites", progress.cumulativeSolidWrites());
+                      entry.putInt("expectedSolidBlocks", progress.expectedSolidBlocks());
+                      entry.putBoolean("terminal", progress.terminal());
+                      tag.put("entry_" + index, entry);
+                  }
+                  return tag;
+              }
+
+              private record Key(SkyIslandWorldVolumeId volumeId, long chunkKey) {
+                  Key {
+                      Objects.requireNonNull(volumeId, "volumeId");
+                  }
+              }
+
+              record Progress(
+                      SkyIslandWorldVolumeId volumeId,
+                      long chunkKey,
+                      int nextLinearIndex,
+                      int cumulativeAssignedSolidWrites,
+                      int cumulativeSolidWrites,
+                      int expectedSolidBlocks,
+                      boolean terminal) {
+                  Progress {
+                      Objects.requireNonNull(volumeId, "volumeId");
+                      if (nextLinearIndex < 0
+                              || cumulativeAssignedSolidWrites < 0
+                              || cumulativeSolidWrites < 0
+                              || expectedSolidBlocks < 0
+                              || cumulativeSolidWrites > cumulativeAssignedSolidWrites
+                              || cumulativeAssignedSolidWrites > expectedSolidBlocks) {
+                          throw new IllegalArgumentException("invalid deferred terrain progress accounting");
+                      }
+                      if (terminal && cumulativeAssignedSolidWrites != expectedSolidBlocks) {
+                          throw new IllegalArgumentException("terminal deferred terrain progress must match expected solids");
+                      }
+                  }
+
+                  SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteCursor cursor() {
+                      return new SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteCursor(
+                              nextLinearIndex,
+                              cumulativeAssignedSolidWrites,
+                              cumulativeSolidWrites);
+                  }
+
+                  Progress advance(
+                          SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteAdvance advance,
+                          boolean terminal) {
+                      Objects.requireNonNull(advance, "advance");
+                      var cursor = advance.cursor();
+                      return new Progress(
+                              volumeId,
+                              chunkKey,
+                              cursor.nextLinearIndex(),
+                              cursor.cumulativeAssignedSolidWrites(),
+                              cursor.cumulativeSolidWrites(),
+                              expectedSolidBlocks,
+                              terminal);
+                  }
+              }
+          }
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          surface = Path('skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211SurfaceStage.java')
+          text = surface.read_text()
+          import_old = 'import net.minecraft.server.level.WorldGenRegion;\n'
+          import_new = 'import net.minecraft.server.level.ServerLevel;\nimport net.minecraft.server.level.WorldGenRegion;\n'
+          if 'import net.minecraft.server.level.ServerLevel;' not in text:
+              if import_old not in text:
+                  raise SystemExit('SurfaceStage import anchor missing')
+              text = text.replace(import_old, import_new, 1)
+
+          anchor = '    static int serviceOneCatchup(ChunkAccess chunk) {\n'
+          if anchor not in text:
+              raise SystemExit('SurfaceStage serviceOneCatchup anchor missing')
+          insertion = r'''    /**
+     * Advances at most one bounded deferred terrain packet for the canonical first eligible
+     * exact-volume obligation in this stable chunk.
+     *
+     * <p>Progress is persisted per level before terminal admission bookkeeping. A terminal tombstone
+     * can therefore reconcile a reintroduced pending obligation after save/reload without replaying
+     * already assigned solids.
+     */
+    static DeferredCatchupPacketResult serviceOneCatchupPacket(
+            ServerLevel level,
+            ChunkAccess chunk,
+            int maximumAssignedSolidWrites) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(chunk, "chunk");
+        if (maximumAssignedSolidWrites <= 0) {
+            throw new IllegalArgumentException("maximumAssignedSolidWrites must be positive");
+        }
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return new DeferredCatchupPacketResult(false, false, 0);
+        }
+        var progressData = SkyforgeDeferredTerrainWriteProgressData.get(level);
+        for (var pending : SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos())) {
+            return realizeDeferredPacket(
+                    binding,
+                    chunk,
+                    pending,
+                    progressData,
+                    maximumAssignedSolidWrites);
+        }
+        return new DeferredCatchupPacketResult(false, false, 0);
+    }
+
+    private static DeferredCatchupPacketResult realizeDeferredPacket(
+            RuntimeBinding binding,
+            ChunkAccess chunk,
+            SkyforgePhysicalVolumeAdmissionStage.PendingRealization pending,
+            SkyforgeDeferredTerrainWriteProgressData progressData,
+            int maximumAssignedSolidWrites) {
+        long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
+        WorldBounds volumeBounds = binding.adapter().volumeBounds(pending.volumeId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "deferred realization requires exact bound volume " + pending.volumeId().path()));
+        VerticalRange range = boundedVerticalRange(chunk, volumeBounds);
+        if (range.height() <= 0) {
+            throw new IllegalStateException(
+                    "deferred exact-volume realization has no vertical overlap with target chunk");
+        }
+        SkyforgeRuntimePerformanceMetrics.recordSample("terrain.deferredVerticalSamples", range.height());
+
+        long materializeStart = SkyforgeRuntimePerformanceMetrics.start();
+        MinecraftChunkMaterialization materialization = binding.adapter().materialize(
+                pending.volumeId(),
+                chunk.getPos(),
+                range.minimumY(),
+                range.height());
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.materialize", materializeStart);
+        if (binding.nativeSurfaceTopAdapter().isPresent()) {
+            MinecraftNativeSurfaceSnapshot snapshot = pending.nativeSurfaceSnapshot()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "native-surface-adapted deferred realization lost its pre-decoration snapshot"));
+            long adaptStart = SkyforgeRuntimePerformanceMetrics.start();
+            materialization = binding.nativeSurfaceTopAdapter().orElseThrow().adapt(snapshot, materialization);
+            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.adaptSurface", adaptStart);
+        }
+
+        var existing = progressData.find(pending.volumeId(), pending.chunkKey());
+        int expectedSolidBlocks;
+        if (existing.isPresent()) {
+            expectedSolidBlocks = existing.orElseThrow().expectedSolidBlocks();
+        } else {
+            long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
+            expectedSolidBlocks = materialization.solidBlockCount();
+            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.solidCount", solidCountStart);
+        }
+        var progress = progressData.getOrCreate(
+                pending.volumeId(),
+                pending.chunkKey(),
+                expectedSolidBlocks);
+        if (progress.terminal()) {
+            SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realizeDeferredPacket", performanceStart);
+            return new DeferredCatchupPacketResult(true, true, 0);
+        }
+
+        boolean exactAdmissionFastPath = SkyforgePhysicalVolumeAdmissionStage.canUseExactDeferredWriteFastPath(
+                pending,
+                chunk,
+                range.minimumY(),
+                range.height());
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.deferredExactAdmissionFastPath",
+                exactAdmissionFastPath ? 1L : 0L);
+
+        long writeStart = SkyforgeRuntimePerformanceMetrics.start();
+        var advance = binding.writer().writeDeferredSolidOverlayPacket(
+                chunk,
+                materialization,
+                progress.cursor(),
+                maximumAssignedSolidWrites,
+                !exactAdmissionFastPath);
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.writePacket", writeStart);
+
+        if (advance.complete()
+                && advance.cursor().cumulativeAssignedSolidWrites() != expectedSolidBlocks) {
+            throw new IllegalStateException(
+                    "completed deferred terrain packet count differs from authoritative solid count");
+        }
+        boolean terminal = advance.complete();
+        progressData.store(progress.advance(advance, terminal));
+        if (terminal) {
+            long completeStart = SkyforgeRuntimePerformanceMetrics.start();
+            SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.completeCatchup", completeStart);
+        }
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realizeDeferredPacket", performanceStart);
+        boolean worked = terminal || advance.assignedSolidWrites() > 0;
+        return new DeferredCatchupPacketResult(worked, terminal, advance.assignedSolidWrites());
+    }
+
+    record DeferredCatchupPacketResult(
+            boolean worked,
+            boolean completed,
+            int assignedSolidWrites) {
+        DeferredCatchupPacketResult {
+            if (assignedSolidWrites < 0) {
+                throw new IllegalArgumentException("assignedSolidWrites must be nonnegative");
+            }
+            if (completed && !worked) {
+                throw new IllegalArgumentException("completed packet must count as worked");
+            }
+        }
+    }
+
+'''
+          if 'serviceOneCatchupPacket(' not in text:
+              text = text.replace(anchor, insertion + anchor, 1)
+          surface.write_text(text)
+
+          service = Path('skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePhysicalVolumeCatchupService.java')
+          text = service.read_text()
+          const_anchor = '    static final int MAX_TERRAIN_CATCHUP_CHUNKS_PER_LEVEL_TICK = 64;\n'
+          if 'MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM' not in text:
+              if const_anchor not in text:
+                  raise SystemExit('CatchupService constant anchor missing')
+              text = text.replace(
+                  const_anchor,
+                  const_anchor + '    static final int MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM = 1024;\n',
+                  1)
+          old = '''            int completed;
+            var mutationLifecycle = SkyforgeDeferredChunkMutationLifecycle.open(level, chunk);
+            try {
+                completed = SkyforgeNeoForge1211SurfaceStage.serviceOneCatchup(chunk);
+            } finally {
+                mutationLifecycle.close();
+            }
+            if (completed <= 0) {
+                return false;
+            }
+            if (SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
+                SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
+            }
+            return true;
+'''
+          new = '''            SkyforgeNeoForge1211SurfaceStage.DeferredCatchupPacketResult packet;
+            var mutationLifecycle = SkyforgeDeferredChunkMutationLifecycle.open(level, chunk);
+            try {
+                packet = SkyforgeNeoForge1211SurfaceStage.serviceOneCatchupPacket(
+                        level,
+                        chunk,
+                        MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM);
+            } finally {
+                mutationLifecycle.close();
+            }
+            if (!packet.worked()) {
+                return false;
+            }
+            if (packet.assignedSolidWrites() > MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM) {
+                throw new IllegalStateException("deferred terrain packet exceeded scheduler write budget");
+            }
+            if (packet.completed()
+                    && SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
+                SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
+            }
+            return true;
+'''
+          if 'serviceOneCatchupPacket(' not in text:
+              if old not in text:
+                  raise SystemExit('CatchupService scheduler anchor missing')
+              text = text.replace(old, new, 1)
+          service.write_text(text)
+          PY
+
+          cat > skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDeferredTerrainWriteProgressDataTest.java <<'EOF'
+          package io.github.nidaba.skyforge.neoforge1211;
+
+          import static org.junit.jupiter.api.Assertions.assertEquals;
+          import static org.junit.jupiter.api.Assertions.assertFalse;
+          import static org.junit.jupiter.api.Assertions.assertTrue;
+
+          import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+          import net.minecraft.nbt.CompoundTag;
+          import org.junit.jupiter.api.Test;
+
+          final class SkyforgeDeferredTerrainWriteProgressDataTest {
+              @Test
+              void roundTripsPartialCursorAndTerminalStateDeterministically() {
+                  SkyIslandWorldVolumeId volumeId = new SkyIslandWorldVolumeId(17L, "test", 2, 3, 41L);
+                  long chunkKey = 123456789L;
+                  var data = new SkyforgeDeferredTerrainWriteProgressData();
+                  var initial = data.getOrCreate(volumeId, chunkKey, 2048);
+                  assertFalse(initial.terminal());
+
+                  var partialAdvance = new SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteAdvance(
+                          new SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteCursor(7000, 1024, 1024),
+                          1024,
+                          1024,
+                          false,
+                          false);
+                  data.store(initial.advance(partialAdvance, false));
+
+                  CompoundTag firstEncoding = data.save(new CompoundTag(), null);
+                  var reloaded = SkyforgeDeferredTerrainWriteProgressData.load(firstEncoding, null);
+                  var partial = reloaded.find(volumeId, chunkKey).orElseThrow();
+                  assertEquals(7000, partial.nextLinearIndex());
+                  assertEquals(1024, partial.cumulativeAssignedSolidWrites());
+                  assertEquals(2048, partial.expectedSolidBlocks());
+                  assertFalse(partial.terminal());
+
+                  var finalAdvance = new SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteAdvance(
+                          new SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteCursor(12000, 2048, 2048),
+                          1024,
+                          1024,
+                          true,
+                          false);
+                  reloaded.store(partial.advance(finalAdvance, true));
+                  CompoundTag secondEncoding = reloaded.save(new CompoundTag(), null);
+                  var terminal = SkyforgeDeferredTerrainWriteProgressData.load(secondEncoding, null)
+                          .find(volumeId, chunkKey)
+                          .orElseThrow();
+                  assertTrue(terminal.terminal());
+                  assertEquals(2048, terminal.cumulativeAssignedSolidWrites());
+                  assertEquals(2048, terminal.expectedSolidBlocks());
+              }
+          }
+          EOF
+      - name: Compile and run NeoForge tests
+        run: ./gradlew :skyforge-neoforge-1211:test --no-daemon
+      - name: Commit integrated implementation
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/sf-imp-0071-patch.yml
+          git add skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDeferredTerrainWriteProgressData.java \
+                  skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211SurfaceStage.java \
+                  skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePhysicalVolumeCatchupService.java \
+                  skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDeferredTerrainWriteProgressDataTest.java
+          git commit -m 'SF-IMP-0071: persist packetized terrain catch-up progress'
+          git push origin HEAD:perf/524-packetize-catchup
