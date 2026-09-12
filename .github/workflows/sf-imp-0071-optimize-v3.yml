@@ -1,4 +1,4 @@
-name: SF-IMP-0071 Optimize Packet Path V3
+name: SF-IMP-0071 Validate 256-Write Packet Target
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  optimize:
+  tune:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -24,33 +24,43 @@ jobs:
           distribution: temurin
           java-version: "25"
 
-      - name: Reuse the already-tested anchored patch
+      - name: Tune operational packet target from measured evidence
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import textwrap
-          workflow = Path('.github/workflows/sf-imp-0071-optimize-v2.yml').read_text()
-          start_marker = "          python3 - <<'PY'\n"
-          end_marker = "\n          PY\n\n      - name: Run focused tests and verifier compilation"
-          start = workflow.index(start_marker) + len(start_marker)
-          end = workflow.index(end_marker, start)
-          Path('/tmp/sf_imp_0071_patch.py').write_text(textwrap.dedent(workflow[start:end]))
-          PY
-          python3 /tmp/sf_imp_0071_patch.py
 
-      - name: Run focused tests and verifier compilation
+          path = Path('skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePhysicalVolumeCatchupService.java')
+          text = path.read_text()
+          old = '''    /**
+     * Evidence-tuned operating target. The initial 1024-write reference run reached a 26.1 ms
+     * outlier despite a 15.1 ms p99, so use half the contractual ceiling to leave deterministic
+     * headroom under the 16 ms packet target without weakening the 1024-write hard guard.
+     */
+    static final int TARGET_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM = 512;
+'''
+          new = '''    /**
+     * Evidence-tuned operating target. At 512 writes the 4-CPU profile cleared the 16 ms hard
+     * packet gate (14.37 ms max), while the constrained 2-CPU profile retained a 34.30 ms isolated
+     * wall-clock outlier despite a 7.32 ms p99. Use 256 writes to reduce deterministic packet work
+     * while retaining the issue #524 1024-write hard safety ceiling.
+     */
+    static final int TARGET_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM = 256;
+'''
+          if old not in text:
+              raise SystemExit('expected 512-write target block not found; refusing blind edit')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Run focused validation
         run: ./gradlew :skyforge-neoforge-1211:test :skyforge-neoforge-1211:compileJava --stacktrace --no-configuration-cache
 
-      - name: Commit only production, tests, and benchmark verifier
+      - name: Commit tuned production target
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDeferredTerrainWriteProgressData.java \
-                  skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/MinecraftChunkMaterialization.java \
-                  skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211ChunkWriter.java \
-                  skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211SurfaceStage.java \
-                  skyforge-neoforge-1211/build.gradle.kts
+          git add skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePhysicalVolumeCatchupService.java
           git diff --cached --check
-          git commit -m "SF-IMP-0071: cache and characterize packetized catch-up"
+          git commit -m "SF-IMP-0071: tune catch-up packet target to 256 writes"
           git push origin HEAD:perf/524-packetize-catchup
