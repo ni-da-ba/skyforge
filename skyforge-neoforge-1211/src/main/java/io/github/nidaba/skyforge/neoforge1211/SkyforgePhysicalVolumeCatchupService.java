@@ -32,7 +32,14 @@ final class SkyforgePhysicalVolumeCatchupService {
      * guard, but no tick can start more than the hard work cap.
      */
     static final int MAX_TERRAIN_CATCHUP_CHUNKS_PER_LEVEL_TICK = 64;
+    /** Issue #524 safety ceiling: no scheduler quantum may assign more than 1024 solid writes. */
     static final int MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM = 1024;
+    /**
+     * Evidence-tuned operating target. The initial 1024-write reference run reached a 26.1 ms
+     * outlier despite a 15.1 ms p99, so use half the contractual ceiling to leave deterministic
+     * headroom under the 16 ms packet target without weakening the 1024-write hard guard.
+     */
+    static final int TARGET_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM = 512;
     static final long TERRAIN_CATCHUP_TIME_BUDGET_NANOS = 8_000_000L;
     static final int MAX_COMPOSED_CAVE_QUANTA_PER_LEVEL_TICK = 128;
     static final long COMPOSED_CAVE_TIME_BUDGET_NANOS = 8_000_000L;
@@ -67,7 +74,7 @@ final class SkyforgePhysicalVolumeCatchupService {
                 packet = SkyforgeNeoForge1211SurfaceStage.serviceOneCatchupPacket(
                         level,
                         chunk,
-                        MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM);
+                        TARGET_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM);
             } finally {
                 mutationLifecycle.close();
             }
@@ -123,11 +130,43 @@ final class SkyforgePhysicalVolumeCatchupService {
     }
 
     /**
-     * Pure bounded-pump primitive retained package-visible for deterministic unit tests.
+     * Bounded deferred-terrain pump. The first chunk is always allowed so a single expensive
+     * materialization cannot starve progress; later chunks require remaining time budget.
+     */
+    static PumpResult pumpTerrainCatchupChunks(
+            BooleanSupplier serviceOneChunk,
+            LongSupplier nanoTime,
+            int maximumChunks,
+            long timeBudgetNanos) {
+        return pumpBoundedWork(serviceOneChunk, nanoTime, maximumChunks, timeBudgetNanos);
+    }
+
+    /**
+     * Services the first canonical pending cave chunk that can make progress without loading it.
      *
-     * <p>The first quantum is always allowed so a single slow non-preemptible operation cannot
-     * permanently starve progress. Subsequent quanta require both remaining work capacity and
-     * remaining elapsed-time budget.
+     * <p>Returning after one worked service call is intentional. The pump then refreshes
+     * {@link SkyforgeComposedCaveStage#pendingChunkKeys()} and restarts from the beginning, exactly
+     * matching the historical ordering across server ticks even when one obligation completes.
+     */
+    private static boolean serviceOneComposedCaveQuantum(ServerLevel level) {
+        var chunkSource = level.getChunkSource();
+        var generator = chunkSource.getGenerator();
+        for (long chunkKey : SkyforgeComposedCaveStage.pendingChunkKeys()) {
+            int chunkX = ChunkPos.getX(chunkKey);
+            int chunkZ = ChunkPos.getZ(chunkKey);
+            LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
+            if (chunk == null) {
+                continue;
+            }
+            if (SkyforgeComposedCaveStage.service(level, chunk, generator).worked()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Composed-cave bounded pump retained package-visible for deterministic unit tests.
      */
     static PumpResult pumpComposedCaveQuanta(
             BooleanSupplier serviceOneQuantum,
