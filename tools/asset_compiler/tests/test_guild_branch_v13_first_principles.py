@@ -10,7 +10,7 @@ import sys
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from guild_branch_first_principles import compile_guild_branch_first_principles
+from guild_branch_first_principles_final import compile_guild_branch_first_principles_final
 from minecraft_structure import encode_structure_nbt
 from render import emit_outputs
 
@@ -22,9 +22,12 @@ class GuildBranchFirstPrinciplesTests(unittest.TestCase):
     def _spec(self):
         return json.loads(SPEC.read_text(encoding="utf-8"))
 
+    def _compile(self):
+        return compile_guild_branch_first_principles_final(self._spec())
+
     def test_v13_is_deterministic_valid_and_independent(self):
-        a = compile_guild_branch_first_principles(self._spec())
-        b = compile_guild_branch_first_principles(self._spec())
+        a = self._compile()
+        b = self._compile()
         self.assertTrue(a.summary["validation"]["passed"], a.summary["validation"]["issues"])
         self.assertEqual(a.summary["digestSha256"], b.summary["digestSha256"])
         self.assertEqual(a.summary["compilerVersion"], "0.13-first-principles")
@@ -39,7 +42,7 @@ class GuildBranchFirstPrinciplesTests(unittest.TestCase):
             self.assertNotIn(prior, source)
 
     def test_design_is_solved_from_program_and_candidate_domains(self):
-        compiled = compile_guild_branch_first_principles(self._spec())
+        compiled = self._compile()
         fp = compiled.summary["layout"]["firstPrinciples"]
         opt = fp["optimization"]
         self.assertGreater(opt["candidateCount"], 1000)
@@ -55,7 +58,7 @@ class GuildBranchFirstPrinciplesTests(unittest.TestCase):
         self.assertFalse(fp["referenceProfile"]["provenance"]["externalMasterBuilderMeasurement"])
 
     def test_facade_grammar_and_layers_are_authoritative(self):
-        compiled = compile_guild_branch_first_principles(self._spec())
+        compiled = self._compile()
         fp = compiled.summary["layout"]["firstPrinciples"]
         grammar = fp["facadeGrammar"]
         self.assertTrue(grammar["southWindowGroups"])
@@ -68,8 +71,9 @@ class GuildBranchFirstPrinciplesTests(unittest.TestCase):
         self.assertTrue(any(t.get("bay") == entrance_bay for t in interruptions))
 
     def test_space_graph_is_connected_and_service_is_visible(self):
-        compiled = compile_guild_branch_first_principles(self._spec())
+        compiled = self._compile()
         space = compiled.summary["layout"]["firstPrinciples"]["spaceGraph"]
+        self.assertEqual(space["domain"], "public_side_of_service_counter")
         self.assertEqual(space["entranceConnectedFraction"], 1.0)
         self.assertIsNotNone(space["entranceToServiceDistance"])
         self.assertLessEqual(space["entranceToServicePathStretch"], 1.25)
@@ -77,7 +81,7 @@ class GuildBranchFirstPrinciplesTests(unittest.TestCase):
         self.assertGreater(space["entranceVisibilityCount"], 0)
 
     def test_roof_field_and_structure_are_connected(self):
-        compiled = compile_guild_branch_first_principles(self._spec())
+        compiled = self._compile()
         fp = compiled.summary["layout"]["firstPrinciples"]
         roof = fp["roofFields"]
         self.assertEqual(roof["public"]["type"], "two_eave_wavefront")
@@ -90,7 +94,7 @@ class GuildBranchFirstPrinciplesTests(unittest.TestCase):
         self.assertEqual(structural["claim"], "structural_legibility_only_not_load_capacity")
 
     def test_semantic_program_produces_required_volumes_and_anchors(self):
-        compiled = compile_guild_branch_first_principles(self._spec())
+        compiled = self._compile()
         layout = compiled.summary["layout"]
         for name in ("publicHall", "administrative", "workingWing", "lightRepair", "warehouse"):
             self.assertIn(name, layout["volumes"])
@@ -99,7 +103,7 @@ class GuildBranchFirstPrinciplesTests(unittest.TestCase):
         self.assertEqual(layout["paletteReview"]["status"], "provisional")
 
     def test_v13_exports_minecraft_structure_and_full_qa(self):
-        compiled = compile_guild_branch_first_principles(self._spec())
+        compiled = self._compile()
         data = encode_structure_nbt(compiled)
         self.assertGreater(len(data), 100)
         with tempfile.TemporaryDirectory() as tmp:
