@@ -32,19 +32,19 @@ jobs:
           from pathlib import Path
           build = Path('skyforge-neoforge-1211/build.gradle.kts')
           text = build.read_text()
-          max_line = '        val packetWallMax = properties.getProperty("perf.terrain.deferred.packetWallNanos.max").toLong()\n'
-          target = '        val packetWallMaxTargetNanos =\n              System.getenv("SKYFORGE_SF_IMP_0071_PACKET_MAX_NANOS")\n                  ?.toLongOrNull()\n                  ?: 16_000_000L\n        check(packetWallMaxTargetNanos > 0L) {\n            "SF-IMP-0071 packet wall-time target must be positive: target=$packetWallMaxTargetNanos"\n        }\n'
-          if text.count(max_line) != 1:
+          needle = 'val packetWallMax = properties.getProperty("perf.terrain.deferred.packetWallNanos.max").toLong()'
+          if text.count(needle) != 1:
               raise SystemExit('packet-wall max seam changed')
-          text = text.replace(max_line, max_line + target, 1)
-          old_gate = '                && packetWallMax < 16_000_000L) {\n'
-          if text.count(old_gate) != 1:
+          target = '\nval packetWallMaxTargetNanos = System.getenv("SKYFORGE_SF_IMP_0071_PACKET_MAX_NANOS")?.toLongOrNull() ?: 16_000_000L\ncheck(packetWallMaxTargetNanos > 0L) { "SF-IMP-0071 packet wall-time target must be positive: target=$packetWallMaxTargetNanos" }'
+          text = text.replace(needle, needle + target, 1)
+          needle = 'packetWallMax < 16_000_000L'
+          if text.count(needle) != 1:
               raise SystemExit('packet-wall hard gate seam changed')
-          text = text.replace(old_gate, '                && packetWallMax < packetWallMaxTargetNanos) {\n', 1)
-          old_msg = '                  "p95=$packetWallP95, p99=$packetWallP99, max=$packetWallMax"\n'
-          if text.count(old_msg) != 1:
+          text = text.replace(needle, 'packetWallMax < packetWallMaxTargetNanos', 1)
+          needle = 'p95=$packetWallP95, p99=$packetWallP99, max=$packetWallMax'
+          if text.count(needle) != 1:
               raise SystemExit('packet-wall diagnostic seam changed')
-          text = text.replace(old_msg, '                  "p95=$packetWallP95, p99=$packetWallP99, max=$packetWallMax, target=$packetWallMaxTargetNanos"\n', 1)
+          text = text.replace(needle, needle + ', target=$packetWallMaxTargetNanos', 1)
           build.write_text(text)
           workflow = Path('.github/workflows/low-end-scalability.yml')
           text = workflow.read_text()
