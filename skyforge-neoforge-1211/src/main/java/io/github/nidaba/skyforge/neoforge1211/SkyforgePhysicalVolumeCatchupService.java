@@ -35,12 +35,12 @@ final class SkyforgePhysicalVolumeCatchupService {
     /** Issue #524 safety ceiling: no scheduler quantum may assign more than 1024 solid writes. */
     static final int MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM = 1024;
     /**
-     * Evidence-tuned operating target. At 512 writes the 4-CPU profile cleared the 16 ms hard
-     * packet gate (14.37 ms max), while the constrained 2-CPU profile retained a 34.30 ms isolated
-     * wall-clock outlier despite a 7.32 ms p99. Use 256 writes to reduce deterministic packet work
+     * Evidence-tuned operating target. At 256 writes, two independent ordinary 4-CPU runs retained
+     * low packet percentiles (p99 near 3.2 ms) but failed the issue #524 <16 ms max gate with
+     * 17.07 ms and 24.99 ms outliers. Use 128 writes to halve deterministic mutation work per packet
      * while retaining the issue #524 1024-write hard safety ceiling.
      */
-    static final int TARGET_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM = 256;
+    static final int TARGET_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM = 128;
     static final long TERRAIN_CATCHUP_TIME_BUDGET_NANOS = 8_000_000L;
     static final int MAX_COMPOSED_CAVE_QUANTA_PER_LEVEL_TICK = 128;
     static final long COMPOSED_CAVE_TIME_BUDGET_NANOS = 8_000_000L;
