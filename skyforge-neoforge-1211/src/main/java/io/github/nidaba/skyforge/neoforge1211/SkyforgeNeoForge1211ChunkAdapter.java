@@ -277,7 +277,15 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 && interpreter.classify(worldX, worldY, worldZ).isSolid();
     }
 
-    /** Returns whether any different exact compiled volume owns this solid sample. */
+    /**
+     * Returns whether any different exact compiled volume owns this solid sample.
+     *
+     * <p>The hot population path asks this question millions of times. Walking the catalog's
+     * immutable plan-order volumes directly avoids constructing a point {@link WorldBounds}, an
+     * {@code ArrayList}, and the immutable copy produced by {@link SkyIslandWorldCatalog#query}
+     * for every cache miss. Conservative bounds remain only a candidate filter; exact per-Y density
+     * classification remains authoritative and therefore preserves internal AIR exactly.
+     */
     boolean isSolidOwnedByOtherVolume(
             SkyIslandWorldVolumeId volumeId,
             int worldX,
@@ -285,13 +293,38 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             int worldZ) {
         Objects.requireNonNull(volumeId, "volumeId");
         if (interpretersByVolumeId.size() <= 1) {
+            recordForeignOwnerCandidateEvidence(0L, 0L, 0L);
             return false;
         }
-        return catalog.query(pointBounds(worldX, worldY, worldZ)).stream()
-                .filter(candidate -> !candidate.id().equals(volumeId))
-                .anyMatch(candidate -> requireInterpreter(candidate.id())
-                        .classify(worldX, worldY, worldZ)
-                        .isSolid());
+
+        long candidatesInspected = 0L;
+        long boundsHits = 0L;
+        long densityClassifications = 0L;
+        for (var candidate : catalog.volumes()) {
+            if (candidate.id().equals(volumeId)) {
+                continue;
+            }
+            candidatesInspected++;
+            if (!candidate.bounds().contains(worldX, worldY, worldZ)) {
+                continue;
+            }
+            boundsHits++;
+            densityClassifications++;
+            if (requireInterpreter(candidate.id())
+                    .classify(worldX, worldY, worldZ)
+                    .isSolid()) {
+                recordForeignOwnerCandidateEvidence(
+                        candidatesInspected,
+                        boundsHits,
+                        densityClassifications);
+                return true;
+            }
+        }
+        recordForeignOwnerCandidateEvidence(
+                candidatesInspected,
+                boundsHits,
+                densityClassifications);
+        return false;
     }
 
     /**
@@ -311,27 +344,65 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             throw new IllegalArgumentException("height must be positive");
         }
         SkyIslandTerrainInterpreter interpreter = requireInterpreter(volumeId);
-        WorldBounds volumeBounds = requireBounds(volumeId);
-
-        int requestedMaximumYExclusive = Math.addExact(minimumY, height);
-        int boundedMinimumY = Math.max(minimumY, floorToInt(volumeBounds.minimumY()));
-        long volumeMaximumYExclusive = Math.addExact((long) floorToInt(volumeBounds.maximumY()), 1L);
-        int boundedMaximumYExclusive = (int) Math.min(
-                (long) requestedMaximumYExclusive,
-                volumeMaximumYExclusive);
-        if (boundedMaximumYExclusive <= boundedMinimumY) {
+        Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> range =
+                SkyforgeExactVoxelSupportBounds.integerSolidRange(interpreter, worldX, worldZ);
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.firstFreeHeightExactSupportQueries",
+                1L);
+        if (range.isEmpty()) {
+            SkyforgeRuntimePerformanceMetrics.recordSample(
+                    "terrain.firstFreeHeightSupportIntervalSamples",
+                    0L);
             return OptionalInt.empty();
         }
 
+        var solidRange = range.orElseThrow();
+        int maximumYExclusive = Math.addExact(minimumY, height);
+        int intersectionMinimumY = Math.max(minimumY, solidRange.minimumY());
+        int intersectionMaximumYInclusive = (int) Math.min(
+                (long) solidRange.maximumY(),
+                (long) maximumYExclusive - 1L);
+        long supportIntervalSamples = intersectionMaximumYInclusive < intersectionMinimumY
+                ? 0L
+                : (long) intersectionMaximumYInclusive - intersectionMinimumY + 1L;
         SkyforgeRuntimePerformanceMetrics.recordSample(
-                "terrain.firstFreeHeightVerticalSamples",
-                boundedMaximumYExclusive - boundedMinimumY);
-        for (int worldY = boundedMaximumYExclusive - 1; worldY >= boundedMinimumY; worldY--) {
-            if (interpreter.classify(worldX, worldY, worldZ).isSolid()) {
-                return OptionalInt.of(worldY + 1);
+                "terrain.firstFreeHeightSupportIntervalSamples",
+                supportIntervalSamples);
+        if (intersectionMaximumYInclusive < intersectionMinimumY) {
+            return OptionalInt.empty();
+        }
+        if (solidRange.maximumY() < maximumYExclusive) {
+            return OptionalInt.of(Math.addExact(solidRange.maximumY(), 1));
+        }
+
+        SkyIslandTerrainInterpreter.ColumnInterpreter column = interpreter.column(worldX, worldZ);
+        for (int worldY = intersectionMaximumYInclusive; worldY >= intersectionMinimumY; worldY--) {
+            SkyforgeRuntimePerformanceMetrics.recordSample(
+                    "terrain.firstFreeHeightFallbackClassifications",
+                    1L);
+            if (column.classify(worldY).isSolid()) {
+                return OptionalInt.of(Math.addExact(worldY, 1));
             }
         }
         return OptionalInt.empty();
+    }
+
+    private static void recordForeignOwnerCandidateEvidence(
+            long candidatesInspected,
+            long boundsHits,
+            long densityClassifications) {
+        if (!SkyforgeRuntimePerformanceMetrics.enabled()) {
+            return;
+        }
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.foreignOwner.candidatesInspected",
+                candidatesInspected);
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.foreignOwner.boundsHits",
+                boundsHits);
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.foreignOwner.densityClassifications",
+                densityClassifications);
     }
 
     private WorldBounds requireBounds(SkyIslandWorldVolumeId volumeId) {
