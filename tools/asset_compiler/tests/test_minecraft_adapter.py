@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import sys
 import unittest
@@ -11,6 +12,7 @@ if str(ROOT) not in sys.path:
 
 from guild_branch_first_principles_detail import compile_guild_branch_first_principles_detail
 from minecraft_adapter import BlockIntent, MinecraftAdapter
+from minecraft_guild_profile import guild_v014_adapter, guild_v014_intent
 from model import BlockState, Cell, CompiledAsset, SpecError, VoxelModel
 
 SPEC = ROOT / "specimens" / "bootstrap_guild_branch_v0.14_first_principles_detail.json"
@@ -58,14 +60,8 @@ class MinecraftAdapterTests(unittest.TestCase):
     def test_stair_corner_shape_is_derived_from_neighbor_geometry(self):
         adapter = MinecraftAdapter()
         model = VoxelModel()
-        model.set(
-            0, 0, 0, "roof",
-            BlockState.of("minecraft:deepslate_tile_stairs", facing="north", half="bottom"),
-        )
-        model.set(
-            0, 0, -1, "roof",
-            BlockState.of("minecraft:deepslate_tile_stairs", facing="west", half="bottom"),
-        )
+        model.set(0, 0, 0, "roof", BlockState.of("minecraft:deepslate_tile_stairs", facing="north", half="bottom"))
+        model.set(0, 0, -1, "roof", BlockState.of("minecraft:deepslate_tile_stairs", facing="west", half="bottom"))
         compiled = CompiledAsset(
             {"validation": {"passed": True}, "layout": {"bounds": {"min": [0, 0, -1], "max": [0, 0, 0], "size": [1, 1, 2]}}},
             model,
@@ -90,7 +86,6 @@ class MinecraftAdapterTests(unittest.TestCase):
     def test_hanging_lantern_requires_actual_support_face(self):
         adapter = MinecraftAdapter()
         model = VoxelModel()
-        # A top slab has no sturdy downward face at the block boundary in this target model.
         model.set(0, 1, 0, "structural_frame", BlockState.of("minecraft:dark_oak_slab", type="top"))
         model.set(0, 0, 0, "lighting", BlockState.of("minecraft:lantern", hanging=True))
         compiled = CompiledAsset(
@@ -109,10 +104,43 @@ class MinecraftAdapterTests(unittest.TestCase):
         self.assertEqual(resolved.name, "minecraft:dark_oak_log")
         self.assertEqual(resolved.property_dict()["axis"], "x")
 
+    def test_guild_profile_ignores_concrete_resource_name(self):
+        cell = Cell(
+            "structural_frame",
+            BlockState.of("ignored:architecture_preview_only", axis="x"),
+            "fp_public_tie_beam",
+        )
+        intent = guild_v014_intent(cell)
+        state = MinecraftAdapter().resolve_intent(intent)
+        self.assertEqual(state.name, "minecraft:dark_oak_log")
+        self.assertEqual(state.property_dict()["axis"], "x")
+
+    def test_full_v014_can_lower_after_every_source_resource_name_is_erased(self):
+        spec = json.loads(SPEC.read_text(encoding="utf-8"))
+        compiled = compile_guild_branch_first_principles_detail(copy.deepcopy(spec))
+        stripped = VoxelModel()
+        for pos, cell in compiled.model.cells.items():
+            stripped.set(
+                pos[0], pos[1], pos[2],
+                cell.role,
+                BlockState("ignored:architecture_preview_only", cell.state.properties),
+                cell.module,
+            )
+        intent_asset = CompiledAsset(compiled.summary, stripped)
+        realized, report = guild_v014_adapter().adapt(intent_asset)
+        self.assertTrue(report["passed"], report["issues"])
+        self.assertEqual(len(realized.model.cells), len(stripped.cells))
+        self.assertFalse(report["semanticReResolution"]["sourceConcreteNamesReadForIntent"])
+        self.assertEqual(
+            report["semanticReResolution"]["intentProfile"],
+            "guild-v0.14-semantic-material-profile",
+        )
+        self.assertEqual(report["semanticReResolution"]["concreteNameChanges"], len(stripped.cells))
+
     def test_v014_palette_states_support_and_door_pairs_pass_adapter(self):
         spec = json.loads(SPEC.read_text(encoding="utf-8"))
         compiled = compile_guild_branch_first_principles_detail(spec)
-        realized, report = MinecraftAdapter().adapt(compiled)
+        realized, report = guild_v014_adapter().adapt(compiled)
         self.assertTrue(report["passed"], report["issues"])
         self.assertEqual(len(realized.model.cells), len(compiled.model.cells))
         self.assertGreater(report["validatedDoorPairs"], 0)
@@ -121,8 +149,11 @@ class MinecraftAdapterTests(unittest.TestCase):
         self.assertGreater(report["shapeModel"]["partialCollisionBlockCount"], 0)
         self.assertEqual(report["semanticReResolution"]["concreteNameChanges"], 0)
         self.assertFalse(report["semanticReResolution"]["resolverUsedConcreteBlockNames"])
+        self.assertFalse(report["semanticReResolution"]["sourceConcreteNamesReadForIntent"])
         self.assertTrue(report["adapterIsExportAuthority"])
-        self.assertEqual(report["adapterVersion"], "minecraft-adapter-0.2")
+        self.assertEqual(report["adapterVersion"], "minecraft-adapter-0.3")
+        self.assertEqual(len(report["supportRepairs"]), 1)
+        self.assertEqual(report["supportRepairs"][0]["mode"], "promote_slab_to_double")
 
 
 if __name__ == "__main__":
