@@ -9,6 +9,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 /** Writes an accepted Skyforge materialization into one real Minecraft ChunkAccess. */
 public final class SkyforgeNeoForge1211ChunkWriter {
     private static final int CHUNK_WIDTH = 16;
+    private static final int CHUNK_AREA = CHUNK_WIDTH * CHUNK_WIDTH;
 
     private final MinecraftBlockStateResolver blockStateResolver;
 
@@ -71,6 +72,106 @@ public final class SkyforgeNeoForge1211ChunkWriter {
             MinecraftChunkMaterialization materialization) {
         validateOwnership(chunk, materialization);
         return writeInternal(chunk, materialization, true, false);
+    }
+
+    /**
+     * Advances one bounded deferred solid-overlay packet in the writer's historical Y -> Z -> X
+     * assignment order.
+     *
+     * <p>The packet budget counts assigned solid writes, not visited AIR cells. AIR is skipped while
+     * advancing the traversal cursor. When physical admission temporarily blocks a solid assignment,
+     * the cursor deliberately stops on that exact coordinate instead of advancing past it; a later
+     * quantum therefore retries the same authoritative solid after the competing admission decision
+     * becomes terminal.
+     */
+    DeferredSolidWriteAdvance writeDeferredSolidOverlayPacket(
+            ChunkAccess chunk,
+            MinecraftChunkMaterialization materialization,
+            DeferredSolidWriteCursor cursor,
+            int maximumAssignedSolidWrites,
+            boolean enforcePhysicalAdmission) {
+        validateOwnership(chunk, materialization);
+        Objects.requireNonNull(cursor, "cursor");
+        if (maximumAssignedSolidWrites <= 0) {
+            throw new IllegalArgumentException("deferred solid-write packet budget must be positive");
+        }
+
+        int totalCells = Math.multiplyExact(materialization.height(), CHUNK_AREA);
+        if (cursor.nextLinearIndex() < 0 || cursor.nextLinearIndex() > totalCells) {
+            throw new IllegalArgumentException("deferred solid-write cursor exceeds materialization bounds");
+        }
+        if (cursor.cumulativeAssignedSolidWrites() < 0 || cursor.cumulativeSolidWrites() < 0
+                || cursor.cumulativeSolidWrites() > cursor.cumulativeAssignedSolidWrites()) {
+            throw new IllegalArgumentException("invalid deferred solid-write cumulative accounting");
+        }
+        if (cursor.nextLinearIndex() == totalCells) {
+            return new DeferredSolidWriteAdvance(cursor, 0, 0, true, false);
+        }
+
+        int minimumX = materialization.chunkPos().getMinBlockX();
+        int minimumZ = materialization.chunkPos().getMinBlockZ();
+        int nextLinearIndex = cursor.nextLinearIndex();
+        int assignedThisPacket = 0;
+        int solidThisPacket = 0;
+        BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
+
+        while (nextLinearIndex < totalCells && assignedThisPacket < maximumAssignedSolidWrites) {
+            int localY = nextLinearIndex / CHUNK_AREA;
+            int withinLayer = nextLinearIndex % CHUNK_AREA;
+            int localZ = withinLayer / CHUNK_WIDTH;
+            int localX = withinLayer % CHUNK_WIDTH;
+            int worldY = Math.addExact(materialization.minimumY(), localY);
+            ResourceLocation key = materialization.blockKeyAt(localX, worldY, localZ);
+            if (SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
+                nextLinearIndex++;
+                continue;
+            }
+
+            int worldX = Math.addExact(minimumX, localX);
+            int worldZ = Math.addExact(minimumZ, localZ);
+            if (enforcePhysicalAdmission
+                    && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(worldX, worldY, worldZ)) {
+                DeferredSolidWriteCursor blockedCursor = new DeferredSolidWriteCursor(
+                        nextLinearIndex,
+                        Math.addExact(cursor.cumulativeAssignedSolidWrites(), assignedThisPacket),
+                        Math.addExact(cursor.cumulativeSolidWrites(), solidThisPacket));
+                return new DeferredSolidWriteAdvance(
+                        blockedCursor,
+                        assignedThisPacket,
+                        solidThisPacket,
+                        false,
+                        true);
+            }
+
+            BlockState state = blockStateResolver.resolve(key);
+            if (state.isAir()) {
+                throw new IllegalStateException(
+                        "resolved BlockState changed authoritative Skyforge occupancy for " + key);
+            }
+
+            blockPos.set(worldX, worldY, worldZ);
+            BlockState previousState = chunk.getBlockState(blockPos);
+            chunk.setBlockState(blockPos, state, false);
+            BlockState stored = chunk.getBlockState(blockPos);
+            if (!stored.equals(state)) {
+                throw new IllegalStateException("ChunkAccess did not retain the resolved BlockState");
+            }
+            SkyforgeDeferredChunkMutationLifecycle.afterWrite(chunk, blockPos, previousState, stored);
+            nextLinearIndex++;
+            assignedThisPacket++;
+            solidThisPacket++;
+        }
+
+        DeferredSolidWriteCursor nextCursor = new DeferredSolidWriteCursor(
+                nextLinearIndex,
+                Math.addExact(cursor.cumulativeAssignedSolidWrites(), assignedThisPacket),
+                Math.addExact(cursor.cumulativeSolidWrites(), solidThisPacket));
+        return new DeferredSolidWriteAdvance(
+                nextCursor,
+                assignedThisPacket,
+                solidThisPacket,
+                nextLinearIndex == totalCells,
+                false);
     }
 
     private MinecraftChunkWriteResult writeInternal(
@@ -145,6 +246,32 @@ public final class SkyforgeNeoForge1211ChunkWriter {
         if (materialization.minimumY() < chunk.getMinBuildHeight()
                 || maximumYExclusive > chunk.getMaxBuildHeight()) {
             throw new IllegalArgumentException("materialization vertical interval exceeds target ChunkAccess");
+        }
+    }
+
+    record DeferredSolidWriteCursor(
+            int nextLinearIndex,
+            int cumulativeAssignedSolidWrites,
+            int cumulativeSolidWrites) {
+        static DeferredSolidWriteCursor start() {
+            return new DeferredSolidWriteCursor(0, 0, 0);
+        }
+    }
+
+    record DeferredSolidWriteAdvance(
+            DeferredSolidWriteCursor cursor,
+            int assignedSolidWrites,
+            int solidWrites,
+            boolean complete,
+            boolean blocked) {
+        DeferredSolidWriteAdvance {
+            Objects.requireNonNull(cursor, "cursor");
+            if (assignedSolidWrites < 0 || solidWrites < 0 || solidWrites > assignedSolidWrites) {
+                throw new IllegalArgumentException("invalid deferred solid-write packet accounting");
+            }
+            if (complete && blocked) {
+                throw new IllegalArgumentException("completed deferred solid-write packet cannot be blocked");
+            }
         }
     }
 }
