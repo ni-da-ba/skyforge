@@ -311,7 +311,7 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
         }
 
         boolean executedAnyNow() {
-            return phases.stream().anyMatch(PhaseResult::executedAnyNow);
+            return phases.stream().anyMatch(PhaseResult::executedNow);
         }
     }
 }
