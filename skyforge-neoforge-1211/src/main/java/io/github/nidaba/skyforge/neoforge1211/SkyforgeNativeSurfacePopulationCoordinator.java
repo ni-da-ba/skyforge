@@ -139,6 +139,22 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
             exactSupportQueries++;
 
             var exactSupport = SkyforgeNeoForge1211SurfaceStage.integerSolidRange(volumeId, x, z);
+            long boundedVerticalSamples = 0L;
+            if (exactSupport.isPresent()) {
+                var range = exactSupport.orElseThrow();
+                int boundedMinimumY = Math.max(minimumY, range.minimumY());
+                int boundedMaximumY = Math.min(maximumYExclusive - 1, range.maximumY());
+                if (boundedMaximumY >= boundedMinimumY) {
+                    boundedVerticalSamples = (long) boundedMaximumY - boundedMinimumY + 1L;
+                }
+            }
+            // Preserve SF-IMP-0076's bounded-height evidence without restoring its old downward
+            // classification scan. The sample is now the logical exact-support Y interval considered
+            // by this query; zero denotes a proven-empty/disjoint column.
+            SkyforgeRuntimePerformanceMetrics.recordSample(
+                    "terrain.firstFreeHeightVerticalSamples",
+                    boundedVerticalSamples);
+
             if (exactSupport.isEmpty()) {
                 continue;
             }
@@ -295,7 +311,7 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
         }
 
         boolean executedAnyNow() {
-            return phases.stream().anyMatch(PhaseResult::executedNow);
+            return phases.stream().anyMatch(PhaseResult::executedAnyNow);
         }
     }
 }
