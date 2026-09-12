@@ -1,4 +1,5 @@
 import importlib.util
+import os
 import pathlib
 import subprocess
 import sys
@@ -12,6 +13,8 @@ assert SPEC and SPEC.loader
 deps = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = deps
 SPEC.loader.exec_module(deps)
+
+import hosted_jdk
 
 
 class RuntimeDependencySyncTests(unittest.TestCase):
@@ -79,6 +82,45 @@ class RuntimeDependencySyncTests(unittest.TestCase):
                     deps.sync_runtime_dependencies(root)
 
             self.assertFalse(fingerprint.exists())
+
+    def test_hosted_clone_provisions_jdk_without_rerunning_pip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(pathlib.Path(tmp))
+            state = root / ".skyforge-orchestrator"
+            state.mkdir()
+            req = root / "scripts" / "orchestrator" / "requirements.txt"
+            (state / "requirements.sha256").write_text(
+                deps.requirements_fingerprint(req) + "\n"
+            )
+
+            with (
+                mock.patch.dict(os.environ, {"SKYFORGE_ORCHESTRATOR_DEDICATED_CLONE": "1"}),
+                mock.patch.object(deps.subprocess, "run") as run,
+                mock.patch.object(deps, "ensure_hosted_jdk", return_value=True) as ensure,
+            ):
+                changed = deps.sync_runtime_dependencies(root)
+
+            self.assertTrue(changed)
+            run.assert_not_called()
+            ensure.assert_called_once_with(root)
+
+    def test_worker_worktree_uses_shared_controller_toolchain(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = pathlib.Path(tmp)
+            root = self.make_root(base)
+            common_git = root / ".git"
+            worker_git = common_git / "worktrees" / "worker"
+            worker_git.mkdir(parents=True)
+            (worker_git / "commondir").write_text("../..\n")
+
+            worktree = base / "worker"
+            worktree.mkdir()
+            (worktree / ".git").write_text(f"gitdir: {worker_git}\n")
+
+            self.assertEqual(
+                hosted_jdk.java_home(worktree),
+                root / ".skyforge-orchestrator" / "toolchains" / hosted_jdk.TOOLCHAIN_ID,
+            )
 
 
 if __name__ == "__main__":
