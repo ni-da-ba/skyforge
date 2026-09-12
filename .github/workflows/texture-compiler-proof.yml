@@ -1,0 +1,56 @@
+name: Texture compiler proof
+
+on:
+  pull_request:
+    paths:
+      - 'tools/texture_compiler/**'
+      - 'docs/design-audit/texture-compiler-mathematical-foundation-v0.1.md'
+      - '.github/workflows/texture-compiler-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run texture compiler tests
+        run: python -m unittest discover -s tools/texture_compiler/tests -v
+
+      - name: Compile Guild clerk skin proof
+        run: >-
+          python tools/texture_compiler/compile.py
+          tools/texture_compiler/specimens/guild_clerk_skin_v0.1.json
+          --out build/texture-compiler-guild-clerk
+
+      - name: Compile generic atlas proof
+        run: >-
+          python tools/texture_compiler/compile.py
+          tools/texture_compiler/specimens/generic_patch_v0.1.json
+          --out build/texture-compiler-generic
+
+      - name: Upload Guild clerk human-gate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: texture-compiler-guild-clerk-v01
+          path: build/texture-compiler-guild-clerk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload generic proof artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: texture-compiler-generic-v01
+          path: build/texture-compiler-generic
+          if-no-files-found: error
+          retention-days: 14

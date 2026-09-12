@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "0.1",
+  "assetId": "skyforge.texture.guild_clerk.temperate.v0_1",
+  "target": {"kind": "minecraft_skin_classic"},
+  "creativeSource": "semantic Guild clerk proof: temperate regional Guild, public-facing clerk, deep navy coat, aged brass details",
+  "sourceScale": 2,
+  "style": {"colors": {"skin": "#c9906e", "skinShadow": "#9e654f", "hair": "#3c2a24", "hairHighlight": "#64463a", "eye": "#54766b", "brow": "#2b201c", "mouth": "#8a4f4c", "coat": "#26364f", "coatShadow": "#182437", "shirt": "#d8cfb7", "brass": "#b08b4f", "trouser": "#30343b", "boot": "#19191b"}},
+  "optimization": {"maxColors": 12, "smoothness": 0.9, "contrastBeta": 0.012, "lockedColors": ["#26364f", "#b08b4f"]}
+}
