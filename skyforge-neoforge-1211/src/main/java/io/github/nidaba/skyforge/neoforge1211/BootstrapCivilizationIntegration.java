@@ -67,7 +67,12 @@ final class BootstrapCivilizationIntegration {
 
     SkyforgeCivilizationRuntimeState.ShipmentSnapshot deliver(
             SkyforgeCivilizationRuntimeState state, String cargoId) {
-        return Objects.requireNonNull(state, "state").deliver(opportunity.contractId(), cargoId);
+        state = Objects.requireNonNull(state, "state");
+        if (state.capability(settlements.guildConsumerSettlementId(), cargoTransferCapabilityId()).status()
+                != SkyforgeCivilizationRuntimeState.CapabilityStatus.OPERATIONAL) {
+            throw new IllegalStateException("Bootstrap Guild cargo transfer is not operational");
+        }
+        return state.deliver(opportunity.contractId(), cargoId);
     }
 
     /** Binds only the accepted Guild cargo interface, through one explicit tracked anchor. */
