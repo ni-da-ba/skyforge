@@ -26,17 +26,17 @@ jobs:
       - name: Run asset compiler tests
         run: python -m unittest discover -s tools/asset_compiler/tests -v
 
-      - name: Compile v0.11 Guild branch
+      - name: Compile v0.12 Guild branch
         run: >-
           python tools/asset_compiler/compile.py
-          tools/asset_compiler/specimens/bootstrap_guild_branch_v0.11.json
-          --out build/asset-compiler-v011
+          tools/asset_compiler/specimens/bootstrap_guild_branch_v0.12.json
+          --out build/asset-compiler-v012
           --minecraft-structure
 
-      - name: Upload v0.11 QA and structure artifact
+      - name: Upload v0.12 QA and structure artifact
         uses: actions/upload-artifact@v4
         with:
-          name: guild-branch-v011-qa
-          path: build/asset-compiler-v011
+          name: guild-branch-v012-qa
+          path: build/asset-compiler-v012
           if-no-files-found: error
           retention-days: 14
