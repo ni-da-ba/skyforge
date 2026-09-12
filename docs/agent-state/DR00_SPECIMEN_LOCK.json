@@ -27,7 +27,7 @@
     "island_key": 1471,
     "descriptor_schema_version": 1,
     "authorship_seed_unsigned": "389656995481184958",
-    "morphology_family": "basin",
+    "morphology_family": "massif",
     "provenance_ids": ["AUTH-0001", "AUTH-0030"]
   },
   "volume": {
@@ -44,10 +44,10 @@
       "center_x": 0.0,
       "center_z": 0.0,
       "suspension_y": 220.0,
-      "nominal_radius": 421.89699573301397,
+      "nominal_radius": 96.23348220259993,
       "upper_elevation": 58.0,
       "underside_depth": 82.0,
-      "coastal_falloff": 54.0,
+      "coastal_falloff": 17.322026796467988,
       "ridge_azimuth": 0.0,
       "ridge_strength": 0.24,
       "underside_taper": 0.62,
@@ -55,15 +55,15 @@
       "detail_amplitude": 0.1,
       "detail_scale": 28.0,
       "secondary_morphology_amplitude": 0.18,
-      "morphology_family": "basin"
+      "morphology_family": "massif"
     },
     "production_region_bounds": {
-      "minimum_x": -455.64875539165513,
-      "maximum_x": 455.64875539165513,
+      "minimum_x": -103.93216077880793,
+      "maximum_x": 103.93216077880793,
       "minimum_y": 110.0,
       "maximum_y": 300.0,
-      "minimum_z": -455.64875539165513,
-      "maximum_z": 455.64875539165513
+      "minimum_z": -103.93216077880793,
+      "maximum_z": 103.93216077880793
     },
     "implementation_provenance_ids": ["SF-IMP-0068", "SF-IMP-0082"]
   },
