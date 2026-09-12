@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synchronize pinned hosted-orchestrator Python dependencies only when requirements change."""
+"""Synchronize pinned hosted-orchestrator dependencies and hosted worker toolchains."""
 
 from __future__ import annotations
 
@@ -9,6 +9,12 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from hosted_jdk import ensure_hosted_jdk
 
 STATE_DIR = ".skyforge-orchestrator"
 FINGERPRINT_FILE = "requirements.sha256"
@@ -28,30 +34,39 @@ def sync_runtime_dependencies(root: Path) -> bool:
     fingerprint_path = state_dir / FINGERPRINT_FILE
     current = requirements_fingerprint(requirements)
     previous = fingerprint_path.read_text().strip() if fingerprint_path.exists() else ""
+    changed = False
+
     if previous == current:
         print("[orchestrator-deps] requirements fingerprint unchanged")
-        return False
+    else:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--disable-pip-version-check",
+                "-r",
+                str(requirements),
+            ],
+            cwd=root,
+            check=True,
+            timeout=600,
+        )
 
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "--disable-pip-version-check",
-            "-r",
-            str(requirements),
-        ],
-        cwd=root,
-        check=True,
-        timeout=600,
-    )
+        tmp = fingerprint_path.with_name(fingerprint_path.name + ".tmp")
+        tmp.write_text(current + "\n")
+        os.replace(tmp, fingerprint_path)
+        print(f"[orchestrator-deps] synchronized requirements {current[:12]}")
+        changed = True
 
-    tmp = fingerprint_path.with_name(fingerprint_path.name + ".tmp")
-    tmp.write_text(current + "\n")
-    os.replace(tmp, fingerprint_path)
-    print(f"[orchestrator-deps] synchronized requirements {current[:12]}")
-    return True
+    # The hosted controller's bounded workers need the same Java 25 capability as repository CI.
+    # Provision it without root into ignored durable state. Local/non-hosted development keeps its
+    # existing developer-selected Java environment and never downloads this toolchain implicitly.
+    if os.environ.get("SKYFORGE_ORCHESTRATOR_DEDICATED_CLONE") == "1":
+        changed = ensure_hosted_jdk(root) or changed
+
+    return changed
 
 
 def main() -> int:
