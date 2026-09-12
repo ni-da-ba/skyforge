@@ -24,8 +24,8 @@ final class SkyforgeDr00SpecimenLockTest {
                 () -> assertEquals(identity, descriptor.identity()),
                 () -> assertEquals(regeneratedDescriptor, descriptor),
                 () -> assertEquals(389656995481184958L, descriptor.authorshipSeed()),
-                () -> assertEquals(SkyIslandMorphologyFamily.BASIN, descriptor.morphologyFamily()),
-                () -> assertEquals(421.89699573301397, descriptor.nominalRadius()),
+                () -> assertEquals(SkyIslandMorphologyFamily.MASSIF, descriptor.morphologyFamily()),
+                () -> assertEquals(96.23348220259993, descriptor.nominalRadius()),
                 () -> assertEquals(1, fixture.field().exposureGeometry().connectionCount()),
                 () -> assertEquals(0x534B59464F524745L, volume.id().archipelagoRootSeed()),
                 () -> assertEquals("sf-imp-0068-production-composed-cave", volume.id().groupIdentifier()),
@@ -42,7 +42,7 @@ final class SkyforgeDr00SpecimenLockTest {
                 () -> assertEquals(220.0, physical.suspensionElevation()),
                 () -> assertEquals(58.0, physical.upperElevation()),
                 () -> assertEquals(82.0, physical.undersideDepth()),
-                () -> assertEquals(54.0, physical.coastalFalloff()),
+                () -> assertEquals(17.322026796467988, physical.coastalFalloff()),
                 () -> assertEquals(0.0, physical.ridgeAzimuth()),
                 () -> assertEquals(0.24, physical.ridgeStrength()),
                 () -> assertEquals(0.62, physical.undersideTaper()),
@@ -50,12 +50,12 @@ final class SkyforgeDr00SpecimenLockTest {
                 () -> assertEquals(0.10, physical.detailAmplitude()),
                 () -> assertEquals(28.0, physical.detailScale()),
                 () -> assertEquals(0.18, physical.secondaryMorphologyAmplitude()),
-                () -> assertEquals(SkyIslandMorphologyFamily.BASIN, physical.morphologyFamily()),
-                () -> assertEquals(-455.64875539165513, bounds.minimumX()),
-                () -> assertEquals(455.64875539165513, bounds.maximumX()),
+                () -> assertEquals(SkyIslandMorphologyFamily.MASSIF, physical.morphologyFamily()),
+                () -> assertEquals(-103.93216077880793, bounds.minimumX()),
+                () -> assertEquals(103.93216077880793, bounds.maximumX()),
                 () -> assertEquals(110.0, bounds.minimumY()),
                 () -> assertEquals(300.0, bounds.maximumY()),
-                () -> assertEquals(-455.64875539165513, bounds.minimumZ()),
-                () -> assertEquals(455.64875539165513, bounds.maximumZ()));
+                () -> assertEquals(-103.93216077880793, bounds.minimumZ()),
+                () -> assertEquals(103.93216077880793, bounds.maximumZ()));
     }
 }
