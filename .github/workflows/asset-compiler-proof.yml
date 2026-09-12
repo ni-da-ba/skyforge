@@ -26,11 +26,18 @@ jobs:
       - name: Run asset compiler tests
         run: python -m unittest discover -s tools/asset_compiler/tests -v
 
-      - name: Compile v0.12 Guild branch
+      - name: Compile v0.12 optimized Guild branch
         run: >-
           python tools/asset_compiler/compile.py
           tools/asset_compiler/specimens/bootstrap_guild_branch_v0.12.json
           --out build/asset-compiler-v012
+          --minecraft-structure
+
+      - name: Compile v0.13 first-principles Guild branch
+        run: >-
+          python tools/asset_compiler/compile.py
+          tools/asset_compiler/specimens/bootstrap_guild_branch_v0.13_first_principles.json
+          --out build/asset-compiler-v013-first-principles
           --minecraft-structure
 
       - name: Upload v0.12 QA and structure artifact
@@ -38,5 +45,13 @@ jobs:
         with:
           name: guild-branch-v012-qa
           path: build/asset-compiler-v012
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload v0.13 first-principles QA and structure artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guild-branch-v013-first-principles-qa
+          path: build/asset-compiler-v013-first-principles
           if-no-files-found: error
           retention-days: 14
