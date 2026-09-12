@@ -101,12 +101,16 @@ def structure_filename(asset_id: str) -> str:
     return f"{leaf}.nbt"
 
 
-def _adapter_for(compiled: CompiledAsset) -> MinecraftAdapter:
-    """Select target intent policy without coupling the NBT serializer to architecture."""
+def _realize_target(compiled: CompiledAsset) -> tuple[CompiledAsset, dict]:
+    """Cross the explicit architecture -> realization-intent -> Minecraft boundary."""
     if str(compiled.summary.get("compilerVersion", "")) == "0.14-first-principles-detail":
+        from guild_realization_intent import project_guild_v014_realization_ir
         from minecraft_guild_profile import guild_v014_adapter
-        return guild_v014_adapter()
-    return MinecraftAdapter()
+        from minecraft_target_lowering import realize_intent_model
+
+        intent_model = project_guild_v014_realization_ir(compiled)
+        return realize_intent_model(compiled.summary, intent_model, guild_v014_adapter())
+    return MinecraftAdapter().adapt(compiled)
 
 
 def _block_entity_payload_count(compiled: CompiledAsset) -> int:
@@ -180,7 +184,7 @@ def encode_structure_nbt(
 ) -> bytes:
     target = compiled
     if use_adapter:
-        target, report = _adapter_for(compiled).adapt(compiled)
+        target, report = _realize_target(compiled)
         _validate_block_entity_coverage(target, report)
     return _encode_realized_structure(target, data_version=data_version)
 
@@ -196,7 +200,7 @@ def write_structure_nbt(
     target = compiled
     report = None
     if use_adapter:
-        target, report = _adapter_for(compiled).adapt(compiled)
+        target, report = _realize_target(compiled)
         block_entity_nbt_count = _validate_block_entity_coverage(target, report)
         report = dict(report)
         report["blockEntityNbtCount"] = block_entity_nbt_count
