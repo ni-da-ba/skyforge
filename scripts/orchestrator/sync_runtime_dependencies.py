@@ -10,6 +10,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
 from hosted_jdk import ensure_hosted_jdk
 
 STATE_DIR = ".skyforge-orchestrator"
