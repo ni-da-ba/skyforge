@@ -1,5 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.util.Objects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -10,6 +12,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 public final class SkyforgeNeoForge1211ChunkWriter {
     private static final int CHUNK_WIDTH = 16;
     private static final int CHUNK_AREA = CHUNK_WIDTH * CHUNK_WIDTH;
+    private static final long SLOW_DEFERRED_PACKET_NANOS = 8_000_000L;
 
     private final MinecraftBlockStateResolver blockStateResolver;
 
@@ -85,101 +88,155 @@ public final class SkyforgeNeoForge1211ChunkWriter {
      * becomes terminal.
      */
     DeferredSolidWriteAdvance writeDeferredSolidOverlayPacket(
-        ChunkAccess chunk,
-        MinecraftChunkMaterialization materialization,
-        DeferredSolidWriteCursor cursor,
-        int maximumAssignedSolidWrites,
-        boolean enforcePhysicalAdmission) {
-    validateOwnership(chunk, materialization);
-    Objects.requireNonNull(cursor, "cursor");
-    if (maximumAssignedSolidWrites <= 0) {
-        throw new IllegalArgumentException("deferred solid-write packet budget must be positive");
-    }
-
-    int totalCells = Math.multiplyExact(materialization.height(), CHUNK_AREA);
-    if (cursor.nextLinearIndex() < 0 || cursor.nextLinearIndex() > totalCells) {
-        throw new IllegalArgumentException("deferred solid-write cursor exceeds materialization bounds");
-    }
-    if (cursor.cumulativeAssignedSolidWrites() < 0 || cursor.cumulativeSolidWrites() < 0
-            || cursor.cumulativeSolidWrites() > cursor.cumulativeAssignedSolidWrites()) {
-        throw new IllegalArgumentException("invalid deferred solid-write cumulative accounting");
-    }
-    if (cursor.nextLinearIndex() == totalCells) {
-        return new DeferredSolidWriteAdvance(cursor, 0, 0, true, false);
-    }
-
-    int minimumX = materialization.chunkPos().getMinBlockX();
-    int minimumZ = materialization.chunkPos().getMinBlockZ();
-    int nextLinearIndex = cursor.nextLinearIndex();
-    int localY = nextLinearIndex / CHUNK_AREA;
-    int withinLayer = nextLinearIndex % CHUNK_AREA;
-    int localZ = withinLayer / CHUNK_WIDTH;
-    int localX = withinLayer % CHUNK_WIDTH;
-    int assignedThisPacket = 0;
-    int solidThisPacket = 0;
-    BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
-
-    while (nextLinearIndex < totalCells && assignedThisPacket < maximumAssignedSolidWrites) {
-        int worldY = Math.addExact(materialization.minimumY(), localY);
-        ResourceLocation key = materialization.blockKeyAtLinearIndex(nextLinearIndex);
-        if (!SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
-            int worldX = Math.addExact(minimumX, localX);
-            int worldZ = Math.addExact(minimumZ, localZ);
-            if (enforcePhysicalAdmission
-                    && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(worldX, worldY, worldZ)) {
-                DeferredSolidWriteCursor blockedCursor = new DeferredSolidWriteCursor(
-                        nextLinearIndex,
-                        Math.addExact(cursor.cumulativeAssignedSolidWrites(), assignedThisPacket),
-                        Math.addExact(cursor.cumulativeSolidWrites(), solidThisPacket));
-                return new DeferredSolidWriteAdvance(
-                        blockedCursor,
-                        assignedThisPacket,
-                        solidThisPacket,
-                        false,
-                        true);
-            }
-
-            BlockState state = blockStateResolver.resolve(key);
-            if (state.isAir()) {
-                throw new IllegalStateException(
-                        "resolved BlockState changed authoritative Skyforge occupancy for " + key);
-            }
-
-            blockPos.set(worldX, worldY, worldZ);
-            BlockState previousState = chunk.getBlockState(blockPos);
-            chunk.setBlockState(blockPos, state, false);
-            BlockState stored = chunk.getBlockState(blockPos);
-            if (!stored.equals(state)) {
-                throw new IllegalStateException("ChunkAccess did not retain the resolved BlockState");
-            }
-            SkyforgeDeferredChunkMutationLifecycle.afterWrite(chunk, blockPos, previousState, stored);
-            assignedThisPacket++;
-            solidThisPacket++;
+            ChunkAccess chunk,
+            MinecraftChunkMaterialization materialization,
+            DeferredSolidWriteCursor cursor,
+            int maximumAssignedSolidWrites,
+            boolean enforcePhysicalAdmission) {
+        validateOwnership(chunk, materialization);
+        Objects.requireNonNull(cursor, "cursor");
+        if (maximumAssignedSolidWrites <= 0) {
+            throw new IllegalArgumentException("deferred solid-write packet budget must be positive");
         }
 
-        nextLinearIndex++;
-        localX++;
-        if (localX == CHUNK_WIDTH) {
-            localX = 0;
-            localZ++;
-            if (localZ == CHUNK_WIDTH) {
-                localZ = 0;
-                localY++;
+        boolean attributeTiming = SkyforgeRuntimePerformanceMetrics.enabled();
+        long packetWallStart = attributeTiming ? System.nanoTime() : 0L;
+        long packetCpuStart = attributeTiming ? currentThreadCpuTimeNanos() : -1L;
+
+        int totalCells = Math.multiplyExact(materialization.height(), CHUNK_AREA);
+        if (cursor.nextLinearIndex() < 0 || cursor.nextLinearIndex() > totalCells) {
+            throw new IllegalArgumentException("deferred solid-write cursor exceeds materialization bounds");
+        }
+        if (cursor.cumulativeAssignedSolidWrites() < 0 || cursor.cumulativeSolidWrites() < 0
+                || cursor.cumulativeSolidWrites() > cursor.cumulativeAssignedSolidWrites()) {
+            throw new IllegalArgumentException("invalid deferred solid-write cumulative accounting");
+        }
+        if (cursor.nextLinearIndex() == totalCells) {
+            DeferredSolidWriteAdvance result = new DeferredSolidWriteAdvance(cursor, 0, 0, true, false);
+            recordDeferredPacketTiming(attributeTiming, packetWallStart, packetCpuStart);
+            return result;
+        }
+
+        int minimumX = materialization.chunkPos().getMinBlockX();
+        int minimumZ = materialization.chunkPos().getMinBlockZ();
+        int nextLinearIndex = cursor.nextLinearIndex();
+        int localY = nextLinearIndex / CHUNK_AREA;
+        int withinLayer = nextLinearIndex % CHUNK_AREA;
+        int localZ = withinLayer / CHUNK_WIDTH;
+        int localX = withinLayer % CHUNK_WIDTH;
+        int assignedThisPacket = 0;
+        int solidThisPacket = 0;
+        BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
+
+        while (nextLinearIndex < totalCells && assignedThisPacket < maximumAssignedSolidWrites) {
+            int worldY = Math.addExact(materialization.minimumY(), localY);
+            ResourceLocation key = materialization.blockKeyAtLinearIndex(nextLinearIndex);
+            if (!SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
+                int worldX = Math.addExact(minimumX, localX);
+                int worldZ = Math.addExact(minimumZ, localZ);
+                if (enforcePhysicalAdmission
+                        && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(worldX, worldY, worldZ)) {
+                    DeferredSolidWriteCursor blockedCursor = new DeferredSolidWriteCursor(
+                            nextLinearIndex,
+                            Math.addExact(cursor.cumulativeAssignedSolidWrites(), assignedThisPacket),
+                            Math.addExact(cursor.cumulativeSolidWrites(), solidThisPacket));
+                    DeferredSolidWriteAdvance result = new DeferredSolidWriteAdvance(
+                            blockedCursor,
+                            assignedThisPacket,
+                            solidThisPacket,
+                            false,
+                            true);
+                    recordDeferredPacketTiming(attributeTiming, packetWallStart, packetCpuStart);
+                    return result;
+                }
+
+                BlockState state = blockStateResolver.resolve(key);
+                if (state.isAir()) {
+                    throw new IllegalStateException(
+                            "resolved BlockState changed authoritative Skyforge occupancy for " + key);
+                }
+
+                blockPos.set(worldX, worldY, worldZ);
+                BlockState previousState = chunk.getBlockState(blockPos);
+                chunk.setBlockState(blockPos, state, false);
+                BlockState stored = chunk.getBlockState(blockPos);
+                if (!stored.equals(state)) {
+                    throw new IllegalStateException("ChunkAccess did not retain the resolved BlockState");
+                }
+                SkyforgeDeferredChunkMutationLifecycle.afterWrite(chunk, blockPos, previousState, stored);
+                assignedThisPacket++;
+                solidThisPacket++;
             }
+
+            nextLinearIndex++;
+            localX++;
+            if (localX == CHUNK_WIDTH) {
+                localX = 0;
+                localZ++;
+                if (localZ == CHUNK_WIDTH) {
+                    localZ = 0;
+                    localY++;
+                }
+            }
+        }
+
+        DeferredSolidWriteCursor nextCursor = new DeferredSolidWriteCursor(
+                nextLinearIndex,
+                Math.addExact(cursor.cumulativeAssignedSolidWrites(), assignedThisPacket),
+                Math.addExact(cursor.cumulativeSolidWrites(), solidThisPacket));
+        DeferredSolidWriteAdvance result = new DeferredSolidWriteAdvance(
+                nextCursor,
+                assignedThisPacket,
+                solidThisPacket,
+                nextLinearIndex == totalCells,
+                false);
+        recordDeferredPacketTiming(attributeTiming, packetWallStart, packetCpuStart);
+        return result;
+    }
+
+    /**
+     * Development-only packet attribution. Comparing current-thread CPU time with wall time lets the
+     * performance fixture distinguish deterministic writer work from rare scheduler/safepoint pauses
+     * without timing every individual block operation and perturbing the hot loop itself.
+     */
+    private static void recordDeferredPacketTiming(
+            boolean attributeTiming,
+            long packetWallStart,
+            long packetCpuStart) {
+        if (!attributeTiming) {
+            return;
+        }
+        long wallNanos = Math.max(0L, System.nanoTime() - packetWallStart);
+        long packetCpuEnd = currentThreadCpuTimeNanos();
+        if (packetCpuStart < 0L || packetCpuEnd < packetCpuStart) {
+            SkyforgeRuntimePerformanceMetrics.recordSample(
+                    "terrain.deferred.packetCpuTimingUnavailable", 1L);
+            return;
+        }
+
+        long cpuNanos = packetCpuEnd - packetCpuStart;
+        long nonCpuWallNanos = Math.max(0L, wallNanos - cpuNanos);
+        SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                "terrain.deferred.packetCpuNanos", cpuNanos);
+        SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                "terrain.deferred.packetNonCpuWallNanos", nonCpuWallNanos);
+        if (wallNanos >= SLOW_DEFERRED_PACKET_NANOS) {
+            SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                    "terrain.deferred.slowPacketWallNanos", wallNanos);
+            SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                    "terrain.deferred.slowPacketCpuNanos", cpuNanos);
+            SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                    "terrain.deferred.slowPacketNonCpuWallNanos", nonCpuWallNanos);
         }
     }
 
-    DeferredSolidWriteCursor nextCursor = new DeferredSolidWriteCursor(
-            nextLinearIndex,
-            Math.addExact(cursor.cumulativeAssignedSolidWrites(), assignedThisPacket),
-            Math.addExact(cursor.cumulativeSolidWrites(), solidThisPacket));
-    return new DeferredSolidWriteAdvance(
-            nextCursor,
-            assignedThisPacket,
-            solidThisPacket,
-            nextLinearIndex == totalCells,
-            false);
-}
+    private static long currentThreadCpuTimeNanos() {
+        ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+        if (!threadBean.isCurrentThreadCpuTimeSupported() || !threadBean.isThreadCpuTimeEnabled()) {
+            return -1L;
+        }
+        return threadBean.getCurrentThreadCpuTime();
+    }
 
     private MinecraftChunkWriteResult writeInternal(
             ChunkAccess chunk,
