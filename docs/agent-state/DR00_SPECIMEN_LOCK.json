@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "milestone": "DR-00",
+  "state": "LOCKED",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "selection": {
+    "authority": "skyforge-dressed-region-convergence-v3",
+    "rule": "current-main accepted production-geography candidates only; stable candidate ID ascending; advance only after an objective DR-00 invariant failure",
+    "candidate_scope": [
+      "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211ProductionComposedCaveFixture.java#singleFixture",
+      "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeIronDepositAdapterTest.java",
+      "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCopperDepositAdapterTest.java",
+      "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeZincDepositAdapterTest.java"
+    ],
+    "eligible_candidate_ids_in_stable_order": [
+      "auth-0030-v1-6001989086914692933-8-81-1471/sf-imp-0068-production-composed-cave"
+    ],
+    "selected_candidate_id": "auth-0030-v1-6001989086914692933-8-81-1471/sf-imp-0068-production-composed-cave",
+    "advance_condition": "objective DR-00 invariant failure only",
+    "non_authority": "This lock is an integration fixture; it makes no aesthetic, gameplay, Authorship, or Content selection claim."
+  },
+  "authorship_provenance": {
+    "identity_schema_version": 1,
+    "world_seed_unsigned": "6001989086914692933",
+    "province_key": 8,
+    "cluster_key": 81,
+    "island_key": 1471,
+    "descriptor_schema_version": 1,
+    "authorship_seed_unsigned": "389656995481184958",
+    "morphology_family": "basin",
+    "provenance_ids": ["AUTH-0001", "AUTH-0030"]
+  },
+  "volume": {
+    "volume_id": {
+      "archipelago_root_seed_unsigned": "6001989086914692933",
+      "group_identifier": "sf-imp-0068-production-composed-cave",
+      "group_ordinal": 0,
+      "member_ordinal": 0,
+      "geometry_seed_unsigned": "680068"
+    },
+    "descriptor": {
+      "schema_version": 2,
+      "seed_unsigned": "680068",
+      "center_x": 0.0,
+      "center_z": 0.0,
+      "suspension_y": 220.0,
+      "nominal_radius": 421.89699573301397,
+      "upper_elevation": 58.0,
+      "underside_depth": 82.0,
+      "coastal_falloff": 54.0,
+      "ridge_azimuth": 0.0,
+      "ridge_strength": 0.24,
+      "underside_taper": 0.62,
+      "underside_asymmetry": 0.0,
+      "detail_amplitude": 0.1,
+      "detail_scale": 28.0,
+      "secondary_morphology_amplitude": 0.18,
+      "morphology_family": "basin"
+    },
+    "production_region_bounds": {
+      "minimum_x": -455.64875539165513,
+      "maximum_x": 455.64875539165513,
+      "minimum_y": 110.0,
+      "maximum_y": 300.0,
+      "minimum_z": -455.64875539165513,
+      "maximum_z": 455.64875539165513
+    },
+    "implementation_provenance_ids": ["SF-IMP-0068", "SF-IMP-0082"]
+  },
+  "regeneration": {
+    "procedure": [
+      "Construct SkyIslandIdentity.of(0x534B59464F524745, 8, 81, 1471).",
+      "Derive the authored descriptor through SkyIslandDescriptorGenerator.derive(identity).",
+      "Construct the single physical volume through SkyforgeNeoForge1211ProductionComposedCaveFixture.single(); do not use its stacked isolation variant as the canonical specimen.",
+      "Install the ordinary production composed-cave runtime with skyforge.dev.productionComposedCave=true and allow only its admitted exact-volume chunk set to complete.",
+      "Require the existing A/B/reload equality and exact-volume/stacked-isolation checks before downstream consumption."
+    ],
+    "test_entry_point": "python3 scripts/orchestrator/with_hosted_jdk.py -- ./gradlew :skyforge-neoforge-1211:sfImp0068Acceptance",
+    "lock_drift_test_entry_point": "python3 scripts/orchestrator/with_hosted_jdk.py -- ./gradlew :skyforge-neoforge-1211:test --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeDr00SpecimenLockTest",
+    "runtime_entry_point": "runProductionComposedCaveAcceptanceA, runProductionComposedCaveAcceptanceB, then runProductionComposedCaveAcceptanceReloadClient"
+  },
+  "dr00_invariants": [
+    "Stable selected candidate is first in the accepted production-geography candidate ordering.",
+    "Authored identity, physical descriptor, volume ID, and conservative production-region bounds reproduce exactly.",
+    "Existing production-geography Iron, Copper, and Zinc plan checks remain deterministic, surface-accessible, exact-owner isolated, and fail closed for zero opportunity.",
+    "Existing SF-IMP-0068 A/B/reload and stacked-volume checks remain the runtime regeneration evidence."
+  ]
+}
