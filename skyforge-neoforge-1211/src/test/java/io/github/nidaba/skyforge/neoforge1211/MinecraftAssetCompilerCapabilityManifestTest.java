@@ -15,7 +15,6 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeSet;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -34,10 +33,8 @@ import org.junit.jupiter.api.Test;
  * second untrusted hand-written source of truth.</p>
  */
 final class MinecraftAssetCompilerCapabilityManifestTest {
-    private static final Path MANIFEST_FROM_REPO_ROOT =
+    private static final Path MANIFEST_RELATIVE =
             Path.of("tools", "asset_compiler", "minecraft_data", "java_1_21_1_guild_capabilities.json");
-    private static final Path MANIFEST_FROM_SUBPROJECT =
-            Path.of("..", "tools", "asset_compiler", "minecraft_data", "java_1_21_1_guild_capabilities.json");
 
     @Test
     void boundedGuildCapabilityManifestMatchesLiveMinecraftStatesAndDefaults() throws IOException {
@@ -102,11 +99,16 @@ final class MinecraftAssetCompilerCapabilityManifestTest {
     }
 
     private static Path locateManifest() {
-        for (Path candidate : List.of(MANIFEST_FROM_REPO_ROOT, MANIFEST_FROM_SUBPROJECT)) {
-            Path normalized = candidate.toAbsolutePath().normalize();
-            if (Files.isRegularFile(normalized)) {
-                return normalized;
+        // NeoForge's forgejunitdev runtime executes tests from a nested build/minecraft-junit
+        // directory rather than from the repository root. Walk ancestors so this test validates the
+        // repository artifact regardless of Gradle/JUnit working-directory policy.
+        Path cursor = Path.of("").toAbsolutePath().normalize();
+        while (cursor != null) {
+            Path candidate = cursor.resolve(MANIFEST_RELATIVE).normalize();
+            if (Files.isRegularFile(candidate)) {
+                return candidate;
             }
+            cursor = cursor.getParent();
         }
         throw new AssertionError(
                 "could not locate asset-compiler Minecraft capability manifest from "
