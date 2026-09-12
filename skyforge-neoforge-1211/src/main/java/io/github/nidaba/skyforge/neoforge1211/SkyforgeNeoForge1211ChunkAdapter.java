@@ -344,44 +344,24 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             throw new IllegalArgumentException("height must be positive");
         }
         SkyIslandTerrainInterpreter interpreter = requireInterpreter(volumeId);
-        Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> range =
-                SkyforgeExactVoxelSupportBounds.integerSolidRange(interpreter, worldX, worldZ);
-        SkyforgeRuntimePerformanceMetrics.recordSample(
-                "terrain.firstFreeHeightExactSupportQueries",
-                1L);
-        if (range.isEmpty()) {
-            SkyforgeRuntimePerformanceMetrics.recordSample(
-                    "terrain.firstFreeHeightSupportIntervalSamples",
-                    0L);
+        WorldBounds volumeBounds = requireBounds(volumeId);
+
+        int requestedMaximumYExclusive = Math.addExact(minimumY, height);
+        int boundedMinimumY = Math.max(minimumY, floorToInt(volumeBounds.minimumY()));
+        long volumeMaximumYExclusive = Math.addExact((long) floorToInt(volumeBounds.maximumY()), 1L);
+        int boundedMaximumYExclusive = (int) Math.min(
+                (long) requestedMaximumYExclusive,
+                volumeMaximumYExclusive);
+        if (boundedMaximumYExclusive <= boundedMinimumY) {
             return OptionalInt.empty();
         }
 
-        var solidRange = range.orElseThrow();
-        int maximumYExclusive = Math.addExact(minimumY, height);
-        int intersectionMinimumY = Math.max(minimumY, solidRange.minimumY());
-        int intersectionMaximumYInclusive = (int) Math.min(
-                (long) solidRange.maximumY(),
-                (long) maximumYExclusive - 1L);
-        long supportIntervalSamples = intersectionMaximumYInclusive < intersectionMinimumY
-                ? 0L
-                : (long) intersectionMaximumYInclusive - intersectionMinimumY + 1L;
         SkyforgeRuntimePerformanceMetrics.recordSample(
-                "terrain.firstFreeHeightSupportIntervalSamples",
-                supportIntervalSamples);
-        if (intersectionMaximumYInclusive < intersectionMinimumY) {
-            return OptionalInt.empty();
-        }
-        if (solidRange.maximumY() < maximumYExclusive) {
-            return OptionalInt.of(Math.addExact(solidRange.maximumY(), 1));
-        }
-
-        SkyIslandTerrainInterpreter.ColumnInterpreter column = interpreter.column(worldX, worldZ);
-        for (int worldY = intersectionMaximumYInclusive; worldY >= intersectionMinimumY; worldY--) {
-            SkyforgeRuntimePerformanceMetrics.recordSample(
-                    "terrain.firstFreeHeightFallbackClassifications",
-                    1L);
-            if (column.classify(worldY).isSolid()) {
-                return OptionalInt.of(Math.addExact(worldY, 1));
+                "terrain.firstFreeHeightVerticalSamples",
+                boundedMaximumYExclusive - boundedMinimumY);
+        for (int worldY = boundedMaximumYExclusive - 1; worldY >= boundedMinimumY; worldY--) {
+            if (interpreter.classify(worldX, worldY, worldZ).isSolid()) {
+                return OptionalInt.of(worldY + 1);
             }
         }
         return OptionalInt.empty();
