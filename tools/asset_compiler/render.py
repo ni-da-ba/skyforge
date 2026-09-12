@@ -220,7 +220,7 @@ def emit_outputs(compiled: CompiledAsset, out: Path) -> None:
         write_orthographic_svg(out / f"{view}.svg", compiled, view)
     write_floorplan_svg(out / "floorplan.svg", compiled)
     write_isometric_svg(out / "isometric.svg", compiled)
-    if str(s.get("compilerVersion")) in {"0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "0.10", "0.11", "0.12"}:
+    if str(s.get("compilerVersion")) in {"0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "0.10", "0.11", "0.12", "0.13-first-principles"}:
         write_interior_plan_svg(out / "interior_plan.svg", compiled)
         write_cutaway_isometric_svg(out / "cutaway_isometric.svg", compiled)
         write_section_svg(out / "interior_section.svg", compiled)
