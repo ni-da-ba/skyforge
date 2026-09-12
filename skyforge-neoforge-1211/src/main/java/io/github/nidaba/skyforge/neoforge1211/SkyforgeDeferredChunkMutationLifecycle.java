@@ -21,6 +21,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
  * closed, and ordinary WorldGenRegion realization never enters it.
  */
 final class SkyforgeDeferredChunkMutationLifecycle {
+    private static final int ATTRIBUTION_SAMPLE_MASK = 63;
     private static final ThreadLocal<State> ACTIVE = new ThreadLocal<>();
 
     private SkyforgeDeferredChunkMutationLifecycle() {}
@@ -37,6 +38,10 @@ final class SkyforgeDeferredChunkMutationLifecycle {
         State state = new State(level, chunk);
         ACTIVE.set(state);
         return new Scope(state);
+    }
+
+    static boolean active() {
+        return ACTIVE.get() != null;
     }
 
     static void afterWrite(
@@ -57,11 +62,34 @@ final class SkyforgeDeferredChunkMutationLifecycle {
             throw new IllegalStateException("deferred stable-chunk mutation escaped its target chunk");
         }
 
+        boolean sampleThisChange = SkyforgeRuntimePerformanceMetrics.enabled()
+                && (state.changedBlocks & ATTRIBUTION_SAMPLE_MASK) == 0;
+        long sampleStart = sampleThisChange ? System.nanoTime() : 0L;
         // The writer reuses one MutableBlockPos. Both downstream systems may retain/schedule work,
         // so never hand them that mutable instance.
         BlockPos immutablePosition = position.immutable();
+        if (sampleThisChange) {
+            SkyforgeRuntimePerformanceMetrics.recordElapsed(
+                    "terrain.deferred.lifecycle.sample.positionCopy",
+                    Math.max(0L, System.nanoTime() - sampleStart));
+        }
+
+        sampleStart = sampleThisChange ? System.nanoTime() : 0L;
         state.level.getChunkSource().getLightEngine().checkBlock(immutablePosition);
+        if (sampleThisChange) {
+            SkyforgeRuntimePerformanceMetrics.recordElapsed(
+                    "terrain.deferred.lifecycle.sample.lightCheck",
+                    Math.max(0L, System.nanoTime() - sampleStart));
+        }
+
+        sampleStart = sampleThisChange ? System.nanoTime() : 0L;
         state.level.getChunkSource().blockChanged(immutablePosition);
+        if (sampleThisChange) {
+            SkyforgeRuntimePerformanceMetrics.recordElapsed(
+                    "terrain.deferred.lifecycle.sample.blockChanged",
+                    Math.max(0L, System.nanoTime() - sampleStart));
+            state.sampledChanges++;
+        }
         state.changedBlocks++;
     }
 
@@ -69,6 +97,7 @@ final class SkyforgeDeferredChunkMutationLifecycle {
         private final ServerLevel level;
         private final LevelChunk chunk;
         private int changedBlocks;
+        private int sampledChanges;
 
         private State(ServerLevel level, LevelChunk chunk) {
             this.level = level;
@@ -88,6 +117,14 @@ final class SkyforgeDeferredChunkMutationLifecycle {
         public void close() {
             if (closed || ACTIVE.get() != state) {
                 throw new IllegalStateException("deferred stable-chunk mutation scope is not active");
+            }
+            if (SkyforgeRuntimePerformanceMetrics.enabled()) {
+                SkyforgeRuntimePerformanceMetrics.recordSample(
+                        "terrain.deferred.lifecycle.changedBlocks",
+                        state.changedBlocks);
+                SkyforgeRuntimePerformanceMetrics.recordSample(
+                        "terrain.deferred.lifecycle.sampledChanges",
+                        state.sampledChanges);
             }
             closed = true;
             ACTIVE.remove();
