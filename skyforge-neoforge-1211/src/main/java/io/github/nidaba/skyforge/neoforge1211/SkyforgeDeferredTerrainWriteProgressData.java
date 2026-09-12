@@ -22,6 +22,7 @@ final class SkyforgeDeferredTerrainWriteProgressData extends SavedData {
             SkyforgeDeferredTerrainWriteProgressData::load);
 
     private final Map<Key, Progress> progressByObligation = new HashMap<>();
+    private final Map<Key, MinecraftChunkMaterialization> activeMaterializationByObligation = new HashMap<>();
 
     static SkyforgeDeferredTerrainWriteProgressData get(ServerLevel level) {
         Objects.requireNonNull(level, "level");
@@ -32,6 +33,34 @@ final class SkyforgeDeferredTerrainWriteProgressData extends SavedData {
         Objects.requireNonNull(volumeId, "volumeId");
         return Optional.ofNullable(progressByObligation.get(new Key(volumeId, chunkKey)));
     }
+
+    Optional<MinecraftChunkMaterialization> cachedMaterialization(
+        SkyIslandWorldVolumeId volumeId,
+        long chunkKey) {
+    Objects.requireNonNull(volumeId, "volumeId");
+    return Optional.ofNullable(activeMaterializationByObligation.get(new Key(volumeId, chunkKey)));
+}
+
+void cacheMaterialization(
+        SkyIslandWorldVolumeId volumeId,
+        long chunkKey,
+        MinecraftChunkMaterialization materialization) {
+    Objects.requireNonNull(volumeId, "volumeId");
+    Objects.requireNonNull(materialization, "materialization");
+    if (materialization.chunkPos().toLong() != chunkKey) {
+        throw new IllegalArgumentException("cached deferred materialization differs from obligation chunk");
+    }
+    Key key = new Key(volumeId, chunkKey);
+    MinecraftChunkMaterialization previous = activeMaterializationByObligation.putIfAbsent(key, materialization);
+    if (previous != null && previous != materialization) {
+        throw new IllegalStateException("deferred obligation already has a different active materialization");
+    }
+}
+
+void discardCachedMaterialization(SkyIslandWorldVolumeId volumeId, long chunkKey) {
+    Objects.requireNonNull(volumeId, "volumeId");
+    activeMaterializationByObligation.remove(new Key(volumeId, chunkKey));
+}
 
     Progress getOrCreate(
             SkyIslandWorldVolumeId volumeId,

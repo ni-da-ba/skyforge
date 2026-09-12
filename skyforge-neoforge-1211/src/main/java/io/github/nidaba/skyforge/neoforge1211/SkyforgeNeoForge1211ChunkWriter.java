@@ -85,48 +85,44 @@ public final class SkyforgeNeoForge1211ChunkWriter {
      * becomes terminal.
      */
     DeferredSolidWriteAdvance writeDeferredSolidOverlayPacket(
-            ChunkAccess chunk,
-            MinecraftChunkMaterialization materialization,
-            DeferredSolidWriteCursor cursor,
-            int maximumAssignedSolidWrites,
-            boolean enforcePhysicalAdmission) {
-        validateOwnership(chunk, materialization);
-        Objects.requireNonNull(cursor, "cursor");
-        if (maximumAssignedSolidWrites <= 0) {
-            throw new IllegalArgumentException("deferred solid-write packet budget must be positive");
-        }
+        ChunkAccess chunk,
+        MinecraftChunkMaterialization materialization,
+        DeferredSolidWriteCursor cursor,
+        int maximumAssignedSolidWrites,
+        boolean enforcePhysicalAdmission) {
+    validateOwnership(chunk, materialization);
+    Objects.requireNonNull(cursor, "cursor");
+    if (maximumAssignedSolidWrites <= 0) {
+        throw new IllegalArgumentException("deferred solid-write packet budget must be positive");
+    }
 
-        int totalCells = Math.multiplyExact(materialization.height(), CHUNK_AREA);
-        if (cursor.nextLinearIndex() < 0 || cursor.nextLinearIndex() > totalCells) {
-            throw new IllegalArgumentException("deferred solid-write cursor exceeds materialization bounds");
-        }
-        if (cursor.cumulativeAssignedSolidWrites() < 0 || cursor.cumulativeSolidWrites() < 0
-                || cursor.cumulativeSolidWrites() > cursor.cumulativeAssignedSolidWrites()) {
-            throw new IllegalArgumentException("invalid deferred solid-write cumulative accounting");
-        }
-        if (cursor.nextLinearIndex() == totalCells) {
-            return new DeferredSolidWriteAdvance(cursor, 0, 0, true, false);
-        }
+    int totalCells = Math.multiplyExact(materialization.height(), CHUNK_AREA);
+    if (cursor.nextLinearIndex() < 0 || cursor.nextLinearIndex() > totalCells) {
+        throw new IllegalArgumentException("deferred solid-write cursor exceeds materialization bounds");
+    }
+    if (cursor.cumulativeAssignedSolidWrites() < 0 || cursor.cumulativeSolidWrites() < 0
+            || cursor.cumulativeSolidWrites() > cursor.cumulativeAssignedSolidWrites()) {
+        throw new IllegalArgumentException("invalid deferred solid-write cumulative accounting");
+    }
+    if (cursor.nextLinearIndex() == totalCells) {
+        return new DeferredSolidWriteAdvance(cursor, 0, 0, true, false);
+    }
 
-        int minimumX = materialization.chunkPos().getMinBlockX();
-        int minimumZ = materialization.chunkPos().getMinBlockZ();
-        int nextLinearIndex = cursor.nextLinearIndex();
-        int assignedThisPacket = 0;
-        int solidThisPacket = 0;
-        BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
+    int minimumX = materialization.chunkPos().getMinBlockX();
+    int minimumZ = materialization.chunkPos().getMinBlockZ();
+    int nextLinearIndex = cursor.nextLinearIndex();
+    int localY = nextLinearIndex / CHUNK_AREA;
+    int withinLayer = nextLinearIndex % CHUNK_AREA;
+    int localZ = withinLayer / CHUNK_WIDTH;
+    int localX = withinLayer % CHUNK_WIDTH;
+    int assignedThisPacket = 0;
+    int solidThisPacket = 0;
+    BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
 
-        while (nextLinearIndex < totalCells && assignedThisPacket < maximumAssignedSolidWrites) {
-            int localY = nextLinearIndex / CHUNK_AREA;
-            int withinLayer = nextLinearIndex % CHUNK_AREA;
-            int localZ = withinLayer / CHUNK_WIDTH;
-            int localX = withinLayer % CHUNK_WIDTH;
-            int worldY = Math.addExact(materialization.minimumY(), localY);
-            ResourceLocation key = materialization.blockKeyAt(localX, worldY, localZ);
-            if (SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
-                nextLinearIndex++;
-                continue;
-            }
-
+    while (nextLinearIndex < totalCells && assignedThisPacket < maximumAssignedSolidWrites) {
+        int worldY = Math.addExact(materialization.minimumY(), localY);
+        ResourceLocation key = materialization.blockKeyAtLinearIndex(nextLinearIndex);
+        if (!SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
             int worldX = Math.addExact(minimumX, localX);
             int worldZ = Math.addExact(minimumZ, localZ);
             if (enforcePhysicalAdmission
@@ -157,22 +153,33 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                 throw new IllegalStateException("ChunkAccess did not retain the resolved BlockState");
             }
             SkyforgeDeferredChunkMutationLifecycle.afterWrite(chunk, blockPos, previousState, stored);
-            nextLinearIndex++;
             assignedThisPacket++;
             solidThisPacket++;
         }
 
-        DeferredSolidWriteCursor nextCursor = new DeferredSolidWriteCursor(
-                nextLinearIndex,
-                Math.addExact(cursor.cumulativeAssignedSolidWrites(), assignedThisPacket),
-                Math.addExact(cursor.cumulativeSolidWrites(), solidThisPacket));
-        return new DeferredSolidWriteAdvance(
-                nextCursor,
-                assignedThisPacket,
-                solidThisPacket,
-                nextLinearIndex == totalCells,
-                false);
+        nextLinearIndex++;
+        localX++;
+        if (localX == CHUNK_WIDTH) {
+            localX = 0;
+            localZ++;
+            if (localZ == CHUNK_WIDTH) {
+                localZ = 0;
+                localY++;
+            }
+        }
     }
+
+    DeferredSolidWriteCursor nextCursor = new DeferredSolidWriteCursor(
+            nextLinearIndex,
+            Math.addExact(cursor.cumulativeAssignedSolidWrites(), assignedThisPacket),
+            Math.addExact(cursor.cumulativeSolidWrites(), solidThisPacket));
+    return new DeferredSolidWriteAdvance(
+            nextCursor,
+            assignedThisPacket,
+            solidThisPacket,
+            nextLinearIndex == totalCells,
+            false);
+}
 
     private MinecraftChunkWriteResult writeInternal(
             ChunkAccess chunk,

@@ -179,23 +179,30 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     }
 
     private static DeferredCatchupPacketResult realizeDeferredPacket(
-            RuntimeBinding binding,
-            ChunkAccess chunk,
-            SkyforgePhysicalVolumeAdmissionStage.PendingRealization pending,
-            SkyforgeDeferredTerrainWriteProgressData progressData,
-            int maximumAssignedSolidWrites) {
-        long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
-        WorldBounds volumeBounds = binding.adapter().volumeBounds(pending.volumeId())
-                .orElseThrow(() -> new IllegalStateException(
-                        "deferred realization requires exact bound volume " + pending.volumeId().path()));
-        VerticalRange range = boundedVerticalRange(chunk, volumeBounds);
-        if (range.height() <= 0) {
-            throw new IllegalStateException(
-                    "deferred exact-volume realization has no vertical overlap with target chunk");
-        }
+        RuntimeBinding binding,
+        ChunkAccess chunk,
+        SkyforgePhysicalVolumeAdmissionStage.PendingRealization pending,
+        SkyforgeDeferredTerrainWriteProgressData progressData,
+        int maximumAssignedSolidWrites) {
+    long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
+    WorldBounds volumeBounds = binding.adapter().volumeBounds(pending.volumeId())
+            .orElseThrow(() -> new IllegalStateException(
+                    "deferred realization requires exact bound volume " + pending.volumeId().path()));
+    VerticalRange range = boundedVerticalRange(chunk, volumeBounds);
+    if (range.height() <= 0) {
+        throw new IllegalStateException(
+                "deferred exact-volume realization has no vertical overlap with target chunk");
+    }
+
+    var existing = progressData.find(pending.volumeId(), pending.chunkKey());
+    MinecraftChunkMaterialization materialization = progressData
+            .cachedMaterialization(pending.volumeId(), pending.chunkKey())
+            .orElse(null);
+    boolean rematerialized = materialization == null;
+    if (rematerialized) {
         SkyforgeRuntimePerformanceMetrics.recordSample("terrain.deferredVerticalSamples", range.height());
         long materializeStart = SkyforgeRuntimePerformanceMetrics.start();
-        MinecraftChunkMaterialization materialization = binding.adapter().materialize(
+        materialization = binding.adapter().materialize(
                 pending.volumeId(), chunk.getPos(), range.minimumY(), range.height());
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.materialize", materializeStart);
         if (binding.nativeSurfaceTopAdapter().isPresent()) {
@@ -206,57 +213,77 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             materialization = binding.nativeSurfaceTopAdapter().orElseThrow().adapt(snapshot, materialization);
             SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.adaptSurface", adaptStart);
         }
-
-        var existing = progressData.find(pending.volumeId(), pending.chunkKey());
-        int expectedSolidBlocks;
-        if (existing.isPresent()) {
-            expectedSolidBlocks = existing.orElseThrow().expectedSolidBlocks();
-        } else {
-            long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
-            expectedSolidBlocks = materialization.solidBlockCount();
-            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.solidCount", solidCountStart);
-        }
-        var progress = progressData.getOrCreate(pending.volumeId(), pending.chunkKey(), expectedSolidBlocks);
-        if (progress.terminal()) {
-            SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
-            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realizeDeferredPacket", performanceStart);
-            return new DeferredCatchupPacketResult(true, true, 0);
-        }
-
-        boolean exactAdmissionFastPath = SkyforgePhysicalVolumeAdmissionStage.canUseExactDeferredWriteFastPath(
-                pending, chunk, range.minimumY(), range.height());
-        SkyforgeRuntimePerformanceMetrics.recordSample(
-                "terrain.deferredExactAdmissionFastPath", exactAdmissionFastPath ? 1L : 0L);
-        long writeStart = SkyforgeRuntimePerformanceMetrics.start();
-        var advance = binding.writer().writeDeferredSolidOverlayPacket(
-                chunk,
-                materialization,
-                progress.cursor(),
-                maximumAssignedSolidWrites,
-                !exactAdmissionFastPath);
-        long writeElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(writeStart);
-SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.deferred.writePacket", writeElapsedNanos);
-SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
-        "terrain.deferred.packetWallNanos", writeElapsedNanos);
-SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
-        "terrain.deferred.packetAssignedSolidWrites", advance.assignedSolidWrites());
-
-        if (advance.complete()
-                && advance.cursor().cumulativeAssignedSolidWrites() != expectedSolidBlocks) {
-            throw new IllegalStateException(
-                    "completed deferred terrain packet count differs from authoritative solid count");
-        }
-        boolean terminal = advance.complete();
-        progressData.store(progress.advance(advance, terminal));
-        if (terminal) {
-            long completeStart = SkyforgeRuntimePerformanceMetrics.start();
-            SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
-            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.completeCatchup", completeStart);
-        }
-        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realizeDeferredPacket", performanceStart);
-        boolean worked = terminal || advance.assignedSolidWrites() > 0;
-        return new DeferredCatchupPacketResult(worked, terminal, advance.assignedSolidWrites());
+        progressData.cacheMaterialization(pending.volumeId(), pending.chunkKey(), materialization);
     }
+
+    int expectedSolidBlocks;
+    if (existing.isPresent()) {
+        expectedSolidBlocks = existing.orElseThrow().expectedSolidBlocks();
+        if (rematerialized) {
+            long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
+            int reproducedSolidBlocks = materialization.solidBlockCount();
+            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.solidCount", solidCountStart);
+            if (reproducedSolidBlocks != expectedSolidBlocks) {
+                throw new IllegalStateException(
+                        "deferred terrain materialization changed across persisted resume");
+            }
+        }
+    } else {
+        long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
+        expectedSolidBlocks = materialization.solidBlockCount();
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.solidCount", solidCountStart);
+        SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                "terrain.deferred.expectedSolidBlocks", expectedSolidBlocks);
+    }
+    var progress = progressData.getOrCreate(pending.volumeId(), pending.chunkKey(), expectedSolidBlocks);
+    if (progress.terminal()) {
+        progressData.discardCachedMaterialization(pending.volumeId(), pending.chunkKey());
+        SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+        long quantumElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(performanceStart);
+        SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.realizeDeferredPacket", quantumElapsedNanos);
+        SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                "terrain.deferred.quantumWallNanos", quantumElapsedNanos);
+        return new DeferredCatchupPacketResult(true, true, 0);
+    }
+
+    boolean exactAdmissionFastPath = SkyforgePhysicalVolumeAdmissionStage.canUseExactDeferredWriteFastPath(
+            pending, chunk, range.minimumY(), range.height());
+    SkyforgeRuntimePerformanceMetrics.recordSample(
+            "terrain.deferredExactAdmissionFastPath", exactAdmissionFastPath ? 1L : 0L);
+    long writeStart = SkyforgeRuntimePerformanceMetrics.start();
+    var advance = binding.writer().writeDeferredSolidOverlayPacket(
+            chunk,
+            materialization,
+            progress.cursor(),
+            maximumAssignedSolidWrites,
+            !exactAdmissionFastPath);
+    long writeElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(writeStart);
+    SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.deferred.writePacket", writeElapsedNanos);
+    SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+            "terrain.deferred.packetWallNanos", writeElapsedNanos);
+    SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+            "terrain.deferred.packetAssignedSolidWrites", advance.assignedSolidWrites());
+
+    if (advance.complete()
+            && advance.cursor().cumulativeAssignedSolidWrites() != expectedSolidBlocks) {
+        throw new IllegalStateException(
+                "completed deferred terrain packet count differs from authoritative solid count");
+    }
+    boolean terminal = advance.complete();
+    progressData.store(progress.advance(advance, terminal));
+    if (terminal) {
+        long completeStart = SkyforgeRuntimePerformanceMetrics.start();
+        SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+        progressData.discardCachedMaterialization(pending.volumeId(), pending.chunkKey());
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.completeCatchup", completeStart);
+    }
+    long quantumElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(performanceStart);
+    SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.realizeDeferredPacket", quantumElapsedNanos);
+    SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+            "terrain.deferred.quantumWallNanos", quantumElapsedNanos);
+    boolean worked = terminal || advance.assignedSolidWrites() > 0;
+    return new DeferredCatchupPacketResult(worked, terminal, advance.assignedSolidWrites());
+}
 
     record DeferredCatchupPacketResult(boolean worked, boolean completed, int assignedSolidWrites) {
         DeferredCatchupPacketResult {
