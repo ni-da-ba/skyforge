@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -11,6 +12,31 @@ CARDINALS = {
     "south": (0, 0, 1),
     "west": (-1, 0, 0),
 }
+OPPOSITE = {"north": "south", "south": "north", "east": "west", "west": "east"}
+COUNTERCLOCKWISE = {"north": "west", "west": "south", "south": "east", "east": "north"}
+AXIS = {"north": "z", "south": "z", "east": "x", "west": "x"}
+
+# Semantic capabilities that materially affect target realization. These are preserved when a
+# concrete architectural BlockState is re-expressed as target-neutral block intent.
+REALIZATION_CAPABILITIES = frozenset({
+    "full_cube",
+    "solid_support",
+    "axis_orientable",
+    "slab",
+    "stair",
+    "pane",
+    "fence",
+    "door",
+    "two_block",
+    "light",
+    "attachment_sensitive",
+    "carpet",
+    "thin",
+    "block_entity",
+    "container",
+    "directional",
+    "neighbor_sensitive",
+})
 
 
 @dataclass(frozen=True)
@@ -19,23 +45,53 @@ class BlockCapability:
     families: frozenset[str]
     capabilities: frozenset[str]
     properties: tuple[tuple[str, frozenset[str]], ...] = ()
+    defaults: tuple[tuple[str, str], ...] = ()
 
     def property_map(self) -> dict[str, frozenset[str]]:
         return dict(self.properties)
 
+    def default_map(self) -> dict[str, str]:
+        return dict(self.defaults)
+
 
 @dataclass(frozen=True)
 class BlockIntent:
+    """Target-neutral material/shape request.
+
+    `families` describes semantic material identity; `required_capabilities` describes geometry or
+    runtime behavior. A preferred concrete block is optional and is never required for satisfiability.
+    """
+
     families: tuple[str, ...]
     required_capabilities: frozenset[str] = frozenset()
     properties: tuple[tuple[str, str], ...] = ()
     preferred_blocks: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class ShapeDescriptor:
+    shape_class: str
+    collision_volume_fraction: float
+    support_faces: frozenset[str]
+    partial_collision: bool
+    neighbor_dependent: bool
+
+    def to_dict(self) -> dict:
+        return {
+            "shapeClass": self.shape_class,
+            "collisionVolumeFraction": self.collision_volume_fraction,
+            "supportFaces": sorted(self.support_faces),
+            "partialCollision": self.partial_collision,
+            "neighborDependent": self.neighbor_dependent,
+        }
+
+
 def _cap(
     name: str,
     families: Iterable[str],
     capabilities: Iterable[str] = (),
+    *,
+    defaults: dict[str, str] | None = None,
     **properties: Iterable[str],
 ) -> BlockCapability:
     return BlockCapability(
@@ -45,56 +101,168 @@ def _cap(
         properties=tuple(
             sorted((key, frozenset(str(v).lower() for v in values)) for key, values in properties.items())
         ),
+        defaults=tuple(sorted((str(k), str(v).lower()) for k, v in (defaults or {}).items())),
     )
 
 
 def vanilla_1_21_1_registry() -> dict[str, BlockCapability]:
-    """Bounded Minecraft 1.21.1 capability registry for the accepted Guild palette.
+    """Bounded Java 1.21.1 capability registry for the current Guild palette.
 
-    This is deliberately explicit rather than pretending to be a complete vanilla registry. Unknown
-    blocks fail closed when strict adaptation is requested. Later versions should generate this data
-    from authoritative game registries/datagen and allow mod capability providers to extend it.
+    Unknown blocks fail closed. The registry is intentionally small but semantically strict; a later
+    NeoForge/datagen provider should replace the handwritten records without changing adapter APIs.
     """
     bools = ("true", "false")
     facings = ("north", "east", "south", "west")
     registry = [
         _cap("minecraft:stone_bricks", ("masonry", "foundation"), ("full_cube", "solid_support")),
-        _cap("minecraft:dark_oak_log", ("dark_timber", "structural_timber"), ("full_cube", "solid_support", "axis_orientable"), axis=("x", "y", "z")),
+        _cap(
+            "minecraft:dark_oak_log",
+            ("dark_timber", "structural_timber"),
+            ("full_cube", "solid_support", "axis_orientable"),
+            defaults={"axis": "y"},
+            axis=("x", "y", "z"),
+        ),
         _cap("minecraft:calcite", ("pale_masonry", "wall_infill"), ("full_cube", "solid_support")),
         _cap("minecraft:spruce_planks", ("timber", "floor"), ("full_cube", "solid_support")),
         _cap("minecraft:deepslate_tiles", ("dark_roof", "masonry"), ("full_cube", "solid_support")),
-        _cap("minecraft:deepslate_tile_stairs", ("dark_roof",), ("stair", "directional", "neighbor_sensitive"), facing=facings, half=("top", "bottom"), shape=("straight", "inner_left", "inner_right", "outer_left", "outer_right"), waterlogged=bools),
-        _cap("minecraft:deepslate_tile_slab", ("dark_roof",), ("slab",), type=("top", "bottom", "double"), waterlogged=bools),
-        _cap("minecraft:glass_pane", ("glazing",), ("pane", "neighbor_sensitive", "thin"), north=bools, east=bools, south=bools, west=bools, waterlogged=bools),
-        _cap("minecraft:spruce_door", ("timber_door", "public_door"), ("door", "directional", "two_block"), facing=facings, half=("upper", "lower"), hinge=("left", "right"), open=bools, powered=bools),
-        _cap("minecraft:dark_oak_door", ("dark_timber", "working_door"), ("door", "directional", "two_block"), facing=facings, half=("upper", "lower"), hinge=("left", "right"), open=bools, powered=bools),
+        _cap(
+            "minecraft:deepslate_tile_stairs",
+            ("dark_roof",),
+            ("stair", "directional", "neighbor_sensitive"),
+            defaults={"facing": "north", "half": "bottom", "shape": "straight", "waterlogged": "false"},
+            facing=facings,
+            half=("top", "bottom"),
+            shape=("straight", "inner_left", "inner_right", "outer_left", "outer_right"),
+            waterlogged=bools,
+        ),
+        _cap(
+            "minecraft:deepslate_tile_slab",
+            ("dark_roof",),
+            ("slab",),
+            defaults={"type": "bottom", "waterlogged": "false"},
+            type=("top", "bottom", "double"),
+            waterlogged=bools,
+        ),
+        _cap(
+            "minecraft:glass_pane",
+            ("glazing",),
+            ("pane", "neighbor_sensitive", "thin"),
+            defaults={"north": "false", "east": "false", "south": "false", "west": "false", "waterlogged": "false"},
+            north=bools,
+            east=bools,
+            south=bools,
+            west=bools,
+            waterlogged=bools,
+        ),
+        _cap(
+            "minecraft:spruce_door",
+            ("timber_door", "public_door"),
+            ("door", "directional", "two_block"),
+            defaults={"facing": "north", "half": "lower", "hinge": "left", "open": "false", "powered": "false"},
+            facing=facings,
+            half=("upper", "lower"),
+            hinge=("left", "right"),
+            open=bools,
+            powered=bools,
+        ),
+        _cap(
+            "minecraft:dark_oak_door",
+            ("dark_timber", "working_door"),
+            ("door", "directional", "two_block"),
+            defaults={"facing": "north", "half": "lower", "hinge": "left", "open": "false", "powered": "false"},
+            facing=facings,
+            half=("upper", "lower"),
+            hinge=("left", "right"),
+            open=bools,
+            powered=bools,
+        ),
         _cap("minecraft:polished_andesite", ("masonry", "hardware"), ("full_cube", "solid_support")),
-        _cap("minecraft:lantern", ("lighting",), ("light", "attachment_sensitive"), hanging=bools, waterlogged=bools),
+        _cap(
+            "minecraft:lantern",
+            ("lighting",),
+            ("light", "attachment_sensitive"),
+            defaults={"hanging": "false", "waterlogged": "false"},
+            hanging=bools,
+            waterlogged=bools,
+        ),
         _cap("minecraft:blue_wool", ("guild_blue", "textile"), ("full_cube", "solid_support")),
         _cap("minecraft:yellow_terracotta", ("warm_hardware", "brass_surrogate"), ("full_cube", "solid_support")),
-        _cap("minecraft:dark_oak_slab", ("dark_timber",), ("slab",), type=("top", "bottom", "double"), waterlogged=bools),
-        _cap("minecraft:spruce_slab", ("timber", "seating"), ("slab",), type=("top", "bottom", "double"), waterlogged=bools),
+        _cap(
+            "minecraft:dark_oak_slab",
+            ("dark_timber",),
+            ("slab",),
+            defaults={"type": "bottom", "waterlogged": "false"},
+            type=("top", "bottom", "double"),
+            waterlogged=bools,
+        ),
+        _cap(
+            "minecraft:spruce_slab",
+            ("timber", "seating"),
+            ("slab",),
+            defaults={"type": "bottom", "waterlogged": "false"},
+            type=("top", "bottom", "double"),
+            waterlogged=bools,
+        ),
         _cap("minecraft:bookshelf", ("records", "timber"), ("full_cube", "solid_support")),
         _cap("minecraft:dark_oak_planks", ("dark_timber",), ("full_cube", "solid_support")),
-        _cap("minecraft:barrel", ("storage",), ("full_cube", "block_entity", "container", "directional"), facing=("up", "down", *facings), open=bools),
+        _cap(
+            "minecraft:barrel",
+            ("storage",),
+            ("full_cube", "block_entity", "container", "directional"),
+            defaults={"facing": "north", "open": "false"},
+            facing=("up", "down", *facings),
+            open=bools,
+        ),
         _cap("minecraft:smithing_table", ("workbench",), ("full_cube", "solid_support")),
-        _cap("minecraft:chest", ("storage",), ("block_entity", "container", "directional"), facing=facings, type=("single", "left", "right"), waterlogged=bools),
-        _cap("minecraft:stone_brick_slab", ("masonry",), ("slab",), type=("top", "bottom", "double"), waterlogged=bools),
-        _cap("minecraft:dark_oak_fence", ("dark_timber",), ("fence", "neighbor_sensitive", "thin"), north=bools, east=bools, south=bools, west=bools, waterlogged=bools),
+        _cap(
+            "minecraft:chest",
+            ("storage",),
+            ("block_entity", "container", "directional"),
+            defaults={"facing": "north", "type": "single", "waterlogged": "false"},
+            facing=facings,
+            type=("single", "left", "right"),
+            waterlogged=bools,
+        ),
+        _cap(
+            "minecraft:stone_brick_slab",
+            ("masonry",),
+            ("slab",),
+            defaults={"type": "bottom", "waterlogged": "false"},
+            type=("top", "bottom", "double"),
+            waterlogged=bools,
+        ),
+        _cap(
+            "minecraft:dark_oak_fence",
+            ("dark_timber",),
+            ("fence", "neighbor_sensitive", "thin"),
+            defaults={"north": "false", "east": "false", "south": "false", "west": "false", "waterlogged": "false"},
+            north=bools,
+            east=bools,
+            south=bools,
+            west=bools,
+            waterlogged=bools,
+        ),
         _cap("minecraft:polished_diorite", ("masonry", "history_masonry"), ("full_cube", "solid_support")),
         _cap("minecraft:blue_carpet", ("guild_blue", "textile"), ("carpet", "thin")),
-        _cap("minecraft:lightning_rod", ("hardware", "metal"), ("directional", "attachment_sensitive"), facing=("up", "down", *facings), powered=bools, waterlogged=bools),
+        _cap(
+            "minecraft:lightning_rod",
+            ("hardware", "metal"),
+            ("directional", "attachment_sensitive"),
+            defaults={"facing": "up", "powered": "false", "waterlogged": "false"},
+            facing=("up", "down", *facings),
+            powered=bools,
+            waterlogged=bools,
+        ),
     ]
     return {entry.name: entry for entry in registry}
 
 
 class MinecraftAdapter:
-    """Translate/validate backend-neutral intent against bounded Minecraft capabilities.
+    """Minecraft target-realization authority for bounded compiled architecture.
 
-    v0.1 is intentionally transitional: existing Guild compilers still emit concrete BlockStates.
-    The adapter validates those states, normalizes neighbor-sensitive states where deterministic,
-    checks selected runtime support invariants, and exposes a semantic intent resolver for the next
-    compiler lowering stage.
+    v0.2 re-resolves every current Guild cell through semantic material/shape intent, fills explicit
+    default state, derives neighbor-sensitive topology (including vanilla-style stair corner shape),
+    and validates attachment support using shape semantics before NBT serialization.
     """
 
     def __init__(self, registry: dict[str, BlockCapability] | None = None) -> None:
@@ -116,34 +284,138 @@ class MinecraftAdapter:
                 values = ", ".join(sorted(allowed[key]))
                 raise SpecError(f"{state.name}[{key}={value}] is illegal; expected one of {values}")
 
+    def normalize_defaults(self, state: BlockState) -> BlockState:
+        cap = self.capability(state.name)
+        props = cap.default_map()
+        props.update(state.property_dict())
+        normalized = BlockState.of(state.name, **props)
+        self.validate_state(normalized)
+        return normalized
+
     def resolve_intent(self, intent: BlockIntent) -> BlockState:
         requested_families = set(intent.families)
         preferred = {name: i for i, name in enumerate(intent.preferred_blocks)}
-        candidates: list[tuple[tuple[int, int, str], BlockCapability]] = []
+        candidates: list[tuple[tuple[int, int, int, int, str], BlockCapability]] = []
         for cap in self.registry.values():
-            family_overlap = len(requested_families & cap.families)
-            if requested_families and family_overlap == 0:
+            overlap = len(requested_families & cap.families)
+            if requested_families and overlap == 0:
                 continue
             if not intent.required_capabilities.issubset(cap.capabilities):
                 continue
-            rank = preferred.get(cap.name, len(preferred) + 100)
-            capability_slack = len(cap.capabilities - intent.required_capabilities)
-            candidates.append(((rank, capability_slack, cap.name), cap))
+            missing_families = len(requested_families - cap.families)
+            extra_families = len(cap.families - requested_families)
+            pref_rank = preferred.get(cap.name, len(preferred) + 100)
+            cap_slack = len(cap.capabilities - intent.required_capabilities)
+            candidates.append(((missing_families, extra_families, pref_rank, cap_slack, cap.name), cap))
         if not candidates:
             raise SpecError(
                 "Minecraft adapter could not realize intent "
                 f"families={intent.families} capabilities={sorted(intent.required_capabilities)}"
             )
         cap = min(candidates, key=lambda item: item[0])[1]
-        state = BlockState.of(cap.name, **dict(intent.properties))
+        props = cap.default_map()
+        props.update(dict(intent.properties))
+        state = BlockState.of(cap.name, **props)
         self.validate_state(state)
         return state
 
-    def _connective_state(self, model: VoxelModel, pos: tuple[int, int, int], cell: Cell) -> BlockState:
+    def intent_from_cell(self, cell: Cell) -> BlockIntent:
+        """Erase concrete resource identity and preserve semantic family/capability requirements."""
         cap = self.capability(cell.state.name)
+        required = frozenset(cap.capabilities & REALIZATION_CAPABILITIES)
+        return BlockIntent(
+            families=tuple(sorted(cap.families)),
+            required_capabilities=required,
+            properties=cell.state.properties,
+        )
+
+    def shape_descriptor(self, state: BlockState) -> ShapeDescriptor:
+        state = self.normalize_defaults(state)
+        cap = self.capability(state.name)
+        props = state.property_dict()
+        if "full_cube" in cap.capabilities:
+            return ShapeDescriptor("full_cube", 1.0, frozenset({"up", "down", "north", "east", "south", "west"}), False, False)
+        if "slab" in cap.capabilities:
+            slab_type = props["type"]
+            if slab_type == "double":
+                return ShapeDescriptor("double_slab", 1.0, frozenset({"up", "down", "north", "east", "south", "west"}), False, False)
+            support = frozenset({"up"}) if slab_type == "top" else frozenset({"down"})
+            return ShapeDescriptor(f"{slab_type}_slab", 0.5, support, True, False)
+        if "stair" in cap.capabilities:
+            half = props["half"]
+            support = frozenset({"up"}) if half == "top" else frozenset({"down"})
+            return ShapeDescriptor(f"{half}_stair_{props['shape']}", 0.75, support, True, True)
+        if "pane" in cap.capabilities:
+            arms = sum(props[d] == "true" for d in CARDINALS)
+            fraction = min(0.40, 0.125 + 0.0625 * arms)
+            return ShapeDescriptor("pane", fraction, frozenset(), True, True)
+        if "fence" in cap.capabilities:
+            arms = sum(props[d] == "true" for d in CARDINALS)
+            fraction = min(0.50, 0.25 + 0.0625 * arms)
+            return ShapeDescriptor("fence", fraction, frozenset(), True, True)
+        if "door" in cap.capabilities:
+            return ShapeDescriptor("door", 3.0 / 16.0, frozenset(), True, False)
+        if "carpet" in cap.capabilities:
+            return ShapeDescriptor("carpet", 1.0 / 16.0, frozenset(), True, False)
+        if state.name == "minecraft:lantern":
+            return ShapeDescriptor("lantern", 0.20, frozenset(), True, False)
+        if state.name == "minecraft:lightning_rod":
+            return ShapeDescriptor("lightning_rod", 0.05, frozenset(), True, False)
+        if state.name == "minecraft:chest":
+            return ShapeDescriptor("chest", 0.84, frozenset({"up"}), True, False)
+        return ShapeDescriptor("bounded_unknown_shape", 1.0, frozenset(), False, "neighbor_sensitive" in cap.capabilities)
+
+    @staticmethod
+    def _relative(pos: tuple[int, int, int], direction: str) -> tuple[int, int, int]:
+        dx, dy, dz = CARDINALS[direction]
+        return pos[0] + dx, pos[1] + dy, pos[2] + dz
+
+    def _can_take_stair_shape(
+        self, model: VoxelModel, pos: tuple[int, int, int], state: BlockState, side: str
+    ) -> bool:
+        neighbor = model.cells.get(self._relative(pos, side))
+        if neighbor is None or "stair" not in self.capability(neighbor.state.name).capabilities:
+            return True
+        p = self.normalize_defaults(state).property_dict()
+        q = self.normalize_defaults(neighbor.state).property_dict()
+        return q["facing"] != p["facing"] or q["half"] != p["half"]
+
+    def _derive_stair_state(self, model: VoxelModel, pos: tuple[int, int, int], cell: Cell) -> BlockState:
+        state = self.normalize_defaults(cell.state)
+        cap = self.capability(state.name)
+        if "stair" not in cap.capabilities:
+            return state
+        props = state.property_dict()
+        facing = props["facing"]
+        half = props["half"]
+
+        front_pos = self._relative(pos, facing)
+        front = model.cells.get(front_pos)
+        if front is not None and "stair" in self.capability(front.state.name).capabilities:
+            fp = self.normalize_defaults(front.state).property_dict()
+            ff = fp["facing"]
+            if fp["half"] == half and AXIS[ff] != AXIS[facing] and self._can_take_stair_shape(model, pos, state, OPPOSITE[ff]):
+                props["shape"] = "outer_left" if ff == COUNTERCLOCKWISE[facing] else "outer_right"
+                return BlockState.of(state.name, **props)
+
+        back_pos = self._relative(pos, OPPOSITE[facing])
+        back = model.cells.get(back_pos)
+        if back is not None and "stair" in self.capability(back.state.name).capabilities:
+            bp = self.normalize_defaults(back.state).property_dict()
+            bf = bp["facing"]
+            if bp["half"] == half and AXIS[bf] != AXIS[facing] and self._can_take_stair_shape(model, pos, state, bf):
+                props["shape"] = "inner_left" if bf == COUNTERCLOCKWISE[facing] else "inner_right"
+                return BlockState.of(state.name, **props)
+
+        props["shape"] = "straight"
+        return BlockState.of(state.name, **props)
+
+    def _connective_state(self, model: VoxelModel, pos: tuple[int, int, int], cell: Cell) -> BlockState:
+        state = self.normalize_defaults(cell.state)
+        cap = self.capability(state.name)
         if not ({"pane", "fence"} & cap.capabilities):
-            return cell.state
-        props = cell.state.property_dict()
+            return state
+        props = state.property_dict()
         x, y, z = pos
         for direction, (dx, dy, dz) in CARDINALS.items():
             neighbor = model.cells.get((x + dx, y + dy, z + dz))
@@ -155,7 +427,13 @@ class MinecraftAdapter:
                 else:
                     connected = bool({"fence", "full_cube", "solid_support"} & ncap.capabilities)
             props[direction] = str(connected).lower()
-        return BlockState.of(cell.state.name, **props)
+        return BlockState.of(state.name, **props)
+
+    def _supports_face(self, model: VoxelModel, pos: tuple[int, int, int], face: str) -> bool:
+        cell = model.cells.get(pos)
+        if cell is None:
+            return False
+        return face in self.shape_descriptor(cell.state).support_faces
 
     def _validate_doors(self, model: VoxelModel, issues: list[str]) -> int:
         pairs = 0
@@ -163,62 +441,109 @@ class MinecraftAdapter:
             cap = self.capability(cell.state.name)
             if "door" not in cap.capabilities:
                 continue
-            props = cell.state.property_dict()
-            half = props.get("half")
+            props = self.normalize_defaults(cell.state).property_dict()
+            half = props["half"]
             x, y, z = pos
-            mate_pos = (x, y + 1, z) if half == "lower" else (x, y - 1, z) if half == "upper" else None
-            if mate_pos is None:
-                issues.append(f"door at {pos} lacks explicit half property")
-                continue
+            mate_pos = (x, y + 1, z) if half == "lower" else (x, y - 1, z)
             mate = model.cells.get(mate_pos)
             if mate is None or mate.state.name != cell.state.name:
                 issues.append(f"door at {pos} has no matching {cell.state.name} mate at {mate_pos}")
                 continue
-            mate_props = mate.state.property_dict()
+            mate_props = self.normalize_defaults(mate.state).property_dict()
             expected = "upper" if half == "lower" else "lower"
-            if mate_props.get("half") != expected:
+            if mate_props["half"] != expected:
                 issues.append(f"door pair {pos}/{mate_pos} has inconsistent half states")
                 continue
-            for key in ("facing", "hinge"):
-                if props.get(key) != mate_props.get(key):
+            for key in ("facing", "hinge", "open", "powered"):
+                if props[key] != mate_props[key]:
                     issues.append(f"door pair {pos}/{mate_pos} disagrees on {key}")
             if half == "lower":
+                below = (x, y - 1, z)
+                if not self._supports_face(model, below, "up"):
+                    issues.append(f"door lower half at {pos} lacks sturdy top support at {below}")
                 pairs += 1
         return pairs
 
     def _validate_attachments(self, model: VoxelModel, issues: list[str]) -> int:
         checked = 0
-        occupied = set(model.cells)
         for pos, cell in sorted(model.cells.items()):
             cap = self.capability(cell.state.name)
             if "attachment_sensitive" not in cap.capabilities:
                 continue
-            props = cell.state.property_dict()
+            props = self.normalize_defaults(cell.state).property_dict()
             x, y, z = pos
             if cell.state.name == "minecraft:lantern":
-                hanging = props.get("hanging", "false") == "true"
+                hanging = props["hanging"] == "true"
                 support_pos = (x, y + 1, z) if hanging else (x, y - 1, z)
-                if support_pos not in occupied:
-                    issues.append(f"lantern at {pos} lacks {'ceiling' if hanging else 'floor'} support at {support_pos}")
+                support_face = "down" if hanging else "up"
+                if not self._supports_face(model, support_pos, support_face):
+                    issues.append(
+                        f"lantern at {pos} lacks Minecraft-style {support_face} support at {support_pos}"
+                    )
+                checked += 1
+            elif cell.state.name == "minecraft:lightning_rod":
+                facing = props["facing"]
+                if facing in CARDINALS:
+                    dx, dy, dz = CARDINALS[OPPOSITE[facing]]
+                    support_pos = (x + dx, y + dy, z + dz)
+                    support_face = facing
+                elif facing == "up":
+                    support_pos = (x, y - 1, z)
+                    support_face = "up"
+                else:
+                    support_pos = (x, y + 1, z)
+                    support_face = "down"
+                if not self._supports_face(model, support_pos, support_face):
+                    issues.append(
+                        f"lightning rod at {pos} lacks Minecraft-style {support_face} support at {support_pos}"
+                    )
                 checked += 1
         return checked
 
+    def _semantic_reresolve(self, source: VoxelModel) -> tuple[VoxelModel, int, int]:
+        """Re-resolve every cell without passing its concrete block name to the resolver."""
+        realized = VoxelModel()
+        changed_names = 0
+        normalized_states = 0
+        for pos, cell in sorted(source.cells.items()):
+            self.validate_state(cell.state)
+            intent = self.intent_from_cell(cell)
+            state = self.resolve_intent(intent)
+            if state.name != cell.state.name:
+                changed_names += 1
+            if state != cell.state:
+                normalized_states += 1
+            realized.set(pos[0], pos[1], pos[2], cell.role, state, cell.module)
+        return realized, changed_names, normalized_states
+
     def adapt(self, compiled: CompiledAsset) -> tuple[CompiledAsset, dict]:
-        model = VoxelModel(cells=dict(compiled.model.cells))
         issues: list[str] = []
         state_errors: list[str] = []
-        state_changes = 0
 
+        # First erase resource identity into semantic family/capability intent and resolve it again.
+        try:
+            model, semantic_name_changes, default_state_changes = self._semantic_reresolve(compiled.model)
+        except SpecError as exc:
+            raise SpecError(f"Minecraft semantic lowering failed: {exc}") from exc
+
+        connectivity_changes = 0
+        stair_shape_changes = 0
+
+        # Connection rules and stair-corner rules are functions of the final target neighborhood.
         for pos, cell in sorted(list(model.cells.items())):
             try:
-                self.validate_state(cell.state)
+                connected = self._connective_state(model, pos, cell)
+                realized = self._derive_stair_state(model, pos, Cell(cell.role, connected, cell.module))
+                self.validate_state(realized)
             except SpecError as exc:
                 state_errors.append(f"{pos}: {exc}")
                 continue
-            realized = self._connective_state(model, pos, cell)
+            if connected != cell.state:
+                connectivity_changes += 1
+            if realized.property_dict().get("shape") != connected.property_dict().get("shape"):
+                stair_shape_changes += 1
             if realized != cell.state:
                 model.set(pos[0], pos[1], pos[2], cell.role, realized, cell.module)
-                state_changes += 1
 
         issues.extend(state_errors)
         if not state_errors:
@@ -230,25 +555,47 @@ class MinecraftAdapter:
 
         palette = sorted({cell.state.name for cell in model.cells.values()})
         block_entity_blocks = sum(
-            1
-            for cell in model.cells.values()
-            if cell.state.name in self.registry and "block_entity" in self.registry[cell.state.name].capabilities
+            1 for cell in model.cells.values()
+            if "block_entity" in self.capability(cell.state.name).capabilities
         )
+        shape_counts = Counter(self.shape_descriptor(cell.state).shape_class for cell in model.cells.values())
+        partial_collision_blocks = sum(
+            1 for cell in model.cells.values() if self.shape_descriptor(cell.state).partial_collision
+        )
+        explicit_support_blocks = sum(
+            1 for cell in model.cells.values() if self.shape_descriptor(cell.state).support_faces
+        )
+
         report = {
-            "adapterVersion": "minecraft-adapter-0.1",
+            "adapterVersion": "minecraft-adapter-0.2",
             "target": "minecraft-java-1.21.1",
             "passed": not issues,
             "issues": issues,
             "registeredPaletteSize": len(self.registry),
             "realizedPaletteSize": len(palette),
             "realizedBlocks": palette,
-            "neighborSensitiveStateChanges": state_changes,
+            "semanticReResolution": {
+                "cellCount": len(model.cells),
+                "concreteNameChanges": semantic_name_changes,
+                "defaultStateNormalizations": default_state_changes,
+                "resolverUsedConcreteBlockNames": False,
+            },
+            "neighborSensitiveStateChanges": connectivity_changes + stair_shape_changes,
+            "connectivityStateChanges": connectivity_changes,
+            "stairShapeStateChanges": stair_shape_changes,
             "validatedDoorPairs": door_pairs,
             "validatedAttachmentBlocks": attachment_checks,
+            "shapeModel": {
+                "kind": "coarse_collision_and_face_support_v0.2",
+                "shapeClassCounts": dict(sorted(shape_counts.items())),
+                "partialCollisionBlockCount": partial_collision_blocks,
+                "explicitSupportBlockCount": explicit_support_blocks,
+            },
             "blockEntityBlockCount": block_entity_blocks,
-            "blockEntityPolicy": "default_empty_runtime_state_only_v0.1",
+            "blockEntityPolicy": "default_empty_runtime_state_only_v0.2",
             "semanticIntentResolverAvailable": True,
             "architectureStillEmitsConcreteStates": True,
+            "adapterIsExportAuthority": True,
         }
         if issues:
             raise SpecError("Minecraft adapter rejected compiled asset: " + "; ".join(issues[:8]))
