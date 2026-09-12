@@ -98,6 +98,8 @@ final class BootstrapCivilizationPolicyTest {
         assertEquals("bootstrap-guild-consumer", opportunity.consumerSettlementId());
         assertEquals(BootstrapFreightOpportunity.ProducerSpecialization.COPPER_EXTRACTION, opportunity.producerSpecialization());
         assertEquals(BootstrapFreightOpportunity.ConsumerNeed.ENGINEERING_COPPER_INPUT, opportunity.consumerNeed());
+        assertEquals(BootstrapFreightOpportunity.ConsumerCapability.CARGO_TRANSFER, opportunity.requiredConsumerCapability());
+        assertEquals("CARGO_TRANSFER", opportunity.requiredConsumerCapability().capabilityId());
         assertTrue(opportunity.routine());
         assertTrue(opportunity.recognizedRoute());
         assertTrue(opportunity.physicalCargoRequired());
