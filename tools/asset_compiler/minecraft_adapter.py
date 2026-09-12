@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Callable, Iterable
 
 from model import BlockState, Cell, CompiledAsset, SpecError, VoxelModel
 
@@ -78,9 +78,7 @@ def _cap(
         name=name,
         families=frozenset(families),
         capabilities=frozenset(capabilities),
-        properties=tuple(
-            sorted((key, frozenset(str(v).lower() for v in values)) for key, values in properties.items())
-        ),
+        properties=tuple(sorted((key, frozenset(str(v).lower() for v in values)) for key, values in properties.items())),
         defaults=tuple(sorted((str(k), str(v).lower()) for k, v in (defaults or {}).items())),
     )
 
@@ -108,9 +106,9 @@ def vanilla_1_21_1_registry() -> dict[str, BlockCapability]:
         _cap("minecraft:spruce_slab", ("timber", "seating"), ("slab",), defaults={"type": "bottom", "waterlogged": "false"}, type=("top", "bottom", "double"), waterlogged=bools),
         _cap("minecraft:bookshelf", ("records", "timber"), ("full_cube", "solid_support")),
         _cap("minecraft:dark_oak_planks", ("dark_timber",), ("full_cube", "solid_support")),
-        _cap("minecraft:barrel", ("storage",), ("full_cube", "block_entity", "container", "directional"), defaults={"facing": "north", "open": "false"}, facing=("up", "down", *facings), open=bools),
+        _cap("minecraft:barrel", ("storage", "freight_storage"), ("full_cube", "block_entity", "container", "directional"), defaults={"facing": "north", "open": "false"}, facing=("up", "down", *facings), open=bools),
         _cap("minecraft:smithing_table", ("workbench",), ("full_cube", "solid_support")),
-        _cap("minecraft:chest", ("storage",), ("block_entity", "container", "directional"), defaults={"facing": "north", "type": "single", "waterlogged": "false"}, facing=facings, type=("single", "left", "right"), waterlogged=bools),
+        _cap("minecraft:chest", ("storage", "tool_storage"), ("block_entity", "container", "directional"), defaults={"facing": "north", "type": "single", "waterlogged": "false"}, facing=facings, type=("single", "left", "right"), waterlogged=bools),
         _cap("minecraft:stone_brick_slab", ("masonry",), ("slab",), defaults={"type": "bottom", "waterlogged": "false"}, type=("top", "bottom", "double"), waterlogged=bools),
         _cap("minecraft:dark_oak_fence", ("dark_timber",), ("fence", "neighbor_sensitive", "thin"), defaults={"north": "false", "east": "false", "south": "false", "west": "false", "waterlogged": "false"}, north=bools, east=bools, south=bools, west=bools, waterlogged=bools),
         _cap("minecraft:polished_diorite", ("masonry", "history_masonry"), ("full_cube", "solid_support")),
@@ -123,8 +121,10 @@ def vanilla_1_21_1_registry() -> dict[str, BlockCapability]:
 class MinecraftAdapter:
     """Minecraft target-realization authority for bounded compiled architecture."""
 
-    def __init__(self, registry: dict[str, BlockCapability] | None = None) -> None:
+    def __init__(self, registry: dict[str, BlockCapability] | None = None, *, intent_provider: Callable[[Cell], BlockIntent] | None = None, intent_profile_name: str = "capability-roundtrip-v0.2") -> None:
         self.registry = dict(registry or vanilla_1_21_1_registry())
+        self.intent_provider = intent_provider
+        self.intent_profile_name = str(intent_profile_name)
 
     def capability(self, block_name: str) -> BlockCapability:
         try:
@@ -366,8 +366,11 @@ class MinecraftAdapter:
         changed_names = 0
         normalized_states = 0
         for pos, cell in sorted(source.cells.items()):
-            self.validate_state(cell.state)
-            intent = self.intent_from_cell(cell)
+            if self.intent_provider is None:
+                self.validate_state(cell.state)
+                intent = self.intent_from_cell(cell)
+            else:
+                intent = self.intent_provider(cell)
             state = self.resolve_intent(intent)
             if state.name != cell.state.name:
                 changed_names += 1
@@ -417,7 +420,7 @@ class MinecraftAdapter:
         explicit_support_blocks = sum(1 for cell in model.cells.values() if self.shape_descriptor(cell.state).support_faces)
 
         report = {
-            "adapterVersion": "minecraft-adapter-0.2",
+            "adapterVersion": "minecraft-adapter-0.3",
             "target": "minecraft-java-1.21.1",
             "passed": not issues,
             "issues": issues,
@@ -429,6 +432,8 @@ class MinecraftAdapter:
                 "concreteNameChanges": semantic_name_changes,
                 "defaultStateNormalizations": default_state_changes,
                 "resolverUsedConcreteBlockNames": False,
+                "sourceConcreteNamesReadForIntent": self.intent_provider is None,
+                "intentProfile": self.intent_profile_name,
             },
             "neighborSensitiveStateChanges": connectivity_changes + stair_shape_changes,
             "connectivityStateChanges": connectivity_changes,
@@ -444,7 +449,7 @@ class MinecraftAdapter:
                 "explicitSupportBlockCount": explicit_support_blocks,
             },
             "blockEntityBlockCount": block_entity_blocks,
-            "blockEntityPolicy": "default_empty_runtime_state_only_v0.2",
+            "blockEntityPolicy": "default_empty_runtime_state_only_v0.3",
             "semanticIntentResolverAvailable": True,
             "architectureStillEmitsConcreteStates": True,
             "adapterIsExportAuthority": True,
