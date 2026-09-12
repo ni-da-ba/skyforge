@@ -9,6 +9,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 /** Writes an accepted Skyforge materialization into one real Minecraft ChunkAccess. */
 public final class SkyforgeNeoForge1211ChunkWriter {
     private static final int CHUNK_WIDTH = 16;
+    private static final int ATTRIBUTION_SAMPLE_MASK = 63;
 
     private final MinecraftBlockStateResolver blockStateResolver;
 
@@ -83,6 +84,12 @@ public final class SkyforgeNeoForge1211ChunkWriter {
         int minimumZ = materialization.chunkPos().getMinBlockZ();
         int assigned = 0;
         int solid = 0;
+        int changed = 0;
+        int unchanged = 0;
+        int sampled = 0;
+        long sectionMask = 0L;
+        boolean attributeDeferredWrite = SkyforgeRuntimePerformanceMetrics.enabled()
+                && SkyforgeDeferredChunkMutationLifecycle.active();
         BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
 
         for (int worldY = materialization.minimumY();
@@ -104,26 +111,83 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                         continue;
                     }
 
+                    boolean sampleThisWrite = attributeDeferredWrite
+                            && (assigned & ATTRIBUTION_SAMPLE_MASK) == 0;
+                    long sampleStart = sampleThisWrite ? System.nanoTime() : 0L;
                     BlockState state = blockStateResolver.resolve(key);
+                    if (sampleThisWrite) {
+                        SkyforgeRuntimePerformanceMetrics.recordElapsed(
+                                "terrain.deferred.write.sample.resolveState",
+                                Math.max(0L, System.nanoTime() - sampleStart));
+                    }
                     if (state.isAir() != expectedAir) {
                         throw new IllegalStateException(
                                 "resolved BlockState changed authoritative Skyforge occupancy for " + key);
                     }
 
                     blockPos.set(worldX, worldY, worldZ);
+                    sampleStart = sampleThisWrite ? System.nanoTime() : 0L;
                     BlockState previousState = chunk.getBlockState(blockPos);
+                    if (sampleThisWrite) {
+                        SkyforgeRuntimePerformanceMetrics.recordElapsed(
+                                "terrain.deferred.write.sample.preRead",
+                                Math.max(0L, System.nanoTime() - sampleStart));
+                    }
+
+                    sampleStart = sampleThisWrite ? System.nanoTime() : 0L;
                     chunk.setBlockState(blockPos, state, false);
+                    if (sampleThisWrite) {
+                        SkyforgeRuntimePerformanceMetrics.recordElapsed(
+                                "terrain.deferred.write.sample.mutation",
+                                Math.max(0L, System.nanoTime() - sampleStart));
+                    }
+
+                    sampleStart = sampleThisWrite ? System.nanoTime() : 0L;
                     BlockState stored = chunk.getBlockState(blockPos);
+                    if (sampleThisWrite) {
+                        SkyforgeRuntimePerformanceMetrics.recordElapsed(
+                                "terrain.deferred.write.sample.verificationRead",
+                                Math.max(0L, System.nanoTime() - sampleStart));
+                    }
                     if (!stored.equals(state)) {
                         throw new IllegalStateException("ChunkAccess did not retain the resolved BlockState");
                     }
+
+                    boolean changedNow = !previousState.equals(stored);
+                    sampleStart = sampleThisWrite ? System.nanoTime() : 0L;
                     SkyforgeDeferredChunkMutationLifecycle.afterWrite(chunk, blockPos, previousState, stored);
+                    if (sampleThisWrite) {
+                        SkyforgeRuntimePerformanceMetrics.recordElapsed(
+                                "terrain.deferred.write.sample.lifecycle",
+                                Math.max(0L, System.nanoTime() - sampleStart));
+                        sampled++;
+                    }
+
                     assigned++;
+                    if (changedNow) {
+                        changed++;
+                    } else {
+                        unchanged++;
+                    }
+                    int sectionIndex = Math.floorDiv(worldY - chunk.getMinBuildHeight(), 16);
+                    if (sectionIndex >= 0 && sectionIndex < Long.SIZE) {
+                        sectionMask |= 1L << sectionIndex;
+                    }
                     if (!state.isAir()) {
                         solid++;
                     }
                 }
             }
+        }
+
+        if (attributeDeferredWrite) {
+            SkyforgeRuntimePerformanceMetrics.recordSample("terrain.deferred.write.assignedBlocks", assigned);
+            SkyforgeRuntimePerformanceMetrics.recordSample("terrain.deferred.write.changedBlocks", changed);
+            SkyforgeRuntimePerformanceMetrics.recordSample("terrain.deferred.write.unchangedBlocks", unchanged);
+            SkyforgeRuntimePerformanceMetrics.recordSample("terrain.deferred.write.sampledBlocks", sampled);
+            SkyforgeRuntimePerformanceMetrics.recordSample(
+                    "terrain.deferred.write.touchedSections",
+                    Long.bitCount(sectionMask));
         }
 
         return new MinecraftChunkWriteResult(
