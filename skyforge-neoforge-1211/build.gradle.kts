@@ -5238,14 +5238,16 @@ val packetWallP50 = properties.getProperty("perf.terrain.deferred.packetWallNano
 val packetWallP95 = properties.getProperty("perf.terrain.deferred.packetWallNanos.p95").toLong()
 val packetWallP99 = properties.getProperty("perf.terrain.deferred.packetWallNanos.p99").toLong()
 val packetWallMax = properties.getProperty("perf.terrain.deferred.packetWallNanos.max").toLong()
+val packetWallMaxTargetNanos = System.getenv("SKYFORGE_SF_IMP_0071_PACKET_MAX_NANOS")?.toLongOrNull() ?: 16_000_000L
+check(packetWallMaxTargetNanos > 0L) { "SF-IMP-0071 packet wall-time target must be positive: target=$packetWallMaxTargetNanos" }
 check(packetWallSamples == deferredWritePacketCalls
         && packetWallP50 > 0L
         && packetWallP50 <= packetWallP95
         && packetWallP95 <= packetWallP99
         && packetWallP99 <= packetWallMax
-        && packetWallMax < 16_000_000L) {
+        && packetWallMax < packetWallMaxTargetNanos) {
     "SF-IMP-0071 packet wall-time gate failed: samples=$packetWallSamples, p50=$packetWallP50, " +
-        "p95=$packetWallP95, p99=$packetWallP99, max=$packetWallMax"
+        "p95=$packetWallP95, p99=$packetWallP99, max=$packetWallMax, target=$packetWallMaxTargetNanos"
 }
 
 val packetAssignedSamples = properties.getProperty("perf.terrain.deferred.packetAssignedSolidWrites.samples").toLong()
