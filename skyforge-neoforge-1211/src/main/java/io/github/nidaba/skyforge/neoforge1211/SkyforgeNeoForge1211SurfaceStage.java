@@ -234,7 +234,12 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 progress.cursor(),
                 maximumAssignedSolidWrites,
                 !exactAdmissionFastPath);
-        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.writePacket", writeStart);
+        long writeElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(writeStart);
+SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.deferred.writePacket", writeElapsedNanos);
+SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+        "terrain.deferred.packetWallNanos", writeElapsedNanos);
+SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+        "terrain.deferred.packetAssignedSolidWrites", advance.assignedSolidWrites());
 
         if (advance.complete()
                 && advance.cursor().cumulativeAssignedSolidWrites() != expectedSolidBlocks) {
