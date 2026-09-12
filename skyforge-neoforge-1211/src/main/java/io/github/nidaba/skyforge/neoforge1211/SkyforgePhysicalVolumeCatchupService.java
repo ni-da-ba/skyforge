@@ -130,43 +130,11 @@ final class SkyforgePhysicalVolumeCatchupService {
     }
 
     /**
-     * Bounded deferred-terrain pump. The first chunk is always allowed so a single expensive
-     * materialization cannot starve progress; later chunks require remaining time budget.
-     */
-    static PumpResult pumpTerrainCatchupChunks(
-            BooleanSupplier serviceOneChunk,
-            LongSupplier nanoTime,
-            int maximumChunks,
-            long timeBudgetNanos) {
-        return pumpBoundedWork(serviceOneChunk, nanoTime, maximumChunks, timeBudgetNanos);
-    }
-
-    /**
-     * Services the first canonical pending cave chunk that can make progress without loading it.
+     * Pure bounded-pump primitive retained package-visible for deterministic unit tests.
      *
-     * <p>Returning after one worked service call is intentional. The pump then refreshes
-     * {@link SkyforgeComposedCaveStage#pendingChunkKeys()} and restarts from the beginning, exactly
-     * matching the historical ordering across server ticks even when one obligation completes.
-     */
-    private static boolean serviceOneComposedCaveQuantum(ServerLevel level) {
-        var chunkSource = level.getChunkSource();
-        var generator = chunkSource.getGenerator();
-        for (long chunkKey : SkyforgeComposedCaveStage.pendingChunkKeys()) {
-            int chunkX = ChunkPos.getX(chunkKey);
-            int chunkZ = ChunkPos.getZ(chunkKey);
-            LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
-            if (chunk == null) {
-                continue;
-            }
-            if (SkyforgeComposedCaveStage.service(level, chunk, generator).worked()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Composed-cave bounded pump retained package-visible for deterministic unit tests.
+     * <p>The first quantum is always allowed so a single slow non-preemptible operation cannot
+     * permanently starve progress. Subsequent quanta require both remaining work capacity and
+     * remaining elapsed-time budget.
      */
     static PumpResult pumpComposedCaveQuanta(
             BooleanSupplier serviceOneQuantum,
