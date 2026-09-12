@@ -86,22 +86,31 @@ jobs:
             } > "$out/profile.properties"
 
             echo "=== $name: ${active_cpus} CPU(s), ${heap_gib} GiB max heap, cpuset ${cpuset} ==="
+            set +e
             /usr/bin/time -v -o "$out/time.txt" \
-              env JAVA_TOOL_OPTIONS="-XX:ActiveProcessorCount=${active_cpus} -Xmx${heap_gib}g" \
+              env JAVA_TOOL_OPTIONS="-XX:ActiveProcessorCount=${active_cpus} -Xmx${heap_gib}g -Xlog:gc*,safepoint:file=${out}/jvm-%p.log:time,uptime,level,tags" \
               taskset -c "$cpuset" \
               ./gradlew :skyforge-neoforge-1211:sfImp0070PerformanceVerify \
                 --stacktrace --no-daemon --no-configuration-cache \
               2>&1 | tee "$out/gradle.log"
+            local status=${PIPESTATUS[0]}
+            set -e
 
-            cp "$result_dir/stacked.properties" "$out/stacked.properties"
+            echo "$status" > "$out/exit-status.txt"
+            if [[ -f "$result_dir/stacked.properties" ]]; then
+              cp "$result_dir/stacked.properties" "$out/stacked.properties"
+            fi
             if [[ -f "$run_dir/logs/latest.log" ]]; then
               cp "$run_dir/logs/latest.log" "$out/latest.log"
             fi
+            return "$status"
           }
 
-          run_profile reference-4cpu-8g 4 8 0-3
-          run_profile constrained-2cpu-6g 2 6 0-1
-          run_profile low-1cpu-4g 1 4 0
+          aggregate_status=0
+          run_profile reference-4cpu-8g 4 8 0-3 || aggregate_status=1
+          run_profile constrained-2cpu-6g 2 6 0-1 || aggregate_status=1
+          run_profile low-1cpu-4g 1 4 0 || aggregate_status=1
+          exit "$aggregate_status"
 
       - name: Build comparison summary
         if: always()
@@ -123,9 +132,9 @@ jobs:
               "process_s": "perf.processElapsedNanos",
               "warmup_s": "perf.acceptance.warmOriginFootprint.totalNanos",
               "admission_s": "perf.admission.nativeOccupancySurvey.totalNanos",
-              "deferred_s": "perf.terrain.realizeDeferred.totalNanos",
+              "deferred_s": "perf.terrain.realizeDeferredPacket.totalNanos",
               "materialize_s": "perf.terrain.deferred.materialize.totalNanos",
-              "write_s": "perf.terrain.deferred.write.totalNanos",
+              "write_s": "perf.terrain.deferred.writePacket.totalNanos",
               "surface_s": "perf.surfacePopulation.coordinator.totalNanos",
               "vegetation_s": "perf.surfacePopulation.phase.VEGETAL_DECORATION.totalNanos",
               "underground_decoration_s": "perf.interior.UNDERGROUND_DECORATION.totalNanos",

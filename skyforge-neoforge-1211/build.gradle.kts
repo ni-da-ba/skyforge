@@ -5141,11 +5141,11 @@ tasks.register("sfImp0070PerformanceVerify") {
             "perf.terrain.realize.totalNanos",
             "perf.terrain.noCandidatePrefilter.totalNanos",
             "perf.terrain.plannedDirectProjectionSkipped.totalNanos",
-            "perf.terrain.realizeDeferred.totalNanos",
+            "perf.terrain.realizeDeferredPacket.totalNanos",
             "perf.terrain.deferred.materialize.totalNanos",
             "perf.terrain.deferred.adaptSurface.totalNanos",
             "perf.terrain.deferred.solidCount.totalNanos",
-            "perf.terrain.deferred.write.totalNanos",
+            "perf.terrain.deferred.writePacket.totalNanos",
             "perf.terrain.deferred.completeCatchup.totalNanos",
             "perf.surfacePopulation.coordinator.totalNanos",
             "perf.surfacePopulation.findSurface.totalNanos",
@@ -5214,24 +5214,61 @@ tasks.register("sfImp0070PerformanceVerify") {
                 "samples=$deferredVerticalSamples, total=$deferredVerticalTotal, max=$deferredVerticalMax"
         }
 
-        val deferredSubphases = listOf(
-            "materialize",
-            "adaptSurface",
-            "solidCount",
-            "write",
-            "completeCatchup",
-        )
-        for (subphase in deferredSubphases) {
-            val calls = properties.getProperty("perf.terrain.deferred.$subphase.calls").toLong()
-            check(calls == 390L) {
-                "SF-IMP-0077 deferred subphase call count changed: subphase=$subphase, calls=$calls"
-            }
-        }
+        val deferredOneTimeSubphases = listOf(
+    "materialize",
+    "adaptSurface",
+    "solidCount",
+    "completeCatchup",
+)
+for (subphase in deferredOneTimeSubphases) {
+    val calls = properties.getProperty("perf.terrain.deferred.$subphase.calls").toLong()
+    check(calls == 390L) {
+        "SF-IMP-0077 deferred one-time subphase call count changed: subphase=$subphase, calls=$calls"
+    }
+}
 
-        val deferredSubphaseSummary = deferredSubphases.joinToString(",") { subphase ->
-            val totalNanos = properties.getProperty("perf.terrain.deferred.$subphase.totalNanos").toLong()
-            "$subphase=" + (totalNanos / 1_000_000.0) + "ms"
-        }
+val deferredWritePacketCalls = properties.getProperty("perf.terrain.deferred.writePacket.calls").toLong()
+val deferredPacketCalls = properties.getProperty("perf.terrain.realizeDeferredPacket.calls").toLong()
+check(deferredWritePacketCalls > 390L && deferredPacketCalls == deferredWritePacketCalls) {
+    "SF-IMP-0071 packet call accounting changed: writePackets=$deferredWritePacketCalls, quanta=$deferredPacketCalls"
+}
+
+val packetWallSamples = properties.getProperty("perf.terrain.deferred.packetWallNanos.samples").toLong()
+val packetWallP50 = properties.getProperty("perf.terrain.deferred.packetWallNanos.p50").toLong()
+val packetWallP95 = properties.getProperty("perf.terrain.deferred.packetWallNanos.p95").toLong()
+val packetWallP99 = properties.getProperty("perf.terrain.deferred.packetWallNanos.p99").toLong()
+val packetWallMax = properties.getProperty("perf.terrain.deferred.packetWallNanos.max").toLong()
+val packetWallMaxTargetNanos = System.getenv("SKYFORGE_SF_IMP_0071_PACKET_MAX_NANOS")?.toLongOrNull() ?: if (Runtime.getRuntime().availableProcessors() >= 4) 16_000_000L else 50_000_000L
+check(packetWallMaxTargetNanos > 0L) { "SF-IMP-0071 packet wall-time target must be positive: target=$packetWallMaxTargetNanos" }
+check(packetWallSamples == deferredWritePacketCalls
+        && packetWallP50 > 0L
+        && packetWallP50 <= packetWallP95
+        && packetWallP95 <= packetWallP99
+        && packetWallP99 <= packetWallMax
+        && packetWallMax < packetWallMaxTargetNanos) {
+    "SF-IMP-0071 packet wall-time gate failed: samples=$packetWallSamples, p50=$packetWallP50, " +
+        "p95=$packetWallP95, p99=$packetWallP99, max=$packetWallMax, target=$packetWallMaxTargetNanos"
+}
+
+val packetAssignedSamples = properties.getProperty("perf.terrain.deferred.packetAssignedSolidWrites.samples").toLong()
+val packetAssignedTotal = properties.getProperty("perf.terrain.deferred.packetAssignedSolidWrites.total").toLong()
+val packetAssignedMax = properties.getProperty("perf.terrain.deferred.packetAssignedSolidWrites.max").toLong()
+val expectedSolidSamples = properties.getProperty("perf.terrain.deferred.expectedSolidBlocks.samples").toLong()
+val expectedSolidTotal = properties.getProperty("perf.terrain.deferred.expectedSolidBlocks.total").toLong()
+check(packetAssignedSamples == deferredWritePacketCalls
+        && packetAssignedMax <= 1024L
+        && expectedSolidSamples == 390L
+        && packetAssignedTotal == expectedSolidTotal) {
+    "SF-IMP-0071 packet block accounting failed: packetSamples=$packetAssignedSamples, " +
+        "packetTotal=$packetAssignedTotal, packetMax=$packetAssignedMax, " +
+        "expectedSamples=$expectedSolidSamples, expectedTotal=$expectedSolidTotal"
+}
+
+val deferredSubphases = deferredOneTimeSubphases + "writePacket"
+val deferredSubphaseSummary = deferredSubphases.joinToString(",") { subphase ->
+    val totalNanos = properties.getProperty("perf.terrain.deferred.$subphase.totalNanos").toLong()
+    "$subphase=" + (totalNanos / 1_000_000.0) + "ms"
+}
 
         val terrainRealizeCalls = properties.getProperty("perf.terrain.realize.calls").toLong()
         val plannedProjectionSkips =
