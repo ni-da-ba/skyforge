@@ -22,8 +22,32 @@ DOWNLOAD_URL = (
 ARCHIVE_SHA256 = "987387933b64b9833846dee373b640440d3e1fd48a04804ec01a6dbf718e8ab8"
 
 
+def shared_repository_root(root: Path) -> Path:
+    """Resolve a linked worker worktree back to the controller's shared repository root."""
+    root = root.resolve()
+    dot_git = root / ".git"
+    if not dot_git.is_file():
+        return root
+
+    line = dot_git.read_text().strip()
+    prefix = "gitdir:"
+    if not line.lower().startswith(prefix):
+        return root
+    git_dir = Path(line[len(prefix):].strip())
+    if not git_dir.is_absolute():
+        git_dir = (root / git_dir).resolve()
+
+    common_file = git_dir / "commondir"
+    if not common_file.is_file():
+        return root
+    common_dir = Path(common_file.read_text().strip())
+    if not common_dir.is_absolute():
+        common_dir = (git_dir / common_dir).resolve()
+    return common_dir.parent
+
+
 def java_home(root: Path) -> Path:
-    return root / STATE_DIR / "toolchains" / TOOLCHAIN_ID
+    return shared_repository_root(root) / STATE_DIR / "toolchains" / TOOLCHAIN_ID
 
 
 def _valid_install(path: Path) -> bool:
@@ -34,7 +58,7 @@ def _valid_install(path: Path) -> bool:
 
 def ensure_hosted_jdk(root: Path) -> bool:
     """Ensure the pinned hosted JDK exists; return True only when a new install was made."""
-    root = root.resolve()
+    root = shared_repository_root(root)
     destination = java_home(root)
     marker = destination / ".skyforge-sha256"
     if _valid_install(destination) and marker.is_file() and marker.read_text().strip() == ARCHIVE_SHA256:
@@ -95,7 +119,7 @@ def ensure_hosted_jdk(root: Path) -> bool:
 
 
 def toolchain_env(root: Path, base: dict[str, str] | None = None) -> dict[str, str]:
-    home = java_home(root.resolve())
+    home = java_home(root)
     if not _valid_install(home):
         raise RuntimeError(
             f"Hosted JDK is not provisioned at {home}; refresh/restart the hosted controller first"
