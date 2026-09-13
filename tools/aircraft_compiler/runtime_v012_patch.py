@@ -17,10 +17,14 @@ def _replace_once(source: str, old: str, new: str, label: str) -> str:
 
 def patch_runtime_source(source: str) -> str:
     replacements = {
-        "private static final int EXPECTED_MOVING_MAIN_BODY = 114;": "private static final int EXPECTED_MOVING_MAIN_BODY = 118;",
+        "private static final int EXPECTED_MOVING_MAIN_BODY = 114;": (
+            "private static final int EXPECTED_MOVING_MAIN_BODY = 114;\n"
+            "    private static final int EXPECTED_V012_MOVING_MAIN_BODY = 118;"
+        ),
         "private static final int EXPECTED_PRIMARY_SABLE_PAYLOAD = 123;": "private static final int EXPECTED_PRIMARY_SABLE_PAYLOAD = 127;",
         "private static final int EXPECTED_GLUE_DOMAINS = 4;": "private static final int EXPECTED_GLUE_DOMAINS = 5;",
         'assertInt("encoded glue domain count", EXPECTED_GLUE_DOMAINS, glueDomainsJson.size());': 'assertInt("encoded v0.11 glue domain count", EXPECTED_GLUE_DOMAINS - 1, glueDomainsJson.size());',
+        'assertInt("exact moved main-body block count", EXPECTED_MOVING_MAIN_BODY, movedMainCount);': 'assertInt("exact moved v0.12 main-body block count", EXPECTED_V012_MOVING_MAIN_BODY, movedMainCount);',
     }
     for old, new in replacements.items():
         source = _replace_once(source, old, new, old)
@@ -55,7 +59,8 @@ def patch_runtime_source(source: str) -> str:
                 fail("unexpected v0.12 placement mode " + mode);
             }
         }
-''' + expected_anchor
+        assertInt("v0.12 main-body expected block count", EXPECTED_V012_MOVING_MAIN_BODY, mainExpected.size());
+'''
     source = _replace_once(source, expected_anchor, expected_injected, "powertrain expected map")
 
     place_anchor = '        level.setBlock(BASE.offset(assemblerRelative), materialize(assemblerExpected), 3);\n'
