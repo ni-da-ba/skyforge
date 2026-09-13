@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.joml.Quaterniond;
 import org.joml.Quaterniondc;
@@ -36,11 +35,9 @@ final class SkyforgeAircraftCompilerYawAuthorityRuntimeAcceptance {
         Object childSubLevel = attachedChild(bearing);
         assertTrue("rudder child is ServerSubLevel", childSubLevel.getClass().getName().endsWith("ServerSubLevel"));
 
-        Object container = Class.forName("dev.ryanhcode.sable.api.sublevel.SubLevelContainer")
-                .getMethod("getContainer", Level.class)
-                .invoke(null, level);
-        assertTrue("Sable sublevel container available", container != null);
-        Object physicsSystem = publicMethod(container, "physicsSystem").invoke(container);
+        Object container = requireServerSubLevelContainer(level);
+        Class<?> serverContainerClass = Class.forName("dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer");
+        Object physicsSystem = serverContainerClass.getDeclaredMethod("physicsSystem").invoke(container);
         assertTrue("Sable physics system available", physicsSystem != null);
 
         double commandedTargetDegrees = number(publicMethod(bearing, "getTargetAngleDegrees").invoke(bearing));
@@ -138,6 +135,19 @@ final class SkyforgeAircraftCompilerYawAuthorityRuntimeAcceptance {
                         + " productionControlBindingVerified=false"
                         + " stableFlightVerified=false"
                         + " points=" + pointSummaries);
+    }
+
+    private static Object requireServerSubLevelContainer(ServerLevel level) throws ReflectiveOperationException {
+        Class<?> holderClass = Class.forName("dev.ryanhcode.sable.mixinterface.plot.SubLevelContainerHolder");
+        if (!holderClass.isInstance(level)) {
+            fail("ServerLevel does not expose Sable SubLevelContainerHolder");
+        }
+        Object container = holderClass.getDeclaredMethod("sable$getPlotContainer").invoke(level);
+        Class<?> serverContainerClass = Class.forName("dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer");
+        if (container == null || !serverContainerClass.isInstance(container)) {
+            fail("Sable ServerSubLevelContainer unavailable");
+        }
+        return container;
     }
 
     private static Object attachedChild(BlockEntity bearing) throws ReflectiveOperationException {
