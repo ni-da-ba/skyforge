@@ -30,7 +30,12 @@ def emit_surface_state_outputs(result: dict[str, Any], out_dir: Path) -> None:
     for conflict in result["conflicts"]:
         lines.append(
             "conflict=" + json.dumps(
-                {"lattice": conflict["lattice"], "roles": conflict["roles"], "demandedAxes": conflict["demandedAxes"], "reason": conflict["reason"]},
+                {
+                    "lattice": conflict["lattice"],
+                    "roles": conflict["roles"],
+                    "demandedStates": conflict["demandedStates"],
+                    "reason": conflict["reason"],
+                },
                 sort_keys=True,
                 separators=(",", ":"),
             )
