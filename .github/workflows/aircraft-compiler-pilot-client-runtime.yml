@@ -71,14 +71,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python tools/aircraft_compiler/gradle_v020_patch.py skyforge-neoforge-1211/build.gradle
+          python tools/aircraft_compiler/gradle_v020_patch.py skyforge-neoforge-1211/build.gradle.kts
 
       - name: Verify disposable v0.20 wiring
         shell: bash
         run: |
           set -euo pipefail
           src=skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java
-          gradle=skyforge-neoforge-1211/build.gradle
+          gradle=skyforge-neoforge-1211/build.gradle.kts
           grep -Fq "SkyforgeAircraftCompilerPilotClientBridge.publish" "$src"
           grep -Fq 'create("aircraftCompilerPilotWorldPrepareServer")' "$gradle"
           grep -Fq 'create("aircraftCompilerPilotClient")' "$gradle"
