@@ -5,6 +5,7 @@ on:
     paths:
       - "tools/aircraft_compiler/**"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerPropellerRuntimeAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
@@ -68,10 +69,43 @@ jobs:
           grep -q '"coveredAdhesionIntentEdgeCount": 113' build/aircraft-compiler-runtime/glue_encoding.json
           grep -q '"glueDomainCount": 4' build/aircraft-compiler-runtime/glue_encoding.json
 
+      - name: Wire nested Propeller Bearing acceptance after primary Sable transfer
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java")
+          source = path.read_text()
+          anchor = '''        LOGGER.log(
+                  System.Logger.Level.INFO,
+                  "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS"'''
+          injected = '''        BlockPos movedBearingPos = null;
+                  for (Map.Entry<BlockPos, ExpectedBlock> entry : mainExpected.entrySet()) {
+                      if (entry.getValue().id().toString().equals("aeronautics:propeller_bearing")) {
+                          assertTrue("single moved propeller bearing", movedBearingPos == null);
+                          movedBearingPos = BASE.offset(entry.getKey()).offset(offset);
+                      }
+                  }
+                  assertTrue("moved propeller bearing located from compiler manifest", movedBearingPos != null);
+                  List<BlockPos> movedPropellerPayloadPositions = new ArrayList<>();
+                  for (BlockPos relative : propellerPayloadExpected.keySet()) {
+                      movedPropellerPayloadPositions.add(BASE.offset(relative).offset(offset));
+                  }
+                  SkyforgeAircraftCompilerPropellerRuntimeAcceptance.verify(
+                          level, movedBearingPos, movedPropellerPayloadPositions);
+
+                  LOGGER.log(
+                          System.Logger.Level.INFO,
+                          "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS"'''
+          if source.count(anchor) != 1:
+              raise SystemExit(f"propeller runtime patch anchor count={source.count(anchor)}")
+          path.write_text(source.replace(anchor, injected))
+          PY
+
       - name: Resolve exact retained flight stack
         run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
 
-      - name: Execute genuine Simulated/Sable primary assembly probe
+      - name: Execute genuine Simulated/Sable primary and nested-propeller probes
         shell: bash
         env:
           JAVA_TOOL_OPTIONS: >-
@@ -88,11 +122,13 @@ jobs:
           outcome=""
 
           for _ in $(seq 1 300); do
-            if grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS" "${log}" 2>/dev/null; then
+            if grep -Fq "AIRCRAFT_001_RUNTIME_PROPELLER PASS" "${log}" 2>/dev/null \
+                && grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS" "${log}" 2>/dev/null; then
               outcome="pass"
               break
             fi
-            if grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY FAIL" "${log}" 2>/dev/null; then
+            if grep -Fq "AIRCRAFT_001_RUNTIME_PROPELLER FAIL" "${log}" 2>/dev/null \
+                || grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY FAIL" "${log}" 2>/dev/null; then
               outcome="fail"
               break
             fi
@@ -103,6 +139,7 @@ jobs:
           done
 
           if [[ "${outcome}" == "pass" ]]; then
+            grep -F "AIRCRAFT_001_RUNTIME_PROPELLER PASS" "${log}"
             grep -F "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS" "${log}"
             kill -TERM -- "-${pid}" 2>/dev/null || true
             sleep 2
@@ -111,9 +148,10 @@ jobs:
             exit 0
           fi
 
-          echo "FAIL AIRCRAFT-001 exact-stack primary Sable assembly probe"
+          echo "FAIL AIRCRAFT-001 exact-stack primary/nested-propeller runtime probe"
+          grep -F "AIRCRAFT_001_RUNTIME_PROPELLER FAIL" "${log}" || true
           grep -F "AIRCRAFT_001_RUNTIME_ASSEMBLY FAIL" "${log}" || true
-          tail -n 240 "${log}"
+          tail -n 260 "${log}"
           kill -TERM -- "-${pid}" 2>/dev/null || true
           sleep 1
           kill -KILL -- "-${pid}" 2>/dev/null || true
