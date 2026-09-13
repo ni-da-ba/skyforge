@@ -56,21 +56,32 @@ jobs:
           python tools/aircraft_compiler/pilot_interaction_cli.py "$out/pilot_station_realization.json" "$out/cockpit_yaw_route_v0.18.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_interaction_v0.19.json --out "$out"
           python tools/aircraft_compiler/pilot_client_binding_cli.py "$out/pilot_interaction_v0.19.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_client_binding_v0.20.json --out "$out"
 
-      - name: Patch disposable v0.20 runtime and client runs
+      - name: Patch disposable runtime harness through v0.20
         shell: bash
         run: |
           set -euo pipefail
           src=skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java
-          gradle=skyforge-neoforge-1211/build.gradle
           python tools/aircraft_compiler/runtime_v012_patch.py "$src"
           python tools/aircraft_compiler/runtime_v0131_patch.py "$src"
           python tools/aircraft_compiler/runtime_v018_patch.py "$src"
           python tools/aircraft_compiler/runtime_v019_patch.py "$src"
           python tools/aircraft_compiler/runtime_v020_patch.py "$src"
-          python tools/aircraft_compiler/gradle_v020_patch.py "$gradle"
-          grep -q "SkyforgeAircraftCompilerPilotClientBridge.publish" "$src"
-          grep -q 'create("aircraftCompilerPilotWorldPrepareServer")' "$gradle"
-          grep -q 'create("aircraftCompilerPilotClient")' "$gradle"
+
+      - name: Patch disposable v0.20 Gradle client runs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/aircraft_compiler/gradle_v020_patch.py skyforge-neoforge-1211/build.gradle
+
+      - name: Verify disposable v0.20 wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          src=skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java
+          gradle=skyforge-neoforge-1211/build.gradle
+          grep -Fq "SkyforgeAircraftCompilerPilotClientBridge.publish" "$src"
+          grep -Fq 'create("aircraftCompilerPilotWorldPrepareServer")' "$gradle"
+          grep -Fq 'create("aircraftCompilerPilotClient")' "$gradle"
 
       - name: Resolve exact retained flight stack
         run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
