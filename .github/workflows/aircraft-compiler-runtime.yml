@@ -6,6 +6,7 @@ on:
       - "tools/aircraft_compiler/**"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerPropellerRuntimeAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerPowertrainRuntimeAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
@@ -73,7 +74,7 @@ jobs:
           grep -q '"expectedPrimarySableTransferCount": 127' build/aircraft-compiler-runtime/powertrain_v0.12.json
           grep -q '"firstAcceptedTargetRpm": 128' build/aircraft-compiler-runtime/powertrain_v0.12.json
 
-      - name: Patch exact-stack runtime harness to v0.12 recapture semantics
+      - name: Patch exact-stack runtime harness to v0.12 recapture and performance semantics
         run: >-
           python tools/aircraft_compiler/runtime_v012_patch.py
           skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java
@@ -81,7 +82,7 @@ jobs:
       - name: Resolve exact retained flight stack
         run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
 
-      - name: Execute genuine v0.12 Sable recapture and nested-propeller probes
+      - name: Execute genuine v0.12 Sable recapture, propeller and 128 RPM performance probes
         shell: bash
         env:
           JAVA_TOOL_OPTIONS: >-
@@ -99,12 +100,14 @@ jobs:
           outcome=""
 
           for _ in $(seq 1 300); do
-            if grep -Fq "AIRCRAFT_001_RUNTIME_PROPELLER PASS" "${log}" 2>/dev/null \
+            if grep -Fq "AIRCRAFT_001_RUNTIME_POWERTRAIN PASS" "${log}" 2>/dev/null \
+                && grep -Fq "AIRCRAFT_001_RUNTIME_PROPELLER PASS" "${log}" 2>/dev/null \
                 && grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS" "${log}" 2>/dev/null; then
               outcome="pass"
               break
             fi
-            if grep -Fq "AIRCRAFT_001_RUNTIME_PROPELLER FAIL" "${log}" 2>/dev/null \
+            if grep -Fq "AIRCRAFT_001_RUNTIME_POWERTRAIN FAIL" "${log}" 2>/dev/null \
+                || grep -Fq "AIRCRAFT_001_RUNTIME_PROPELLER FAIL" "${log}" 2>/dev/null \
                 || grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY FAIL" "${log}" 2>/dev/null; then
               outcome="fail"
               break
@@ -116,6 +119,7 @@ jobs:
           done
 
           if [[ "${outcome}" == "pass" ]]; then
+            grep -F "AIRCRAFT_001_RUNTIME_POWERTRAIN PASS" "${log}"
             grep -F "AIRCRAFT_001_RUNTIME_PROPELLER PASS" "${log}"
             grep -F "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS" "${log}"
             kill -TERM -- "-${pid}" 2>/dev/null || true
@@ -125,10 +129,11 @@ jobs:
             exit 0
           fi
 
-          echo "FAIL AIRCRAFT-001 exact-stack v0.12 recapture/nested-propeller runtime probe"
+          echo "FAIL AIRCRAFT-001 exact-stack v0.12 performance probe"
+          grep -F "AIRCRAFT_001_RUNTIME_POWERTRAIN FAIL" "${log}" || true
           grep -F "AIRCRAFT_001_RUNTIME_PROPELLER FAIL" "${log}" || true
           grep -F "AIRCRAFT_001_RUNTIME_ASSEMBLY FAIL" "${log}" || true
-          tail -n 300 "${log}"
+          tail -n 340 "${log}"
           kill -TERM -- "-${pid}" 2>/dev/null || true
           sleep 1
           kill -KILL -- "-${pid}" 2>/dev/null || true
