@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -72,10 +73,10 @@ final class SkyforgeAircraftCompilerYawAuthorityRuntimeAcceptance {
                 .invoke(childSubLevel, true);
         oneArgMethod(physicsSystem, "tick", container).invoke(physicsSystem, container);
 
-        Object dragRegistryObject = Class.forName("dev.ryanhcode.sable.api.physics.force.ForceGroups")
-                .getField("DRAG")
-                .get(null);
-        Object dragGroup = publicMethod(dragRegistryObject, "get").invoke(dragRegistryObject);
+        Class<?> forceGroupsClass = Class.forName("dev.ryanhcode.sable.api.physics.force.ForceGroups");
+        Field dragField = forceGroupsClass.getField("DRAG");
+        Object dragRegistryObject = dragField.get(null);
+        Object dragGroup = dragField.getType().getMethod("get").invoke(dragRegistryObject);
         Object queuedDrag = oneArgMethod(childSubLevel, "getOrCreateQueuedForceGroup", dragGroup)
                 .invoke(childSubLevel, dragGroup);
         Object rawForces = publicMethod(queuedDrag, "getRecordedPointForces").invoke(queuedDrag);
