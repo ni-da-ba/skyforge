@@ -82,7 +82,11 @@ final class SkyforgeAircraftCompilerYawAuthorityRuntimeAcceptance {
         Object queuedDrag = oneArgMethod(childSubLevel, "getOrCreateQueuedForceGroup", dragGroup)
                 .invoke(childSubLevel, dragGroup);
         Object rawForces = publicMethod(queuedDrag, "getRecordedPointForces").invoke(queuedDrag);
-        if (!(rawForces instanceof List<?> recorded) || recorded.isEmpty()) {
+        if (!(rawForces instanceof List<?>)) {
+            fail("rudder child drag-force record has unexpected type: " + rawForces);
+        }
+        List<?> recorded = (List<?>) rawForces;
+        if (recorded.isEmpty()) {
             fail("rudder child produced no recorded Sable DRAG point forces under controlled forward flow");
         }
 
@@ -138,9 +142,10 @@ final class SkyforgeAircraftCompilerYawAuthorityRuntimeAcceptance {
 
     private static Object attachedChild(BlockEntity bearing) throws ReflectiveOperationException {
         Object rawDependencies = publicMethod(bearing, "sable$getConnectionDependencies").invoke(bearing);
-        if (!(rawDependencies instanceof Iterable<?> dependencies)) {
+        if (!(rawDependencies instanceof Iterable<?>)) {
             fail("Swivel did not expose child dependencies");
         }
+        Iterable<?> dependencies = (Iterable<?>) rawDependencies;
         Object child = null;
         int count = 0;
         for (Object dependency : dependencies) {
@@ -177,24 +182,24 @@ final class SkyforgeAircraftCompilerYawAuthorityRuntimeAcceptance {
     }
 
     private static Quaterniondc quaternion(Object value) {
-        if (!(value instanceof Quaterniondc q)) {
+        if (!(value instanceof Quaterniondc)) {
             fail("expected Quaterniondc, got " + value);
         }
         return (Quaterniondc) value;
     }
 
     private static Vector3dc vector(Object value) {
-        if (!(value instanceof Vector3dc v)) {
+        if (!(value instanceof Vector3dc)) {
             fail("expected Vector3dc, got " + value);
         }
         return (Vector3dc) value;
     }
 
     private static double number(Object value) {
-        if (!(value instanceof Number n)) {
+        if (!(value instanceof Number)) {
             fail("expected numeric value, got " + value);
         }
-        return n.doubleValue();
+        return ((Number) value).doubleValue();
     }
 
     private static Method publicMethod(Object target, String name, Class<?>... parameterTypes)
