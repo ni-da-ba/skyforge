@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "aircraft-yaw-authority-profile-0.15",
+  "profileId": "skyforge.yaw_authority.sable.guild_utility.v0_15",
+  "sourceYawActuationDigestSha256": "26f32701664ae261d744508381d53729167d87fff5c4f2ac40881958862c0bdb",
+  "forwardSpeedMps": 10.0,
+  "servoSettlePhysicsTicks": 80,
+  "minimumPhysicalDeflectionDegrees": 5.0,
+  "minimumLateralImpulseMagnitude": 0.0001,
+  "minimumYawImpulseMagnitude": 0.0001,
+  "sourceEvidence": [
+    "Sable ServerSubLevel prePhysicsTick evaluates BlockSubLevelLiftProvider contributions on each physics substep and separately tracks attached contraption/body forces.",
+    "Sable individual queued-force tracking records drag point forces through ForceGroups.DRAG and QueuedForceGroup.getRecordedPointForces().",
+    "simulated:white_symmetric_sail has lift scalar 0 and parallel drag scalar 1.75; its aerodynamic authority is therefore tested as deflected drag rather than generic lift.",
+    "The v0.14 Swivel command path remains the source of target deflection; v0.15 does not directly write targetAngleDegrees."
+  ],
+  "runtimeObligations": [
+    {"id": "rudder_physical_pose_response_probe"},
+    {"id": "rudder_lateral_drag_probe"},
+    {"id": "rudder_yaw_moment_probe"}
+  ]
+}
