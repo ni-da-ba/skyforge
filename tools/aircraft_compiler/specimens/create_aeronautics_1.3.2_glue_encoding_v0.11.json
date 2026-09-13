@@ -10,17 +10,25 @@
     "aeronautics": "1.3.2"
   },
   "encoding": {
-    "policy": "one_super_glue_entity_per_main_body_tree_edge",
+    "policy": "bounded_super_glue_domain_cover_of_main_body_tree",
     "commandRoot": "create glue",
     "requiredPermissionLevel": 2,
-    "sourceContract": "Create-6.0.10-AllCommands/GlueCommand",
+    "maxSelectionDimensionBlocks": 24,
+    "sourceContract": "Create-6.0.10-AllCommands/GlueCommand+SuperGlueEntity.span",
     "sourceEvidence": [
-      "Create 6.0.10 AllCommands registers GlueCommand below the create root",
       "Create 6.0.10 GlueCommand constructs SuperGlueEntity(world, SuperGlueEntity.span(from,to)) and adds it to the level",
-      "Create 6.0.10 SuperGlueEntity.isGlued requires both adjacent block positions to be contained by the same glue AABB",
-      "Simulated SimAssemblyContraption.checkAndCacheGlue searches SuperGlueEntity instances and traverses an adjacent block when faceHasGlue is true"
+      "Create 6.0.10 SuperGlueEntity.contains tests block centers against the glue AABB",
+      "Simulated SimAssemblyContraption.checkAndCacheGlue traverses adjacent blocks when both centers are contained by one SuperGlueEntity",
+      "Skyforge C12 exact-stack acceptance uses bounded multi-block SuperGlueEntity domains and passes on this target stack",
+      "AIRCRAFT-001 edge-exact runtime probe exposed an aft-fuselage traversal miss, so the tree is retained as the proof graph while runtime glue is lowered to bounded domains"
     ]
   },
+  "glueDomains": [
+    {"name": "fuselage_core", "from": [0, 1, 0], "to": [18, 3, 0]},
+    {"name": "wing", "from": [7, 3, -10], "to": [10, 4, 10]},
+    {"name": "horizontal_tail", "from": [15, 3, -3], "to": [17, 3, 3]},
+    {"name": "vertical_tail", "from": [15, 3, 0], "to": [17, 7, 0]}
+  ],
   "forbiddenGlueEdges": [
     [[0, 3, 0], [-1, 3, 0]]
   ],
@@ -31,15 +39,15 @@
     },
     {
       "id": "super_glue_entity_realization_probe",
-      "method": "after executing probe_assembly_fixture.mcfunction, verify the exact expected SuperGlueEntity population/bounds and no glue crosses into the propeller child"
+      "method": "verify the generated bounded SuperGlueEntity domains realize all 113 proof-tree edges while containing no propeller payload cell or forbidden dynamic boundary"
     },
     {
       "id": "physics_assembler_capture_probe",
-      "method": "activate the generated Physics Assembler and verify the intended 113-placement main body becomes one Sable sublevel with no accidental world attachment"
+      "method": "activate the generated Physics Assembler and verify the 114 declared main-body blocks plus the 9 bearing-reachable propeller payload blocks transfer into one Sable sublevel"
     },
     {
       "id": "glue_persistence_after_sublevel_move",
-      "method": "after main-body assembly and save/reload, verify the moved glue population remains sufficient for controlled disassembly/reassembly"
+      "method": "after primary Sable assembly and save/reload, verify moved glue remains sufficient for controlled disassembly/reassembly"
     }
   ]
 }
