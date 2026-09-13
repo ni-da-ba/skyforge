@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Recovery extension for stuck controller-managed worker handoffs.
 
-Normal discard remains strict. This extension adds two explicit paused-only recovery cases:
+Normal discard remains strict. This extension adds explicit paused-only recovery cases for:
 
-* a worker that already reached ``handoff`` for an OPEN controller-managed PR may be detached while
-  preserving that PR as the durable shared surface; and
-* an ``editing`` worker may be detached only when its exact controller-managed PR is already MERGED.
+* a worker that reached ``handoff`` for an OPEN controller-managed PR, preserving that PR as the
+  durable shared surface;
+* a worker that reached ``handoff`` for its exact controller-managed PR after that PR was already
+  MERGED, archiving any local delta before retirement; and
+* an ``editing`` worker whose exact controller-managed PR is already MERGED.
 
-In both cases all local committed/uncommitted worker deltas are archived before the isolated worktree
-is removed. Pending classifier state is cleared so current repository evidence can be reclassified on
-resume. An editing worker whose managed PR is open, closed-unmerged, unknown, or branch-mismatched
-remains protected by the ordinary strict discard guard.
+In all recovery cases local committed/uncommitted worker deltas are archived before the isolated
+worktree is removed. Pending classifier state and transient retry blocks are cleared so current
+repository evidence can be reclassified on resume. Unknown, closed-unmerged, non-managed, and
+branch-drift cases remain fail-closed.
 """
 
 from __future__ import annotations
@@ -200,15 +202,37 @@ def _detach_open_managed_handoff(
     pr_number, _lane, _managed, pr = _live_managed_pr(
         self,
         pending,
-        recovery_name="open-handoff recovery",
+        recovery_name="managed handoff recovery",
     )
     state = str(pr.get("state") or "").upper()
     if state == "MERGED" and pr.get("mergedAt"):
-        _ORIGINAL_DISCARD_PENDING_WORKER(self, actor=actor)
+        reason = (
+            "stale managed handoff detached after its exact managed PR was already merged; "
+            "local delta archived before retirement"
+        )
+        changed_paths, patch_path, metadata_path = _archive_managed_worker(
+            self,
+            pending,
+            actor=actor,
+            pr=pr,
+            archive_kind="merged-handoff",
+            reason=reason,
+        )
+        _clear_recovered_worker(
+            self,
+            pending,
+            actor=actor,
+            pr_number=pr_number,
+            changed_paths=changed_paths,
+            patch_path=patch_path,
+            metadata_path=metadata_path,
+            reason=reason,
+            metric="operator_merged_handoff_detachments",
+        )
         return
     if state != "OPEN":
         raise RuntimeError(
-            f"Refusing open-handoff recovery because PR #{pr_number} state is {state or 'UNKNOWN'}"
+            f"Refusing managed handoff recovery because PR #{pr_number} state is {state or 'UNKNOWN'}"
         )
 
     reason = "stuck open managed handoff detached; PR retained for clean repair reclassification"

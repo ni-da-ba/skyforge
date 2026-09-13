@@ -31,6 +31,7 @@ if hasattr(_roadmap_runtime, "core"):
 import skyforge_handoff_recovery_runtime as _handoff_recovery_runtime  # noqa: E402,F401
 import skyforge_managed_pr_no_change_runtime as _managed_pr_no_change_runtime  # noqa: E402,F401
 import skyforge_pending_timer_fairness_runtime as _pending_timer_fairness_runtime  # noqa: E402,F401
+import skyforge_pre_handoff_validation_runtime as _pre_handoff_validation_runtime  # noqa: E402,F401
 
 _base._roadmap_runtime = _roadmap_runtime
 if _roadmap_closed_issue_recovery_runtime is not None:
@@ -38,6 +39,7 @@ if _roadmap_closed_issue_recovery_runtime is not None:
 _base._handoff_recovery_runtime = _handoff_recovery_runtime
 _base._managed_pr_no_change_runtime = _managed_pr_no_change_runtime
 _base._pending_timer_fairness_runtime = _pending_timer_fairness_runtime
+_base._pre_handoff_validation_runtime = _pre_handoff_validation_runtime
 
 
 if __name__ == "__main__":
