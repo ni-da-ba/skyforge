@@ -30,9 +30,9 @@ INHABITED SKY-ISLAND BANDS
         v
 OPEN ATMOSPHERIC DEPTH
         |
-===============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
        LOWER CLOUD DECK
-===============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         |
         | occasional openings / storms / circulation chimneys
         v
