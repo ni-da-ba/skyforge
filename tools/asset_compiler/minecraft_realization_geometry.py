@@ -256,64 +256,114 @@ def _boundary_faces(state: BlockState, adapter: MinecraftAdapter) -> frozenset[s
     return frozenset()
 
 
-def _contact_count(model: VoxelModel, pos: tuple[int, int, int], adapter: MinecraftAdapter) -> int:
-    cell = model.cells[pos]
-    faces = _boundary_faces(cell.state, adapter)
-    contacts = 0
-    for face, delta in DIRECTIONS.items():
-        if face not in faces:
-            continue
-        neighbor = model.cells.get(_add(pos, delta))
-        if neighbor is None:
-            continue
-        if OPPOSITE[face] in _boundary_faces(neighbor.state, adapter):
-            contacts += 1
-    return contacts
+def _physically_touches(
+    model: VoxelModel,
+    left: tuple[int, int, int],
+    right: tuple[int, int, int],
+    adapter: MinecraftAdapter,
+) -> bool:
+    delta = (right[0] - left[0], right[1] - left[1], right[2] - left[2])
+    face = next((name for name, step in DIRECTIONS.items() if step == delta), None)
+    if face is None:
+        return False
+    left_faces = _boundary_faces(model.cells[left].state, adapter)
+    right_faces = _boundary_faces(model.cells[right].state, adapter)
+    return face in left_faces and OPPOSITE[face] in right_faces
+
+
+def _partial_components(
+    model: VoxelModel,
+    adapter: MinecraftAdapter,
+    positions: set[tuple[int, int, int]],
+) -> list[set[tuple[int, int, int]]]:
+    unseen = set(positions)
+    components: list[set[tuple[int, int, int]]] = []
+    while unseen:
+        start = min(unseen)
+        unseen.remove(start)
+        component = {start}
+        stack = [start]
+        while stack:
+            pos = stack.pop()
+            for delta in DIRECTIONS.values():
+                neighbor = _add(pos, delta)
+                if neighbor not in unseen:
+                    continue
+                if _physically_touches(model, pos, neighbor, adapter):
+                    unseen.remove(neighbor)
+                    component.add(neighbor)
+                    stack.append(neighbor)
+        components.append(component)
+    return components
+
+
+def _component_has_external_contact(
+    model: VoxelModel,
+    component: set[tuple[int, int, int]],
+    adapter: MinecraftAdapter,
+) -> bool:
+    for pos in component:
+        for delta in DIRECTIONS.values():
+            neighbor = _add(pos, delta)
+            if neighbor in component or neighbor not in model.cells:
+                continue
+            if _physically_touches(model, pos, neighbor, adapter):
+                return True
+    return False
 
 
 def _repair_known_isolated_detail(model: VoxelModel, adapter: MinecraftAdapter) -> list[dict]:
-    """Remove only proven non-contact decorative detail from the first human gate.
+    """Remove only proven unsupported decorative components from the first human gate.
 
-    The waiting-bench backs were fences one cell above bottom slabs. In Minecraft shape-space the
-    bottom slab ends half a block below the fence, so the fence is visibly levitating even though both
-    states are individually legal. There is no faithful one-cell support repair with the current
-    bounded palette that preserves the half-block seat height, so the minimum target-side edit is to
-    omit the unsupported decorative back. Future Guild institutionalization can reintroduce a backed
-    bench through a richer furniture grammar.
+    The waiting-bench backs were connected fence runs one cell above bottom slabs. The fences touch
+    each other laterally, but the bottom slab ends half a block below them, so the whole fence run is
+    floating in Minecraft shape-space. There is no faithful one-cell support repair with the current
+    bounded palette that preserves the half-block seat height; the minimum target-side edit is to omit
+    the unsupported decorative back. Future Guild institutionalization can reintroduce a backed bench
+    through a richer furniture grammar.
     """
+    waiting = {
+        pos
+        for pos, cell in model.cells.items()
+        if cell.role == "seating_detail"
+        and cell.module == "fp14_waiting_back"
+        and "fence" in adapter.capability(cell.state.name).capabilities
+    }
     repairs: list[dict] = []
-    for pos, cell in sorted(list(model.cells.items())):
-        if cell.role != "seating_detail" or cell.module != "fp14_waiting_back":
+    for component in _partial_components(model, adapter, waiting):
+        if _component_has_external_contact(model, component, adapter):
             continue
-        if "fence" not in adapter.capability(cell.state.name).capabilities:
-            continue
-        if _contact_count(model, pos, adapter) != 0:
-            continue
-        model.clear(*pos)
-        repairs.append(
-            {
-                "position": list(pos),
-                "mode": "omit_unsupported_waiting_bench_back",
-                "removed": cell.state.canonical(),
-            }
-        )
+        for pos in sorted(component):
+            cell = model.cells[pos]
+            model.clear(*pos)
+            repairs.append(
+                {
+                    "position": list(pos),
+                    "mode": "omit_unsupported_waiting_bench_back",
+                    "removed": cell.state.canonical(),
+                }
+            )
     return repairs
 
 
 def _validate_partial_detail_contact(model: VoxelModel, adapter: MinecraftAdapter) -> tuple[int, list[str]]:
-    """Reject isolated slab/fence detail that is legal Minecraft but visually unsupported."""
-    checked = 0
+    """Reject isolated slab/fence components that are legal Minecraft but visually unsupported."""
+    positions = {
+        pos
+        for pos, cell in model.cells.items()
+        if {"slab", "fence"} & adapter.capability(cell.state.name).capabilities
+    }
+    checked = len(positions)
     issues: list[str] = []
-    for pos, cell in sorted(model.cells.items()):
-        cap = adapter.capability(cell.state.name)
-        if not ({"slab", "fence"} & cap.capabilities):
+    for component in _partial_components(model, adapter, positions):
+        if _component_has_external_contact(model, component, adapter):
             continue
-        checked += 1
-        if _contact_count(model, pos, adapter) == 0:
-            issues.append(
-                f"partial detail at {pos} is visually isolated: "
-                f"{cell.state.canonical()} role={cell.role} module={cell.module}"
-            )
+        sample = min(component)
+        cell = model.cells[sample]
+        issues.append(
+            f"partial-detail component is visually isolated; sample={sample} size={len(component)} "
+            f"state={cell.state.canonical()} role={cell.role} module={cell.module}"
+        )
     return checked, issues
 
 
