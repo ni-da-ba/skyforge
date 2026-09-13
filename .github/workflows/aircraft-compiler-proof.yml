@@ -21,7 +21,7 @@ jobs:
           python-version: "3.12"
       - name: Run aircraft compiler tests
         run: python -m unittest discover -s tools/aircraft_compiler/tests -v
-      - name: Compile AIRCRAFT-001 through v0.8 pilot-station decomposition
+      - name: Compile AIRCRAFT-001 through v0.9 probe placement manifest
         run: >-
           python tools/aircraft_compiler/compile.py
           tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json
@@ -31,30 +31,32 @@ jobs:
           --surface-state-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_surface_state_v0.6.json
           --tail-lowering-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_tail_lowering_v0.7.json
           --pilot-station-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_station_v0.8.json
-          --out build/aircraft-compiler-v08
-      - name: Assert v0.7 tail lowering remains accepted
+          --probe-manifest-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_probe_manifest_v0.9.json
+          --out build/aircraft-compiler-v09
+      - name: Assert v0.8 pilot decomposition remains conservative
         run: |
-          grep -q "v07AerodynamicPlacementCount=91" build/aircraft-compiler-v08/tail_lowering_validation.txt
-          grep -q "surfaceStateResolutionComplete=True" build/aircraft-compiler-v08/tail_lowering_validation.txt
-      - name: Assert pilot occupancy is statically placeable without faking control authority
+          grep -q "pilotStationStaticPlacementPassed=True" build/aircraft-compiler-v09/pilot_station_validation.txt
+          grep -q "pilotSeatLattice=\[5, 3, 0\]" build/aircraft-compiler-v09/pilot_station_validation.txt
+          grep -q "runtimeQualificationReady=False" build/aircraft-compiler-v09/pilot_station_validation.txt
+          grep -q "control_binding_runtime_unverified" build/aircraft-compiler-v09/pilot_station_validation.txt
+      - name: Assert v0.9 coordinate-unique exact placement manifest
         run: |
-          grep -q "pilotAnchorLattice=\[5, 2, 0\]" build/aircraft-compiler-v08/pilot_station_validation.txt
-          grep -q "pilotSeatLattice=\[5, 3, 0\]" build/aircraft-compiler-v08/pilot_station_validation.txt
-          grep -q "pilotSeatResource=create:brown_seat" build/aircraft-compiler-v08/pilot_station_validation.txt
-          grep -q "pilotStationStaticPlacementPassed=True" build/aircraft-compiler-v08/pilot_station_validation.txt
-          grep -q "seatCoordinateFree=True" build/aircraft-compiler-v08/pilot_station_validation.txt
-          grep -q "seatSupportedByPilotAnchor=True" build/aircraft-compiler-v08/pilot_station_validation.txt
-          grep -q "probeSchematicEmissionReady=True" build/aircraft-compiler-v08/pilot_station_validation.txt
-      - name: Assert runtime and flight gates remain explicit
+          grep -q "probePlacementManifestReady=True" build/aircraft-compiler-v09/probe_manifest_validation.txt
+          grep -q "probePlacementCommandsReady=True" build/aircraft-compiler-v09/probe_manifest_validation.txt
+          grep -q "allPlacementsCoordinateUnique=True" build/aircraft-compiler-v09/probe_manifest_validation.txt
+          grep -q "kindCount.airframe_aerodynamic_surface=91" build/aircraft-compiler-v09/probe_manifest_validation.txt
+          grep -q "kindCount.propeller_sail=8" build/aircraft-compiler-v09/probe_manifest_validation.txt
+          grep -q "kindCount.pilot_occupancy_station=1" build/aircraft-compiler-v09/probe_manifest_validation.txt
+      - name: Assert mechanical/runtime qualification remains blocked
         run: |
-          grep -q "runtimeQualificationReady=False" build/aircraft-compiler-v08/pilot_station_validation.txt
-          grep -q "flightQualified=False" build/aircraft-compiler-v08/pilot_station_validation.txt
-          grep -q "control_binding_runtime_unverified" build/aircraft-compiler-v08/pilot_station_validation.txt
-          grep -q "pilot_occupancy_runtime_unverified" build/aircraft-compiler-v08/pilot_station_validation.txt
-      - name: Upload analytical through pilot-station QA
+          grep -q "physicsAssemblyProbeReady=False" build/aircraft-compiler-v09/probe_manifest_validation.txt
+          grep -q "airframe_adhesion_graph_unresolved" build/aircraft-compiler-v09/probe_manifest_validation.txt
+          grep -q "physics_assembler_placement_unresolved" build/aircraft-compiler-v09/probe_manifest_validation.txt
+          grep -q "flightQualified=False" build/aircraft-compiler-v09/probe_manifest_validation.txt
+      - name: Upload analytical through probe-manifest QA
         uses: actions/upload-artifact@v4
         with:
-          name: aircraft-compiler-guild-utility-v08-qa
-          path: build/aircraft-compiler-v08
+          name: aircraft-compiler-guild-utility-v09-qa
+          path: build/aircraft-compiler-v09
           if-no-files-found: error
           retention-days: 14

@@ -12,6 +12,8 @@ from blockspace_render import emit_blockspace_outputs
 from model import SpecError
 from pilot_station import PilotStationError, realize_pilot_station
 from pilot_station_render import emit_pilot_station_outputs
+from probe_manifest import ProbeManifestError, emit_probe_manifest
+from probe_manifest_render import emit_probe_manifest_outputs
 from propulsion import PropulsionRealizationError, realize_propulsion
 from propulsion_render import emit_propulsion_outputs
 from render import emit_outputs
@@ -33,9 +35,10 @@ def main() -> int:
     parser.add_argument("--surface-state-profile", type=Path)
     parser.add_argument("--tail-lowering-profile", type=Path)
     parser.add_argument("--pilot-station-profile", type=Path)
+    parser.add_argument("--probe-manifest-profile", type=Path)
     parser.add_argument("--out", type=Path, default=Path("build/aircraft-compiler"))
     args = parser.parse_args()
-    blockspace = assembly = target = propulsion = surface_state = tail_lowering = pilot_station = None
+    blockspace = assembly = target = propulsion = surface_state = tail_lowering = pilot_station = probe_manifest = None
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
         resolved = solve(spec)
@@ -50,6 +53,8 @@ def main() -> int:
             raise TailLoweringError("--tail-lowering-profile requires --surface-state-profile")
         if args.pilot_station_profile is not None and args.tail_lowering_profile is None:
             raise PilotStationError("--pilot-station-profile requires --tail-lowering-profile")
+        if args.probe_manifest_profile is not None and args.pilot_station_profile is None:
+            raise ProbeManifestError("--probe-manifest-profile requires --pilot-station-profile")
         if args.blockspace_config is not None:
             config = json.loads(args.blockspace_config.read_text(encoding="utf-8"))
             blockspace = transcribe(resolved, config)
@@ -81,24 +86,26 @@ def main() -> int:
                                 if not pilot_station["validation"]["passed"]:
                                     raise PilotStationError("pilot station realization failed validation: " + json.dumps(pilot_station["topologyChecks"], sort_keys=True))
                                 emit_pilot_station_outputs(pilot_station, args.out)
-    except (OSError, json.JSONDecodeError, SpecError, BlockspaceError, AssemblyPlanError, TargetRealizerError, PropulsionRealizationError, SurfaceStateError, TailLoweringError, PilotStationError, ValueError) as exc:
+                                if args.probe_manifest_profile is not None:
+                                    probe_manifest = emit_probe_manifest(target, propulsion, tail_lowering, pilot_station, json.loads(args.probe_manifest_profile.read_text(encoding="utf-8")))
+                                    if not probe_manifest["validation"]["passed"]:
+                                        raise ProbeManifestError("probe manifest failed validation: " + json.dumps(probe_manifest["validationChecks"], sort_keys=True))
+                                    emit_probe_manifest_outputs(probe_manifest, args.out)
+    except (OSError, json.JSONDecodeError, SpecError, BlockspaceError, AssemblyPlanError, TargetRealizerError, PropulsionRealizationError, SurfaceStateError, TailLoweringError, PilotStationError, ProbeManifestError, ValueError) as exc:
         raise SystemExit(f"aircraft compiler error: {exc}") from exc
 
     summary = {"assetId": resolved["assetId"], "compilerVersion": resolved["compilerVersion"], "digestSha256": resolved["digestSha256"], "validation": resolved["validation"], "output": str(args.out)}
-    if blockspace is not None:
-        summary["blockspace"] = {"assetId": blockspace["assetId"], "compilerVersion": blockspace["compilerVersion"], "digestSha256": blockspace["digestSha256"], "validation": blockspace["validation"]}
-    if assembly is not None:
-        summary["assembly"] = {"assetId": assembly["assetId"], "compilerVersion": assembly["compilerVersion"], "digestSha256": assembly["digestSha256"], "metrics": assembly["metrics"], "validation": assembly["validation"]}
-    if target is not None:
-        summary["targetPreflight"] = {"assetId": target["assetId"], "compilerVersion": target["compilerVersion"], "digestSha256": target["digestSha256"], "metrics": target["metrics"], "readiness": target["readiness"], "validation": target["validation"]}
-    if propulsion is not None:
-        summary["propulsion"] = {"assetId": propulsion["assetId"], "compilerVersion": propulsion["compilerVersion"], "digestSha256": propulsion["digestSha256"], "metrics": propulsion["metrics"], "readiness": propulsion["readiness"], "validation": propulsion["validation"]}
-    if surface_state is not None:
-        summary["surfaceState"] = {"assetId": surface_state["assetId"], "compilerVersion": surface_state["compilerVersion"], "digestSha256": surface_state["digestSha256"], "metrics": surface_state["metrics"], "readiness": surface_state["readiness"], "validation": surface_state["validation"]}
-    if tail_lowering is not None:
-        summary["tailLowering"] = {"assetId": tail_lowering["assetId"], "compilerVersion": tail_lowering["compilerVersion"], "digestSha256": tail_lowering["digestSha256"], "metrics": tail_lowering["metrics"], "readiness": tail_lowering["readiness"], "validation": tail_lowering["validation"]}
-    if pilot_station is not None:
-        summary["pilotStation"] = {"assetId": pilot_station["assetId"], "compilerVersion": pilot_station["compilerVersion"], "digestSha256": pilot_station["digestSha256"], "metrics": pilot_station["metrics"], "readiness": pilot_station["readiness"], "validation": pilot_station["validation"]}
+    for key, value in (("blockspace", blockspace), ("assembly", assembly), ("targetPreflight", target), ("propulsion", propulsion), ("surfaceState", surface_state), ("tailLowering", tail_lowering), ("pilotStation", pilot_station), ("probeManifest", probe_manifest)):
+        if value is not None:
+            summary[key] = {k: value[k] for k in ("assetId", "compilerVersion", "digestSha256", "validation") if k in value}
+            if "metrics" in value:
+                summary[key]["metrics"] = value["metrics"]
+            if "readiness" in value:
+                summary[key]["readiness"] = value["readiness"]
+            if key == "probeManifest":
+                summary[key]["placementCount"] = len(value["placements"])
+                summary[key]["bounds"] = value["bounds"]
+                summary[key]["kindCounts"] = value["kindCounts"]
     print(json.dumps(summary, indent=2))
     return 0
 

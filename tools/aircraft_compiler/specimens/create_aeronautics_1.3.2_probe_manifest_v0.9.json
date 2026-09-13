@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "aircraft-probe-manifest-profile-0.9",
+  "profileId": "skyforge.probe_manifest.create_aeronautics_1_3_2.v0_9",
+  "airframeAerodynamicProviderId": "create_white_sail_lift_v0",
+  "originContract": {
+    "coordinateFrame": "compiler lattice x-forward y-up z-starboard",
+    "executionOrigin": "world position chosen for isolated exact-stack probe fixture",
+    "negativeCoordinatesAllowed": true,
+    "destructivePlacement": true,
+    "productionSchematic": false
+  }
+}
