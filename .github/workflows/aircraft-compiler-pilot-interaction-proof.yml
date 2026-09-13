@@ -1,0 +1,98 @@
+name: Aircraft compiler pilot interaction proof
+
+on:
+  pull_request:
+    paths:
+      - "tools/aircraft_compiler/**"
+      - ".github/workflows/aircraft-compiler-pilot-interaction-proof.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aircraft-compiler-pilot-interaction-proof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pilot-interaction-proof:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run aircraft compiler tests
+        run: python -m unittest discover -s tools/aircraft_compiler/tests -v
+
+      - name: Compile AIRCRAFT-001 through v0.19 pilot interaction contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=build/aircraft-compiler-pilot-interaction
+          python tools/aircraft_compiler/compile.py tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json --blockspace-config tools/aircraft_compiler/specimens/guild_utility_monoplane_blockspace_v0.2.json --target-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_target_v0.4.json --propulsion-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_propulsion_v0.5.json --surface-state-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_surface_state_v0.6.json --tail-lowering-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_tail_lowering_v0.7.json --pilot-station-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_station_v0.8.json --probe-manifest-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_probe_manifest_v0.9.json --out "$out"
+          python tools/aircraft_compiler/assembly_fixture_cli.py "$out/probe_placement_manifest.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_assembly_fixture_v0.10.json --out "$out"
+          python tools/aircraft_compiler/glue_encoding_cli.py "$out/assembly_fixture.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_glue_encoding_v0.11.json --out "$out"
+          python tools/aircraft_compiler/powertrain_lowering_cli.py "$out/probe_placement_manifest.json" "$out/glue_encoding.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_powertrain_v0.12.json --out "$out"
+          python tools/aircraft_compiler/control_surface_lowering_cli.py "$out/probe_placement_manifest.json" "$out/glue_encoding.json" "$out/powertrain_v0.12.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_control_v0.13.json --out "$out"
+          python tools/aircraft_compiler/control_surface_correction_cli.py "$out/probe_placement_manifest.json" "$out/glue_encoding.json" "$out/powertrain_v0.12.json" "$out/yaw_control_v0.13.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_control_v0.13.1.json --out "$out"
+          python tools/aircraft_compiler/yaw_actuation_cli.py "$out/probe_placement_manifest.json" "$out/powertrain_v0.12.json" "$out/yaw_control_v0.13.1.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_actuation_v0.14.json --out "$out"
+          python tools/aircraft_compiler/yaw_authority_cli.py "$out/yaw_actuation_v0.14.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_authority_v0.15.json --out "$out"
+          python tools/aircraft_compiler/yaw_neutral_return_cli.py "$out/yaw_actuation_v0.14.json" "$out/yaw_authority_v0.15.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_neutral_return_v0.16.json --out "$out"
+          python tools/aircraft_compiler/steering_control_cli.py "$out/yaw_actuation_v0.14.json" "$out/yaw_neutral_return_v0.16.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_steering_control_v0.17.json --out "$out"
+          python tools/aircraft_compiler/cockpit_yaw_route_cli.py "$out/probe_placement_manifest.json" "$out/powertrain_v0.12.json" "$out/yaw_control_v0.13.1.json" "$out/steering_control_v0.17.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_cockpit_yaw_route_v0.18.json --out "$out"
+          python tools/aircraft_compiler/pilot_interaction_cli.py "$out/pilot_station_realization.json" "$out/cockpit_yaw_route_v0.18.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_interaction_v0.19.json --out "$out"
+
+      - name: Assert v0.19 evidence boundary and exact cockpit contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          out = Path('build/aircraft-compiler-pilot-interaction')
+          pilot = json.loads((out / 'pilot_station_realization.json').read_text())
+          route = json.loads((out / 'cockpit_yaw_route_v0.18.json').read_text())
+          p = json.loads((out / 'pilot_interaction_v0.19.json').read_text())
+
+          assert p['validation']['passed'] is True
+          assert p['schemaVersion'] == 'aircraft-pilot-interaction-ir-0.19'
+          assert p['sourcePilotStationDigestSha256'] == pilot['digestSha256']
+          assert p['sourceCockpitYawRouteDigestSha256'] == route['digestSha256']
+          assert p['pilotSeatCoordinate'] == [5, 3, 0]
+          assert p['pilotSeatResource'] == 'create:brown_seat'
+          assert p['steeringWheelCoordinate'] == [5, 3, 1]
+          assert p['steeringWheelResource'] == 'simulated:steering_wheel'
+          assert p['cockpitGeometry']['horizontalManhattanDistanceBlocks'] == 1
+          assert p['sourceContract']['steeringPacketPayloadId'] == 'simulated:steering_wheel_update'
+          assert p['steeringPacketContract']['activePacketServerAction'] == 'startHolding'
+          assert p['steeringPacketContract']['releasePacketServerAction'] == 'stopHolding'
+          assert p['probeModes']['headlessServerCanQualify'] == ['assembled_cockpit_presence_probe']
+          assert set(p['probeModes']['realClientRequired']) == {
+              'player_seat_interaction_probe',
+              'player_sable_tracking_probe',
+              'steering_wheel_client_hold_interaction_probe',
+              'steering_wheel_packet_round_trip_probe',
+          }
+          assert p['readiness']['pilotInteractionStaticContractPassed'] is True
+          assert p['readiness']['realClientPilotProbeReady'] is True
+          assert p['readiness']['pilotOccupancyRuntimeQualified'] is False
+          assert p['readiness']['playerSableTrackingQualified'] is False
+          assert p['readiness']['pilotInteractionBindingReady'] is False
+          assert p['readiness']['steeringPacketRoundTripQualified'] is False
+          assert p['readiness']['flightQualified'] is False
+          print('AIRCRAFT_001_V019_STATIC_PROOF PASS')
+          print('digestSha256=' + p['digestSha256'])
+          print('pilotSeatCoordinate=' + json.dumps(p['pilotSeatCoordinate'], separators=(',', ':')))
+          print('steeringWheelCoordinate=' + json.dumps(p['steeringWheelCoordinate'], separators=(',', ':')))
+          print('probeModes=' + json.dumps(p['probeModes'], sort_keys=True, separators=(',', ':')))
+          PY
+
+      - name: Upload v0.19 pilot-interaction QA
+        uses: actions/upload-artifact@v4
+        with:
+          name: aircraft-compiler-guild-utility-v019-qa
+          path: build/aircraft-compiler-pilot-interaction
+          if-no-files-found: error
+          retention-days: 14
