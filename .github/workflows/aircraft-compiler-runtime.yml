@@ -8,6 +8,7 @@ on:
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerPropellerRuntimeAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerPowertrainRuntimeAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerYawRuntimeAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerYawActuationRuntimeAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
@@ -43,7 +44,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Compile deterministic AIRCRAFT-001 runtime fixture through v0.13.1
+      - name: Compile deterministic AIRCRAFT-001 runtime fixture through v0.14
         shell: bash
         run: |
           set -euo pipefail
@@ -84,22 +85,39 @@ jobs:
             build/aircraft-compiler-runtime/yaw_control_v0.13.json \
             tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_control_v0.13.1.json \
             --out build/aircraft-compiler-runtime
+          python tools/aircraft_compiler/yaw_actuation_cli.py \
+            build/aircraft-compiler-runtime/probe_placement_manifest.json \
+            build/aircraft-compiler-runtime/powertrain_v0.12.json \
+            build/aircraft-compiler-runtime/yaw_control_v0.13.1.json \
+            tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_actuation_v0.14.json \
+            --out build/aircraft-compiler-runtime
           python - <<'PY'
           import json
           from pathlib import Path
-          p = json.loads(Path("build/aircraft-compiler-runtime/yaw_control_v0.13.1.json").read_text())
-          assert p["validation"]["passed"] is True
-          assert p["metrics"]["v0131MovingParentMainBodyPlacementCount"] == 118
-          assert p["metrics"]["nestedPropellerChildPlacementCount"] == 9
-          assert p["metrics"]["yawControlChildPlacementCount"] == 4
-          assert p["metrics"]["resultingManifestPlacementCount"] == 130
-          assert p["metrics"]["expectedPrimarySableTransferCount"] == 131
-          assert p["metrics"]["runtimeGlueDomainCount"] == 7
-          assert p["readiness"]["rudderChildCaptureProbeReady"] is True
-          assert p["readiness"]["controlActuationProbeReady"] is False
+          yaw = json.loads(Path("build/aircraft-compiler-runtime/yaw_control_v0.13.1.json").read_text())
+          act = json.loads(Path("build/aircraft-compiler-runtime/yaw_actuation_v0.14.json").read_text())
+          assert yaw["validation"]["passed"] is True
+          assert yaw["metrics"]["v0131MovingParentMainBodyPlacementCount"] == 118
+          assert yaw["metrics"]["nestedPropellerChildPlacementCount"] == 9
+          assert yaw["metrics"]["yawControlChildPlacementCount"] == 4
+          assert yaw["metrics"]["resultingManifestPlacementCount"] == 130
+          assert yaw["metrics"]["expectedPrimarySableTransferCount"] == 131
+          assert yaw["metrics"]["runtimeGlueDomainCount"] == 7
+          assert yaw["readiness"]["rudderChildCaptureProbeReady"] is True
+          assert yaw["readiness"]["controlActuationProbeReady"] is False
+          assert act["validation"]["passed"] is True
+          assert act["schemaVersion"] == "aircraft-yaw-actuation-ir-0.14"
+          assert act["sourceYawControlDigestSha256"] == yaw["digestSha256"]
+          assert act["swivelBearingCoordinate"] == [18, 3, 0]
+          assert act["driveCogCoordinate"] == [18, 3, 1]
+          assert act["creativeMotorCoordinate"] == [18, 2, 1]
+          assert act["runtimeProbe"]["expectedCreativeMotorRpmMagnitude"] == 16
+          assert act["readiness"]["actuationRuntimeProbeReady"] is True
+          assert act["readiness"]["productionControlBindingReady"] is False
+          assert act["readiness"]["yawForceQualified"] is False
           PY
 
-      - name: Patch exact-stack runtime harness through v0.13.1 corrected yaw-child semantics
+      - name: Patch exact-stack runtime harness through v0.14 real-kinetic yaw actuation
         shell: bash
         run: |
           set -euo pipefail
@@ -107,17 +125,21 @@ jobs:
             skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java
           python tools/aircraft_compiler/runtime_v0131_patch.py \
             skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java
+          python tools/aircraft_compiler/runtime_v014_patch.py \
+            skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java
           grep -q "EXPECTED_PRIMARY_SABLE_PAYLOAD = 131" \
             skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java
           grep -q "EXPECTED_V0131_MOVING_PARENT_MAIN_BODY = 118" \
             skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java
           grep -q "SkyforgeAircraftCompilerYawRuntimeAcceptance.verify" \
             skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java
+          grep -q "SkyforgeAircraftCompilerYawActuationRuntimeAcceptance.verify" \
+            skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java
 
       - name: Resolve exact retained flight stack
         run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
 
-      - name: Execute genuine v0.13.1 131-cell Sable recapture, rudder child, propeller and governed ladder probes
+      - name: Execute genuine v0.14 131-cell Sable recapture, yaw child, real-kinetic actuation, propeller and governed ladder probes
         shell: bash
         env:
           JAVA_TOOL_OPTIONS: >-
@@ -127,6 +149,7 @@ jobs:
             -Dskyforge.dev.aircraftCompilerGlueEncoding=${{ github.workspace }}/build/aircraft-compiler-runtime/glue_encoding.json
             -Dskyforge.dev.aircraftCompilerPowertrain=${{ github.workspace }}/build/aircraft-compiler-runtime/powertrain_v0.12.json
             -Dskyforge.dev.aircraftCompilerYawControlCorrection=${{ github.workspace }}/build/aircraft-compiler-runtime/yaw_control_v0.13.1.json
+            -Dskyforge.dev.aircraftCompilerYawActuation=${{ github.workspace }}/build/aircraft-compiler-runtime/yaw_actuation_v0.14.json
         run: |
           set -euo pipefail
           log="aircraft-compiler-runtime.log"
@@ -136,14 +159,16 @@ jobs:
           outcome=""
 
           for _ in $(seq 1 360); do
-            if grep -Fq "AIRCRAFT_001_RUNTIME_YAW_CHILD PASS" "${log}" 2>/dev/null \
+            if grep -Fq "AIRCRAFT_001_RUNTIME_YAW_ACTUATION PASS" "${log}" 2>/dev/null \
+                && grep -Fq "AIRCRAFT_001_RUNTIME_YAW_CHILD PASS" "${log}" 2>/dev/null \
                 && grep -Fq "AIRCRAFT_001_RUNTIME_POWERTRAIN PASS" "${log}" 2>/dev/null \
                 && grep -Fq "AIRCRAFT_001_RUNTIME_PROPELLER PASS" "${log}" 2>/dev/null \
                 && grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS" "${log}" 2>/dev/null; then
               outcome="pass"
               break
             fi
-            if grep -Fq "AIRCRAFT_001_RUNTIME_YAW_CHILD FAIL" "${log}" 2>/dev/null \
+            if grep -Fq "AIRCRAFT_001_RUNTIME_YAW_ACTUATION FAIL" "${log}" 2>/dev/null \
+                || grep -Fq "AIRCRAFT_001_RUNTIME_YAW_CHILD FAIL" "${log}" 2>/dev/null \
                 || grep -Fq "AIRCRAFT_001_RUNTIME_POWERTRAIN FAIL" "${log}" 2>/dev/null \
                 || grep -Fq "AIRCRAFT_001_RUNTIME_PROPELLER FAIL" "${log}" 2>/dev/null \
                 || grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY FAIL" "${log}" 2>/dev/null; then
@@ -157,6 +182,7 @@ jobs:
           done
 
           if [[ "${outcome}" == "pass" ]]; then
+            grep -F "AIRCRAFT_001_RUNTIME_YAW_ACTUATION PASS" "${log}"
             grep -F "AIRCRAFT_001_RUNTIME_YAW_CHILD PASS" "${log}"
             grep -F "AIRCRAFT_001_RUNTIME_PROPELLER PASS" "${log}"
             grep -F "AIRCRAFT_001_RUNTIME_POWERTRAIN PASS" "${log}"
@@ -168,7 +194,8 @@ jobs:
             exit 0
           fi
 
-          echo "FAIL AIRCRAFT-001 exact-stack v0.13.1 yaw-child/runtime probe"
+          echo "FAIL AIRCRAFT-001 exact-stack v0.14 yaw-actuation/runtime probe"
+          grep -F "AIRCRAFT_001_RUNTIME_YAW_ACTUATION FAIL" "${log}" || true
           grep -F "AIRCRAFT_001_RUNTIME_YAW_CHILD FAIL" "${log}" || true
           grep -F "AIRCRAFT_001_RUNTIME_POWERTRAIN FAIL" "${log}" || true
           grep -F "AIRCRAFT_001_RUNTIME_PROPELLER FAIL" "${log}" || true
