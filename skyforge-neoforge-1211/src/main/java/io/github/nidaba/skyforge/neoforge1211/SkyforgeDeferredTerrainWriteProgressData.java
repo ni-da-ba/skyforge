@@ -12,6 +12,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.saveddata.SavedData;
 
 /** Persistent per-level cursor ledger for deferred physical-volume terrain packets. */
@@ -23,6 +24,8 @@ final class SkyforgeDeferredTerrainWriteProgressData extends SavedData {
 
     private final Map<Key, Progress> progressByObligation = new HashMap<>();
     private final Map<Key, MinecraftChunkMaterialization> activeMaterializationByObligation = new HashMap<>();
+    private final Map<Key, SkyforgeDeferredExactMaterializationPreparation> activePreparationByObligation =
+            new HashMap<>();
 
     static SkyforgeDeferredTerrainWriteProgressData get(ServerLevel level) {
         Objects.requireNonNull(level, "level");
@@ -35,32 +38,65 @@ final class SkyforgeDeferredTerrainWriteProgressData extends SavedData {
     }
 
     Optional<MinecraftChunkMaterialization> cachedMaterialization(
-        SkyIslandWorldVolumeId volumeId,
-        long chunkKey) {
-    Objects.requireNonNull(volumeId, "volumeId");
-    return Optional.ofNullable(activeMaterializationByObligation.get(new Key(volumeId, chunkKey)));
-}
-
-void cacheMaterialization(
-        SkyIslandWorldVolumeId volumeId,
-        long chunkKey,
-        MinecraftChunkMaterialization materialization) {
-    Objects.requireNonNull(volumeId, "volumeId");
-    Objects.requireNonNull(materialization, "materialization");
-    if (materialization.chunkPos().toLong() != chunkKey) {
-        throw new IllegalArgumentException("cached deferred materialization differs from obligation chunk");
+            SkyIslandWorldVolumeId volumeId,
+            long chunkKey) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return Optional.ofNullable(activeMaterializationByObligation.get(new Key(volumeId, chunkKey)));
     }
-    Key key = new Key(volumeId, chunkKey);
-    MinecraftChunkMaterialization previous = activeMaterializationByObligation.putIfAbsent(key, materialization);
-    if (previous != null && previous != materialization) {
-        throw new IllegalStateException("deferred obligation already has a different active materialization");
-    }
-}
 
-void discardCachedMaterialization(SkyIslandWorldVolumeId volumeId, long chunkKey) {
-    Objects.requireNonNull(volumeId, "volumeId");
-    activeMaterializationByObligation.remove(new Key(volumeId, chunkKey));
-}
+    SkyforgeDeferredExactMaterializationPreparation getOrCreatePreparation(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos chunkPos,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        Key key = new Key(volumeId, chunkPos.toLong());
+        var existing = activePreparationByObligation.get(key);
+        if (existing != null) {
+            if (!existing.volumeId().equals(volumeId)
+                    || !existing.chunkPos().equals(chunkPos)
+                    || existing.minimumY() != minimumY
+                    || existing.height() != height) {
+                throw new IllegalStateException("deferred materialization preparation identity changed in flight");
+            }
+            return existing;
+        }
+        var created = new SkyforgeDeferredExactMaterializationPreparation(
+                volumeId,
+                chunkPos,
+                minimumY,
+                height);
+        activePreparationByObligation.put(key, created);
+        return created;
+    }
+
+    void discardCachedPreparation(SkyIslandWorldVolumeId volumeId, long chunkKey) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        activePreparationByObligation.remove(new Key(volumeId, chunkKey));
+    }
+
+    void cacheMaterialization(
+            SkyIslandWorldVolumeId volumeId,
+            long chunkKey,
+            MinecraftChunkMaterialization materialization) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(materialization, "materialization");
+        if (materialization.chunkPos().toLong() != chunkKey) {
+            throw new IllegalArgumentException("cached deferred materialization differs from obligation chunk");
+        }
+        Key key = new Key(volumeId, chunkKey);
+        MinecraftChunkMaterialization previous = activeMaterializationByObligation.putIfAbsent(key, materialization);
+        if (previous != null && previous != materialization) {
+            throw new IllegalStateException("deferred obligation already has a different active materialization");
+        }
+        activePreparationByObligation.remove(key);
+    }
+
+    void discardCachedMaterialization(SkyIslandWorldVolumeId volumeId, long chunkKey) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        activeMaterializationByObligation.remove(new Key(volumeId, chunkKey));
+    }
 
     Progress getOrCreate(
             SkyIslandWorldVolumeId volumeId,
