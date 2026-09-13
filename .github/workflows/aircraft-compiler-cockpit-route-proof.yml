@@ -1,0 +1,100 @@
+name: Aircraft compiler cockpit route proof
+
+on:
+  pull_request:
+    paths:
+      - "tools/aircraft_compiler/**"
+      - ".github/workflows/aircraft-compiler-cockpit-route-proof.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aircraft-compiler-cockpit-route-proof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cockpit-route-proof:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run aircraft compiler tests
+        run: python -m unittest discover -s tools/aircraft_compiler/tests -v
+
+      - name: Compile AIRCRAFT-001 through v0.18 cockpit yaw route
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=build/aircraft-compiler-cockpit-route
+          python tools/aircraft_compiler/compile.py tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json --blockspace-config tools/aircraft_compiler/specimens/guild_utility_monoplane_blockspace_v0.2.json --target-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_target_v0.4.json --propulsion-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_propulsion_v0.5.json --surface-state-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_surface_state_v0.6.json --tail-lowering-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_tail_lowering_v0.7.json --pilot-station-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_station_v0.8.json --probe-manifest-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_probe_manifest_v0.9.json --out "$out"
+          python tools/aircraft_compiler/assembly_fixture_cli.py "$out/probe_placement_manifest.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_assembly_fixture_v0.10.json --out "$out"
+          python tools/aircraft_compiler/glue_encoding_cli.py "$out/assembly_fixture.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_glue_encoding_v0.11.json --out "$out"
+          python tools/aircraft_compiler/powertrain_lowering_cli.py "$out/probe_placement_manifest.json" "$out/glue_encoding.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_powertrain_v0.12.json --out "$out"
+          python tools/aircraft_compiler/control_surface_lowering_cli.py "$out/probe_placement_manifest.json" "$out/glue_encoding.json" "$out/powertrain_v0.12.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_control_v0.13.json --out "$out"
+          python tools/aircraft_compiler/control_surface_correction_cli.py "$out/probe_placement_manifest.json" "$out/glue_encoding.json" "$out/powertrain_v0.12.json" "$out/yaw_control_v0.13.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_control_v0.13.1.json --out "$out"
+          python tools/aircraft_compiler/yaw_actuation_cli.py "$out/probe_placement_manifest.json" "$out/powertrain_v0.12.json" "$out/yaw_control_v0.13.1.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_actuation_v0.14.json --out "$out"
+          python tools/aircraft_compiler/yaw_authority_cli.py "$out/yaw_actuation_v0.14.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_authority_v0.15.json --out "$out"
+          python tools/aircraft_compiler/yaw_neutral_return_cli.py "$out/yaw_actuation_v0.14.json" "$out/yaw_authority_v0.15.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_neutral_return_v0.16.json --out "$out"
+          python tools/aircraft_compiler/steering_control_cli.py "$out/yaw_actuation_v0.14.json" "$out/yaw_neutral_return_v0.16.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_steering_control_v0.17.json --out "$out"
+          python tools/aircraft_compiler/cockpit_yaw_route_cli.py "$out/probe_placement_manifest.json" "$out/powertrain_v0.12.json" "$out/yaw_control_v0.13.1.json" "$out/steering_control_v0.17.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_cockpit_yaw_route_v0.18.json --out "$out"
+
+      - name: Assert v0.18 compiler contract remains conservative and self-consistent
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          out = Path('build/aircraft-compiler-cockpit-route')
+          steering = json.loads((out / 'steering_control_v0.17.json').read_text())
+          p = json.loads((out / 'cockpit_yaw_route_v0.18.json').read_text())
+
+          assert p['validation']['passed'] is True
+          assert p['schemaVersion'] == 'aircraft-cockpit-yaw-route-ir-0.18'
+          assert p['sourceSteeringControlDigestSha256'] == steering['digestSha256']
+          assert p['pilotSeatCoordinate'] == [5, 3, 0]
+          assert p['steeringWheelCoordinate'] in ([5, 3, 1], [5, 3, -1])
+          assert p['steeringWheelBlockState']['on_floor'] == 'true'
+          assert p['driveCogCoordinate'] == [18, 3, 1]
+          assert p['swivelBearingCoordinate'] == [18, 3, 0]
+          assert p['routePlaneY'] == 2
+          assert p['signContract']['expectedRpmMagnitude'] == 16
+          assert p['signContract']['expectedSwivelExtraCogSign'] == -1
+          assert p['metrics']['priorMovingParentMainBodyPlacementCount'] == 118
+          assert p['metrics']['resultingMovingParentMainBodyPlacementCount'] == 118 + p['metrics']['routePlacementCount']
+          assert p['metrics']['expectedPrimarySableTransferCount'] == (
+              p['metrics']['resultingMovingParentMainBodyPlacementCount']
+              + p['metrics']['nestedPropellerChildPlacementCount']
+              + p['metrics']['yawControlChildPlacementCount']
+          )
+          assert p['readiness']['cockpitRouteStaticSearchPassed'] is True
+          assert p['readiness']['cockpitRoutePlacementPatchReady'] is True
+          assert p['readiness']['cockpitRouteRuntimeProbeReady'] is True
+          assert p['readiness']['cockpitRouteRuntimeQualified'] is False
+          assert p['readiness']['pilotInteractionBindingReady'] is False
+          assert p['readiness']['flightQualified'] is False
+          blockers = set(p['readiness']['runtimeBlockers'])
+          assert 'cockpit_route_primary_sable_recapture_unverified' in blockers
+          assert 'cockpit_route_network_sign_rpm_unverified' in blockers
+          assert 'cockpit_route_command_return_unverified' in blockers
+          assert 'post_route_mass_com_unverified' in blockers
+          print('AIRCRAFT_001_V018_STATIC_PROOF PASS')
+          print('digestSha256=' + p['digestSha256'])
+          print('selectedCandidate=' + p['selectedCandidate'])
+          print('routePath=' + json.dumps(p['routePath'], separators=(',', ':')))
+          print('metrics=' + json.dumps(p['metrics'], sort_keys=True, separators=(',', ':')))
+          print('signContract=' + json.dumps(p['signContract'], sort_keys=True, separators=(',', ':')))
+          PY
+
+      - name: Upload v0.18 cockpit-route QA
+        uses: actions/upload-artifact@v4
+        with:
+          name: aircraft-compiler-guild-utility-v018-qa
+          path: build/aircraft-compiler-cockpit-route
+          if-no-files-found: error
+          retention-days: 14
