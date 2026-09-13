@@ -1,0 +1,118 @@
+name: Aircraft compiler exact-stack runtime
+
+on:
+  pull_request:
+    paths:
+      - "tools/aircraft_compiler/**"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - ".github/workflows/aircraft-compiler-runtime.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aircraft-compiler-runtime-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-stack-main-body-assembly:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Compile deterministic AIRCRAFT-001 runtime fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tools/aircraft_compiler/tests -v
+          python tools/aircraft_compiler/compile.py \
+            tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json \
+            --blockspace-config tools/aircraft_compiler/specimens/guild_utility_monoplane_blockspace_v0.2.json \
+            --target-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_target_v0.4.json \
+            --propulsion-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_propulsion_v0.5.json \
+            --surface-state-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_surface_state_v0.6.json \
+            --tail-lowering-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_tail_lowering_v0.7.json \
+            --pilot-station-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_station_v0.8.json \
+            --probe-manifest-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_probe_manifest_v0.9.json \
+            --out build/aircraft-compiler-runtime
+          python tools/aircraft_compiler/assembly_fixture_cli.py \
+            build/aircraft-compiler-runtime/probe_placement_manifest.json \
+            tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_assembly_fixture_v0.10.json \
+            --out build/aircraft-compiler-runtime
+          python tools/aircraft_compiler/glue_encoding_cli.py \
+            build/aircraft-compiler-runtime/assembly_fixture.json \
+            tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_glue_encoding_v0.11.json \
+            --out build/aircraft-compiler-runtime
+          grep -q '"mainBodyPlacementCount": 114' build/aircraft-compiler-runtime/glue_encoding.json
+          grep -q '"glueCommandCount": 113' build/aircraft-compiler-runtime/glue_encoding.json
+
+      - name: Resolve exact retained flight stack
+        run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
+
+      - name: Execute genuine Simulated/Sable main-body assembly probe
+        shell: bash
+        env:
+          JAVA_TOOL_OPTIONS: >-
+            -Dskyforge.dev.aircraftCompilerRuntime=true
+            -Dskyforge.dev.aircraftCompilerManifest=${{ github.workspace }}/build/aircraft-compiler-runtime/probe_placement_manifest.json
+            -Dskyforge.dev.aircraftCompilerAssemblyFixture=${{ github.workspace }}/build/aircraft-compiler-runtime/assembly_fixture.json
+            -Dskyforge.dev.aircraftCompilerGlueEncoding=${{ github.workspace }}/build/aircraft-compiler-runtime/glue_encoding.json
+        run: |
+          set -euo pipefail
+          log="aircraft-compiler-runtime.log"
+          setsid ./gradlew :skyforge-neoforge-1211:runWaveC12BellancaB0AssemblyServer \
+            --no-configuration-cache >"${log}" 2>&1 &
+          pid=$!
+          outcome=""
+
+          for _ in $(seq 1 300); do
+            if grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS" "${log}" 2>/dev/null; then
+              outcome="pass"
+              break
+            fi
+            if grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY FAIL" "${log}" 2>/dev/null; then
+              outcome="fail"
+              break
+            fi
+            if ! kill -0 "${pid}" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          if [[ "${outcome}" == "pass" ]]; then
+            grep -F "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS" "${log}"
+            kill -TERM -- "-${pid}" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-${pid}" 2>/dev/null || true
+            wait "${pid}" 2>/dev/null || true
+            exit 0
+          fi
+
+          echo "FAIL AIRCRAFT-001 exact-stack main-body assembly probe"
+          cat "${log}"
+          kill -TERM -- "-${pid}" 2>/dev/null || true
+          sleep 1
+          kill -KILL -- "-${pid}" 2>/dev/null || true
+          wait "${pid}" 2>/dev/null || true
+          exit 1
