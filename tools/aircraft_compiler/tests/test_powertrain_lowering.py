@@ -81,6 +81,14 @@ class PowertrainLoweringTests(unittest.TestCase):
         with self.assertRaisesRegex(PowertrainLoweringError, "powerplant glue validation failed"):
             lower_powertrain(self.manifest, self.glue, profile)
 
+    def test_powerplant_glue_must_overlap_existing_domain_in_all_three_axes(self) -> None:
+        glue = copy.deepcopy(self.glue)
+        glue["glueDomains"] = [
+            {"selectionCellBounds": {"min": [0, 1, 100], "max": [18, 3, 100]}}
+        ]
+        with self.assertRaisesRegex(PowertrainLoweringError, "powerplant glue validation failed"):
+            lower_powertrain(self.manifest, glue, self.profile)
+
     def test_only_first_128_rpm_point_is_statically_accepted(self) -> None:
         profile = copy.deepcopy(self.profile)
         profile["governorTargetRpm"] = 160
