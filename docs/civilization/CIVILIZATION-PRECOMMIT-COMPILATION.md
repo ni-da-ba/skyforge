@@ -2,8 +2,9 @@
 
 **Status:** CIVILIZATION CONCEPTUAL SWEEP COMPLETE / HANDOFF-READY  
 **Branch at compilation:** `docs/civilization-precommit`  
-**Terminal design contract:** `CIV-0042-civilization-implementation-and-acceptance-contract.md`  
-**Bootstrap integration contract:** `CIV-0041-bellanca-onboarding-and-bootstrap-civilization-integration.md`
+**Terminal civilization implementation contract:** `CIV-0042-civilization-implementation-and-acceptance-contract.md`  
+**Bootstrap onboarding contract:** `CIV-0041-bellanca-onboarding-and-bootstrap-civilization-integration.md`  
+**Bootstrap spatial/progression contract:** `CIV-0043-bootstrap-province-spatial-recipe.md`
 
 ## Purpose
 
@@ -25,10 +26,13 @@ Before acting on civilization work, a fresh producer should read:
 6. this compilation;
 7. `CIV-0041-bellanca-onboarding-and-bootstrap-civilization-integration.md` for Bootstrap/onboarding work;
 8. `CIV-0042-civilization-implementation-and-acceptance-contract.md` for runtime/integration work;
-9. only the subsystem CIV records necessary for the bounded task;
-10. current relevant source/tests/issues/PRs and merged history since the lane ledger boundary.
+9. `CIV-0043-bootstrap-province-spatial-recipe.md` for Bootstrap geography, mobility tiers, resource/civilization placement, recovery, and progression closure;
+10. only the subsystem CIV records necessary for the bounded task;
+11. current relevant source/tests/issues/PRs and merged history since the lane ledger boundary.
 
 Do not treat conversational memory as authoritative.
+
+For a contract-focused task, also use the contract-system quick read in `docs/civilization/README.md`; `CIV-0014` is the central contract model, but its legal/economic behavior depends on the surrounding authorization, vessel, insurance, financing, custody, route, market, information, and sovereignty records.
 
 ## Precedence and refinement notes
 
@@ -44,7 +48,8 @@ Important later refinements include:
 - `CIV-0039` expands Guild jurisdiction into explicit sovereignty/access/allegiance distinctions and introduces the minimum allegiance primitive for vessels, structures, and locales;
 - `CIV-0040` distinguishes economic principal/ownership from possession, allegiance, registration, and personal professional Standing;
 - `CIV-0041` is the current onboarding authority: the Bellanca crash frames the full tutorial and the resolved Guild transaction ends it;
-- `CIV-0042` closes the conceptual sweep and defines cross-lane implementation/acceptance obligations.
+- `CIV-0042` closes the civilization conceptual sweep and defines cross-lane implementation/acceptance obligations;
+- `CIV-0043` is a later owner-approved narrowing of the Bootstrap Province spatial/progression problem. It governs capability-labelled geography, recovery, first-flight closure, the guaranteed first Guild destination, and the first freight opening without superseding `CIV-0041` or `CIV-0042` in their domains.
 
 ## System in one diagram
 
@@ -504,11 +509,13 @@ real settlement demand
 → save/reload reproduces result
 ```
 
+`CIV-0043` additionally constrains where this proof sits in the Bootstrap Province: survival/workshop capability is local, first-flight closure remains inside `WALK_BUILD` + `GLIDE` reach, the first Guild-connected civilization is guaranteed inside the crude first-aircraft envelope, and at least one real producer/consumer pair forms a viable early `FREIGHT` edge.
+
 Do not make the first alpha ship every mature loan, insurance, piracy, autonomous-fleet, jurisdiction, agency, or multiplayer feature before proving this core.
 
 ## 21. Implementation and validation invariants
 
-`CIV-0042` is the terminal contract for implementation decomposition.
+`CIV-0042` remains the terminal civilization implementation/acceptance contract. `CIV-0043` adds a bounded Bootstrap spatial/progression contract; it does not reopen the wider conceptual sweep.
 
 Hard requirements include:
 
@@ -609,12 +616,13 @@ These are not missing features unless executable gameplay later demonstrates a n
 - `CIV-0037-regional-trade-flow-resolution.md`
 - `CIV-0038-prosperity-and-demographic-stability.md`
 
-### Sovereignty, allegiance, multiplayer ownership, Bootstrap, terminal contract
+### Sovereignty, allegiance, multiplayer ownership, Bootstrap, implementation boundary
 
 - `CIV-0039-faction-sovereignty-economic-access-and-allegiance.md`
 - `CIV-0040-player-economic-principals-and-multiplayer-ownership.md`
 - `CIV-0041-bellanca-onboarding-and-bootstrap-civilization-integration.md`
 - `CIV-0042-civilization-implementation-and-acceptance-contract.md`
+- `CIV-0043-bootstrap-province-spatial-recipe.md`
 
 Companion human/manual-gate record:
 
@@ -624,11 +632,11 @@ Companion human/manual-gate record:
 
 The conceptual sweep is complete.
 
-Do not default to `CIV-0043`.
+Do not default to creating a new conceptual `CIV-0044` merely because `CIV-0043` exists. `CIV-0043` is an owner-approved Bootstrap spatial/progression narrowing added after the original closeout; the default next work remains executable decomposition.
 
 The next work is executable decomposition:
 
-1. Content / Experience defines the smallest Bootstrap civilization/Guild slice against accepted Authorship/site evidence and the current Bootstrap Province roadmap.
+1. Content / Experience defines the smallest Bootstrap civilization/Guild slice against accepted Authorship/site evidence and `CIV-0043`'s Bootstrap Province spatial contract.
 2. Implementation builds the smallest authoritative runtime/persistence/custody seam needed by that slice, without seizing Content meaning.
 3. Existing AAL/Create/Aeronautics/CC work remains capability/adaptation research under the same semantic-authority boundary.
 4. Human gates are invoked only when machine evidence has made the relevant play/visual choice information-bearing.
