@@ -39,6 +39,61 @@ final class SkyforgePhysicalVolumeAdmissionStageTest {
     }
 
     @Test
+    void maintainedDeferredChunkIndexActivatesAtAdmissionAndRetiresAtCompletion() throws Exception {
+        var sourceCatalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
+        var volume = sourceCatalog.volumes().getFirst();
+        var catalog = new io.github.nidaba.skyforge.world.SkyIslandWorldCatalog(
+                sourceCatalog.rootSeed(),
+                List.of(volume));
+        var bounds = volume.bounds();
+        int minimumChunkX = Math.floorDiv((int) Math.floor(bounds.minimumX()), 16);
+        int maximumChunkX = Math.floorDiv((int) Math.floor(bounds.maximumX()), 16);
+        int minimumChunkZ = Math.floorDiv((int) Math.floor(bounds.minimumZ()), 16);
+        int maximumChunkZ = Math.floorDiv((int) Math.floor(bounds.maximumZ()), 16);
+        assertTrue(
+                minimumChunkX != maximumChunkX || minimumChunkZ != maximumChunkZ,
+                "fixture volume must span multiple chunks");
+
+        ChunkPos deferredPos = new ChunkPos(minimumChunkX, minimumChunkZ);
+        ChunkPos admittingPos = minimumChunkX != maximumChunkX
+                ? new ChunkPos(maximumChunkX, minimumChunkZ)
+                : new ChunkPos(minimumChunkX, maximumChunkZ);
+        var deferredChunk = MinecraftTestChunkFactory.protoChunk(deferredPos);
+        var admittingChunk = MinecraftTestChunkFactory.protoChunk(admittingPos);
+
+        try (AutoCloseable binding = SkyforgePhysicalVolumeAdmissionStage.install(
+                catalog,
+                Map.of(volume.id(), Set.of(deferredPos.toLong(), admittingPos.toLong())))) {
+            assertNotNull(binding);
+
+            SkyforgePhysicalVolumeAdmissionStage.observeBeforeRealization(
+                    deferredChunk,
+                    Optional.empty());
+            assertEquals(
+                    SkyforgePhysicalVolumeAdmissionState.PLANNED,
+                    SkyforgePhysicalVolumeAdmissionStage.snapshot(volume.id()).state());
+            assertTrue(SkyforgePhysicalVolumeAdmissionStage.eligibleCatchupChunkKeys().isEmpty());
+            assertTrue(SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volume.id(), deferredPos));
+
+            SkyforgePhysicalVolumeAdmissionStage.observeBeforeRealization(
+                    admittingChunk,
+                    Optional.empty());
+            assertEquals(
+                    SkyforgePhysicalVolumeAdmissionState.ADMITTED,
+                    SkyforgePhysicalVolumeAdmissionStage.snapshot(volume.id()).state());
+            assertEquals(
+                    List.of(deferredPos.toLong()),
+                    List.copyOf(SkyforgePhysicalVolumeAdmissionStage.eligibleCatchupChunkKeys()));
+            assertFalse(SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volume.id(), admittingPos));
+
+            var pending = SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(deferredPos).getFirst();
+            SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+            assertFalse(SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volume.id(), deferredPos));
+            assertTrue(SkyforgePhysicalVolumeAdmissionStage.eligibleCatchupChunkKeys().isEmpty());
+        }
+    }
+
+    @Test
     void exactFootprintSkipsBoundsOnlyChunksBeforeOccupancySurvey() throws Exception {
         var sourceCatalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
         var volume = sourceCatalog.volumes().getFirst();
