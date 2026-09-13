@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "aircraft-powertrain-profile-0.12",
+  "profileId": "skyforge.powertrain.create_6_0_10_simulated.guild_utility.v0_12",
+  "target": {
+    "minecraft": "1.21.1",
+    "loader": "NeoForge 21.1.249",
+    "create": "6.0.10",
+    "sable": "2.0.5",
+    "simulated": "bundled_with_create_aeronautics_1.3.2",
+    "aeronautics": "1.3.2"
+  },
+  "portableEngineSourceRpm": 32,
+  "governorTargetRpm": 128,
+  "laterGovernorRpmPoints": [160, 192, 224, 256],
+  "existingPropellerBearingCoordinate": [0, 3, 0],
+  "placements": [
+    {
+      "role": "engine_port",
+      "mode": "add",
+      "lattice": [2, 2, -1],
+      "resourceId": "simulated:red_portable_engine",
+      "blockState": {"facing": "south", "lit": "false"},
+      "sourceContract": "PortableEngineBlock shaft exists only on HORIZONTAL_FACING; source speed range is exactly 32 RPM"
+    },
+    {
+      "role": "engine_starboard",
+      "mode": "add",
+      "lattice": [2, 2, 1],
+      "resourceId": "simulated:red_portable_engine",
+      "blockState": {"facing": "north", "lit": "false"},
+      "sourceContract": "PortableEngineBlock shaft exists only on HORIZONTAL_FACING; source speed range is exactly 32 RPM"
+    },
+    {
+      "role": "governor",
+      "mode": "replace",
+      "lattice": [2, 2, 0],
+      "resourceId": "create:rotation_speed_controller",
+      "blockState": {"axis": "z"},
+      "replaces": {"kind": "airframe_structure", "resourceId": "minecraft:spruce_planks"},
+      "sourceContract": "SpeedControllerBlock is a horizontal-axis kinetic block; large cog directly above mediates governed output"
+    },
+    {
+      "role": "governor_cog",
+      "mode": "add",
+      "lattice": [2, 3, 0],
+      "resourceId": "create:large_cogwheel",
+      "blockState": {"axis": "x"},
+      "sourceContract": "SpeedControllerBlockEntity requires dedicated large cog above with horizontal axis perpendicular to controller axis"
+    },
+    {
+      "role": "prop_shaft",
+      "mode": "add",
+      "lattice": [1, 3, 0],
+      "resourceId": "create:shaft",
+      "blockState": {"axis": "x"},
+      "sourceContract": "X-axis shaft directly couples large cog output to WEST-facing X-axis Propeller Bearing"
+    }
+  ],
+  "powerplantGlueDomain": {
+    "name": "powerplant",
+    "from": [1, 2, -1],
+    "to": [2, 3, 1]
+  },
+  "sourceEvidence": [
+    "Simulated PortableEngineBlock.getSpeedRange returns Couple.create(32,32)",
+    "Skyforge issue #237 accepted two real Portable Engines on one shared Create shaft inside a Sable ServerSubLevel",
+    "Create 6.0.10 SpeedControllerBlock requires a dedicated large cog directly above for governed transfer",
+    "Create 6.0.10 SpeedControllerBlockEntity targetSpeed is bounded by server maxRotationSpeed and rewires kinetics through updateTargetRotation",
+    "C12 issue #239 defines the first governor ladder as 128/160/192/224/256 RPM and requires live stress proof rather than arithmetic acceptance"
+  ],
+  "runtimeObligations": [
+    {
+      "id": "powertrain_primary_sable_recapture_probe",
+      "method": "apply the v0.12 replacement/addition patch plus powerplant glue, reassemble, and verify all 118 moving main-body blocks plus 9 propeller payload blocks transfer into one Sable sublevel; remeasure mass and COM"
+    },
+    {
+      "id": "portable_engine_shared_network_probe",
+      "method": "fuel/activate both relocated Portable Engines and verify both are non-virtual 32-RPM sources participating in the intended shared kinetic network"
+    },
+    {
+      "id": "governor_128_rpm_probe",
+      "method": "set the relocated Rotation Speed Controller target to 128 RPM and verify the relocated Propeller Bearing receives nonzero commanded speed of the expected signed magnitude"
+    },
+    {
+      "id": "kinetic_stress_margin_probe",
+      "method": "read the real Create KineticNetwork capacity and stress at 128 RPM and require finite capacity >= stress with positive margin"
+    },
+    {
+      "id": "propeller_thrust_sign_magnitude_probe",
+      "method": "with child sail power 8 and live 128-RPM drive, measure PropellerBearingBlockEntity.getThrust sign and magnitude; do not tune analytical constants to fit this observation"
+    }
+  ]
+}

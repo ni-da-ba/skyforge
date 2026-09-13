@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+from powertrain_lowering import PowertrainLoweringError, lower_powertrain
+from powertrain_render import emit_powertrain_outputs
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Lower AIRCRAFT-001 v0.12 governed Create/Simulated powertrain")
+    parser.add_argument("manifest", type=Path)
+    parser.add_argument("glue", type=Path)
+    parser.add_argument("profile", type=Path)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args()
+    try:
+        manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+        glue = json.loads(args.glue.read_text(encoding="utf-8"))
+        profile = json.loads(args.profile.read_text(encoding="utf-8"))
+        result = lower_powertrain(manifest, glue, profile)
+        if not result["validation"]["passed"]:
+            raise PowertrainLoweringError("powertrain lowering validation failed")
+        emit_powertrain_outputs(result, args.out)
+    except (OSError, json.JSONDecodeError, PowertrainLoweringError, ValueError) as exc:
+        raise SystemExit(f"powertrain lowering error: {exc}") from exc
+    print(json.dumps({
+        "assetId": result["assetId"],
+        "compilerVersion": result["compilerVersion"],
+        "digestSha256": result["digestSha256"],
+        "metrics": result["metrics"],
+        "readiness": result["readiness"],
+        "validation": result["validation"],
+    }, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
