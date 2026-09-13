@@ -13,11 +13,11 @@ import java.util.function.Supplier;
 /**
  * Opt-in low-overhead timing counters for development performance characterization.
  *
- * <p>Production behavior is unchanged unless {@value #ENABLE_PROPERTY} is true. Timings are
- * deliberately aggregate: they identify expensive lifecycle seams without retaining chunks,
- * levels, positions, or other mutable Minecraft state. Exact percentile distributions are retained
- * only for explicitly requested development evidence and therefore have zero storage cost in normal
- * packaged runtime.
+ * <p>Production behavior is unchanged unless {@value #ENABLE_PROPERTY} or the dedicated PERF-0502
+ * exploration benchmark is enabled. Timings are deliberately aggregate: they identify expensive
+ * lifecycle seams without retaining chunks, levels, positions, or other mutable Minecraft state.
+ * Exact percentile distributions are retained only for explicitly requested development evidence
+ * and therefore have zero storage cost in normal packaged runtime.
  */
 final class SkyforgeRuntimePerformanceMetrics {
     static final String ENABLE_PROPERTY = "skyforge.dev.performanceMetrics";
@@ -30,7 +30,7 @@ final class SkyforgeRuntimePerformanceMetrics {
     private SkyforgeRuntimePerformanceMetrics() {}
 
     static boolean enabled() {
-        return Boolean.getBoolean(ENABLE_PROPERTY);
+        return Boolean.getBoolean(ENABLE_PROPERTY) || SkyforgeClientExplorationBenchmark.enabled();
     }
 
     static void initialize() {
@@ -115,8 +115,8 @@ final class SkyforgeRuntimePerformanceMetrics {
      * Records one exact non-negative development-only distribution sample.
      *
      * <p>This path is intentionally reserved for bounded acceptance evidence such as deferred-write
-     * packet latency and packet block count. Normal packaged runtime never allocates these samples
-     * because performance metrics are opt-in.
+     * packet latency, packet block count, client frame intervals, and server tick latency. Normal
+     * packaged runtime never allocates these samples because performance metrics are opt-in.
      */
     static void recordDistributionSample(String stage, long value) {
         if (!enabled()) {
