@@ -110,12 +110,32 @@ def patch_runtime_source(source: str) -> str:
         SkyforgeAircraftCompilerPropellerRuntimeAcceptance.verify(
                 level, movedBearingPos, movedPropellerPayloadPositions);
 
+        Map<String, BlockPos> movedPowertrainRoles = new LinkedHashMap<>();
+        for (JsonElement raw : powertrainPlacements) {
+            JsonObject placement = raw.getAsJsonObject();
+            String role = string(placement, "role");
+            BlockPos movedRolePos = BASE.offset(blockPos(placement.getAsJsonArray("lattice"))).offset(offset);
+            assertTrue("unique v0.12 powertrain role " + role, movedPowertrainRoles.put(role, movedRolePos) == null);
+        }
+        String[] requiredPowertrainRoles = {"engine_port", "engine_starboard", "governor", "governor_cog", "prop_shaft"};
+        for (String role : requiredPowertrainRoles) {
+            assertTrue("moved v0.12 powertrain role present " + role, movedPowertrainRoles.containsKey(role));
+        }
+        SkyforgeAircraftCompilerPowertrainRuntimeAcceptance.verify(
+                level,
+                movedPowertrainRoles.get("engine_port"),
+                movedPowertrainRoles.get("engine_starboard"),
+                movedPowertrainRoles.get("governor"),
+                movedPowertrainRoles.get("governor_cog"),
+                movedPowertrainRoles.get("prop_shaft"),
+                movedBearingPos);
+
 '''
     return source[:insert_at] + propeller_injected + source[insert_at:]
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Patch AIRCRAFT-001 runtime acceptance to v0.12 recapture semantics")
+    parser = argparse.ArgumentParser(description="Patch AIRCRAFT-001 runtime acceptance to v0.12 recapture/performance semantics")
     parser.add_argument("java_source", type=Path)
     args = parser.parse_args()
     source = args.java_source.read_text(encoding="utf-8")
