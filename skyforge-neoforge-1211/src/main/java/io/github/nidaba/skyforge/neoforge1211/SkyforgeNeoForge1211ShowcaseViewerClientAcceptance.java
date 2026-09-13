@@ -18,6 +18,7 @@ final class SkyforgeNeoForge1211ShowcaseViewerClientAcceptance {
     @SubscribeEvent
     static void onClientTick(ClientTickEvent.Post event) {
         if (proofComplete
+                || SkyforgeClientExplorationBenchmark.enabled()
                 || !SkyforgeNeoForge1211ShowcaseViewer.enabled()
                 || !SkyforgeAutomatedAcceptanceHarness.clientMode()) {
             return;
