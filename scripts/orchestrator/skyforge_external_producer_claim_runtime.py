@@ -9,13 +9,13 @@ the same durable authority runnable again.
 Claims are deliberately issue-scoped rather than lane-scoped so independent Implementation work may
 continue in parallel. A claim may optionally bind a PR; closed/merged PRs are pruned model-free.
 Explicit release is always available. Claims without a PR fail closed until release or issue closure.
+Normal claim rejection is a handled control outcome, never a webhook error/replay loop.
 """
 
 from __future__ import annotations
 
 import re
 import shlex
-import time
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
@@ -46,45 +46,44 @@ def _parse_claim_options(payload: dict[str, Any]) -> dict[str, Any]:
     try:
         tokens = shlex.split(line)
     except ValueError as exc:
-        raise RuntimeError(f"Invalid external-producer claim syntax: {exc}") from exc
+        raise ValueError(f"invalid claim syntax: {exc}") from exc
     if not tokens or tokens[0].lower() != CLAIM_COMMAND:
         return {}
 
     result: dict[str, Any] = {}
     for token in tokens[1:]:
         if "=" not in token:
-            raise RuntimeError(
-                "External-producer claim options must use key=value syntax "
-                "(supported: pr, lane, branch)"
+            raise ValueError(
+                "claim options must use key=value syntax (supported: pr, lane, branch)"
             )
         key, value = token.split("=", 1)
         key = key.strip().lower()
         value = value.strip()
         if key not in {"pr", "lane", "branch"}:
-            raise RuntimeError(f"Unsupported external-producer claim option: {key}")
+            raise ValueError(f"unsupported claim option: {key}")
         if not value:
-            raise RuntimeError(f"External-producer claim option {key} may not be empty")
+            raise ValueError(f"claim option {key} may not be empty")
         result[key] = value
 
     if "pr" in result:
         try:
             pr_number = int(result["pr"])
         except (TypeError, ValueError) as exc:
-            raise RuntimeError("External-producer claim pr must be a positive integer") from exc
+            raise ValueError("claim pr must be a positive integer") from exc
         if pr_number <= 0:
-            raise RuntimeError("External-producer claim pr must be a positive integer")
+            raise ValueError("claim pr must be a positive integer")
         result["pr"] = pr_number
     if "lane" in result:
         lane = str(result["lane"]).strip()
         allowed = {"Implementation", "Authorship", "Content", "Music", "Presentation", "Audit"}
         canonical = next((value for value in allowed if value.lower() == lane.lower()), None)
         if canonical is None:
-            raise RuntimeError(f"Unsupported external-producer lane: {lane}")
+            raise ValueError(f"unsupported external-producer lane: {lane}")
         result["lane"] = canonical
     if "branch" in result:
         branch = str(result["branch"]).strip()
         if not re.fullmatch(r"[A-Za-z0-9._/-]+", branch):
-            raise RuntimeError("External-producer branch contains unsupported characters")
+            raise ValueError("claim branch contains unsupported characters")
         result["branch"] = branch
     return result
 
@@ -109,13 +108,12 @@ def classify_control_command(
     if not core._trusted_actor(payload, trusted_actors):
         return None
 
-    line = _command_line(payload)
-    lowered = line.lower()
+    lowered = _command_line(payload).lower()
     if lowered == RELEASE_COMMAND:
         return "release_external"
     if lowered == CLAIM_COMMAND or lowered.startswith(CLAIM_COMMAND + " "):
-        # Parse here so malformed trusted commands fail visibly instead of becoming ordinary wakes.
-        _parse_claim_options(payload)
+        # Recognition must not parse/throw: malformed trusted controls are durably rejected by the
+        # apply phase, then acknowledged normally so GitHub/webhook reconciliation cannot replay them.
         return "claim_external"
     return None
 
@@ -127,7 +125,7 @@ def _issue_number(payload: dict[str, Any]) -> int:
     except (TypeError, ValueError):
         number = 0
     if number <= 0:
-        raise RuntimeError("External-producer controls require a concrete GitHub issue number")
+        raise ValueError("external-producer controls require a concrete GitHub issue number")
     return number
 
 
@@ -144,54 +142,73 @@ def _active_claims(self: core.Orchestrator) -> dict[str, dict[str, Any]]:
 
 
 def _controller_owns_issue(self: core.Orchestrator, issue_number: int) -> dict[str, Any] | None:
+    """Return concrete controller ownership, failing closed on managed-PR visibility uncertainty."""
     with self._state_lock:
         pending = self.state.data.get("pending_worker")
+        pending = dict(pending) if isinstance(pending, dict) else None
         record = self._decision_record() or {}
         task_issues = {
             int(value)
             for value in (record.get("task_issue_numbers") or [])
             if str(value).isdigit()
         }
-        if isinstance(pending, dict):
-            authority_issue = pending.get("authority_issue")
-            if str(authority_issue).isdigit() and int(authority_issue) == issue_number:
-                return {
-                    "kind": "pending_worker",
-                    "branch": pending.get("branch"),
-                    "stage": pending.get("stage"),
-                    "lane": pending.get("lane"),
-                }
-            if issue_number in task_issues:
-                return {
-                    "kind": "pending_worker",
-                    "branch": pending.get("branch"),
-                    "stage": pending.get("stage"),
-                    "lane": pending.get("lane"),
-                }
+        managed = {
+            str(lane): dict(value)
+            for lane, value in (self.state.data.get("managed") or {}).items()
+            if isinstance(value, dict)
+        }
+        roadmap = self.state.data.get("roadmap") or self.state.data.get("bounded_roadmap") or {}
+        active = roadmap.get("active") if isinstance(roadmap, dict) else None
+        active = dict(active) if isinstance(active, dict) else None
 
-        managed = self.state.data.get("managed") or {}
-        for lane, value in managed.items():
-            if not isinstance(value, dict):
-                continue
-            authority_issue = value.get("authority_issue")
-            if str(authority_issue).isdigit() and int(authority_issue) == issue_number:
+    # An active roadmap node is already durable controller authority even if its worker has not yet
+    # launched (or is temporarily paused). Manual work may not steal that issue in the race window.
+    if active is not None:
+        active_issue = active.get("issue_number")
+        if str(active_issue).isdigit() and int(active_issue) == issue_number:
+            return {
+                "kind": "active_roadmap",
+                "lane": active.get("lane"),
+                "node_id": active.get("node_id"),
+                "pr_number": active.get("pr_number"),
+            }
+
+    if pending is not None:
+        authority_issue = pending.get("authority_issue")
+        if (
+            str(authority_issue).isdigit()
+            and int(authority_issue) == issue_number
+        ) or issue_number in task_issues:
+            return {
+                "kind": "pending_worker",
+                "branch": pending.get("branch"),
+                "stage": pending.get("stage"),
+                "lane": pending.get("lane"),
+            }
+
+    for lane, value in managed.items():
+        authority_issue = value.get("authority_issue")
+        if not str(authority_issue).isdigit() or int(authority_issue) != issue_number:
+            continue
+        # Retire stale lane records through the already-accepted current-truth validator. If GitHub
+        # visibility itself fails, fail closed: uncertainty is never permission to race a PR.
+        try:
+            live = self._validated_managed_branch(lane)
+        except Exception:
+            return {
+                "kind": "managed_pr_visibility_uncertain",
+                "lane": lane,
+                "pr_number": value.get("pr_number"),
+                "branch": value.get("branch"),
+            }
+        if isinstance(live, dict):
+            live_issue = live.get("authority_issue")
+            if str(live_issue).isdigit() and int(live_issue) == issue_number:
                 return {
                     "kind": "managed_pr",
                     "lane": lane,
-                    "pr_number": value.get("pr_number"),
-                    "branch": value.get("branch"),
-                }
-
-        roadmap = self.state.data.get("bounded_roadmap") or {}
-        active = roadmap.get("active") if isinstance(roadmap, dict) else None
-        if isinstance(pending, dict) and isinstance(active, dict):
-            active_issue = active.get("issue_number")
-            if str(active_issue).isdigit() and int(active_issue) == issue_number:
-                return {
-                    "kind": "pending_roadmap_worker",
-                    "lane": pending.get("lane"),
-                    "branch": pending.get("branch"),
-                    "stage": pending.get("stage"),
+                    "pr_number": live.get("pr_number"),
+                    "branch": live.get("branch"),
                 }
     return None
 
@@ -199,24 +216,46 @@ def _controller_owns_issue(self: core.Orchestrator, issue_number: int) -> dict[s
 def _record_claim_rejection(
     self: core.Orchestrator,
     *,
-    issue_number: int,
+    issue_number: int | None,
     actor: str,
-    owner: dict[str, Any],
+    reason: str,
+    owner: dict[str, Any] | None = None,
 ) -> None:
     with self._state_lock:
         self.state.data["last_external_producer_claim_rejection"] = {
             "at": core._utc_now(),
             "issue_number": issue_number,
             "actor": actor,
+            "reason": reason[:1000],
             "controller_owner": owner,
         }
         self.state.save()
     self._metric("external_producer_claim_rejections")
 
 
-def _claim_external(self: core.Orchestrator, payload: dict[str, Any], *, actor: str) -> None:
-    issue_number = _issue_number(payload)
-    options = _parse_claim_options(payload)
+def _claim_external(self: core.Orchestrator, payload: dict[str, Any], *, actor: str) -> bool:
+    try:
+        issue_number = _issue_number(payload)
+    except ValueError as exc:
+        _record_claim_rejection(
+            self,
+            issue_number=None,
+            actor=actor,
+            reason=str(exc),
+        )
+        return False
+
+    try:
+        options = _parse_claim_options(payload)
+    except ValueError as exc:
+        _record_claim_rejection(
+            self,
+            issue_number=issue_number,
+            actor=actor,
+            reason=str(exc),
+        )
+        return False
+
     owner = _controller_owns_issue(self, issue_number)
     if owner is not None:
         _record_claim_rejection(
@@ -224,11 +263,9 @@ def _claim_external(self: core.Orchestrator, payload: dict[str, Any], *, actor: 
             issue_number=issue_number,
             actor=actor,
             owner=owner,
+            reason=f"issue already controller-owned ({owner.get('kind')})",
         )
-        raise RuntimeError(
-            f"Issue #{issue_number} is already controller-owned ({owner.get('kind')}); "
-            "external claim rejected before parallel work begins"
-        )
+        return False
 
     comment = payload.get("comment") or {}
     with self._state_lock:
@@ -251,6 +288,7 @@ def _claim_external(self: core.Orchestrator, payload: dict[str, Any], *, actor: 
         self.state.data["last_external_producer_claim"] = dict(claim)
         self.state.save()
     self._metric("external_producer_claims")
+    return True
 
 
 def _release_external(
@@ -259,8 +297,11 @@ def _release_external(
     *,
     actor: str,
     reason: str = "explicit_release",
-) -> None:
-    issue_number = _issue_number(payload)
+) -> bool:
+    try:
+        issue_number = _issue_number(payload)
+    except ValueError:
+        return False
     removed = None
     with self._state_lock:
         claims = self.state.data.setdefault("external_producer_claims", {})
@@ -282,6 +323,7 @@ def _release_external(
     self._metric("external_producer_releases")
     if not self.is_paused() and self._pending_events():
         self._schedule_pending(1)
+    return removed is not None
 
 
 def _prune_external_claims(self: core.Orchestrator) -> int:
@@ -308,9 +350,7 @@ def _prune_external_claims(self: core.Orchestrator) -> int:
             except Exception:
                 continue
             if str(pr.get("state") or "").upper() != "OPEN":
-                retire[key] = (
-                    "bound_pr_merged" if pr.get("mergedAt") else "bound_pr_closed"
-                )
+                retire[key] = "bound_pr_merged" if pr.get("mergedAt") else "bound_pr_closed"
                 continue
         try:
             issue = core._json_cmd(
