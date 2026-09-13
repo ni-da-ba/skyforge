@@ -133,14 +133,15 @@ jobs:
           assert p['rudderSeedCoordinate'] == [18, 4, 0]
           assert p['rudderChildCoordinates'] == [[18,4,0],[18,5,0],[18,6,0],[18,7,0]]
           assert p['airGapCoordinates'] == [[17,4,0],[17,5,0],[17,6,0],[17,7,0]]
-          assert p['aerodynamicAccounting']['resultingFixedVerticalTailRegularSailCells'] == 7
+          assert p['aerodynamicAccounting']['fixedVerticalTailRegularSailCells'] == 7
+          assert p['aerodynamicAccounting']['horizontalTailRegularSailCells'] == 19
           assert p['aerodynamicAccounting']['rudderSymmetricSailCells'] == 4
-          assert p['aerodynamicAccounting']['explicitAirGapCells'] == 4
-          assert p['correctionEvidence']['failedRuntimeRunId'] == 34764106343
-          assert p['correctionEvidence']['failedRelativeCoordinate'] == [16,4,0]
-          assert p['glueChecks']['allRuntimeGlueDomainsExcludeAirGap'] is True
-          assert p['glueChecks']['allParentGlueDomainsExcludeRudder'] is True
-          assert p['glueChecks']['rudderChildGlueExcludesBearing'] is True
+          assert p['aerodynamicAccounting']['airGapCells'] == 4
+          assert '34764106343' in p['correctionReason']
+          assert '[16,4,0]' in p['correctionReason']
+          assert p['glueChecks']['noGlueDomainContainsAnyAirGapCell'] is True
+          assert p['glueChecks']['noParentGlueDomainContainsRudderChild'] is True
+          assert p['glueChecks']['childGlueExcludesBearing'] is True
           PY
       - name: Assert v0.13.1 static artifact does not overclaim runtime authority
         shell: bash
