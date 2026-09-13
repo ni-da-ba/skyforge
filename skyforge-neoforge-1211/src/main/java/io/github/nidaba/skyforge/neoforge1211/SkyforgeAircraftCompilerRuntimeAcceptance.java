@@ -35,9 +35,10 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 
 /**
- * AIRCRAFT-001 v0.12: consume the compiler's v0.9/v0.10/v0.11 outputs and execute the first
- * genuine exact-stack Sable assembly probe. This fixture intentionally remains opt-in and
- * development-only; ordinary packaged Skyforge never reads compiler build artifacts.
+ * AIRCRAFT-001 v0.12: consume compiler v0.9/v0.10.1/v0.11 outputs and execute the first
+ * genuine exact-stack Sable assembly probe. The propeller hub/sails are a dynamic-child
+ * classification for glue topology, but Simulated's Bearing traversal transfers them into the
+ * primary Sable sublevel before the bearing later re-forms its controlled child contraption.
  */
 final class SkyforgeAircraftCompilerRuntimeAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.aircraftCompilerRuntime";
@@ -48,12 +49,13 @@ final class SkyforgeAircraftCompilerRuntimeAcceptance {
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeAircraftCompilerRuntimeAcceptance.class.getName());
 
-    // Deliberately separated from the historical C12 specimen, which may run in the same server.
     private static final BlockPos BASE = new BlockPos(128, 220, 0);
     private static final int EXPECTED_MANIFEST_PLACEMENTS = 122;
     private static final int EXPECTED_MOVING_MAIN_BODY = 114;
-    private static final int EXPECTED_NESTED_CHILD = 9;
-    private static final int EXPECTED_GLUE_EDGES = 113;
+    private static final int EXPECTED_PROPELLER_PAYLOAD = 9;
+    private static final int EXPECTED_PRIMARY_SABLE_PAYLOAD = 123;
+    private static final int EXPECTED_GLUE_DOMAINS = 4;
+    private static final int CREATE_GLUE_SELECTION_LIMIT = 24;
 
     private SkyforgeAircraftCompilerRuntimeAcceptance() {}
 
@@ -92,65 +94,64 @@ final class SkyforgeAircraftCompilerRuntimeAcceptance {
         assertInt("manifest placement count", EXPECTED_MANIFEST_PLACEMENTS, manifestBlocks.size());
 
         Set<BlockPos> mainCoordinates = readCoordinateSet(fixture.getAsJsonObject("mainBody"), "coordinates");
-        Set<BlockPos> childCoordinates = readCoordinateSet(fixture.getAsJsonObject("nestedPropellerChild"), "coordinates");
+        Set<BlockPos> propellerPayloadCoordinates =
+                readCoordinateSet(fixture.getAsJsonObject("nestedPropellerChild"), "coordinates");
         assertInt("moving main-body coordinate count", EXPECTED_MOVING_MAIN_BODY, mainCoordinates.size());
-        assertInt("nested child coordinate count", EXPECTED_NESTED_CHILD, childCoordinates.size());
+        assertInt("propeller payload coordinate count", EXPECTED_PROPELLER_PAYLOAD, propellerPayloadCoordinates.size());
 
         JsonObject assemblerJson = fixture.getAsJsonObject("physicsAssemblerPlacement");
         BlockPos assemblerRelative = blockPos(assemblerJson.getAsJsonArray("lattice"));
         ExpectedBlock assemblerExpected = expectedBlock(assemblerJson);
         assertTrue("assembler is declared moving main-body member", mainCoordinates.contains(assemblerRelative));
-        assertTrue("assembler is not in nested child", !childCoordinates.contains(assemblerRelative));
+        assertTrue("assembler is outside propeller payload", !propellerPayloadCoordinates.contains(assemblerRelative));
 
-        LinkedHashMap<BlockPos, ExpectedBlock> movingExpected = new LinkedHashMap<>();
-        LinkedHashMap<BlockPos, ExpectedBlock> childExpected = new LinkedHashMap<>();
+        LinkedHashMap<BlockPos, ExpectedBlock> mainExpected = new LinkedHashMap<>();
+        LinkedHashMap<BlockPos, ExpectedBlock> propellerPayloadExpected = new LinkedHashMap<>();
         for (Map.Entry<BlockPos, ExpectedBlock> entry : manifestBlocks.entrySet()) {
             if (mainCoordinates.contains(entry.getKey())) {
-                movingExpected.put(entry.getKey(), entry.getValue());
-            } else if (childCoordinates.contains(entry.getKey())) {
-                childExpected.put(entry.getKey(), entry.getValue());
+                mainExpected.put(entry.getKey(), entry.getValue());
+            } else if (propellerPayloadCoordinates.contains(entry.getKey())) {
+                propellerPayloadExpected.put(entry.getKey(), entry.getValue());
             } else {
-                fail("manifest coordinate not classified by v0.10 fixture: " + entry.getKey());
+                fail("manifest coordinate not classified by v0.10.1 fixture: " + entry.getKey());
             }
         }
-        ExpectedBlock collision = movingExpected.putIfAbsent(assemblerRelative, assemblerExpected);
+        ExpectedBlock collision = mainExpected.putIfAbsent(assemblerRelative, assemblerExpected);
         if (collision != null && !collision.equals(assemblerExpected)) {
             fail("assembler fixture collides with manifest placement at " + assemblerRelative);
         }
-        assertInt("moving main-body expected block count", EXPECTED_MOVING_MAIN_BODY, movingExpected.size());
-        assertInt("nested child expected block count", EXPECTED_NESTED_CHILD, childExpected.size());
+        assertInt("main-body expected block count", EXPECTED_MOVING_MAIN_BODY, mainExpected.size());
+        assertInt("propeller payload expected block count", EXPECTED_PROPELLER_PAYLOAD, propellerPayloadExpected.size());
+        assertInt("primary Sable payload count", EXPECTED_PRIMARY_SABLE_PAYLOAD,
+                mainExpected.size() + propellerPayloadExpected.size());
 
-        prepareAirspace(level, movingExpected.keySet(), childExpected.keySet());
+        prepareAirspace(level, mainExpected.keySet(), propellerPayloadExpected.keySet());
         for (Map.Entry<BlockPos, ExpectedBlock> entry : manifestBlocks.entrySet()) {
             level.setBlock(BASE.offset(entry.getKey()), materialize(entry.getValue()), 3);
         }
         level.setBlock(BASE.offset(assemblerRelative), materialize(assemblerExpected), 3);
 
-        // Runtime registry check for the exact privileged command v0.11 encodes.
         var createNode = server.getCommands().getDispatcher().getRoot().getChild("create");
         assertTrue("/create command root registered", createNode != null);
         assertTrue("/create glue command registered", createNode.getChild("glue") != null);
 
-        JsonArray glueEntitiesJson = glueEncoding.getAsJsonArray("glueEntities");
-        assertInt("encoded glue edge count", EXPECTED_GLUE_EDGES, glueEntitiesJson.size());
+        JsonArray glueDomainsJson = glueEncoding.getAsJsonArray("glueDomains");
+        assertInt("encoded glue domain count", EXPECTED_GLUE_DOMAINS, glueDomainsJson.size());
         List<Entity> insertedGlue = new ArrayList<>();
-        for (JsonElement raw : glueEntitiesJson) {
-            JsonObject edge = raw.getAsJsonObject();
-            BlockPos a = blockPos(edge.getAsJsonArray("a"));
-            BlockPos b = blockPos(edge.getAsJsonArray("b"));
-            assertTrue("glue endpoint a belongs to moving body " + a, mainCoordinates.contains(a));
-            assertTrue("glue endpoint b belongs to moving body " + b, mainCoordinates.contains(b));
-            assertInt("glue edge Manhattan distance " + a + " -> " + b, 1, manhattan(a, b));
-            insertedGlue.add(addGlueEdge(level, a, b));
-        }
-        assertInt("runtime SuperGlueEntity insertion count", EXPECTED_GLUE_EDGES, insertedGlue.size());
-        for (BlockPos child : childCoordinates) {
-            Vec3 center = Vec3.atCenterOf(BASE.offset(child));
-            for (Entity glue : insertedGlue) {
-                assertTrue("no main-body glue volume contains nested child center " + child,
-                        !glue.getBoundingBox().contains(center));
+        for (JsonElement raw : glueDomainsJson) {
+            JsonObject domain = raw.getAsJsonObject();
+            String name = string(domain, "name");
+            BlockPos from = blockPos(domain.getAsJsonArray("from"));
+            BlockPos to = blockPos(domain.getAsJsonArray("to"));
+            assertSelectionWithinLimit(name, from, to);
+            Entity glue = addGlueDomain(level, name, from, to);
+            for (BlockPos child : propellerPayloadCoordinates) {
+                assertTrue("glue domain " + name + " excludes propeller payload center " + child,
+                        !glue.getBoundingBox().contains(Vec3.atCenterOf(BASE.offset(child))));
             }
+            insertedGlue.add(glue);
         }
+        assertInt("runtime SuperGlueEntity domain insertion count", EXPECTED_GLUE_DOMAINS, insertedGlue.size());
 
         Object container = requireServerSubLevelContainer(level);
         List<?> before = new ArrayList<>(getAllSubLevels(container));
@@ -195,36 +196,25 @@ final class SkyforgeAircraftCompilerRuntimeAcceptance {
         int offsetZ = exactIntegerOffset("Z", comZ - poseZ);
         BlockPos offset = new BlockPos(offsetX, offsetY, offsetZ);
 
-        int movedCount = 0;
-        for (Map.Entry<BlockPos, ExpectedBlock> entry : movingExpected.entrySet()) {
-            BlockPos source = BASE.offset(entry.getKey());
-            BlockPos moved = source.offset(offset);
-            assertTrue("moving-body source position vacated " + source, level.getBlockState(source).isAir());
-            assertExpectedState("moved " + entry.getKey(), level.getBlockState(moved), entry.getValue());
-            movedCount++;
-        }
-        assertInt("exact moving main-body block count", EXPECTED_MOVING_MAIN_BODY, movedCount);
-
-        int childCount = 0;
-        for (Map.Entry<BlockPos, ExpectedBlock> entry : childExpected.entrySet()) {
-            BlockPos source = BASE.offset(entry.getKey());
-            assertExpectedState("nested child remains outside main Sable body " + entry.getKey(),
-                    level.getBlockState(source), entry.getValue());
-            childCount++;
-        }
-        assertInt("exact nested child block count left in world", EXPECTED_NESTED_CHILD, childCount);
+        int movedMainCount = assertTransferred(level, mainExpected, offset, "main-body");
+        int movedPropellerPayloadCount =
+                assertTransferred(level, propellerPayloadExpected, offset, "propeller-payload");
+        assertInt("exact moved main-body block count", EXPECTED_MOVING_MAIN_BODY, movedMainCount);
+        assertInt("exact transferred propeller payload count", EXPECTED_PROPELLER_PAYLOAD, movedPropellerPayloadCount);
+        assertInt("exact primary Sable transferred block count", EXPECTED_PRIMARY_SABLE_PAYLOAD,
+                movedMainCount + movedPropellerPayloadCount);
 
         assertTrue("live Sable mass finite", Double.isFinite(mass));
         assertTrue("live Sable mass positive", mass > 0.0);
         double localComX = comX - offsetX - BASE.getX();
         double localComY = comY - offsetY - BASE.getY();
         double localComZ = comZ - offsetZ - BASE.getZ();
-        assertWithinCoordinateBounds("local COM X", localComX, movingExpected.keySet(), 0);
-        assertWithinCoordinateBounds("local COM Y", localComY, movingExpected.keySet(), 1);
-        assertWithinCoordinateBounds("local COM Z", localComZ, movingExpected.keySet(), 2);
+        Set<BlockPos> transferredCoordinates = new LinkedHashSet<>(mainCoordinates);
+        transferredCoordinates.addAll(propellerPayloadCoordinates);
+        assertWithinCoordinateBounds("local COM X", localComX, transferredCoordinates, 0);
+        assertWithinCoordinateBounds("local COM Y", localComY, transferredCoordinates, 1);
+        assertWithinCoordinateBounds("local COM Z", localComZ, transferredCoordinates, 2);
 
-        // The assembler must have moved with the body. This is the source-driven correction that
-        // turns the fixture into a reversible assembly lifecycle rather than an external one-shot.
         assertTrue("assembler source vacated with moving body", level.getBlockState(assemblerWorldPos).isAir());
         BlockEntity movedAssembler = level.getBlockEntity(assemblerWorldPos.offset(offset));
         assertTrue("assembler block entity exists on moved Sable body", movedAssembler != null
@@ -233,16 +223,44 @@ final class SkyforgeAircraftCompilerRuntimeAcceptance {
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS"
-                        + " movedMainBody=" + movedCount
-                        + " nestedChildStatic=" + childCount
-                        + " glueEdges=" + insertedGlue.size()
+                        + " movedMainBody=" + movedMainCount
+                        + " propellerPayloadTransferred=" + movedPropellerPayloadCount
+                        + " primarySablePayload=" + (movedMainCount + movedPropellerPayloadCount)
+                        + " glueDomains=" + insertedGlue.size()
                         + " massKpg=" + mass
                         + " localComX=" + localComX
                         + " localComY=" + localComY
                         + " localComZ=" + localComZ
                         + " offset=" + offset
                         + " assemblerMoved=true"
-                        + " createGlueRegistered=true");
+                        + " createGlueRegistered=true"
+                        + " nestedPropellerCaptureVerified=false");
+    }
+
+    private static int assertTransferred(
+            ServerLevel level,
+            Map<BlockPos, ExpectedBlock> expected,
+            BlockPos offset,
+            String label) {
+        int count = 0;
+        for (Map.Entry<BlockPos, ExpectedBlock> entry : expected.entrySet()) {
+            BlockPos source = BASE.offset(entry.getKey());
+            BlockPos moved = source.offset(offset);
+            assertTrue(label + " source position vacated " + source, level.getBlockState(source).isAir());
+            assertExpectedState(label + " moved " + entry.getKey(), level.getBlockState(moved), entry.getValue());
+            count++;
+        }
+        return count;
+    }
+
+    private static void assertSelectionWithinLimit(String name, BlockPos from, BlockPos to) {
+        int sizeX = Math.abs(to.getX() - from.getX()) + 1;
+        int sizeY = Math.abs(to.getY() - from.getY()) + 1;
+        int sizeZ = Math.abs(to.getZ() - from.getZ()) + 1;
+        assertTrue("glue domain " + name + " within Create selection limit",
+                sizeX <= CREATE_GLUE_SELECTION_LIMIT
+                        && sizeY <= CREATE_GLUE_SELECTION_LIMIT
+                        && sizeZ <= CREATE_GLUE_SELECTION_LIMIT);
     }
 
     private static Path requirePathProperty(String name) {
@@ -343,18 +361,20 @@ final class SkyforgeAircraftCompilerRuntimeAcceptance {
         return result;
     }
 
-    private static Entity addGlueEdge(ServerLevel level, BlockPos relativeA, BlockPos relativeB)
+    private static Entity addGlueDomain(ServerLevel level, String name, BlockPos relativeFrom, BlockPos relativeTo)
             throws ReflectiveOperationException {
         Class<?> glueClass = Class.forName("com.simibubi.create.content.contraptions.glue.SuperGlueEntity");
         Method span = glueClass.getMethod("span", BlockPos.class, BlockPos.class);
-        BlockPos worldA = BASE.offset(relativeA);
-        BlockPos worldB = BASE.offset(relativeB);
-        AABB box = (AABB) span.invoke(null, worldA, worldB);
+        BlockPos worldFrom = BASE.offset(relativeFrom);
+        BlockPos worldTo = BASE.offset(relativeTo);
+        AABB box = (AABB) span.invoke(null, worldFrom, worldTo);
         Constructor<?> constructor = glueClass.getConstructor(Level.class, AABB.class);
         Entity glue = (Entity) constructor.newInstance(level, box);
-        assertTrue("Create Super Glue edge inserted " + relativeA + " -> " + relativeB, level.addFreshEntity(glue));
-        assertTrue("glue contains endpoint A", glue.getBoundingBox().contains(Vec3.atCenterOf(worldA)));
-        assertTrue("glue contains endpoint B", glue.getBoundingBox().contains(Vec3.atCenterOf(worldB)));
+        assertTrue("Create Super Glue domain inserted " + name, level.addFreshEntity(glue));
+        assertTrue("glue domain " + name + " contains from endpoint",
+                glue.getBoundingBox().contains(Vec3.atCenterOf(worldFrom)));
+        assertTrue("glue domain " + name + " contains to endpoint",
+                glue.getBoundingBox().contains(Vec3.atCenterOf(worldTo)));
         return glue;
     }
 
@@ -460,12 +480,8 @@ final class SkyforgeAircraftCompilerRuntimeAcceptance {
             min = Math.min(min, coordinate);
             max = Math.max(max, coordinate);
         }
-        assertTrue(label + " finite/in moving-body bounds",
+        assertTrue(label + " finite/in transferred-payload bounds",
                 Double.isFinite(value) && value >= min && value <= max + 1.0);
-    }
-
-    private static int manhattan(BlockPos a, BlockPos b) {
-        return Math.abs(a.getX() - b.getX()) + Math.abs(a.getY() - b.getY()) + Math.abs(a.getZ() - b.getZ());
     }
 
     private static int exactIntegerOffset(String axis, double value) {
