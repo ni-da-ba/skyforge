@@ -127,6 +127,7 @@ class WorkerRetryRuntimeTests(unittest.TestCase):
                     "worker_stalled_attempts": 1,
                     "last_worker_attempt_result": "in_flight",
                     "last_worker_attempt_before_fingerprint": "different-fingerprint",
+                    "last_pre_handoff_validation_error": {"summary": "compile failed"},
                 }
             )
             before, snapshot = runtime._begin_worker_attempt(fake, root)
@@ -135,7 +136,29 @@ class WorkerRetryRuntimeTests(unittest.TestCase):
             self.assertEqual(pending["worker_attempt_count"], 2)
             self.assertEqual(pending["last_worker_attempt_result"], "in_flight")
             self.assertEqual(pending["last_worker_attempt_before_fingerprint"], before)
+            self.assertIsNone(pending["last_pre_handoff_validation_error"])
             self.assertFalse(fake.paused)
+
+    def test_quota_pacing_failure_does_not_count_as_worker_stall(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git_repo(root)
+            fake = _FakeOrchestrator(root)
+            pending = fake.state.data["pending_worker"]
+            pending["worker_stalled_attempts"] = 1
+            fingerprint = runtime._worktree_fingerprint(fake, root)
+
+            runtime._record_worker_result(
+                fake,
+                root,
+                before_fingerprint=fingerprint,
+                result="failed",
+                failure_kind="quota_pacing",
+            )
+
+            self.assertEqual(pending["worker_stalled_attempts"], 1)
+            self.assertEqual(pending["last_worker_attempt_failure_kind"], "quota_pacing")
+            self.assertNotIn("worker_attempts_without_durable_progress", fake.metrics)
 
     def test_completed_response_replays_without_another_budgeted_turn(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -153,6 +176,27 @@ class WorkerRetryRuntimeTests(unittest.TestCase):
             begin.assert_not_called()
             self.assertNotIn("budget:worker", fake.metrics)
             self.assertIn("worker_completed_response_replays", fake.metrics)
+
+    def test_pre_handoff_failure_does_not_replay_rejected_response(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git_repo(root)
+            fake = _FakeOrchestrator(root)
+            pending = fake.state.data["pending_worker"]
+            pending["last_worker_attempt_result"] = "completed"
+            pending["last_worker_response"] = "response that failed compile"
+            pending["last_pre_handoff_validation_error"] = {"summary": "compile failed"}
+
+            with mock.patch.object(
+                runtime,
+                "_begin_worker_attempt",
+                side_effect=runtime.core.SafetyPause("repair attempt reached"),
+            ) as begin:
+                with self.assertRaisesRegex(runtime.core.SafetyPause, "repair attempt reached"):
+                    runtime._worker(fake, "repair", "TERRA", root)
+
+            begin.assert_called_once()
+            self.assertNotIn("worker_completed_response_replays", fake.metrics)
 
     def test_existing_worker_thread_is_resumed_not_recreated(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
