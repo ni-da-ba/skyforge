@@ -34,6 +34,11 @@ import skyforge_pending_timer_fairness_runtime as _pending_timer_fairness_runtim
 import skyforge_pre_handoff_validation_runtime as _pre_handoff_validation_runtime  # noqa: E402,F401
 import skyforge_worker_retry_runtime as _worker_retry_runtime  # noqa: E402,F401
 import skyforge_external_pr_event_filter_runtime as _external_pr_event_filter_runtime  # noqa: E402,F401
+import skyforge_external_producer_claim_runtime as _external_producer_claim_runtime  # noqa: E402,F401
+import skyforge_managed_pr_rebase_runtime as _managed_pr_rebase_runtime  # noqa: E402,F401
+
+# Manual/hosted producer ownership is control-plane policy, not ordinary worker-authored lane state.
+_base.core.PROTECTED_WORKER_PATHS.add("docs/agent-state/MANUAL_PRODUCER_PROTOCOL.md")
 
 _base._roadmap_runtime = _roadmap_runtime
 if _roadmap_closed_issue_recovery_runtime is not None:
@@ -44,6 +49,8 @@ _base._pending_timer_fairness_runtime = _pending_timer_fairness_runtime
 _base._pre_handoff_validation_runtime = _pre_handoff_validation_runtime
 _base._worker_retry_runtime = _worker_retry_runtime
 _base._external_pr_event_filter_runtime = _external_pr_event_filter_runtime
+_base._external_producer_claim_runtime = _external_producer_claim_runtime
+_base._managed_pr_rebase_runtime = _managed_pr_rebase_runtime
 
 
 if __name__ == "__main__":
