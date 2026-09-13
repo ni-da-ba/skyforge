@@ -98,6 +98,45 @@ class HandoffRecoveryRuntimeTests(unittest.TestCase):
             self.assertIn("open managed handoff detached", o.state.data["last_worker_discard"]["reason"])
             o._metric.assert_called_with("operator_open_handoff_detachments")
 
+    def test_merged_handoff_is_archived_and_detached_without_original_guard(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            worktree = root / "worker"
+            worktree.mkdir()
+            o = self.make_orchestrator(root)
+            pending = self.seed(o, worktree, stage="handoff")
+            patch, meta = self.archive_paths(root)
+            pr = {
+                "state": "MERGED",
+                "mergedAt": "2026-09-13T03:37:58Z",
+                "headRefName": pending["branch"],
+                "headRefOid": "remote-head",
+            }
+
+            with (
+                mock.patch.object(core, "_json_cmd", return_value=pr),
+                mock.patch.object(runtime, "_worktree_path", return_value=worktree),
+                mock.patch.object(
+                    runtime,
+                    "_archive_managed_worker",
+                    return_value=(["src/Fixture.java"], patch, meta),
+                ) as archive,
+                mock.patch.object(core, "_run", return_value=completed(["git"])),
+                mock.patch.object(runtime, "_ORIGINAL_DISCARD_PENDING_WORKER") as original,
+            ):
+                runtime.discard_pending_worker(o, actor="ni-da-ba")
+
+            self.assertIsNone(o.state.data.get("pending_worker"))
+            self.assertIsNone(o.state.data.get("pending_decision"))
+            self.assertIsNone(o.state.data.get("blocked_kind"))
+            self.assertEqual(o.state.data.get("blocked_until_epoch"), 0.0)
+            self.assertEqual(o.state.data["managed"]["Implementation"]["pr_number"], 485)
+            self.assertIn("already merged", o.state.data["last_worker_discard"]["reason"])
+            archive.assert_called_once()
+            self.assertEqual(archive.call_args.kwargs["archive_kind"], "merged-handoff")
+            o._metric.assert_called_with("operator_merged_handoff_detachments")
+            original.assert_not_called()
+
     def test_closed_unmerged_pr_is_not_detached(self):
         with tempfile.TemporaryDirectory() as td:
             root = pathlib.Path(td)
