@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 final class SkyforgeExactVolumeMaterializationOptimizationTest {
     private static final long ROOT_SEED = 0x534b59464f524745L;
+    private static final int DEFERRED_SLICE_HEIGHT = 32;
 
     @Test
     void exactMassifMaterializationMatchesLegacyCompositeAcrossCenterEdgeAndEmptyColumns() {
@@ -69,15 +70,47 @@ final class SkyforgeExactVolumeMaterializationOptimizationTest {
         for (ChunkPos chunkPos : chunks) {
             MinecraftChunkMaterialization generic = adapter.materialize(chunkPos, minimumY, height);
             MinecraftChunkMaterialization exact = adapter.materialize(id, chunkPos, minimumY, height);
+            MinecraftChunkMaterialization sliced = materializeInDeferredSlices(
+                    adapter,
+                    id,
+                    chunkPos,
+                    minimumY,
+                    height);
 
             assertEquals(1, generic.candidateVolumeReferences());
             assertEquals(1, exact.candidateVolumeReferences());
+            assertEquals(1, sliced.candidateVolumeReferences());
             assertEquals(generic.solidBlockCount(), exact.solidBlockCount());
+            assertEquals(exact.solidBlockCount(), sliced.solidBlockCount());
             assertArrayEquals(
                     generic.blockKeys(),
                     exact.blockKeys(),
                     "exact-volume specialization changed block-key output for " + chunkPos);
+            assertArrayEquals(
+                    exact.blockKeys(),
+                    sliced.blockKeys(),
+                    "bounded deferred preparation changed exact block-key output for " + chunkPos);
         }
+    }
+
+    private static MinecraftChunkMaterialization materializeInDeferredSlices(
+            SkyforgeNeoForge1211ChunkAdapter adapter,
+            SkyIslandWorldVolumeId id,
+            ChunkPos chunkPos,
+            int minimumY,
+            int height) {
+        var preparation = new SkyforgeDeferredExactMaterializationPreparation(
+                id,
+                chunkPos,
+                minimumY,
+                height);
+        while (!preparation.complete()) {
+            var advance = preparation.advance(adapter::materialize, DEFERRED_SLICE_HEIGHT);
+            if (advance.complete()) {
+                return advance.completedMaterialization().orElseThrow();
+            }
+        }
+        throw new IllegalStateException("bounded deferred preparation completed without a materialization");
     }
 
     private static io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume compile(
