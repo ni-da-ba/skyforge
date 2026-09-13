@@ -16,6 +16,7 @@ class _FakeState:
             "pending_events": [],
             "pending_worker": None,
             "pending_decision": None,
+            "roadmap": {},
         }
         self.saves = 0
 
@@ -38,6 +39,10 @@ class _FakeOrchestrator:
 
     def _decision_record(self):
         value = self.state.data.get("pending_decision")
+        return value if isinstance(value, dict) else None
+
+    def _validated_managed_branch(self, lane: str):
+        value = (self.state.data.get("managed") or {}).get(lane)
         return value if isinstance(value, dict) else None
 
     def is_paused(self) -> bool:
@@ -91,6 +96,16 @@ class ExternalProducerClaimRuntimeTests(unittest.TestCase):
             {"lane": "Implementation", "branch": "manual/foo", "pr": 553},
         )
 
+    def test_malformed_trusted_claim_is_still_recognized_as_control(self) -> None:
+        payload = _payload("/skyforge-claim-external nonsense")
+        with mock.patch.object(runtime, "_ORIGINAL_CLASSIFY_CONTROL_COMMAND", return_value=None):
+            control = runtime.classify_control_command(
+                "issue_comment",
+                payload,
+                trusted_actors=("ni-da-ba",),
+            )
+        self.assertEqual(control, "claim_external")
+
     def test_untrusted_claim_is_not_a_control(self) -> None:
         payload = _payload("/skyforge-claim-external", actor="someone-else")
         with mock.patch.object(runtime, "_ORIGINAL_CLASSIFY_CONTROL_COMMAND", return_value=None):
@@ -103,18 +118,33 @@ class ExternalProducerClaimRuntimeTests(unittest.TestCase):
 
     def test_claim_is_recorded_when_issue_is_unowned(self) -> None:
         fake = _FakeOrchestrator()
-        runtime._claim_external(
+        accepted = runtime._claim_external(
             fake,
             _payload("/skyforge-claim-external lane=Implementation"),
             actor="ni-da-ba",
         )
+        self.assertTrue(accepted)
         claim = fake.state.data["external_producer_claims"]["492"]
         self.assertEqual(claim["issue_number"], 492)
         self.assertEqual(claim["lane"], "Implementation")
         self.assertEqual(claim["claimed_by"], "ni-da-ba")
         self.assertEqual(fake.metrics["external_producer_claims"], 1)
 
-    def test_claim_is_rejected_when_controller_worker_owns_issue(self) -> None:
+    def test_malformed_claim_is_rejected_without_throwing_or_recording_claim(self) -> None:
+        fake = _FakeOrchestrator()
+        accepted = runtime._claim_external(
+            fake,
+            _payload("/skyforge-claim-external nonsense"),
+            actor="ni-da-ba",
+        )
+        self.assertFalse(accepted)
+        self.assertNotIn("492", fake.state.data["external_producer_claims"])
+        rejection = fake.state.data["last_external_producer_claim_rejection"]
+        self.assertEqual(rejection["issue_number"], 492)
+        self.assertIn("key=value", rejection["reason"])
+        self.assertEqual(fake.metrics["external_producer_claim_rejections"], 1)
+
+    def test_claim_is_rejected_without_throwing_when_controller_worker_owns_issue(self) -> None:
         fake = _FakeOrchestrator()
         fake.state.data["pending_decision"] = {"task_issue_numbers": [492]}
         fake.state.data["pending_worker"] = {
@@ -122,14 +152,38 @@ class ExternalProducerClaimRuntimeTests(unittest.TestCase):
             "branch": "codex/implementation-task-492",
             "stage": "editing",
         }
-        with self.assertRaisesRegex(RuntimeError, "already controller-owned"):
-            runtime._claim_external(
-                fake,
-                _payload("/skyforge-claim-external"),
-                actor="ni-da-ba",
-            )
+        accepted = runtime._claim_external(
+            fake,
+            _payload("/skyforge-claim-external"),
+            actor="ni-da-ba",
+        )
+        self.assertFalse(accepted)
         self.assertNotIn("492", fake.state.data["external_producer_claims"])
         self.assertEqual(fake.metrics["external_producer_claim_rejections"], 1)
+        self.assertEqual(
+            fake.state.data["last_external_producer_claim_rejection"]["controller_owner"]["kind"],
+            "pending_worker",
+        )
+
+    def test_active_roadmap_authority_rejects_manual_claim_before_worker_exists(self) -> None:
+        fake = _FakeOrchestrator()
+        fake.state.data["roadmap"] = {
+            "active": {
+                "issue_number": 492,
+                "node_id": "dr-20-visible-hydrology",
+                "lane": "Implementation",
+            }
+        }
+        accepted = runtime._claim_external(
+            fake,
+            _payload("/skyforge-claim-external"),
+            actor="ni-da-ba",
+        )
+        self.assertFalse(accepted)
+        self.assertEqual(
+            fake.state.data["last_external_producer_claim_rejection"]["controller_owner"]["kind"],
+            "active_roadmap",
+        )
 
     def test_active_claim_holds_task_before_original_dispatch(self) -> None:
         fake = _FakeOrchestrator()
@@ -175,11 +229,12 @@ class ExternalProducerClaimRuntimeTests(unittest.TestCase):
         fake.state.data["pending_events"] = [_task(547).to_state()]
         fake.state.data["blocked_kind"] = "external_producer"
         fake.state.data["blocked_until_epoch"] = 9999999999.0
-        runtime._release_external(
+        released = runtime._release_external(
             fake,
             _payload("/skyforge-release-external", issue=547),
             actor="ni-da-ba",
         )
+        self.assertTrue(released)
         self.assertNotIn("547", fake.state.data["external_producer_claims"])
         self.assertIsNone(fake.state.data["blocked_kind"])
         self.assertEqual(fake.state.data["blocked_until_epoch"], 0.0)
