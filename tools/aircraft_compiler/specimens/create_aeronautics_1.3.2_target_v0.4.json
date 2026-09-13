@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "aircraft-target-profile-0.4",
+  "profileId": "skyforge.target.create_aeronautics_1_3_2_mc1_21_1.v0_4",
+  "target": {
+    "minecraft": "1.21.1",
+    "loader": "NeoForge 21.1.249",
+    "create": "6.0.10",
+    "sable": "2.0.5",
+    "simulated": "bundled_with_create_aeronautics_1.3.2",
+    "aeronautics": "1.3.2"
+  },
+  "evidencePolicy": {
+    "sourceVerifiedIsNotRuntimeVerified": true,
+    "noAnalyticalForceEquivalence": true,
+    "noGenericCapabilityFallback": true,
+    "oneResourcePerLatticeCoordinate": true,
+    "runtimeMeasurementsMustNotRewriteAnalyticalConstants": true
+  },
+  "siteProviders": [
+    {
+      "providerId": "minecraft_spruce_structure_v0",
+      "resourceId": "minecraft:spruce_planks",
+      "capabilities": ["rigid_physics_member", "rigid_load_path"],
+      "evidenceLevel": "registry_identity_known_runtime_mass_unverified",
+      "stateRule": "none",
+      "priority": 50
+    },
+    {
+      "providerId": "simulated_white_symmetric_sail_v0",
+      "resourceId": "simulated:white_symmetric_sail",
+      "capabilities": ["aerodynamic_lift_surface", "rigid_physics_member", "rigid_load_path"],
+      "evidenceLevel": "released_source_verified_runtime_force_unverified",
+      "stateRule": "unresolved:derive_axis_from_surface_normal_and_verify_in_runtime",
+      "priority": 10
+    }
+  ],
+  "stationProviders": {
+    "propeller_axis": {
+      "status": "source_verified",
+      "resourceId": "aeronautics:propeller_bearing",
+      "stateRule": "unresolved:facing_axis_x_sign_requires_thrust_direction_runtime_probe",
+      "evidence": "AeroBlocks/AeroBlockEntityTypes + PropellerBearingBlockEntity released source"
+    },
+    "pilot_station": {
+      "status": "unresolved",
+      "reason": "control-interface resource and binding contract not yet selected"
+    },
+    "cargo_station": {
+      "status": "semantic_only",
+      "reason": "payload interface may remain volume-only until a concrete gameplay contract is selected"
+    },
+    "cg_reference": {
+      "status": "semantic_only",
+      "reason": "measurement reference, never a block placement"
+    }
+  },
+  "requiredStations": ["propeller_axis", "pilot_station"],
+  "companionRequirements": [
+    {
+      "id": "propeller_requires_sail_geometry",
+      "role": "propeller_sail_intent",
+      "minimumCount": 2,
+      "evidence": "Create Aeronautics BearingContraption mixin rejects propeller assembly below two sail-equivalent units"
+    }
+  ],
+  "runtimeObligations": [
+    {
+      "id": "registry_and_blockstate_probe",
+      "method": "load exact target stack; resolve every emitted resource and legal state property/value"
+    },
+    {
+      "id": "physics_assembly_probe",
+      "method": "assemble the complete vehicle and assert one Sable physics object with intended attachments"
+    },
+    {
+      "id": "propeller_assembly_probe",
+      "method": "assemble propeller bearing with compiled sail geometry and assert no not_enough_sails failure"
+    },
+    {
+      "id": "propeller_force_direction_probe",
+      "method": "measure force direction for facing/rotation/thrust-direction combinations; do not fit analytical lift constants"
+    },
+    {
+      "id": "sail_orientation_probe",
+      "method": "measure symmetric-sail force direction for each compiled surface normal and sign convention"
+    },
+    {
+      "id": "runtime_mass_cg_probe",
+      "method": "measure target runtime mass/center of mass and compare to a separately reported analytical design CG"
+    },
+    {
+      "id": "kinetic_stress_probe",
+      "method": "verify Create kinetic network connectivity, rotation sign, RPM, and stress margin under target configuration"
+    },
+    {
+      "id": "control_binding_probe",
+      "method": "verify pilot input path reaches intended propulsion/control devices without hidden manual setup"
+    }
+  ]
+}
