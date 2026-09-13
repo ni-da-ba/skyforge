@@ -25,6 +25,7 @@ This file is a map, not the full manual. Read deeper documents only when the cur
   - Music/Audio: `docs/agent-state/MUSIC_STATE.md`
   - Presentation: `docs/agent-state/PRESENTATION_STATE.md`
 - Lightweight multi-agent operation: `docs/agent-state/ORCHESTRATION_PROTOCOL.md`
+- Manual/hosted producer ownership: `docs/agent-state/MANUAL_PRODUCER_PROTOCOL.md`
 
 If summaries disagree with `main`, source/tests, or merged history, the repository evidence wins.
 
@@ -59,6 +60,7 @@ Use the roadmap's state/entry/exit/missing-issue rules. Do not fully reread it o
 
 A producer starting or resuming bounded work should:
 
+0. inspect hosted-controller ownership, controller-managed PRs, active external-producer claims, and healthy manual producer PRs before selecting work; for an interactive/manual producer, follow `MANUAL_PRODUCER_PROTOCOL.md` and obtain/verify the issue claim before editing;
 1. verify current `main`, its branch/PR, and whether a newer accepted boundary exists;
 2. read the Program Charter;
 3. read the Program Roadmap when the task affects phase sequencing, next-work selection, or a cross-phase dependency;
@@ -75,6 +77,7 @@ Conversational history is supplementary.
 
 - Prefer one bounded active acceptance target per lane.
 - Preserve the Program Roadmap's primary convergence focus when selecting new work, while allowing already-authorized bounded cross-phase work to continue.
+- Manual/interactive producers may run in the same lane as the hosted controller only when they own a different governing issue and independent semantic scope; task ownership is exclusive even when lane ownership is shared.
 - Do not invent work merely because the lane is idle.
 - Do not synchronize only because a branch is numerically behind.
 - Do not rerun expensive evidence only to refresh a timestamp or SHA.
