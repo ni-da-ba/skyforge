@@ -32,57 +32,104 @@ jobs:
           --tail-lowering-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_tail_lowering_v0.7.json
           --pilot-station-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_station_v0.8.json
           --probe-manifest-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_probe_manifest_v0.9.json
-          --out build/aircraft-compiler-v11
+          --out build/aircraft-compiler-v13
       - name: Plan v0.10 Physics Assembler fixture and adhesion intent
         run: >-
           python tools/aircraft_compiler/assembly_fixture_cli.py
-          build/aircraft-compiler-v11/probe_placement_manifest.json
+          build/aircraft-compiler-v13/probe_placement_manifest.json
           tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_assembly_fixture_v0.10.json
-          --out build/aircraft-compiler-v11
+          --out build/aircraft-compiler-v13
       - name: Encode v0.11 bounded Create Super Glue domain cover
         run: >-
           python tools/aircraft_compiler/glue_encoding_cli.py
-          build/aircraft-compiler-v11/assembly_fixture.json
+          build/aircraft-compiler-v13/assembly_fixture.json
           tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_glue_encoding_v0.11.json
-          --out build/aircraft-compiler-v11
-      - name: Assert v0.10 topology remains accepted
+          --out build/aircraft-compiler-v13
+      - name: Lower v0.12 governed powertrain
+        run: >-
+          python tools/aircraft_compiler/powertrain_lowering_cli.py
+          build/aircraft-compiler-v13/probe_placement_manifest.json
+          build/aircraft-compiler-v13/glue_encoding.json
+          tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_powertrain_v0.12.json
+          --out build/aircraft-compiler-v13
+      - name: Lower v0.13 one-axis yaw control
+        run: >-
+          python tools/aircraft_compiler/control_surface_lowering_cli.py
+          build/aircraft-compiler-v13/probe_placement_manifest.json
+          build/aircraft-compiler-v13/glue_encoding.json
+          build/aircraft-compiler-v13/powertrain_v0.12.json
+          tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_control_v0.13.json
+          --out build/aircraft-compiler-v13
+      - name: Assert v0.10-v0.11 assembly closure remains accepted
         run: |
-          grep -q "mainBodyManifestPlacementCount=113" build/aircraft-compiler-v11/assembly_fixture_validation.txt
-          grep -q "mainBodyPlacementCount=114" build/aircraft-compiler-v11/assembly_fixture_validation.txt
-          grep -q "nestedChildPlacementCount=9" build/aircraft-compiler-v11/assembly_fixture_validation.txt
-          grep -q "adhesionIntentEdgeCount=113" build/aircraft-compiler-v11/assembly_fixture_validation.txt
-          grep -q "mainBodyUnreachableCount=0" build/aircraft-compiler-v11/assembly_fixture_validation.txt
-          grep -q "physicsAssemblerIncludedInMovingMainBody=True" build/aircraft-compiler-v11/assembly_fixture_validation.txt
-          grep -q "physicsAssemblerHasAdhesionEdgeToSeed=True" build/aircraft-compiler-v11/assembly_fixture_validation.txt
-          grep -q "assemblyFixtureTopologyPassed=True" build/aircraft-compiler-v11/assembly_fixture_validation.txt
-      - name: Assert v0.11 glue domains cover the proof tree without crossing dynamic boundaries
+          grep -q "mainBodyPlacementCount=114" build/aircraft-compiler-v13/assembly_fixture_validation.txt
+          grep -q "nestedChildPlacementCount=9" build/aircraft-compiler-v13/assembly_fixture_validation.txt
+          grep -q "adhesionIntentEdgeCount=113" build/aircraft-compiler-v13/assembly_fixture_validation.txt
+          grep -q "mainBodyUnreachableCount=0" build/aircraft-compiler-v13/assembly_fixture_validation.txt
+          grep -q "coveredAdhesionIntentEdgeCount=113" build/aircraft-compiler-v13/glue_encoding_validation.txt
+          grep -q "glueDomainCount=4" build/aircraft-compiler-v13/glue_encoding_validation.txt
+          grep -q "adhesionApplicationEncodingReady=True" build/aircraft-compiler-v13/glue_encoding_validation.txt
+      - name: Assert v0.12 powered specimen remains exact
+        shell: bash
         run: |
-          grep -q "mainBodyPlacementCount=114" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "nestedChildPlacementCount=9" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "adhesionIntentEdgeCount=113" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "coveredAdhesionIntentEdgeCount=113" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "glueDomainCount=4" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "glueCommandCount=4" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "assemblerPlacementCommandCount=1" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "domainCoverEncoding=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "mainBodyConnectivityProofRetained=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "allAdhesionIntentEdgesCovered=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "allGlueDomainsWithinSelectionLimit=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "noGlueDomainContainsNestedChild=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "forbiddenDynamicBoundariesClear=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          test "$(grep -c '^create glue ' build/aircraft-compiler-v11/probe_assembly_fixture.mcfunction)" -eq 4
-      - name: Assert exact-stack runtime remains the next gate, not a static claim
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('build/aircraft-compiler-v13/powertrain_v0.12.json').read_text())
+          assert p['validation']['passed'] is True
+          assert p['metrics']['resultingManifestPlacementCount'] == 126
+          assert p['metrics']['resultingMovingMainBodyPlacementCount'] == 118
+          assert p['metrics']['nestedPropellerChildPlacementCount'] == 9
+          assert p['metrics']['expectedPrimarySableTransferCount'] == 127
+          assert p['governor']['firstAcceptedTargetRpm'] == 128
+          assert p['governor']['higherRpmPoints'] == [160, 192, 224, 256]
+          PY
+      - name: Assert v0.13 parent-child yaw topology and count partition
+        shell: bash
         run: |
-          grep -q "adhesionApplicationEncodingReady=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "mainBodyPhysicsAssemblyProbeReady=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "physicsAssemblyProbeReady=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "runtimeQualificationReady=False" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "flightQualified=False" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          grep -q "control_surface_child_body_topology_unresolved" build/aircraft-compiler-v11/glue_encoding_validation.txt
-      - name: Upload analytical through glue-encoding QA
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('build/aircraft-compiler-v13/yaw_control_v0.13.json').read_text())
+          assert p['validation']['passed'] is True
+          assert p['readiness']['yawControlStaticTopologyPassed'] is True
+          assert p['readiness']['rudderChildCaptureProbeReady'] is True
+          assert p['readiness']['controlActuationProbeReady'] is False
+          assert p['metrics']['v012MovingMainBodyPlacementCount'] == 118
+          assert p['metrics']['v013MovingParentMainBodyPlacementCount'] == 117
+          assert p['metrics']['nestedPropellerChildPlacementCount'] == 9
+          assert p['metrics']['yawControlChildPlacementCount'] == 4
+          assert p['metrics']['resultingManifestPlacementCount'] == 129
+          assert p['metrics']['expectedPrimarySableTransferCount'] == 130
+          assert p['metrics']['runtimeGlueDomainCount'] == 6
+          assert p['swivelBearingCoordinate'] == [17, 3, 0]
+          assert p['rudderSeedCoordinate'] == [17, 4, 0]
+          assert p['rudderChildCoordinates'] == [[17,4,0],[17,5,0],[17,6,0],[17,7,0]]
+          assert p['aerodynamicAccounting']['resultingFixedVerticalTailRegularSailCells'] == 4
+          assert p['aerodynamicAccounting']['resultingHorizontalTailRegularSailCells'] == 18
+          assert p['glueChecks']['noParentGlueDomainContainsRudderChild'] is True
+          assert p['glueChecks']['rudderChildGlueExcludesBearing'] is True
+          assert p['glueChecks']['horizontalTailGlueRetainsBearingOnParent'] is True
+          PY
+      - name: Assert v0.13 remains a child-capture probe, not a control-authority claim
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('build/aircraft-compiler-v13/yaw_control_v0.13.json').read_text())
+          assert p['readiness']['runtimeQualificationReady'] is False
+          assert p['readiness']['flightQualified'] is False
+          blockers = set(p['readiness']['runtimeBlockers'])
+          assert 'v013_primary_sable_recapture_unverified' in blockers
+          assert 'rudder_swivel_child_capture_unverified' in blockers
+          assert 'rudder_actuation_unverified' in blockers
+          assert 'pilot_control_binding_unverified' in blockers
+          PY
+      - name: Upload analytical through yaw-control QA
         uses: actions/upload-artifact@v4
         with:
-          name: aircraft-compiler-guild-utility-v11-qa
-          path: build/aircraft-compiler-v11
+          name: aircraft-compiler-guild-utility-v13-qa
+          path: build/aircraft-compiler-v13
           if-no-files-found: error
           retention-days: 14
