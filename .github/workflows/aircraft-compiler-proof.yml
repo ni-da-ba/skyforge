@@ -32,44 +32,48 @@ jobs:
           --tail-lowering-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_tail_lowering_v0.7.json
           --pilot-station-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_station_v0.8.json
           --probe-manifest-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_probe_manifest_v0.9.json
-          --out build/aircraft-compiler-v10
+          --out build/aircraft-compiler-v11
       - name: Plan v0.10 Physics Assembler fixture and adhesion intent
         run: >-
           python tools/aircraft_compiler/assembly_fixture_cli.py
-          build/aircraft-compiler-v10/probe_placement_manifest.json
+          build/aircraft-compiler-v11/probe_placement_manifest.json
           tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_assembly_fixture_v0.10.json
-          --out build/aircraft-compiler-v10
-      - name: Assert v0.9 exact placement manifest remains accepted
+          --out build/aircraft-compiler-v11
+      - name: Encode v0.11 edge-exact Create Super Glue fixture
+        run: >-
+          python tools/aircraft_compiler/glue_encoding_cli.py
+          build/aircraft-compiler-v11/assembly_fixture.json
+          tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_glue_encoding_v0.11.json
+          --out build/aircraft-compiler-v11
+      - name: Assert v0.10 topology remains accepted
         run: |
-          grep -q "probePlacementManifestReady=True" build/aircraft-compiler-v10/probe_manifest_validation.txt
-          grep -q "allPlacementsCoordinateUnique=True" build/aircraft-compiler-v10/probe_manifest_validation.txt
-          grep -q "kindCount.airframe_aerodynamic_surface=91" build/aircraft-compiler-v10/probe_manifest_validation.txt
-          grep -q "kindCount.propeller_sail=8" build/aircraft-compiler-v10/probe_manifest_validation.txt
-      - name: Assert v0.10 main-body and nested-propeller topology
+          grep -q "mainBodyPlacementCount=113" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "nestedChildPlacementCount=9" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "adhesionIntentEdgeCount=112" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "mainBodyUnreachableCount=0" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "assemblyFixtureTopologyPassed=True" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+      - name: Assert v0.11 glue encoding is edge-exact and dynamic-boundary safe
         run: |
-          grep -q "physicsAssemblerLattice=\[0, 1, 0\]" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "physicsAssemblerResource=simulated:physics_assembler" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q 'physicsAssemblerState={"face":"ceiling","facing":"north"}' build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "assemblySeedLattice=\[0, 2, 0\]" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "mainBodyPlacementCount=113" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "nestedChildPlacementCount=9" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "adhesionIntentEdgeCount=112" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "mainBodyUnreachableCount=0" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "assemblyFixtureTopologyPassed=True" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "nestedChildExcludedFromMainAdhesionGraph=True" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "bearingFaceAdjacentToChildHub=True" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-      - name: Assert runtime claims remain blocked at glue encoding boundary
+          grep -q "glueCommandCount=112" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "assemblerPlacementCommandCount=1" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "edgeExactEncoding=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "allGlueEdgesFaceAdjacent=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "allGlueEndpointsMainBody=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "noGlueEndpointOnNestedChild=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "forbiddenDynamicBoundariesClear=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          test "$(grep -c '^create glue ' build/aircraft-compiler-v11/probe_assembly_fixture.mcfunction)" -eq 112
+      - name: Assert main-body runtime probe is now the next gate, not a static claim
         run: |
-          grep -q "physicsAssemblerPlacementResolved=True" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "mainBodyAdhesionGraphResolved=True" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "adhesionApplicationEncodingReady=False" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "physicsAssemblyProbeReady=False" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "adhesion_application_encoding_unresolved" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-          grep -q "flightQualified=False" build/aircraft-compiler-v10/assembly_fixture_validation.txt
-      - name: Upload analytical through assembly-fixture QA
+          grep -q "adhesionApplicationEncodingReady=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "mainBodyPhysicsAssemblyProbeReady=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "physicsAssemblyProbeReady=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "runtimeQualificationReady=False" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "flightQualified=False" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "control_surface_child_body_topology_unresolved" build/aircraft-compiler-v11/glue_encoding_validation.txt
+      - name: Upload analytical through glue-encoding QA
         uses: actions/upload-artifact@v4
         with:
-          name: aircraft-compiler-guild-utility-v10-qa
-          path: build/aircraft-compiler-v10
+          name: aircraft-compiler-guild-utility-v11-qa
+          path: build/aircraft-compiler-v11
           if-no-files-found: error
           retention-days: 14
