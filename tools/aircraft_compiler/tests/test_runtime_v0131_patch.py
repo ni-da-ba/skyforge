@@ -25,6 +25,8 @@ class RuntimeV0131PatchTests(unittest.TestCase):
         self.assertIn("aircraftCompilerYawControlCorrection", patched)
         self.assertIn('getAsJsonArray("airGapCoordinates")', patched)
         self.assertIn('getAsJsonArray("runtimeGlueDomains")', patched)
+        self.assertIn('string(replaces, "resourceId").equals(removed.id().toString())', patched)
+        self.assertNotIn('ResourceLocation.tryParse(string(replaces, "resourceId")), removed.id()', patched)
         self.assertIn("SkyforgeAircraftCompilerYawRuntimeAcceptance.verify(", patched)
         self.assertIn('assertTransferred(level, rudderExpected, offset, "rudder-payload")', patched)
         self.assertIn('level.setBlock(BASE.offset(pos), Blocks.AIR.defaultBlockState(), 3)', patched)
