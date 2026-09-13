@@ -75,6 +75,7 @@ class MinecraftRealizationGeometryTests(unittest.TestCase):
     def test_unsupported_waiting_back_fence_is_omitted_not_left_floating(self):
         adapter = MinecraftAdapter()
         model = VoxelModel()
+        model.set(2, 1, 9, "floor", BlockState.of("minecraft:spruce_planks"), "fixture_floor")
         model.set(2, 2, 9, "seating", BlockState.of("minecraft:spruce_slab", type="bottom"), "fp_waiting_bench")
         model.set(2, 3, 9, "seating_detail", BlockState.of("minecraft:dark_oak_fence"), "fp14_waiting_back")
         realized, report = enforce_realized_geometry_correctness(asset(model), adapter)
