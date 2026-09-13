@@ -27,6 +27,14 @@ def _rel_coord(coord: tuple[int, int, int]) -> str:
     return " ".join(_rel_scalar(v) for v in coord)
 
 
+def _bounds(a: tuple[int, int, int], b: tuple[int, int, int]) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
+    return tuple(min(a[i], b[i]) for i in range(3)), tuple(max(a[i], b[i]) for i in range(3))
+
+
+def _contains(bounds_min: tuple[int, int, int], bounds_max: tuple[int, int, int], p: tuple[int, int, int]) -> bool:
+    return all(bounds_min[i] <= p[i] <= bounds_max[i] for i in range(3))
+
+
 def encode_glue_application(fixture: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:
     if fixture.get("schemaVersion") != "aircraft-assembly-fixture-ir-0.10":
         raise GlueEncodingError("v0.11 requires aircraft assembly fixture IR v0.10")
@@ -39,12 +47,15 @@ def encode_glue_application(fixture: dict[str, Any], profile: dict[str, Any]) ->
         raise GlueEncodingError("refusing glue encoding from unresolved v0.10 adhesion graph")
 
     encoding = profile.get("encoding", {})
-    if encoding.get("policy") != "one_super_glue_entity_per_main_body_tree_edge":
-        raise GlueEncodingError("bounded v0.11 requires edge-exact Super Glue encoding")
+    if encoding.get("policy") != "bounded_super_glue_domain_cover_of_main_body_tree":
+        raise GlueEncodingError("v0.11 requires bounded Super Glue domain cover encoding")
     if encoding.get("commandRoot") != "create glue":
-        raise GlueEncodingError("bounded v0.11 requires Create 6.0.10 /create glue command")
+        raise GlueEncodingError("v0.11 requires Create 6.0.10 /create glue command")
     if int(encoding.get("requiredPermissionLevel", -1)) != 2:
         raise GlueEncodingError("Create glue command requires permission level 2")
+    max_dimension = int(encoding.get("maxSelectionDimensionBlocks", 0))
+    if max_dimension <= 0:
+        raise GlueEncodingError("bounded glue encoding requires a positive maxSelectionDimensionBlocks")
 
     main_coords = {_coord(v) for v in fixture.get("mainBody", {}).get("coordinates", [])}
     child_coords = {_coord(v) for v in fixture.get("nestedPropellerChild", {}).get("coordinates", [])}
@@ -52,13 +63,8 @@ def encode_glue_application(fixture: dict[str, Any], profile: dict[str, Any]) ->
     if not main_coords:
         raise GlueEncodingError("fixture has no main-body coordinates")
 
-    commands: list[str] = []
-    records: list[dict[str, Any]] = []
+    tree_edges: list[tuple[tuple[int, int, int], tuple[int, int, int]]] = []
     seen_edges: set[tuple[tuple[int, int, int], tuple[int, int, int]]] = set()
-    all_adjacent = True
-    all_main = True
-    child_free = True
-
     for raw in raw_edges:
         a = _coord(raw["a"])
         b = _coord(raw["b"])
@@ -66,33 +72,86 @@ def encode_glue_application(fixture: dict[str, Any], profile: dict[str, Any]) ->
         if edge in seen_edges:
             raise GlueEncodingError(f"duplicate adhesion edge: {edge!r}")
         seen_edges.add(edge)
-        adjacent = _manhattan(a, b) == 1
-        endpoints_main = a in main_coords and b in main_coords
-        touches_child = a in child_coords or b in child_coords
-        all_adjacent &= adjacent
-        all_main &= endpoints_main
-        child_free &= not touches_child
-        if not adjacent:
-            raise GlueEncodingError(f"non-face-adjacent adhesion edge cannot be encoded conservatively: {a!r} -> {b!r}")
-        if not endpoints_main:
-            raise GlueEncodingError(f"adhesion edge endpoint not on main body: {a!r} -> {b!r}")
-        if touches_child:
-            raise GlueEncodingError(f"adhesion edge crosses nested-child boundary: {a!r} -> {b!r}")
-        command = f"create glue {_rel_coord(a)} {_rel_coord(b)}"
-        commands.append(command)
-        records.append({
-            "a": list(a),
-            "b": list(b),
-            "command": command,
-            "manhattanDistanceBlocks": 1,
-            "selectionCellBounds": {
-                "min": [min(a[i], b[i]) for i in range(3)],
-                "max": [max(a[i], b[i]) for i in range(3)],
-            },
-        })
+        if _manhattan(a, b) != 1:
+            raise GlueEncodingError(f"non-face-adjacent adhesion proof edge: {a!r} -> {b!r}")
+        if a not in main_coords or b not in main_coords:
+            raise GlueEncodingError(f"adhesion proof edge endpoint not on main body: {a!r} -> {b!r}")
+        if a in child_coords or b in child_coords:
+            raise GlueEncodingError(f"adhesion proof edge crosses nested-child boundary: {a!r} -> {b!r}")
+        tree_edges.append(edge)
 
     expected_edge_count = int(fixture.get("adhesionIntent", {}).get("edgeCount", len(raw_edges)))
-    edge_count_matches = len(records) == expected_edge_count == max(0, len(main_coords) - 1)
+    tree_is_spanning = len(tree_edges) == expected_edge_count == max(0, len(main_coords) - 1)
+    if not tree_is_spanning:
+        raise GlueEncodingError("v0.10 adhesion proof is not an N-1 main-body spanning tree")
+
+    forbidden = {
+        (min(_coord(v[0]), _coord(v[1])), max(_coord(v[0]), _coord(v[1])))
+        for v in profile.get("forbiddenGlueEdges", [])
+    }
+
+    domain_records: list[dict[str, Any]] = []
+    commands: list[str] = []
+    covered_edges: set[tuple[tuple[int, int, int], tuple[int, int, int]]] = set()
+    seen_names: set[str] = set()
+    all_within_limit = True
+    no_child_containment = True
+    forbidden_clear = True
+
+    for raw in profile.get("glueDomains", []):
+        name = str(raw.get("name", "")).strip()
+        if not name or name in seen_names:
+            raise GlueEncodingError(f"glue domain requires a unique non-empty name: {name!r}")
+        seen_names.add(name)
+        start = _coord(raw["from"])
+        end = _coord(raw["to"])
+        bounds_min, bounds_max = _bounds(start, end)
+        size = tuple(bounds_max[i] - bounds_min[i] + 1 for i in range(3))
+        within_limit = all(v <= max_dimension for v in size)
+        all_within_limit &= within_limit
+        if not within_limit:
+            raise GlueEncodingError(f"glue domain {name!r} exceeds {max_dimension}-block selection bound: {size!r}")
+
+        contained_children = sorted(p for p in child_coords if _contains(bounds_min, bounds_max, p))
+        no_child_containment &= not contained_children
+        if contained_children:
+            raise GlueEncodingError(f"glue domain {name!r} contains nested propeller payload cells: {contained_children!r}")
+
+        crossed_forbidden = sorted(
+            edge for edge in forbidden
+            if _contains(bounds_min, bounds_max, edge[0]) and _contains(bounds_min, bounds_max, edge[1])
+        )
+        forbidden_clear &= not crossed_forbidden
+        if crossed_forbidden:
+            raise GlueEncodingError(f"glue domain {name!r} crosses forbidden dynamic boundary: {crossed_forbidden!r}")
+
+        domain_covered = sorted(
+            edge for edge in tree_edges
+            if _contains(bounds_min, bounds_max, edge[0]) and _contains(bounds_min, bounds_max, edge[1])
+        )
+        if not domain_covered:
+            raise GlueEncodingError(f"glue domain {name!r} covers no accepted adhesion proof edge")
+        covered_edges.update(domain_covered)
+
+        command = f"create glue {_rel_coord(start)} {_rel_coord(end)}"
+        commands.append(command)
+        domain_records.append({
+            "name": name,
+            "from": list(start),
+            "to": list(end),
+            "command": command,
+            "selectionCellBounds": {"min": list(bounds_min), "max": list(bounds_max)},
+            "selectionSizeBlocks": list(size),
+            "coveredAdhesionEdgeCount": len(domain_covered),
+            "coveredAdhesionEdges": [[list(a), list(b)] for a, b in domain_covered],
+        })
+
+    if not domain_records:
+        raise GlueEncodingError("v0.11 requires at least one bounded glue domain")
+    uncovered = sorted(set(tree_edges) - covered_edges)
+    all_edges_covered = not uncovered
+    if uncovered:
+        raise GlueEncodingError(f"bounded glue domains leave adhesion proof edges uncovered: {uncovered!r}")
 
     assembler = fixture.get("physicsAssemblerPlacement", {})
     assembler_coord = _coord(assembler.get("lattice", []))
@@ -107,24 +166,15 @@ def encode_glue_application(fixture: dict[str, Any], profile: dict[str, Any]) ->
         state_suffix = "[" + ",".join(f"{k}={assembler_state[k]}" for k in sorted(assembler_state)) + "]"
     assembler_command = f"setblock {_rel_coord(assembler_coord)} {assembler_resource}{state_suffix} replace"
 
-    forbidden = {
-        (min(_coord(v[0]), _coord(v[1])), max(_coord(v[0]), _coord(v[1])))
-        for v in profile.get("forbiddenGlueEdges", [])
-    }
-    encoded_edges = set(seen_edges)
-    forbidden_clear = not bool(encoded_edges & forbidden)
-    if not forbidden_clear:
-        raise GlueEncodingError("encoded glue includes an explicitly forbidden dynamic boundary")
-
     checks = {
-        "edgeExactEncoding": len(commands) == len(records) == len(seen_edges),
-        "allGlueEdgesFaceAdjacent": all_adjacent,
-        "allGlueEndpointsMainBody": all_main,
-        "noGlueEndpointOnNestedChild": child_free,
-        "adhesionEdgeCountMatchesMainBodySpanningTree": edge_count_matches,
+        "domainCoverEncoding": len(commands) == len(domain_records),
+        "mainBodyConnectivityProofRetained": tree_is_spanning,
+        "allAdhesionIntentEdgesCovered": all_edges_covered,
+        "allGlueDomainsWithinSelectionLimit": all_within_limit,
+        "noGlueDomainContainsNestedChild": no_child_containment,
         "forbiddenDynamicBoundariesClear": forbidden_clear,
         "physicsAssemblerCommandEncoded": assembler_command.startswith("setblock "),
-        "createGlueCommandSourceBacked": encoding.get("sourceContract") == "Create-6.0.10-AllCommands/GlueCommand",
+        "createGlueCommandSourceBacked": encoding.get("sourceContract") == "Create-6.0.10-AllCommands/GlueCommand+SuperGlueEntity.span",
     }
     passed = all(checks.values())
 
@@ -144,26 +194,35 @@ def encode_glue_application(fixture: dict[str, Any], profile: dict[str, Any]) ->
     out: dict[str, Any] = {
         "schemaVersion": "aircraft-glue-encoding-ir-0.11",
         "assetId": str(fixture["assetId"]).replace("v0_10_assembly_fixture", "v0_11_glue_encoding"),
-        "compilerVersion": "aircraft-glue-command-encoder-0.11",
+        "compilerVersion": "aircraft-glue-domain-encoder-0.11.1",
         "sourceAssemblyFixtureDigestSha256": fixture["digestSha256"],
         "profileId": profile["profileId"],
         "encodingPolicy": {
             "policy": encoding["policy"],
             "commandRoot": encoding["commandRoot"],
             "requiredPermissionLevel": 2,
+            "maxSelectionDimensionBlocks": max_dimension,
             "idempotent": False,
             "rerunRule": "remove_prior_fixture_glue_before_reapplying; do not accumulate duplicate SuperGlueEntity instances",
-            "rationale": "one face-adjacent glue AABB per spanning-tree edge exactly realizes the accepted graph without broad selections crossing dynamic boundaries",
+            "rationale": "retain the exact N-1 face-adjacent tree as the connectivity proof, then lower it to bounded runtime-backed Super Glue domains that cover every proof edge without enclosing dynamic child cells",
         },
         "physicsAssemblerCommand": assembler_command,
         "glueCommands": commands,
-        "glueEntities": records,
+        "glueDomains": domain_records,
+        "adhesionProof": {
+            "edgeCount": len(tree_edges),
+            "coveredEdgeCount": len(covered_edges),
+            "uncoveredEdges": [[list(a), list(b)] for a, b in uncovered],
+        },
         "forbiddenGlueEdges": [[list(a), list(b)] for a, b in sorted(forbidden)],
         "checks": checks,
         "runtimeObligations": runtime_obligations,
         "metrics": {
             "mainBodyPlacementCount": len(main_coords),
             "nestedChildPlacementCount": len(child_coords),
+            "adhesionIntentEdgeCount": len(tree_edges),
+            "coveredAdhesionIntentEdgeCount": len(covered_edges),
+            "glueDomainCount": len(domain_records),
             "glueCommandCount": len(commands),
             "assemblerPlacementCommandCount": 1,
             "runtimeObligationCount": len(runtime_obligations),
@@ -187,15 +246,13 @@ def encode_glue_application(fixture: dict[str, Any], profile: dict[str, Any]) ->
         },
         "validation": {
             "passed": passed,
-            "scope": "source_backed_edge_exact_create_super_glue_command_encoding_for_main_body_probe_fixture",
+            "scope": "source_and_runtime_backed_bounded_create_super_glue_domain_cover_of_the_exact_main_body_connectivity_proof",
             "doesNotProve": [
-                "that /create glue is registered in the installed exact-stack runtime",
-                "that all emitted SuperGlueEntity instances survive placement and assembly",
-                "that Physics Assembler captures exactly the intended main body",
-                "that nested Propeller Bearing capture succeeds",
+                "that all four emitted SuperGlueEntity domains survive placement and assembly",
+                "that Physics Assembler transfers the exact intended primary Sable payload",
+                "that the Propeller Bearing subsequently re-forms its nine-block child contraption inside the Sable body",
                 "pilot occupancy on the assembled Sable body",
                 "control authority",
-                "runtime mass or center of mass",
                 "runtime aerodynamic or propulsive force magnitude/sign",
                 "flight qualification",
             ],
