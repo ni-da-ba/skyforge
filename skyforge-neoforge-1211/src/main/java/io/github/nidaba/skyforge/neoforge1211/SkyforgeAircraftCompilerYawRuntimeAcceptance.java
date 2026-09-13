@@ -34,13 +34,29 @@ final class SkyforgeAircraftCompilerYawRuntimeAcceptance {
             List<BlockPos> movedRudderPayloadPositions,
             List<BlockPos> movedRetainedParentMainPositions)
             throws ReflectiveOperationException {
+        verify(
+                parentLevel,
+                movedSwivelBearingPos,
+                movedRudderPayloadPositions,
+                movedRetainedParentMainPositions,
+                EXPECTED_RETAINED_PARENT_MAIN);
+    }
+
+    static void verify(
+            ServerLevel parentLevel,
+            BlockPos movedSwivelBearingPos,
+            List<BlockPos> movedRudderPayloadPositions,
+            List<BlockPos> movedRetainedParentMainPositions,
+            int expectedRetainedParentMain)
+            throws ReflectiveOperationException {
+        assertTrue("expected retained parent-main count positive", expectedRetainedParentMain > 0);
         assertInt("declared rudder payload count", EXPECTED_RUDDER_PAYLOAD, movedRudderPayloadPositions.size());
-        assertInt("declared retained parent-main count", EXPECTED_RETAINED_PARENT_MAIN, movedRetainedParentMainPositions.size());
+        assertInt("declared retained parent-main count", expectedRetainedParentMain, movedRetainedParentMainPositions.size());
 
         Set<BlockPos> rudder = new LinkedHashSet<>(movedRudderPayloadPositions);
         Set<BlockPos> retained = new LinkedHashSet<>(movedRetainedParentMainPositions);
         assertInt("rudder payload coordinates unique", EXPECTED_RUDDER_PAYLOAD, rudder.size());
-        assertInt("retained parent-main coordinates unique", EXPECTED_RETAINED_PARENT_MAIN, retained.size());
+        assertInt("retained parent-main coordinates unique", expectedRetainedParentMain, retained.size());
         assertTrue("rudder payload disjoint from retained parent", java.util.Collections.disjoint(rudder, retained));
         assertTrue("Swivel Bearing belongs to retained parent", retained.contains(movedSwivelBearingPos));
 
@@ -109,7 +125,7 @@ final class SkyforgeAircraftCompilerYawRuntimeAcceptance {
             }
             retainedCount++;
         }
-        assertInt("all parent-main cells retained", EXPECTED_RETAINED_PARENT_MAIN, retainedCount);
+        assertInt("all parent-main cells retained", expectedRetainedParentMain, retainedCount);
 
         Object rawDependencies = publicMethod(bearing, "sable$getConnectionDependencies").invoke(bearing);
         if (!(rawDependencies instanceof Iterable<?>)) {
