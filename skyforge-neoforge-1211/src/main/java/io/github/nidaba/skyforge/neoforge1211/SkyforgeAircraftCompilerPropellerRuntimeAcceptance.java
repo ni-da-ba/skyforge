@@ -54,9 +54,10 @@ final class SkyforgeAircraftCompilerPropellerRuntimeAcceptance {
         Object contraption = publicMethod(child, "getContraption").invoke(child);
         assertTrue("propeller child contraption object exists", contraption != null);
         Object rawBlocks = publicMethod(contraption, "getBlocks").invoke(contraption);
-        if (!(rawBlocks instanceof Map<?, ?> blocks)) {
+        if (!(rawBlocks instanceof Map<?, ?>)) {
             fail("propeller contraption getBlocks() did not return a Map: " + rawBlocks);
         }
+        Map<?, ?> blocks = (Map<?, ?>) rawBlocks;
         assertInt("exact propeller child block count", EXPECTED_CHILD_BLOCKS, blocks.size());
 
         Field sailPowerField = bearing.getClass().getField("totalSailPower");
