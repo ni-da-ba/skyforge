@@ -50,7 +50,8 @@ def patch_runtime_source(source: str) -> str:
         JsonObject steeringProbe = steeringControl.getAsJsonObject("runtimeProbe");
         BlockPos movedPilotSeatPos = BASE.offset(
                 blockPos(pilotInteraction.getAsJsonArray("pilotSeatCoordinate"))).offset(offset);
-        assertEquals("v0.19 Steering Wheel coordinate chains to v0.18",
+        assertEquals(
+                "v0.19 Steering Wheel coordinate chains to v0.18",
                 blockPos(cockpitRoute.getAsJsonArray("steeringWheelCoordinate")),
                 blockPos(pilotInteraction.getAsJsonArray("steeringWheelCoordinate")));
         JsonObject v019WheelState = pilotInteraction.getAsJsonObject("steeringWheelBlockState");
