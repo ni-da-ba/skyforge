@@ -5,6 +5,7 @@ on:
     paths:
       - "tools/aircraft_compiler/**"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerYawRuntimeAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerCockpitYawRouteRuntimeAcceptance.java"
       - ".github/workflows/aircraft-compiler-cockpit-route-runtime.yml"
   workflow_dispatch:
