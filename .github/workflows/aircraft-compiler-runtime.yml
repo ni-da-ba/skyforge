@@ -66,6 +66,103 @@ jobs:
           grep -q '"mainBodyPlacementCount": 114' build/aircraft-compiler-runtime/glue_encoding.json
           grep -q '"glueCommandCount": 113' build/aircraft-compiler-runtime/glue_encoding.json
 
+      - name: Instrument one-run runtime membership diagnostics
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java")
+          source = path.read_text()
+          old = '''        int movedCount = 0;
+                  for (Map.Entry<BlockPos, ExpectedBlock> entry : movingExpected.entrySet()) {
+                      BlockPos source = BASE.offset(entry.getKey());
+                      BlockPos moved = source.offset(offset);
+                      assertTrue("moving-body source position vacated " + source, level.getBlockState(source).isAir());
+                      assertExpectedState("moved " + entry.getKey(), level.getBlockState(moved), entry.getValue());
+                      movedCount++;
+                  }
+                  assertInt("exact moving main-body block count", EXPECTED_MOVING_MAIN_BODY, movedCount);
+
+                  int childCount = 0;
+                  for (Map.Entry<BlockPos, ExpectedBlock> entry : childExpected.entrySet()) {
+                      BlockPos source = BASE.offset(entry.getKey());
+                      assertExpectedState("nested child remains outside main Sable body " + entry.getKey(),
+                              level.getBlockState(source), entry.getValue());
+                      childCount++;
+                  }
+                  assertInt("exact nested child block count left in world", EXPECTED_NESTED_CHILD, childCount);
+          '''
+          new = '''        Map<BlockPos, Boolean> sourceVacated = new LinkedHashMap<>();
+                  for (Map.Entry<BlockPos, ExpectedBlock> entry : movingExpected.entrySet()) {
+                      sourceVacated.put(entry.getKey(), level.getBlockState(BASE.offset(entry.getKey())).isAir());
+                  }
+
+                  List<String> stayedMain = new ArrayList<>();
+                  for (Map.Entry<BlockPos, ExpectedBlock> entry : movingExpected.entrySet()) {
+                      BlockPos relative = entry.getKey();
+                      if (sourceVacated.get(relative)) {
+                          continue;
+                      }
+                      ResourceLocation actualSource = BuiltInRegistries.BLOCK.getKey(level.getBlockState(BASE.offset(relative)).getBlock());
+                      List<String> incident = new ArrayList<>();
+                      for (JsonElement raw : glueEntitiesJson) {
+                          JsonObject edge = raw.getAsJsonObject();
+                          BlockPos a = blockPos(edge.getAsJsonArray("a"));
+                          BlockPos b = blockPos(edge.getAsJsonArray("b"));
+                          BlockPos other = null;
+                          if (a.equals(relative)) other = b;
+                          if (b.equals(relative)) other = a;
+                          if (other != null) {
+                              ResourceLocation neighborSource = BuiltInRegistries.BLOCK.getKey(level.getBlockState(BASE.offset(other)).getBlock());
+                              incident.add(other + ":vacated=" + sourceVacated.getOrDefault(other, false) + ":source=" + neighborSource);
+                          }
+                      }
+                      stayedMain.add(relative + ":expected=" + entry.getValue().id() + ":actualSource=" + actualSource + ":glueNeighbors=" + incident);
+                  }
+
+                  List<String> childChanged = new ArrayList<>();
+                  for (Map.Entry<BlockPos, ExpectedBlock> entry : childExpected.entrySet()) {
+                      ResourceLocation actualSource = BuiltInRegistries.BLOCK.getKey(level.getBlockState(BASE.offset(entry.getKey())).getBlock());
+                      if (!entry.getValue().id().equals(actualSource)) {
+                          childChanged.add(entry.getKey() + ":expected=" + entry.getValue().id() + ":actualSource=" + actualSource);
+                      }
+                  }
+
+                  LOGGER.log(System.Logger.Level.INFO,
+                          "AIRCRAFT_001_RUNTIME_MEMBERSHIP_DIAGNOSTIC"
+                                  + " expectedMain=" + movingExpected.size()
+                                  + " vacatedMain=" + sourceVacated.values().stream().filter(Boolean::booleanValue).count()
+                                  + " stayedMain=" + stayedMain
+                                  + " childChanged=" + childChanged
+                                  + " massKpg=" + mass
+                                  + " offset=" + offset);
+                  if (!stayedMain.isEmpty() || !childChanged.isEmpty()) {
+                      fail("runtime membership partition mismatch stayedMain=" + stayedMain + " childChanged=" + childChanged);
+                  }
+
+                  int movedCount = 0;
+                  for (Map.Entry<BlockPos, ExpectedBlock> entry : movingExpected.entrySet()) {
+                      BlockPos source = BASE.offset(entry.getKey());
+                      BlockPos moved = source.offset(offset);
+                      assertExpectedState("moved " + entry.getKey(), level.getBlockState(moved), entry.getValue());
+                      movedCount++;
+                  }
+                  assertInt("exact moving main-body block count", EXPECTED_MOVING_MAIN_BODY, movedCount);
+
+                  int childCount = 0;
+                  for (Map.Entry<BlockPos, ExpectedBlock> entry : childExpected.entrySet()) {
+                      BlockPos source = BASE.offset(entry.getKey());
+                      assertExpectedState("nested child remains outside main Sable body " + entry.getKey(),
+                              level.getBlockState(source), entry.getValue());
+                      childCount++;
+                  }
+                  assertInt("exact nested child block count left in world", EXPECTED_NESTED_CHILD, childCount);
+          '''
+          if source.count(old) != 1:
+              raise SystemExit(f"diagnostic patch anchor count={source.count(old)}")
+          path.write_text(source.replace(old, new))
+          PY
+
       - name: Resolve exact retained flight stack
         run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
 
@@ -110,7 +207,9 @@ jobs:
           fi
 
           echo "FAIL AIRCRAFT-001 exact-stack main-body assembly probe"
-          cat "${log}"
+          grep -F "AIRCRAFT_001_RUNTIME_MEMBERSHIP_DIAGNOSTIC" "${log}" || true
+          grep -F "AIRCRAFT_001_RUNTIME_ASSEMBLY FAIL" "${log}" || true
+          tail -n 240 "${log}"
           kill -TERM -- "-${pid}" 2>/dev/null || true
           sleep 1
           kill -KILL -- "-${pid}" 2>/dev/null || true
