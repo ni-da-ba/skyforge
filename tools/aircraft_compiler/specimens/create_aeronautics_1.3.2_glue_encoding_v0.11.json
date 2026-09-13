@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "aircraft-glue-encoding-profile-0.11",
+  "profileId": "skyforge.glue.create_6_0_10.guild_utility.v0_11",
+  "target": {
+    "minecraft": "1.21.1",
+    "loader": "NeoForge 21.1.249",
+    "create": "6.0.10",
+    "sable": "2.0.5",
+    "simulated": "bundled_with_create_aeronautics_1.3.2",
+    "aeronautics": "1.3.2"
+  },
+  "encoding": {
+    "policy": "one_super_glue_entity_per_main_body_tree_edge",
+    "commandRoot": "create glue",
+    "requiredPermissionLevel": 2,
+    "sourceContract": "Create-6.0.10-AllCommands/GlueCommand",
+    "sourceEvidence": [
+      "Create 6.0.10 AllCommands registers GlueCommand below the create root",
+      "Create 6.0.10 GlueCommand constructs SuperGlueEntity(world, SuperGlueEntity.span(from,to)) and adds it to the level",
+      "Create 6.0.10 SuperGlueEntity.isGlued requires both adjacent block positions to be contained by the same glue AABB",
+      "Simulated SimAssemblyContraption.checkAndCacheGlue searches SuperGlueEntity instances and traverses an adjacent block when faceHasGlue is true"
+    ]
+  },
+  "forbiddenGlueEdges": [
+    [[0, 3, 0], [-1, 3, 0]]
+  ],
+  "runtimeObligations": [
+    {
+      "id": "create_glue_command_registry_probe",
+      "method": "on the exact target stack, verify /create glue is registered and usable at permission level 2 before applying the generated fixture"
+    },
+    {
+      "id": "super_glue_entity_realization_probe",
+      "method": "after executing probe_assembly_fixture.mcfunction, verify the exact expected SuperGlueEntity population/bounds and no glue crosses into the propeller child"
+    },
+    {
+      "id": "physics_assembler_capture_probe",
+      "method": "activate the generated Physics Assembler and verify the intended 113-placement main body becomes one Sable sublevel with no accidental world attachment"
+    },
+    {
+      "id": "glue_persistence_after_sublevel_move",
+      "method": "after main-body assembly and save/reload, verify the moved glue population remains sufficient for controlled disassembly/reassembly"
+    }
+  ]
+}
