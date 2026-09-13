@@ -5,7 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import java.util.Arrays;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.ChunkPos;
 import org.junit.jupiter.api.Test;
 
 final class SkyforgeDeferredTerrainWriteProgressDataTest {
@@ -47,5 +50,35 @@ final class SkyforgeDeferredTerrainWriteProgressDataTest {
         assertTrue(terminal.terminal());
         assertEquals(2048, terminal.cumulativeAssignedSolidWrites());
         assertEquals(2048, terminal.expectedSolidBlocks());
+    }
+
+    @Test
+    void partialPureMaterializationPreparationRestartsFromZeroAfterReload() {
+        SkyIslandWorldVolumeId volumeId = new SkyIslandWorldVolumeId(29L, "prepare", 1, 4, 53L);
+        ChunkPos chunkPos = new ChunkPos(2, -3);
+        var data = new SkyforgeDeferredTerrainWriteProgressData();
+        var preparation = data.getOrCreatePreparation(volumeId, chunkPos, -64, 96);
+
+        var advance = preparation.advance(
+                (ignoredVolume, requestedChunk, minimumY, height) -> airSlice(requestedChunk, minimumY, height),
+                32);
+        assertEquals(32, advance.preparedHeight());
+        assertEquals(32, preparation.preparedHeight());
+        assertFalse(preparation.complete());
+
+        CompoundTag encoding = data.save(new CompoundTag(), null);
+        var reloaded = SkyforgeDeferredTerrainWriteProgressData.load(encoding, null);
+        var restarted = reloaded.getOrCreatePreparation(volumeId, chunkPos, -64, 96);
+        assertEquals(0, restarted.preparedHeight());
+        assertFalse(restarted.complete());
+    }
+
+    private static MinecraftChunkMaterialization airSlice(
+            ChunkPos chunkPos,
+            int minimumY,
+            int height) {
+        ResourceLocation[] keys = new ResourceLocation[16 * 16 * height];
+        Arrays.fill(keys, SkyforgeMinecraftBlockPalette.AIR);
+        return new MinecraftChunkMaterialization(chunkPos, minimumY, height, keys, 1);
     }
 }
