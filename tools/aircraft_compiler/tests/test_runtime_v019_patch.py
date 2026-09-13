@@ -23,6 +23,12 @@ class RuntimeV019PatchTests(unittest.TestCase):
         self.assertIn("assembledCockpitPresenceProbeReady", patched)
         self.assertIn("!pilotInteraction.getAsJsonObject(\"readiness\").get(\"pilotOccupancyRuntimeQualified\")", patched)
         self.assertIn("!pilotInteraction.getAsJsonObject(\"readiness\").get(\"steeringPacketRoundTripQualified\")", patched)
+        self.assertIn("BlockPos v018WheelCoordinate", patched)
+        self.assertIn("v018WheelCoordinate.equals(v019WheelCoordinate)", patched)
+        self.assertNotIn(
+            'assertEquals(\n                "v0.19 Steering Wheel coordinate chains to v0.18",',
+            patched,
+        )
         self.assertLess(
             patched.index("SkyforgeAircraftCompilerPilotInteractionRuntimeAcceptance.verifyAssembledCockpitPresence("),
             patched.index("SkyforgeAircraftCompilerCockpitYawRouteRuntimeAcceptance.verify("),
