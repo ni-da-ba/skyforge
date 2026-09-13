@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -60,10 +61,18 @@ final class SkyforgePhysicalVolumeAdmissionStageTest {
                 : new ChunkPos(minimumChunkX, maximumChunkZ);
         var deferredChunk = MinecraftTestChunkFactory.protoChunk(deferredPos);
         var admittingChunk = MinecraftTestChunkFactory.protoChunk(admittingPos);
-
-        try (AutoCloseable binding = SkyforgePhysicalVolumeAdmissionStage.install(
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
                 catalog,
-                Map.of(volume.id(), Set.of(deferredPos.toLong(), admittingPos.toLong())))) {
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+
+        try (AutoCloseable terrain = SkyforgeNeoForge1211SurfaceStage.install(
+                        adapter,
+                        new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
+                AutoCloseable binding = SkyforgePhysicalVolumeAdmissionStage.install(
+                        catalog,
+                        Map.of(volume.id(), Set.of(deferredPos.toLong(), admittingPos.toLong())))) {
+            assertNotNull(terrain);
             assertNotNull(binding);
 
             SkyforgePhysicalVolumeAdmissionStage.observeBeforeRealization(
