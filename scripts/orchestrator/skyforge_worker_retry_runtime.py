@@ -155,6 +155,11 @@ def _begin_worker_attempt(
             pending["last_worker_attempt_after_fingerprint"] = None
             pending["last_worker_attempt_result"] = "in_flight"
             pending["last_worker_attempt_failure_kind"] = None
+            # A prior pre-handoff compile/diff failure is the reason this new turn exists. Clear the
+            # current repair marker when admitting the repair attempt so that, if the model finishes
+            # and the process dies before validation, its saved response can be replayed without
+            # buying yet another turn. Historical error telemetry remains at controller scope.
+            pending["last_pre_handoff_validation_error"] = None
             pending["worker_retry_circuit_open"] = False
             self.state.save()
             self._metric("worker_retry_guard_admitted_attempts")
@@ -183,7 +188,8 @@ def _record_worker_result(
             return
         stalled = int(pending.get("worker_stalled_attempts") or 0)
         progressed = after != before_fingerprint
-        if result == "failed" and failure_kind not in {"quota", "rate_limit", "authentication"}:
+        provider_blocks = {"quota", "quota_pacing", "rate_limit", "authentication"}
+        if result == "failed" and failure_kind not in provider_blocks:
             stalled = 0 if progressed else stalled + 1
         elif progressed:
             stalled = 0
@@ -197,7 +203,7 @@ def _record_worker_result(
         self.state.save()
     if progressed:
         self._metric("worker_attempts_with_durable_progress")
-    elif result == "failed":
+    elif result == "failed" and failure_kind not in provider_blocks:
         self._metric("worker_attempts_without_durable_progress")
 
 
@@ -234,19 +240,22 @@ def _worker(
     root = (worker_root or self.root).resolve()
 
     # A process can die after the model returned but before _mark_worker_handoff persisted the next
-    # stage. Reuse the already-durable response rather than buying the same turn again.
+    # stage. Reuse the already-durable response rather than buying the same turn again. A current
+    # pre-handoff validation error is different: the worker must re-enter the same thread to repair
+    # the rejected output instead of replaying the response that produced it.
     with self._state_lock:
         pending = _matching_pending(self, root)
         if (
             pending is not None
             and pending.get("last_worker_attempt_result") == "completed"
             and pending.get("last_worker_response")
+            and not pending.get("last_pre_handoff_validation_error")
         ):
             response = str(pending["last_worker_response"])
             self._metric("worker_completed_response_replays")
             return response
 
-    before, pending_snapshot = _begin_worker_attempt(self, root)
+    before, _pending_snapshot = _begin_worker_attempt(self, root)
 
     tier = str(worker_tier or "TERRA").strip().upper()
     if tier == "LUNA":
