@@ -129,6 +129,21 @@ final class SkyforgeAircraftCompilerYawNeutralReturnRuntimeAcceptance {
         assertTrue("physical rudder body returns near neutral",
                 Math.abs(normalizeDegrees(physicalYawDegrees)) <= physicalNeutralToleranceDegrees);
 
+        // v0.15 deliberately injects a 10 m/s controlled-flow state. v0.16 advances
+        // that state through a second servo-settle window. The accepted yaw result must
+        // not contaminate downstream propulsion regressions, whose force-sign contract
+        // assumes its own near-static inflow condition. Zero both linked bodies after
+        // recording the physical neutral result; this is test-fixture cleanup, not part
+        // of the aircraft control mechanism.
+        Object parentHandle = oneArgMethod(physicsSystem, "getPhysicsHandle", parentSubLevel)
+                .invoke(physicsSystem, parentSubLevel);
+        Object childHandle = oneArgMethod(physicsSystem, "getPhysicsHandle", childSubLevel)
+                .invoke(physicsSystem, childSubLevel);
+        assertTrue("parent physics handle available for probe cleanup", parentHandle != null);
+        assertTrue("child physics handle available for probe cleanup", childHandle != null);
+        zeroVelocity(parentHandle);
+        zeroVelocity(childHandle);
+
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "AIRCRAFT_001_RUNTIME_YAW_NEUTRAL_RETURN PASS"
@@ -142,6 +157,7 @@ final class SkyforgeAircraftCompilerYawNeutralReturnRuntimeAcceptance {
                         + " physicalYawAfterSettleDegrees=" + physicalYawDegrees
                         + " stoppedExtraCogRpm=" + stoppedExtraCogRpm
                         + " commandedNeutralReturnVerified=true"
+                        + " probeDynamicStateReset=true"
                         + " passiveSelfCenteringVerified=false"
                         + " productionControlBindingVerified=false"
                         + " stableFlightVerified=false");
@@ -169,6 +185,17 @@ final class SkyforgeAircraftCompilerYawNeutralReturnRuntimeAcceptance {
         Class<?> serverContainerClass = Class.forName("dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer");
         if (container == null || !serverContainerClass.isInstance(container)) fail("Sable ServerSubLevelContainer unavailable");
         return container;
+    }
+
+    private static void zeroVelocity(Object handle) throws ReflectiveOperationException {
+        Vector3d linear = new Vector3d();
+        Vector3d angular = new Vector3d();
+        oneArgMethod(handle, "getLinearVelocity", linear).invoke(handle, linear);
+        oneArgMethod(handle, "getAngularVelocity", angular).invoke(handle, angular);
+        linear.negate();
+        angular.negate();
+        twoArgMethod(handle, "addLinearAndAngularVelocity", linear, angular)
+                .invoke(handle, linear, angular);
     }
 
     private static Block requireBlock(ResourceLocation id) {
@@ -218,6 +245,15 @@ final class SkyforgeAircraftCompilerYawNeutralReturnRuntimeAcceptance {
                     && method.getParameterTypes()[0].isAssignableFrom(arg.getClass())) return method;
         }
         throw new NoSuchMethodException(target.getClass().getName() + "." + name + " compatible with " + arg.getClass());
+    }
+
+    private static Method twoArgMethod(Object target, String name, Object a, Object b) throws NoSuchMethodException {
+        for (Method method : target.getClass().getMethods()) {
+            if (method.getName().equals(name) && method.getParameterCount() == 2
+                    && method.getParameterTypes()[0].isAssignableFrom(a.getClass())
+                    && method.getParameterTypes()[1].isAssignableFrom(b.getClass())) return method;
+        }
+        throw new NoSuchMethodException(target.getClass().getName() + "." + name + " compatible args");
     }
 
     private static Quaterniondc quaternion(Object value) {
