@@ -79,3 +79,5 @@ final class SkyforgeDr10MaterialsEvidenceTest {
                 () -> assertTrue(evidence.contains("\"geological_eligibility\": \"AUTH-0093 peakOpportunity(IRON) > 0\"")),
                 () -> assertTrue(evidence.contains("\"copper\": \"accepted vanilla Copper exact-volume deployment; POST_FLIGHT_PROVINCE only\"")),
                 () -> assertTrue(evidence.contains("\"zinc\": \"accepted Create Zinc exact-volume deployment with C21 noncompetition; POST_FLIGHT_PROVINCE only\"")));
+    }
+}
