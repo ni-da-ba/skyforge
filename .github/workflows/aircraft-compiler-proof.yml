@@ -1,0 +1,35 @@
+name: Aircraft compiler proof
+
+on:
+  pull_request:
+    paths:
+      - "tools/aircraft_compiler/**"
+      - "docs/design-audit/aircraft-compiler-*.md"
+      - ".github/workflows/aircraft-compiler-proof.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run aircraft compiler tests
+        run: python -m unittest discover -s tools/aircraft_compiler/tests -v
+      - name: Compile AIRCRAFT-001 v0.1 specimen
+        run: >-
+          python tools/aircraft_compiler/compile.py
+          tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json
+          --out build/aircraft-compiler-v01
+      - name: Upload analytical and mobile QA
+        uses: actions/upload-artifact@v4
+        with:
+          name: aircraft-compiler-guild-utility-v01-qa
+          path: build/aircraft-compiler-v01
+          if-no-files-found: error
+          retention-days: 14
