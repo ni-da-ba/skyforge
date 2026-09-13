@@ -77,6 +77,26 @@ jobs:
           build/aircraft-compiler-v131/yaw_control_v0.13.1.json
           tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_actuation_v0.14.json
           --out build/aircraft-compiler-v131
+      - name: Lower v0.15 exact-stack yaw-authority probe contract
+        run: >-
+          python tools/aircraft_compiler/yaw_authority_cli.py
+          build/aircraft-compiler-v131/yaw_actuation_v0.14.json
+          tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_authority_v0.15.json
+          --out build/aircraft-compiler-v131
+      - name: Lower v0.16 commanded neutral-return probe contract
+        run: >-
+          python tools/aircraft_compiler/yaw_neutral_return_cli.py
+          build/aircraft-compiler-v131/yaw_actuation_v0.14.json
+          build/aircraft-compiler-v131/yaw_authority_v0.15.json
+          tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_neutral_return_v0.16.json
+          --out build/aircraft-compiler-v131
+      - name: Lower v0.17 real Simulated Steering Wheel source contract
+        run: >-
+          python tools/aircraft_compiler/steering_control_cli.py
+          build/aircraft-compiler-v131/yaw_actuation_v0.14.json
+          build/aircraft-compiler-v131/yaw_neutral_return_v0.16.json
+          tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_steering_control_v0.17.json
+          --out build/aircraft-compiler-v131
       - name: Assert v0.10-v0.11 assembly closure remains accepted
         run: |
           grep -q "mainBodyPlacementCount=114" build/aircraft-compiler-v131/assembly_fixture_validation.txt
@@ -194,17 +214,75 @@ jobs:
           assert p['readiness']['yawForceQualified'] is False
           assert p['readiness']['runtimeQualificationReady'] is False
           assert p['readiness']['flightQualified'] is False
-          blockers = set(p['readiness']['runtimeBlockers'])
-          assert 'yaw_test_fixture_network_unverified' in blockers
-          assert 'rudder_signed_target_angle_unverified' in blockers
-          assert 'rudder_neutral_return_unverified' in blockers
-          assert 'rudder_yaw_force_unverified' in blockers
-          assert 'pilot_control_binding_unverified' in blockers
           PY
-      - name: Upload analytical through yaw-actuation QA
+      - name: Assert v0.15 yaw-authority contract identity and conservative readiness
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          act = json.loads(Path('build/aircraft-compiler-v131/yaw_actuation_v0.14.json').read_text())
+          p = json.loads(Path('build/aircraft-compiler-v131/yaw_authority_v0.15.json').read_text())
+          assert p['validation']['passed'] is True
+          assert p['schemaVersion'] == 'aircraft-yaw-authority-ir-0.15'
+          assert p['digestSha256'] == 'de046d04c2c20aea1158f861432093298e0f184c8148b06d1f055749e3c6296b'
+          assert p['sourceYawActuationDigestSha256'] == act['digestSha256']
+          assert p['runtimeProbe']['forwardSpeedMps'] == 10.0
+          assert p['runtimeProbe']['servoSettlePhysicsTicks'] == 80
+          assert p['readiness']['yawAuthorityProbeReady'] is True
+          assert p['readiness']['yawAuthorityQualified'] is False
+          assert p['readiness']['neutralReturnQualified'] is False
+          assert p['readiness']['flightQualified'] is False
+          PY
+      - name: Assert v0.16 commanded-neutral-return contract identity and conservative readiness
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          act = json.loads(Path('build/aircraft-compiler-v131/yaw_actuation_v0.14.json').read_text())
+          auth = json.loads(Path('build/aircraft-compiler-v131/yaw_authority_v0.15.json').read_text())
+          p = json.loads(Path('build/aircraft-compiler-v131/yaw_neutral_return_v0.16.json').read_text())
+          assert p['validation']['passed'] is True
+          assert p['schemaVersion'] == 'aircraft-yaw-neutral-return-ir-0.16'
+          assert p['digestSha256'] == '687e8878d92f42f11315b924e8d59b11929b93ebbb5f59682d2a0b16356909ff'
+          assert p['sourceYawActuationDigestSha256'] == act['digestSha256']
+          assert p['sourceYawAuthorityDigestSha256'] == auth['digestSha256']
+          assert p['runtimeProbe']['reverseMotorSign'] == -1
+          assert p['runtimeProbe']['inverseDriveTicks'] == 13
+          assert p['readiness']['neutralReturnProbeReady'] is True
+          assert p['readiness']['commandedNeutralReturnQualified'] is False
+          assert p['readiness']['passiveSelfCenteringQualified'] is False
+          assert p['readiness']['flightQualified'] is False
+          PY
+      - name: Assert v0.17 Steering Wheel source contract identity and conservative readiness
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          neutral = json.loads(Path('build/aircraft-compiler-v131/yaw_neutral_return_v0.16.json').read_text())
+          p = json.loads(Path('build/aircraft-compiler-v131/steering_control_v0.17.json').read_text())
+          assert p['validation']['passed'] is True
+          assert p['schemaVersion'] == 'aircraft-steering-control-ir-0.17'
+          assert p['digestSha256'] == 'dedcf826848a9828b72b42b78a935797f13ff26594f18c5a31a4ce0dfcdbf403'
+          assert p['sourceYawNeutralReturnDigestSha256'] == neutral['digestSha256']
+          assert p['steeringWheelCoordinate'] == [18,2,1]
+          assert p['driveCogCoordinate'] == [18,3,1]
+          assert p['steeringWheelResource'] == 'simulated:steering_wheel'
+          assert p['steeringWheelBlockState'] == {'facing':'north','on_floor':'false','waterlogged':'false'}
+          assert p['runtimeProbe']['expectedSteeringWheelRpmMagnitude'] == 16
+          assert p['runtimeProbe']['wheelCommandDegrees'] == 48.0
+          assert p['readiness']['steeringWheelSourceStaticTopologyPassed'] is True
+          assert p['readiness']['steeringWheelSourceRuntimeProbeReady'] is True
+          assert p['readiness']['productionCockpitRoutingReady'] is False
+          assert p['readiness']['pilotInteractionBindingReady'] is False
+          assert p['readiness']['flightQualified'] is False
+          PY
+      - name: Upload analytical through Steering Wheel control QA
         uses: actions/upload-artifact@v4
         with:
-          name: aircraft-compiler-guild-utility-v014-qa
+          name: aircraft-compiler-guild-utility-v017-qa
           path: build/aircraft-compiler-v131
           if-no-files-found: error
           retention-days: 14
