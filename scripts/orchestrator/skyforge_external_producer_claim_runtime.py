@@ -348,10 +348,14 @@ def _prune_external_claims(self: core.Orchestrator) -> int:
                     timeout=60,
                 )
             except Exception:
+                # A bound PR whose state cannot be proven terminal retains ownership.
                 continue
             if str(pr.get("state") or "").upper() != "OPEN":
                 retire[key] = "bound_pr_merged" if pr.get("mergedAt") else "bound_pr_closed"
-                continue
+            # While a bound PR remains OPEN it is authoritative ownership even if the issue itself is
+            # manually closed. Do not release the claim until that producer PR reaches a terminal state.
+            continue
+
         try:
             issue = core._json_cmd(
                 ["gh", "api", f"repos/{self.repo}/issues/{issue_number}"],
