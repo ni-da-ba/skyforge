@@ -45,7 +45,23 @@ def lower_pilot_interaction(
     seat_resource = str(seat_placement.get("resourceId", ""))
     wheel_coordinate = _coord(cockpit_route.get("steeringWheelCoordinate"), "Steering Wheel coordinate")
     route_seat_coordinate = _coord(cockpit_route.get("pilotSeatCoordinate"), "v0.18 pilot seat coordinate")
-    wheel_resource = str(cockpit_route.get("steeringWheelResource", ""))
+
+    wheel_placements = [
+        dict(placement)
+        for placement in cockpit_route.get("placements", [])
+        if str(placement.get("role", "")) == "cockpit_steering_wheel"
+    ]
+    if len(wheel_placements) != 1:
+        raise PilotInteractionError(
+            f"v0.19 requires exactly one v0.18 cockpit Steering Wheel placement, got {len(wheel_placements)}"
+        )
+    wheel_placement = wheel_placements[0]
+    if _coord(wheel_placement.get("lattice"), "v0.18 Steering Wheel placement") != wheel_coordinate:
+        raise PilotInteractionError("v0.19 Steering Wheel coordinate disagrees with the v0.18 placement record")
+    wheel_resource = str(wheel_placement.get("resourceId", ""))
+    wheel_state = dict(wheel_placement.get("blockState", {}))
+    if wheel_state != dict(cockpit_route.get("steeringWheelBlockState", {})):
+        raise PilotInteractionError("v0.19 Steering Wheel blockstate disagrees with the v0.18 placement record")
 
     if seat_coordinate != route_seat_coordinate:
         raise PilotInteractionError("v0.19 pilot seat must be the same station consumed by v0.18")
@@ -53,6 +69,10 @@ def lower_pilot_interaction(
         raise PilotInteractionError("v0.19 bounded pilot proof requires exact create:brown_seat")
     if wheel_resource != "simulated:steering_wheel":
         raise PilotInteractionError("v0.19 bounded control proof requires exact simulated:steering_wheel")
+    if str(wheel_state.get("on_floor", "")).lower() != "true":
+        raise PilotInteractionError("v0.19 production cockpit Steering Wheel must remain floor-mounted")
+    if str(wheel_state.get("waterlogged", "")).lower() != "false":
+        raise PilotInteractionError("v0.19 production cockpit Steering Wheel must remain dry")
 
     dx = wheel_coordinate[0] - seat_coordinate[0]
     dy = wheel_coordinate[1] - seat_coordinate[1]
@@ -116,6 +136,7 @@ def lower_pilot_interaction(
         "pilotSeatResource": seat_resource,
         "steeringWheelCoordinate": wheel_coordinate,
         "steeringWheelResource": wheel_resource,
+        "steeringWheelBlockState": wheel_state,
         "cockpitGeometry": {
             "wheelOffsetFromSeat": [dx, dy, dz],
             "horizontalManhattanDistanceBlocks": abs(dx) + abs(dz),
