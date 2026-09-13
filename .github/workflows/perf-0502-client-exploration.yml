@@ -2,6 +2,7 @@ name: PERF 0502 Client Exploration
 
 on:
   workflow_dispatch:
+  # Temporary PR-only trigger used to validate #554 because the connector cannot dispatch workflows.
   pull_request:
     paths:
       - ".github/workflows/perf-0502-client-exploration.yml"
