@@ -7,6 +7,7 @@ on:
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerYawRuntimeAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerCockpitYawRouteRuntimeAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerPilotInteractionRuntimeAcceptance.java"
       - ".github/workflows/aircraft-compiler-cockpit-route-runtime.yml"
   workflow_dispatch:
 
@@ -32,7 +33,7 @@ jobs:
           java-version: "25"
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Compile AIRCRAFT-001 contract chain through v0.18
+      - name: Compile AIRCRAFT-001 contract chain through v0.19
         shell: bash
         run: |
           set -euo pipefail
@@ -49,8 +50,9 @@ jobs:
           python tools/aircraft_compiler/yaw_neutral_return_cli.py "$out/yaw_actuation_v0.14.json" "$out/yaw_authority_v0.15.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_neutral_return_v0.16.json --out "$out"
           python tools/aircraft_compiler/steering_control_cli.py "$out/yaw_actuation_v0.14.json" "$out/yaw_neutral_return_v0.16.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_steering_control_v0.17.json --out "$out"
           python tools/aircraft_compiler/cockpit_yaw_route_cli.py "$out/probe_placement_manifest.json" "$out/powertrain_v0.12.json" "$out/yaw_control_v0.13.1.json" "$out/steering_control_v0.17.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_cockpit_yaw_route_v0.18.json --out "$out"
+          python tools/aircraft_compiler/pilot_interaction_cli.py "$out/pilot_station_realization.json" "$out/cockpit_yaw_route_v0.18.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_interaction_v0.19.json --out "$out"
 
-      - name: Patch runtime harness for v0.18 production route
+      - name: Patch runtime harness through v0.19 assembled cockpit presence
         shell: bash
         run: |
           set -euo pipefail
@@ -58,16 +60,18 @@ jobs:
           python tools/aircraft_compiler/runtime_v012_patch.py "$src"
           python tools/aircraft_compiler/runtime_v0131_patch.py "$src"
           python tools/aircraft_compiler/runtime_v018_patch.py "$src"
+          python tools/aircraft_compiler/runtime_v019_patch.py "$src"
+          grep -q "SkyforgeAircraftCompilerPilotInteractionRuntimeAcceptance.verifyAssembledCockpitPresence" "$src"
           grep -q "SkyforgeAircraftCompilerCockpitYawRouteRuntimeAcceptance.verify" "$src"
           if grep -q "SkyforgeAircraftCompilerSteeringControlRuntimeAcceptance.verify" "$src"; then
-            echo "v0.18 runtime harness must not retain the tail-local v0.17 fixture invocation" >&2
+            echo "v0.19 runtime harness must not retain the tail-local v0.17 fixture invocation" >&2
             exit 1
           fi
 
       - name: Resolve exact retained flight stack
         run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
 
-      - name: Execute genuine v0.18 production cockpit-route probe
+      - name: Execute genuine v0.19 assembled cockpit presence plus v0.18 route probe
         shell: bash
         env:
           JAVA_TOOL_OPTIONS: >-
@@ -79,6 +83,7 @@ jobs:
             -Dskyforge.dev.aircraftCompilerYawControlCorrection=${{ github.workspace }}/build/aircraft-compiler-cockpit-route-runtime/yaw_control_v0.13.1.json
             -Dskyforge.dev.aircraftCompilerSteeringControl=${{ github.workspace }}/build/aircraft-compiler-cockpit-route-runtime/steering_control_v0.17.json
             -Dskyforge.dev.aircraftCompilerCockpitYawRoute=${{ github.workspace }}/build/aircraft-compiler-cockpit-route-runtime/cockpit_yaw_route_v0.18.json
+            -Dskyforge.dev.aircraftCompilerPilotInteraction=${{ github.workspace }}/build/aircraft-compiler-cockpit-route-runtime/pilot_interaction_v0.19.json
         run: |
           set -euo pipefail
           log=aircraft-compiler-cockpit-route-runtime.log
@@ -86,12 +91,13 @@ jobs:
           pid=$!
           outcome=""
           for _ in $(seq 1 480); do
-            if grep -Fq "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE PASS" "$log" 2>/dev/null && grep -Fq "AIRCRAFT_001_RUNTIME_YAW_CHILD PASS" "$log" 2>/dev/null && grep -Fq "AIRCRAFT_001_RUNTIME_POWERTRAIN PASS" "$log" 2>/dev/null && grep -Fq "AIRCRAFT_001_RUNTIME_PROPELLER PASS" "$log" 2>/dev/null && grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS" "$log" 2>/dev/null; then outcome=pass; break; fi
-            if grep -Fq "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE FAIL" "$log" 2>/dev/null || grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY FAIL" "$log" 2>/dev/null || grep -Fq "AIRCRAFT_001_RUNTIME_POWERTRAIN FAIL" "$log" 2>/dev/null; then outcome=fail; break; fi
+            if grep -Fq "AIRCRAFT_001_RUNTIME_PILOT_INTERACTION_PRESENCE PASS" "$log" 2>/dev/null && grep -Fq "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE PASS" "$log" 2>/dev/null && grep -Fq "AIRCRAFT_001_RUNTIME_YAW_CHILD PASS" "$log" 2>/dev/null && grep -Fq "AIRCRAFT_001_RUNTIME_POWERTRAIN PASS" "$log" 2>/dev/null && grep -Fq "AIRCRAFT_001_RUNTIME_PROPELLER PASS" "$log" 2>/dev/null && grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS" "$log" 2>/dev/null; then outcome=pass; break; fi
+            if grep -Fq "AIRCRAFT_001_RUNTIME_PILOT_INTERACTION_PRESENCE FAIL" "$log" 2>/dev/null || grep -Fq "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE FAIL" "$log" 2>/dev/null || grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY FAIL" "$log" 2>/dev/null || grep -Fq "AIRCRAFT_001_RUNTIME_POWERTRAIN FAIL" "$log" 2>/dev/null; then outcome=fail; break; fi
             if ! kill -0 "$pid" 2>/dev/null; then break; fi
             sleep 1
           done
           if [[ "$outcome" == pass ]]; then
+            grep -F "AIRCRAFT_001_RUNTIME_PILOT_INTERACTION_PRESENCE PASS" "$log"
             grep -F "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE PASS" "$log"
             grep -F "AIRCRAFT_001_RUNTIME_YAW_CHILD PASS" "$log"
             grep -F "AIRCRAFT_001_RUNTIME_POWERTRAIN PASS" "$log"
@@ -100,7 +106,8 @@ jobs:
             kill -TERM -- "-$pid" 2>/dev/null || true; sleep 2; kill -KILL -- "-$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true
             exit 0
           fi
-          echo "FAIL AIRCRAFT-001 v0.18 cockpit-route runtime probe"
+          echo "FAIL AIRCRAFT-001 v0.19 assembled cockpit / v0.18 route runtime probe"
+          grep -F "AIRCRAFT_001_RUNTIME_PILOT_INTERACTION_PRESENCE" "$log" || true
           grep -F "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE" "$log" || true
           grep -F "AIRCRAFT_001_RUNTIME_ASSEMBLY" "$log" || true
           tail -n 600 "$log"
