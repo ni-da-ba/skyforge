@@ -10,7 +10,9 @@ class GradlePatchError(ValueError):
 
 
 def patch_gradle_source(source: str) -> str:
-    anchor = '''    unitTest {
+    anchor = '''    }
+
+    unitTest {
         enable()
         testedMod.set(mods.named("skyforge"))
     }
