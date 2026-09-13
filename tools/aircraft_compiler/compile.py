@@ -16,6 +16,8 @@ from render import emit_outputs
 from solver import solve
 from surface_state import SurfaceStateError, resolve_surface_states
 from surface_state_render import emit_surface_state_outputs
+from tail_lowering import TailLoweringError, lower_tail_junction
+from tail_lowering_render import emit_tail_lowering_outputs
 from target_realizer import TargetRealizerError, preflight
 from target_render import emit_target_outputs
 
@@ -27,9 +29,10 @@ def main() -> int:
     parser.add_argument("--target-profile", type=Path)
     parser.add_argument("--propulsion-profile", type=Path)
     parser.add_argument("--surface-state-profile", type=Path)
+    parser.add_argument("--tail-lowering-profile", type=Path)
     parser.add_argument("--out", type=Path, default=Path("build/aircraft-compiler"))
     args = parser.parse_args()
-    blockspace = assembly = target = propulsion = surface_state = None
+    blockspace = assembly = target = propulsion = surface_state = tail_lowering = None
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
         resolved = solve(spec)
@@ -40,6 +43,8 @@ def main() -> int:
             raise PropulsionRealizationError("--propulsion-profile requires --target-profile")
         if args.surface_state_profile is not None and args.propulsion_profile is None:
             raise SurfaceStateError("--surface-state-profile requires --propulsion-profile")
+        if args.tail_lowering_profile is not None and args.surface_state_profile is None:
+            raise TailLoweringError("--tail-lowering-profile requires --surface-state-profile")
         if args.blockspace_config is not None:
             config = json.loads(args.blockspace_config.read_text(encoding="utf-8"))
             blockspace = transcribe(resolved, config)
@@ -61,7 +66,12 @@ def main() -> int:
                     if args.surface_state_profile is not None:
                         surface_state = resolve_surface_states(target, propulsion, json.loads(args.surface_state_profile.read_text(encoding="utf-8")))
                         emit_surface_state_outputs(surface_state, args.out)
-    except (OSError, json.JSONDecodeError, SpecError, BlockspaceError, AssemblyPlanError, TargetRealizerError, PropulsionRealizationError, SurfaceStateError, ValueError) as exc:
+                        if args.tail_lowering_profile is not None:
+                            tail_lowering = lower_tail_junction(target, surface_state, json.loads(args.tail_lowering_profile.read_text(encoding="utf-8")))
+                            if not tail_lowering["validation"]["passed"]:
+                                raise TailLoweringError("tail lowering failed validation: " + json.dumps(tail_lowering["topologyChecks"], sort_keys=True))
+                            emit_tail_lowering_outputs(tail_lowering, args.out)
+    except (OSError, json.JSONDecodeError, SpecError, BlockspaceError, AssemblyPlanError, TargetRealizerError, PropulsionRealizationError, SurfaceStateError, TailLoweringError, ValueError) as exc:
         raise SystemExit(f"aircraft compiler error: {exc}") from exc
 
     summary = {"assetId": resolved["assetId"], "compilerVersion": resolved["compilerVersion"], "digestSha256": resolved["digestSha256"], "validation": resolved["validation"], "output": str(args.out)}
@@ -75,6 +85,8 @@ def main() -> int:
         summary["propulsion"] = {"assetId": propulsion["assetId"], "compilerVersion": propulsion["compilerVersion"], "digestSha256": propulsion["digestSha256"], "metrics": propulsion["metrics"], "readiness": propulsion["readiness"], "validation": propulsion["validation"]}
     if surface_state is not None:
         summary["surfaceState"] = {"assetId": surface_state["assetId"], "compilerVersion": surface_state["compilerVersion"], "digestSha256": surface_state["digestSha256"], "metrics": surface_state["metrics"], "readiness": surface_state["readiness"], "validation": surface_state["validation"]}
+    if tail_lowering is not None:
+        summary["tailLowering"] = {"assetId": tail_lowering["assetId"], "compilerVersion": tail_lowering["compilerVersion"], "digestSha256": tail_lowering["digestSha256"], "metrics": tail_lowering["metrics"], "readiness": tail_lowering["readiness"], "validation": tail_lowering["validation"]}
     print(json.dumps(summary, indent=2))
     return 0
 
