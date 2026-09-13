@@ -19,6 +19,15 @@ def _contains(lo: tuple[int, int, int], hi: tuple[int, int, int], p: tuple[int, 
     return all(lo[i] <= p[i] <= hi[i] for i in range(3))
 
 
+def _boxes_overlap_3d(
+    a_lo: tuple[int, int, int],
+    a_hi: tuple[int, int, int],
+    b_lo: tuple[int, int, int],
+    b_hi: tuple[int, int, int],
+) -> bool:
+    return all(not (a_hi[i] < b_lo[i] or a_lo[i] > b_hi[i]) for i in range(3))
+
+
 def lower_powertrain(manifest: dict[str, Any], glue: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:
     if manifest.get("schemaVersion") != "aircraft-probe-placement-manifest-ir-0.9":
         raise PowertrainLoweringError("v0.12 requires probe manifest v0.9")
@@ -107,23 +116,25 @@ def lower_powertrain(manifest: dict[str, Any], glue: dict[str, Any], profile: di
         raise PowertrainLoweringError("v0.12 source contract requires 32-RPM Portable Engines")
 
     power_glue = profile.get("powerplantGlueDomain", {})
-    lo = _coord(power_glue["from"])
-    hi = _coord(power_glue["to"])
-    lo = tuple(min(lo[i], hi[i]) for i in range(3))
-    hi = tuple(max(_coord(power_glue["from"])[i], _coord(power_glue["to"])[i]) for i in range(3))
+    raw_from = _coord(power_glue["from"])
+    raw_to = _coord(power_glue["to"])
+    lo = tuple(min(raw_from[i], raw_to[i]) for i in range(3))
+    hi = tuple(max(raw_from[i], raw_to[i]) for i in range(3))
     domain_size = tuple(hi[i] - lo[i] + 1 for i in range(3))
     max_dim = int(glue.get("encodingPolicy", {}).get("maxSelectionDimensionBlocks", 24))
+    accepted_domains = [
+        (
+            _coord(d["selectionCellBounds"]["min"]),
+            _coord(d["selectionCellBounds"]["max"]),
+        )
+        for d in glue.get("glueDomains", [])
+    ]
     glue_checks = {
         "powerplantGlueWithinCreateSelectionLimit": all(v <= max_dim for v in domain_size),
         "powerplantGlueContainsAllPowertrainCells": all(_contains(lo, hi, c) for c in emitted_coords),
         "powerplantGlueExcludesPropellerChild": not any(_contains(lo, hi, c) for c in child_coords),
         "powerplantGlueOverlapsAcceptedMainGlue": any(
-            not (
-                hi[i] < _coord(d["selectionCellBounds"]["min"])[i]
-                or lo[i] > _coord(d["selectionCellBounds"]["max"])[i]
-            )
-            for d in glue.get("glueDomains", [])
-            for i in range(3)
+            _boxes_overlap_3d(lo, hi, d_lo, d_hi) for d_lo, d_hi in accepted_domains
         ),
     }
     if not all(glue_checks.values()):
@@ -165,8 +176,8 @@ def lower_powertrain(manifest: dict[str, Any], glue: dict[str, Any], profile: di
         "additionCount": len(additions),
         "powerplantGlueDomain": {
             "name": str(power_glue.get("name", "powerplant")),
-            "from": list(_coord(power_glue["from"])),
-            "to": list(_coord(power_glue["to"])),
+            "from": list(raw_from),
+            "to": list(raw_to),
             "selectionCellBounds": {"min": list(lo), "max": list(hi)},
             "selectionSizeBlocks": list(domain_size),
         },
