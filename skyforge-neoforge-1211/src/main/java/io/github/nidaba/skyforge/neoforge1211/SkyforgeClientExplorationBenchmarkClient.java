@@ -86,6 +86,9 @@ final class SkyforgeClientExplorationBenchmarkClient {
                 ? 0.0d
                 : frameCount * 1_000_000_000.0d / measuredWallNanos;
         Runtime runtime = Runtime.getRuntime();
+        String softwareRendererEnv = System.getenv().getOrDefault("LIBGL_ALWAYS_SOFTWARE", "false");
+        boolean softwareRendererExpected = "1".equals(softwareRendererEnv)
+                || Boolean.parseBoolean(softwareRendererEnv);
 
         LinkedHashMap<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("clientExplorationClientPass", true);
@@ -95,8 +98,8 @@ final class SkyforgeClientExplorationBenchmarkClient {
         evidence.put("clientMemoryUsedBytes", runtime.totalMemory() - runtime.freeMemory());
         evidence.put("clientMemoryCommittedBytes", runtime.totalMemory());
         evidence.put("clientMemoryMaxBytes", runtime.maxMemory());
-        evidence.put("clientSoftwareRendererExpected", Boolean.parseBoolean(
-                System.getenv().getOrDefault("LIBGL_ALWAYS_SOFTWARE", "false")));
+        evidence.put("clientSoftwareRendererEnv", softwareRendererEnv);
+        evidence.put("clientSoftwareRendererExpected", softwareRendererExpected);
         evidence.putAll(SkyforgeRuntimePerformanceMetrics.evidence());
 
         SkyforgeAutomatedAcceptanceHarness.completeClientCase(evidence);
