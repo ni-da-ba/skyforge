@@ -121,6 +121,15 @@ def patch_runtime_source(source: str) -> str:
         for (String role : requiredPowertrainRoles) {
             assertTrue("moved v0.12 powertrain role present " + role, movedPowertrainRoles.containsKey(role));
         }
+
+        JsonObject governorContract = powertrain.getAsJsonObject("governor");
+        JsonArray higherRpmPoints = governorContract.getAsJsonArray("higherRpmPoints");
+        int[] governorRpmPoints = new int[higherRpmPoints.size() + 1];
+        governorRpmPoints[0] = governorContract.get("firstAcceptedTargetRpm").getAsInt();
+        for (int i = 0; i < higherRpmPoints.size(); i++) {
+            governorRpmPoints[i + 1] = higherRpmPoints.get(i).getAsInt();
+        }
+
         SkyforgeAircraftCompilerPowertrainRuntimeAcceptance.verify(
                 level,
                 movedPowertrainRoles.get("engine_port"),
@@ -128,7 +137,8 @@ def patch_runtime_source(source: str) -> str:
                 movedPowertrainRoles.get("governor"),
                 movedPowertrainRoles.get("governor_cog"),
                 movedPowertrainRoles.get("prop_shaft"),
-                movedBearingPos);
+                movedBearingPos,
+                governorRpmPoints);
 
 '''
     return source[:insert_at] + propeller_injected + source[insert_at:]
