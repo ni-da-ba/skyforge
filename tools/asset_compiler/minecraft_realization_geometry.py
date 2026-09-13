@@ -22,7 +22,7 @@ OPPOSITE = {
     "down": "up",
 }
 
-# Bounded aperture families exercised by the accepted v0.14 Guild specimen.  The normal points
+# Bounded aperture families exercised by the accepted v0.14 Guild specimen. The normal points
 # toward the exterior facade; tangent identifies the horizontal axis along the opening.
 _APERTURES: dict[str, tuple[tuple[int, int, int], tuple[int, int, int]]] = {
     "fp_north_window_pane": ((0, 0, -1), (1, 0, 0)),
@@ -57,7 +57,7 @@ def _repair_working_portal_clearance(model: VoxelModel, adapter: MinecraftAdapte
     """Clear bounded side-approach intrusions discovered by the first in-engine Guild gate.
 
     A service portal needs one clear interior cell directly behind every door and one clear cell
-    beyond each lateral edge of the opening.  Only the known working-partition infill is eligible for
+    beyond each lateral edge of the opening. Only the known working-partition infill is eligible for
     automatic deletion; anything else fails closed instead of silently rewriting architecture.
     """
     groups: dict[str, list[tuple[int, int, int]]] = defaultdict(list)
@@ -100,7 +100,7 @@ def _repair_working_portal_clearance(model: VoxelModel, adapter: MinecraftAdapte
                     )
 
         # Side clearance is the defect exposed by the freight-door screenshot: the partition ended
-        # flush against the opening.  Remove only the final partition column.  A third cell is cleared
+        # flush against the opening. Remove only the final partition column. A third cell is cleared
         # above player height so the portal does not retain a visually awkward calcite tooth; the
         # aperture pass may subsequently insert a timber transom return at that height.
         side_specs = ((ordered[0], -1), (ordered[-1], 1))
@@ -134,9 +134,9 @@ def _repair_working_portal_clearance(model: VoxelModel, adapter: MinecraftAdapte
 def _repair_aperture_returns(model: VoxelModel, adapter: MinecraftAdapter) -> tuple[list[dict], list[str]]:
     """Seal recessed panes against their facade jambs without flattening the recess.
 
-    v0.14 intentionally recesses many panes one block behind the primary facade.  The original
+    v0.14 intentionally recesses many panes one block behind the primary facade. The original
     architecture supplied front-plane jambs but omitted the one-block reveal return at several edge
-    cells, which is visually open in Minecraft even though the pane state itself is legal.  A return
+    cells, which is visually open in Minecraft even though the pane state itself is legal. A return
     is added only when an empty pane-edge cell has a structural jamb/post exactly one block diagonally
     toward the exterior; this makes the repair local, deterministic, and evidence-backed.
     """
@@ -181,7 +181,7 @@ def _repair_aperture_returns(model: VoxelModel, adapter: MinecraftAdapter) -> tu
                 }
             )
 
-    # Verify the exact condition we repaired no longer exists.  This catches any future aperture
+    # Verify the exact condition we repaired no longer exists. This catches any future aperture
     # family that is added to the bounded map but cannot be sealed without overwriting real geometry.
     for pos, cell in sorted(model.cells.items()):
         aperture = _APERTURES.get(cell.module or "")
@@ -256,6 +256,50 @@ def _boundary_faces(state: BlockState, adapter: MinecraftAdapter) -> frozenset[s
     return frozenset()
 
 
+def _contact_count(model: VoxelModel, pos: tuple[int, int, int], adapter: MinecraftAdapter) -> int:
+    cell = model.cells[pos]
+    faces = _boundary_faces(cell.state, adapter)
+    contacts = 0
+    for face, delta in DIRECTIONS.items():
+        if face not in faces:
+            continue
+        neighbor = model.cells.get(_add(pos, delta))
+        if neighbor is None:
+            continue
+        if OPPOSITE[face] in _boundary_faces(neighbor.state, adapter):
+            contacts += 1
+    return contacts
+
+
+def _repair_known_isolated_detail(model: VoxelModel, adapter: MinecraftAdapter) -> list[dict]:
+    """Remove only proven non-contact decorative detail from the first human gate.
+
+    The waiting-bench backs were fences one cell above bottom slabs. In Minecraft shape-space the
+    bottom slab ends half a block below the fence, so the fence is visibly levitating even though both
+    states are individually legal. There is no faithful one-cell support repair with the current
+    bounded palette that preserves the half-block seat height, so the minimum target-side edit is to
+    omit the unsupported decorative back. Future Guild institutionalization can reintroduce a backed
+    bench through a richer furniture grammar.
+    """
+    repairs: list[dict] = []
+    for pos, cell in sorted(list(model.cells.items())):
+        if cell.role != "seating_detail" or cell.module != "fp14_waiting_back":
+            continue
+        if "fence" not in adapter.capability(cell.state.name).capabilities:
+            continue
+        if _contact_count(model, pos, adapter) != 0:
+            continue
+        model.clear(*pos)
+        repairs.append(
+            {
+                "position": list(pos),
+                "mode": "omit_unsupported_waiting_bench_back",
+                "removed": cell.state.canonical(),
+            }
+        )
+    return repairs
+
+
 def _validate_partial_detail_contact(model: VoxelModel, adapter: MinecraftAdapter) -> tuple[int, list[str]]:
     """Reject isolated slab/fence detail that is legal Minecraft but visually unsupported."""
     checked = 0
@@ -265,17 +309,7 @@ def _validate_partial_detail_contact(model: VoxelModel, adapter: MinecraftAdapte
         if not ({"slab", "fence"} & cap.capabilities):
             continue
         checked += 1
-        faces = _boundary_faces(cell.state, adapter)
-        contacts = 0
-        for face, delta in DIRECTIONS.items():
-            if face not in faces:
-                continue
-            neighbor = model.cells.get(_add(pos, delta))
-            if neighbor is None:
-                continue
-            if OPPOSITE[face] in _boundary_faces(neighbor.state, adapter):
-                contacts += 1
-        if contacts == 0:
+        if _contact_count(model, pos, adapter) == 0:
             issues.append(
                 f"partial detail at {pos} is visually isolated: "
                 f"{cell.state.canonical()} role={cell.role} module={cell.module}"
@@ -315,10 +349,10 @@ def enforce_realized_geometry_correctness(
 ) -> tuple[CompiledAsset, dict]:
     """Apply the bounded v0.5 Minecraft geometry-correctness gate.
 
-    This pass operates only on target-created Minecraft states.  It does not change architectural
-    massing or the architecture digest.  Automatic edits are intentionally narrow: remove only the
-    known working-partition intrusion and add only jamb-backed aperture returns.  Ambiguous defects
-    fail closed for a human/compiler decision.
+    This pass operates only on target-created Minecraft states. It does not change architectural
+    massing or the architecture digest. Automatic edits are intentionally narrow: remove only the
+    known working-partition intrusion and unsupported waiting-back fences, and add only jamb-backed
+    aperture returns. Ambiguous defects fail closed for a human/compiler decision.
     """
     model = compiled.model
     before = len(model.cells)
@@ -329,6 +363,7 @@ def enforce_realized_geometry_correctness(
     aperture_repairs, aperture_issues = _repair_aperture_returns(model, adapter)
     issues.extend(aperture_issues)
     connectivity_changes = _refresh_connective_states(model, adapter)
+    isolated_detail_repairs = _repair_known_isolated_detail(model, adapter)
 
     contact_checks, contact_issues = _validate_partial_detail_contact(model, adapter)
     issues.extend(contact_issues)
@@ -345,10 +380,12 @@ def enforce_realized_geometry_correctness(
         "apertureReturnRepairCount": len(aperture_repairs),
         "operationalClearanceRepairs": clearance_repairs,
         "operationalClearanceRepairCount": len(clearance_repairs),
+        "isolatedDetailRepairs": isolated_detail_repairs,
+        "isolatedDetailRepairCount": len(isolated_detail_repairs),
         "connectiveStatesRefreshed": connectivity_changes,
         "partialDetailContactChecks": contact_checks,
         "workingPortalChecks": portal_checks,
-        "repairPolicy": "bounded_jamb_backed_returns_and_working_partition_clearance_only_v0.5",
+        "repairPolicy": "bounded_jamb_returns_portal_clearance_and_proven_isolated_detail_v0.5",
     }
     if issues:
         raise SpecError("Minecraft realized-geometry gate rejected target: " + "; ".join(issues[:8]))
