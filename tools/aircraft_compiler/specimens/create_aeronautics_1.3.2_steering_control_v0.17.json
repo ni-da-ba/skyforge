@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "aircraft-steering-control-profile-0.17",
+  "profileId": "skyforge.steering_control.sable.guild_utility.v0_17",
+  "sourceYawActuationDigestSha256": "26f32701664ae261d744508381d53729167d87fff5c4f2ac40881958862c0bdb",
+  "sourceYawNeutralReturnDigestSha256": "687e8878d92f42f11315b924e8d59b11929b93ebbb5f59682d2a0b16356909ff",
+  "steeringWheelResource": "simulated:steering_wheel",
+  "steeringWheelBlockState": {
+    "facing": "north",
+    "on_floor": "false",
+    "waterlogged": "false"
+  },
+  "expectedSteeringWheelRpmMagnitude": 16,
+  "wheelCommandDegrees": 48.0,
+  "maximumCommandTicks": 24,
+  "physicalSettlePhysicsTicks": 80,
+  "minimumSwivelTargetDeflectionDegrees": 20.0,
+  "minimumPhysicalRudderDeflectionDegrees": 10.0,
+  "targetNeutralToleranceDegrees": 2.0,
+  "physicalNeutralToleranceDegrees": 3.0,
+  "sourceEvidence": [
+    "Simulated registers the exact block resource simulated:steering_wheel.",
+    "SteeringWheelBlock uses Y as its kinetic axis and a ceiling-mounted wheel (on_floor=false) exposes its shaft upward, matching the accepted drive cog directly above the v0.14 source coordinate.",
+    "SteeringWheelBlockEntity is a GeneratingKineticBlockEntity with exact RPM=16 and updateTargetAngle(float) produces bounded signed source rotation until its own finite angle command completes.",
+    "This probe substitutes the component source only. It does not claim cockpit routing or player/network interaction binding."
+  ],
+  "runtimeObligations": [
+    {"id": "steering_wheel_source_registration_probe"},
+    {"id": "steering_wheel_swivel_network_probe"},
+    {"id": "steering_wheel_rudder_deflection_probe"},
+    {"id": "steering_wheel_commanded_neutral_return_probe"}
+  ]
+}
