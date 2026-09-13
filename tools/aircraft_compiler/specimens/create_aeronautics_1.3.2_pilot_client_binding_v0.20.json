@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "aircraft-pilot-client-binding-profile-0.20",
+  "profileId": "skyforge.pilot_client_binding.create_aeronautics_1_3_2.v0_20",
+  "clientEntryContract": {
+    "blockUseEntryPoint": "net.minecraft.client.multiplayer.MultiPlayerGameMode#useItemOn",
+    "quietUseMixinClass": "dev.simulated_team.simulated.mixin.quiet_use.MultiPlayerGameModeMixin",
+    "steeringHandlerClass": "dev.simulated_team.simulated.content.blocks.steering_wheel.SteeringWheelHandler",
+    "mouseMoveDispatch": "dev.simulated_team.simulated.events.SimulatedCommonClientEvents#onMouseMove",
+    "useReleaseDispatch": "dev.simulated_team.simulated.events.SimulatedCommonClientEvents#onBeforeMouseInput",
+    "packetClass": "dev.simulated_team.simulated.network.packets.SteeringWheelPacket",
+    "packetPayloadId": "simulated:steering_wheel_update",
+    "seatBehaviorClass": "com.simibubi.create.content.contraptions.actors.seat.SeatBlock",
+    "seatEntityClass": "com.simibubi.create.content.contraptions.actors.seat.SeatEntity"
+  },
+  "commandProbe": {
+    "mouseYawDelta": 480.0,
+    "minimumAbsoluteTargetDegrees": 30.0,
+    "maximumAbsoluteTargetDegrees": 70.0,
+    "activePacketSettleTicks": 40,
+    "releasePacketSettleTicks": 40,
+    "seatMountSettleTicks": 40,
+    "seatDismountSettleTicks": 40
+  },
+  "probeModes": {
+    "actualClientRequired": [
+      "real_client_steering_hold_acquire",
+      "real_client_steering_active_packet_round_trip",
+      "real_client_steering_release_packet_round_trip",
+      "real_player_seat_mount",
+      "real_player_seat_dismount"
+    ],
+    "headlessServerCanQualify": [],
+    "deferredRealClient": [
+      "player_sable_tracking_probe"
+    ],
+    "humanEyeBeforeFlightQualification": true
+  },
+  "runtimeObligations": [
+    {
+      "id": "real_client_steering_hold_acquire",
+      "method": "from an actual quick-play client, enter through Minecraft MultiPlayerGameMode.useItemOn so Simulated's QuietUse mixin starts its released SteeringWheelHandler on the assembled cockpit wheel"
+    },
+    {
+      "id": "real_client_steering_active_packet_round_trip",
+      "method": "drive the active SteeringWheelHandler through Simulated's released mouse-move/client-tick path and observe the connected integrated ServerPlayer's assembled wheel become held with a bounded nonzero target angle"
+    },
+    {
+      "id": "real_client_steering_release_packet_round_trip",
+      "method": "release through Simulated's normal use-input lifecycle and observe the server assembled wheel clear held state while retaining the commanded target angle"
+    },
+    {
+      "id": "real_player_seat_mount",
+      "method": "use the compiled Create seat through the actual client's MultiPlayerGameMode and observe the matching integrated ServerPlayer riding a Create SeatEntity"
+    },
+    {
+      "id": "real_player_seat_dismount",
+      "method": "dismount through ordinary client crouch input and observe the integrated ServerPlayer no longer riding the SeatEntity"
+    }
+  ]
+}
