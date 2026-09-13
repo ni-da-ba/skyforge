@@ -5,6 +5,8 @@ import argparse
 import json
 from pathlib import Path
 
+from assembly import AssemblyPlanError, plan_assembly
+from assembly_render import emit_assembly_outputs
 from blockspace import BlockspaceError, transcribe
 from blockspace_render import emit_blockspace_outputs
 from model import SpecError
@@ -19,6 +21,7 @@ def main() -> int:
     parser.add_argument("--out", type=Path, default=Path("build/aircraft-compiler"))
     args = parser.parse_args()
     blockspace = None
+    assembly = None
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
         resolved = solve(spec)
@@ -32,7 +35,21 @@ def main() -> int:
                     + json.dumps(blockspace["validation"], sort_keys=True)
                 )
             emit_blockspace_outputs(blockspace, resolved, args.out)
-    except (OSError, json.JSONDecodeError, SpecError, BlockspaceError, ValueError) as exc:
+            assembly = plan_assembly(blockspace)
+            if not assembly["validation"]["passed"]:
+                raise AssemblyPlanError(
+                    "assembly planning failed validation: "
+                    + json.dumps(assembly["validation"], sort_keys=True)
+                )
+            emit_assembly_outputs(assembly, args.out)
+    except (
+        OSError,
+        json.JSONDecodeError,
+        SpecError,
+        BlockspaceError,
+        AssemblyPlanError,
+        ValueError,
+    ) as exc:
         raise SystemExit(f"aircraft compiler error: {exc}") from exc
 
     summary = {
@@ -48,6 +65,14 @@ def main() -> int:
             "compilerVersion": blockspace["compilerVersion"],
             "digestSha256": blockspace["digestSha256"],
             "validation": blockspace["validation"],
+        }
+    if assembly is not None:
+        summary["assembly"] = {
+            "assetId": assembly["assetId"],
+            "compilerVersion": assembly["compilerVersion"],
+            "digestSha256": assembly["digestSha256"],
+            "metrics": assembly["metrics"],
+            "validation": assembly["validation"],
         }
     print(json.dumps(summary, indent=2))
     return 0

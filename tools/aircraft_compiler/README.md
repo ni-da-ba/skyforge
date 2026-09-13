@@ -2,7 +2,7 @@
 
 This directory is the first backend-neutral aircraft-design/compiler layer for Skyforge.
 
-It is deliberately **not** a Create Aeronautics schematic generator. v0.1 proves the continuous analytical pre-design chain, and v0.2 adds a deterministic target-neutral block-space transcription without concrete target resource identities:
+It is deliberately **not** a Create Aeronautics schematic generator. v0.1 proves the continuous analytical pre-design chain, v0.2 adds deterministic target-neutral block-space transcription, and v0.3 introduces a coordinate-unique assembly-site IR without assigning concrete target resources:
 
 ```text
 mission/design condition
@@ -13,8 +13,9 @@ mission/design condition
   -> target-neutral AircraftDesignIR (v0.1)
   -> deterministic integer-lattice transcription (v0.2)
   -> semantic target capability contract
+  -> coordinate-unique semantic assembly sites (v0.3)
   -> engineering / mobile QA
-  -> later exact Create Aeronautics adapter + runtime measurement
+  -> later exact Create Aeronautics resource adapter + runtime measurement
 ```
 
 ## Run
@@ -27,18 +28,18 @@ python tools/aircraft_compiler/compile.py `
   --out build/aircraft-compiler-v01
 ```
 
-Analytical v0.1 plus block-space v0.2:
+Full accepted proof chain through v0.3:
 
 ```powershell
 python tools/aircraft_compiler/compile.py `
   tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json `
   --blockspace-config tools/aircraft_compiler/specimens/guild_utility_monoplane_blockspace_v0.2.json `
-  --out build/aircraft-compiler-v02
+  --out build/aircraft-compiler-v03
 ```
 
 The v0.1 output contains `resolved.json`, `validation.txt`, three orthographic SVGs, `mass_balance.svg`, `lift_check.svg`, and `mobile_review.svg`.
 
-With the v0.2 config it additionally emits `blockspace_resolved.json`, `blockspace_validation.txt`, and `blockspace_mobile_review.svg`.
+With the block-space config the compiler additionally emits v0.2 `blockspace_resolved.json`, `blockspace_validation.txt`, and `blockspace_mobile_review.svg`, followed by v0.3 `assembly_plan.json`, `assembly_validation.txt`, and `assembly_mobile_review.svg`.
 
 ## Mathematical boundary — v0.1 continuous pre-design
 
@@ -63,15 +64,28 @@ The block-space specimen declares a lattice scale and quantizes anchors with a d
 
 Straight-taper lifting surfaces are rasterized by evaluating the exact linear chord at each admitted spanwise or heightwise lattice center and occupying only chordwise centers inside that continuous section. v0.2 then reports continuous-versus-realized dimensions instead of hiding quantization error.
 
-The current skeleton validates:
+The v0.2 skeleton validates six-neighbor connectivity, exact left/right mirror symmetry for wing and horizontal tail, bounded dimensional and CG-anchor quantization error, propeller-disk geometric clearance, and absence of concrete Minecraft/Create/Aeronautics resource identities.
 
-- six-neighbor connectivity;
-- exact left/right mirror symmetry for wing and horizontal tail;
-- bounded dimensional and CG-anchor quantization error;
-- propeller-disk geometric clearance;
-- absence of concrete Minecraft/Create/Aeronautics resource identities.
+## Mathematical boundary — v0.3 coordinate-unique assembly planning
 
-The v0.2 capability contract names requirements such as `aerodynamic_lift_surface`, `rigid_physics_member`, `rigid_load_path`, `rotational_thrust_producer`, and `vehicle_control_station`. Concrete block mappings are deliberately deferred until the exact pinned Create Aeronautics/Sable artifact is inspected and exercised.
+v0.2 semantic `Cell` identity includes a role. That is useful for retaining intent, but two differently-role-labelled records can therefore occupy the same `(x,y,z)` coordinate. A block backend cannot realize two block placements at one coordinate.
+
+v0.3 resolves that mismatch without discarding semantics:
+
+- lattice coordinate becomes the unique assembly-site identity;
+- all source roles at that coordinate are retained as a sorted role set;
+- required capabilities are the set union of the retained roles' capability contracts;
+- semantic stations such as propeller axis, pilot station, and cargo station remain explicit anchor requirements and are not silently counted as occupied blocks;
+- deterministic output is invariant to source record ordering;
+- the IR reports how many role records were coalesced and every multi-role site is auditable.
+
+This is still deliberately target-neutral. It establishes the one-coordinate/one-placement mathematical boundary that a later Create Aeronautics adapter must satisfy; it does not guess which released block fulfills a capability.
+
+## Create Aeronautics runtime boundary
+
+The pinned target family is Minecraft 1.21.1 / NeoForge with Create Aeronautics 1.3.2. Released-source inspection confirms that the propeller bearing assembles a bearing contraption and that propeller assembly requires at least two sail-equivalent blocks. Its runtime thrust is a function of sail power and bearing rotation/configuration. Those facts belong in a future measured target adapter ledger, not in the analytical lift equations.
+
+The exact resource/palette adapter remains gated on released-artifact inspection plus in-engine assembly/flight evidence. v0.3 therefore still emits no concrete `minecraft:`, `create:`, or `aeronautics:` resource identifiers.
 
 ## Sources
 
@@ -85,6 +99,8 @@ Primary/teaching references used to establish the v0.1 equations and terminology
 - FAA **Weight & Balance Handbook**, CG/stability/control context: https://www.faa.gov/sites/faa.gov/files/regulations_policies/handbooks_manuals/aviation/FAA-H-8083-1.pdf
 - Embry-Riddle, **Aircraft Stability & Control**, tail-volume definitions and representative airplane-class values: https://eaglepubs.erau.edu/introductiontoaerospaceflightvehicles/chapter/aircraft-stability-control/
 - NASA standard-atmosphere reference for the specimen sea-level density input `rho=1.225 kg/m^3`: NASA/TP-2006-213486.
+- Create Aeronautics 1.3.2 release record: CurseForge file `8763471`, Minecraft 1.21.1 / NeoForge, uploaded 2026-08-29.
+- Create Aeronautics released source: `Creators-of-Aeronautics/Simulated-Project`, propeller-bearing block/entity and bearing-contraption assembly guard. Source inspection is evidence of semantics, not a substitute for exact-jar runtime validation.
 
 ## Assumptions versus authority
 
@@ -99,4 +115,4 @@ Some quantities in the specimen are design or transcription inputs rather than u
 
 Representative GA single-engine tail-volume values (`V_H≈0.7`, `V_V≈0.04`) are reference targets, not stability certification criteria.
 
-v0.1/v0.2 intentionally do **not** claim structural strength, stall prediction, static margin, dynamic stability, control authority, concrete Create Aeronautics block compatibility, or Create Aeronautics flight performance.
+v0.1/v0.2/v0.3 intentionally do **not** claim structural strength, stall prediction, static margin, dynamic stability, control authority, concrete Create Aeronautics block compatibility, or Create Aeronautics flight performance.

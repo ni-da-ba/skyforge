@@ -21,16 +21,16 @@ jobs:
           python-version: "3.12"
       - name: Run aircraft compiler tests
         run: python -m unittest discover -s tools/aircraft_compiler/tests -v
-      - name: Compile AIRCRAFT-001 v0.1 + v0.2 block-space specimen
+      - name: Compile AIRCRAFT-001 v0.1 + v0.2 + v0.3 assembly specimen
         run: >-
           python tools/aircraft_compiler/compile.py
           tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json
           --blockspace-config tools/aircraft_compiler/specimens/guild_utility_monoplane_blockspace_v0.2.json
-          --out build/aircraft-compiler-v02
-      - name: Upload analytical and mobile QA
+          --out build/aircraft-compiler-v03
+      - name: Upload analytical, block-space, assembly, and mobile QA
         uses: actions/upload-artifact@v4
         with:
-          name: aircraft-compiler-guild-utility-v02-qa
-          path: build/aircraft-compiler-v02
+          name: aircraft-compiler-guild-utility-v03-qa
+          path: build/aircraft-compiler-v03
           if-no-files-found: error
           retention-days: 14
