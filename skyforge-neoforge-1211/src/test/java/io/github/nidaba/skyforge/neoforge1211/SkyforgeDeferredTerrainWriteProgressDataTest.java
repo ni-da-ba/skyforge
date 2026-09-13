@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
@@ -77,5 +78,34 @@ final class SkyforgeDeferredTerrainWriteProgressDataTest {
         var restarted = reloaded.getOrCreatePreparation(volumeId, chunkPos, -64, 96);
         assertEquals(0, restarted.nextColumn());
         assertFalse(restarted.complete());
+    }
+
+    @Test
+    void switchingPreparationObligationsDropsThePreviousProjectionBuffer() {
+        SkyIslandWorldVolumeId firstVolume = new SkyIslandWorldVolumeId(31L, "prepare-a", 0, 0, 61L);
+        SkyIslandWorldVolumeId secondVolume = new SkyIslandWorldVolumeId(31L, "prepare-b", 0, 1, 67L);
+        ChunkPos firstChunk = new ChunkPos(1, 2);
+        ChunkPos secondChunk = new ChunkPos(3, 4);
+        var data = new SkyforgeDeferredTerrainWriteProgressData();
+
+        var first = data.getOrCreatePreparation(firstVolume, firstChunk, -64, 96);
+        first.advance(
+                (ignoredVolume, requestedChunk, minimumY, height, firstColumn, maximumColumns, keys) -> {
+                    int preparedColumns = Math.min(maximumColumns, 256 - firstColumn);
+                    return new SkyforgeNeoForge1211ChunkAdapter.ExactColumnAdvance(
+                            firstColumn,
+                            preparedColumns,
+                            0L,
+                            (long) preparedColumns * height,
+                            firstColumn + preparedColumns == 256);
+                },
+                16);
+        assertEquals(16, first.nextColumn());
+
+        data.getOrCreatePreparation(secondVolume, secondChunk, -32, 64);
+        var restartedFirst = data.getOrCreatePreparation(firstVolume, firstChunk, -64, 96);
+
+        assertNotSame(first, restartedFirst);
+        assertEquals(0, restartedFirst.nextColumn());
     }
 }

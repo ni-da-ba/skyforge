@@ -62,6 +62,9 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             return Optional.of(new MinecraftChunkWriteResult(0, 0, 0));
         }
 
+        // Physical admission is deliberately observed here, above the concrete writer and after
+        // BASE_WORLD has completed. A deferred exact-volume write can therefore reuse the writer
+        // without accidentally resurveying already-mutated terrain.
         SkyforgePhysicalVolumeAdmissionStage.observeBeforeRealization(chunk, nativeSurfaceSnapshot);
         if (!SkyforgePhysicalVolumeAdmissionStage.allowsDirectRealization(chunk)) {
             SkyforgeRuntimePerformanceMetrics.recordSince(
@@ -85,6 +88,14 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return Optional.of(result);
     }
 
+    /**
+     * Services ADMITTED deferred terrain only in chunks already available to the current generation
+     * region. {@link WorldGenRegion#hasChunk(int, int)} is checked before every lookup, so this path
+     * does not create generation tickets or force future chunks to exist.
+     *
+     * <p>Each successful exact terrain catch-up is immediately followed by that volume's normal
+     * native population coordinator. The coordinator remains the replay/idempotence authority.
+     */
     static int serviceAvailableCatchup(
             WorldGenLevel level,
             ChunkGenerator generator) {
@@ -121,6 +132,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return completed;
     }
 
+    /** Services eligible exact-volume terrain records for one already-available chunk. */
     static int serviceCatchup(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
         RuntimeBinding binding = ACTIVE.get();
@@ -136,6 +148,13 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return completed;
     }
 
+    /**
+     * Advances one bounded persisted deferred-terrain packet for the canonical obligation.
+     *
+     * <p>The eligible list is refreshed from the same admission-stage iteration used by
+     * {@link #serviceCatchup(ChunkAccess)}. Repeated calls preserve exact-volume iteration order
+     * while allowing the outer elapsed-time guard to yield between preparation/write quanta.
+     */
     static DeferredCatchupPacketResult serviceOneCatchupPacket(
             ServerLevel level,
             ChunkAccess chunk,
@@ -392,6 +411,8 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 "terrain.deferred.write",
                 writeStart);
         if (!exactAdmissionFastPath && result.solidBlockCount() != expectedSolidBlocks) {
+            // Another exact volume still owns at least one blocked coordinate. Keep the record
+            // pending until all owners have terminal admission decisions.
             return false;
         }
         long completeStart = SkyforgeRuntimePerformanceMetrics.start();
@@ -412,6 +433,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return Optional.of(materialize(binding, chunk));
     }
 
+    /** Backward-compatible scalar view of the richer composite early-height query. */
     static OptionalInt queryBaseHeight(
             int worldX,
             int worldZ,
@@ -423,6 +445,12 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return claim.isPresent() ? OptionalInt.of(claim.orElseThrow().height()) : OptionalInt.empty();
     }
 
+    /**
+     * Legacy composite early-height query retained for diagnostics and compatibility tests.
+     *
+     * <p>Ordinary base-world generation must not call this under SF-IMP-0052. Island-owned
+     * generation uses the exact-volume overload below.
+     */
     static Optional<MinecraftSkyforgeHeightClaim> queryBaseHeightClaim(
             int worldX,
             int worldZ,
@@ -462,6 +490,12 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return Optional.empty();
     }
 
+    /**
+     * Evaluates one exact independently compiled island as an early height query.
+     *
+     * <p>Vanilla terrain and other stacked islands are intentionally invisible. An empty island
+     * column remains empty rather than falling through to a different terrain owner.
+     */
     static Optional<MinecraftSkyforgeHeightClaim> queryBaseHeightClaim(
             SkyIslandWorldVolumeId volumeId,
             int worldX,
@@ -481,12 +515,19 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 : Optional.empty();
     }
 
+    /** Returns the backend-neutral bounds of one exact runtime-bound island volume. */
     static Optional<WorldBounds> volumeBounds(SkyIslandWorldVolumeId volumeId) {
         Objects.requireNonNull(volumeId, "volumeId");
         RuntimeBinding binding = ACTIVE.get();
         return binding == null ? Optional.empty() : binding.adapter().volumeBounds(volumeId);
     }
 
+    /**
+     * Returns the exact discrete solid interval for one runtime-bound island column.
+     *
+     * <p>The interval comes from the accepted compiled support bridge and is therefore suitable for
+     * physical-admission scans that need occupancy, not terrain-role classification.
+     */
     static Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> integerSolidRange(
             SkyIslandWorldVolumeId volumeId,
             int worldX,
@@ -592,6 +633,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return binding != null && binding.nativeSurfaceTopAdapter().isPresent();
     }
 
+    /** Cheap catalog prefilter used before snapshot capture or full terrain projection. */
     static boolean hasCandidateVolume(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
         RuntimeBinding binding = ACTIVE.get();
@@ -611,6 +653,10 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return candidate;
     }
 
+    /**
+     * Intersects Minecraft's half-open build interval with Skyforge's conservative closed volume
+     * bounds. The +1 conversion on the maximum Y retains the closed upper support sample exactly.
+     */
     static VerticalRange boundedVerticalRange(ChunkAccess chunk, WorldBounds volumeBounds) {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(volumeBounds, "volumeBounds");
