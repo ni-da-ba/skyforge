@@ -24,7 +24,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 /** Runtime binding between compiled Skyforge terrain and the Minecraft 1.21.1 adapter. */
 public final class SkyforgeNeoForge1211SurfaceStage {
     private static final AtomicReference<RuntimeBinding> ACTIVE = new AtomicReference<>();
-    private static final int MAX_DEFERRED_MATERIALIZATION_SLICE_HEIGHT = 32;
+    private static final int MAX_DEFERRED_MATERIALIZATION_COLUMNS_PER_QUANTUM = 16;
 
     private SkyforgeNeoForge1211SurfaceStage() {}
 
@@ -62,9 +62,6 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             return Optional.of(new MinecraftChunkWriteResult(0, 0, 0));
         }
 
-        // Physical admission is deliberately observed here, above the concrete writer and after
-        // BASE_WORLD has completed. A deferred exact-volume write can therefore reuse the writer
-        // without accidentally resurveying already-mutated terrain.
         SkyforgePhysicalVolumeAdmissionStage.observeBeforeRealization(chunk, nativeSurfaceSnapshot);
         if (!SkyforgePhysicalVolumeAdmissionStage.allowsDirectRealization(chunk)) {
             SkyforgeRuntimePerformanceMetrics.recordSince(
@@ -88,14 +85,6 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return Optional.of(result);
     }
 
-    /**
-     * Services ADMITTED deferred terrain only in chunks already available to the current generation
-     * region. {@link WorldGenRegion#hasChunk(int, int)} is checked before every lookup, so this path
-     * does not create generation tickets or force future chunks to exist.
-     *
-     * <p>Each successful exact terrain catch-up is immediately followed by that volume's normal
-     * native population coordinator. The coordinator remains the replay/idempotence authority.
-     */
     static int serviceAvailableCatchup(
             WorldGenLevel level,
             ChunkGenerator generator) {
@@ -132,7 +121,6 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return completed;
     }
 
-    /** Services eligible exact-volume terrain records for one already-available chunk. */
     static int serviceCatchup(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
         RuntimeBinding binding = ACTIVE.get();
@@ -148,7 +136,6 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return completed;
     }
 
-    /** Advances one bounded persisted deferred-terrain packet for the canonical obligation. */
     static DeferredCatchupPacketResult serviceOneCatchupPacket(
             ServerLevel level,
             ChunkAccess chunk,
@@ -196,7 +183,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                     chunk.getPos(),
                     range.minimumY(),
                     range.height());
-            if (preparation.preparedHeight() == 0) {
+            if (preparation.nextColumn() == 0) {
                 SkyforgeRuntimePerformanceMetrics.recordSample(
                         "terrain.deferredVerticalSamples",
                         range.height());
@@ -204,8 +191,8 @@ public final class SkyforgeNeoForge1211SurfaceStage {
 
             long materializeSliceStart = SkyforgeRuntimePerformanceMetrics.start();
             var preparationAdvance = preparation.advance(
-                    binding.adapter()::materialize,
-                    MAX_DEFERRED_MATERIALIZATION_SLICE_HEIGHT);
+                    binding.adapter()::materializeExactColumns,
+                    MAX_DEFERRED_MATERIALIZATION_COLUMNS_PER_QUANTUM);
             long materializeSliceNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(materializeSliceStart);
             preparation.recordWorkNanos(materializeSliceNanos);
             SkyforgeRuntimePerformanceMetrics.recordElapsed(
@@ -215,8 +202,8 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                     "terrain.deferred.materializeSliceWallNanos",
                     materializeSliceNanos);
             SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
-                    "terrain.deferred.materializeSliceHeight",
-                    preparationAdvance.preparedHeight());
+                    "terrain.deferred.materializeSliceColumns",
+                    preparationAdvance.preparedColumns());
 
             if (!preparationAdvance.complete()) {
                 long quantumElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(performanceStart);

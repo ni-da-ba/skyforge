@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 final class SkyforgeExactVolumeMaterializationOptimizationTest {
     private static final long ROOT_SEED = 0x534b59464f524745L;
-    private static final int DEFERRED_SLICE_HEIGHT = 32;
+    private static final int DEFERRED_SLICE_COLUMNS = 16;
 
     @Test
     void exactMassifMaterializationMatchesLegacyCompositeAcrossCenterEdgeAndEmptyColumns() {
@@ -89,7 +89,7 @@ final class SkyforgeExactVolumeMaterializationOptimizationTest {
             assertArrayEquals(
                     exact.blockKeys(),
                     sliced.blockKeys(),
-                    "bounded deferred preparation changed exact block-key output for " + chunkPos);
+                    "bounded deferred column preparation changed exact block-key output for " + chunkPos);
         }
     }
 
@@ -105,7 +105,7 @@ final class SkyforgeExactVolumeMaterializationOptimizationTest {
                 minimumY,
                 height);
         while (!preparation.complete()) {
-            var advance = preparation.advance(adapter::materialize, DEFERRED_SLICE_HEIGHT);
+            var advance = preparation.advance(adapter::materializeExactColumns, DEFERRED_SLICE_COLUMNS);
             if (advance.complete()) {
                 return advance.completedMaterialization().orElseThrow();
             }
