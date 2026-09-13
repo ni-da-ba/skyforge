@@ -16,14 +16,14 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
-/** AIRCRAFT-001 v0.13 exact-stack Swivel-Bearing rudder child-capture acceptance. */
+/** AIRCRAFT-001 v0.13.1 exact-stack Swivel-Bearing rudder child-capture acceptance. */
 final class SkyforgeAircraftCompilerYawRuntimeAcceptance {
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeAircraftCompilerYawRuntimeAcceptance.class.getName());
 
     private static final ResourceLocation SWIVEL_BEARING_ID = id("simulated:swivel_bearing");
     private static final int EXPECTED_RUDDER_PAYLOAD = 4;
-    private static final int EXPECTED_RETAINED_PARENT_MAIN = 117;
+    private static final int EXPECTED_RETAINED_PARENT_MAIN = 118;
     private static final double NEUTRAL_ANGLE_TOLERANCE_DEGREES = 1.0e-9;
 
     private SkyforgeAircraftCompilerYawRuntimeAcceptance() {}
