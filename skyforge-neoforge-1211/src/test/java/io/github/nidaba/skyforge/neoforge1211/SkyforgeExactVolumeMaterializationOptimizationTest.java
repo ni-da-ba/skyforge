@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 final class SkyforgeExactVolumeMaterializationOptimizationTest {
     private static final long ROOT_SEED = 0x534b59464f524745L;
-    private static final int DEFERRED_SLICE_COLUMNS = 16;
+    private static final int DEFERRED_SLICE_COLUMNS = 32;
 
     @Test
     void exactMassifMaterializationMatchesLegacyCompositeAcrossCenterEdgeAndEmptyColumns() {
