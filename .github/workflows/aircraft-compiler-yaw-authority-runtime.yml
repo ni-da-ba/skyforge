@@ -1,10 +1,11 @@
-name: Aircraft compiler yaw authority runtime
+name: Aircraft compiler yaw control runtime
 
 on:
   pull_request:
     paths:
       - "tools/aircraft_compiler/**"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerYawAuthorityRuntimeAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerYawNeutralReturnRuntimeAcceptance.java"
       - ".github/workflows/aircraft-compiler-yaw-authority-runtime.yml"
   workflow_dispatch:
 
@@ -12,11 +13,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: aircraft-compiler-yaw-authority-${{ github.event.pull_request.number || github.ref }}
+  group: aircraft-compiler-yaw-control-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  exact-stack-yaw-authority:
+  exact-stack-yaw-control:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -30,12 +31,12 @@ jobs:
           java-version: "25"
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Compile AIRCRAFT-001 runtime chain through v0.15
+      - name: Compile AIRCRAFT-001 runtime chain through v0.16
         shell: bash
         run: |
           set -euo pipefail
           python -m unittest discover -s tools/aircraft_compiler/tests -v
-          out=build/aircraft-compiler-yaw-authority
+          out=build/aircraft-compiler-yaw-control
           python tools/aircraft_compiler/compile.py \
             tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json \
             --blockspace-config tools/aircraft_compiler/specimens/guild_utility_monoplane_blockspace_v0.2.json \
@@ -60,19 +61,21 @@ jobs:
             tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_actuation_v0.14.json --out "$out"
           python tools/aircraft_compiler/yaw_authority_cli.py "$out/yaw_actuation_v0.14.json" \
             tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_authority_v0.15.json --out "$out"
+          python tools/aircraft_compiler/yaw_neutral_return_cli.py "$out/yaw_actuation_v0.14.json" "$out/yaw_authority_v0.15.json" \
+            tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_neutral_return_v0.16.json --out "$out"
           python - <<'PY'
           import json
           from pathlib import Path
-          p=json.loads(Path('build/aircraft-compiler-yaw-authority/yaw_authority_v0.15.json').read_text())
-          assert p['schemaVersion']=='aircraft-yaw-authority-ir-0.15'
+          p=json.loads(Path('build/aircraft-compiler-yaw-control/yaw_neutral_return_v0.16.json').read_text())
+          assert p['schemaVersion']=='aircraft-yaw-neutral-return-ir-0.16'
           assert p['validation']['passed'] is True
-          assert p['readiness']['yawAuthorityProbeReady'] is True
-          assert p['readiness']['yawAuthorityQualified'] is False
-          assert p['runtimeProbe']['forwardSpeedMps']==10.0
-          assert p['runtimeProbe']['servoSettlePhysicsTicks']==80
+          assert p['readiness']['neutralReturnProbeReady'] is True
+          assert p['readiness']['commandedNeutralReturnQualified'] is False
+          assert p['runtimeProbe']['inverseDriveTicks']==13
+          assert p['runtimeProbe']['reverseMotorSign']==-1
           PY
 
-      - name: Patch runtime harness through v0.15
+      - name: Patch runtime harness through v0.16
         shell: bash
         run: |
           set -euo pipefail
@@ -81,37 +84,41 @@ jobs:
           python tools/aircraft_compiler/runtime_v0131_patch.py "$src"
           python tools/aircraft_compiler/runtime_v014_patch.py "$src"
           python tools/aircraft_compiler/runtime_v015_patch.py "$src"
-          grep -q "SkyforgeAircraftCompilerYawAuthorityRuntimeAcceptance.verify" "$src"
+          python tools/aircraft_compiler/runtime_v016_patch.py "$src"
+          grep -q "SkyforgeAircraftCompilerYawNeutralReturnRuntimeAcceptance.verify" "$src"
 
       - name: Resolve exact retained flight stack
         run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
 
-      - name: Execute genuine v0.15 Sable physical-pose and yaw-authority probe
+      - name: Execute genuine v0.16 Sable authority and commanded-neutral-return probe
         shell: bash
         env:
           JAVA_TOOL_OPTIONS: >-
             -Dskyforge.dev.aircraftCompilerRuntime=true
-            -Dskyforge.dev.aircraftCompilerManifest=${{ github.workspace }}/build/aircraft-compiler-yaw-authority/probe_placement_manifest.json
-            -Dskyforge.dev.aircraftCompilerAssemblyFixture=${{ github.workspace }}/build/aircraft-compiler-yaw-authority/assembly_fixture.json
-            -Dskyforge.dev.aircraftCompilerGlueEncoding=${{ github.workspace }}/build/aircraft-compiler-yaw-authority/glue_encoding.json
-            -Dskyforge.dev.aircraftCompilerPowertrain=${{ github.workspace }}/build/aircraft-compiler-yaw-authority/powertrain_v0.12.json
-            -Dskyforge.dev.aircraftCompilerYawControlCorrection=${{ github.workspace }}/build/aircraft-compiler-yaw-authority/yaw_control_v0.13.1.json
-            -Dskyforge.dev.aircraftCompilerYawActuation=${{ github.workspace }}/build/aircraft-compiler-yaw-authority/yaw_actuation_v0.14.json
-            -Dskyforge.dev.aircraftCompilerYawAuthority=${{ github.workspace }}/build/aircraft-compiler-yaw-authority/yaw_authority_v0.15.json
+            -Dskyforge.dev.aircraftCompilerManifest=${{ github.workspace }}/build/aircraft-compiler-yaw-control/probe_placement_manifest.json
+            -Dskyforge.dev.aircraftCompilerAssemblyFixture=${{ github.workspace }}/build/aircraft-compiler-yaw-control/assembly_fixture.json
+            -Dskyforge.dev.aircraftCompilerGlueEncoding=${{ github.workspace }}/build/aircraft-compiler-yaw-control/glue_encoding.json
+            -Dskyforge.dev.aircraftCompilerPowertrain=${{ github.workspace }}/build/aircraft-compiler-yaw-control/powertrain_v0.12.json
+            -Dskyforge.dev.aircraftCompilerYawControlCorrection=${{ github.workspace }}/build/aircraft-compiler-yaw-control/yaw_control_v0.13.1.json
+            -Dskyforge.dev.aircraftCompilerYawActuation=${{ github.workspace }}/build/aircraft-compiler-yaw-control/yaw_actuation_v0.14.json
+            -Dskyforge.dev.aircraftCompilerYawAuthority=${{ github.workspace }}/build/aircraft-compiler-yaw-control/yaw_authority_v0.15.json
+            -Dskyforge.dev.aircraftCompilerYawNeutralReturn=${{ github.workspace }}/build/aircraft-compiler-yaw-control/yaw_neutral_return_v0.16.json
         run: |
           set -euo pipefail
-          log=aircraft-compiler-yaw-authority.log
+          log=aircraft-compiler-yaw-control.log
           setsid ./gradlew :skyforge-neoforge-1211:runWaveC12BellancaB0AssemblyServer --no-configuration-cache >"$log" 2>&1 &
           pid=$!
           outcome=""
           for _ in $(seq 1 420); do
-            if grep -Fq "AIRCRAFT_001_RUNTIME_YAW_AUTHORITY PASS" "$log" 2>/dev/null \
+            if grep -Fq "AIRCRAFT_001_RUNTIME_YAW_NEUTRAL_RETURN PASS" "$log" 2>/dev/null \
+              && grep -Fq "AIRCRAFT_001_RUNTIME_YAW_AUTHORITY PASS" "$log" 2>/dev/null \
               && grep -Fq "AIRCRAFT_001_RUNTIME_YAW_ACTUATION PASS" "$log" 2>/dev/null \
               && grep -Fq "AIRCRAFT_001_RUNTIME_YAW_CHILD PASS" "$log" 2>/dev/null \
               && grep -Fq "AIRCRAFT_001_RUNTIME_POWERTRAIN PASS" "$log" 2>/dev/null \
               && grep -Fq "AIRCRAFT_001_RUNTIME_PROPELLER PASS" "$log" 2>/dev/null \
               && grep -Fq "AIRCRAFT_001_RUNTIME_ASSEMBLY PASS" "$log" 2>/dev/null; then outcome=pass; break; fi
-            if grep -Fq "AIRCRAFT_001_RUNTIME_YAW_AUTHORITY FAIL" "$log" 2>/dev/null \
+            if grep -Fq "AIRCRAFT_001_RUNTIME_YAW_NEUTRAL_RETURN FAIL" "$log" 2>/dev/null \
+              || grep -Fq "AIRCRAFT_001_RUNTIME_YAW_AUTHORITY FAIL" "$log" 2>/dev/null \
               || grep -Fq "AIRCRAFT_001_RUNTIME_YAW_ACTUATION FAIL" "$log" 2>/dev/null \
               || grep -Fq "AIRCRAFT_001_RUNTIME_YAW_CHILD FAIL" "$log" 2>/dev/null \
               || grep -Fq "AIRCRAFT_001_RUNTIME_POWERTRAIN FAIL" "$log" 2>/dev/null \
@@ -121,6 +128,7 @@ jobs:
             sleep 1
           done
           if [[ "$outcome" == pass ]]; then
+            grep -F "AIRCRAFT_001_RUNTIME_YAW_NEUTRAL_RETURN PASS" "$log"
             grep -F "AIRCRAFT_001_RUNTIME_YAW_AUTHORITY PASS" "$log"
             grep -F "AIRCRAFT_001_RUNTIME_YAW_ACTUATION PASS" "$log"
             grep -F "AIRCRAFT_001_RUNTIME_YAW_CHILD PASS" "$log"
@@ -133,9 +141,9 @@ jobs:
             wait "$pid" 2>/dev/null || true
             exit 0
           fi
-          echo "FAIL AIRCRAFT-001 v0.15 yaw-authority runtime probe"
+          echo "FAIL AIRCRAFT-001 v0.16 yaw-control runtime probe"
+          grep -F "AIRCRAFT_001_RUNTIME_YAW_NEUTRAL_RETURN" "$log" || true
           grep -F "AIRCRAFT_001_RUNTIME_YAW_AUTHORITY" "$log" || true
-          grep -F "AIRCRAFT_001_RUNTIME_YAW_ACTUATION" "$log" || true
           tail -n 500 "$log"
           kill -TERM -- "-$pid" 2>/dev/null || true
           sleep 1
