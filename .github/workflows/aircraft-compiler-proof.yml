@@ -21,26 +21,32 @@ jobs:
           python-version: "3.12"
       - name: Run aircraft compiler tests
         run: python -m unittest discover -s tools/aircraft_compiler/tests -v
-      - name: Compile AIRCRAFT-001 through v0.5 propulsion realization
+      - name: Compile AIRCRAFT-001 through v0.6 surface-state lowering
         run: >-
           python tools/aircraft_compiler/compile.py
           tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json
           --blockspace-config tools/aircraft_compiler/specimens/guild_utility_monoplane_blockspace_v0.2.json
           --target-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_target_v0.4.json
           --propulsion-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_propulsion_v0.5.json
-          --out build/aircraft-compiler-v05
+          --surface-state-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_surface_state_v0.6.json
+          --out build/aircraft-compiler-v06
       - name: Assert static propulsion topology passes
-        run: >-
-          grep -q "propulsionStaticTopologyPassed=True" build/aircraft-compiler-v05/propulsion_validation.txt
-      - name: Assert runtime and flight qualification remain blocked
+        run: grep -q "propulsionStaticTopologyPassed=True" build/aircraft-compiler-v06/propulsion_validation.txt
+      - name: Assert exact surface-state conflict count
         run: |
-          grep -q "propulsionRuntimeQualified=False" build/aircraft-compiler-v05/propulsion_validation.txt
-          grep -q "schematicEmissionReady=False" build/aircraft-compiler-v05/propulsion_validation.txt
-          grep -q "flightQualified=False" build/aircraft-compiler-v05/propulsion_validation.txt
-      - name: Upload analytical, assembly, target, propulsion, and mobile QA
+          grep -q "providerPlacementCount=88" build/aircraft-compiler-v06/surface_state_validation.txt
+          grep -q "stateResolvedCount=85" build/aircraft-compiler-v06/surface_state_validation.txt
+          grep -q "stateConflictCount=3" build/aircraft-compiler-v06/surface_state_validation.txt
+          grep -q "surfaceStateResolutionComplete=False" build/aircraft-compiler-v06/surface_state_validation.txt
+      - name: Assert no premature schematic or flight qualification
+        run: |
+          grep -q "probeSchematicEmissionReady=False" build/aircraft-compiler-v06/surface_state_validation.txt
+          grep -q "runtimeQualificationReady=False" build/aircraft-compiler-v06/surface_state_validation.txt
+          grep -q "flightQualified=False" build/aircraft-compiler-v06/surface_state_validation.txt
+      - name: Upload analytical through surface-state QA
         uses: actions/upload-artifact@v4
         with:
-          name: aircraft-compiler-guild-utility-v05-qa
-          path: build/aircraft-compiler-v05
+          name: aircraft-compiler-guild-utility-v06-qa
+          path: build/aircraft-compiler-v06
           if-no-files-found: error
           retention-days: 14
