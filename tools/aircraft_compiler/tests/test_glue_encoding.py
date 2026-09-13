@@ -48,11 +48,15 @@ class GlueEncodingTests(unittest.TestCase):
             "schemaVersion": "aircraft-glue-encoding-profile-0.11",
             "profileId": "glue-test",
             "encoding": {
-                "policy": "one_super_glue_entity_per_main_body_tree_edge",
+                "policy": "bounded_super_glue_domain_cover_of_main_body_tree",
                 "commandRoot": "create glue",
                 "requiredPermissionLevel": 2,
-                "sourceContract": "Create-6.0.10-AllCommands/GlueCommand",
+                "maxSelectionDimensionBlocks": 24,
+                "sourceContract": "Create-6.0.10-AllCommands/GlueCommand+SuperGlueEntity.span",
             },
+            "glueDomains": [
+                {"name": "main", "from": [0, -1, 0], "to": [1, 1, 0]},
+            ],
             "forbiddenGlueEdges": [[[0, 0, 0], [-1, 0, 0]]],
             "runtimeObligations": [
                 {"id": "create_glue_command_registry_probe"},
@@ -63,44 +67,67 @@ class GlueEncodingTests(unittest.TestCase):
         }
         return fixture, profile
 
-    def test_edge_exact_commands_are_probe_ready_without_runtime_claims(self):
+    def test_bounded_domain_cover_is_probe_ready_without_runtime_claims(self):
         result = encode_glue_application(*self.fixtures())
         self.assertTrue(result["validation"]["passed"])
         self.assertEqual(result["metrics"]["mainBodyPlacementCount"], 4)
-        self.assertEqual(result["metrics"]["glueCommandCount"], 3)
+        self.assertEqual(result["metrics"]["adhesionIntentEdgeCount"], 3)
+        self.assertEqual(result["metrics"]["coveredAdhesionIntentEdgeCount"], 3)
+        self.assertEqual(result["metrics"]["glueDomainCount"], 1)
+        self.assertEqual(result["metrics"]["glueCommandCount"], 1)
         self.assertEqual(result["physicsAssemblerCommand"], "setblock ~ ~-1 ~ simulated:physics_assembler[face=ceiling,facing=north] replace")
-        self.assertEqual(result["glueCommands"], [
-            "create glue ~ ~-1 ~ ~ ~ ~",
-            "create glue ~ ~ ~ ~1 ~ ~",
-            "create glue ~1 ~ ~ ~1 ~1 ~",
-        ])
+        self.assertEqual(result["glueCommands"], ["create glue ~ ~-1 ~ ~1 ~1 ~"])
+        self.assertEqual(result["glueDomains"][0]["coveredAdhesionEdgeCount"], 3)
+        self.assertTrue(result["checks"]["domainCoverEncoding"])
+        self.assertTrue(result["checks"]["allAdhesionIntentEdgesCovered"])
+        self.assertTrue(result["checks"]["noGlueDomainContainsNestedChild"])
         self.assertTrue(result["readiness"]["adhesionApplicationEncodingReady"])
         self.assertTrue(result["readiness"]["physicsAssemblyProbeReady"])
         self.assertFalse(result["readiness"]["runtimeQualificationReady"])
         self.assertFalse(result["readiness"]["flightQualified"])
         self.assertIn("control_surface_child_body_topology_unresolved", result["readiness"]["remainingMechanicalBlockers"])
 
-    def test_non_adjacent_edge_is_rejected(self):
+    def test_non_adjacent_proof_edge_is_rejected(self):
         fixture, profile = self.fixtures()
         fixture = copy.deepcopy(fixture)
         fixture["adhesionIntent"]["edges"][1] = {"a": [0, 0, 0], "b": [2, 0, 0]}
         with self.assertRaises(GlueEncodingError):
             encode_glue_application(fixture, profile)
 
-    def test_nested_child_endpoint_is_rejected(self):
+    def test_nested_child_proof_endpoint_is_rejected(self):
         fixture, profile = self.fixtures()
         fixture = copy.deepcopy(fixture)
         fixture["adhesionIntent"]["edges"][1] = {"a": [0, 0, 0], "b": [-1, 0, 0]}
         with self.assertRaises(GlueEncodingError):
             encode_glue_application(fixture, profile)
 
-    def test_forbidden_dynamic_boundary_is_rejected_even_if_misclassified_main(self):
+    def test_uncovered_proof_edge_is_rejected(self):
         fixture, profile = self.fixtures()
+        profile = copy.deepcopy(profile)
+        profile["glueDomains"] = [{"name": "partial", "from": [0, -1, 0], "to": [0, 0, 0]}]
+        with self.assertRaises(GlueEncodingError):
+            encode_glue_application(fixture, profile)
+
+    def test_domain_exceeding_selection_limit_is_rejected(self):
+        fixture, profile = self.fixtures()
+        profile = copy.deepcopy(profile)
+        profile["glueDomains"] = [{"name": "oversize", "from": [0, -1, 0], "to": [24, 1, 0]}]
+        with self.assertRaises(GlueEncodingError):
+            encode_glue_application(fixture, profile)
+
+    def test_domain_containing_nested_child_is_rejected(self):
+        fixture, profile = self.fixtures()
+        profile = copy.deepcopy(profile)
+        profile["glueDomains"] = [{"name": "bad", "from": [-1, -1, 0], "to": [1, 1, 0]}]
+        with self.assertRaises(GlueEncodingError):
+            encode_glue_application(fixture, profile)
+
+    def test_domain_crossing_forbidden_dynamic_boundary_is_rejected(self):
+        fixture, profile = self.fixtures()
+        profile = copy.deepcopy(profile)
         fixture = copy.deepcopy(fixture)
-        fixture["mainBody"]["coordinates"].append([-1, 0, 0])
         fixture["nestedPropellerChild"]["coordinates"] = [[-1, 1, 0]]
-        fixture["adhesionIntent"]["edgeCount"] = 4
-        fixture["adhesionIntent"]["edges"].append({"a": [0, 0, 0], "b": [-1, 0, 0]})
+        profile["glueDomains"] = [{"name": "bad", "from": [-1, -1, 0], "to": [1, 0, 0]}]
         with self.assertRaises(GlueEncodingError):
             encode_glue_application(fixture, profile)
 
