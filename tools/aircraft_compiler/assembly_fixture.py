@@ -42,9 +42,9 @@ def plan_assembly_fixture(manifest: dict[str, Any], profile: dict[str, Any]) -> 
     if unclassified:
         raise AssemblyFixtureError(f"unclassified placement kinds: {sorted({p['kind'] for p in unclassified})}")
 
-    main_coords = {_coord(p) for p in main}
+    manifest_main_coords = {_coord(p) for p in main}
     child_coords = {_coord(p) for p in child}
-    if main_coords & child_coords:
+    if manifest_main_coords & child_coords:
         raise AssemblyFixtureError("main and child bodies overlap")
 
     seed = tuple(int(v) for v in profile["seedCoordinate"])
@@ -61,8 +61,21 @@ def plan_assembly_fixture(manifest: dict[str, Any], profile: dict[str, Any]) -> 
     if state.get("facing") not in {"north", "south", "east", "west"}:
         raise AssemblyFixtureError("assembler horizontal facing must be legal")
 
-    # A face-adjacent spanning tree is a conservative adhesion intent graph.
-    # It does NOT claim these edges have been encoded as Super Glue entities yet.
+    assembler_coordinate_free = assembler_coord not in manifest_main_coords and assembler_coord not in child_coords
+    if not assembler_coordinate_free:
+        raise AssemblyFixtureError("Physics Assembler fixture coordinate collides with probe manifest")
+
+    # The Physics Assembler is not part of v0.9's aircraft placement manifest, but it MUST become
+    # part of the moving Sable body. PhysicsAssemblerBlockEntity's disassembly path discovers its
+    # containing sublevel; PhysicsAssemblerBlock.afterMove repairs the parent relationship after a
+    # move. Leaving the assembler in the world would therefore create an assemble-only fixture that
+    # cannot exercise the intended disassembly/reassembly lifecycle. Treat it as an explicit v0.10
+    # main-body fixture placement and glue it to the seed.
+    main_coords = set(manifest_main_coords)
+    main_coords.add(assembler_coord)
+
+    # A face-adjacent spanning tree is a conservative adhesion intent graph. It does NOT claim
+    # these edges have been encoded as Super Glue entities yet.
     parent: dict[tuple[int,int,int], tuple[int,int,int] | None] = {}
     if seed in main_coords:
         parent[seed] = None
@@ -85,9 +98,11 @@ def plan_assembly_fixture(manifest: dict[str, Any], profile: dict[str, Any]) -> 
     )
 
     checks = {
-        "seedIsMainBodyPlacement": seed in main_coords,
-        "assemblerCoordinateFree": assembler_coord not in main_coords and assembler_coord not in child_coords,
+        "seedIsMainBodyPlacement": seed in manifest_main_coords,
+        "assemblerCoordinateFree": assembler_coordinate_free,
         "assemblerCeilingStickyFaceSeedsUpward": assembler_coord == (seed[0], seed[1]-1, seed[2]) and state.get("face") == "ceiling",
+        "physicsAssemblerIncludedInMovingMainBody": assembler_coord in main_coords,
+        "physicsAssemblerHasAdhesionEdgeToSeed": (min(assembler_coord, seed), max(assembler_coord, seed)) in set(edges),
         "mainBodyAdjacencyGraphConnected": len(reachable) == len(main_coords) and bool(main_coords),
         "spanningTreeEdgeCountIsNMinusOne": len(edges) == max(0, len(main_coords)-1),
         "nestedChildExcludedFromMainAdhesionGraph": not any(a in child_coords or b in child_coords for a,b in edges),
@@ -112,7 +127,7 @@ def plan_assembly_fixture(manifest: dict[str, Any], profile: dict[str, Any]) -> 
     out: dict[str, Any] = {
         "schemaVersion": "aircraft-assembly-fixture-ir-0.10",
         "assetId": str(manifest["assetId"]).replace("v0_9_probe_manifest", "v0_10_assembly_fixture"),
-        "compilerVersion": "aircraft-assembly-fixture-planner-0.10",
+        "compilerVersion": "aircraft-assembly-fixture-planner-0.10.1",
         "sourceProbeManifestDigestSha256": manifest["digestSha256"],
         "profileId": profile["profileId"],
         "physicsAssemblerPlacement": {
@@ -120,10 +135,13 @@ def plan_assembly_fixture(manifest: dict[str, Any], profile: dict[str, Any]) -> 
             "resourceId": assembler["resourceId"],
             "blockState": state,
             "seedLattice": list(seed),
-            "sourceContract": "PhysicsAssembler face=ceiling has sticky facing UP; assembleOrDisassemble seeds from sticky neighbor",
+            "movingBodyMembership": "required",
+            "sourceContract": "face=ceiling seeds UP; afterMove repairs assembler parent; disassembly path requires assembler to reside in the Sable sublevel",
         },
         "mainBody": {
-            "placementCount": len(main),
+            "placementCount": len(main_coords),
+            "manifestPlacementCount": len(manifest_main_coords),
+            "fixturePlacementCount": 1,
             "coordinates": [list(c) for c in sorted(main_coords)],
             "seedCoordinate": list(seed),
             "reachableCount": len(reachable),
@@ -135,7 +153,7 @@ def plan_assembly_fixture(manifest: dict[str, Any], profile: dict[str, Any]) -> 
             "bearingToHubFaceAdjacency": [[list(a), list(b)] for a,b in bearing_child_face_adjacencies],
         },
         "adhesionIntent": {
-            "policy": "face_adjacent_spanning_tree_over_main_body_only",
+            "policy": "face_adjacent_spanning_tree_over_moving_main_body_including_physics_assembler",
             "edgeCount": len(edges),
             "edges": [{"a": list(a), "b": list(b)} for a,b in edges],
             "encodingStatus": "logical_graph_only_super_glue_entity_encoding_unresolved",
@@ -144,7 +162,9 @@ def plan_assembly_fixture(manifest: dict[str, Any], profile: dict[str, Any]) -> 
         "runtimeObligations": runtime_obligations,
         "metrics": {
             "manifestPlacementCount": len(placements),
-            "mainBodyPlacementCount": len(main),
+            "fixturePlacementCount": len(placements) + 1,
+            "mainBodyManifestPlacementCount": len(manifest_main_coords),
+            "mainBodyPlacementCount": len(main_coords),
             "nestedChildPlacementCount": len(child),
             "adhesionIntentEdgeCount": len(edges),
             "mainBodyUnreachableCount": len(unreachable),
@@ -153,7 +173,7 @@ def plan_assembly_fixture(manifest: dict[str, Any], profile: dict[str, Any]) -> 
         },
         "readiness": {
             "assemblyFixtureTopologyPassed": topology_passed,
-            "physicsAssemblerPlacementResolved": checks["seedIsMainBodyPlacement"] and checks["assemblerCoordinateFree"] and checks["assemblerCeilingStickyFaceSeedsUpward"],
+            "physicsAssemblerPlacementResolved": checks["seedIsMainBodyPlacement"] and checks["assemblerCoordinateFree"] and checks["assemblerCeilingStickyFaceSeedsUpward"] and checks["physicsAssemblerIncludedInMovingMainBody"] and checks["physicsAssemblerHasAdhesionEdgeToSeed"],
             "mainBodyAdhesionGraphResolved": checks["mainBodyAdjacencyGraphConnected"] and checks["spanningTreeEdgeCountIsNMinusOne"],
             "adhesionApplicationEncodingReady": False,
             "physicsAssemblyProbeReady": False,
@@ -163,7 +183,7 @@ def plan_assembly_fixture(manifest: dict[str, Any], profile: dict[str, Any]) -> 
         },
         "validation": {
             "passed": topology_passed,
-            "scope": "physics_assembler_seed_placement_and_main_body_face_adjacency_adhesion_intent_topology",
+            "scope": "physics_assembler_seed_and_moving_body_membership_plus_main_body_face_adjacency_adhesion_intent_topology",
             "doesNotProve": [
                 "Super Glue entity/selection encoding",
                 "actual Physics Assembler capture in the exact runtime",

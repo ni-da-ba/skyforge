@@ -27,16 +27,18 @@ class GlueEncodingTests(unittest.TestCase):
                 "resourceId": "simulated:physics_assembler",
                 "blockState": {"face": "ceiling", "facing": "north"},
                 "seedLattice": [0, 0, 0],
+                "movingBodyMembership": "required",
             },
             "mainBody": {
-                "coordinates": [[0, 0, 0], [1, 0, 0], [1, 1, 0]],
+                "coordinates": [[0, -1, 0], [0, 0, 0], [1, 0, 0], [1, 1, 0]],
             },
             "nestedPropellerChild": {
                 "coordinates": [[-1, 0, 0], [-1, 1, 0]],
             },
             "adhesionIntent": {
-                "edgeCount": 2,
+                "edgeCount": 3,
                 "edges": [
+                    {"a": [0, -1, 0], "b": [0, 0, 0]},
                     {"a": [0, 0, 0], "b": [1, 0, 0]},
                     {"a": [1, 0, 0], "b": [1, 1, 0]},
                 ],
@@ -64,9 +66,11 @@ class GlueEncodingTests(unittest.TestCase):
     def test_edge_exact_commands_are_probe_ready_without_runtime_claims(self):
         result = encode_glue_application(*self.fixtures())
         self.assertTrue(result["validation"]["passed"])
-        self.assertEqual(result["metrics"]["glueCommandCount"], 2)
+        self.assertEqual(result["metrics"]["mainBodyPlacementCount"], 4)
+        self.assertEqual(result["metrics"]["glueCommandCount"], 3)
         self.assertEqual(result["physicsAssemblerCommand"], "setblock ~ ~-1 ~ simulated:physics_assembler[face=ceiling,facing=north] replace")
         self.assertEqual(result["glueCommands"], [
+            "create glue ~ ~-1 ~ ~ ~ ~",
             "create glue ~ ~ ~ ~1 ~ ~",
             "create glue ~1 ~ ~ ~1 ~1 ~",
         ])
@@ -79,14 +83,14 @@ class GlueEncodingTests(unittest.TestCase):
     def test_non_adjacent_edge_is_rejected(self):
         fixture, profile = self.fixtures()
         fixture = copy.deepcopy(fixture)
-        fixture["adhesionIntent"]["edges"][0] = {"a": [0, 0, 0], "b": [2, 0, 0]}
+        fixture["adhesionIntent"]["edges"][1] = {"a": [0, 0, 0], "b": [2, 0, 0]}
         with self.assertRaises(GlueEncodingError):
             encode_glue_application(fixture, profile)
 
     def test_nested_child_endpoint_is_rejected(self):
         fixture, profile = self.fixtures()
         fixture = copy.deepcopy(fixture)
-        fixture["adhesionIntent"]["edges"][0] = {"a": [0, 0, 0], "b": [-1, 0, 0]}
+        fixture["adhesionIntent"]["edges"][1] = {"a": [0, 0, 0], "b": [-1, 0, 0]}
         with self.assertRaises(GlueEncodingError):
             encode_glue_application(fixture, profile)
 
@@ -95,7 +99,7 @@ class GlueEncodingTests(unittest.TestCase):
         fixture = copy.deepcopy(fixture)
         fixture["mainBody"]["coordinates"].append([-1, 0, 0])
         fixture["nestedPropellerChild"]["coordinates"] = [[-1, 1, 0]]
-        fixture["adhesionIntent"]["edgeCount"] = 3
+        fixture["adhesionIntent"]["edgeCount"] = 4
         fixture["adhesionIntent"]["edges"].append({"a": [0, 0, 0], "b": [-1, 0, 0]})
         with self.assertRaises(GlueEncodingError):
             encode_glue_application(fixture, profile)

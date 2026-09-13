@@ -37,13 +37,16 @@ class AssemblyFixtureTests(unittest.TestCase):
         }
         return manifest, profile
 
-    def test_main_body_spanning_tree_excludes_propeller_child(self):
+    def test_main_body_spanning_tree_includes_assembler_and_excludes_propeller_child(self):
         result = plan_assembly_fixture(*self.fixtures())
         self.assertTrue(result["validation"]["passed"])
         self.assertEqual(result["physicsAssemblerPlacement"]["lattice"], [0,1,0])
-        self.assertEqual(result["metrics"]["mainBodyPlacementCount"], 4)
+        self.assertEqual(result["metrics"]["mainBodyManifestPlacementCount"], 4)
+        self.assertEqual(result["metrics"]["mainBodyPlacementCount"], 5)
         self.assertEqual(result["metrics"]["nestedChildPlacementCount"], 2)
-        self.assertEqual(result["metrics"]["adhesionIntentEdgeCount"], 3)
+        self.assertEqual(result["metrics"]["adhesionIntentEdgeCount"], 4)
+        self.assertTrue(result["topologyChecks"]["physicsAssemblerIncludedInMovingMainBody"])
+        self.assertTrue(result["topologyChecks"]["physicsAssemblerHasAdhesionEdgeToSeed"])
         self.assertTrue(result["topologyChecks"]["nestedChildExcludedFromMainAdhesionGraph"])
         self.assertFalse(result["readiness"]["adhesionApplicationEncodingReady"])
 
