@@ -21,6 +21,10 @@ class RuntimeV018PatchTests(unittest.TestCase):
         self.assertIn("cockpitRoutePlacements", patched)
         self.assertIn("v0.18 runtime SuperGlueEntity domain insertion count", patched)
         self.assertIn("SkyforgeAircraftCompilerCockpitYawRouteRuntimeAcceptance.verify(", patched)
+        self.assertIn(
+            "movedRetainedParentMainPositions,\n                expectedCockpitParentMain);",
+            patched,
+        )
         self.assertNotIn("SkyforgeAircraftCompilerYawActuationRuntimeAcceptance.verify(", patched)
         self.assertNotIn("SkyforgeAircraftCompilerSteeringControlRuntimeAcceptance.verify(", patched)
         self.assertLess(
