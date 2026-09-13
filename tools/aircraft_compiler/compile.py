@@ -14,6 +14,8 @@ from propulsion import PropulsionRealizationError, realize_propulsion
 from propulsion_render import emit_propulsion_outputs
 from render import emit_outputs
 from solver import solve
+from surface_state import SurfaceStateError, resolve_surface_states
+from surface_state_render import emit_surface_state_outputs
 from target_realizer import TargetRealizerError, preflight
 from target_render import emit_target_outputs
 
@@ -24,12 +26,10 @@ def main() -> int:
     parser.add_argument("--blockspace-config", type=Path)
     parser.add_argument("--target-profile", type=Path)
     parser.add_argument("--propulsion-profile", type=Path)
+    parser.add_argument("--surface-state-profile", type=Path)
     parser.add_argument("--out", type=Path, default=Path("build/aircraft-compiler"))
     args = parser.parse_args()
-    blockspace = None
-    assembly = None
-    target = None
-    propulsion = None
+    blockspace = assembly = target = propulsion = surface_state = None
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
         resolved = solve(spec)
@@ -38,6 +38,8 @@ def main() -> int:
             raise TargetRealizerError("--target-profile requires --blockspace-config")
         if args.propulsion_profile is not None and args.target_profile is None:
             raise PropulsionRealizationError("--propulsion-profile requires --target-profile")
+        if args.surface_state_profile is not None and args.propulsion_profile is None:
+            raise SurfaceStateError("--surface-state-profile requires --propulsion-profile")
         if args.blockspace_config is not None:
             config = json.loads(args.blockspace_config.read_text(encoding="utf-8"))
             blockspace = transcribe(resolved, config)
@@ -49,16 +51,17 @@ def main() -> int:
                 raise AssemblyPlanError("assembly planning failed validation: " + json.dumps(assembly["validation"], sort_keys=True))
             emit_assembly_outputs(assembly, args.out)
             if args.target_profile is not None:
-                profile = json.loads(args.target_profile.read_text(encoding="utf-8"))
-                target = preflight(assembly, profile)
+                target = preflight(assembly, json.loads(args.target_profile.read_text(encoding="utf-8")))
                 emit_target_outputs(target, args.out)
                 if args.propulsion_profile is not None:
-                    propulsion_profile = json.loads(args.propulsion_profile.read_text(encoding="utf-8"))
-                    propulsion = realize_propulsion(assembly, target, propulsion_profile)
+                    propulsion = realize_propulsion(assembly, target, json.loads(args.propulsion_profile.read_text(encoding="utf-8")))
                     if not propulsion["validation"]["passed"]:
                         raise PropulsionRealizationError("propulsion realization failed validation: " + json.dumps(propulsion["topologyChecks"], sort_keys=True))
                     emit_propulsion_outputs(propulsion, args.out)
-    except (OSError, json.JSONDecodeError, SpecError, BlockspaceError, AssemblyPlanError, TargetRealizerError, PropulsionRealizationError, ValueError) as exc:
+                    if args.surface_state_profile is not None:
+                        surface_state = resolve_surface_states(target, propulsion, json.loads(args.surface_state_profile.read_text(encoding="utf-8")))
+                        emit_surface_state_outputs(surface_state, args.out)
+    except (OSError, json.JSONDecodeError, SpecError, BlockspaceError, AssemblyPlanError, TargetRealizerError, PropulsionRealizationError, SurfaceStateError, ValueError) as exc:
         raise SystemExit(f"aircraft compiler error: {exc}") from exc
 
     summary = {"assetId": resolved["assetId"], "compilerVersion": resolved["compilerVersion"], "digestSha256": resolved["digestSha256"], "validation": resolved["validation"], "output": str(args.out)}
@@ -70,6 +73,8 @@ def main() -> int:
         summary["targetPreflight"] = {"assetId": target["assetId"], "compilerVersion": target["compilerVersion"], "digestSha256": target["digestSha256"], "metrics": target["metrics"], "readiness": target["readiness"], "validation": target["validation"]}
     if propulsion is not None:
         summary["propulsion"] = {"assetId": propulsion["assetId"], "compilerVersion": propulsion["compilerVersion"], "digestSha256": propulsion["digestSha256"], "metrics": propulsion["metrics"], "readiness": propulsion["readiness"], "validation": propulsion["validation"]}
+    if surface_state is not None:
+        summary["surfaceState"] = {"assetId": surface_state["assetId"], "compilerVersion": surface_state["compilerVersion"], "digestSha256": surface_state["digestSha256"], "metrics": surface_state["metrics"], "readiness": surface_state["readiness"], "validation": surface_state["validation"]}
     print(json.dumps(summary, indent=2))
     return 0
 
