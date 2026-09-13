@@ -48,6 +48,14 @@ public record MinecraftChunkMaterialization(
         return blockKeys[linearIndex(localX, localY, localZ)];
     }
 
+    /** Package-private zero-allocation access for resumable writer traversal. */
+ResourceLocation blockKeyAtLinearIndex(int linearIndex) {
+    if (linearIndex < 0 || linearIndex >= blockKeys.length) {
+        throw new IndexOutOfBoundsException("linear materialization index outside projected interval");
+    }
+    return blockKeys[linearIndex];
+}
+
     /** Number of projected non-air block positions. */
     public int solidBlockCount() {
         int count = 0;
