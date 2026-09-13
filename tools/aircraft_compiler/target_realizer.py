@@ -41,11 +41,14 @@ def _select_provider(required: frozenset[str], providers: list[Provider]) -> Pro
     candidates = [provider for provider in providers if required <= provider.capabilities]
     if not candidates:
         return None
+    # Semantic specificity is authoritative. A highly preferred multifunction block
+    # must never replace a more exact provider merely because its priority is lower.
+    # Priority is only a tie-breaker between equally specific capability supersets.
     return min(
         candidates,
         key=lambda p: (
-            p.priority,
             len(p.capabilities - required),
+            p.priority,
             p.provider_id,
         ),
     )
