@@ -21,7 +21,7 @@ jobs:
           python-version: "3.12"
       - name: Run aircraft compiler tests
         run: python -m unittest discover -s tools/aircraft_compiler/tests -v
-      - name: Compile AIRCRAFT-001 through v0.6 surface-state lowering
+      - name: Compile AIRCRAFT-001 through v0.7 tail-junction lowering
         run: >-
           python tools/aircraft_compiler/compile.py
           tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json
@@ -29,24 +29,33 @@ jobs:
           --target-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_target_v0.4.json
           --propulsion-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_propulsion_v0.5.json
           --surface-state-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_surface_state_v0.6.json
-          --out build/aircraft-compiler-v06
-      - name: Assert static propulsion topology passes
-        run: grep -q "propulsionStaticTopologyPassed=True" build/aircraft-compiler-v06/propulsion_validation.txt
-      - name: Assert exact surface-state conflict count
+          --tail-lowering-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_tail_lowering_v0.7.json
+          --out build/aircraft-compiler-v07
+      - name: Assert corrected lifting primitive and v0.6 conflict boundary
         run: |
-          grep -q "providerPlacementCount=88" build/aircraft-compiler-v06/surface_state_validation.txt
-          grep -q "stateResolvedCount=85" build/aircraft-compiler-v06/surface_state_validation.txt
-          grep -q "stateConflictCount=3" build/aircraft-compiler-v06/surface_state_validation.txt
-          grep -q "surfaceStateResolutionComplete=False" build/aircraft-compiler-v06/surface_state_validation.txt
-      - name: Assert no premature schematic or flight qualification
+          grep -q 'create:white_sail' build/aircraft-compiler-v07/target_preflight.json
+          grep -q "providerPlacementCount=88" build/aircraft-compiler-v07/surface_state_validation.txt
+          grep -q "stateResolvedCount=85" build/aircraft-compiler-v07/surface_state_validation.txt
+          grep -q "stateConflictCount=3" build/aircraft-compiler-v07/surface_state_validation.txt
+      - name: Assert v0.7 tail translation closes the state conflict without semantic loss
         run: |
-          grep -q "probeSchematicEmissionReady=False" build/aircraft-compiler-v06/surface_state_validation.txt
-          grep -q "runtimeQualificationReady=False" build/aircraft-compiler-v06/surface_state_validation.txt
-          grep -q "flightQualified=False" build/aircraft-compiler-v06/surface_state_validation.txt
-      - name: Upload analytical through surface-state QA
+          grep -q "v06AerodynamicPlacementCount=88" build/aircraft-compiler-v07/tail_lowering_validation.txt
+          grep -q "v07AerodynamicPlacementCount=91" build/aircraft-compiler-v07/tail_lowering_validation.txt
+          grep -q "verticalTailCellCount=8" build/aircraft-compiler-v07/tail_lowering_validation.txt
+          grep -q "horizontalTailCellCount=19" build/aircraft-compiler-v07/tail_lowering_validation.txt
+          grep -q "resolvedFormerConflictCount=3" build/aircraft-compiler-v07/tail_lowering_validation.txt
+          grep -q "verticalLongitudinalFirstMomentPreserved=True" build/aircraft-compiler-v07/tail_lowering_validation.txt
+          grep -q "verticalRelativeShapePreserved=True" build/aircraft-compiler-v07/tail_lowering_validation.txt
+          grep -q "verticalRootFaceAttachedToHorizontalTail=True" build/aircraft-compiler-v07/tail_lowering_validation.txt
+          grep -q "surfaceStateResolutionComplete=True" build/aircraft-compiler-v07/tail_lowering_validation.txt
+      - name: Assert pilot/runtime gates still block probe qualification
+        run: |
+          grep -q "probeSchematicEmissionReady=False" build/aircraft-compiler-v07/tail_lowering_validation.txt
+          grep -q "staticBlockers=unresolved_required_station_providers" build/aircraft-compiler-v07/tail_lowering_validation.txt
+      - name: Upload analytical through tail-lowering QA
         uses: actions/upload-artifact@v4
         with:
-          name: aircraft-compiler-guild-utility-v06-qa
-          path: build/aircraft-compiler-v06
+          name: aircraft-compiler-guild-utility-v07-qa
+          path: build/aircraft-compiler-v07
           if-no-files-found: error
           retention-days: 14
