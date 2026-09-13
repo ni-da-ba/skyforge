@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,69 @@ final class SkyforgePhysicalVolumeAdmissionStageTest {
                         new ChunkPos(3, -7).toLong(),
                         new ChunkPos(3, -2).toLong()),
                 List.copyOf(SkyforgePhysicalVolumeAdmissionStage.orderedChunkKeys(keys)));
+    }
+
+    @Test
+    void maintainedDeferredChunkIndexActivatesAtAdmissionAndRetiresAtCompletion() throws Exception {
+        var sourceCatalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
+        var volume = sourceCatalog.volumes().getFirst();
+        var catalog = new io.github.nidaba.skyforge.world.SkyIslandWorldCatalog(
+                sourceCatalog.rootSeed(),
+                List.of(volume));
+        var bounds = volume.bounds();
+        int minimumChunkX = Math.floorDiv((int) Math.floor(bounds.minimumX()), 16);
+        int maximumChunkX = Math.floorDiv((int) Math.floor(bounds.maximumX()), 16);
+        int minimumChunkZ = Math.floorDiv((int) Math.floor(bounds.minimumZ()), 16);
+        int maximumChunkZ = Math.floorDiv((int) Math.floor(bounds.maximumZ()), 16);
+        assertTrue(
+                minimumChunkX != maximumChunkX || minimumChunkZ != maximumChunkZ,
+                "fixture volume must span multiple chunks");
+
+        ChunkPos deferredPos = new ChunkPos(minimumChunkX, minimumChunkZ);
+        ChunkPos admittingPos = minimumChunkX != maximumChunkX
+                ? new ChunkPos(maximumChunkX, minimumChunkZ)
+                : new ChunkPos(minimumChunkX, maximumChunkZ);
+        var deferredChunk = MinecraftTestChunkFactory.protoChunk(deferredPos);
+        var admittingChunk = MinecraftTestChunkFactory.protoChunk(admittingPos);
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+
+        try (AutoCloseable terrain = SkyforgeNeoForge1211SurfaceStage.install(
+                        adapter,
+                        new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
+                AutoCloseable binding = SkyforgePhysicalVolumeAdmissionStage.install(
+                        catalog,
+                        Map.of(volume.id(), Set.of(deferredPos.toLong(), admittingPos.toLong())))) {
+            assertNotNull(terrain);
+            assertNotNull(binding);
+
+            SkyforgePhysicalVolumeAdmissionStage.observeBeforeRealization(
+                    deferredChunk,
+                    Optional.empty());
+            assertEquals(
+                    SkyforgePhysicalVolumeAdmissionState.PLANNED,
+                    SkyforgePhysicalVolumeAdmissionStage.snapshot(volume.id()).state());
+            assertTrue(SkyforgePhysicalVolumeAdmissionStage.eligibleCatchupChunkKeys().isEmpty());
+            assertTrue(SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volume.id(), deferredPos));
+
+            SkyforgePhysicalVolumeAdmissionStage.observeBeforeRealization(
+                    admittingChunk,
+                    Optional.empty());
+            assertEquals(
+                    SkyforgePhysicalVolumeAdmissionState.ADMITTED,
+                    SkyforgePhysicalVolumeAdmissionStage.snapshot(volume.id()).state());
+            assertEquals(
+                    List.of(deferredPos.toLong()),
+                    List.copyOf(SkyforgePhysicalVolumeAdmissionStage.eligibleCatchupChunkKeys()));
+            assertFalse(SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volume.id(), admittingPos));
+
+            var pending = SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(deferredPos).getFirst();
+            SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+            assertFalse(SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volume.id(), deferredPos));
+            assertTrue(SkyforgePhysicalVolumeAdmissionStage.eligibleCatchupChunkKeys().isEmpty());
+        }
     }
 
     @Test
