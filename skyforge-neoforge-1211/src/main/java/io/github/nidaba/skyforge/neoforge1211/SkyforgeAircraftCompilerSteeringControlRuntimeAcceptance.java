@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
@@ -22,6 +23,7 @@ final class SkyforgeAircraftCompilerSteeringControlRuntimeAcceptance {
     private static final ResourceLocation STEERING_WHEEL_ID = id("simulated:steering_wheel");
     private static final ResourceLocation COGWHEEL_ID = id("create:cogwheel");
     private static final double RPM_TOLERANCE = 0.01;
+    private static final int RELEASE_HOLD_TICKS = 4;
 
     private SkyforgeAircraftCompilerSteeringControlRuntimeAcceptance() {}
 
@@ -63,7 +65,10 @@ final class SkyforgeAircraftCompilerSteeringControlRuntimeAcceptance {
         Object extraCog = publicMethod(bearing, "getExtraKinetics").invoke(bearing);
         assertTrue("Swivel extra cog available", extraCog != null);
 
-        publicMethod(wheel, "updateTargetAngle", float.class).invoke(wheel, (float) wheelCommandDegrees);
+        // Mirror SteeringWheelPacket.handle(): persist the requested angle on targetAngleToUpdate,
+        // then mark the wheel held. The wheel's own server tick is responsible for starting the
+        // bounded 16-RPM sequence; do not call updateTargetAngle() directly.
+        commandWheel(wheel, (float) wheelCommandDegrees);
         DriveObservation outbound = runFiniteWheelCommand(
                 wheel, driveCog, bearing, extraCog, maximumCommandTicks, expectedWheelRpmMagnitude);
         assertTrue("Steering Wheel generated +16-RPM-class outbound source", outbound.maxWheelRpm > 0.0);
@@ -78,6 +83,30 @@ final class SkyforgeAircraftCompilerSteeringControlRuntimeAcceptance {
         double wheelAngleDeflected = number(publicMethod(wheel, "getAngle").invoke(wheel));
         assertTrue("Steering Wheel itself reaches positive commanded angle", wheelAngleDeflected > 0.0);
 
+        // Mirror a real release packet: release changes only held state and preserves the final
+        // targetAngleToUpdate. Verify that release holds the commanded angle instead of silently
+        // self-centering, which is an important production-control semantic.
+        publicMethod(wheel, "stopHolding").invoke(wheel);
+        double releasedWheelAngle = number(publicMethod(wheel, "getAngle").invoke(wheel));
+        double releasedSwivelTarget = normalizeDegrees(number(publicMethod(bearing, "getTargetAngleDegrees").invoke(bearing)));
+        for (int i = 0; i < RELEASE_HOLD_TICKS; i++) {
+            tick(wheel);
+            tick(driveCog);
+            tick(bearing);
+            assertNear("released Steering Wheel remains stopped", 0.0,
+                    number(publicMethod(wheel, "getGeneratedSpeed").invoke(wheel)), RPM_TOLERANCE);
+            assertNear("released Swivel extra cog remains stopped", 0.0,
+                    number(publicMethod(extraCog, "getSpeed").invoke(extraCog)), RPM_TOLERANCE);
+        }
+        assertNear("release preserves Steering Wheel angle", releasedWheelAngle,
+                number(publicMethod(wheel, "getAngle").invoke(wheel)), targetNeutralToleranceDegrees);
+        assertNear("release preserves Swivel target", 0.0,
+                signedDeltaDegrees(releasedSwivelTarget,
+                        normalizeDegrees(number(publicMethod(bearing, "getTargetAngleDegrees").invoke(bearing)))),
+                targetNeutralToleranceDegrees);
+        assertNear("release preserves packet-style requested target", wheelCommandDegrees,
+                fieldFloat(wheel, "targetAngleToUpdate"), targetNeutralToleranceDegrees);
+
         Object container = requireServerSubLevelContainer(level);
         Class<?> serverContainerClass = Class.forName("dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer");
         Object physicsSystem = serverContainerClass.getDeclaredMethod("physicsSystem").invoke(container);
@@ -86,18 +115,23 @@ final class SkyforgeAircraftCompilerSteeringControlRuntimeAcceptance {
         assertTrue("physical rudder follows Steering Wheel-generated target",
                 physicalDeflected <= -minimumPhysicalRudderDeflectionDegrees);
 
-        publicMethod(wheel, "updateTargetAngle", float.class).invoke(wheel, 0.0f);
+        // Neutral is another real steering command, not passive centering: persist target 0,
+        // mark held, let the wheel generate its finite reverse sequence, then release at neutral.
+        commandWheel(wheel, 0.0f);
         DriveObservation inbound = runFiniteWheelCommand(
                 wheel, driveCog, bearing, extraCog, maximumCommandTicks, expectedWheelRpmMagnitude);
         assertTrue("Steering Wheel return source reverses sign", inbound.minWheelRpm < 0.0);
         assertTrue("drive cog return source reverses sign", inbound.minDriveCogRpm < 0.0);
         assertTrue("Swivel extra cog return sign reverses positive", inbound.maxExtraCogRpm > 0.0);
+        publicMethod(wheel, "stopHolding").invoke(wheel);
 
         double targetReturned = normalizeDegrees(number(publicMethod(bearing, "getTargetAngleDegrees").invoke(bearing)));
         assertTrue("Steering Wheel command returns Swivel target near neutral",
                 Math.abs(targetReturned) <= targetNeutralToleranceDegrees);
         assertNear("Steering Wheel internal angle returns neutral", 0.0,
                 number(publicMethod(wheel, "getAngle").invoke(wheel)), targetNeutralToleranceDegrees);
+        assertNear("neutral command persists packet-style requested target", 0.0,
+                fieldFloat(wheel, "targetAngleToUpdate"), targetNeutralToleranceDegrees);
 
         runPhysics(physicsSystem, container, physicalSettlePhysicsTicks);
         double physicalReturned = relativeYawDegrees(parentSubLevel, childSubLevel);
@@ -118,6 +152,8 @@ final class SkyforgeAircraftCompilerSteeringControlRuntimeAcceptance {
                         + " outboundExtraCogRpm=" + outbound.minExtraCogRpm
                         + " targetDeflectedDegrees=" + targetDeflected
                         + " physicalDeflectedDegrees=" + physicalDeflected
+                        + " releaseHoldVerified=true"
+                        + " passiveSelfCenteringVerified=false"
                         + " inboundTicks=" + inbound.ticks
                         + " inboundWheelRpm=" + inbound.minWheelRpm
                         + " inboundDriveCogRpm=" + inbound.minDriveCogRpm
@@ -125,9 +161,20 @@ final class SkyforgeAircraftCompilerSteeringControlRuntimeAcceptance {
                         + " targetReturnedDegrees=" + targetReturned
                         + " physicalReturnedDegrees=" + physicalReturned
                         + " realSteeringWheelSourceVerified=true"
+                        + " serverPacketStateContractEmulated=true"
                         + " cockpitRoutingVerified=false"
                         + " pilotInteractionBindingVerified=false"
                         + " stableFlightVerified=false");
+    }
+
+    private static void commandWheel(Object wheel, float targetDegrees) throws ReflectiveOperationException {
+        Field targetField = wheel.getClass().getField("targetAngleToUpdate");
+        targetField.setFloat(wheel, targetDegrees);
+        publicMethod(wheel, "startHolding").invoke(wheel);
+    }
+
+    private static float fieldFloat(Object target, String name) throws ReflectiveOperationException {
+        return target.getClass().getField(name).getFloat(target);
     }
 
     private static DriveObservation runFiniteWheelCommand(
@@ -226,6 +273,7 @@ final class SkyforgeAircraftCompilerSteeringControlRuntimeAcceptance {
     }
 
     private static void tick(Object target) throws ReflectiveOperationException { publicMethod(target, "tick").invoke(target); }
+    private static double signedDeltaDegrees(double from, double to) { double d=(to-from)%360.0; if(d>180)d-=360; else if(d<=-180)d+=360; return d; }
     private static double normalizeDegrees(double v) { double d=v%360.0; if(d>180)d-=360; else if(d<=-180)d+=360; return d; }
     private static ResourceLocation id(String s) { ResourceLocation r=ResourceLocation.tryParse(s); if(r==null) throw new IllegalArgumentException(s); return r; }
     private static Quaterniondc quaternion(Object v) { if(!(v instanceof Quaterniondc)) fail("expected quaternion, got "+v); return (Quaterniondc)v; }
