@@ -1,0 +1,156 @@
+{
+  "schemaVersion": "aircraft-yaw-control-profile-0.13",
+  "profileId": "skyforge.yaw_control.simulated.guild_utility.v0_13",
+  "target": {
+    "minecraft": "1.21.1",
+    "loader": "NeoForge 21.1.249",
+    "create": "6.0.10",
+    "sable": "2.0.5",
+    "simulated": "bundled_with_create_aeronautics_1.3.2",
+    "aeronautics": "1.3.2"
+  },
+  "supersededGlueDomainName": "vertical_tail",
+  "bearingParentGlueDomainName": "horizontal_tail",
+  "fixedFinCoordinates": [
+    [15, 4, 0],
+    [15, 5, 0],
+    [15, 6, 0],
+    [15, 7, 0]
+  ],
+  "placements": [
+    {
+      "role": "yaw_swivel_bearing",
+      "mode": "replace_main",
+      "lattice": [17, 3, 0],
+      "kind": "yaw_control_hinge",
+      "resourceId": "simulated:swivel_bearing",
+      "blockState": {"assembled": "false", "facing": "up", "powered": "false"},
+      "replaces": {
+        "kind": "airframe_aerodynamic_surface",
+        "resourceId": "create:white_sail",
+        "blockState": {"facing": "up"}
+      },
+      "sourceContract": "SwivelBearingBlockEntity.assemble seeds pos.relative(FACING); UP therefore gives a vertical yaw hinge and seeds [17,4,0]"
+    },
+    {
+      "role": "yaw_hinge_spar_0",
+      "mode": "replace_main",
+      "lattice": [16, 4, 0],
+      "kind": "airframe_structure",
+      "resourceId": "minecraft:spruce_planks",
+      "blockState": {},
+      "replaces": {
+        "kind": "airframe_aerodynamic_surface",
+        "resourceId": "create:white_sail",
+        "blockState": {"facing": "south"}
+      },
+      "sourceContract": "structural hinge spar deliberately breaks Create SailBlock in-plane attachment propagation across the fixed-fin/rudder boundary"
+    },
+    {
+      "role": "yaw_hinge_spar_1",
+      "mode": "replace_main",
+      "lattice": [16, 5, 0],
+      "kind": "airframe_structure",
+      "resourceId": "minecraft:spruce_planks",
+      "blockState": {},
+      "replaces": {
+        "kind": "airframe_aerodynamic_surface",
+        "resourceId": "create:white_sail",
+        "blockState": {"facing": "south"}
+      },
+      "sourceContract": "structural hinge spar deliberately breaks Create SailBlock in-plane attachment propagation across the fixed-fin/rudder boundary"
+    },
+    {
+      "role": "yaw_hinge_spar_2",
+      "mode": "replace_main",
+      "lattice": [16, 6, 0],
+      "kind": "airframe_structure",
+      "resourceId": "minecraft:spruce_planks",
+      "blockState": {},
+      "replaces": {
+        "kind": "airframe_aerodynamic_surface",
+        "resourceId": "create:white_sail",
+        "blockState": {"facing": "south"}
+      },
+      "sourceContract": "structural hinge spar deliberately breaks Create SailBlock in-plane attachment propagation across the fixed-fin/rudder boundary"
+    },
+    {
+      "role": "rudder_seed",
+      "mode": "reclassify_main_to_control_child",
+      "lattice": [17, 4, 0],
+      "kind": "yaw_control_surface",
+      "resourceId": "simulated:white_symmetric_sail",
+      "blockState": {"axis": "z"},
+      "replaces": {
+        "kind": "airframe_aerodynamic_surface",
+        "resourceId": "create:white_sail",
+        "blockState": {"facing": "south"}
+      },
+      "sourceContract": "UP-facing Swivel Bearing seeds this exact cell; symmetric sail supplies drag/control surface without fixed Sable lift"
+    },
+    {
+      "role": "rudder_1",
+      "mode": "add_control_child",
+      "lattice": [17, 5, 0],
+      "kind": "yaw_control_surface",
+      "resourceId": "simulated:white_symmetric_sail",
+      "blockState": {"axis": "z"}
+    },
+    {
+      "role": "rudder_2",
+      "mode": "add_control_child",
+      "lattice": [17, 6, 0],
+      "kind": "yaw_control_surface",
+      "resourceId": "simulated:white_symmetric_sail",
+      "blockState": {"axis": "z"}
+    },
+    {
+      "role": "rudder_3",
+      "mode": "add_control_child",
+      "lattice": [17, 7, 0],
+      "kind": "yaw_control_surface",
+      "resourceId": "simulated:white_symmetric_sail",
+      "blockState": {"axis": "z"}
+    }
+  ],
+  "replacementParentGlueDomain": {
+    "name": "vertical_tail_fixed_hinge",
+    "from": [15, 3, 0],
+    "to": [16, 7, 0]
+  },
+  "controlChildGlueDomain": {
+    "name": "rudder_child",
+    "from": [17, 4, 0],
+    "to": [17, 7, 0]
+  },
+  "sourceEvidence": [
+    "Simulated registers exact resource simulated:swivel_bearing",
+    "SwivelBearingBlock rotation axis is its FACING axis and assemble() seeds pos.relative(FACING)",
+    "SimAssemblyContraption special-cases a Swivel Bearing during primary assembly and adds its facing-side attachment to the traversal frontier",
+    "Create BlockMovementChecks treats regular SailBlock as attached across directions whose axis differs from the sail FACING axis",
+    "therefore a structural x=16 hinge spar is required to prevent the fixed regular-sail fin from joining the later rudder child assembly",
+    "Simulated symmetric sails have Sable liftScalar=0, parallelDragScalar=1.75, and normal along their positive AXIS"
+  ],
+  "runtimeObligations": [
+    {
+      "id": "yaw_primary_sable_recapture_probe",
+      "method": "apply the v0.13 replacements/additions and six-domain glue plan, then verify 117 parent-main + 9 propeller payload + 4 rudder payload cells transfer into one Sable sublevel"
+    },
+    {
+      "id": "rudder_swivel_child_capture_probe",
+      "method": "on the moved UP-facing Swivel Bearing, assemble and verify exactly the four declared rudder cells form the attached child sublevel without capturing the x=16 hinge spar or fixed x=15 fin"
+    },
+    {
+      "id": "rudder_neutral_constraint_probe",
+      "method": "verify the newly assembled Swivel Bearing constraint begins at a finite neutral/zero target-angle state without unintended deflection"
+    },
+    {
+      "id": "rudder_actuation_probe",
+      "method": "supply a source-backed kinetic command to the Swivel Bearing extra cog and measure signed target-angle response plus return/locking behavior"
+    },
+    {
+      "id": "rudder_yaw_force_probe",
+      "method": "under controlled airflow, measure the child symmetric-sail side-force/yaw response and do not tune analytical constants to fit the observation"
+    }
+  ]
+}
