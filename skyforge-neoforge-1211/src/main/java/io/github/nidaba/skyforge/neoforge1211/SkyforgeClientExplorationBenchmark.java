@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -18,9 +19,10 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * Development-only integrated-server half of the PERF-0502 player-like exploration harness.
  *
  * <p>The current executable product slice does not yet contain every Bootstrap Province gameplay
- * phase in one world. This first tranche therefore drives the real quick-play player through a
- * deterministic chunk-crossing route and labels that movement as load pressure, never as real
- * glider/aircraft physics. The client half separately records real rendered-frame intervals.
+ * phase in one world. This first tranche therefore uses the actual quick-play client's movement
+ * input to cross chunk boundaries in spectator mode and labels that traversal as load pressure,
+ * never as real glider/aircraft physics. The client half separately records rendered-frame
+ * intervals while the integrated server records route-phase tick distributions.
  */
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgeClientExplorationBenchmark {
@@ -29,25 +31,24 @@ final class SkyforgeClientExplorationBenchmark {
 
     private static final int SPAWN_IDLE_TICKS = 40;
     private static final int WALK_TICKS = 120;
-    private static final int GLIDE_PROXY_TICKS = 120;
-    private static final int FLIGHT_PROXY_TICKS = 200;
+    private static final int GLIDE_PROXY_TICKS = 180;
+    private static final int FLIGHT_PROXY_TICKS = 400;
     private static final int SETTLE_TICKS = 40;
-    private static final double WALK_BLOCKS_PER_TICK = 0.22d;
-    private static final double GLIDE_PROXY_BLOCKS_PER_TICK = 0.85d;
-    private static final double FLIGHT_PROXY_BLOCKS_PER_TICK = 2.10d;
-    private static final double ROUTE_Y = 320.0d;
+    private static final double START_X = 0.0d;
+    private static final double START_Y = 320.0d;
+    private static final double START_Z = 112.0d;
 
     private static final Set<Long> VISITED_CHUNKS = new LinkedHashSet<>();
+    private static final Map<String, Long> PHASE_NANOS = new LinkedHashMap<>();
+    private static final Map<String, Long> PHASE_TICKS = new LinkedHashMap<>();
+
     private static long routeTick;
     private static long phaseStartTick;
     private static long phaseStartNanos;
-    private static double routeX;
-    private static double routeZ = 112.0d;
-    private static Phase phase = Phase.WAITING_FOR_PLAYER;
+    private static double maxHorizontalDistance;
+    private static volatile Phase phase = Phase.WAITING_FOR_PLAYER;
     private static boolean playerReady;
     private static volatile boolean serverProofComplete;
-    private static final Map<String, Long> PHASE_NANOS = new LinkedHashMap<>();
-    private static final Map<String, Long> PHASE_TICKS = new LinkedHashMap<>();
 
     private SkyforgeClientExplorationBenchmark() {}
 
@@ -60,18 +61,30 @@ final class SkyforgeClientExplorationBenchmark {
         return serverProofComplete;
     }
 
+    static String currentPhaseKey() {
+        return phase.key;
+    }
+
+    static boolean traversalInputActive() {
+        return phase == Phase.WALK_TRAVERSAL
+                || phase == Phase.GLIDE_LOAD_PROXY
+                || phase == Phase.FRESH_TERRAIN_FLIGHT_LOAD_PROXY;
+    }
+
     @SubscribeEvent
     static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (!enabled() || !(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
-        player.teleportTo(routeX, ROUTE_Y, routeZ);
-        player.setYRot(180.0f);
-        player.setXRot(12.0f);
+        player.setGameMode(GameType.SPECTATOR);
+        player.teleportTo(START_X, START_Y, START_Z);
+        player.setYRot(-90.0f);
+        player.setXRot(0.0f);
         VISITED_CHUNKS.clear();
         PHASE_NANOS.clear();
         PHASE_TICKS.clear();
         routeTick = 0L;
+        maxHorizontalDistance = 0.0d;
         recordVisited(player);
         playerReady = true;
         transition(Phase.SPAWN_IDLE, event.getEntity().level().getGameTime());
@@ -94,6 +107,10 @@ final class SkyforgeClientExplorationBenchmark {
         if (tickNanos > 0L) {
             SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
                     "clientExploration.serverTickNanos", tickNanos);
+            if (phase != Phase.WAITING_FOR_PLAYER && phase != Phase.COMPLETE) {
+                SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                        "clientExploration.serverTickNanos." + phase.key, tickNanos);
+            }
         }
 
         ServerLevel level = null;
@@ -107,6 +124,9 @@ final class SkyforgeClientExplorationBenchmark {
             return;
         }
         ServerPlayer player = level.players().getFirst();
+        recordVisited(player);
+        updateDistance(player);
+
         long gameTime = level.getGameTime();
         long ticksInPhase = gameTime - phaseStartTick;
 
@@ -117,19 +137,16 @@ final class SkyforgeClientExplorationBenchmark {
                 }
             }
             case WALK_TRAVERSAL -> {
-                advance(player, WALK_BLOCKS_PER_TICK, 0.0d);
                 if (ticksInPhase >= WALK_TICKS) {
                     transition(Phase.GLIDE_LOAD_PROXY, gameTime);
                 }
             }
             case GLIDE_LOAD_PROXY -> {
-                advance(player, GLIDE_PROXY_BLOCKS_PER_TICK, 0.18d);
                 if (ticksInPhase >= GLIDE_PROXY_TICKS) {
                     transition(Phase.FRESH_TERRAIN_FLIGHT_LOAD_PROXY, gameTime);
                 }
             }
             case FRESH_TERRAIN_FLIGHT_LOAD_PROXY -> {
-                advance(player, FLIGHT_PROXY_BLOCKS_PER_TICK, 0.42d);
                 if (ticksInPhase >= FLIGHT_PROXY_TICKS) {
                     transition(Phase.SETTLE, gameTime);
                 }
@@ -146,15 +163,15 @@ final class SkyforgeClientExplorationBenchmark {
         routeTick++;
     }
 
-    private static void advance(ServerPlayer player, double blocksPerTick, double zFraction) {
-        routeX += blocksPerTick;
-        routeZ += blocksPerTick * zFraction;
-        player.teleportTo(routeX, ROUTE_Y, routeZ);
-        recordVisited(player);
+    private static void recordVisited(ServerPlayer player) {
+        ChunkPos chunk = player.chunkPosition();
+        VISITED_CHUNKS.add(chunk.toLong());
     }
 
-    private static void recordVisited(ServerPlayer player) {
-        VISITED_CHUNKS.add(player.chunkPosition().toLong());
+    private static void updateDistance(ServerPlayer player) {
+        double dx = player.getX() - START_X;
+        double dz = player.getZ() - START_Z;
+        maxHorizontalDistance = Math.max(maxHorizontalDistance, Math.hypot(dx, dz));
     }
 
     private static void transition(Phase next, long gameTime) {
@@ -174,6 +191,8 @@ final class SkyforgeClientExplorationBenchmark {
         LinkedHashMap<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("clientExplorationServerPass", true);
         evidence.put("benchmarkSchema", "perf-0502-v1");
+        evidence.put("benchmarkCase", "perf-0502-client-exploration");
+        evidence.put("movementDriver", "CLIENT_KEY_INPUT");
         evidence.put("spawnIdleMode", "EXECUTED_REAL");
         evidence.put("walkTraversalMode", "EXECUTED_LOAD_PROXY");
         evidence.put("glideTraversalMode", "EXECUTED_LOAD_PROXY");
@@ -182,6 +201,10 @@ final class SkyforgeClientExplorationBenchmark {
         evidence.put("saveReloadMode", "UNAVAILABLE_CURRENT_SLICE");
         evidence.put("routeTicks", routeTick);
         evidence.put("visitedChunks", VISITED_CHUNKS.size());
+        evidence.put("maxHorizontalDistanceBlocks", maxHorizontalDistance);
+        evidence.put("finalX", player.getX());
+        evidence.put("finalY", player.getY());
+        evidence.put("finalZ", player.getZ());
         evidence.put("finalChunkX", player.chunkPosition().x);
         evidence.put("finalChunkZ", player.chunkPosition().z);
         evidence.put("serverEntityCount", countEntities(level));

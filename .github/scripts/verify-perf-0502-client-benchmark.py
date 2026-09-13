@@ -57,6 +57,8 @@ def main() -> None:
     require(values, "clientExplorationServerPass", "true")
     require(values, "clientExplorationClientPass", "true")
     require(values, "benchmarkSchema", "perf-0502-v1")
+    require(values, "benchmarkCase", "perf-0502-client-exploration")
+    require(values, "movementDriver", "CLIENT_KEY_INPUT")
     require(values, "spawnIdleMode", "EXECUTED_REAL")
     require(values, "walkTraversalMode", "EXECUTED_LOAD_PROXY")
     require(values, "glideTraversalMode", "EXECUTED_LOAD_PROXY")
@@ -64,7 +66,8 @@ def main() -> None:
     require(values, "activeMachineryCargoMode", "UNAVAILABLE_CURRENT_SLICE")
     require(values, "saveReloadMode", "UNAVAILABLE_CURRENT_SLICE")
 
-    visited = positive_int(values, "visitedChunks", minimum=8)
+    visited = positive_int(values, "visitedChunks", minimum=4)
+    distance = positive_float(values, "maxHorizontalDistanceBlocks")
     frames = positive_int(values, "clientFrameCount", minimum=20)
     frame_samples = positive_int(values, "perf.clientExploration.clientFrameNanos.samples", minimum=20)
     tick_samples = positive_int(values, "perf.clientExploration.serverTickNanos.samples", minimum=100)
@@ -72,11 +75,24 @@ def main() -> None:
     frame_p99 = positive_int(values, "perf.clientExploration.clientFrameNanos.p99")
     tick_p99 = positive_int(values, "perf.clientExploration.serverTickNanos.p99")
 
+    phase_tick_p99: dict[str, int] = {}
+    for phase in ("spawn_idle", "walk_traversal", "glide_traversal", "fresh_terrain_flight", "settle"):
+        positive_int(values, f"perf.clientExploration.serverTickNanos.{phase}.samples")
+        phase_tick_p99[phase] = positive_int(
+            values, f"perf.clientExploration.serverTickNanos.{phase}.p99"
+        )
+
     print("PERF-0502 client exploration benchmark PASS")
-    print(f"  visitedChunks={visited}")
+    print(f"  movementDriver=CLIENT_KEY_INPUT visitedChunks={visited} maxDistanceBlocks={distance:.2f}")
     print(f"  clientFrames={frames} samples={frame_samples} averageFps={fps:.3f}")
     print(f"  frameP99Ms={frame_p99 / 1_000_000.0:.3f}")
     print(f"  serverTickSamples={tick_samples} tickP99Ms={tick_p99 / 1_000_000.0:.3f}")
+    print(
+        "  phaseTickP99Ms="
+        + ", ".join(
+            f"{phase}:{value / 1_000_000.0:.3f}" for phase, value in phase_tick_p99.items()
+        )
+    )
     print("  GitHub/Xvfb FPS is characterization only; no release threshold is applied.")
 
 

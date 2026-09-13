@@ -5,8 +5,8 @@ import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderFrameEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RenderFrameEvent;
 
 /** Actual-client half of the PERF-0502 exploration benchmark. */
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID, value = Dist.CLIENT)
@@ -36,6 +36,11 @@ final class SkyforgeClientExplorationBenchmarkClient {
             long interval = Math.max(0L, now - previousFrameNanos);
             SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
                     "clientExploration.clientFrameNanos", interval);
+            String phase = SkyforgeClientExplorationBenchmark.currentPhaseKey();
+            if (!"waiting".equals(phase) && !"complete".equals(phase)) {
+                SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                        "clientExploration.clientFrameNanos." + phase, interval);
+            }
         }
         previousFrameNanos = now;
         frameCount++;
@@ -53,14 +58,19 @@ final class SkyforgeClientExplorationBenchmarkClient {
             firstClientTickNanos = now;
         }
         if (now - firstClientTickNanos > CLIENT_TIMEOUT_NANOS) {
+            releaseMovementKeys(Minecraft.getInstance());
             SkyforgeAutomatedAcceptanceHarness.failClientCase(
                     "PERF-0502 actual-client exploration benchmark did not complete within 120 seconds");
         }
 
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null
-                || minecraft.player == null
-                || !SkyforgeClientExplorationBenchmark.serverProofComplete()) {
+        if (minecraft.level == null || minecraft.player == null) {
+            return;
+        }
+
+        drivePlayerInput(minecraft);
+
+        if (!SkyforgeClientExplorationBenchmark.serverProofComplete()) {
             return;
         }
         if (++completionTicks < COMPLETION_SETTLE_TICKS) {
@@ -68,6 +78,7 @@ final class SkyforgeClientExplorationBenchmarkClient {
         }
 
         proofComplete = true;
+        releaseMovementKeys(minecraft);
         long measuredWallNanos = firstFrameNanos == Long.MIN_VALUE
                 ? 0L
                 : Math.max(0L, now - firstFrameNanos);
@@ -90,5 +101,18 @@ final class SkyforgeClientExplorationBenchmarkClient {
 
         SkyforgeAutomatedAcceptanceHarness.completeClientCase(evidence);
         minecraft.stop();
+    }
+
+    private static void drivePlayerInput(Minecraft minecraft) {
+        boolean active = SkyforgeClientExplorationBenchmark.traversalInputActive();
+        minecraft.options.keyUp.setDown(active);
+        if (active && minecraft.player != null) {
+            minecraft.player.setYRot(-90.0f);
+            minecraft.player.setXRot(0.0f);
+        }
+    }
+
+    private static void releaseMovementKeys(Minecraft minecraft) {
+        minecraft.options.keyUp.setDown(false);
     }
 }
