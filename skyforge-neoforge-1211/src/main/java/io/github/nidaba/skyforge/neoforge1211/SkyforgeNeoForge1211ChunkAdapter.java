@@ -35,6 +35,7 @@ import net.minecraft.world.level.ChunkPos;
  */
 public final class SkyforgeNeoForge1211ChunkAdapter {
     private static final int CHUNK_WIDTH = 16;
+    private static final int CHUNK_AREA = CHUNK_WIDTH * CHUNK_WIDTH;
 
     private final SkyIslandWorldCatalog catalog;
     private final SkyIslandTerrainProfile terrainProfile;
@@ -109,66 +110,21 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             throw new IllegalArgumentException("height must be positive");
         }
 
-        SkyIslandTerrainInterpreter interpreter = requireInterpreter(volumeId);
-        int voxelCount = Math.multiplyExact(Math.multiplyExact(CHUNK_WIDTH, CHUNK_WIDTH), height);
+        int voxelCount = Math.multiplyExact(CHUNK_AREA, height);
         ResourceLocation[] blockKeys = new ResourceLocation[voxelCount];
         Arrays.fill(blockKeys, SkyforgeMinecraftBlockPalette.AIR);
-
-        int minimumX = chunkPos.getMinBlockX();
-        int minimumZ = chunkPos.getMinBlockZ();
-        int maximumYExclusive = Math.addExact(minimumY, height);
-        long classifiedVoxels = 0L;
-        long provenAirSkippedVoxels = 0L;
-
-        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
-            int worldZ = Math.addExact(minimumZ, localZ);
-            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
-                int worldX = Math.addExact(minimumX, localX);
-                Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> range =
-                        SkyforgeExactVoxelSupportBounds.integerSolidRange(interpreter, worldX, worldZ);
-                if (range.isEmpty()) {
-                    provenAirSkippedVoxels = Math.addExact(provenAirSkippedVoxels, height);
-                    continue;
-                }
-
-                var solidRange = range.orElseThrow();
-                int classifiedMinimumY = Math.max(minimumY, solidRange.minimumY());
-                int classifiedMaximumYExclusive = (int) Math.min(
-                        (long) maximumYExclusive,
-                        Math.addExact((long) solidRange.maximumY(), 1L));
-                if (classifiedMaximumYExclusive <= classifiedMinimumY) {
-                    provenAirSkippedVoxels = Math.addExact(provenAirSkippedVoxels, height);
-                    continue;
-                }
-
-                int classifiedCount = classifiedMaximumYExclusive - classifiedMinimumY;
-                classifiedVoxels = Math.addExact(classifiedVoxels, classifiedCount);
-                provenAirSkippedVoxels = Math.addExact(
-                        provenAirSkippedVoxels,
-                        height - classifiedCount);
-
-                SkyIslandTerrainInterpreter.ColumnInterpreter column = interpreter.column(worldX, worldZ);
-                for (int worldY = classifiedMinimumY; worldY < classifiedMaximumYExclusive; worldY++) {
-                    SkyIslandTerrainSemantic semantic = column.classify(worldY);
-                    ResourceLocation blockKey = palette.blockKey(semantic);
-                    if (!palette.preservesOccupancy(semantic, blockKey)) {
-                        throw new IllegalStateException("Minecraft palette changed authoritative Skyforge occupancy");
-                    }
-                    int localY = worldY - minimumY;
-                    blockKeys[linearIndex(localX, localY, localZ)] = blockKey;
-                }
-            }
+        ExactColumnAdvance advance = materializeExactColumns(
+                volumeId,
+                chunkPos,
+                minimumY,
+                height,
+                0,
+                CHUNK_AREA,
+                blockKeys);
+        if (!advance.complete()) {
+            throw new IllegalStateException("whole exact-volume materialization did not cover every chunk column");
         }
-
-        if (Math.addExact(classifiedVoxels, provenAirSkippedVoxels) != voxelCount) {
-            throw new IllegalStateException("exact-volume materialization accounting does not cover the requested chunk interval");
-        }
-        SkyforgeRuntimePerformanceMetrics.recordSample(
-                "terrain.exactMaterialization.classifiedVoxels",
-                classifiedVoxels);
-        SkyforgeRuntimePerformanceMetrics.recordSample(
-                "terrain.exactMaterialization.provenAirSkippedVoxels",
-                provenAirSkippedVoxels);
+        recordExactMaterializationAccounting(advance.classifiedVoxels(), advance.provenAirSkippedVoxels(), voxelCount);
 
         return new MinecraftChunkMaterialization(
                 chunkPos,
@@ -176,6 +132,137 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 height,
                 blockKeys,
                 1);
+    }
+
+    /**
+     * Advances an exact-volume projection through a bounded contiguous run of chunk columns.
+     *
+     * <p>Columns are addressed in the historical local-Z -> local-X order. The caller owns the
+     * pre-sized, AIR-initialized destination buffer and may resume with the returned next column on a
+     * later server-thread quantum. This method is pure with respect to mutable Minecraft world state.
+     */
+    ExactColumnAdvance materializeExactColumns(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos chunkPos,
+            int minimumY,
+            int height,
+            int firstColumn,
+            int maximumColumns,
+            ResourceLocation[] blockKeys) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        Objects.requireNonNull(blockKeys, "blockKeys");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+        if (firstColumn < 0 || firstColumn >= CHUNK_AREA) {
+            throw new IllegalArgumentException("firstColumn must address an unfinished chunk column");
+        }
+        if (maximumColumns <= 0) {
+            throw new IllegalArgumentException("maximumColumns must be positive");
+        }
+        int voxelCount = Math.multiplyExact(CHUNK_AREA, height);
+        if (blockKeys.length != voxelCount) {
+            throw new IllegalArgumentException("exact-volume destination size does not match requested chunk interval");
+        }
+
+        SkyIslandTerrainInterpreter interpreter = requireInterpreter(volumeId);
+        int minimumX = chunkPos.getMinBlockX();
+        int minimumZ = chunkPos.getMinBlockZ();
+        int maximumYExclusive = Math.addExact(minimumY, height);
+        int preparedColumns = Math.min(maximumColumns, CHUNK_AREA - firstColumn);
+        int maximumColumnExclusive = Math.addExact(firstColumn, preparedColumns);
+        long classifiedVoxels = 0L;
+        long provenAirSkippedVoxels = 0L;
+
+        for (int columnIndex = firstColumn; columnIndex < maximumColumnExclusive; columnIndex++) {
+            int localZ = columnIndex / CHUNK_WIDTH;
+            int localX = columnIndex % CHUNK_WIDTH;
+            int worldZ = Math.addExact(minimumZ, localZ);
+            int worldX = Math.addExact(minimumX, localX);
+            Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> range =
+                    SkyforgeExactVoxelSupportBounds.integerSolidRange(interpreter, worldX, worldZ);
+            if (range.isEmpty()) {
+                provenAirSkippedVoxels = Math.addExact(provenAirSkippedVoxels, height);
+                continue;
+            }
+
+            var solidRange = range.orElseThrow();
+            int classifiedMinimumY = Math.max(minimumY, solidRange.minimumY());
+            int classifiedMaximumYExclusive = (int) Math.min(
+                    (long) maximumYExclusive,
+                    Math.addExact((long) solidRange.maximumY(), 1L));
+            if (classifiedMaximumYExclusive <= classifiedMinimumY) {
+                provenAirSkippedVoxels = Math.addExact(provenAirSkippedVoxels, height);
+                continue;
+            }
+
+            int classifiedCount = classifiedMaximumYExclusive - classifiedMinimumY;
+            classifiedVoxels = Math.addExact(classifiedVoxels, classifiedCount);
+            provenAirSkippedVoxels = Math.addExact(
+                    provenAirSkippedVoxels,
+                    height - classifiedCount);
+
+            SkyIslandTerrainInterpreter.ColumnInterpreter column = interpreter.column(worldX, worldZ);
+            for (int worldY = classifiedMinimumY; worldY < classifiedMaximumYExclusive; worldY++) {
+                SkyIslandTerrainSemantic semantic = column.classify(worldY);
+                ResourceLocation blockKey = palette.blockKey(semantic);
+                if (!palette.preservesOccupancy(semantic, blockKey)) {
+                    throw new IllegalStateException("Minecraft palette changed authoritative Skyforge occupancy");
+                }
+                int localY = worldY - minimumY;
+                blockKeys[linearIndex(localX, localY, localZ)] = blockKey;
+            }
+        }
+
+        return new ExactColumnAdvance(
+                firstColumn,
+                preparedColumns,
+                classifiedVoxels,
+                provenAirSkippedVoxels,
+                maximumColumnExclusive == CHUNK_AREA);
+    }
+
+    private static void recordExactMaterializationAccounting(
+            long classifiedVoxels,
+            long provenAirSkippedVoxels,
+            int voxelCount) {
+        if (Math.addExact(classifiedVoxels, provenAirSkippedVoxels) != voxelCount) {
+            throw new IllegalStateException(
+                    "exact-volume materialization accounting does not cover the requested chunk interval");
+        }
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.exactMaterialization.classifiedVoxels",
+                classifiedVoxels);
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.exactMaterialization.provenAirSkippedVoxels",
+                provenAirSkippedVoxels);
+    }
+
+    record ExactColumnAdvance(
+            int firstColumn,
+            int preparedColumns,
+            long classifiedVoxels,
+            long provenAirSkippedVoxels,
+            boolean complete) {
+        ExactColumnAdvance {
+            if (firstColumn < 0 || firstColumn >= CHUNK_AREA) {
+                throw new IllegalArgumentException("firstColumn must address a chunk column");
+            }
+            if (preparedColumns <= 0 || firstColumn + preparedColumns > CHUNK_AREA) {
+                throw new IllegalArgumentException("preparedColumns exceed the chunk column interval");
+            }
+            if (classifiedVoxels < 0L || provenAirSkippedVoxels < 0L) {
+                throw new IllegalArgumentException("exact materialization accounting must be nonnegative");
+            }
+            if (complete != (firstColumn + preparedColumns == CHUNK_AREA)) {
+                throw new IllegalArgumentException("exact column completion disagrees with cursor extent");
+            }
+        }
+
+        int nextColumn() {
+            return firstColumn + preparedColumns;
+        }
     }
 
     private MinecraftChunkMaterialization materialize(
