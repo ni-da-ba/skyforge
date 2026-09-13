@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Hosted worker retry/context guard.
 
-A pending ``editing`` worker is durable repository state.  Preserve its Codex thread as well as its
-worktree so a process restart/retry does not pay to reconstruct the same task from scratch.  Also
-fail closed after repeated interrupted/failed attempts that make no durable worktree progress instead
-of consuming unbounded worker turns.
+A pending ``editing`` worker is durable repository state. Preserve its Codex thread as well as its
+worktree so a process restart/retry does not pay to reconstruct the same task from scratch. Also fail
+closed after repeated interrupted/failed attempts that make no durable worktree progress, and bound
+total provider-admitted model turns per task so partial progress cannot evade the retry circuit.
 
-The controller remains the only network/git mutation authority.  This extension changes only worker
-turn lifecycle and telemetry; handoff, path, validation, roadmap, and quota policy remain unchanged.
+The controller remains the only network/git mutation authority. This extension changes only worker
+turn lifecycle and telemetry; handoff, path, validation, roadmap, and provider pacing policy remain
+unchanged.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ RUNTIME_PATH = "scripts/orchestrator/skyforge_worker_retry_runtime.py"
 core.CONTROLLER_RUNTIME_PATHS.add(RUNTIME_PATH)
 
 _ORIGINAL_HEALTH_SNAPSHOT = core.Orchestrator.health_snapshot
+_ORIGINAL_CONSUME_BUDGET = core.Orchestrator._consume_budget
 
 
 def _max_no_progress_attempts() -> int:
@@ -35,13 +37,21 @@ def _max_no_progress_attempts() -> int:
     )
 
 
+def _max_model_turns_per_worker() -> int:
+    return core._env_int(
+        "SKYFORGE_WORKER_MAX_MODEL_TURNS_PER_TASK",
+        4,
+        minimum=1,
+    )
+
+
 def _worker_root_matches(pending: dict[str, Any], worker_root: Path) -> bool:
     raw = pending.get("worktree")
     if not raw:
         return worker_root.resolve() == Path.cwd().resolve()
     path = Path(str(raw))
     if not path.is_absolute():
-        # Pending worker paths are normally absolute.  A relative legacy path is rooted at the
+        # Pending worker paths are normally absolute. A relative legacy path is rooted at the
         # controller checkout; callers resolve it before invoking the worker.
         return path.name == worker_root.name
     return path.resolve() == worker_root.resolve()
@@ -50,7 +60,7 @@ def _worker_root_matches(pending: dict[str, Any], worker_root: Path) -> bool:
 def _worktree_fingerprint(self: core.Orchestrator, worker_root: Path) -> str:
     """Hash HEAD plus changed-path content, including untracked files.
 
-    ``git diff`` alone misses edits to an already-untracked file.  Hash every changed regular file
+    ``git diff`` alone misses edits to an already-untracked file. Hash every changed regular file
     through git's object hashing and retain a missing/non-file marker for deletions/directories.
     """
     head = core._run(["git", "rev-parse", "HEAD"], cwd=worker_root).stdout.strip()
@@ -96,6 +106,7 @@ def _trip_stall_circuit(
                 "branch": current.get("branch"),
                 "lane": current.get("lane"),
                 "attempt_count": int(current.get("worker_attempt_count") or 0),
+                "model_turn_count": int(current.get("worker_model_turn_count") or 0),
                 "stalled_attempts": stalled_attempts,
                 "reason": "repeated worker attempts made no durable worktree progress",
             }
@@ -118,6 +129,81 @@ def _trip_stall_circuit(
     )
 
 
+def _trip_turn_cap(
+    self: core.Orchestrator,
+    pending: dict[str, Any],
+    *,
+    model_turns: int,
+    limit: int,
+) -> None:
+    with self._state_lock:
+        current = self.state.data.get("pending_worker")
+        if isinstance(current, dict) and current.get("branch") == pending.get("branch"):
+            current["worker_retry_circuit_open"] = True
+            current["worker_retry_circuit_at"] = core._utc_now()
+            self.state.data["last_worker_retry_circuit"] = {
+                "at": current["worker_retry_circuit_at"],
+                "branch": current.get("branch"),
+                "lane": current.get("lane"),
+                "attempt_count": int(current.get("worker_attempt_count") or 0),
+                "model_turn_count": model_turns,
+                "stalled_attempts": int(current.get("worker_stalled_attempts") or 0),
+                "reason": f"per-worker provider model-turn cap reached ({model_turns}/{limit})",
+            }
+            self.state.save()
+    self._metric("worker_model_turn_cap_pauses")
+    self.set_paused(True, actor="worker-turn-cap")
+    self._post_gate(
+        {
+            "human_message": (
+                "WORKER TURN CAP: hosted worker "
+                f"{pending.get('lane') or 'unknown'} / {pending.get('branch') or 'unknown'} "
+                f"has already consumed {model_turns} provider-admitted model turns (cap {limit}) "
+                "without reaching durable handoff. The controller paused before another model turn. "
+                "The isolated worktree, reusable thread, and task authority are preserved."
+            )
+        }
+    )
+    raise core.SafetyPause(
+        "worker provider model-turn cap reached; controller safety-paused before another turn"
+    )
+
+
+def _consume_budget(self: core.Orchestrator, kind: str) -> None:
+    """Apply provider pacing plus a durable per-worker model-turn ceiling.
+
+    The cap is checked before calling the accepted provider governor. The per-worker count increments
+    only after that governor admits the turn, so quota-pacing deferrals do not consume the task cap.
+    """
+    if kind not in {"worker", "luna_worker"}:
+        _ORIGINAL_CONSUME_BUDGET(self, kind)
+        return
+
+    with self._state_lock:
+        pending = self.state.data.get("pending_worker")
+        pending_snapshot = dict(pending) if isinstance(pending, dict) and pending.get("stage") == "editing" else None
+        model_turns = int((pending_snapshot or {}).get("worker_model_turn_count") or 0)
+    limit = _max_model_turns_per_worker()
+    if pending_snapshot is not None and model_turns >= limit:
+        _trip_turn_cap(self, pending_snapshot, model_turns=model_turns, limit=limit)
+
+    # Authoritative provider pacing/local fallback remains wholly owned by the prior runtime.
+    _ORIGINAL_CONSUME_BUDGET(self, kind)
+
+    if pending_snapshot is None:
+        return
+    with self._state_lock:
+        current = self.state.data.get("pending_worker")
+        if (
+            isinstance(current, dict)
+            and current.get("stage") == "editing"
+            and current.get("branch") == pending_snapshot.get("branch")
+        ):
+            current["worker_model_turn_count"] = int(current.get("worker_model_turn_count") or 0) + 1
+            current["last_worker_model_turn_admitted_at"] = core._utc_now()
+            self.state.save()
+
+
 def _begin_worker_attempt(
     self: core.Orchestrator,
     worker_root: Path,
@@ -132,7 +218,7 @@ def _begin_worker_attempt(
         prior_result = str(pending.get("last_worker_attempt_result") or "")
         prior_before = str(pending.get("last_worker_attempt_before_fingerprint") or "")
         if prior_result == "in_flight":
-            # The process died/interrupted after the turn was admitted.  Repository progress is the
+            # The process died/interrupted after the turn was admitted. Repository progress is the
             # only durable evidence that the interrupted attempt achieved anything useful.
             if prior_before and fingerprint == prior_before:
                 stalled += 1
@@ -280,8 +366,8 @@ def _worker(
         raise RuntimeError(f"Unknown worker tier: {tier}")
 
     try:
-        # Quota admission happens after the no-progress circuit so a known-stalled worker cannot
-        # consume another provider-governed attempt merely to rediscover its stall.
+        # The wrapped budget method checks the per-worker hard cap before provider admission, then
+        # increments the durable model-turn count only after the provider governor allows the turn.
         self._consume_budget(budget_kind)
         from openai_codex import Codex, Sandbox
 
@@ -373,6 +459,8 @@ def health_snapshot(self: core.Orchestrator) -> dict[str, Any]:
         snapshot.update(
             {
                 "worker_attempt_count": int(pending.get("worker_attempt_count") or 0),
+                "worker_model_turn_count": int(pending.get("worker_model_turn_count") or 0),
+                "worker_model_turn_limit": _max_model_turns_per_worker(),
                 "worker_stalled_attempts": int(pending.get("worker_stalled_attempts") or 0),
                 "worker_thread_reusable": bool(pending.get("worker_thread_id")),
                 "last_worker_attempt_result": pending.get("last_worker_attempt_result"),
@@ -382,5 +470,6 @@ def health_snapshot(self: core.Orchestrator) -> dict[str, Any]:
     return snapshot
 
 
+core.Orchestrator._consume_budget = _consume_budget
 core.Orchestrator._worker = _worker
 core.Orchestrator.health_snapshot = health_snapshot
