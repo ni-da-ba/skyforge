@@ -47,21 +47,25 @@ jobs:
           --out build/aircraft-compiler-v11
       - name: Assert v0.10 topology remains accepted
         run: |
-          grep -q "mainBodyPlacementCount=113" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "mainBodyManifestPlacementCount=113" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "mainBodyPlacementCount=114" build/aircraft-compiler-v11/assembly_fixture_validation.txt
           grep -q "nestedChildPlacementCount=9" build/aircraft-compiler-v11/assembly_fixture_validation.txt
-          grep -q "adhesionIntentEdgeCount=112" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "adhesionIntentEdgeCount=113" build/aircraft-compiler-v11/assembly_fixture_validation.txt
           grep -q "mainBodyUnreachableCount=0" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "physicsAssemblerIncludedInMovingMainBody=True" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "physicsAssemblerHasAdhesionEdgeToSeed=True" build/aircraft-compiler-v11/assembly_fixture_validation.txt
           grep -q "assemblyFixtureTopologyPassed=True" build/aircraft-compiler-v11/assembly_fixture_validation.txt
       - name: Assert v0.11 glue encoding is edge-exact and dynamic-boundary safe
         run: |
-          grep -q "glueCommandCount=112" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "mainBodyPlacementCount=114" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "glueCommandCount=113" build/aircraft-compiler-v11/glue_encoding_validation.txt
           grep -q "assemblerPlacementCommandCount=1" build/aircraft-compiler-v11/glue_encoding_validation.txt
           grep -q "edgeExactEncoding=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
           grep -q "allGlueEdgesFaceAdjacent=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
           grep -q "allGlueEndpointsMainBody=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
           grep -q "noGlueEndpointOnNestedChild=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
           grep -q "forbiddenDynamicBoundariesClear=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
-          test "$(grep -c '^create glue ' build/aircraft-compiler-v11/probe_assembly_fixture.mcfunction)" -eq 112
+          test "$(grep -c '^create glue ' build/aircraft-compiler-v11/probe_assembly_fixture.mcfunction)" -eq 113
       - name: Assert main-body runtime probe is now the next gate, not a static claim
         run: |
           grep -q "adhesionApplicationEncodingReady=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
