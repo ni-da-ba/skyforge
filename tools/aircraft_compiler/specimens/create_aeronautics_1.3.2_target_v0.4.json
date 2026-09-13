@@ -26,11 +26,11 @@
       "priority": 50
     },
     {
-      "providerId": "simulated_white_symmetric_sail_v0",
-      "resourceId": "simulated:white_symmetric_sail",
+      "providerId": "create_white_sail_lift_v0",
+      "resourceId": "create:white_sail",
       "capabilities": ["aerodynamic_lift_surface", "rigid_physics_member", "rigid_load_path"],
-      "evidenceLevel": "released_source_verified_runtime_force_unverified",
-      "stateRule": "unresolved:derive_axis_from_surface_normal_and_verify_in_runtime",
+      "evidenceLevel": "create_registry_and_skyforge_c12_sable_contract_runtime_force_sign_unverified",
+      "stateRule": "unresolved:derive_facing_from_surface_role_and_verify_force_sign_in_runtime",
       "priority": 10
     }
   ],
@@ -38,7 +38,7 @@
     "propeller_axis": {
       "status": "source_verified",
       "resourceId": "aeronautics:propeller_bearing",
-      "stateRule": "unresolved:facing_axis_x_sign_requires_thrust_direction_runtime_probe",
+      "stateRule": "facing=west; thrust_direction_option_requires_runtime_probe",
       "evidence": "AeroBlocks/AeroBlockEntityTypes + PropellerBearingBlockEntity released source"
     },
     "pilot_station": {
@@ -60,41 +60,17 @@
       "id": "propeller_requires_sail_geometry",
       "role": "propeller_sail_intent",
       "minimumCount": 2,
-      "evidence": "Create Aeronautics BearingContraption mixin rejects propeller assembly below two sail-equivalent units"
+      "evidence": "Create Aeronautics BearingContraption mixin rejects propeller assembly below two sail-equivalent units; v0.5 realizes this outside the v0.3 airframe site set"
     }
   ],
   "runtimeObligations": [
-    {
-      "id": "registry_and_blockstate_probe",
-      "method": "load exact target stack; resolve every emitted resource and legal state property/value"
-    },
-    {
-      "id": "physics_assembly_probe",
-      "method": "assemble the complete vehicle and assert one Sable physics object with intended attachments"
-    },
-    {
-      "id": "propeller_assembly_probe",
-      "method": "assemble propeller bearing with compiled sail geometry and assert no not_enough_sails failure"
-    },
-    {
-      "id": "propeller_force_direction_probe",
-      "method": "measure force direction for facing/rotation/thrust-direction combinations; do not fit analytical lift constants"
-    },
-    {
-      "id": "sail_orientation_probe",
-      "method": "measure symmetric-sail force direction for each compiled surface normal and sign convention"
-    },
-    {
-      "id": "runtime_mass_cg_probe",
-      "method": "measure target runtime mass/center of mass and compare to a separately reported analytical design CG"
-    },
-    {
-      "id": "kinetic_stress_probe",
-      "method": "verify Create kinetic network connectivity, rotation sign, RPM, and stress margin under target configuration"
-    },
-    {
-      "id": "control_binding_probe",
-      "method": "verify pilot input path reaches intended propulsion/control devices without hidden manual setup"
-    }
+    {"id": "registry_and_blockstate_probe", "method": "load exact target stack; resolve every emitted resource and legal state property/value"},
+    {"id": "physics_assembly_probe", "method": "assemble the complete vehicle and assert one Sable physics object with intended attachments"},
+    {"id": "propeller_assembly_probe", "method": "assemble propeller bearing with compiled sail geometry and assert no not_enough_sails failure"},
+    {"id": "propeller_force_direction_probe", "method": "measure force direction for facing/rotation/thrust-direction combinations; do not fit analytical lift constants"},
+    {"id": "sail_orientation_probe", "method": "measure regular Create-sail force direction for each compiled facing and surface role"},
+    {"id": "runtime_mass_cg_probe", "method": "measure target runtime mass/center of mass and compare to a separately reported analytical design CG"},
+    {"id": "kinetic_stress_probe", "method": "verify Create kinetic network connectivity, rotation sign, RPM, and stress margin under target configuration"},
+    {"id": "control_binding_probe", "method": "verify pilot input path reaches intended propulsion/control devices without hidden manual setup"}
   ]
 }
