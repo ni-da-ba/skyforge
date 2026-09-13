@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "aircraft-yaw-actuation-profile-0.14",
+  "profileId": "skyforge.yaw_actuation.create_simulated.guild_utility.v0_14",
+  "target": {
+    "minecraft": "1.21.1",
+    "loader": "NeoForge 21.1.249",
+    "create": "6.0.10",
+    "createSourceCommit": "ac0c444d9828da3453ae8cc65338e8de063286fb",
+    "sable": "2.0.5",
+    "simulated": "bundled_with_create_aeronautics_1.3.2",
+    "aeronautics": "1.3.2"
+  },
+  "sourceYawControlDigestSha256": "b2045fca7232343b114a834d43273f783f3fd8b41a753eccf0f730e525858eae",
+  "runtimeFixturePlacements": [
+    {
+      "role": "yaw_test_drive_cog",
+      "offsetFromSwivel": [0, 0, 1],
+      "kind": "runtime_test_actuator_transfer",
+      "resourceId": "create:cogwheel",
+      "blockState": {"axis": "y"},
+      "sourceContract": "Create 6.0.10 RotationPropagator small-cog to small-cog connection is one-block face-adjacent, equal-axis, ratio -1; Simulated exposes the Swivel hidden extra cog through ExtraBlockPos to the same propagation search."
+    },
+    {
+      "role": "yaw_test_creative_motor",
+      "offsetFromSwivel": [0, -1, 1],
+      "kind": "runtime_test_actuator_source",
+      "resourceId": "create:creative_motor",
+      "blockState": {"facing": "up"},
+      "sourceContract": "Create 6.0.10 CreativeMotorBlock has a shaft only toward FACING; UP therefore shafts directly into the Y-axis test cog one block above. CreativeMotorBlockEntity default generated speed is 16 RPM."
+    }
+  ],
+  "expectedCreativeMotorRpm": 16,
+  "networkSettleTicks": 8,
+  "commandTicks": 5,
+  "stopSettleTicks": 8,
+  "holdTicks": 4,
+  "sourceEvidence": [
+    "Create commit ac0c444d9828da3453ae8cc65338e8de063286fb registers exact blocks create:creative_motor and create:cogwheel.",
+    "CreativeMotorBlock.hasShaftTowards returns true only on its FACING side; facing=up drives the cog above along the Y axis.",
+    "CreativeMotorBlockEntity.DEFAULT_SPEED is 16 RPM and generated speed is exposed through the real Create kinetic source contract.",
+    "Create RotationPropagator gives adjacent equal-axis small cogwheels a -1 speed ratio.",
+    "Simulated SwivelBearingBlockEntity owns a hidden small-cog ExtraKinetics block entity whose axis is the Swivel FACING axis.",
+    "Simulated RotationPropagatorMixin exposes that hidden cog through ExtraBlockPos during Create kinetic neighbor discovery.",
+    "SwivelBearingBlockEntity integrates targetAngleDegrees from its hidden cog speed each tick; this probe therefore does not set target angle directly."
+  ],
+  "runtimeObligations": [
+    {
+      "id": "yaw_test_fixture_network_probe",
+      "method": "inject the two-block test fixture after accepted rudder child capture, prove the Creative Motor and transfer cog form a real kinetic path to the Swivel extra cog, and measure nonzero hidden-cog RPM"
+    },
+    {
+      "id": "rudder_signed_target_angle_probe",
+      "method": "tick the real kinetic network and Swivel, then compare signed target-angle change against observed hidden-cog RPM and Create's rpm-to-degrees-per-tick conversion"
+    },
+    {
+      "id": "rudder_command_stop_hold_probe",
+      "method": "remove the temporary Creative Motor source, prove hidden-cog RPM decays to zero, and verify the locked Swivel target angle stops integrating and holds without directly mutating its target"
+    }
+  ]
+}
