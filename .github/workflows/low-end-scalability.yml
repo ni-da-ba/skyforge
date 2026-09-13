@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/low-end-scalability.yml"
+      - ".github/scripts/verify-sf-imp-0072-performance.py"
       - "skyforge-neoforge-1211/src/main/java/**"
       - "skyforge-neoforge-1211/src/test/java/**"
 
@@ -67,6 +68,7 @@ jobs:
           benchmark_root="$PWD/build/low-end-benchmark"
           result_dir="$PWD/skyforge-neoforge-1211/build/acceptance/sf-imp-0070"
           run_dir="$PWD/skyforge-neoforge-1211/run-sf-imp-0070-performance-stacked"
+          verifier="$PWD/.github/scripts/verify-sf-imp-0072-performance.py"
 
           run_profile() {
             local name="$1"
@@ -90,11 +92,30 @@ jobs:
             /usr/bin/time -v -o "$out/time.txt" \
               env JAVA_TOOL_OPTIONS="-XX:ActiveProcessorCount=${active_cpus} -Xmx${heap_gib}g -Xlog:gc*,safepoint:file=${out}/jvm-%p.log:time,uptime,level,tags" \
               taskset -c "$cpuset" \
-              ./gradlew :skyforge-neoforge-1211:sfImp0070PerformanceVerify \
+              ./gradlew :skyforge-neoforge-1211:runPerformanceCharacterizationStacked \
                 --stacktrace --no-daemon --no-configuration-cache \
               2>&1 | tee "$out/gradle.log"
-            local status=${PIPESTATUS[0]}
+            local gradle_status=${PIPESTATUS[0]}
             set -e
+
+            local status="$gradle_status"
+            if [[ "$gradle_status" -eq 0 ]]; then
+              if [[ -f "$result_dir/stacked.properties" ]]; then
+                set +e
+                python3 "$verifier" "$result_dir/stacked.properties" \
+                  --active-cpus "$active_cpus" \
+                  --max-preparation-columns 32 \
+                  2>&1 | tee "$out/verifier.log"
+                local verifier_status=${PIPESTATUS[0]}
+                set -e
+                if [[ "$verifier_status" -ne 0 ]]; then
+                  status="$verifier_status"
+                fi
+              else
+                echo "missing benchmark properties after successful fixture run" | tee "$out/verifier.log"
+                status=1
+              fi
+            fi
 
             echo "$status" > "$out/exit-status.txt"
             if [[ -f "$result_dir/stacked.properties" ]]; then
@@ -128,23 +149,31 @@ jobs:
               ("low-1cpu-4g", 1, 4),
           ]
 
-          keys = {
+          timers = {
               "process_s": "perf.processElapsedNanos",
               "warmup_s": "perf.acceptance.warmOriginFootprint.totalNanos",
               "admission_s": "perf.admission.nativeOccupancySurvey.totalNanos",
               "deferred_s": "perf.terrain.realizeDeferredPacket.totalNanos",
               "materialize_s": "perf.terrain.deferred.materialize.totalNanos",
               "write_s": "perf.terrain.deferred.writePacket.totalNanos",
+              "terrain_pump_s": "perf.catchup.terrainPump.totalNanos",
               "surface_s": "perf.surfacePopulation.coordinator.totalNanos",
               "vegetation_s": "perf.surfacePopulation.phase.VEGETAL_DECORATION.totalNanos",
               "underground_decoration_s": "perf.interior.UNDERGROUND_DECORATION.totalNanos",
               "ores_s": "perf.interior.UNDERGROUND_ORES.totalNanos",
               "cave_pump_s": "perf.catchup.composedCavePump.totalNanos",
           }
-          latency_buckets = [
-              "lt1ms", "1to2ms", "2to4ms", "4to8ms", "8to16ms", "16to32ms",
-              "32to64ms", "64to128ms", "128to256ms", "256to512ms", "ge512ms",
-          ]
+          scalar_nanos = {
+              "prep_p50_ms": "perf.terrain.deferred.materializeSliceWallNanos.p50",
+              "prep_p95_ms": "perf.terrain.deferred.materializeSliceWallNanos.p95",
+              "prep_p99_ms": "perf.terrain.deferred.materializeSliceWallNanos.p99",
+              "prep_max_ms": "perf.terrain.deferred.materializeSliceWallNanos.max",
+              "quantum_p99_ms": "perf.terrain.deferred.quantumWallNanos.p99",
+              "quantum_max_ms": "perf.terrain.deferred.quantumWallNanos.max",
+              "packet_p99_ms": "perf.terrain.deferred.packetWallNanos.p99",
+              "packet_max_ms": "perf.terrain.deferred.packetWallNanos.max",
+              "packet_cpu_max_ms": "perf.terrain.deferred.packetCpuNanos.max",
+          }
 
           def read_props(path):
               data = {}
@@ -153,13 +182,21 @@ jobs:
               for raw in path.read_text(errors="replace").splitlines():
                   if not raw or raw.startswith("#") or "=" not in raw:
                       continue
-                  k, v = raw.split("=", 1)
-                  data[k] = v
+                  key, value = raw.split("=", 1)
+                  data[key] = value
               return data
 
           def seconds(props, key):
               value = props.get(key)
               return None if value is None else int(value) / 1_000_000_000
+
+          def millis(props, key):
+              value = props.get(key)
+              return None if value is None else int(value) / 1_000_000
+
+          def integer(props, key):
+              value = props.get(key)
+              return None if value is None else int(value)
 
           def time_metrics(path):
               if not path.exists():
@@ -173,104 +210,65 @@ jobs:
               )
 
           rows = []
-          feature_rows = []
-          props_by_profile = {}
           for name, cpus, heap in profiles:
               props = read_props(root / name / "stacked.properties")
-              props_by_profile[name] = props
               rss_mib, cpu_pct = time_metrics(root / name / "time.txt")
               row = {
                   "profile": name,
                   "cpus": cpus,
                   "heap_gib": heap,
                   "status": props.get("status", "MISSING"),
+                  "verifier_status": (root / name / "exit-status.txt").read_text().strip()
+                      if (root / name / "exit-status.txt").exists() else "MISSING",
                   "rss_mib": rss_mib,
                   "cpu_pct": cpu_pct,
+                  "prep_slices": integer(props, "perf.terrain.deferred.materializeSliceWallNanos.samples"),
+                  "deferred_quanta": integer(props, "perf.terrain.realizeDeferredPacket.calls"),
               }
-              for out_key, prop_key in keys.items():
+              for out_key, prop_key in timers.items():
                   row[out_key] = seconds(props, prop_key)
+              for out_key, prop_key in scalar_nanos.items():
+                  row[out_key] = millis(props, prop_key)
               rows.append(row)
 
-              for prop_key, value in props.items():
-                  if not (prop_key.startswith("perf.nativeFeature.") and prop_key.endswith(".totalNanos")):
-                      continue
-                  prefix = prop_key[:-len(".totalNanos")]
-                  calls = int(props.get(prefix + ".calls", "0"))
-                  total_ns = int(value)
-                  max_ns = int(props.get(prefix + ".maxNanos", "0"))
-                  feature_row = {
-                      "profile": name,
-                      "stage": prefix[len("perf."):],
-                      "calls": calls,
-                      "total_s": total_ns / 1_000_000_000,
-                      "avg_ms": 0.0 if calls == 0 else total_ns / calls / 1_000_000,
-                      "max_ms": max_ns / 1_000_000,
-                      "placed": int(props.get(prefix + ".placed.total", "0")),
-                      "attachment_writes": int(props.get(prefix + ".attachmentWrites.total", "0")),
-                  }
-                  for bucket in latency_buckets:
-                      feature_row[bucket] = int(props.get(
-                          prefix + ".latencyBucket." + bucket + ".samples", "0"))
-                  feature_rows.append(feature_row)
-
-          ref = rows[0].get("process_s")
+          reference = rows[0].get("process_s")
           for row in rows:
-              p = row.get("process_s")
-              row["slowdown"] = None if not ref or not p else p / ref
+              process = row.get("process_s")
+              row["slowdown"] = None if not reference or not process else process / reference
 
-          csv_columns = ["profile", "cpus", "heap_gib", "status", "process_s", "slowdown", "rss_mib", "cpu_pct"] + list(keys.keys())[1:]
-          with (root / "summary.csv").open("w", newline="") as f:
-              w = csv.DictWriter(f, fieldnames=csv_columns)
-              w.writeheader()
+          columns = [
+              "profile", "cpus", "heap_gib", "status", "verifier_status", "process_s", "slowdown",
+              "rss_mib", "cpu_pct", "prep_slices", "deferred_quanta",
+          ] + list(timers.keys())[1:] + list(scalar_nanos.keys())
+          with (root / "summary.csv").open("w", newline="") as handle:
+              writer = csv.DictWriter(handle, fieldnames=columns)
+              writer.writeheader()
               for row in rows:
-                  w.writerow({k: row.get(k) for k in csv_columns})
+                  writer.writerow({key: row.get(key) for key in columns})
 
-          feature_columns = [
-              "profile", "stage", "calls", "total_s", "avg_ms", "max_ms", "placed", "attachment_writes",
-          ] + latency_buckets
-          with (root / "native-features.csv").open("w", newline="") as f:
-              w = csv.DictWriter(f, fieldnames=feature_columns)
-              w.writeheader()
-              for row in sorted(feature_rows, key=lambda r: (r["profile"], -r["total_s"], r["stage"])):
-                  w.writerow({k: row.get(k) for k in feature_columns})
-
-          def fmt(v, digits=2):
-              if v is None:
+          def fmt(value, digits=2):
+              if value is None:
                   return "n/a"
-              if isinstance(v, float):
-                  return f"{v:.{digits}f}"
-              return str(v)
+              if isinstance(value, float):
+                  return f"{value:.{digits}f}"
+              return str(value)
 
           lines = [
               "# Low-End Hardware Scalability Summary",
               "",
-              "Same accepted SF-IMP-0070 stacked production workload; CPU affinity and JVM-reported CPU count are constrained per profile. Compilation/setup is outside the timed production fixture.",
+              "Same SF-IMP-0070 stacked production workload; CPU affinity and JVM-reported CPU count are constrained per profile. Compilation/setup is outside the timed fixture. SF-IMP-0072 preparation and SF-IMP-0071 deterministic packet gates are verified after each fixture run.",
               "",
-              "| Profile | CPU | Heap cap | PASS | Production elapsed (s) | Slowdown | Max RSS (MiB) | Job CPU | Admission (s) | Deferred terrain (s) | Surface population (s) | Underground decoration (s) |",
-              "| --- | ---: | ---: | :---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+              "| Profile | CPU | PASS | Verify | Production (s) | Slowdown | Prep slices | Prep p99 (ms) | Prep max (ms) | Quantum p99 (ms) | Packet p99 (ms) | Packet raw max (ms) | Packet CPU max (ms) |",
+              "| --- | ---: | :---: | :---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
           ]
-          for r in rows:
+          for row in rows:
               lines.append(
-                  f"| {r['profile']} | {r['cpus']} | {r['heap_gib']} GiB | {r['status']} | "
-                  f"{fmt(r.get('process_s'))} | {fmt(r.get('slowdown'))}x | {fmt(r.get('rss_mib'), 0)} | "
-                  f"{fmt(r.get('cpu_pct'))} | {fmt(r.get('admission_s'))} | {fmt(r.get('deferred_s'))} | "
-                  f"{fmt(r.get('surface_s'))} | {fmt(r.get('underground_decoration_s'))} |"
+                  f"| {row['profile']} | {row['cpus']} | {row['status']} | {row['verifier_status']} | "
+                  f"{fmt(row.get('process_s'))} | {fmt(row.get('slowdown'))}x | {fmt(row.get('prep_slices'), 0)} | "
+                  f"{fmt(row.get('prep_p99_ms'), 3)} | {fmt(row.get('prep_max_ms'), 3)} | "
+                  f"{fmt(row.get('quantum_p99_ms'), 3)} | {fmt(row.get('packet_p99_ms'), 3)} | "
+                  f"{fmt(row.get('packet_max_ms'), 3)} | {fmt(row.get('packet_cpu_max_ms'), 3)} |"
               )
-
-          reference_features = [r for r in feature_rows if r["profile"] == "reference-4cpu-8g"]
-          if reference_features:
-              lines.extend([
-                  "",
-                  "## Native placed-feature attribution — reference profile",
-                  "",
-                  "| Stage | Calls | Total (s) | Avg (ms) | Max (ms) | Placed |",
-                  "| --- | ---: | ---: | ---: | ---: | ---: |",
-              ])
-              for r in sorted(reference_features, key=lambda row: -row["total_s"])[:12]:
-                  lines.append(
-                      f"| `{r['stage']}` | {r['calls']} | {r['total_s']:.3f} | "
-                      f"{r['avg_ms']:.2f} | {r['max_ms']:.2f} | {r['placed']} |"
-                  )
 
           (root / "summary.md").write_text("\n".join(lines) + "\n")
           print((root / "summary.md").read_text())
