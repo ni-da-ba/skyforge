@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "milestone": "DR-10",
+  "state": "READY",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "consumes": {
+    "dr00_specimen_lock": "docs/agent-state/DR00_SPECIMEN_LOCK.json",
+    "selected_candidate_id": "auth-0030-v1-6001989086914692933-8-81-1471/sf-imp-0068-production-composed-cave",
+    "canonical_volume_id": "6001989086914692933/sf-imp-0068-production-composed-cave/0/0/680068"
+  },
+  "c20_starting_cluster": {
+    "authority": "C20 / PR #302",
+    "scope_id": "P2_DRESSED_REGION_A",
+    "scope_selection": "The DR-00 canonical specimen's one exact production volume is the selected C20 STARTING_CLUSTER scope for this DR convergence fixture. Selection is valid only while the canonical descriptor has nonzero AUTH-0093 Iron opportunity; otherwise the result is REPLAN_REQUIRED.",
+    "required_metal": "IRON",
+    "availability_class": "COMMON_REGIONAL",
+    "first_flight_critical": true,
+    "guarantee_scope": "STARTING_CLUSTER",
+    "geological_eligibility": "AUTH-0093 peakOpportunity(IRON) > 0",
+    "satisfaction": "The canonical descriptor is Iron-eligible, and the accepted exact-volume Iron plan is present and deterministic. This proves only C20's Iron scope-selection condition; it does not set a quantity, reserve, grade, accessibility, route, trade/salvage, or full first-aircraft material-budget policy."
+  },
+  "retained_realization_invariants": {
+    "iron": "accepted vanilla Iron exact-volume deployment",
+    "copper": "accepted vanilla Copper exact-volume deployment; POST_FLIGHT_PROVINCE only",
+    "zinc": "accepted Create Zinc exact-volume deployment with C21 noncompetition; POST_FLIGHT_PROVINCE only",
+    "evidence_tests": [
+      "SkyforgeIronDepositAdapterTest",
+      "SkyforgeCopperDepositAdapterTest",
+      "SkyforgeZincDepositAdapterTest",
+      "SkyforgeDr00SpecimenLockTest",
+      "SkyforgeDr10MaterialsEvidenceTest"
+    ]
+  },
+  "verification": {
+    "entry_point": "python3 scripts/orchestrator/with_hosted_jdk.py -- ./gradlew :skyforge-neoforge-1211:test --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeDr10MaterialsEvidenceTest --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeDr00SpecimenLockTest --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeIronDepositAdapterTest --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeCopperDepositAdapterTest --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeZincDepositAdapterTest",
+    "fail_closed": "If the DR-00 identity changes, C20 no longer assigns Iron to STARTING_CLUSTER, or the canonical descriptor has zero Iron opportunity, the evidence guard fails and no substitute specimen or injected deposit is selected."
+  }
+}

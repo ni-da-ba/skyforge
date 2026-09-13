@@ -13,6 +13,18 @@ Read first:
 
 ## MERGED / ACCEPTED
 
+### DR-10 / #534 — C20 starting-cluster evidence — IN PROGRESS
+
+`DR10_MATERIALS_EVIDENCE.json` binds the locked `P2_DRESSED_REGION_A` DR-00 specimen to C20's
+Iron `STARTING_CLUSTER` condition. It selects no replacement specimen and fails closed if the
+canonical descriptor loses nonzero AUTH-0093 Iron opportunity. Existing Iron/Copper/Zinc/Create-Zinc
+realization evidence remains authoritative; this bounded proof does not alter its identities,
+quantity, grade, accessibility, placement, persistence, or C21 noncompetition boundary.
+
+The evidence proves only C20's Iron scope-selection condition. It does not claim the unresolved
+first-aircraft material budget, route, trade/salvage, recovery, or human-play guarantees from the
+broader Bootstrap recipe.
+
 ### CIV/Bootstrap #466 — Guild destination, Bellanca closure, and first freight proof — IN PROGRESS
 
 Issue #466 now has a backend-neutral Content specimen in `skyforge-world`:
