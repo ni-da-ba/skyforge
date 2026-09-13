@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "aircraft-yaw-control-correction-profile-0.13.1",
+  "profileId": "skyforge.yaw_control.simulated.guild_utility.v0_13_1",
+  "target": {
+    "minecraft": "1.21.1",
+    "loader": "NeoForge 21.1.249",
+    "create": "6.0.10",
+    "sable": "2.0.5",
+    "simulated": "bundled_with_create_aeronautics_1.3.2",
+    "aeronautics": "1.3.2"
+  },
+  "supersededYawDigestSha256": "59f451bb7bb71433016af249f5ded7a87aed47b69b2a26215b4f573322f2d951",
+  "correctionReason": "Exact-stack run 34764106343 disproved v0.13 parent capture: relative hinge-spar cell [16,4,0] remained at the source. v0.13.1 preserves that failure as evidence and replaces the spruce separator with a true x=17 air-gap hinge plus an aft UP-facing Swivel Bearing.",
+  "supersededGlueDomainName": "vertical_tail",
+  "fixedFinCoordinates": [
+    [15, 4, 0],
+    [15, 5, 0],
+    [15, 6, 0],
+    [15, 7, 0],
+    [16, 4, 0],
+    [16, 5, 0],
+    [16, 6, 0]
+  ],
+  "airGapCoordinates": [
+    [17, 4, 0],
+    [17, 5, 0],
+    [17, 6, 0],
+    [17, 7, 0]
+  ],
+  "placements": [
+    {
+      "role": "yaw_swivel_bearing",
+      "mode": "add_main",
+      "lattice": [18, 3, 0],
+      "kind": "yaw_control_hinge",
+      "resourceId": "simulated:swivel_bearing",
+      "blockState": {"assembled": "false", "facing": "up", "powered": "false"},
+      "sourceContract": "SwivelBearingBlockEntity.assemble seeds pos.relative(FACING); UP therefore gives the yaw axis and seeds [18,4,0]."
+    },
+    {
+      "role": "yaw_air_gap",
+      "mode": "remove_main",
+      "lattice": [17, 4, 0],
+      "kind": "yaw_control_air_gap",
+      "resourceId": "minecraft:air",
+      "blockState": {},
+      "replaces": {
+        "kind": "airframe_aerodynamic_surface",
+        "resourceId": "create:white_sail",
+        "blockState": {"facing": "south"}
+      },
+      "sourceContract": "The x=17 trailing-fin cell is deliberately removed so no ordinary block or regular-sail attachment path bridges the fixed fin to the x=18 rudder child."
+    },
+    {
+      "role": "rudder_seed",
+      "mode": "add_control_child",
+      "lattice": [18, 4, 0],
+      "kind": "yaw_control_surface",
+      "resourceId": "simulated:white_symmetric_sail",
+      "blockState": {"axis": "z"},
+      "sourceContract": "The UP-facing aft Swivel Bearing seeds this exact child cell; symmetric sails supply drag without fixed Sable lift."
+    },
+    {
+      "role": "rudder_1",
+      "mode": "add_control_child",
+      "lattice": [18, 5, 0],
+      "kind": "yaw_control_surface",
+      "resourceId": "simulated:white_symmetric_sail",
+      "blockState": {"axis": "z"}
+    },
+    {
+      "role": "rudder_2",
+      "mode": "add_control_child",
+      "lattice": [18, 6, 0],
+      "kind": "yaw_control_surface",
+      "resourceId": "simulated:white_symmetric_sail",
+      "blockState": {"axis": "z"}
+    },
+    {
+      "role": "rudder_3",
+      "mode": "add_control_child",
+      "lattice": [18, 7, 0],
+      "kind": "yaw_control_surface",
+      "resourceId": "simulated:white_symmetric_sail",
+      "blockState": {"axis": "z"}
+    }
+  ],
+  "fixedFinParentGlueDomain": {
+    "name": "vertical_tail_fixed",
+    "from": [15, 3, 0],
+    "to": [16, 7, 0]
+  },
+  "bearingMountGlueDomain": {
+    "name": "yaw_bearing_mount",
+    "from": [17, 3, 0],
+    "to": [18, 3, 0]
+  },
+  "controlChildGlueDomain": {
+    "name": "rudder_child",
+    "from": [18, 4, 0],
+    "to": [18, 7, 0]
+  },
+  "sourceEvidence": [
+    "Exact-stack run 34764106343 left v0.13 spruce hinge-spar cell [16,4,0] at the source, so the spruce-separator parent topology is rejected.",
+    "Simulated registers exact resource simulated:swivel_bearing and seeds child assembly at pos.relative(FACING).",
+    "SimAssemblyContraption explicitly adds a Swivel Bearing's facing-side attachment during primary Physics Assembler traversal.",
+    "Create regular SailBlock movement attachment propagates within the sail plane; a true one-block air gap removes that path without relying on a replacement solid separator.",
+    "Simulated symmetric sails have Sable liftScalar=0, parallelDragScalar=1.75, and normal along positive AXIS."
+  ],
+  "runtimeObligations": [
+    {
+      "id": "yaw_v0131_primary_sable_recapture_probe",
+      "method": "apply the v0.13.1 one-add/one-remove parent patch, four-cell rudder, and seven-domain glue plan; verify 118 parent-main + 9 propeller payload + 4 rudder payload cells transfer into one Sable sublevel"
+    },
+    {
+      "id": "rudder_swivel_child_capture_probe",
+      "method": "assemble the moved UP-facing x=18 Swivel Bearing and verify exactly the four declared rudder payload cells leave the parent for one attached child while all 118 parent-main cells remain"
+    },
+    {
+      "id": "rudder_neutral_constraint_probe",
+      "method": "verify the newly assembled Swivel Bearing begins at finite zero target angle without unintended deflection"
+    },
+    {
+      "id": "rudder_actuation_probe",
+      "method": "after child capture passes, apply a source-backed kinetic command to the Swivel Bearing extra cog and measure signed target-angle response and neutral/locking behavior"
+    },
+    {
+      "id": "rudder_yaw_force_probe",
+      "method": "under controlled airflow, measure rudder side-force/yaw response without retuning the analytical aircraft model to fit runtime"
+    }
+  ]
+}
