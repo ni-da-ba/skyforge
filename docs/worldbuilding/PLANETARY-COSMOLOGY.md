@@ -248,9 +248,9 @@ island / inhabited sky
        |
        | open atmospheric depth
        v
-===============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
        LOWER CLOUD DECK
-===============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
        | occasional gaps
        v
        LOWER SEA
