@@ -75,6 +75,18 @@ final class SkyforgeDeferredExactMaterializationPreparation {
         cumulativeWorkNanos = Math.addExact(cumulativeWorkNanos, elapsedNanos);
     }
 
+    SkyIslandWorldVolumeId volumeId() {
+        return volumeId;
+    }
+
+    ChunkPos chunkPos() {
+        return chunkPos;
+    }
+
+    int minimumY() {
+        return minimumY;
+    }
+
     int preparedHeight() {
         return preparedHeight;
     }
