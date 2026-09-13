@@ -240,9 +240,10 @@ final class SkyforgeAircraftCompilerCockpitYawRouteRuntimeAcceptance {
 
     private static Object attachedChild(BlockEntity bearing) throws ReflectiveOperationException {
         Object raw = publicMethod(bearing, "sable$getConnectionDependencies").invoke(bearing);
-        if (!(raw instanceof Iterable<?> values)) {
-            fail("Swivel did not expose child dependencies");
+        if (!(raw instanceof Iterable<?>)) {
+            throw new IllegalStateException("Swivel did not expose child dependencies");
         }
+        Iterable<?> values = (Iterable<?>) raw;
         Object child = null;
         int count = 0;
         for (Object value : values) {
@@ -269,10 +270,11 @@ final class SkyforgeAircraftCompilerCockpitYawRouteRuntimeAcceptance {
     }
 
     private static Quaterniondc quaternion(Object value) {
-        if (!(value instanceof Quaterniondc quaternion)) {
-            fail("expected Quaterniondc, got " + (value == null ? "null" : value.getClass().getName()));
+        if (value instanceof Quaterniondc quaternion) {
+            return quaternion;
         }
-        return quaternion;
+        throw new IllegalStateException(
+                "expected Quaterniondc, got " + (value == null ? "null" : value.getClass().getName()));
     }
 
     private static Object requireServerSubLevelContainer(ServerLevel level) throws ReflectiveOperationException {
@@ -352,10 +354,11 @@ final class SkyforgeAircraftCompilerCockpitYawRouteRuntimeAcceptance {
     }
 
     private static double number(Object value) {
-        if (!(value instanceof Number number)) {
-            fail("expected Number, got " + (value == null ? "null" : value.getClass().getName()));
+        if (value instanceof Number number) {
+            return number.doubleValue();
         }
-        return number.doubleValue();
+        throw new IllegalStateException(
+                "expected Number, got " + (value == null ? "null" : value.getClass().getName()));
     }
 
     private static double signedDeltaDegrees(double from, double to) {
