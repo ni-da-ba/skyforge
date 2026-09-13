@@ -50,10 +50,12 @@ def patch_runtime_source(source: str) -> str:
         JsonObject steeringProbe = steeringControl.getAsJsonObject("runtimeProbe");
         BlockPos movedPilotSeatPos = BASE.offset(
                 blockPos(pilotInteraction.getAsJsonArray("pilotSeatCoordinate"))).offset(offset);
-        assertEquals(
-                "v0.19 Steering Wheel coordinate chains to v0.18",
-                blockPos(cockpitRoute.getAsJsonArray("steeringWheelCoordinate")),
-                blockPos(pilotInteraction.getAsJsonArray("steeringWheelCoordinate")));
+        BlockPos v018WheelCoordinate = blockPos(cockpitRoute.getAsJsonArray("steeringWheelCoordinate"));
+        BlockPos v019WheelCoordinate = blockPos(pilotInteraction.getAsJsonArray("steeringWheelCoordinate"));
+        assertTrue(
+                "v0.19 Steering Wheel coordinate chains to v0.18 expected="
+                        + v018WheelCoordinate + " actual=" + v019WheelCoordinate,
+                v018WheelCoordinate.equals(v019WheelCoordinate));
         JsonObject v019WheelState = pilotInteraction.getAsJsonObject("steeringWheelBlockState");
         SkyforgeAircraftCompilerPilotInteractionRuntimeAcceptance.verifyAssembledCockpitPresence(
                 level,
