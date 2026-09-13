@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "aircraft-blockspace-config-0.2",
+  "sourceAssetId": "skyforge.aircraft.guild_utility_monoplane.v0_1",
+  "blocksPerMeter": 2.0,
+  "targetFamily": "create_aeronautics_1.3.2_mc1.21.1_capability_contract",
+  "mounts": {
+    "fuselageCenterYM": 1.2,
+    "wingYM": 1.85,
+    "horizontalTailYM": 1.58,
+    "verticalTailRootYM": 1.45
+  },
+  "semanticStations": {
+    "pilotXM": 2.7,
+    "cargoXM": 4.6
+  },
+  "propellerHubRadiusM": 0.5,
+  "validation": {
+    "maxDimensionErrorBlocks": 1.0,
+    "maxCgStationErrorBlocks": 0.5
+  }
+}
