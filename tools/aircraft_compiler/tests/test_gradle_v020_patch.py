@@ -18,9 +18,15 @@ class GradleV020PatchTests(unittest.TestCase):
         self.assertIn('programArgument("aircraft-compiler-pilot-client")', patched)
         self.assertIn('systemProperty("skyforge.dev.aircraftCompilerPilotClient", "true")', patched)
         self.assertIn('systemProperty("skyforge.dev.aircraftCompilerPilotWorldPrepare", "true")', patched)
+
+        runs_close = patched.index("\n    }\n\n    unitTest {")
+        self.assertLess(
+            patched.index('create("aircraftCompilerPilotWorldPrepareServer")'),
+            runs_close,
+        )
         self.assertLess(
             patched.index('create("aircraftCompilerPilotClient")'),
-            patched.index("unitTest {"),
+            runs_close,
         )
 
 
