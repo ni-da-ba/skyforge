@@ -69,6 +69,14 @@ jobs:
           build/aircraft-compiler-v131/yaw_control_v0.13.json
           tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_control_v0.13.1.json
           --out build/aircraft-compiler-v131
+      - name: Lower v0.14 source-backed real-kinetic yaw actuation fixture
+        run: >-
+          python tools/aircraft_compiler/yaw_actuation_cli.py
+          build/aircraft-compiler-v131/probe_placement_manifest.json
+          build/aircraft-compiler-v131/powertrain_v0.12.json
+          build/aircraft-compiler-v131/yaw_control_v0.13.1.json
+          tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_actuation_v0.14.json
+          --out build/aircraft-compiler-v131
       - name: Assert v0.10-v0.11 assembly closure remains accepted
         run: |
           grep -q "mainBodyPlacementCount=114" build/aircraft-compiler-v131/assembly_fixture_validation.txt
@@ -158,10 +166,45 @@ jobs:
           assert 'rudder_actuation_unverified' in blockers
           assert 'pilot_control_binding_unverified' in blockers
           PY
-      - name: Upload analytical through corrected yaw-control QA
+      - name: Assert v0.14 actuation fixture identity and conservative readiness
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          yaw = json.loads(Path('build/aircraft-compiler-v131/yaw_control_v0.13.1.json').read_text())
+          p = json.loads(Path('build/aircraft-compiler-v131/yaw_actuation_v0.14.json').read_text())
+          assert p['validation']['passed'] is True
+          assert p['schemaVersion'] == 'aircraft-yaw-actuation-ir-0.14'
+          assert p['digestSha256'] == '26f32701664ae261d744508381d53729167d87fff5c4f2ac40881958862c0bdb'
+          assert p['sourceYawControlDigestSha256'] == yaw['digestSha256']
+          assert p['swivelBearingCoordinate'] == [18,3,0]
+          assert p['driveCogCoordinate'] == [18,3,1]
+          assert p['creativeMotorCoordinate'] == [18,2,1]
+          assert p['runtimeProbe']['expectedCreativeMotorRpmMagnitude'] == 16
+          assert p['runtimeProbe']['networkSettleTicks'] == 8
+          assert p['runtimeProbe']['commandTicks'] == 5
+          assert p['runtimeProbe']['stopSettleTicks'] == 8
+          assert p['runtimeProbe']['holdTicks'] == 4
+          assert p['runtimeProbe']['expectedCreateAngularDegreesPerTickPerRpm'] == 0.3
+          assert p['readiness']['yawActuationStaticTopologyPassed'] is True
+          assert p['readiness']['actuationRuntimeProbeReady'] is True
+          assert p['readiness']['productionControlBindingReady'] is False
+          assert p['readiness']['neutralReturnQualified'] is False
+          assert p['readiness']['yawForceQualified'] is False
+          assert p['readiness']['runtimeQualificationReady'] is False
+          assert p['readiness']['flightQualified'] is False
+          blockers = set(p['readiness']['runtimeBlockers'])
+          assert 'yaw_test_fixture_network_unverified' in blockers
+          assert 'rudder_signed_target_angle_unverified' in blockers
+          assert 'rudder_neutral_return_unverified' in blockers
+          assert 'rudder_yaw_force_unverified' in blockers
+          assert 'pilot_control_binding_unverified' in blockers
+          PY
+      - name: Upload analytical through yaw-actuation QA
         uses: actions/upload-artifact@v4
         with:
-          name: aircraft-compiler-guild-utility-v131-qa
+          name: aircraft-compiler-guild-utility-v014-qa
           path: build/aircraft-compiler-v131
           if-no-files-found: error
           retention-days: 14
