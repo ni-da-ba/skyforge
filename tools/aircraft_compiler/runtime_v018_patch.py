@@ -139,6 +139,21 @@ def patch_runtime_source(source: str) -> str:
                 movedMainCount + movedPropellerPayloadCount + movedRudderPayloadCount);'''
     source = _replace_once(source, transfer_old, transfer_new, "v0.18 transfer counts")
 
+    yaw_call_old = '''        SkyforgeAircraftCompilerYawRuntimeAcceptance.verify(
+                level,
+                movedSwivelBearingPos,
+                movedRudderPayloadPositions,
+                movedRetainedParentMainPositions);
+'''
+    yaw_call_new = '''        SkyforgeAircraftCompilerYawRuntimeAcceptance.verify(
+                level,
+                movedSwivelBearingPos,
+                movedRudderPayloadPositions,
+                movedRetainedParentMainPositions,
+                expectedCockpitParentMain);
+'''
+    source = _replace_once(source, yaw_call_old, yaw_call_new, "v0.18 expanded yaw-parent invariant")
+
     propeller_call_anchor = '''        SkyforgeAircraftCompilerPropellerRuntimeAcceptance.verify(
 '''
     cockpit_call = '''        BlockPos movedCockpitWheelPos = BASE.offset(
