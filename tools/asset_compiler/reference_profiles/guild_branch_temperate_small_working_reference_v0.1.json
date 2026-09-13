@@ -1,0 +1,24 @@
+{
+  "profileId": "guild.branch.temperate.small.working-reference.v0.1",
+  "status": "working_reference",
+  "provenance": {
+    "externalMasterBuilderMeasurement": false,
+    "basis": [
+      "Guild Mercantile Functionalism canon",
+      "bootstrap Guild branch v0.4-v0.7 in-game review",
+      "Minecraft-scale composition lessons: hierarchy, depth, rhythm, transitions"
+    ],
+    "note": "These numeric bounds are an internal working reference. Replace or augment them with measured donor/reference distributions when those assets are formally analyzed."
+  },
+  "ratios": {
+    "bayWidthToWallHeight": {"min": 0.72, "target": 0.833333, "max": 0.95},
+    "mainDepthToHallWidth": {"min": 0.72, "target": 0.8125, "max": 0.92},
+    "workingWingWidthToHallWidth": {"min": 0.42, "target": 0.5, "max": 0.60},
+    "mainRoofRiseToDepth": {"min": 0.24, "target": 0.307692, "max": 0.38},
+    "roofOverhangToDepth": {"min": 0.04, "target": 0.076923, "max": 0.12},
+    "publicCanopyDepthToWallHeight": {"min": 0.20, "target": 0.333333, "max": 0.45},
+    "workingCanopyDepthToWallHeight": {"min": 0.20, "target": 0.333333, "max": 0.45},
+    "publicEntranceWidthToBayWidth": {"min": 0.30, "target": 0.40, "max": 0.60},
+    "averagePublicWindowWidthToBayWidth": {"min": 0.45, "target": 0.60, "max": 0.72}
+  }
+}
