@@ -51,6 +51,7 @@ class YawControlCorrectionTests(unittest.TestCase):
         }
         self.powertrain = {
             "schemaVersion": "aircraft-powertrain-ir-0.12",
+            "assetId": "skyforge.aircraft.test.v0_12_powertrain",
             "digestSha256": "power",
             "placements": [],
             "powerplantGlueDomain": {"name": "powerplant", "from": [4,0,0], "to": [5,1,1]},
