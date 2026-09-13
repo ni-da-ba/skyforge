@@ -112,9 +112,10 @@ final class SkyforgeAircraftCompilerYawRuntimeAcceptance {
         assertInt("all parent-main cells retained", EXPECTED_RETAINED_PARENT_MAIN, retainedCount);
 
         Object rawDependencies = publicMethod(bearing, "sable$getConnectionDependencies").invoke(bearing);
-        if (!(rawDependencies instanceof Iterable<?> dependencies)) {
+        if (!(rawDependencies instanceof Iterable<?>)) {
             fail("Swivel Bearing did not expose Sable connection dependencies: " + rawDependencies);
         }
+        Iterable<?> dependencies = (Iterable<?>) rawDependencies;
         List<Object> childDependencies = new ArrayList<>();
         for (Object dependency : dependencies) {
             if (dependency != null) {
