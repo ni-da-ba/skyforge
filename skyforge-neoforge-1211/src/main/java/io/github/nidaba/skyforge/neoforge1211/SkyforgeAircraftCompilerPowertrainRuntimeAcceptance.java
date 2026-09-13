@@ -8,14 +8,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
-/**
- * AIRCRAFT-001 v0.12 exact-stack propulsion-performance boundary.
- *
- * <p>This runs only after the 127-block primary Sable recapture and the nine-block Propeller
- * Bearing child capture have succeeded. It proves the first 128-RPM governed point using the real
- * Create kinetic network and records Aeronautics thrust as runtime evidence. The measured thrust
- * sign is deliberately not yet interpreted as a flight-direction qualification.
- */
+/** AIRCRAFT-001 v0.12 exact-stack 128-RPM propulsion-performance acceptance. */
 final class SkyforgeAircraftCompilerPowertrainRuntimeAcceptance {
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeAircraftCompilerPowertrainRuntimeAcceptance.class.getName());
@@ -44,12 +37,9 @@ final class SkyforgeAircraftCompilerPowertrainRuntimeAcceptance {
         BlockEntity propShaft = requireBlockEntity(level, propShaftPos, "KineticBlockEntity", "create:shaft");
         BlockEntity bearing = requireBlockEntity(level, bearingPos, "PropellerBearingBlockEntity", "aeronautics:propeller_bearing");
 
-        Method setBurnPort = publicMethod(enginePort, "setCurrentBurnTime", int.class);
-        Method setBurnStarboard = publicMethod(engineStarboard, "setCurrentBurnTime", int.class);
-        setBurnPort.invoke(enginePort, ENGINE_BURN_TICKS);
-        setBurnStarboard.invoke(engineStarboard, ENGINE_BURN_TICKS);
+        publicMethod(enginePort, "setCurrentBurnTime", int.class).invoke(enginePort, ENGINE_BURN_TICKS);
+        publicMethod(engineStarboard, "setCurrentBurnTime", int.class).invoke(engineStarboard, ENGINE_BURN_TICKS);
 
-        // Let both real Simulated sources publish their 32-RPM output and attach kinetics.
         tick(enginePort);
         tick(engineStarboard);
         tick(enginePort);
@@ -66,8 +56,6 @@ final class SkyforgeAircraftCompilerPowertrainRuntimeAcceptance {
         assertTrue("starboard engine has kinetic network", engineStarboardNetwork != null);
         assertTrue("both Portable Engines share the same source kinetic network", enginePortNetwork.equals(engineStarboardNetwork));
 
-        // Use Create's public ScrollValueBehaviour API. setValue() executes the controller's own
-        // updateTargetRotation callback; there is no direct mutation of its internal target field.
         Object targetSpeed = publicField(governor, "targetSpeed").get(governor);
         assertTrue("Rotation Speed Controller targetSpeed behaviour initialized", targetSpeed != null);
         publicMethod(targetSpeed, "setValue", int.class).invoke(targetSpeed, GOVERNOR_TARGET_RPM);
@@ -83,7 +71,6 @@ final class SkyforgeAircraftCompilerPowertrainRuntimeAcceptance {
             tick(bearing);
         }
 
-        // Re-read the sources after the controller has rebuilt the network.
         enginePortRpm = number(publicMethod(enginePort, "getGeneratedSpeed").invoke(enginePort));
         engineStarboardRpm = number(publicMethod(engineStarboard, "getGeneratedSpeed").invoke(engineStarboard));
         assertAbsNear("settled port Portable Engine generated RPM", EXPECTED_ENGINE_RPM, enginePortRpm, 0.001f);
@@ -94,8 +81,8 @@ final class SkyforgeAircraftCompilerPowertrainRuntimeAcceptance {
         assertTrue("settled engines retain one shared source network",
                 enginePortNetwork != null && enginePortNetwork.equals(engineStarboardNetwork));
 
-        boolean bearingHasNetwork = (Boolean) publicMethod(bearing, "hasNetwork").invoke(bearing);
-        assertTrue("Propeller Bearing has governed kinetic network", bearingHasNetwork);
+        assertTrue("Propeller Bearing has governed kinetic network",
+                (Boolean) publicMethod(bearing, "hasNetwork").invoke(bearing));
         float bearingRpm = number(publicMethod(bearing, "getSpeed").invoke(bearing));
         float bearingTheoreticalRpm = number(publicMethod(bearing, "getTheoreticalSpeed").invoke(bearing));
         assertAbsNear("Propeller Bearing live RPM", GOVERNOR_TARGET_RPM, bearingRpm, 0.01f);
@@ -112,8 +99,6 @@ final class SkyforgeAircraftCompilerPowertrainRuntimeAcceptance {
         float stressMargin = capacity - stress;
         assertTrue("kinetic stress capacity is sufficient", stressMargin > 0.0f);
 
-        // Aeronautics intentionally smooths propeller angular speed as a function of sail power.
-        // Advance the real bearing until that state has converged before measuring propulsive output.
         for (int i = 0; i < PROPELLER_SMOOTHING_TICKS; i++) {
             tick(enginePort);
             tick(engineStarboard);
@@ -121,11 +106,21 @@ final class SkyforgeAircraftCompilerPowertrainRuntimeAcceptance {
         }
 
         float directionIndependentSpeed = number(publicMethod(bearing, "getDirectionIndependentSpeed").invoke(bearing));
-        double thrust = doubleNumber(publicMethod(bearing, "getThrust").invoke(bearing));
+        double rawThrust = doubleNumber(publicMethod(bearing, "getThrust").invoke(bearing));
+        double scaledThrust = doubleNumber(publicMethod(bearing, "getScaledThrust").invoke(bearing));
+        Object blockDirection = publicMethod(bearing, "getBlockDirection").invoke(bearing);
+        String facing = blockDirection.toString();
+        int facingStepX = ((Number) publicMethod(blockDirection, "getStepX").invoke(blockDirection)).intValue();
+        double appliedForceX = facingStepX * scaledThrust;
+
         assertFinite("direction-independent propeller speed", directionIndependentSpeed);
-        assertFinite("propeller thrust", thrust);
+        assertFinite("raw propeller thrust", rawThrust);
+        assertFinite("Sable scaled propeller thrust", scaledThrust);
         assertTrue("direction-independent propeller speed is nonzero", Math.abs(directionIndependentSpeed) > 0.01f);
-        assertTrue("propeller thrust magnitude is nonzero", Math.abs(thrust) > 1.0e-9);
+        assertTrue("raw propeller thrust magnitude is nonzero", Math.abs(rawThrust) > 1.0e-9);
+        assertTrue("compiled Propeller Bearing remains WEST-facing", "west".equalsIgnoreCase(facing));
+        assertTrue("WEST-facing tractor has positive Sable scaled-thrust scalar", scaledThrust > 0.0);
+        assertTrue("Sable propulsion point force acts toward aircraft nose (-X)", appliedForceX < 0.0);
 
         LOGGER.log(
                 System.Logger.Level.INFO,
@@ -140,9 +135,12 @@ final class SkyforgeAircraftCompilerPowertrainRuntimeAcceptance {
                         + " kineticStress=" + stress
                         + " stressMargin=" + stressMargin
                         + " directionIndependentSpeed=" + directionIndependentSpeed
-                        + " thrust=" + thrust
+                        + " rawThrust=" + rawThrust
+                        + " scaledThrust=" + scaledThrust
+                        + " facing=" + facing
+                        + " appliedForceX=" + appliedForceX
                         + " thrustMeasured=true"
-                        + " thrustDirectionQualified=false");
+                        + " thrustDirectionQualified=true");
     }
 
     private static BlockEntity requireBlockEntity(
