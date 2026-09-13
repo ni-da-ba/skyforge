@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "aircraft-cockpit-yaw-route-profile-0.18",
+  "profileId": "skyforge.cockpit_yaw_route.create_1_21_1.v0_18",
+  "sourceSteeringControlDigestSha256": "dedcf826848a9828b72b42b78a935797f13ff26594f18c5a31a4ce0dfcdbf403",
+  "resources": {
+    "steeringWheel": "simulated:steering_wheel",
+    "gearbox": "create:gearbox",
+    "shaft": "create:shaft",
+    "cogwheel": "create:cogwheel"
+  },
+  "pilotWheelCandidates": [
+    {
+      "name": "starboard_adjacent_floor",
+      "offsetFromPilotSeat": [0, 0, 1],
+      "blockState": {"facing": "north", "on_floor": "true", "waterlogged": "false"},
+      "preferencePenalty": 0
+    },
+    {
+      "name": "port_adjacent_floor",
+      "offsetFromPilotSeat": [0, 0, -1],
+      "blockState": {"facing": "south", "on_floor": "true", "waterlogged": "false"},
+      "preferencePenalty": 0
+    }
+  ],
+  "routeBounds": {"minX": 3, "maxX": 18, "minZ": -3, "maxZ": 3},
+  "turnPenalty": 4,
+  "pilotDistancePenalty": 3,
+  "expectedSwivelExtraCogSignForPositiveWheelCommand": -1,
+  "maxGlueSelectionDimensionBlocks": 24,
+  "forbiddenCoordinates": [],
+  "sourceEvidence": [
+    "Simulated SteeringWheelBlock has a Y rotation axis; floor mounting exposes its shaft downward and the north-facing floor state generates negative shaft RPM for a positive logical steering command.",
+    "Create 6.0.10 GearboxBlock exposes shafts on faces whose axis differs from the gearbox AXIS.",
+    "Create 6.0.10 RotationPropagator gearbox sign conversion is source-face and output-direction dependent; v0.18 therefore searches and validates sign as part of route state.",
+    "Create resources are exact: create:shaft, create:gearbox, and create:cogwheel.",
+    "The accepted v0.17 tail interface is retained at drive cog [18,3,1] adjacent to the UP-facing Swivel at [18,3,0]."
+  ],
+  "runtimeObligations": [
+    {"id": "cockpit_route_primary_recapture_probe", "method": "assemble the route-modified exact-stack aircraft and require all routed parent-main cells plus the accepted propeller/rudder payloads to transfer into the primary Sable body"},
+    {"id": "cockpit_steering_network_probe", "method": "command the pilot-adjacent Steering Wheel and measure 16-RPM magnitude plus the compiler-predicted sign at the aft drive cog and Swivel hidden extra cog"},
+    {"id": "cockpit_steering_command_return_probe", "method": "command a finite rudder deflection through the complete cockpit route, release/hold, explicitly command zero, and verify the physical rudder returns near neutral"},
+    {"id": "post_route_mass_com_probe", "method": "measure Sable mass and center of mass after all production-route blocks are part of the primary body"}
+  ]
+}
