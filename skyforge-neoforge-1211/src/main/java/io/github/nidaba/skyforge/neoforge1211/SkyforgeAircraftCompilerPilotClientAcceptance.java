@@ -1,0 +1,240 @@
+package io.github.nidaba.skyforge.neoforge1211;
+
+import java.lang.reflect.Method;
+import java.util.LinkedHashMap;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+
+/** Actual-client half of AIRCRAFT-001 v0.20 pilot/Steering-Wheel qualification. */
+@EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID, value = Dist.CLIENT)
+final class SkyforgeAircraftCompilerPilotClientAcceptance {
+    private static final long CLIENT_TIMEOUT_NANOS = 120_000_000_000L;
+    private static final int ACQUIRE_RETRY_LIMIT_TICKS = 40;
+
+    private static long firstClientTickNanos = Long.MIN_VALUE;
+    private static int stage;
+    private static int stageTicks;
+    private static boolean clientHoldAcquired;
+    private static boolean clientSeatMounted;
+    private static InteractionResult wheelUseResult;
+    private static InteractionResult seatUseResult;
+
+    private SkyforgeAircraftCompilerPilotClientAcceptance() {}
+
+    @SubscribeEvent
+    static void onClientTick(ClientTickEvent.Post event) {
+        if (!Boolean.getBoolean(SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.ENABLE_PROPERTY)
+                || !SkyforgeAutomatedAcceptanceHarness.clientMode()) {
+            return;
+        }
+
+        long now = System.nanoTime();
+        if (firstClientTickNanos == Long.MIN_VALUE) {
+            firstClientTickNanos = now;
+        }
+        if (now - firstClientTickNanos > CLIENT_TIMEOUT_NANOS) {
+            fail("actual-client pilot interaction did not complete within 120 seconds");
+            return;
+        }
+
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot =
+                SkyforgeAircraftCompilerPilotClientBridge.snapshot();
+        if (minecraft.level == null || player == null || minecraft.gameMode == null || snapshot == null) {
+            return;
+        }
+        if (!SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.playerPositioned()) {
+            return;
+        }
+
+        try {
+            stageTicks++;
+            switch (stage) {
+                case 0 -> acquireSteeringWheel(minecraft, player, snapshot);
+                case 1 -> awaitActivePacket(snapshot);
+                case 2 -> awaitReleasePacket(minecraft, player, snapshot);
+                case 3 -> awaitSeatMount(minecraft, player, snapshot);
+                case 4 -> awaitSeatDismount(minecraft, player, snapshot);
+                default -> fail("invalid AIRCRAFT-001 v0.20 client stage " + stage);
+            }
+        } catch (ReflectiveOperationException failure) {
+            fail("real Simulated client interaction reflection failed: " + failure);
+        } catch (RuntimeException failure) {
+            fail("actual-client pilot interaction failed: " + failure);
+        }
+    }
+
+    private static void acquireSteeringWheel(
+            Minecraft minecraft,
+            LocalPlayer player,
+            SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot)
+            throws ReflectiveOperationException {
+        BlockPos wheelPos = snapshot.steeringWheelPos();
+        if (!minecraft.level.getBlockState(wheelPos).getBlock().getClass().getName().endsWith("SteeringWheelBlock")) {
+            return;
+        }
+        if (!player.getItemInHand(InteractionHand.MAIN_HAND).isEmpty()) {
+            fail("v0.20 client proof requires an empty main hand for Steering Wheel interaction");
+            return;
+        }
+
+        lookAt(player, Vec3.atCenterOf(wheelPos));
+        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(wheelPos), Direction.UP, wheelPos, false);
+        minecraft.hitResult = hit;
+        wheelUseResult = minecraft.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
+
+        if (!holdInteractionActive()) {
+            if (stageTicks >= ACQUIRE_RETRY_LIMIT_TICKS) {
+                fail("real MultiPlayerGameMode.useItemOn never acquired Simulated SteeringWheelHandler");
+            }
+            return;
+        }
+
+        clientHoldAcquired = true;
+        invokeSimulatedMouseMove(snapshot.mouseYawDelta(), 0.0);
+        advanceStage();
+    }
+
+    private static void awaitActivePacket(SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot)
+            throws ReflectiveOperationException {
+        if (SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.activePacketObserved()) {
+            invokeSimulatedUseRelease();
+            if (holdInteractionActive()) {
+                fail("Simulated use-release lifecycle left SteeringWheelHandler active");
+                return;
+            }
+            advanceStage();
+            return;
+        }
+        if (stageTicks > snapshot.activePacketSettleTicks()) {
+            fail("server never observed the real client SteeringWheelPacket active command");
+        }
+    }
+
+    private static void awaitReleasePacket(
+            Minecraft minecraft,
+            LocalPlayer player,
+            SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot) {
+        if (!SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.releasePacketObserved()) {
+            if (stageTicks > snapshot.releasePacketSettleTicks()) {
+                fail("server never observed the real client SteeringWheelPacket release command");
+            }
+            return;
+        }
+
+        BlockPos seatPos = snapshot.pilotSeatPos();
+        if (!minecraft.level.getBlockState(seatPos).getBlock().getClass().getName().endsWith("SeatBlock")) {
+            if (stageTicks > snapshot.releasePacketSettleTicks()) {
+                fail("compiled Create pilot seat was not interactable in the actual ClientLevel");
+            }
+            return;
+        }
+        lookAt(player, Vec3.atCenterOf(seatPos));
+        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(seatPos), Direction.UP, seatPos, false);
+        minecraft.hitResult = hit;
+        seatUseResult = minecraft.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
+        advanceStage();
+    }
+
+    private static void awaitSeatMount(
+            Minecraft minecraft,
+            LocalPlayer player,
+            SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot) {
+        boolean serverMounted = SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.seatMountObserved();
+        if (serverMounted && player.isPassenger()) {
+            clientSeatMounted = true;
+            minecraft.options.keyShift.setDown(true);
+            advanceStage();
+            return;
+        }
+        if (stageTicks > snapshot.seatMountSettleTicks()) {
+            fail("real client seat use did not mount both LocalPlayer and integrated ServerPlayer");
+        }
+    }
+
+    private static void awaitSeatDismount(
+            Minecraft minecraft,
+            LocalPlayer player,
+            SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot) {
+        minecraft.options.keyShift.setDown(true);
+        boolean serverDismounted = SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.seatDismountObserved();
+        if (serverDismounted && !player.isPassenger()) {
+            minecraft.options.keyShift.setDown(false);
+            complete(minecraft);
+            return;
+        }
+        if (stageTicks > snapshot.seatDismountSettleTicks()) {
+            minecraft.options.keyShift.setDown(false);
+            fail("ordinary client crouch input did not dismount both client and server player");
+        }
+    }
+
+    private static void complete(Minecraft minecraft) {
+        LinkedHashMap<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("actualClient", true);
+        evidence.put("steeringWheelUseResult", String.valueOf(wheelUseResult));
+        evidence.put("steeringHoldAcquired", clientHoldAcquired);
+        evidence.put("activePacketRoundTrip", SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.activePacketObserved());
+        evidence.put("releasePacketRoundTrip", SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.releasePacketObserved());
+        evidence.put("activeTargetDegrees", SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.activeTargetDegrees());
+        evidence.put("pilotSeatUseResult", String.valueOf(seatUseResult));
+        evidence.put("pilotSeatMounted", clientSeatMounted && SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.seatMountObserved());
+        evidence.put("pilotSeatDismounted", SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.seatDismountObserved());
+        evidence.put("playerSableTrackingQualified", false);
+        evidence.put("completedControlsPersistenceQualified", false);
+        evidence.put("flightQualified", false);
+        SkyforgeAutomatedAcceptanceHarness.completeClientCase(evidence);
+        minecraft.stop();
+    }
+
+    private static void lookAt(LocalPlayer player, Vec3 target) {
+        Vec3 delta = target.subtract(player.getEyePosition());
+        double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
+        float yaw = (float) Math.toDegrees(Math.atan2(-delta.x, delta.z));
+        float pitch = (float) -Math.toDegrees(Math.atan2(delta.y, horizontal));
+        player.setYRot(yaw);
+        player.setXRot(pitch);
+        player.setYHeadRot(yaw);
+    }
+
+    private static boolean holdInteractionActive() throws ReflectiveOperationException {
+        Class<?> manager = Class.forName("dev.simulated_team.simulated.util.hold_interaction.HoldInteractionManager");
+        Method method = manager.getMethod("isActive");
+        return (boolean) method.invoke(null);
+    }
+
+    private static void invokeSimulatedMouseMove(double yaw, double pitch) throws ReflectiveOperationException {
+        Class<?> events = Class.forName("dev.simulated_team.simulated.events.SimulatedCommonClientEvents");
+        events.getMethod("onMouseMove", double.class, double.class).invoke(null, yaw, pitch);
+    }
+
+    private static void invokeSimulatedUseRelease() throws ReflectiveOperationException {
+        Class<?> input = Class.forName("dev.simulated_team.simulated.util.click_interactions.InteractCallback$Input");
+        Object useMouseInput = input.getMethod("mouse", int.class).invoke(null, 1);
+        Class<?> events = Class.forName("dev.simulated_team.simulated.events.SimulatedCommonClientEvents");
+        events.getMethod("onBeforeMouseInput", input, int.class, int.class)
+                .invoke(null, useMouseInput, 0, 0);
+    }
+
+    private static void advanceStage() {
+        stage++;
+        stageTicks = 0;
+    }
+
+    private static void fail(String reason) {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.options.keyShift.setDown(false);
+        SkyforgeAutomatedAcceptanceHarness.failClientCase(reason);
+    }
+}
