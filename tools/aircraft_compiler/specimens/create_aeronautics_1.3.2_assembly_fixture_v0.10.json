@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "aircraft-assembly-fixture-profile-0.10",
+  "profileId": "skyforge.assembly_fixture.simulated_1_3_2.v0_10",
+  "mainBodyKinds": [
+    "airframe_structure",
+    "airframe_aerodynamic_surface",
+    "propeller_bearing",
+    "pilot_occupancy_station"
+  ],
+  "nestedChildKinds": ["propeller_hub", "propeller_sail"],
+  "seedCoordinate": [0, 2, 0],
+  "assemblerOffsetFromSeed": [0, -1, 0],
+  "physicsAssembler": {
+    "resourceId": "simulated:physics_assembler",
+    "blockState": {"face": "ceiling", "facing": "north"},
+    "evidence": "released Simulated source registers physics_assembler; face=ceiling sticky direction is UP and assembleOrDisassemble seeds assembly from that neighbor"
+  },
+  "runtimeObligations": [
+    {
+      "id": "physics_assembler_capture_probe",
+      "method": "place the exact compiled fixture, actuate Physics Assembler, and verify the intended main-body block count enters one Sable sublevel"
+    },
+    {
+      "id": "adhesion_application_probe",
+      "method": "encode the logical adhesion intent using supported Super Glue/attachment semantics, then prove every main-body placement is captured without crossing nested-bearing or future control-hinge boundaries"
+    },
+    {
+      "id": "nested_propeller_capture_probe",
+      "method": "after main-body assembly, assemble the Propeller Bearing and verify hub plus eight symmetric sails form the child BearingContraption rather than joining the main adhesion graph"
+    }
+  ]
+}
