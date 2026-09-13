@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "aircraft-pilot-interaction-profile-0.19",
+  "profileId": "skyforge.pilot_interaction.create_aeronautics_1_3_2.v0_19",
+  "sourceContract": {
+    "seatBehaviorClass": "com.simibubi.create.content.contraptions.actors.seat.SeatBlock",
+    "steeringHandlerClass": "dev.simulated_team.simulated.content.blocks.steering_wheel.SteeringWheelHandler",
+    "steeringPacketClass": "dev.simulated_team.simulated.network.packets.SteeringWheelPacket",
+    "steeringPacketPayloadId": "simulated:steering_wheel_update"
+  },
+  "steeringPacketContract": {
+    "activePacketShouldStop": false,
+    "releasePacketShouldStop": true,
+    "activePacketServerAction": "startHolding",
+    "releasePacketServerAction": "stopHolding",
+    "targetAngleField": "targetAngleToUpdate",
+    "positionField": "pos"
+  },
+  "probeModes": {
+    "headlessServerCanQualify": [
+      "assembled_cockpit_presence_probe"
+    ],
+    "realClientRequired": [
+      "player_seat_interaction_probe",
+      "player_sable_tracking_probe",
+      "steering_wheel_client_hold_interaction_probe",
+      "steering_wheel_packet_round_trip_probe"
+    ],
+    "humanEyeBeforeFlightQualification": true
+  },
+  "runtimeObligations": [
+    {
+      "id": "assembled_cockpit_presence_probe",
+      "method": "on the exact assembled v0.18 Sable aircraft, verify the Create seat and Simulated Steering Wheel survive recapture at their compiled coordinates with exact resource/blockstate identity"
+    },
+    {
+      "id": "player_seat_interaction_probe",
+      "method": "with a real connected ServerPlayer, interact with the compiled Create seat and verify Create's SeatEntity mounts the player, remains occupied, and dismounts cleanly"
+    },
+    {
+      "id": "player_sable_tracking_probe",
+      "method": "while the real player occupies or stands on the assembled aircraft, move/rotate the Sable parent and verify the server player inherits the sublevel pose without divergence or ejection"
+    },
+    {
+      "id": "steering_wheel_client_hold_interaction_probe",
+      "method": "from a real client, acquire Simulated's SteeringWheelHandler hold interaction on the assembled cockpit wheel, vary mouse yaw, and release through the normal handler lifecycle"
+    },
+    {
+      "id": "steering_wheel_packet_round_trip_probe",
+      "method": "observe a real client-generated simulated:steering_wheel_update packet reach the assembled wheel block entity, produce the accepted v0.18 kinetic/rudder response, then deliver the release/neutral sequence without direct server-side field mutation"
+    }
+  ]
+}
