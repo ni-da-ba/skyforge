@@ -24,7 +24,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 /** Runtime binding between compiled Skyforge terrain and the Minecraft 1.21.1 adapter. */
 public final class SkyforgeNeoForge1211SurfaceStage {
     private static final AtomicReference<RuntimeBinding> ACTIVE = new AtomicReference<>();
-    private static final int MAX_DEFERRED_MATERIALIZATION_COLUMNS_PER_QUANTUM = 16;
+    private static final int MAX_DEFERRED_MATERIALIZATION_COLUMNS_PER_QUANTUM = 32;
 
     private SkyforgeNeoForge1211SurfaceStage() {}
 
@@ -197,6 +197,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 .orElse(null);
         boolean rematerialized = materialization == null;
         if (rematerialized) {
+            long materializeSliceStart = SkyforgeRuntimePerformanceMetrics.start();
             var preparation = progressData.getOrCreatePreparation(
                     pending.volumeId(),
                     chunk.getPos(),
@@ -208,7 +209,6 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                         range.height());
             }
 
-            long materializeSliceStart = SkyforgeRuntimePerformanceMetrics.start();
             var preparationAdvance = preparation.advance(
                     binding.adapter()::materializeExactColumns,
                     MAX_DEFERRED_MATERIALIZATION_COLUMNS_PER_QUANTUM);
