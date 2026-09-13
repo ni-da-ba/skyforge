@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "0.2",
+  "assetId": "skyforge.texture.guild_clerk.temperate.v0_2",
+  "target": {"kind": "minecraft_skin_classic"},
+  "creativeSource": "semantic Guild clerk detail pass: temperate regional Guild, public-facing clerk, deep navy tailored coat, cream shirt, aged brass insignia and closure",
+  "sourceScale": 4,
+  "style": {
+    "colors": {
+      "skin": "#c9906e",
+      "skinShadow": "#9e654f",
+      "skinHighlight": "#dda581",
+      "hair": "#3c2a24",
+      "hairDeep": "#281b18",
+      "hairHighlight": "#6c4d3f",
+      "eye": "#54766b",
+      "brow": "#2b201c",
+      "mouth": "#8a4f4c",
+      "coat": "#26364f",
+      "coatShadow": "#182437",
+      "coatHighlight": "#405472",
+      "shirt": "#d8cfb7",
+      "shirtShadow": "#afa791",
+      "brass": "#b08b4f",
+      "brassDark": "#765f38",
+      "trouser": "#30343b",
+      "trouserHighlight": "#474d58",
+      "boot": "#19191b",
+      "bootHighlight": "#302e31"
+    }
+  },
+  "optimization": {
+    "maxColors": 20,
+    "smoothness": 0.82,
+    "contrastBeta": 0.012,
+    "lockedColors": ["#26364f", "#b08b4f", "#d8cfb7", "#54766b"]
+  },
+  "detailPass": {
+    "enabled": true,
+    "multiscaleDetailWeight": 1.45,
+    "groups": {
+      "face_hair": {"minColors": 3, "maxColors": 6, "weight": 3.2, "smoothnessScale": 0.58},
+      "garment_base": {"minColors": 3, "maxColors": 6, "weight": 2.2, "smoothnessScale": 0.70},
+      "lower_body": {"minColors": 2, "maxColors": 4, "weight": 1.0, "smoothnessScale": 1.05},
+      "overlay_detail": {"minColors": 2, "maxColors": 5, "weight": 2.6, "smoothnessScale": 0.46}
+    }
+  }
+}

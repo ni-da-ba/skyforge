@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "0.1",
+  "assetId": "skyforge.texture.generic_patch.proof.v0_1",
+  "target": {"kind": "explicit_atlas", "atlas": {"width": 8, "height": 4}, "regions": [{"id": "panel.a", "width": 4, "height": 4, "atlasX": 0, "atlasY": 0}, {"id": "panel.b", "width": 4, "height": 4, "atlasX": 4, "atlasY": 0}], "seams": [{"id": "panel_join", "a": {"region": "panel.a", "edge": "right"}, "b": {"region": "panel.b", "edge": "left"}, "hard": true}]},
+  "sources": [{"region": "panel.a", "pixels": [["#20304a","#20304a","#20304a","#b08b4f"],["#20304a","#20304a","#2b3d5b","#b08b4f"],["#20304a","#2b3d5b","#2b3d5b","#b08b4f"],["#20304a","#20304a","#20304a","#b08b4f"]]}, {"region": "panel.b", "pixels": [["#b08b4f","#20304a","#20304a","#20304a"],["#b08b4f","#2b3d5b","#20304a","#20304a"],["#b08b4f","#2b3d5b","#2b3d5b","#20304a"],["#b08b4f","#20304a","#20304a","#20304a"]]}],
+  "optimization": {"maxColors": 3, "smoothness": 0.7, "contrastBeta": 0.02}
+}
