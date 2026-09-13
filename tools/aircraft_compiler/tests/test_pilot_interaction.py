@@ -18,13 +18,24 @@ class PilotInteractionTests(unittest.TestCase):
             },
             "validation": {"passed": True},
         }
+        wheel_state = {"facing": "north", "on_floor": "true", "waterlogged": "false"}
         self.route = {
             "schemaVersion": "aircraft-cockpit-yaw-route-ir-0.18",
             "assetId": "guild_utility_monoplane_v0_18_cockpit_yaw_route",
             "digestSha256": "route-digest",
             "pilotSeatCoordinate": [5, 3, 0],
             "steeringWheelCoordinate": [5, 3, 1],
-            "steeringWheelResource": "simulated:steering_wheel",
+            "steeringWheelBlockState": wheel_state,
+            "placements": [
+                {
+                    "kind": "cockpit_yaw_control_source",
+                    "lattice": [5, 3, 1],
+                    "resourceId": "simulated:steering_wheel",
+                    "blockState": wheel_state,
+                    "role": "cockpit_steering_wheel",
+                    "mode": "add_main",
+                }
+            ],
             "validation": {"passed": True},
         }
         self.profile = {
@@ -69,6 +80,8 @@ class PilotInteractionTests(unittest.TestCase):
         self.assertEqual(first["digestSha256"], second["digestSha256"])
         self.assertEqual(first["pilotSeatCoordinate"], [5, 3, 0])
         self.assertEqual(first["steeringWheelCoordinate"], [5, 3, 1])
+        self.assertEqual(first["steeringWheelResource"], "simulated:steering_wheel")
+        self.assertEqual(first["steeringWheelBlockState"], self.route["steeringWheelBlockState"])
         self.assertEqual(first["cockpitGeometry"]["horizontalManhattanDistanceBlocks"], 1)
         self.assertTrue(first["readiness"]["pilotInteractionStaticContractPassed"])
         self.assertTrue(first["readiness"]["realClientPilotProbeReady"])
@@ -88,6 +101,7 @@ class PilotInteractionTests(unittest.TestCase):
     def test_rejects_nonadjacent_wheel(self) -> None:
         route = copy.deepcopy(self.route)
         route["steeringWheelCoordinate"] = [5, 3, 2]
+        route["placements"][0]["lattice"] = [5, 3, 2]
         with self.assertRaisesRegex(PilotInteractionError, "horizontally adjacent"):
             lower_pilot_interaction(self.pilot, route, self.profile)
 
