@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +44,27 @@ def _max_model_turns_per_worker() -> int:
         4,
         minimum=1,
     )
+
+
+def _progress_stall_seconds() -> int:
+    return core._env_int(
+        "SKYFORGE_WORKER_PROGRESS_STALL_SECONDS",
+        900,
+        minimum=60,
+    )
+
+
+def _age_seconds(raw: Any, *, now: datetime | None = None) -> float | None:
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        current = now or datetime.now(timezone.utc)
+        return max(0.0, (current - parsed.astimezone(timezone.utc)).total_seconds())
+    except (TypeError, ValueError):
+        return None
 
 
 def _worker_root_matches(pending: dict[str, Any], worker_root: Path) -> bool:
@@ -78,6 +100,32 @@ def _worktree_fingerprint(self: core.Orchestrator, worker_root: Path) -> str:
             digest = "<missing>"
         rows.append(f"{path}\t{digest}")
     return hashlib.sha256("\n".join(rows).encode("utf-8")).hexdigest()
+
+
+def _worktree_progress_summary(self: core.Orchestrator, worker_root: Path) -> dict[str, Any]:
+    fingerprint = _worktree_fingerprint(self, worker_root)
+    changed_paths = sorted(set(self._changed_paths(worker_root)))
+    additions = 0
+    deletions = 0
+    diff = core._run(
+        ["git", "diff", "--numstat", "HEAD", "--"],
+        cwd=worker_root,
+    ).stdout.splitlines()
+    for row in diff:
+        parts = row.split("\t", 2)
+        if len(parts) < 2:
+            continue
+        if parts[0].isdigit():
+            additions += int(parts[0])
+        if parts[1].isdigit():
+            deletions += int(parts[1])
+    return {
+        "fingerprint": fingerprint,
+        "dirty_file_count": len(changed_paths),
+        "changed_paths": changed_paths[:20],
+        "diff_additions": additions,
+        "diff_deletions": deletions,
+    }
 
 
 def _matching_pending(self: core.Orchestrator, worker_root: Path) -> dict[str, Any] | None:
@@ -456,6 +504,65 @@ def health_snapshot(self: core.Orchestrator) -> dict[str, Any]:
         pending = self.state.data.get("pending_worker")
         if not isinstance(pending, dict):
             return snapshot
+        pending_snapshot = dict(pending)
+
+    progress: dict[str, Any] | None = None
+    worktree_raw = pending_snapshot.get("worktree")
+    if worktree_raw and pending_snapshot.get("stage") == "editing":
+        try:
+            progress = _worktree_progress_summary(self, Path(str(worktree_raw)))
+        except Exception as exc:
+            progress = {"error": f"{type(exc).__name__}: {exc}"[:500]}
+
+    now = datetime.now(timezone.utc)
+    with self._state_lock:
+        pending = self.state.data.get("pending_worker")
+        if not isinstance(pending, dict):
+            return snapshot
+
+        if progress and "fingerprint" in progress:
+            current_fp = str(progress["fingerprint"])
+            prior_fp = str(pending.get("worker_observed_fingerprint") or "")
+            dirty_count = int(progress.get("dirty_file_count") or 0)
+            if prior_fp and current_fp != prior_fp:
+                pending["worker_last_progress_at"] = now.isoformat()
+                pending["worker_last_progress_kind"] = "worktree_fingerprint_changed"
+            elif not prior_fp and dirty_count > 0 and not pending.get("worker_last_progress_at"):
+                pending["worker_last_progress_at"] = now.isoformat()
+                pending["worker_last_progress_kind"] = "worktree_observed_dirty"
+            pending["worker_observed_fingerprint"] = current_fp
+            pending["worker_dirty_file_count"] = dirty_count
+            pending["worker_diff_additions"] = int(progress.get("diff_additions") or 0)
+            pending["worker_diff_deletions"] = int(progress.get("diff_deletions") or 0)
+            pending["worker_changed_paths"] = list(progress.get("changed_paths") or [])
+            self.state.save()
+
+        progress_age = _age_seconds(pending.get("worker_last_progress_at"), now=now)
+        admitted_age = _age_seconds(pending.get("last_worker_model_turn_admitted_at"), now=now)
+        threshold = _progress_stall_seconds()
+        stage = str(pending.get("stage") or "")
+        if stage != "editing":
+            progress_state = stage.upper() or "UNKNOWN"
+        elif bool(pending.get("worker_retry_circuit_open")):
+            progress_state = "STALLED"
+        elif progress_age is not None and progress_age <= threshold:
+            progress_state = "ACTIVE"
+        elif (
+            pending.get("last_worker_attempt_result") == "in_flight"
+            and admitted_age is not None
+            and admitted_age <= threshold
+        ):
+            progress_state = "IN_FLIGHT"
+        else:
+            progress_state = "STALLED"
+
+        stalled_for = None
+        if progress_state == "STALLED":
+            basis_age = progress_age
+            if basis_age is None:
+                basis_age = _age_seconds(pending.get("last_worker_attempt_started_at"), now=now)
+            stalled_for = int(basis_age or 0)
+
         snapshot.update(
             {
                 "worker_attempt_count": int(pending.get("worker_attempt_count") or 0),
@@ -465,6 +572,18 @@ def health_snapshot(self: core.Orchestrator) -> dict[str, Any]:
                 "worker_thread_reusable": bool(pending.get("worker_thread_id")),
                 "last_worker_attempt_result": pending.get("last_worker_attempt_result"),
                 "worker_retry_circuit_open": bool(pending.get("worker_retry_circuit_open")),
+                "worker_progress_state": progress_state,
+                "worker_last_progress_at": pending.get("worker_last_progress_at"),
+                "worker_last_progress_kind": pending.get("worker_last_progress_kind"),
+                "worker_progress_age_seconds": int(progress_age) if progress_age is not None else None,
+                "worker_progress_stall_threshold_seconds": threshold,
+                "worker_stalled_for_seconds": stalled_for,
+                "worker_worktree_fingerprint": pending.get("worker_observed_fingerprint"),
+                "worker_dirty_file_count": int(pending.get("worker_dirty_file_count") or 0),
+                "worker_diff_additions": int(pending.get("worker_diff_additions") or 0),
+                "worker_diff_deletions": int(pending.get("worker_diff_deletions") or 0),
+                "worker_changed_paths": list(pending.get("worker_changed_paths") or []),
+                "worker_progress_probe_error": progress.get("error") if progress else None,
             }
         )
     return snapshot

@@ -290,6 +290,58 @@ class WorkerRetryRuntimeTests(unittest.TestCase):
                 "completed",
             )
 
+    def test_health_snapshot_marks_dirty_worktree_active_and_exposes_diff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git_repo(root)
+            fake = _FakeOrchestrator(root)
+            (root / "seed.txt").write_text("seed\nprogress\n")
+            with (
+                mock.patch.object(runtime, "_ORIGINAL_HEALTH_SNAPSHOT", return_value={}),
+                mock.patch.object(runtime, "_progress_stall_seconds", return_value=900),
+            ):
+                snapshot = runtime.health_snapshot(fake)
+            self.assertEqual(snapshot["worker_progress_state"], "ACTIVE")
+            self.assertEqual(snapshot["worker_dirty_file_count"], 1)
+            self.assertEqual(snapshot["worker_diff_additions"], 1)
+            self.assertIsNotNone(snapshot["worker_last_progress_at"] )
+            self.assertTrue(snapshot["worker_worktree_fingerprint"] )
+
+    def test_health_snapshot_marks_old_clean_editing_worker_stalled(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git_repo(root)
+            fake = _FakeOrchestrator(root)
+            pending = fake.state.data["pending_worker"]
+            pending["worker_observed_fingerprint"] = runtime._worktree_fingerprint(fake, root)
+            pending["last_worker_attempt_started_at"] = "2026-01-01T00:00:00+00:00"
+            pending["last_worker_attempt_result"] = "completed"
+            with (
+                mock.patch.object(runtime, "_ORIGINAL_HEALTH_SNAPSHOT", return_value={}),
+                mock.patch.object(runtime, "_progress_stall_seconds", return_value=900),
+            ):
+                snapshot = runtime.health_snapshot(fake)
+            self.assertEqual(snapshot["worker_progress_state"], "STALLED")
+            self.assertEqual(snapshot["worker_dirty_file_count"], 0)
+            self.assertGreater(snapshot["worker_stalled_for_seconds"], 900)
+
+    def test_health_snapshot_uses_recent_admitted_turn_as_in_flight_not_active(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git_repo(root)
+            fake = _FakeOrchestrator(root)
+            pending = fake.state.data["pending_worker"]
+            pending["worker_observed_fingerprint"] = runtime._worktree_fingerprint(fake, root)
+            pending["last_worker_attempt_result"] = "in_flight"
+            pending["last_worker_model_turn_admitted_at"] = runtime.core._utc_now()
+            with (
+                mock.patch.object(runtime, "_ORIGINAL_HEALTH_SNAPSHOT", return_value={}),
+                mock.patch.object(runtime, "_progress_stall_seconds", return_value=900),
+            ):
+                snapshot = runtime.health_snapshot(fake)
+            self.assertEqual(snapshot["worker_progress_state"], "IN_FLIGHT")
+            self.assertIsNone(snapshot["worker_last_progress_at"] )
+
 
 if __name__ == "__main__":
     unittest.main()
