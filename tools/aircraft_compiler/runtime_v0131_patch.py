@@ -81,8 +81,8 @@ def patch_runtime_source(source: str) -> str:
                 ExpectedBlock removed = mainExpected.remove(pos);
                 assertTrue("v0.13.1 removed parent cell existed " + pos, removed != null);
                 JsonObject replaces = placement.getAsJsonObject("replaces");
-                assertEquals("v0.13.1 removed parent resource " + pos,
-                        ResourceLocation.tryParse(string(replaces, "resourceId")), removed.id());
+                assertTrue("v0.13.1 removed parent resource " + pos,
+                        string(replaces, "resourceId").equals(removed.id().toString()));
                 assertTrue("v0.13.1 removed parent coordinate classified main " + pos, mainCoordinates.remove(pos));
             } else if (mode.equals("add_control_child")) {
                 assertTrue("v0.13.1 rudder addition coordinate free " + pos,
