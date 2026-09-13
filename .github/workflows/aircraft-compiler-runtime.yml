@@ -41,7 +41,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Compile deterministic AIRCRAFT-001 runtime fixture
+      - name: Compile deterministic AIRCRAFT-001 runtime fixture through v0.12
         shell: bash
         run: |
           set -euo pipefail
@@ -64,18 +64,103 @@ jobs:
             build/aircraft-compiler-runtime/assembly_fixture.json \
             tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_glue_encoding_v0.11.json \
             --out build/aircraft-compiler-runtime
+          python tools/aircraft_compiler/powertrain_lowering_cli.py \
+            build/aircraft-compiler-runtime/probe_placement_manifest.json \
+            build/aircraft-compiler-runtime/glue_encoding.json \
+            tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_powertrain_v0.12.json \
+            --out build/aircraft-compiler-runtime
           grep -q '"mainBodyPlacementCount": 114' build/aircraft-compiler-runtime/glue_encoding.json
           grep -q '"nestedChildPlacementCount": 9' build/aircraft-compiler-runtime/glue_encoding.json
-          grep -q '"coveredAdhesionIntentEdgeCount": 113' build/aircraft-compiler-runtime/glue_encoding.json
           grep -q '"glueDomainCount": 4' build/aircraft-compiler-runtime/glue_encoding.json
+          grep -q '"resultingMovingMainBodyPlacementCount": 118' build/aircraft-compiler-runtime/powertrain_v0.12.json
+          grep -q '"expectedPrimarySableTransferCount": 127' build/aircraft-compiler-runtime/powertrain_v0.12.json
+          grep -q '"firstAcceptedTargetRpm": 128' build/aircraft-compiler-runtime/powertrain_v0.12.json
 
-      - name: Wire nested Propeller Bearing acceptance after primary Sable transfer
+      - name: Wire v0.12 powertrain recapture and nested Propeller Bearing acceptance
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           path = Path("skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java")
           source = path.read_text()
+
+          replacements = {
+              "private static final int EXPECTED_MOVING_MAIN_BODY = 114;": "private static final int EXPECTED_MOVING_MAIN_BODY = 118;",
+              "private static final int EXPECTED_PRIMARY_SABLE_PAYLOAD = 123;": "private static final int EXPECTED_PRIMARY_SABLE_PAYLOAD = 127;",
+              "private static final int EXPECTED_GLUE_DOMAINS = 4;": "private static final int EXPECTED_GLUE_DOMAINS = 5;",
+              'assertInt("encoded glue domain count", EXPECTED_GLUE_DOMAINS, glueDomainsJson.size());': 'assertInt("encoded v0.11 glue domain count", EXPECTED_GLUE_DOMAINS - 1, glueDomainsJson.size());',
+          }
+          for old, new in replacements.items():
+              if source.count(old) != 1:
+                  raise SystemExit(f"expected exactly one runtime patch anchor: {old}")
+              source = source.replace(old, new)
+
+          schema_anchor = '        assertEquals("glue schema", "aircraft-glue-encoding-ir-0.11", string(glueEncoding, "schemaVersion"));\n'
+          if source.count(schema_anchor) != 1:
+              raise SystemExit("powertrain JSON anchor drifted")
+          schema_injected = schema_anchor + '''        JsonObject powertrain;
+          try {
+              powertrain = readJson(requirePathProperty("skyforge.dev.aircraftCompilerPowertrain"));
+          } catch (IOException failure) {
+              throw new IllegalStateException("could not read v0.12 powertrain artifact", failure);
+          }
+          assertEquals("powertrain schema", "aircraft-powertrain-ir-0.12", string(powertrain, "schemaVersion"));
+'''
+          source = source.replace(schema_anchor, schema_injected)
+
+          expected_anchor = '        assertInt("main-body expected block count", EXPECTED_MOVING_MAIN_BODY, mainExpected.size());\n'
+          if source.count(expected_anchor) != 1:
+              raise SystemExit("powertrain expected-map anchor drifted")
+          expected_injected = '''        JsonArray powertrainPlacements = powertrain.getAsJsonArray("placements");
+          for (JsonElement raw : powertrainPlacements) {
+              JsonObject placement = raw.getAsJsonObject();
+              BlockPos pos = blockPos(placement.getAsJsonArray("lattice"));
+              ExpectedBlock expected = expectedBlock(placement);
+              String mode = string(placement, "mode");
+              if (mode.equals("replace")) {
+                  assertTrue("v0.12 replacement targets existing main-body cell " + pos, mainExpected.containsKey(pos));
+                  mainExpected.put(pos, expected);
+              } else if (mode.equals("add")) {
+                  assertTrue("v0.12 addition coordinate free " + pos,
+                          !mainExpected.containsKey(pos) && !propellerPayloadExpected.containsKey(pos));
+                  mainExpected.put(pos, expected);
+                  mainCoordinates.add(pos);
+              } else {
+                  fail("unexpected v0.12 placement mode " + mode);
+              }
+          }
+''' + expected_anchor
+          source = source.replace(expected_anchor, expected_injected)
+
+          place_anchor = '        level.setBlock(BASE.offset(assemblerRelative), materialize(assemblerExpected), 3);\n'
+          if source.count(place_anchor) != 1:
+              raise SystemExit("powertrain placement anchor drifted")
+          place_injected = place_anchor + '''        for (JsonElement raw : powertrainPlacements) {
+              JsonObject placement = raw.getAsJsonObject();
+              level.setBlock(
+                      BASE.offset(blockPos(placement.getAsJsonArray("lattice"))),
+                      materialize(expectedBlock(placement)),
+                      3);
+          }
+'''
+          source = source.replace(place_anchor, place_injected)
+
+          glue_anchor = '        assertInt("runtime SuperGlueEntity domain insertion count", EXPECTED_GLUE_DOMAINS, insertedGlue.size());\n'
+          if source.count(glue_anchor) != 1:
+              raise SystemExit("powertrain glue anchor drifted")
+          glue_injected = '''        JsonObject powerplantGlue = powertrain.getAsJsonObject("powerplantGlueDomain");
+          BlockPos powerplantFrom = blockPos(powerplantGlue.getAsJsonArray("from"));
+          BlockPos powerplantTo = blockPos(powerplantGlue.getAsJsonArray("to"));
+          assertSelectionWithinLimit("powerplant", powerplantFrom, powerplantTo);
+          Entity powerplantGlueEntity = addGlueDomain(level, "powerplant", powerplantFrom, powerplantTo);
+          for (BlockPos child : propellerPayloadCoordinates) {
+              assertTrue("powerplant glue excludes propeller payload center " + child,
+                      !powerplantGlueEntity.getBoundingBox().contains(Vec3.atCenterOf(BASE.offset(child))));
+          }
+          insertedGlue.add(powerplantGlueEntity);
+''' + glue_anchor
+          source = source.replace(glue_anchor, glue_injected)
+
           marker = '"AIRCRAFT_001_RUNTIME_ASSEMBLY PASS"'
           marker_index = source.find(marker)
           if marker_index < 0 or source.find(marker, marker_index + 1) >= 0:
@@ -105,7 +190,7 @@ jobs:
       - name: Resolve exact retained flight stack
         run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
 
-      - name: Execute genuine Simulated/Sable primary and nested-propeller probes
+      - name: Execute genuine v0.12 Sable recapture and nested-propeller probes
         shell: bash
         env:
           JAVA_TOOL_OPTIONS: >-
@@ -113,6 +198,7 @@ jobs:
             -Dskyforge.dev.aircraftCompilerManifest=${{ github.workspace }}/build/aircraft-compiler-runtime/probe_placement_manifest.json
             -Dskyforge.dev.aircraftCompilerAssemblyFixture=${{ github.workspace }}/build/aircraft-compiler-runtime/assembly_fixture.json
             -Dskyforge.dev.aircraftCompilerGlueEncoding=${{ github.workspace }}/build/aircraft-compiler-runtime/glue_encoding.json
+            -Dskyforge.dev.aircraftCompilerPowertrain=${{ github.workspace }}/build/aircraft-compiler-runtime/powertrain_v0.12.json
         run: |
           set -euo pipefail
           log="aircraft-compiler-runtime.log"
@@ -148,10 +234,10 @@ jobs:
             exit 0
           fi
 
-          echo "FAIL AIRCRAFT-001 exact-stack primary/nested-propeller runtime probe"
+          echo "FAIL AIRCRAFT-001 exact-stack v0.12 recapture/nested-propeller runtime probe"
           grep -F "AIRCRAFT_001_RUNTIME_PROPELLER FAIL" "${log}" || true
           grep -F "AIRCRAFT_001_RUNTIME_ASSEMBLY FAIL" "${log}" || true
-          tail -n 260 "${log}"
+          tail -n 300 "${log}"
           kill -TERM -- "-${pid}" 2>/dev/null || true
           sleep 1
           kill -KILL -- "-${pid}" 2>/dev/null || true
