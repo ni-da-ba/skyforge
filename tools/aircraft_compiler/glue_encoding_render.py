@@ -10,8 +10,9 @@ def emit_glue_encoding_outputs(result: dict[str, Any], out_dir: Path) -> None:
     (out_dir / "glue_encoding.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     commands = [
-        "# AIRCRAFT-001 v0.11 assembly fixture",
-        "# Run probe_place.mcfunction first. This file places the Physics Assembler and applies edge-exact Create Super Glue.",
+        "# AIRCRAFT-001 v0.11 bounded assembly fixture",
+        "# Run probe_place.mcfunction first. This file places the Physics Assembler and applies bounded Create Super Glue domains.",
+        "# The v0.10.1 N-1 tree remains the connectivity proof; these domains are its exact-stack runtime lowering.",
         "# Requires command permission level 2 because Create's glue command is privileged.",
         result["physicsAssemblerCommand"],
         *result["glueCommands"],
@@ -26,6 +27,9 @@ def emit_glue_encoding_outputs(result: dict[str, Any], out_dir: Path) -> None:
         f"digestSha256={result['digestSha256']}",
         f"mainBodyPlacementCount={m['mainBodyPlacementCount']}",
         f"nestedChildPlacementCount={m['nestedChildPlacementCount']}",
+        f"adhesionIntentEdgeCount={m['adhesionIntentEdgeCount']}",
+        f"coveredAdhesionIntentEdgeCount={m['coveredAdhesionIntentEdgeCount']}",
+        f"glueDomainCount={m['glueDomainCount']}",
         f"glueCommandCount={m['glueCommandCount']}",
         f"assemblerPlacementCommandCount={m['assemblerPlacementCommandCount']}",
         f"adhesionApplicationEncodingReady={r['adhesionApplicationEncodingReady']}",
