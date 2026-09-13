@@ -686,6 +686,15 @@ aggregate worker attempts/handoffs/resumes, retry/Codex blocks, restart replays,
 pause/resume commands, human-gate posts/duplicate suppressions, controller runtime-refresh
 requests/completions, protected-path rejections, bounded-scope rejections, and safety pauses.
 
+Worker status must also expose model-free concrete-progress evidence rather than treating `stage=editing`
+as proof of useful work. Sample the isolated worktree fingerprint and diff summary during health/status
+reads. Report `ACTIVE` only after a recent durable worktree mutation, `IN_FLIGHT` when a provider-admitted
+turn is recent but no durable mutation has yet been observed, and `STALLED` once neither condition is
+recent. The default concrete-progress freshness window is 15 minutes and is environment-overridable.
+Status should include the last progress timestamp/kind, fingerprint, dirty-file count, diff additions/
+deletions, bounded changed-path sample, model-turn count, and stalled duration. This probe must not start
+a model turn or mutate the worker worktree.
+
 A bounded worker may edit lane-owned source/tests/docs but may not autonomously rewrite the control
 plane that defines its own authority. The one narrow governance exception is
 `docs/agent-state/AUDIT_STATE.md`: an **Audit-lane** worker may update that lane-owned durable handoff
