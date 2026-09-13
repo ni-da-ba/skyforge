@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "aircraft-yaw-neutral-return-profile-0.16",
+  "profileId": "skyforge.yaw_neutral_return.sable.guild_utility.v0_16",
+  "sourceYawActuationDigestSha256": "26f32701664ae261d744508381d53729167d87fff5c4f2ac40881958862c0bdb",
+  "sourceYawAuthorityDigestSha256": "de046d04c2c20aea1158f861432093298e0f184c8148b06d1f055749e3c6296b",
+  "reverseMotorSign": -1,
+  "physicalSettlePhysicsTicks": 80,
+  "minimumStartingDeflectionDegrees": 5.0,
+  "targetNeutralToleranceDegrees": 0.1,
+  "physicalNeutralToleranceDegrees": 2.0,
+  "sourceEvidence": [
+    "v0.14 exact-stack actuation used create:creative_motor + create:cogwheel to drive the Swivel hidden extra cog without directly writing targetAngleDegrees.",
+    "Create CreativeMotorBlockEntity exposes generatedSpeed through ScrollValueBehaviour.setValue(int), so source sign can be reversed through the real kinetic generator.",
+    "The accepted v0.14 outbound source was active for networkSettleTicks + commandTicks; v0.16 applies the exact inverse source sign for the same active-tick duration.",
+    "Sable Swivel target integration is driven by measured hidden-cog RPM while physical child orientation remains constrained by the real rotary servo."
+  ],
+  "runtimeObligations": [
+    {"id": "real_kinetic_reverse_command_probe"},
+    {"id": "swivel_target_neutral_return_probe"},
+    {"id": "rudder_physical_neutral_return_probe"}
+  ]
+}
