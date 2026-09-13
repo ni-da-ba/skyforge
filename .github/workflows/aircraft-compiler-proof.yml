@@ -21,20 +21,26 @@ jobs:
           python-version: "3.12"
       - name: Run aircraft compiler tests
         run: python -m unittest discover -s tools/aircraft_compiler/tests -v
-      - name: Compile AIRCRAFT-001 through v0.4 target-realizer preflight
+      - name: Compile AIRCRAFT-001 through v0.5 propulsion realization
         run: >-
           python tools/aircraft_compiler/compile.py
           tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json
           --blockspace-config tools/aircraft_compiler/specimens/guild_utility_monoplane_blockspace_v0.2.json
           --target-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_target_v0.4.json
-          --out build/aircraft-compiler-v04
-      - name: Assert realizer blocks premature schematic emission
+          --propulsion-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_propulsion_v0.5.json
+          --out build/aircraft-compiler-v05
+      - name: Assert static propulsion topology passes
         run: >-
-          grep -q "schematicEmissionReady=False" build/aircraft-compiler-v04/target_validation.txt
-      - name: Upload analytical, block-space, assembly, target, and mobile QA
+          grep -q "propulsionStaticTopologyPassed=True" build/aircraft-compiler-v05/propulsion_validation.txt
+      - name: Assert runtime and flight qualification remain blocked
+        run: |
+          grep -q "propulsionRuntimeQualified=False" build/aircraft-compiler-v05/propulsion_validation.txt
+          grep -q "schematicEmissionReady=False" build/aircraft-compiler-v05/propulsion_validation.txt
+          grep -q "flightQualified=False" build/aircraft-compiler-v05/propulsion_validation.txt
+      - name: Upload analytical, assembly, target, propulsion, and mobile QA
         uses: actions/upload-artifact@v4
         with:
-          name: aircraft-compiler-guild-utility-v04-qa
-          path: build/aircraft-compiler-v04
+          name: aircraft-compiler-guild-utility-v05-qa
+          path: build/aircraft-compiler-v05
           if-no-files-found: error
           retention-days: 14
