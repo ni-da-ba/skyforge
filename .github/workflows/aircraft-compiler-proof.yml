@@ -1,0 +1,83 @@
+name: Aircraft compiler proof
+
+on:
+  pull_request:
+    paths:
+      - "tools/aircraft_compiler/**"
+      - "docs/design-audit/aircraft-compiler-*.md"
+      - ".github/workflows/aircraft-compiler-proof.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run aircraft compiler tests
+        run: python -m unittest discover -s tools/aircraft_compiler/tests -v
+      - name: Compile AIRCRAFT-001 through v0.9 probe placement manifest
+        run: >-
+          python tools/aircraft_compiler/compile.py
+          tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json
+          --blockspace-config tools/aircraft_compiler/specimens/guild_utility_monoplane_blockspace_v0.2.json
+          --target-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_target_v0.4.json
+          --propulsion-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_propulsion_v0.5.json
+          --surface-state-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_surface_state_v0.6.json
+          --tail-lowering-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_tail_lowering_v0.7.json
+          --pilot-station-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_station_v0.8.json
+          --probe-manifest-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_probe_manifest_v0.9.json
+          --out build/aircraft-compiler-v11
+      - name: Plan v0.10 Physics Assembler fixture and adhesion intent
+        run: >-
+          python tools/aircraft_compiler/assembly_fixture_cli.py
+          build/aircraft-compiler-v11/probe_placement_manifest.json
+          tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_assembly_fixture_v0.10.json
+          --out build/aircraft-compiler-v11
+      - name: Encode v0.11 edge-exact Create Super Glue fixture
+        run: >-
+          python tools/aircraft_compiler/glue_encoding_cli.py
+          build/aircraft-compiler-v11/assembly_fixture.json
+          tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_glue_encoding_v0.11.json
+          --out build/aircraft-compiler-v11
+      - name: Assert v0.10 topology remains accepted
+        run: |
+          grep -q "mainBodyManifestPlacementCount=113" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "mainBodyPlacementCount=114" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "nestedChildPlacementCount=9" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "adhesionIntentEdgeCount=113" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "mainBodyUnreachableCount=0" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "physicsAssemblerIncludedInMovingMainBody=True" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "physicsAssemblerHasAdhesionEdgeToSeed=True" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+          grep -q "assemblyFixtureTopologyPassed=True" build/aircraft-compiler-v11/assembly_fixture_validation.txt
+      - name: Assert v0.11 glue encoding is edge-exact and dynamic-boundary safe
+        run: |
+          grep -q "mainBodyPlacementCount=114" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "glueCommandCount=113" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "assemblerPlacementCommandCount=1" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "edgeExactEncoding=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "allGlueEdgesFaceAdjacent=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "allGlueEndpointsMainBody=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "noGlueEndpointOnNestedChild=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "forbiddenDynamicBoundariesClear=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          test "$(grep -c '^create glue ' build/aircraft-compiler-v11/probe_assembly_fixture.mcfunction)" -eq 113
+      - name: Assert main-body runtime probe is now the next gate, not a static claim
+        run: |
+          grep -q "adhesionApplicationEncodingReady=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "mainBodyPhysicsAssemblyProbeReady=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "physicsAssemblyProbeReady=True" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "runtimeQualificationReady=False" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "flightQualified=False" build/aircraft-compiler-v11/glue_encoding_validation.txt
+          grep -q "control_surface_child_body_topology_unresolved" build/aircraft-compiler-v11/glue_encoding_validation.txt
+      - name: Upload analytical through glue-encoding QA
+        uses: actions/upload-artifact@v4
+        with:
+          name: aircraft-compiler-guild-utility-v11-qa
+          path: build/aircraft-compiler-v11
+          if-no-files-found: error
+          retention-days: 14

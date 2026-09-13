@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "aircraft-tail-lowering-profile-0.7",
+  "profileId": "skyforge.tail_lowering.guild_utility.v0_7",
+  "providerId": "create_white_sail_lift_v0",
+  "resourceId": "create:white_sail",
+  "stateProperty": "facing",
+  "translatedRole": "vertical_tail_surface_intent",
+  "junctionRetainedRole": "horizontal_tail_surface_intent",
+  "translatedState": "south",
+  "junctionRetainedState": "up",
+  "translationBlocks": [0, 1, 0],
+  "policy": "translate the complete discrete vertical-tail shape; never delete surface area or choose an arbitrary state at a multi-axis site"
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "aircraft-surface-state-profile-0.6",
+  "profileId": "skyforge.surface_state.create_regular_sail.guild_utility.v0_6",
+  "providerId": "create_white_sail_lift_v0",
+  "stateProperty": "facing",
+  "legalStates": ["up", "south"],
+  "roleStates": {
+    "wing_surface_intent": "up",
+    "horizontal_tail_surface_intent": "up",
+    "vertical_tail_surface_intent": "south"
+  },
+  "evidence": {
+    "registry": "Create generated blockstate resource confirms create:white_sail and directional facing states",
+    "sable": "Skyforge C12 source-backed topology notes identify regular Create sails as Sable lift providers; live force sign remains a runtime gate",
+    "policy": "never select an arbitrary facing when co-located semantic surfaces demand incompatible orientations"
+  }
+}

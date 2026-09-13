@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "0.1",
+  "assetId": "skyforge.aircraft.guild_utility_monoplane.v0_1",
+  "configuration": {
+    "class": "small_utility_monoplane",
+    "wingPosition": "high",
+    "engineCount": 1,
+    "propulsionLayout": "nose_tractor",
+    "tail": "conventional",
+    "crew": 2,
+    "cargoRole": "light_regional_utility"
+  },
+  "mission": {
+    "grossMassKg": 1100.0,
+    "airDensityKgM3": 1.225,
+    "gravityMS2": 9.80665,
+    "cruiseSpeedMS": 45.0,
+    "designLiftCoefficient": 0.55
+  },
+  "analyticalAssumptions": {
+    "atmosphere": "1976_US_Standard_Atmosphere_sea_level_density_input",
+    "wingPlanform": "straight_unswept_linear_taper",
+    "tailPlanforms": "straight_unswept_linear_taper",
+    "spanEfficiency": 0.8,
+    "spanEfficiencyStatus": "declared_specimen_assumption_not_a_fitted_Create_Aeronautics_constant",
+    "massModel": "declared_component_lumped_masses",
+    "stabilityClaim": "none_v0.1"
+  },
+  "referenceTargets": {
+    "horizontalTailVolume": 0.7,
+    "verticalTailVolume": 0.04,
+    "status": "representative_general_aviation_single_engine_reference_not_universal_acceptance_truth"
+  },
+  "constraints": {
+    "aspectRatioRange": [6.0, 9.5],
+    "maxCruiseLiftResidualFraction": 0.08,
+    "specimenCgMacFractionRange": [0.15, 0.45],
+    "maxHorizontalTailVolumeReferenceErrorFraction": 0.2,
+    "maxVerticalTailVolumeReferenceErrorFraction": 0.2
+  },
+  "designDomains": {
+    "fuselageLengthM": [8.0, 9.0, 10.0],
+    "wingSpanM": [10.0, 11.0, 12.0],
+    "wingRootChordM": [1.8, 2.0, 2.2, 2.4],
+    "wingTipChordM": [0.8, 1.0, 1.2, 1.4],
+    "wingLeadingEdgeXM": [2.6, 2.8, 3.0, 3.2],
+    "horizontalTailSpanM": [3.5, 4.0, 4.5],
+    "horizontalTailRootChordM": [1.2, 1.4, 1.6],
+    "horizontalTailTipChordM": [0.6, 0.8, 1.0],
+    "horizontalTailLeadingEdgeInsetM": 1.7,
+    "verticalTailHeightM": [1.5, 1.75, 2.0],
+    "verticalTailRootChordM": [1.4, 1.6, 1.8],
+    "verticalTailTipChordM": [0.5, 0.7, 0.9],
+    "verticalTailLeadingEdgeInsetM": 1.8
+  },
+  "geometryEnvelope": {
+    "fuselageMaxWidthM": 1.8,
+    "fuselageMaxHeightM": 2.0,
+    "propellerEnvelope": {
+      "diameterM": 2.1,
+      "centerXM": 0.15,
+      "centerYM": 1.35
+    }
+  },
+  "massLedger": [
+    {"name": "engine_and_propulsion", "massKg": 180.0, "stationXM": 0.8},
+    {"name": "crew_and_seats", "massKg": 170.0, "stationXM": 2.7},
+    {"name": "fuel_and_power_reserve", "massKg": 100.0, "stationXM": 3.4},
+    {"name": "utility_cargo", "massKg": 250.0, "stationXM": 4.6},
+    {"name": "airframe_structure_and_systems", "massKg": 400.0, "stationFractionFuselage": 0.48}
+  ]
+}

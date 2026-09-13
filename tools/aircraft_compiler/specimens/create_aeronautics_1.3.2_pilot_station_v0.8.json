@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "aircraft-pilot-station-profile-0.8",
+  "profileId": "skyforge.pilot_station.create_1_21_1.v0_8",
+  "stationName": "pilot_station",
+  "installationOffsetBlocks": [0, 1, 0],
+  "airframeAerodynamicProviderId": "create_white_sail_lift_v0",
+  "seat": {
+    "resourceId": "create:brown_seat",
+    "blockState": {"waterlogged": false},
+    "evidenceLevel": "create_registry_and_seat_movement_source_verified_sable_passenger_behavior_unverified"
+  },
+  "controlBindingContract": {
+    "status": "runtime_unverified",
+    "requiredForProbeEmission": false,
+    "requiredForFlightQualification": true,
+    "reason": "occupancy is a placement concern; pilot input routing to propulsion and movable control surfaces is a separate runtime contract"
+  },
+  "runtimeObligations": [
+    {
+      "id": "pilot_occupancy_probe",
+      "method": "assemble exact-stack Sable vehicle and verify a player can occupy, remain attached to, dismount from, and survive save/reload with the compiled Create seat"
+    },
+    {
+      "id": "control_binding_probe",
+      "method": "after one-axis control hardware exists, verify explicit pilot input path reaches the intended actuator and returns to neutral without hidden manual setup"
+    }
+  ]
+}

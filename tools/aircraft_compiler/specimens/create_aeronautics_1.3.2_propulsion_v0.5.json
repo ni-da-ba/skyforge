@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "aircraft-propulsion-profile-0.5",
+  "profileId": "skyforge.propulsion.create_aeronautics_1_3_2.guild_utility.v0_5",
+  "targetProfileId": "skyforge.target.create_aeronautics_1_3_2_mc1_21_1.v0_4",
+  "stationName": "propeller_axis",
+  "bearing": {
+    "resourceId": "aeronautics:propeller_bearing",
+    "facing": "west",
+    "evidenceLevel": "released_source_verified_runtime_thrust_sign_unverified"
+  },
+  "propeller": {
+    "hubResourceId": "minecraft:spruce_planks",
+    "hubBlockState": {},
+    "sailResourceId": "simulated:white_symmetric_sail",
+    "sailAxis": "x",
+    "sailPowerPerBlock": 1,
+    "minimumSailPower": 2,
+    "targetSailPower": 8,
+    "bladeOffsets": [
+      [1, 0], [2, 0], [-1, 0], [-2, 0],
+      [0, 1], [0, 2], [0, -1], [0, -2]
+    ],
+    "evidence": {
+      "sailPower": "PropellerBearingBlockEntity counts each create:windmill_sails-tagged block as one sail power",
+      "minimum": "BearingContraptionMixin rejects propeller assembly below two sail-equivalent units",
+      "symmetricSailAxis": "SymmetricSailBlock extends RotatedPillarBlock and Sable normal is positive AXIS",
+      "geometryPrecedent": "Skyforge C12 B0-A uses four blades / eight symmetric-sail power; this compiler independently enforces balance"
+    }
+  },
+  "runtimeObligations": [
+    {
+      "id": "bearing_neighbor_capture",
+      "method": "on exact target stack, assemble bearing facing WEST and prove the x=-1 hub plus all eight sails enter one bearing contraption"
+    },
+    {
+      "id": "reported_sail_power",
+      "method": "verify runtime totalSailPower == 8 and no not_enough_sails assembly exception"
+    },
+    {
+      "id": "kinetic_network",
+      "method": "prove shaft power reaches the bearing; record RPM sign and stress impact/margin"
+    },
+    {
+      "id": "thrust_direction",
+      "method": "probe both bearing thrust-direction option states at controlled RPM and record world-space force sign"
+    },
+    {
+      "id": "nested_propeller_persistence",
+      "method": "assemble/disassemble/reassemble and save/reload without losing blade topology or producing detached blocks"
+    }
+  ]
+}
