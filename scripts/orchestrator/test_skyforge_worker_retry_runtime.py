@@ -160,6 +160,52 @@ class WorkerRetryRuntimeTests(unittest.TestCase):
             self.assertEqual(pending["last_worker_attempt_failure_kind"], "quota_pacing")
             self.assertNotIn("worker_attempts_without_durable_progress", fake.metrics)
 
+    def test_provider_pacing_does_not_consume_per_worker_turn_cap(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git_repo(root)
+            fake = _FakeOrchestrator(root)
+            pending = fake.state.data["pending_worker"]
+            with mock.patch.object(
+                runtime,
+                "_ORIGINAL_CONSUME_BUDGET",
+                side_effect=runtime.core.RetryBlocked("quota_pacing", 300, "pace"),
+            ):
+                with self.assertRaises(runtime.core.RetryBlocked):
+                    runtime._consume_budget(fake, "worker")
+            self.assertEqual(int(pending.get("worker_model_turn_count") or 0), 0)
+
+    def test_admitted_worker_turn_increments_per_worker_count(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git_repo(root)
+            fake = _FakeOrchestrator(root)
+            pending = fake.state.data["pending_worker"]
+            pending["worker_model_turn_count"] = 2
+            with mock.patch.object(runtime, "_ORIGINAL_CONSUME_BUDGET") as consume:
+                runtime._consume_budget(fake, "worker")
+            consume.assert_called_once_with(fake, "worker")
+            self.assertEqual(pending["worker_model_turn_count"], 3)
+
+    def test_model_turn_cap_pauses_before_provider_admission(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git_repo(root)
+            fake = _FakeOrchestrator(root)
+            pending = fake.state.data["pending_worker"]
+            pending["worker_model_turn_count"] = 4
+            with (
+                mock.patch.object(runtime, "_max_model_turns_per_worker", return_value=4),
+                mock.patch.object(runtime, "_ORIGINAL_CONSUME_BUDGET") as consume,
+            ):
+                with self.assertRaises(runtime.core.SafetyPause):
+                    runtime._consume_budget(fake, "worker")
+            consume.assert_not_called()
+            self.assertTrue(fake.paused)
+            self.assertEqual(fake.state.data["paused_by"], "worker-turn-cap")
+            self.assertTrue(pending["worker_retry_circuit_open"])
+            self.assertEqual(len(fake.gates), 1)
+
     def test_completed_response_replays_without_another_budgeted_turn(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
