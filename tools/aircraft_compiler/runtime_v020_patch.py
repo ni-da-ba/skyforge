@@ -95,6 +95,37 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
                         + " originalPaused=" + physicsWasPaused
                         + " temporaryUnpauseApplied=" + physicsWasPaused);
 
+        boolean plateActorReadyBeforeRepair = hasSwivelPlateActor(childSubLevel);
+        boolean plateActorRepairApplied = false;
+        Object platePosValue = publicMethod(bearing, "getPlatePos").invoke(bearing);
+        if (!(platePosValue instanceof BlockPos platePos)) {
+            fail("assembled Swivel plate position unavailable before v0.20 physical settle");
+        }
+        if (!plateActorReadyBeforeRepair) {
+            requireBlockEntity(level, platePos, "SwivelBearingPlateBlockEntity");
+            Object childPlot = publicMethod(childSubLevel, "getPlot").invoke(childSubLevel);
+            twoArgMethod(childPlot, "onBlockChange", platePos, level.getBlockState(platePos))
+                    .invoke(childPlot, platePos, level.getBlockState(platePos));
+            plateActorRepairApplied = true;
+        }
+        boolean plateActorReadyAfterRepair = hasSwivelPlateActor(childSubLevel);
+        Object constraintHandle = declaredFieldObject(bearing, "handle");
+        boolean constraintHandlePresent = constraintHandle != null;
+        boolean constraintHandleValid = constraintHandlePresent
+                && (boolean) publicMethod(constraintHandle, "isValid").invoke(constraintHandle);
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE SWIVEL_READINESS"
+                        + " plateActorReadyBeforeRepair=" + plateActorReadyBeforeRepair
+                        + " plateActorRepairApplied=" + plateActorRepairApplied
+                        + " plateActorReadyAfterRepair=" + plateActorReadyAfterRepair
+                        + " constraintHandlePresent=" + constraintHandlePresent
+                        + " constraintHandleValid=" + constraintHandleValid
+                        + " bearingState=" + bearing.getBlockState());
+        assertTrue("Swivel plate physics actor ready for v0.20 physical proof", plateActorReadyAfterRepair);
+        assertTrue("Swivel rotary constraint handle present for v0.20 physical proof", constraintHandlePresent);
+        assertTrue("Swivel rotary constraint handle valid for v0.20 physical proof", constraintHandleValid);
+
         int maximumPhysicalSettlePhysicsTicks = Math.max(physicalSettlePhysicsTicks, 1) * 2;
         int physicalDeflectTicks = 0;
         double physicalDeflected = relativeYawDegrees(parentSubLevel, childSubLevel);
@@ -177,11 +208,54 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
                 "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE PHYSICS_STATE_RESTORED"
                         + " paused=" + physicsWasPaused);
 '''
-    return _replace_once(
+    source = _replace_once(
         source,
         inbound_anchor,
         inbound_injected,
         "v0.20 integrated-client bounded neutral-return physical settle",
+    )
+
+    helper_anchor = '''    private static void runPhysics(Object physicsSystem, Object container, int ticks)
+            throws ReflectiveOperationException {
+        for (int i = 0; i < ticks; i++) {
+            oneArgMethod(physicsSystem, "tick", container).invoke(physicsSystem, container);
+        }
+    }
+'''
+    helper_injected = '''    private static boolean hasSwivelPlateActor(Object childSubLevel)
+            throws ReflectiveOperationException {
+        Object childPlot = publicMethod(childSubLevel, "getPlot").invoke(childSubLevel);
+        Object actors = publicMethod(childPlot, "getBlockEntityActors").invoke(childPlot);
+        if (!(actors instanceof Iterable<?> iterable)) {
+            fail("Sable child plot did not expose iterable block-entity actors");
+        }
+        for (Object actor : iterable) {
+            if (actor != null && actor.getClass().getName().endsWith("SwivelBearingPlateBlockEntity")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Object declaredFieldObject(Object target, String name)
+            throws ReflectiveOperationException {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(target);
+    }
+
+    private static void runPhysics(Object physicsSystem, Object container, int ticks)
+            throws ReflectiveOperationException {
+        for (int i = 0; i < ticks; i++) {
+            oneArgMethod(physicsSystem, "tick", container).invoke(physicsSystem, container);
+        }
+    }
+'''
+    return _replace_once(
+        source,
+        helper_anchor,
+        helper_injected,
+        "v0.20 Swivel plate actor readiness helpers",
     )
 
 
