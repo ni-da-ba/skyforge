@@ -7,6 +7,7 @@ from runtime_v012_patch import patch_runtime_source as patch_v012
 from runtime_v0131_patch import patch_runtime_source as patch_v0131
 from runtime_v018_patch import patch_runtime_source as patch_v018
 from runtime_v019_patch import patch_runtime_source as patch_v019
+from runtime_v020_patch import patch_cockpit_settle_diagnostics as patch_v020_cockpit
 from runtime_v020_patch import patch_runtime_source as patch_v020
 
 
@@ -38,6 +39,33 @@ class RuntimeV020PatchTests(unittest.TestCase):
             patched.index("SkyforgeAircraftCompilerPilotClientBridge.publish("),
             patched.index("SkyforgeAircraftCompilerCockpitYawRouteRuntimeAcceptance.verify("),
         )
+
+    def test_v020_integrated_client_keeps_physical_thresholds_but_uses_bounded_observation(self) -> None:
+        repo_root = Path(__file__).resolve().parents[3]
+        source = (
+            repo_root / "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211"
+            / "SkyforgeAircraftCompilerCockpitYawRouteRuntimeAcceptance.java"
+        ).read_text(encoding="utf-8")
+        patched = patch_v020_cockpit(source)
+
+        self.assertIn(
+            "int maximumPhysicalSettlePhysicsTicks = Math.max(physicalSettlePhysicsTicks, 1) * 2;",
+            patched,
+        )
+        self.assertIn("while (physicalDeflectTicks < maximumPhysicalSettlePhysicsTicks", patched)
+        self.assertIn("runPhysics(physicsSystem, container, 1);", patched)
+        self.assertIn(
+            "Math.abs(physicalDeflected) >= minimumPhysicalRudderDeflectionDegrees",
+            patched,
+        )
+        self.assertIn("Math.signum(physicalDeflected) == expectedExtraCogSign", patched)
+        self.assertIn("while (physicalReturnTicks < maximumPhysicalSettlePhysicsTicks", patched)
+        self.assertIn(
+            "Math.abs(physicalReturned) <= physicalNeutralToleranceDegrees",
+            patched,
+        )
+        self.assertIn('" observedPhysicsTicks=" + physicalDeflectTicks', patched)
+        self.assertIn('" observedPhysicsTicks=" + physicalReturnTicks', patched)
 
 
 if __name__ == "__main__":
