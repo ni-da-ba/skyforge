@@ -74,16 +74,16 @@ jobs:
         run: systemd-analyze calendar "$(sed -n 's/^OnCalendar=//p' deploy/orchestrator/skyforge-value-report.timer)"
 
       - name: Run deterministic orchestration tests
+        shell: bash
         run: |
-          python -m unittest scripts/orchestrator/test_skyforge_orchestrator.py
-          python -m unittest scripts/orchestrator/test_codex_quota.py
-          python -m unittest scripts/orchestrator/test_skyforge_quota_runtime.py
-          python -m unittest scripts/orchestrator/test_skyforge_control_replay_runtime.py
-          python -m unittest scripts/orchestrator/test_skyforge_roadmap_runtime.py
-          python -m unittest scripts/orchestrator/test_skyforge_roadmap_binding.py
-          python -m unittest scripts/orchestrator/test_skyforge_control_plane_runtime.py
-          python -m unittest scripts/orchestrator/test_daily_value_report.py
-          python -m unittest scripts/orchestrator/test_verify_main_protection.py
-          python -m unittest scripts/orchestrator/test_decommission_contract.py
-          python -m unittest scripts/orchestrator/test_codex_auth.py
-          python -m unittest scripts/orchestrator/test_sync_runtime_dependencies.py
+          set -euo pipefail
+          shopt -s nullglob
+          tests=(scripts/orchestrator/test_*.py)
+          if (( ${#tests[@]} == 0 )); then
+            echo "No orchestrator test modules found."
+            exit 1
+          fi
+          for test_file in "${tests[@]}"; do
+            echo "==> ${test_file}"
+            PYTHONPATH=scripts/orchestrator python -m unittest "${test_file}"
+          done
