@@ -122,7 +122,7 @@ jobs:
           log=aircraft-compiler-pilot-client-runtime.log
           result=skyforge-neoforge-1211/build/acceptance/aircraft-001-v020/client.properties
           set +e
-          xvfb-run -a ./gradlew :skyforge-neoforge-1211:runAircraftCompilerPilotClient --no-configuration-cache >"$log" 2>&1
+          timeout --signal=TERM --kill-after=10s 300s xvfb-run -a ./gradlew :skyforge-neoforge-1211:runAircraftCompilerPilotClient --no-configuration-cache >"$log" 2>&1
           gradle_status=$?
           set -e
           echo '=== AIRCRAFT-001 v0.20 focused diagnostics ==='
