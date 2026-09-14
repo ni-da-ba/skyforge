@@ -66,6 +66,23 @@ def _load_catalog() -> dict:
             raise SpecError(f"duplicate WBY capability catalog entry {cap.name}")
         seen.add(cap.name)
 
+        property_map = cap.property_map()
+        default_map = cap.default_map()
+        unknown_defaults = sorted(set(default_map) - set(property_map))
+        if unknown_defaults:
+            raise SpecError(
+                f"WBY capability catalog entry {cap.name} has defaults for undeclared properties "
+                f"{unknown_defaults}"
+            )
+        invalid_defaults = sorted(
+            key for key, value in default_map.items() if value not in property_map[key]
+        )
+        if invalid_defaults:
+            raise SpecError(
+                f"WBY capability catalog entry {cap.name} has defaults outside property domains "
+                f"{invalid_defaults}"
+            )
+
     return document
 
 
