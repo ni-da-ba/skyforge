@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
-"""Fail closed on cheap deterministic validation before controller PR handoff.
+"""Fail closed on lightweight edit validation before controller PR handoff.
 
-Workers remain responsible for objective-specific verification. This extension adds a small outer-
-controller safety net for mistakes that should never consume a GitHub CI round trip: malformed diffs
-and Java sources that do not compile. Validation runs before the worker is promoted from ``editing``
-to durable ``handoff`` so a failed preflight remains repairable instead of becoming a replay loop.
+The DigitalOcean controller is an orchestration and editing host, not a project validation runner.
+This extension therefore performs only ``git diff --check`` before promoting a worker from
+``editing`` to durable ``handoff``. Compile/test/build evidence belongs to GitHub Actions.
 """
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
-from typing import Iterable
 
 import skyforge_control_replay_base as replay_base
 
@@ -21,24 +18,6 @@ RUNTIME_PATH = "scripts/orchestrator/skyforge_pre_handoff_validation_runtime.py"
 core.CONTROLLER_RUNTIME_PATHS.add(RUNTIME_PATH)
 
 _ORIGINAL_MARK_WORKER_HANDOFF = core.Orchestrator._mark_worker_handoff
-
-
-def _java_compile_tasks(paths: Iterable[str]) -> list[str]:
-    """Return the smallest Gradle compile task set implied by changed Java sources."""
-    tasks: set[str] = set()
-    for raw in paths:
-        path = str(raw or "").replace("\\", "/").lstrip("./")
-        parts = path.split("/")
-        if len(parts) < 2 or not path.endswith(".java"):
-            continue
-        module = parts[0]
-        if not module.startswith("skyforge-"):
-            continue
-        if "/src/test/java/" in f"/{path}":
-            tasks.add(f":{module}:compileTestJava")
-        elif "/src/main/java/" in f"/{path}":
-            tasks.add(f":{module}:compileJava")
-    return sorted(tasks)
 
 
 def _run_pre_handoff_validation(
@@ -57,36 +36,8 @@ def _run_pre_handoff_validation(
         self._metric("pre_handoff_validation_failures")
         raise RuntimeError("Pre-handoff validation failed: git diff --check rejected worker changes")
 
-    tasks = _java_compile_tasks(changed_paths)
-    if not tasks:
-        self._metric("pre_handoff_validation_passes")
-        return
-
-    wrapper = self.root / "scripts" / "orchestrator" / "with_hosted_jdk.py"
-    gradlew = worktree / "gradlew"
-    result = core._run(
-        [
-            sys.executable,
-            str(wrapper),
-            "--",
-            str(gradlew),
-            "-p",
-            str(worktree),
-            "--no-daemon",
-            *tasks,
-        ],
-        cwd=worktree,
-        check=False,
-        timeout=900,
-    )
-    if result.returncode != 0:
-        self._metric("pre_handoff_validation_failures")
-        summary = (result.stderr or result.stdout or "compile task failed").strip()[-2000:]
-        raise RuntimeError(
-            "Pre-handoff Java compilation failed before durable handoff; "
-            f"tasks={tasks}; tail={summary}"
-        )
-
+    # Do not derive or execute Gradle/Java tasks here. The controller host is edit-only;
+    # GitHub Actions owns automated project validation after durable handoff.
     self._metric("pre_handoff_validation_passes")
 
 
