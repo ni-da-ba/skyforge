@@ -1,41 +1,30 @@
 #!/usr/bin/env python3
-"""Execute a repository-local command with the pinned hosted Java toolchain."""
+"""Retired compatibility entrypoint for the former hosted project JDK.
+
+Project builds/tests/runtime work belong on GitHub Actions. The DigitalOcean host is the
+Skyforge orchestration control plane only; see docs/agent-state/EXECUTION_BOUNDARIES.md.
+"""
 
 from __future__ import annotations
 
-import argparse
-import os
-from pathlib import Path
-
-from hosted_jdk import java_home, toolchain_env
+import sys
 
 
-def repository_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+MESSAGE = """ERROR: hosted project execution is disabled by Skyforge execution policy.
+
+The DigitalOcean skyforge-orchestrator droplet is the orchestration control plane only.
+Do not run Gradle, NeoForge/Minecraft, automated project tests, benchmarks, or generated
+machine-evidence workloads here. Commit/hand off the bounded repository change and use
+GitHub Actions for automated verification. Perform visual/play/listening/manual gates on
+the project owner's local machine.
+
+See docs/agent-state/EXECUTION_BOUNDARIES.md.
+"""
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Run a command with the hosted pinned JAVA_HOME/PATH."
-    )
-    parser.add_argument("--print-java-home", action="store_true")
-    parser.add_argument("command", nargs=argparse.REMAINDER)
-    args = parser.parse_args()
-
-    root = repository_root()
-    if args.print_java_home:
-        print(java_home(root))
-        return 0
-
-    command = list(args.command)
-    if command and command[0] == "--":
-        command = command[1:]
-    if not command:
-        parser.error("provide a command after --")
-
-    env = toolchain_env(root)
-    os.execvpe(command[0], command, env)
-    return 127
+    sys.stderr.write(MESSAGE)
+    return 2
 
 
 if __name__ == "__main__":
