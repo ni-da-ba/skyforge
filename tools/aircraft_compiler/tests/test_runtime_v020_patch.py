@@ -40,7 +40,7 @@ class RuntimeV020PatchTests(unittest.TestCase):
             patched.index("SkyforgeAircraftCompilerCockpitYawRouteRuntimeAcceptance.verify("),
         )
 
-    def test_v020_integrated_client_keeps_physical_thresholds_but_uses_bounded_observation(self) -> None:
+    def test_v020_integrated_client_temporarily_unpauses_physics_without_relaxing_thresholds(self) -> None:
         repo_root = Path(__file__).resolve().parents[3]
         source = (
             repo_root / "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211"
@@ -48,6 +48,15 @@ class RuntimeV020PatchTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         patched = patch_v020_cockpit(source)
 
+        self.assertIn(
+            'boolean physicsWasPaused = (boolean) publicMethod(physicsSystem, "getPaused").invoke(physicsSystem);',
+            patched,
+        )
+        self.assertIn(
+            'Method setPhysicsPaused = physicsSystem.getClass().getMethod("setPaused", boolean.class);',
+            patched,
+        )
+        self.assertIn("setPhysicsPaused.invoke(physicsSystem, false);", patched)
         self.assertIn(
             "int maximumPhysicalSettlePhysicsTicks = Math.max(physicalSettlePhysicsTicks, 1) * 2;",
             patched,
@@ -64,8 +73,17 @@ class RuntimeV020PatchTests(unittest.TestCase):
             "Math.abs(physicalReturned) <= physicalNeutralToleranceDegrees",
             patched,
         )
-        self.assertIn('" observedPhysicsTicks=" + physicalDeflectTicks', patched)
-        self.assertIn('" observedPhysicsTicks=" + physicalReturnTicks', patched)
+        self.assertIn("setPhysicsPaused.invoke(physicsSystem, physicsWasPaused);", patched)
+        self.assertIn('" originalPaused=" + physicsWasPaused', patched)
+        self.assertIn('" paused=" + physicsWasPaused', patched)
+        self.assertLess(
+            patched.index("setPhysicsPaused.invoke(physicsSystem, false);"),
+            patched.index("while (physicalDeflectTicks < maximumPhysicalSettlePhysicsTicks"),
+        )
+        self.assertLess(
+            patched.index("Math.abs(physicalReturned) <= physicalNeutralToleranceDegrees);"),
+            patched.index("setPhysicsPaused.invoke(physicsSystem, physicsWasPaused);"),
+        )
 
 
 if __name__ == "__main__":

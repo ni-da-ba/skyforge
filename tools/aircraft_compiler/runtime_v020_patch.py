@@ -84,7 +84,18 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
         assertTrue("physical rudder sign follows compiled extra-cog sign",
                 Math.signum(physicalDeflected) == expectedExtraCogSign);
 '''
-    outbound_injected = '''        int maximumPhysicalSettlePhysicsTicks = Math.max(physicalSettlePhysicsTicks, 1) * 2;
+    outbound_injected = '''        boolean physicsWasPaused = (boolean) publicMethod(physicsSystem, "getPaused").invoke(physicsSystem);
+        Method setPhysicsPaused = physicsSystem.getClass().getMethod("setPaused", boolean.class);
+        if (physicsWasPaused) {
+            setPhysicsPaused.invoke(physicsSystem, false);
+        }
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE PHYSICS_STATE"
+                        + " originalPaused=" + physicsWasPaused
+                        + " temporaryUnpauseApplied=" + physicsWasPaused);
+
+        int maximumPhysicalSettlePhysicsTicks = Math.max(physicalSettlePhysicsTicks, 1) * 2;
         int physicalDeflectTicks = 0;
         double physicalDeflected = relativeYawDegrees(parentSubLevel, childSubLevel);
         while (physicalDeflectTicks < maximumPhysicalSettlePhysicsTicks
@@ -104,7 +115,8 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
                         + " targetDegrees=" + targetDeflected
                         + " physicalDegrees=" + physicalDeflected
                         + " minimumPhysicalDegrees=" + minimumPhysicalRudderDeflectionDegrees
-                        + " expectedSign=" + expectedExtraCogSign);
+                        + " expectedSign=" + expectedExtraCogSign
+                        + " originalPhysicsPaused=" + physicsWasPaused);
         assertTrue(
                 "physical rudder follows cockpit-routed target"
                         + " observedDegrees=" + physicalDeflected
@@ -149,7 +161,8 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
                         + " observedPhysicsTicks=" + physicalReturnTicks
                         + " targetDegrees=" + targetReturned
                         + " physicalDegrees=" + physicalReturned
-                        + " neutralToleranceDegrees=" + physicalNeutralToleranceDegrees);
+                        + " neutralToleranceDegrees=" + physicalNeutralToleranceDegrees
+                        + " originalPhysicsPaused=" + physicsWasPaused);
         assertTrue(
                 "physical rudder returns near neutral through cockpit route"
                         + " observedDegrees=" + physicalReturned
@@ -157,6 +170,12 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
                         + " observedPhysicsTicks=" + physicalReturnTicks
                         + " maximumPhysicsTicks=" + maximumPhysicalSettlePhysicsTicks,
                 Math.abs(physicalReturned) <= physicalNeutralToleranceDegrees);
+
+        setPhysicsPaused.invoke(physicsSystem, physicsWasPaused);
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE PHYSICS_STATE_RESTORED"
+                        + " paused=" + physicsWasPaused);
 '''
     return _replace_once(
         source,
