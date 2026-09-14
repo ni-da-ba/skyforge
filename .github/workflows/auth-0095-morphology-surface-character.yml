@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - ".github/workflows/auth-0095-morphology-surface-character.yml"
-      - ".github/actions/setup-java-gradle/action.yml"
       - ".github/actions/run-authorship-evidence/action.yml"
       - "docs/authorship/AUTH-0095-morphology-surface-character-diagnostics.md"
       - "docs/authorship/AUTH-0101-morphology-surface-character-comparisons.md"

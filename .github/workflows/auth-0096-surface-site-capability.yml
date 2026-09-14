@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - ".github/workflows/auth-0096-surface-site-capability.yml"
-      - ".github/actions/setup-java-gradle/action.yml"
       - ".github/actions/run-authorship-evidence/action.yml"
       - "docs/authorship/AUTH-0096-local-surface-site-capability.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceSiteCapabilityCell.java"
