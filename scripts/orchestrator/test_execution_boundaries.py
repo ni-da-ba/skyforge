@@ -15,9 +15,10 @@ import skyforge_execution_boundary_runtime as boundary_runtime
 class ExecutionBoundaryTests(unittest.TestCase):
     def test_boundary_runtime_overrides_hosted_worker_contract(self):
         instructions = boundary_runtime.core.WORKER_INSTRUCTIONS
-        self.assertIn("DO NOT run project builds", instructions)
-        self.assertIn("GitHub Actions is the authority", instructions)
-        self.assertIn("project owner's local machine", instructions)
+        normalized = " ".join(instructions.split())
+        self.assertIn("DO NOT run project builds", normalized)
+        self.assertIn("GitHub Actions is the authority", normalized)
+        self.assertIn("project owner's local machine", normalized)
         self.assertIn(boundary_runtime.RUNTIME_PATH, boundary_runtime.core.CONTROLLER_RUNTIME_PATHS)
         self.assertIn(boundary_runtime.BOUNDARY_PATH, boundary_runtime.core.PROTECTED_WORKER_PATHS)
 
