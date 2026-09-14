@@ -4,9 +4,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Objects;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -34,6 +36,7 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
     private static volatile boolean originalPlayerInvulnerable;
     private static volatile boolean playerInvulnerabilityRestored;
     private static volatile boolean seatSetupReanchorLogged;
+    private static volatile int seatDiagnosticTicks;
     private static volatile boolean activePacketObserved;
     private static volatile boolean releasePacketObserved;
     private static volatile boolean seatMountObserved;
@@ -137,6 +140,21 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
             }
         }
 
+        // Diagnostic-only observation of the ordinary Create seat boundary. This deliberately does
+        // not invoke SeatBlock, create SeatEntity, rewrite packet coordinates, or mount the player.
+        // Sampling after the real wheel release distinguishes a rejected/misrouted vanilla use
+        // packet from a Create seat mount that occurred but failed to synchronize back to the client.
+        if (releasePacketObserved && !seatMountObserved) {
+            seatDiagnosticTicks++;
+            if (seatDiagnosticTicks == 5 || seatDiagnosticTicks == 20) {
+                LOGGER.log(
+                        System.Logger.Level.INFO,
+                        "AIRCRAFT_001_V020_SEAT_BOUNDARY_DIAGNOSTIC"
+                                + " ticksAfterRelease=" + seatDiagnosticTicks
+                                + " " + seatBoundaryDiagnostics(player, snapshot));
+            }
+        }
+
         Entity vehicle = player.getVehicle();
         if (!seatMountObserved
                 && player.isPassenger()
@@ -201,6 +219,67 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
         player.teleportTo(globalStandPosition.x, globalStandPosition.y, globalStandPosition.z);
         player.setDeltaMovement(Vec3.ZERO);
         return globalStandPosition;
+    }
+
+    private static String seatBoundaryDiagnostics(
+            ServerPlayer player,
+            SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot) {
+        BlockPos seat = snapshot.pilotSeatPos();
+        Vec3 plotCenter = Vec3.atCenterOf(seat);
+        Vec3 globalCenter = projectThroughBoundParent(plotCenter);
+        Object parentSubLevel = assembledParentSubLevel;
+        if (parentSubLevel == null) {
+            return "parentSubLevel=<null>";
+        }
+
+        try {
+            Method getBlockState = parentSubLevel.getClass().getMethod("getBlockState", BlockPos.class);
+            Object parentSeatState = getBlockState.invoke(parentSubLevel, seat);
+
+            Method getEntities = parentSubLevel.getClass().getMethod("getEntities", Entity.class, AABB.class);
+            Object entitiesValue = getEntities.invoke(parentSubLevel, new Object[] {null, new AABB(seat)});
+            StringBuilder entityClasses = new StringBuilder();
+            int seatEntityCount = 0;
+            int totalEntityCount = 0;
+            if (entitiesValue instanceof List<?> entities) {
+                totalEntityCount = entities.size();
+                for (Object entity : entities) {
+                    if (entity == null) {
+                        continue;
+                    }
+                    if (!entityClasses.isEmpty()) {
+                        entityClasses.append(',');
+                    }
+                    String className = entity.getClass().getName();
+                    entityClasses.append(className);
+                    if (className.endsWith("SeatEntity")) {
+                        seatEntityCount++;
+                    }
+                }
+            }
+
+            return "parentClass=" + parentSubLevel.getClass().getName()
+                    + " parentSeatState=" + parentSeatState
+                    + " overworldSeatState=" + player.serverLevel().getBlockState(seat)
+                    + " parentSeatEntityCount=" + seatEntityCount
+                    + " parentCellEntityCount=" + totalEntityCount
+                    + " parentCellEntityClasses=[" + entityClasses + "]"
+                    + " playerPassenger=" + player.isPassenger()
+                    + " playerVehicle=" + (player.getVehicle() == null ? "<null>" : player.getVehicle().getClass().getName())
+                    + " playerPosition=" + player.position()
+                    + " plotSeatCenter=" + plotCenter
+                    + " globalSeatCenter=" + globalCenter
+                    + " plotDistanceSquared=" + player.distanceToSqr(plotCenter)
+                    + " globalDistanceSquared=" + player.distanceToSqr(globalCenter);
+        } catch (ReflectiveOperationException failure) {
+            return "diagnosticReflectionFailure=" + failure
+                    + " parentClass=" + parentSubLevel.getClass().getName()
+                    + " playerPosition=" + player.position()
+                    + " plotSeatCenter=" + plotCenter
+                    + " globalSeatCenter=" + globalCenter
+                    + " plotDistanceSquared=" + player.distanceToSqr(plotCenter)
+                    + " globalDistanceSquared=" + player.distanceToSqr(globalCenter);
+        }
     }
 
     private static Vec3 projectThroughBoundParent(Vec3 plotPosition) {
