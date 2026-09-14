@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -15,7 +17,7 @@ from minecraft_wby_profile import (
     guild_v014_wby_intent,
     wby_c1_create_registry,
 )
-from model import BlockState, Cell
+from model import BlockState, Cell, SpecError
 
 CATALOG = ROOT / "minecraft_data" / "wby_c1_create_6_0_10_capabilities.json"
 
@@ -82,6 +84,26 @@ class MinecraftWbyProfileTests(unittest.TestCase):
         cell = Cell("window", BlockState.of("example:ignored"), "fp_public_window")
         intent = guild_v014_wby_intent(cell)
         self.assertEqual(guild_v014_wby_adapter().resolve_intent(intent).name, "minecraft:glass_pane")
+
+    def test_catalog_status_is_mandatory_and_fail_closed(self):
+        doc = json.loads(CATALOG.read_text(encoding="utf-8"))
+        doc["blocks"][0]["status"] = "research-only"
+        with tempfile.TemporaryDirectory() as tmp:
+            bad_catalog = Path(tmp) / "bad.json"
+            bad_catalog.write_text(json.dumps(doc), encoding="utf-8")
+            with patch("minecraft_wby_profile._CATALOG", bad_catalog):
+                with self.assertRaisesRegex(SpecError, "unsupported status"):
+                    wby_c1_create_registry()
+
+    def test_duplicate_catalog_resource_names_fail_closed(self):
+        doc = json.loads(CATALOG.read_text(encoding="utf-8"))
+        doc["blocks"].append(dict(doc["blocks"][0]))
+        with tempfile.TemporaryDirectory() as tmp:
+            bad_catalog = Path(tmp) / "bad.json"
+            bad_catalog.write_text(json.dumps(doc), encoding="utf-8")
+            with patch("minecraft_wby_profile._CATALOG", bad_catalog):
+                with self.assertRaisesRegex(SpecError, "duplicate WBY capability"):
+                    wby_c1_create_registry()
 
     def test_warm_guild_hardware_uses_brass_casing_only_in_wby_profile(self):
         cell = Cell("hardware", BlockState.of("example:ignored"), "service_marker")
