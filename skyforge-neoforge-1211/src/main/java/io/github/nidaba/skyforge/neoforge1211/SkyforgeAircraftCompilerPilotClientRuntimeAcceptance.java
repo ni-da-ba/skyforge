@@ -1,10 +1,13 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.List;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
@@ -13,7 +16,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  *
  * <p>The observer never calls SteeringWheelBlockEntity start/stop methods and never mounts the
  * player. It only watches the state produced by the connected client and performs one bounded
- * test-setup teleport so the real player is within reach of the compiled cockpit.</p>
+ * test-setup teleport so the real player is within reach of the compiled cockpit.
  */
 final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.aircraftCompilerPilotClient";
@@ -52,10 +55,15 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
 
         if (!playerPositioned) {
             var seat = snapshot.pilotSeatPos();
-            player.teleportTo(seat.getX() + 0.5, seat.getY() + 1.0, seat.getZ() + 0.5);
+            Vec3 plotStandPosition = new Vec3(seat.getX() + 0.5, seat.getY() + 1.0, seat.getZ() + 0.5);
+            Vec3 globalStandPosition = projectOutOfSubLevel(player.level(), plotStandPosition);
+            player.teleportTo(globalStandPosition.x, globalStandPosition.y, globalStandPosition.z);
             playerPositioned = true;
-            LOGGER.log(System.Logger.Level.INFO,
-                    "AIRCRAFT_001_V020_PLAYER_POSITIONED pilotSeat=" + seat);
+            LOGGER.log(
+                    System.Logger.Level.INFO,
+                    "AIRCRAFT_001_V020_PLAYER_POSITIONED"
+                            + " pilotSeatPlot=" + seat
+                            + " globalStand=" + globalStandPosition);
             return;
         }
 
@@ -134,6 +142,21 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
 
     static float activeTargetDegrees() {
         return activeTargetDegrees;
+    }
+
+    private static Vec3 projectOutOfSubLevel(Level level, Vec3 plotPosition) {
+        try {
+            Class<?> sable = Class.forName("dev.ryanhcode.sable.Sable");
+            Object helper = sable.getField("HELPER").get(null);
+            Method method = helper.getClass().getMethod("projectOutOfSubLevel", Level.class, Vec3.class);
+            Object projected = method.invoke(helper, level, plotPosition);
+            if (!(projected instanceof Vec3 globalPosition)) {
+                throw new IllegalStateException("Sable projectOutOfSubLevel returned " + projected);
+            }
+            return globalPosition;
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("could not project AIRCRAFT-001 plot position into Sable global space", failure);
+        }
     }
 
     private static boolean readBooleanField(Object target, String name) {
