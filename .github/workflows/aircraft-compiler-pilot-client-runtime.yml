@@ -42,7 +42,7 @@ jobs:
           set -euo pipefail
           python -m unittest discover -s tools/aircraft_compiler/tests -v
           out=build/aircraft-compiler-pilot-client-runtime
-          python tools/aircraft_compiler/compile.py tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json --blockspace-config tools/aircraft_compiler/specimens/guild_utility_monoplane_blockspace_v0.2.json --target-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_target_v0.4.json --propulsion-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_propulsion_v0.5.json --surface-state-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_surface_state_v0.6.json --tail-lowering-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_tail_lowering_v0.7.json --pilot-station-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_station_v0.8.json --probe-manifest-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_probe_manifest_v0.9.json --out "$out"
+          python tools/aircraft_compiler/compile.py tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json --blockspace-config tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_target_v0.4.json --target-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_target_v0.4.json --propulsion-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_propulsion_v0.5.json --surface-state-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_surface_state_v0.6.json --tail-lowering-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_tail_lowering_v0.7.json --pilot-station-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_station_v0.8.json --probe-manifest-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_probe_manifest_v0.9.json --out "$out"
           python tools/aircraft_compiler/assembly_fixture_cli.py "$out/probe_placement_manifest.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_assembly_fixture_v0.10.json --out "$out"
           python tools/aircraft_compiler/glue_encoding_cli.py "$out/assembly_fixture.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_glue_encoding_v0.11.json --out "$out"
           python tools/aircraft_compiler/powertrain_lowering_cli.py "$out/probe_placement_manifest.json" "$out/glue_encoding.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_powertrain_v0.12.json --out "$out"
@@ -150,3 +150,13 @@ jobs:
           grep -Fxq 'completedControlsPersistenceQualified=false' "$result"
           grep -Fxq 'flightQualified=false' "$result"
           grep -Fq 'AIRCRAFT_001_RUNTIME_PILOT_CLIENT_SERVER_OBSERVER PASS' "$log"
+
+      - name: Upload v0.20 actual-client diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aircraft-compiler-pilot-client-runtime-diagnostics
+          if-no-files-found: warn
+          path: |
+            aircraft-compiler-pilot-client-runtime.log
+            skyforge-neoforge-1211/build/acceptance/aircraft-001-v020/client.properties
