@@ -122,16 +122,20 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
                             + " beforeSeatInteraction=true");
         }
 
-        if (releasePacketObserved && !seatMountObserved && !player.isPassenger()) {
+        // The seat setup re-anchor must be one-shot. Reissuing ServerPlayer.teleportTo every tick
+        // keeps vanilla's awaitingPositionFromClient non-null, which causes handleUseItemOn to drop
+        // the otherwise-valid Create seat packet before ServerPlayerGameMode/useItemOn is reached.
+        if (releasePacketObserved
+                && !seatMountObserved
+                && !player.isPassenger()
+                && !seatSetupReanchorLogged) {
             Vec3 globalStandPosition = positionServerPlayerAtCurrentSeat(player, snapshot);
-            if (!seatSetupReanchorLogged) {
-                seatSetupReanchorLogged = true;
-                LOGGER.log(
-                        System.Logger.Level.INFO,
-                        "AIRCRAFT_001_V020_SEAT_SETUP_REANCHOR"
-                                + " globalStand=" + globalStandPosition
-                                + " playerSableTrackingQualified=false");
-            }
+            seatSetupReanchorLogged = true;
+            LOGGER.log(
+                    System.Logger.Level.INFO,
+                    "AIRCRAFT_001_V020_SEAT_SETUP_REANCHOR"
+                            + " globalStand=" + globalStandPosition
+                            + " playerSableTrackingQualified=false");
         }
 
         // Diagnostic-only observation of the ordinary Create seat boundary. Sable stores sub-level
