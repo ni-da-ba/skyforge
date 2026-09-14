@@ -17,8 +17,10 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 /**
  * Small exact-volume consumer of AUTH-0086 visible-water intent.
  *
- * <p>It deliberately selects no watershed or water availability: each deployment is the first
- * stable authored intent of its required kind.  Water replaces only exact owner voxels, which keeps
+ * <p>It deliberately selects no watershed or water availability. For each authored class that is
+ * actually present, it realizes the first stable accepted intent of that kind. Missing classes are
+ * left absent rather than synthesized; bounded accepted-corpus fixtures cover implementation risks
+ * that the DR-00 canonical specimen does not carry. Water replaces only exact owner voxels, keeping
  * this initial static realization out of the native-spring provenance/propagation path.
  */
 final class SkyforgeAuthoredVisibleHydrologyAdapter {
@@ -47,20 +49,32 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         SkyIslandVisibleHydrologicRealizationPlan intent =
                 SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor);
         List<Deployment> deployments = new ArrayList<>();
-        deployments.add(atPath(volume, terrain, Feature.CHANNEL, intent.channels().getFirst().path().points()));
-        deployments.add(atFootprint(
-                volume, terrain, intent.retainedWater().getFirst().footprint().cells()));
-        var vertical = intent.drops().stream()
+
+        intent.channels().stream().findFirst().ifPresent(channel -> deployments.add(
+                atPath(volume, terrain, Feature.CHANNEL, channel.path().points())));
+        intent.retainedWater().stream().findFirst().ifPresent(retained -> deployments.add(
+                atFootprint(volume, terrain, retained.footprint().cells())));
+        intent.drops().stream()
                 .filter(drop -> drop.kind() == SkyIslandVisibleHydrologicRealizationKind.CASCADE
                         || drop.kind() == SkyIslandVisibleHydrologicRealizationKind.WATERFALL)
-                .findFirst().orElseThrow(() -> new IllegalStateException("AUTH-0086 has no vertical discharge"));
-        deployments.add(at(volume, terrain, Feature.VERTICAL_DISCHARGE,
-                vertical.drop().position().x(), vertical.drop().position().z(), 3));
-        var edge = intent.drops().stream()
+                .findFirst()
+                .ifPresent(vertical -> deployments.add(at(
+                        volume,
+                        terrain,
+                        Feature.VERTICAL_DISCHARGE,
+                        vertical.drop().position().x(),
+                        vertical.drop().position().z(),
+                        3)));
+        intent.drops().stream()
                 .filter(drop -> drop.kind() == SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE)
-                .findFirst().orElseThrow(() -> new IllegalStateException("AUTH-0086 has no edge discharge"));
-        deployments.add(at(volume, terrain, Feature.EDGE_DISCHARGE,
-                edge.drop().position().x(), edge.drop().position().z(), 2));
+                .findFirst()
+                .ifPresent(edge -> deployments.add(at(
+                        volume,
+                        terrain,
+                        Feature.EDGE_DISCHARGE,
+                        edge.drop().position().x(),
+                        edge.drop().position().z(),
+                        2)));
         return List.copyOf(deployments);
     }
 
