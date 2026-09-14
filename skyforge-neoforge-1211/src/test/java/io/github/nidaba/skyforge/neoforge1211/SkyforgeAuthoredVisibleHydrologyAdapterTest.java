@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
@@ -134,7 +135,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     private static ProtoChunk realizedChunk(SkyforgeNeoForge1211ChunkAdapter terrain, net.minecraft.world.level.ChunkPos pos) throws Exception {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(pos);
-        try (AutoCloseable ignored = SkyforgeNeoForge1211SurfaceStage.install(terrain, new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+        try (AutoCloseable installedSurfaceStage = SkyforgeNeoForge1211SurfaceStage.install(
+                terrain, new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(installedSurfaceStage);
             SkyforgeNeoForge1211SurfaceStage.realize(chunk);
         }
         return chunk;
