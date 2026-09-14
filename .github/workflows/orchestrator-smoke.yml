@@ -74,9 +74,16 @@ jobs:
         run: systemd-analyze calendar "$(sed -n 's/^OnCalendar=//p' deploy/orchestrator/skyforge-value-report.timer)"
 
       - name: Run deterministic orchestration tests
-        shell: bash
         run: |
-          set -euo pipefail
-          for test_file in scripts/orchestrator/test_*.py; do
-            python -m unittest "${test_file}"
-          done
+          python -m unittest scripts/orchestrator/test_skyforge_orchestrator.py
+          python -m unittest scripts/orchestrator/test_codex_quota.py
+          python -m unittest scripts/orchestrator/test_skyforge_quota_runtime.py
+          python -m unittest scripts/orchestrator/test_skyforge_control_replay_runtime.py
+          python -m unittest scripts/orchestrator/test_skyforge_roadmap_runtime.py
+          python -m unittest scripts/orchestrator/test_skyforge_roadmap_binding.py
+          python -m unittest scripts/orchestrator/test_skyforge_control_plane_runtime.py
+          python -m unittest scripts/orchestrator/test_daily_value_report.py
+          python -m unittest scripts/orchestrator/test_verify_main_protection.py
+          python -m unittest scripts/orchestrator/test_decommission_contract.py
+          python -m unittest scripts/orchestrator/test_codex_auth.py
+          python -m unittest scripts/orchestrator/test_sync_runtime_dependencies.py
