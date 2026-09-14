@@ -76,6 +76,23 @@ class RuntimeV020PatchTests(unittest.TestCase):
         self.assertIn("setPhysicsPaused.invoke(physicsSystem, physicsWasPaused);", patched)
         self.assertIn('" originalPaused=" + physicsWasPaused', patched)
         self.assertIn('" paused=" + physicsWasPaused', patched)
+        self.assertIn('Object physicsPipeline = publicMethod(physicsSystem, "getPipeline").invoke(physicsSystem);', patched)
+        self.assertGreaterEqual(
+            patched.count('oneArgMethod(physicsPipeline, "wakeUp", parentSubLevel).invoke(physicsPipeline, parentSubLevel);'),
+            2,
+        )
+        self.assertGreaterEqual(
+            patched.count('oneArgMethod(physicsPipeline, "wakeUp", childSubLevel).invoke(physicsPipeline, childSubLevel);'),
+            2,
+        )
+        self.assertIn('" phase=outbound"', patched)
+        self.assertIn('" phase=neutral-return"', patched)
+        self.assertIn('" parentWake=true"', patched)
+        self.assertIn('" childWake=true"', patched)
+        self.assertLess(
+            patched.index('Object physicsPipeline = publicMethod(physicsSystem, "getPipeline").invoke(physicsSystem);'),
+            patched.index("while (physicalDeflectTicks < maximumPhysicalSettlePhysicsTicks"),
+        )
         self.assertLess(
             patched.index("setPhysicsPaused.invoke(physicsSystem, false);"),
             patched.index("while (physicalDeflectTicks < maximumPhysicalSettlePhysicsTicks"),
