@@ -38,19 +38,27 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
             return;
         }
 
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot =
+                SkyforgeAircraftCompilerPilotClientBridge.snapshot();
+
         long now = System.nanoTime();
         if (firstClientTickNanos == Long.MIN_VALUE) {
             firstClientTickNanos = now;
         }
         if (now - firstClientTickNanos > CLIENT_TIMEOUT_NANOS) {
-            fail("actual-client pilot interaction did not complete within 120 seconds");
+            String screen = minecraft.screen == null ? "<null>" : minecraft.screen.getClass().getName();
+            fail("actual-client pilot interaction did not complete within 120 seconds"
+                    + " readiness={level=" + (minecraft.level != null)
+                    + ",player=" + (player != null)
+                    + ",gameMode=" + (minecraft.gameMode != null)
+                    + ",bridge=" + (snapshot != null)
+                    + ",playerPositioned=" + SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.playerPositioned()
+                    + ",screen=" + screen + "}");
             return;
         }
 
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
-        SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot =
-                SkyforgeAircraftCompilerPilotClientBridge.snapshot();
         if (minecraft.level == null || player == null || minecraft.gameMode == null || snapshot == null) {
             return;
         }
