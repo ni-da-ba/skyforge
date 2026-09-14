@@ -1,27 +1,38 @@
 #!/usr/bin/env python3
-"""Synchronize pinned hosted-orchestrator dependencies and hosted worker toolchains."""
+"""Synchronize hosted-orchestrator Python dependencies and retire legacy project toolchains.
+
+The DigitalOcean host may run the lightweight Codex orchestration/editing process, but project
+build/test toolchains belong to GitHub Actions. In particular, the pre-boundary hosted Java toolchain
+must not be provisioned or retained on the controller host.
+"""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-if str(SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_DIR))
-
-from hosted_jdk import ensure_hosted_jdk
-
 STATE_DIR = ".skyforge-orchestrator"
 FINGERPRINT_FILE = "requirements.sha256"
+LEGACY_TOOLCHAINS_DIR = "toolchains"
 
 
 def requirements_fingerprint(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def retire_legacy_project_toolchains(root: Path) -> bool:
+    """Remove pre-boundary project build toolchains from ignored controller state."""
+    toolchains = root / STATE_DIR / LEGACY_TOOLCHAINS_DIR
+    if not toolchains.exists():
+        return False
+    shutil.rmtree(toolchains)
+    print(f"[orchestrator-deps] retired legacy project toolchains at {toolchains}")
+    return True
 
 
 def sync_runtime_dependencies(root: Path) -> bool:
@@ -60,12 +71,10 @@ def sync_runtime_dependencies(root: Path) -> bool:
         print(f"[orchestrator-deps] synchronized requirements {current[:12]}")
         changed = True
 
-    # The hosted controller's bounded workers need the same Java 25 capability as repository CI.
-    # Provision it without root into ignored durable state. Local/non-hosted development keeps its
-    # existing developer-selected Java environment and never downloads this toolchain implicitly.
-    if os.environ.get("SKYFORGE_ORCHESTRATOR_DEDICATED_CLONE") == "1":
-        changed = ensure_hosted_jdk(root) or changed
-
+    # This is intentionally destructive only inside ignored orchestrator state. Accepted project
+    # truth remains in GitHub. Removing the old Java bundle makes a stale hosted-JDK instruction fail
+    # closed instead of turning the 2 GB controller back into a Gradle/NeoForge build machine.
+    changed = retire_legacy_project_toolchains(root) or changed
     return changed
 
 
