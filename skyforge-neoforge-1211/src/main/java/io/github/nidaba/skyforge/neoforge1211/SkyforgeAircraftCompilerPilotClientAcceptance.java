@@ -8,7 +8,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -130,7 +133,8 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
         if (!holdInteractionActive()) {
             if (stageTicks >= ACQUIRE_RETRY_LIMIT_TICKS) {
                 fail("real MultiPlayerGameMode.useItemOn never acquired Simulated SteeringWheelHandler"
-                        + " afterClientSubLevelReady=true");
+                        + " afterClientSubLevelReady=true "
+                        + steeringWheelPredicateDiagnostics(minecraft, player, wheelPos, wheelBlockEntity));
             }
             return;
         }
@@ -258,6 +262,55 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
         } catch (ReflectiveOperationException failure) {
             throw new IllegalStateException("could not resolve AIRCRAFT-001 client Sable sublevel readiness", failure);
         }
+    }
+
+    private static String steeringWheelPredicateDiagnostics(
+            Minecraft minecraft,
+            LocalPlayer player,
+            BlockPos wheelPos,
+            Object wheelBlockEntity)
+            throws ReflectiveOperationException {
+        BlockState state = minecraft.level.getBlockState(wheelPos);
+        float partialTick = minecraft.getTimer().getGameTimeDeltaPartialTick(true);
+
+        Method lookingAtWheelMethod = state.getBlock().getClass().getMethod(
+                "lookingAtWheel",
+                Player.class,
+                BlockPos.class,
+                float.class,
+                BlockState.class);
+        boolean lookingAtWheel = (boolean) lookingAtWheelMethod.invoke(
+                null,
+                player,
+                wheelPos,
+                partialTick,
+                state);
+
+        boolean held = wheelBlockEntity.getClass().getField("held").getBoolean(wheelBlockEntity);
+        Method materialValidMethod = wheelBlockEntity.getClass().getMethod("isMaterialValid", ItemStack.class);
+        boolean materialValid = (boolean) materialValidMethod.invoke(
+                wheelBlockEntity,
+                player.getItemInHand(InteractionHand.MAIN_HAND));
+
+        Object angleInput = wheelBlockEntity.getClass().getField("angleInput").get(wheelBlockEntity);
+        Class<?> scrollValueBehaviour = Class.forName(
+                "com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour");
+        Method testHitMethod = scrollValueBehaviour.getMethod("testHit", Vec3.class);
+        Vec3 hitLocation = minecraft.hitResult == null ? Vec3.ZERO : minecraft.hitResult.getLocation();
+        boolean angleInputHit = (boolean) testHitMethod.invoke(angleInput, hitLocation);
+
+        Vec3 projectedCenter = projectOutOfSubLevel(minecraft.level, Vec3.atCenterOf(wheelPos));
+        return "quietUsePredicates={lookingAtWheel=" + lookingAtWheel
+                + ",held=" + held
+                + ",materialValid=" + materialValid
+                + ",angleInputHit=" + angleInputHit
+                + ",wheelUseResult=" + wheelUseResult
+                + ",hitLocation=" + hitLocation
+                + ",projectedCenter=" + projectedCenter
+                + ",eye=" + player.getEyePosition(partialTick)
+                + ",view=" + player.getViewVector(partialTick)
+                + ",partialTick=" + partialTick
+                + "}";
     }
 
     private static Vec3 projectOutOfSubLevel(Level level, Vec3 plotPosition) {
