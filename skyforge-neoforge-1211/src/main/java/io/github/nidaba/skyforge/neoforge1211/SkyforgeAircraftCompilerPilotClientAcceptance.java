@@ -24,11 +24,15 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 final class SkyforgeAircraftCompilerPilotClientAcceptance {
     private static final long CLIENT_TIMEOUT_NANOS = 120_000_000_000L;
     private static final int ACQUIRE_RETRY_LIMIT_TICKS = 40;
+    // Simulated 1.3.2 floor Steering Wheel geometry spans Y=13.5..15.5 voxels. Aim at its
+    // geometric center instead of the block centroid, which can select the lower mount.
+    private static final double STEERING_WHEEL_VISUAL_Y = 14.5 / 16.0;
 
     private static long firstClientTickNanos = Long.MIN_VALUE;
     private static int stage;
     private static int stageTicks;
     private static boolean clientSubLevelReady;
+    private static boolean clientSetupRepositioningUsed;
     private static boolean clientHoldAcquired;
     private static boolean clientSeatMounted;
     private static InteractionResult wheelUseResult;
@@ -61,6 +65,7 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
                     + ",bridge=" + (snapshot != null)
                     + ",playerPositioned=" + SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.playerPositioned()
                     + ",clientSubLevelReady=" + clientSubLevelReady
+                    + ",clientSetupRepositioningUsed=" + clientSetupRepositioningUsed
                     + ",screen=" + screen + "}");
             return;
         }
@@ -76,7 +81,7 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
             stageTicks++;
             switch (stage) {
                 case 0 -> acquireSteeringWheel(minecraft, player, snapshot);
-                case 1 -> awaitActivePacket(snapshot);
+                case 1 -> awaitActivePacket(minecraft, player, snapshot);
                 case 2 -> awaitReleasePacket(minecraft, player, snapshot);
                 case 3 -> awaitSeatMount(minecraft, player, snapshot);
                 case 4 -> awaitSeatDismount(minecraft, player, snapshot);
@@ -124,9 +129,17 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
             return;
         }
 
-        Vec3 wheelPlotCenter = Vec3.atCenterOf(wheelPos);
-        lookAt(player, projectOutOfSubLevel(minecraft.level, wheelPlotCenter));
-        BlockHitResult hit = new BlockHitResult(wheelPlotCenter, Direction.UP, wheelPos, false);
+        // v0.20 deliberately does not qualify Sable player tracking. Keep the actual LocalPlayer
+        // in the client-rendered cockpit solely as bounded test setup so Simulated's production
+        // range/raycast predicates can be exercised against the real moving sublevel representation.
+        positionClientAtRenderedSeat(minecraft, player, snapshot);
+
+        Vec3 wheelPlotHit = new Vec3(
+                wheelPos.getX() + 0.5,
+                wheelPos.getY() + STEERING_WHEEL_VISUAL_Y,
+                wheelPos.getZ() + 0.5);
+        lookAt(player, projectOutOfSubLevel(minecraft.level, wheelPlotHit));
+        BlockHitResult hit = new BlockHitResult(wheelPlotHit, Direction.UP, wheelPos, false);
         minecraft.hitResult = hit;
         wheelUseResult = minecraft.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
 
@@ -144,8 +157,14 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
         advanceStage();
     }
 
-    private static void awaitActivePacket(SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot)
+    private static void awaitActivePacket(
+            Minecraft minecraft,
+            LocalPlayer player,
+            SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot)
             throws ReflectiveOperationException {
+        // Keep the client-side test player in range until Simulated's ordinary activeTick has sent
+        // the real SteeringWheelPacket. This is setup positioning, not a Sable tracking claim.
+        positionClientAtRenderedSeat(minecraft, player, snapshot);
         if (SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.activePacketObserved()) {
             invokeSimulatedUseRelease();
             if (holdInteractionActive()) {
@@ -178,6 +197,7 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
             }
             return;
         }
+        positionClientAtRenderedSeat(minecraft, player, snapshot);
         Vec3 seatPlotCenter = Vec3.atCenterOf(seatPos);
         lookAt(player, projectOutOfSubLevel(minecraft.level, seatPlotCenter));
         BlockHitResult hit = new BlockHitResult(seatPlotCenter, Direction.UP, seatPos, false);
@@ -222,6 +242,7 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
     private static void complete(Minecraft minecraft) {
         LinkedHashMap<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("actualClient", true);
+        evidence.put("clientTestSetupRepositioning", clientSetupRepositioningUsed);
         evidence.put("steeringWheelUseResult", String.valueOf(wheelUseResult));
         evidence.put("steeringHoldAcquired", clientHoldAcquired);
         evidence.put("activePacketRoundTrip", SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.activePacketObserved());
@@ -235,6 +256,18 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
         evidence.put("flightQualified", false);
         SkyforgeAutomatedAcceptanceHarness.completeClientCase(evidence);
         minecraft.stop();
+    }
+
+    private static void positionClientAtRenderedSeat(
+            Minecraft minecraft,
+            LocalPlayer player,
+            SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot) {
+        BlockPos seat = snapshot.pilotSeatPos();
+        Vec3 plotStand = new Vec3(seat.getX() + 0.5, seat.getY() + 1.0, seat.getZ() + 0.5);
+        Vec3 renderedStand = projectOutOfSubLevel(minecraft.level, plotStand);
+        player.setPos(renderedStand.x, renderedStand.y, renderedStand.z);
+        player.setDeltaMovement(Vec3.ZERO);
+        clientSetupRepositioningUsed = true;
     }
 
     private static void lookAt(LocalPlayer player, Vec3 target) {

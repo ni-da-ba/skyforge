@@ -15,8 +15,10 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * Server-side observer for AIRCRAFT-001 v0.20 actual-client evidence.
  *
  * <p>The observer never calls SteeringWheelBlockEntity start/stop methods and never mounts the
- * player. It only watches the state produced by the connected client and performs one bounded
- * test-setup teleport so the real player is within reach of the compiled cockpit.
+ * player. Because v0.20 explicitly does not qualify Sable player tracking, it performs bounded
+ * test-setup positioning: one initial teleport to establish aircraft tracking, then a temporary
+ * server-authoritative seat re-anchor after the wheel release packet and before the real Create
+ * seat interaction. These setup teleports are not player-tracking evidence.
  */
 final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.aircraftCompilerPilotClient";
@@ -25,6 +27,7 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
 
     private static volatile Object assembledParentSubLevel;
     private static volatile boolean playerPositioned;
+    private static volatile boolean seatSetupReanchorLogged;
     private static volatile boolean activePacketObserved;
     private static volatile boolean releasePacketObserved;
     private static volatile boolean seatMountObserved;
@@ -59,17 +62,15 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
         ServerPlayer player = players.getFirst();
 
         if (!playerPositioned) {
-            var seat = snapshot.pilotSeatPos();
-            Vec3 plotStandPosition = new Vec3(seat.getX() + 0.5, seat.getY() + 1.0, seat.getZ() + 0.5);
-            Vec3 globalStandPosition = projectThroughBoundParent(plotStandPosition);
-            player.teleportTo(globalStandPosition.x, globalStandPosition.y, globalStandPosition.z);
+            Vec3 globalStandPosition = positionServerPlayerAtCurrentSeat(player, snapshot);
             playerPositioned = true;
             LOGGER.log(
                     System.Logger.Level.INFO,
                     "AIRCRAFT_001_V020_PLAYER_POSITIONED"
-                            + " pilotSeatPlot=" + seat
+                            + " pilotSeatPlot=" + snapshot.pilotSeatPos()
                             + " globalStand=" + globalStandPosition
-                            + " directParentPoseProjection=true");
+                            + " directParentPoseProjection=true"
+                            + " playerSableTrackingQualified=false");
             return;
         }
 
@@ -97,6 +98,22 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
             }
         }
 
+        // The SteeringWheelPacket itself has no player-distance gate, but Create's ordinary seat
+        // interaction does. Once the real release packet has completed the wheel proof, keep the
+        // ServerPlayer at the server-authoritative current seat pose until the genuine seat use
+        // mounts it. This is bounded test setup and must not be reported as Sable tracking.
+        if (releasePacketObserved && !seatMountObserved && !player.isPassenger()) {
+            Vec3 globalStandPosition = positionServerPlayerAtCurrentSeat(player, snapshot);
+            if (!seatSetupReanchorLogged) {
+                seatSetupReanchorLogged = true;
+                LOGGER.log(
+                        System.Logger.Level.INFO,
+                        "AIRCRAFT_001_V020_SEAT_SETUP_REANCHOR"
+                                + " globalStand=" + globalStandPosition
+                                + " playerSableTrackingQualified=false");
+            }
+        }
+
         Entity vehicle = player.getVehicle();
         if (!seatMountObserved
                 && player.isPassenger()
@@ -121,6 +138,7 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
                             + " pilotSeatMount=true"
                             + " pilotSeatDismount=true"
                             + " activeTargetDegrees=" + activeTargetDegrees
+                            + " testSetupSeatReanchor=true"
                             + " playerSableTrackingQualified=false"
                             + " flightQualified=false");
         }
@@ -148,6 +166,17 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
 
     static float activeTargetDegrees() {
         return activeTargetDegrees;
+    }
+
+    private static Vec3 positionServerPlayerAtCurrentSeat(
+            ServerPlayer player,
+            SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot) {
+        var seat = snapshot.pilotSeatPos();
+        Vec3 plotStandPosition = new Vec3(seat.getX() + 0.5, seat.getY() + 1.0, seat.getZ() + 0.5);
+        Vec3 globalStandPosition = projectThroughBoundParent(plotStandPosition);
+        player.teleportTo(globalStandPosition.x, globalStandPosition.y, globalStandPosition.z);
+        player.setDeltaMovement(Vec3.ZERO);
+        return globalStandPosition;
     }
 
     private static Vec3 projectThroughBoundParent(Vec3 plotPosition) {
