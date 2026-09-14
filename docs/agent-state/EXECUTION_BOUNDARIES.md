@@ -1,57 +1,66 @@
 # Skyforge Execution Boundaries
 
 **Status:** Canonical infrastructure and execution-authority contract  
-**Owner intent:** DigitalOcean is the orchestration control plane only; GitHub is the automated machine-execution plane; Nicholas' local workstation is the manual verification plane.
+**Owner intent:** DigitalOcean provides always-on orchestration plus lightweight bounded Codex editing; GitHub/GitHub Actions provide durable project state and automated machine validation; Nicholas' local workstation provides manual/interactive verification.
 
-These boundaries are hard safety/architecture invariants. They apply to every agent, orchestration worker, recovery procedure, roadmap task, and future infrastructure change unless the project owner explicitly changes this file and the corresponding implementation through an accepted repository change.
+These boundaries are hard architecture invariants. They apply to every agent, orchestration worker, recovery procedure, roadmap task, and future infrastructure change unless the project owner explicitly changes this file and the corresponding implementation through an accepted repository change.
 
-## 1. DigitalOcean droplet — orchestration control plane only
+## 1. DigitalOcean droplet — orchestration + lightweight editing, never project validation
 
-The `skyforge-orchestrator` DigitalOcean Droplet exists only to keep the lightweight controller available.
+The `skyforge-orchestrator` DigitalOcean Droplet exists to keep the low-usage event-driven controller available and to host the already-authenticated bounded Codex editing worker that the original orchestration pilot used successfully.
 
 Allowed on the Droplet:
 
 - receive and validate GitHub webhooks;
 - maintain controller state, event journals, leases, queue/reconciliation state, and value telemetry;
-- run the Luna/classification/orchestration logic needed to decide what should happen next;
+- run Luna classification/orchestration logic;
+- run one bounded Luna/Terra Codex worker in an isolated Git worktree to inspect repository state and create source/document/configuration edits;
+- perform lightweight edit-support operations such as file reads/searches, git inspection, and `git diff --check`;
 - inspect GitHub repository/PR/issue/Actions state through APIs;
-- create/update GitHub control-plane handoffs, comments, claims, cloud-agent assignments, and dispatch records;
-- run Caddy, systemd, health checks, dependency synchronization for the orchestrator itself, and other minimal control-plane maintenance;
-- keep a minimal clean repository checkout only when required to load controller code/policy or update the controller runtime.
+- commit/push a bounded worker delta and create/update controller-managed GitHub PRs/comments/claims;
+- run Caddy, systemd, health checks, Python dependency synchronization for the orchestrator itself, and minimal controller maintenance.
 
 Forbidden on the Droplet:
 
-- implementation/authorship/content/presentation/music development work;
-- producer worktrees used to edit project deliverables;
-- Gradle, Java/NeoForge/Minecraft, native build, compile, unit/integration, benchmark, or project test execution;
-- use of `hosted_jdk.py`, `with_hosted_jdk.py`, or any equivalent hosted project-toolchain wrapper for milestone verification;
-- launching Terra/Sol/Luna as an implementation worker that edits project deliverables on Droplet storage;
-- treating the Droplet as a remote Codex development workspace;
-- using the Droplet as a fallback runner when GitHub Actions is unavailable, slow, quota-limited, or failing.
+- Gradle/`gradlew`, Java/`javac`, NeoForge/Minecraft builds or launches;
+- project compilation, unit/integration/lifecycle tests, benchmarks, generators, performance suites, or other automated project evidence;
+- provisioning or using a project JDK/toolchain, including legacy `hosted_jdk.py` / `with_hosted_jdk.py` behavior;
+- treating a local worker's unverified output as passed machine evidence;
+- running expensive project verification because GitHub Actions is slow, failing, quota-limited, or unavailable;
+- subjective visual/listening/product verification.
 
-The only exception is a bounded **recovery evacuation** of pre-existing Droplet-side work created before this contract: preserve/export the existing bytes to GitHub without modifying the recovered deliverable and without running project builds/tests. Recovery is infrastructure maintenance, not permission to continue development on the Droplet.
+The worker is an **editor**, not a validation runner. It may make a bounded implementation change and describe the checks that GitHub Actions must run. If correctness cannot be determined without executing a forbidden project command, the worker must leave that evidence to GitHub Actions rather than fabricating a result.
 
-If a controller code path would execute project development or automated validation on the Droplet, it must fail closed and surface an infrastructure-policy error rather than run the command.
+The systemd service must retain resource limits and Java/toolchain masks so a model mistake cannot monopolize the 2 GB host. A worker that violates resource bounds is disposable; durable controller state and GitHub remain authoritative.
 
-## 2. GitHub — durable development and automated machine execution
+## 2. GitHub — durable project truth and automated machine validation
 
-GitHub is authoritative for project source, branches, PRs, issues, accepted evidence, and automated execution.
+GitHub is authoritative for project source, branches, PRs, issues, accepted evidence, and automated machine execution.
 
-All non-manual project work must be persisted through GitHub. Automated validation runs on GitHub-hosted execution (normally GitHub Actions), including:
+All worker edits become durable only after the deterministic controller commits/pushes them to GitHub. GitHub Actions owns automated validation, including:
 
 - builds and compilation;
 - unit, integration, lifecycle, determinism, persistence, performance, and regression tests;
 - Gradle/Java/NeoForge machine verification;
-- generated machine evidence that does not require subjective human judgment;
-- automation used to repair or develop project code, when such an agent/runner is available through the GitHub execution surface.
+- generated machine evidence that does not require subjective human judgment.
 
-A producer may reason in ChatGPT/Codex, but its durable edits and machine evidence must flow through GitHub. The orchestration control plane dispatches work **to GitHub-backed execution/handoffs**; it does not host the producer itself.
+The normal autonomous path is therefore:
 
-The default autonomous producer for issue-backed roadmap work is GitHub's cloud coding-agent assignment surface. The control plane may use the GitHub API to assign the bounded issue to the configured cloud agent (default API assignee `copilot-swe-agent[bot]`). That coding session executes on GitHub's cloud/Actions-backed execution plane, not on DigitalOcean. The controller retains roadmap ownership until the agent-created PR is linked and reaches a terminal state.
+```text
+GitHub event
+    -> DigitalOcean deterministic controller
+    -> Luna classifier
+    -> bounded Codex editing worker in isolated worktree
+    -> controller commit/push/draft PR
+    -> GitHub Actions validation
+    -> controller observes result and advances/repairs/gates
+```
 
-If the configured GitHub cloud agent is unavailable, unauthorized, disabled, or quota-blocked, the task is infrastructure-blocked and must fail closed. Do not fall back to a DigitalOcean producer. A repository owner may enable/authorize the GitHub agent and then resume the controller.
+This path uses the Codex/ChatGPT authentication already installed on the orchestrator host. It does **not** require GitHub Copilot's cloud coding agent or `copilot-swe-agent[bot]` assignment.
 
-If GitHub automated execution is unavailable, the task is `WAIT_CI` / infrastructure-blocked. Do not move automated execution to the DigitalOcean Droplet or Nicholas' local workstation merely to keep the pipeline moving.
+Ordinary ChatGPT/manual producer agents may also create GitHub branches/PRs directly. The controller must not race a healthy external producer.
+
+If GitHub Actions is unavailable, machine validation is `WAIT_CI` / infrastructure-blocked. Do not move builds/tests to DigitalOcean or Nicholas' workstation merely to keep the pipeline moving.
 
 ## 3. Nicholas' local workstation — manual/interactive verification only
 
@@ -74,45 +83,42 @@ Execution authority does not migrate merely because one plane is inconvenient:
 
 | Work | Authority | If unavailable |
 | --- | --- | --- |
-| Orchestration/control-plane operation | DigitalOcean Droplet | repair the orchestrator; do not move development there |
-| Project development + automated machine evidence | GitHub / GitHub Actions | block/wait; do not fall back to Droplet or local |
-| Human/manual/visual/listening verification | Nicholas' local workstation | leave human gate pending; do not automate it elsewhere |
+| Event orchestration/classification | DigitalOcean Droplet | repair controller; preserve durable state |
+| Bounded autonomous source drafting/editing | DigitalOcean Codex worker or an explicitly active external producer | block/retry producer; do not invent a different execution surface |
+| Automated project builds/tests/evidence | GitHub Actions | wait/block; never run them on Droplet/local as fallback |
+| Human/manual/visual/listening verification | Nicholas' local workstation | leave human gate pending |
 
-A task that crosses categories must split its evidence: GitHub completes the machine-verifiable portion; the local workstation completes the manual gate; the Droplet only coordinates and records the transition.
+A task that crosses categories must split its evidence: the worker creates the bounded delta, GitHub Actions proves the machine-verifiable portion, and the local workstation completes any manual gate.
 
 ## 5. Orchestrator dispatch contract
 
-The orchestrator may classify, prioritize, claim, and hand off a bounded task. It must not execute the task's project commands on the Droplet.
+The orchestrator may classify, prioritize, claim, and execute one bounded **editing** task. `DISPATCH` may create/resume one isolated Luna/Terra worker worktree on the Droplet, but that worker is prohibited from running project validation.
 
-A valid autonomous dispatch must therefore produce one of:
+A valid autonomous dispatch therefore produces one of:
 
-1. an issue-backed GitHub cloud-agent assignment whose project edits execute on GitHub and whose machine checks run in GitHub Actions;
-2. a precise issue/PR handoff for an already-running external producer; or
+1. a bounded edit-only Codex worker handoff resulting in a controller-managed GitHub PR;
+2. a precise handoff/hold for an already-running external producer; or
 3. `WAIT_CI`, `HUMAN_GATE`, `NOOP`, or an explicit infrastructure block.
 
-`DISPATCH` never means "spawn a hosted worker on the Droplet." If the GitHub producer cannot be assigned safely, fail closed and surface the exact authorization/capability block.
+After the PR exists, automated evidence comes from GitHub Actions. Red CI may authorize another bounded edit-only repair worker, but never local Gradle/Java/NeoForge execution.
 
-GitHub-agent assignment is durable producer ownership. The issue remains the task authority, and the controller records `github_agent_dispatches[task:<issue>]` until the agent-created PR is cross-referenced from the issue. The roadmap must not launch a successor task while that assignment or its linked PR remains active.
+## 6. Hosted-JDK incident boundary
 
-## 6. Recovery of legacy hosted-worker state
+The September 12 hosted-JDK change crossed the original pilot's useful boundary by provisioning Java 25 on the 2 GB controller and instructing workers to run Gradle/NeoForge validation there. DR-20 then demonstrated the resulting resource failure mode.
 
-At adoption of this contract, DR-20 / issue #492 has a preserved pre-contract Droplet recovery bundle containing information-bearing hydrology work. The DigitalOcean provider snapshot is the independent safety copy until evacuation completes.
+That path is retired:
 
-Recovery sequence:
+- hosted JDK bootstrap is not part of controller dependency sync;
+- legacy ignored project toolchains are removed at service startup;
+- the service sets an invalid `JAVA_HOME` and masks the legacy toolchain/system-JDK path;
+- the service has CPU/memory/task limits;
+- worker instructions explicitly prohibit project build/test/benchmark/generator execution;
+- all machine validation returns to GitHub Actions.
 
-1. keep orchestration paused for new producer dispatch while the legacy hosted worker is attached;
-2. export the preserved recovery bundle/delta to a GitHub recovery branch **without editing it and without running project tests on the Droplet**;
-3. record the recovery branch/head on issue #492;
-4. retire the legacy hosted worker/worktree only after the exported GitHub branch exists;
-5. refresh the controller checkout and installed systemd unit to a `main` containing this execution-boundary contract and GitHub dispatch runtime;
-6. resume orchestration with Droplet-side producer execution disabled;
-7. continue DR-20 from current `main` through the GitHub execution plane; the recovery branch is reference/salvage material rather than authority for new hosted development;
-8. keep automated verification in GitHub Actions and any later visual/manual gate on the local workstation.
-
-The repository-versioned `scripts/orchestrator/recover_host_to_control_plane.py` utility implements this migration and must fail closed before journal retirement if the recovery branch cannot be pushed.
+The preserved branch `recovery/dr20-pre-boundary-20260914-034114` remains recovery/reference material for the interrupted DR-20 delta. It is not permission to restore hosted Gradle verification.
 
 ## 7. Agent startup rule
 
-Every Skyforge agent must read this contract before choosing an execution surface. Any older documentation that describes the DigitalOcean host as a "remote Codex workspace", "hosted worker", or project build/test machine is superseded by this file.
+Every Skyforge agent must read this contract before choosing an execution surface. Older documentation that says the hosted worker should provision Java or run Gradle/NeoForge tests on DigitalOcean is superseded by this file.
 
-When documentation, prompts, roadmap manifests, or recovery instructions conflict with this contract, this contract wins until the conflict is repaired in the repository.
+When documentation, prompts, roadmap manifests, or retained controller state conflict with this contract, this contract wins until the stale text is repaired. In particular, a retained pre-boundary instruction mentioning `with_hosted_jdk.py` has no execution authority.
