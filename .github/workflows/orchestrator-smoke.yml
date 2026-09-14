@@ -6,6 +6,7 @@ on:
       - "scripts/orchestrator/**"
       - "deploy/orchestrator/**"
       - "AGENTS.md"
+      - "docs/agent-state/EXECUTION_BOUNDARIES.md"
       - "docs/agent-state/ORCHESTRATION_PROTOCOL.md"
       - "docs/agent-state/PROGRAM_ROADMAP.md"
       - "docs/agent-state/ORCHESTRATOR_ROADMAP.json"
@@ -17,6 +18,7 @@ on:
       - "scripts/orchestrator/**"
       - "deploy/orchestrator/**"
       - "AGENTS.md"
+      - "docs/agent-state/EXECUTION_BOUNDARIES.md"
       - "docs/agent-state/ORCHESTRATION_PROTOCOL.md"
       - "docs/agent-state/PROGRAM_ROADMAP.md"
       - "docs/agent-state/ORCHESTRATOR_ROADMAP.json"
@@ -52,12 +54,15 @@ jobs:
           python -m py_compile scripts/orchestrator/skyforge_control_replay_runtime.py
           python -m py_compile scripts/orchestrator/roadmap_policy.py
           python -m py_compile scripts/orchestrator/skyforge_roadmap_runtime.py
+          python -m py_compile scripts/orchestrator/skyforge_execution_boundary_runtime.py
           python -m py_compile scripts/orchestrator/codex_quota.py
           python -m py_compile scripts/orchestrator/run_pilot.py
           python -m py_compile scripts/orchestrator/daily_value_report.py
           python -m py_compile scripts/orchestrator/verify_main_protection.py
           python -m py_compile scripts/orchestrator/codex_auth.py
           python -m py_compile scripts/orchestrator/sync_runtime_dependencies.py
+          python -m py_compile scripts/orchestrator/hosted_jdk.py
+          python -m py_compile scripts/orchestrator/with_hosted_jdk.py
 
       - name: Validate roadmap manifest
         run: |
@@ -91,3 +96,4 @@ jobs:
           python -m unittest scripts/orchestrator/test_decommission_contract.py
           python -m unittest scripts/orchestrator/test_codex_auth.py
           python -m unittest scripts/orchestrator/test_sync_runtime_dependencies.py
+          python -m unittest scripts/orchestrator/test_execution_boundaries.py
