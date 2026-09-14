@@ -1,0 +1,43 @@
+name: Run Skyforge Authorship evidence
+description: Run one bounded Authorship evidence contract with canonical Java/Gradle setup and artifact publication.
+
+inputs:
+  gradle_command:
+    description: Static repository-controlled Gradle command for this evidence contract.
+    required: true
+  verify_command:
+    description: Static repository-controlled shell checks for generated evidence.
+    required: true
+  artifact_name:
+    description: Artifact name prefix; the current commit SHA is appended automatically.
+    required: true
+  artifact_path:
+    description: Exact artifact path or multiline path set to publish.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Java and Gradle
+      uses: ./.github/actions/setup-java-gradle
+
+    - name: Run Authorship evidence command
+      shell: bash
+      env:
+        SKYFORGE_AUTHORSHIP_GRADLE_COMMAND: ${{ inputs.gradle_command }}
+      run: bash -euo pipefail -c "$SKYFORGE_AUTHORSHIP_GRADLE_COMMAND"
+
+    - name: Verify Authorship evidence contract
+      shell: bash
+      env:
+        SKYFORGE_AUTHORSHIP_VERIFY_COMMAND: ${{ inputs.verify_command }}
+      run: bash -euo pipefail -c "$SKYFORGE_AUTHORSHIP_VERIFY_COMMAND"
+
+    - name: Publish Authorship evidence
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact_name }}-${{ github.sha }}
+        path: ${{ inputs.artifact_path }}
+        if-no-files-found: error
+        retention-days: 7
+        compression-level: 9

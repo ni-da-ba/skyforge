@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/auth-0096-surface-site-capability.yml"
       - ".github/actions/setup-java-gradle/action.yml"
+      - ".github/actions/run-authorship-evidence/action.yml"
       - "docs/authorship/AUTH-0096-local-surface-site-capability.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceSiteCapabilityCell.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceSiteCapabilityProfile.java"
@@ -32,37 +33,27 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Java and Gradle
-        uses: ./.github/actions/setup-java-gradle
-
-      - name: Verify AUTH-0096 semantics and evidence
-        run: |
-          ./gradlew \
-            :skyforge-world:test --tests '*SkyIslandSurfaceSiteCapabilityProfilerTest' \
-            :skyforge-reference:test --tests '*AuthorshipSurfaceSiteCapabilityCorpusTest' \
-            :skyforge-reference:authorshipSurfaceSiteCapabilityCorpus \
-            --no-configuration-cache
-
-      - name: Verify evidence files
-        run: |
-          DIR=skyforge-reference/build/evidence/authorship-surface-site-capability-v1
-          test -f "$DIR/index.html"
-          test -f "$DIR/atlas.png"
-          test -f "$DIR/manifest.csv"
-          test -f "$DIR/cells.csv"
-          test "$(wc -l < "$DIR/manifest.csv")" -eq 7
-          test "$(grep -c ',true$' "$DIR/manifest.csv")" -eq 6
-          test "$(wc -l < "$DIR/cells.csv")" -gt 100
-
-      - name: Publish AUTH-0096 evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Run Authorship evidence contract
+        uses: ./.github/actions/run-authorship-evidence
         with:
-          name: auth-0096-surface-site-capability-${{ github.sha }}
-          path: |
+          gradle_command: |
+            ./gradlew \
+              :skyforge-world:test --tests '*SkyIslandSurfaceSiteCapabilityProfilerTest' \
+              :skyforge-reference:test --tests '*AuthorshipSurfaceSiteCapabilityCorpusTest' \
+              :skyforge-reference:authorshipSurfaceSiteCapabilityCorpus \
+              --no-configuration-cache
+          verify_command: |
+            DIR=skyforge-reference/build/evidence/authorship-surface-site-capability-v1
+            test -f "$DIR/index.html"
+            test -f "$DIR/atlas.png"
+            test -f "$DIR/manifest.csv"
+            test -f "$DIR/cells.csv"
+            test "$(wc -l < "$DIR/manifest.csv")" -eq 7
+            test "$(grep -c ',true$' "$DIR/manifest.csv")" -eq 6
+            test "$(wc -l < "$DIR/cells.csv")" -gt 100
+          artifact_name: auth-0096-surface-site-capability
+          artifact_path: |
             skyforge-reference/build/evidence/authorship-surface-site-capability-v1/index.html
             skyforge-reference/build/evidence/authorship-surface-site-capability-v1/atlas.png
             skyforge-reference/build/evidence/authorship-surface-site-capability-v1/manifest.csv
             skyforge-reference/build/evidence/authorship-surface-site-capability-v1/cells.csv
-          if-no-files-found: error
-          retention-days: 7
-          compression-level: 9
