@@ -59,7 +59,7 @@ A catalog entry is no longer equivalent to placement authority.
 - `active`: parsed, validated, and admitted to the WBY resolver registry;
 - `cataloged`: parsed and validated, but omitted from the resolver registry.
 
-Unknown or missing statuses fail closed. Duplicate resource names fail closed. Consequently a newly researched WBY block cannot become selectable merely because its capability tags happen to match an existing intent. Promotion from `cataloged` to `active` is an explicit reviewed operation.
+Unknown or missing statuses fail closed. Duplicate resource names fail closed. Property defaults must name declared properties and belong to the declared domains. Consequently a newly researched WBY block cannot become selectable merely because its capability tags happen to match an existing intent. Promotion from `cataloged` to `active` is an explicit reviewed operation.
 
 This corrects an early v0.1 weakness where the catalog carried a `status` field but the loader admitted every listed entry. Tests now assert both sides of the authority boundary: active Create casings resolve normally, while copper, iron blocks, and all catalogued panes remain absent from both the resolver registry and canonical Guild structure output.
 
@@ -87,7 +87,7 @@ python tools/asset_compiler/compile_wby.py \
   --out build/asset-compiler-wby
 ```
 
-The ordinary `compile.py --minecraft-structure` path is intentionally unchanged.
+The dedicated asset-compiler workflow now executes this WBY compile path explicitly in addition to discovering its unit/integration tests. The ordinary `compile.py --minecraft-structure` path is intentionally unchanged.
 
 ## Acceptance gates
 
@@ -96,11 +96,13 @@ Before broadening the automatic WBY palette:
 1. the existing asset-compiler unit suite remains green;
 2. WBY profile tests prove vanilla-registry fallback and deterministic active Create selection;
 3. catalogued/non-active blocks are mechanically excluded from the resolver registry;
-4. full Guild v0.14 lowering proves concrete Create resource IDs appear only after the resource-name-free IR boundary;
-5. WBY NBT export is byte-deterministic;
-6. stateful blocks are promoted only after exact pinned-runtime registry/state validation;
-7. decorative variants require a semantic reason to choose them;
-8. functional mod blocks require explicit semantic roles, lifecycle ownership, and NBT policy instead of palette-wide opportunistic substitution.
+4. catalog state/default schemas fail closed when malformed;
+5. full Guild v0.14 lowering proves concrete Create resource IDs appear only after the resource-name-free IR boundary;
+6. the dedicated CI workflow executes the WBY compile entry point directly;
+7. WBY NBT export is byte-deterministic;
+8. stateful blocks are promoted only after exact pinned-runtime registry/state validation;
+9. decorative variants require a semantic reason to choose them;
+10. functional mod blocks require explicit semantic roles, lifecycle ownership, and NBT policy instead of palette-wide opportunistic substitution.
 
 ## Aircraft compiler concurrency boundary
 
