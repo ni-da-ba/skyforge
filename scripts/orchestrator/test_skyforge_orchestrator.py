@@ -3433,6 +3433,33 @@ class WorkerWorktreeIsolationTests(unittest.TestCase):
             finally:
                 o._retire_worker_worktree(worktree)
 
+    def test_prepare_worker_repair_starts_from_exact_source_pr_head(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_repository(pathlib.Path(tmp))
+            o = self.make_orchestrator(root)
+            worker = root / "repair-worker"
+            source_head = "a" * 40
+
+            with (
+                mock.patch.object(o, "_validated_managed_branch", return_value=None),
+                mock.patch.object(
+                    orch,
+                    "_json_cmd",
+                    return_value={
+                        "headRefName": "codex/source-pr",
+                        "headRefOid": source_head,
+                        "state": "OPEN",
+                    },
+                ),
+                mock.patch.object(orch, "_run", return_value=orch.subprocess.CompletedProcess([], 0, "", "")),
+                mock.patch.object(o, "_ensure_worker_worktree", return_value=worker) as ensure_worktree,
+            ):
+                branch, managed_pr, worktree = o._prepare_worker_branch("Implementation", 569)
+
+            self.assertIsNone(managed_pr)
+            self.assertEqual(worktree, worker)
+            ensure_worktree.assert_called_once_with(branch, source_head)
+
     def test_pending_worker_records_isolated_worktree_for_restart(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.make_repository(pathlib.Path(tmp))
