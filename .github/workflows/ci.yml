@@ -24,6 +24,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      - name: Validate shared Java and Gradle setup policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -nE 'uses: gradle/actions/(wrapper-validation|setup-gradle)@' -- .github/workflows; then
+            echo 'Direct Gradle setup actions must live in .github/actions/setup-java-gradle/action.yml.'
+            exit 1
+          fi
+
       - name: Classify validation impact
         id: impact
         shell: bash
@@ -93,20 +102,9 @@ jobs:
           fi
           echo "PASS lightweight repository integrity gate"
 
-      - name: Set up Java 25
+      - name: Set up Java and Gradle
         if: steps.impact.outputs.full == 'true'
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
-        with:
-          distribution: temurin
-          java-version: "25"
-
-      - name: Validate Gradle wrapper
-        if: steps.impact.outputs.full == 'true'
-        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
-
-      - name: Set up Gradle
-        if: steps.impact.outputs.full == 'true'
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        uses: ./.github/actions/setup-java-gradle
 
       - name: Build, test, and generate evidence
         if: steps.impact.outputs.full == 'true'
