@@ -7,6 +7,7 @@ import io.github.nidaba.skyforge.world.SkyIslandTerrainInterpreter;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainSemantic;
 import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.SurfaceFoundationAssessment;
 import io.github.nidaba.skyforge.world.SurfaceFoundationRequirements;
@@ -75,6 +76,20 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         }
         MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(chunkPos, minimumY, height);
         return !catalog.query(chunkBounds.worldBounds()).isEmpty();
+    }
+
+    /**
+     * Returns only catalog volumes already intersecting this available chunk interval.
+     *
+     * <p>This is intentionally a query over the supplied chunk, not a request for neighboring
+     * chunks. Consumers such as authored visible hydrology can therefore remain exact-volume and
+     * non-forcing while sharing the normal realization lifecycle.
+     */
+    List<SkyIslandWorldVolume> candidateVolumes(net.minecraft.world.level.chunk.ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        return catalog.query(new MinecraftChunkBounds(
+                        chunk.getPos(), chunk.getMinBuildHeight(), chunk.getHeight())
+                .worldBounds());
     }
 
     /** Materializes one Minecraft chunk's composite Skyforge contribution for the supplied span. */
