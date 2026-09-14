@@ -3,9 +3,9 @@ package io.github.nidaba.skyforge.neoforge1211;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Objects;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
@@ -23,6 +23,7 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.class.getName());
 
+    private static volatile Object assembledParentSubLevel;
     private static volatile boolean playerPositioned;
     private static volatile boolean activePacketObserved;
     private static volatile boolean releasePacketObserved;
@@ -38,6 +39,10 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
             return;
         }
         NeoForge.EVENT_BUS.addListener(SkyforgeAircraftCompilerPilotClientRuntimeAcceptance::onServerTick);
+    }
+
+    static void bindAssembledParentSubLevel(Object parentSubLevel) {
+        assembledParentSubLevel = Objects.requireNonNull(parentSubLevel, "parentSubLevel");
     }
 
     private static void onServerTick(ServerTickEvent.Post event) {
@@ -56,14 +61,15 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
         if (!playerPositioned) {
             var seat = snapshot.pilotSeatPos();
             Vec3 plotStandPosition = new Vec3(seat.getX() + 0.5, seat.getY() + 1.0, seat.getZ() + 0.5);
-            Vec3 globalStandPosition = projectOutOfSubLevel(player.level(), plotStandPosition);
+            Vec3 globalStandPosition = projectThroughBoundParent(plotStandPosition);
             player.teleportTo(globalStandPosition.x, globalStandPosition.y, globalStandPosition.z);
             playerPositioned = true;
             LOGGER.log(
                     System.Logger.Level.INFO,
                     "AIRCRAFT_001_V020_PLAYER_POSITIONED"
                             + " pilotSeatPlot=" + seat
-                            + " globalStand=" + globalStandPosition);
+                            + " globalStand=" + globalStandPosition
+                            + " directParentPoseProjection=true");
             return;
         }
 
@@ -144,18 +150,21 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
         return activeTargetDegrees;
     }
 
-    private static Vec3 projectOutOfSubLevel(Level level, Vec3 plotPosition) {
+    private static Vec3 projectThroughBoundParent(Vec3 plotPosition) {
+        Object parentSubLevel = assembledParentSubLevel;
+        if (parentSubLevel == null) {
+            throw new IllegalStateException("AIRCRAFT-001 assembled parent sub-level was not bound before player positioning");
+        }
         try {
-            Class<?> sable = Class.forName("dev.ryanhcode.sable.Sable");
-            Object helper = sable.getField("HELPER").get(null);
-            Method method = helper.getClass().getMethod("projectOutOfSubLevel", Level.class, Vec3.class);
-            Object projected = method.invoke(helper, level, plotPosition);
+            Object pose = parentSubLevel.getClass().getMethod("logicalPose").invoke(parentSubLevel);
+            Method transform = pose.getClass().getMethod("transformPosition", Vec3.class);
+            Object projected = transform.invoke(pose, plotPosition);
             if (!(projected instanceof Vec3 globalPosition)) {
-                throw new IllegalStateException("Sable projectOutOfSubLevel returned " + projected);
+                throw new IllegalStateException("Sable parent logicalPose transformPosition returned " + projected);
             }
             return globalPosition;
         } catch (ReflectiveOperationException failure) {
-            throw new IllegalStateException("could not project AIRCRAFT-001 plot position into Sable global space", failure);
+            throw new IllegalStateException("could not project AIRCRAFT-001 plot position through bound parent pose", failure);
         }
     }
 

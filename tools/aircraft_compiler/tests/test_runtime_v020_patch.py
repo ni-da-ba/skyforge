@@ -22,11 +22,16 @@ class RuntimeV020PatchTests(unittest.TestCase):
         self.assertIn('"aircraft-pilot-client-binding-ir-0.20"', patched)
         self.assertIn("pilotClientBindingStaticContractPassed", patched)
         self.assertIn("realClientInteractionProbeReady", patched)
+        self.assertIn("SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.bindAssembledParentSubLevel(subLevel);", patched)
         self.assertIn("SkyforgeAircraftCompilerPilotClientBridge.publish(", patched)
         self.assertIn('v020Probe.get("mouseYawDelta").getAsDouble()', patched)
         self.assertIn('v020Probe.get("seatDismountSettleTicks").getAsInt()', patched)
         self.assertLess(
             patched.index("SkyforgeAircraftCompilerPilotInteractionRuntimeAcceptance.verifyAssembledCockpitPresence("),
+            patched.index("SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.bindAssembledParentSubLevel(subLevel);"),
+        )
+        self.assertLess(
+            patched.index("SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.bindAssembledParentSubLevel(subLevel);"),
             patched.index("SkyforgeAircraftCompilerPilotClientBridge.publish("),
         )
         self.assertLess(

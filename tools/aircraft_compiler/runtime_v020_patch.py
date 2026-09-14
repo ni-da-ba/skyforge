@@ -57,6 +57,7 @@ def patch_runtime_source(source: str) -> str:
                 string(v019WheelState, "waterlogged"));
 
         JsonObject v020Probe = pilotClientBinding.getAsJsonObject("commandProbe");
+        SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.bindAssembledParentSubLevel(subLevel);
         SkyforgeAircraftCompilerPilotClientBridge.publish(
                 movedPilotSeatPos,
                 movedCockpitWheelPos,
