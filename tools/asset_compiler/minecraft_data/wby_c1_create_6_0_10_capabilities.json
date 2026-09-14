@@ -5,6 +5,12 @@
   "createVersion": "6.0.10+mc1.21.1",
   "createCoordinate": "maven.modrinth:LNytGWDc:UjX6dr61",
   "scope": "automatic-structure-realization-safe-subset",
+  "validation": {
+    "runtimeTargetPin": "repository-verified-wave-c1",
+    "blockstateSourceAudit": "create-1.21.1-source-line",
+    "exactPinnedRuntimeRegistryProbe": "pending",
+    "policy": "only state-free simple blocks are active before exact-runtime probing"
+  },
   "blocks": [
     {
       "name": "create:andesite_casing",
@@ -32,6 +38,10 @@
     }
   ],
   "deferredCandidates": [
+    {
+      "name": "create:framed_glass",
+      "reason": "state-free source candidate, but current Guild glazing intent is pane-shaped and must not be changed to a full cube merely for palette variety"
+    },
     {
       "name": "create:framed_glass_pane",
       "reason": "neighbor-sensitive state must be verified against the exact pinned runtime before automatic substitution"
