@@ -23,6 +23,8 @@ import skyforge_roadmap_runtime as roadmap_runtime
 
 
 core = roadmap_runtime.core
+RUNTIME_PATH = "scripts/orchestrator/skyforge_control_plane_runtime.py"
+core.CONTROLLER_RUNTIME_PATHS.add(RUNTIME_PATH)
 _ORIGINAL_RESUME_OR_PREPARE_WORKER = core.Orchestrator._resume_or_prepare_worker
 _ORIGINAL_DISPATCH = core.Orchestrator.dispatch
 _ORIGINAL_HEALTH_SNAPSHOT = core.Orchestrator.health_snapshot
