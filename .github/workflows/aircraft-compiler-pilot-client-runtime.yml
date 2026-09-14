@@ -30,11 +30,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "25"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: ./.github/actions/setup-java-gradle
 
       - name: Compile AIRCRAFT-001 contract chain through v0.20
         shell: bash
@@ -96,7 +92,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:runAircraftCompilerPilotWorldPrepareServer --no-configuration-cache
+          timeout --signal=TERM --kill-after=10s 300s ./gradlew :skyforge-neoforge-1211:runAircraftCompilerPilotWorldPrepareServer --no-configuration-cache
           result=skyforge-neoforge-1211/build/acceptance/aircraft-001-v020/prepare.properties
           test -f "$result"
           grep -Fxq 'status=PASS' "$result"
