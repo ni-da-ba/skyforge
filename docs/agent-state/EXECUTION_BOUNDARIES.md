@@ -15,7 +15,7 @@ Allowed on the Droplet:
 - maintain controller state, event journals, leases, queue/reconciliation state, and value telemetry;
 - run the Luna/classification/orchestration logic needed to decide what should happen next;
 - inspect GitHub repository/PR/issue/Actions state through APIs;
-- create/update GitHub control-plane handoffs, comments, claims, and dispatch records;
+- create/update GitHub control-plane handoffs, comments, claims, cloud-agent assignments, and dispatch records;
 - run Caddy, systemd, health checks, dependency synchronization for the orchestrator itself, and other minimal control-plane maintenance;
 - keep a minimal clean repository checkout only when required to load controller code/policy or update the controller runtime.
 
@@ -46,6 +46,10 @@ All non-manual project work must be persisted through GitHub. Automated validati
 - automation used to repair or develop project code, when such an agent/runner is available through the GitHub execution surface.
 
 A producer may reason in ChatGPT/Codex, but its durable edits and machine evidence must flow through GitHub. The orchestration control plane dispatches work **to GitHub-backed execution/handoffs**; it does not host the producer itself.
+
+The default autonomous producer for issue-backed roadmap work is GitHub's cloud coding-agent assignment surface. The control plane may use the GitHub API to assign the bounded issue to the configured cloud agent (default API assignee `copilot-swe-agent[bot]`). That coding session executes on GitHub's cloud/Actions-backed execution plane, not on DigitalOcean. The controller retains roadmap ownership until the agent-created PR is linked and reaches a terminal state.
+
+If the configured GitHub cloud agent is unavailable, unauthorized, disabled, or quota-blocked, the task is infrastructure-blocked and must fail closed. Do not fall back to a DigitalOcean producer. A repository owner may enable/authorize the GitHub agent and then resume the controller.
 
 If GitHub automated execution is unavailable, the task is `WAIT_CI` / infrastructure-blocked. Do not move automated execution to the DigitalOcean Droplet or Nicholas' local workstation merely to keep the pipeline moving.
 
@@ -82,24 +86,30 @@ The orchestrator may classify, prioritize, claim, and hand off a bounded task. I
 
 A valid autonomous dispatch must therefore produce one of:
 
-1. a GitHub-backed producer/automation handoff that performs edits and machine checks through GitHub; or
+1. an issue-backed GitHub cloud-agent assignment whose project edits execute on GitHub and whose machine checks run in GitHub Actions;
 2. a precise issue/PR handoff for an already-running external producer; or
 3. `WAIT_CI`, `HUMAN_GATE`, `NOOP`, or an explicit infrastructure block.
 
-Until a GitHub-backed producer mechanism is available and healthy, `DISPATCH` must not mean "spawn a hosted worker on the Droplet." Fail closed instead.
+`DISPATCH` never means "spawn a hosted worker on the Droplet." If the GitHub producer cannot be assigned safely, fail closed and surface the exact authorization/capability block.
+
+GitHub-agent assignment is durable producer ownership. The issue remains the task authority, and the controller records `github_agent_dispatches[task:<issue>]` until the agent-created PR is cross-referenced from the issue. The roadmap must not launch a successor task while that assignment or its linked PR remains active.
 
 ## 6. Recovery of legacy hosted-worker state
 
-At adoption of this contract, DR-20 / issue #492 has a preserved pre-contract Droplet recovery bundle containing information-bearing hydrology work. That bundle must not be discarded.
+At adoption of this contract, DR-20 / issue #492 has a preserved pre-contract Droplet recovery bundle containing information-bearing hydrology work. The DigitalOcean provider snapshot is the independent safety copy until evacuation completes.
 
 Recovery sequence:
 
 1. keep orchestration paused for new producer dispatch while the legacy hosted worker is attached;
-2. export the preserved recovery bundle/delta to a GitHub branch or durable GitHub artifact **without editing it and without running project tests on the Droplet**;
-3. retire the legacy hosted worker/worktree only after the exported GitHub copy is verified;
-4. refresh the controller runtime to a `main` containing this execution-boundary contract;
-5. resume orchestration with Droplet-side producer execution disabled;
-6. continue DR-20 from GitHub, with automated verification in GitHub Actions and any later visual/manual gate on the local workstation.
+2. export the preserved recovery bundle/delta to a GitHub recovery branch **without editing it and without running project tests on the Droplet**;
+3. record the recovery branch/head on issue #492;
+4. retire the legacy hosted worker/worktree only after the exported GitHub branch exists;
+5. refresh the controller checkout and installed systemd unit to a `main` containing this execution-boundary contract and GitHub dispatch runtime;
+6. resume orchestration with Droplet-side producer execution disabled;
+7. continue DR-20 from current `main` through the GitHub execution plane; the recovery branch is reference/salvage material rather than authority for new hosted development;
+8. keep automated verification in GitHub Actions and any later visual/manual gate on the local workstation.
+
+The repository-versioned `scripts/orchestrator/recover_host_to_control_plane.py` utility implements this migration and must fail closed before journal retirement if the recovery branch cannot be pushed.
 
 ## 7. Agent startup rule
 
