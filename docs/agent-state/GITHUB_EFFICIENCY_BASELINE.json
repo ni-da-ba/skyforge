@@ -1,0 +1,32 @@
+{
+  "branches": 163,
+  "cancellation_rate": 0.3024,
+  "captured_at": "2026-09-14T21:16:00+00:00",
+  "completed_runs_with_elapsed_time": 4450,
+  "completed_workflow_elapsed_minutes": 51878.2,
+  "current_workflow_files": 42,
+  "default_branch": "main",
+  "elapsed_minutes_per_merged_pr": 220.76,
+  "merged_pull_requests": 235,
+  "notes": [
+    "elapsed minutes are workflow wall-clock duration summed across completed runs, not GitHub billable runner minutes",
+    "current_workflow_files counts YAML files currently present under .github/workflows on the default branch",
+    "registered_workflows is GitHub Actions historical workflow registration and can include disabled/removed workflows",
+    "workflow runs are fetched in daily partitions to avoid GitHub's 1,000-result cap on broad filtered queries"
+  ],
+  "open_pull_requests": 9,
+  "registered_workflows": 72,
+  "repository": "ni-da-ba/skyforge",
+  "runs_per_merged_pr": 18.96,
+  "schema_version": 1,
+  "window_days": 7,
+  "window_start_date": "2026-09-07",
+  "workflow_run_conclusions": {
+    "cancelled": 1347,
+    "failure": 351,
+    "in_progress": 5,
+    "skipped": 451,
+    "success": 2301
+  },
+  "workflow_runs": 4455
+}
