@@ -8,6 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -97,8 +98,9 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
             return;
         }
 
-        lookAt(player, Vec3.atCenterOf(wheelPos));
-        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(wheelPos), Direction.UP, wheelPos, false);
+        Vec3 wheelPlotCenter = Vec3.atCenterOf(wheelPos);
+        lookAt(player, projectOutOfSubLevel(minecraft.level, wheelPlotCenter));
+        BlockHitResult hit = new BlockHitResult(wheelPlotCenter, Direction.UP, wheelPos, false);
         minecraft.hitResult = hit;
         wheelUseResult = minecraft.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
 
@@ -148,8 +150,9 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
             }
             return;
         }
-        lookAt(player, Vec3.atCenterOf(seatPos));
-        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(seatPos), Direction.UP, seatPos, false);
+        Vec3 seatPlotCenter = Vec3.atCenterOf(seatPos);
+        lookAt(player, projectOutOfSubLevel(minecraft.level, seatPlotCenter));
+        BlockHitResult hit = new BlockHitResult(seatPlotCenter, Direction.UP, seatPos, false);
         minecraft.hitResult = hit;
         seatUseResult = minecraft.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
         advanceStage();
@@ -214,6 +217,21 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
         player.setYRot(yaw);
         player.setXRot(pitch);
         player.setYHeadRot(yaw);
+    }
+
+    private static Vec3 projectOutOfSubLevel(Level level, Vec3 plotPosition) {
+        try {
+            Class<?> sable = Class.forName("dev.ryanhcode.sable.Sable");
+            Object helper = sable.getField("HELPER").get(null);
+            Method method = helper.getClass().getMethod("projectOutOfSubLevel", Level.class, Vec3.class);
+            Object projected = method.invoke(helper, level, plotPosition);
+            if (!(projected instanceof Vec3 globalPosition)) {
+                throw new IllegalStateException("Sable projectOutOfSubLevel returned " + projected);
+            }
+            return globalPosition;
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("could not project AIRCRAFT-001 plot position into Sable global space", failure);
+        }
     }
 
     private static boolean holdInteractionActive() throws ReflectiveOperationException {
