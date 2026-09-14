@@ -18,12 +18,12 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  *
  * <p>The observer never calls SteeringWheelBlockEntity start/stop methods and never mounts the
  * player. Because v0.20 explicitly does not qualify Sable player tracking, it performs bounded
- * test-setup positioning: one initial teleport to establish aircraft tracking, then a temporary
- * server-authoritative seat re-anchor after the wheel release packet and before the real Create
- * seat interaction. The pre-release setup also preserves/enables player invulnerability so vanilla
- * fall damage cannot kill the deliberately-untracked test player before the wheel packet proof;
- * the original invulnerability state is restored before the seat interaction. None of these setup
- * controls are player-tracking evidence.
+ * test-setup positioning: one initial teleport to establish the rendered-aircraft position, then a
+ * temporary non-teleporting server-authoritative seat re-anchor after the wheel release packet and
+ * before the real Create seat interaction. The pre-release setup also preserves/enables player
+ * invulnerability so vanilla fall damage cannot kill the deliberately-untracked test player before
+ * the wheel packet proof; the original invulnerability state is restored before the seat
+ * interaction. None of these setup controls are player-tracking evidence.
  */
 final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.aircraftCompilerPilotClient";
@@ -122,19 +122,22 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
                             + " beforeSeatInteraction=true");
         }
 
-        // The seat setup re-anchor must be one-shot. Reissuing ServerPlayer.teleportTo every tick
-        // keeps vanilla's awaitingPositionFromClient non-null, which causes handleUseItemOn to drop
-        // the otherwise-valid Create seat packet before ServerPlayerGameMode/useItemOn is reached.
+        // Keep the final seat setup re-anchor outside ServerPlayer.teleportTo. A second teleport
+        // creates vanilla's awaitingPositionFromClient handshake, and handleUseItemOn deliberately
+        // drops packets while that handshake is outstanding. The actual client is already held at
+        // the same rendered cockpit position, so a direct server-side setPos is sufficient bounded
+        // test setup and does not synthesize the subsequent Create seat interaction.
         if (releasePacketObserved
                 && !seatMountObserved
                 && !player.isPassenger()
                 && !seatSetupReanchorLogged) {
-            Vec3 globalStandPosition = positionServerPlayerAtCurrentSeat(player, snapshot);
+            Vec3 globalStandPosition = reanchorServerPlayerAtCurrentSeat(player, snapshot);
             seatSetupReanchorLogged = true;
             LOGGER.log(
                     System.Logger.Level.INFO,
                     "AIRCRAFT_001_V020_SEAT_SETUP_REANCHOR"
                             + " globalStand=" + globalStandPosition
+                            + " serverTeleportHandshake=false"
                             + " playerSableTrackingQualified=false");
         }
 
@@ -211,12 +214,26 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
     private static Vec3 positionServerPlayerAtCurrentSeat(
             ServerPlayer player,
             SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot) {
-        var seat = snapshot.pilotSeatPos();
-        Vec3 plotStandPosition = new Vec3(seat.getX() + 0.5, seat.getY() + 1.0, seat.getZ() + 0.5);
-        Vec3 globalStandPosition = projectThroughBoundParent(plotStandPosition);
+        Vec3 globalStandPosition = currentSeatStandPosition(snapshot);
         player.teleportTo(globalStandPosition.x, globalStandPosition.y, globalStandPosition.z);
         player.setDeltaMovement(Vec3.ZERO);
         return globalStandPosition;
+    }
+
+    private static Vec3 reanchorServerPlayerAtCurrentSeat(
+            ServerPlayer player,
+            SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot) {
+        Vec3 globalStandPosition = currentSeatStandPosition(snapshot);
+        player.setPos(globalStandPosition.x, globalStandPosition.y, globalStandPosition.z);
+        player.setDeltaMovement(Vec3.ZERO);
+        return globalStandPosition;
+    }
+
+    private static Vec3 currentSeatStandPosition(
+            SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot) {
+        var seat = snapshot.pilotSeatPos();
+        Vec3 plotStandPosition = new Vec3(seat.getX() + 0.5, seat.getY() + 1.0, seat.getZ() + 0.5);
+        return projectThroughBoundParent(plotStandPosition);
     }
 
     private static String seatBoundaryDiagnostics(
