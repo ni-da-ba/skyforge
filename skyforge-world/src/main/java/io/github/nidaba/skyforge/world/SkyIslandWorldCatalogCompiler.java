@@ -53,7 +53,7 @@ public final class SkyIslandWorldCatalogCompiler {
                         group.ordinal(),
                         memberOrdinal,
                         descriptor.seed());
-                volumes.add(new SkyIslandWorldVolume(id, bounds, compiled));
+                volumes.add(new SkyIslandWorldVolume(id, bounds, compiled, descriptor));
             }
         }
         return new SkyIslandWorldCatalog(plan.rootSeed(), volumes);
@@ -112,7 +112,7 @@ public final class SkyIslandWorldCatalogCompiler {
                                 memberOrdinal,
                                 descriptor.seed());
                 SkyIslandWorldVolume volume =
-                        new SkyIslandWorldVolume(id, bounds, compiled);
+                        new SkyIslandWorldVolume(id, bounds, compiled, descriptor);
                 volumes.add(volume);
                 compilation.supportEnvelope()
                         .ifPresent(
