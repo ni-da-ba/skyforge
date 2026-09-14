@@ -112,8 +112,6 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
             }
         }
 
-        // Fall immunity is test setup only. Restore the player's exact pre-test state as soon as
-        // the real Simulated release packet completes the wheel proof, before probing Create seat use.
         if (releasePacketObserved && playerInvulnerabilityCaptured && !playerInvulnerabilityRestored) {
             player.setInvulnerable(originalPlayerInvulnerable);
             playerInvulnerabilityRestored = true;
@@ -124,10 +122,6 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
                             + " beforeSeatInteraction=true");
         }
 
-        // The SteeringWheelPacket itself has no player-distance gate, but Create's ordinary seat
-        // interaction does. Once the real release packet has completed the wheel proof, keep the
-        // ServerPlayer at the server-authoritative current seat pose until the genuine seat use
-        // mounts it. This is bounded test setup and must not be reported as Sable tracking.
         if (releasePacketObserved && !seatMountObserved && !player.isPassenger()) {
             Vec3 globalStandPosition = positionServerPlayerAtCurrentSeat(player, snapshot);
             if (!seatSetupReanchorLogged) {
@@ -140,10 +134,10 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
             }
         }
 
-        // Diagnostic-only observation of the ordinary Create seat boundary. This deliberately does
-        // not invoke SeatBlock, create SeatEntity, rewrite packet coordinates, or mount the player.
-        // Sampling after the real wheel release distinguishes a rejected/misrouted vanilla use
-        // packet from a Create seat mount that occurred but failed to synchronize back to the client.
+        // Diagnostic-only observation of the ordinary Create seat boundary. Sable stores sub-level
+        // blocks/entities in reserved plot chunks of the parent ServerLevel, so inspect that exact
+        // server cell rather than treating ServerSubLevel itself as a Level. This never invokes the
+        // seat, creates an entity, rewrites packet coordinates, or mounts the player.
         if (releasePacketObserved && !seatMountObserved) {
             seatDiagnosticTicks++;
             if (seatDiagnosticTicks == 5 || seatDiagnosticTicks == 20) {
@@ -228,58 +222,33 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
         Vec3 plotCenter = Vec3.atCenterOf(seat);
         Vec3 globalCenter = projectThroughBoundParent(plotCenter);
         Object parentSubLevel = assembledParentSubLevel;
-        if (parentSubLevel == null) {
-            return "parentSubLevel=<null>";
-        }
 
-        try {
-            Method getBlockState = parentSubLevel.getClass().getMethod("getBlockState", BlockPos.class);
-            Object parentSeatState = getBlockState.invoke(parentSubLevel, seat);
-
-            Method getEntities = parentSubLevel.getClass().getMethod("getEntities", Entity.class, AABB.class);
-            Object entitiesValue = getEntities.invoke(parentSubLevel, new Object[] {null, new AABB(seat)});
-            StringBuilder entityClasses = new StringBuilder();
-            int seatEntityCount = 0;
-            int totalEntityCount = 0;
-            if (entitiesValue instanceof List<?> entities) {
-                totalEntityCount = entities.size();
-                for (Object entity : entities) {
-                    if (entity == null) {
-                        continue;
-                    }
-                    if (!entityClasses.isEmpty()) {
-                        entityClasses.append(',');
-                    }
-                    String className = entity.getClass().getName();
-                    entityClasses.append(className);
-                    if (className.endsWith("SeatEntity")) {
-                        seatEntityCount++;
-                    }
-                }
+        List<Entity> cellEntities = player.serverLevel().getEntities((Entity) null, new AABB(seat));
+        StringBuilder entityClasses = new StringBuilder();
+        int seatEntityCount = 0;
+        for (Entity entity : cellEntities) {
+            if (!entityClasses.isEmpty()) {
+                entityClasses.append(',');
             }
-
-            return "parentClass=" + parentSubLevel.getClass().getName()
-                    + " parentSeatState=" + parentSeatState
-                    + " overworldSeatState=" + player.serverLevel().getBlockState(seat)
-                    + " parentSeatEntityCount=" + seatEntityCount
-                    + " parentCellEntityCount=" + totalEntityCount
-                    + " parentCellEntityClasses=[" + entityClasses + "]"
-                    + " playerPassenger=" + player.isPassenger()
-                    + " playerVehicle=" + (player.getVehicle() == null ? "<null>" : player.getVehicle().getClass().getName())
-                    + " playerPosition=" + player.position()
-                    + " plotSeatCenter=" + plotCenter
-                    + " globalSeatCenter=" + globalCenter
-                    + " plotDistanceSquared=" + player.distanceToSqr(plotCenter)
-                    + " globalDistanceSquared=" + player.distanceToSqr(globalCenter);
-        } catch (ReflectiveOperationException failure) {
-            return "diagnosticReflectionFailure=" + failure
-                    + " parentClass=" + parentSubLevel.getClass().getName()
-                    + " playerPosition=" + player.position()
-                    + " plotSeatCenter=" + plotCenter
-                    + " globalSeatCenter=" + globalCenter
-                    + " plotDistanceSquared=" + player.distanceToSqr(plotCenter)
-                    + " globalDistanceSquared=" + player.distanceToSqr(globalCenter);
+            String className = entity.getClass().getName();
+            entityClasses.append(className);
+            if (className.endsWith("SeatEntity")) {
+                seatEntityCount++;
+            }
         }
+
+        return "parentClass=" + (parentSubLevel == null ? "<null>" : parentSubLevel.getClass().getName())
+                + " serverSeatState=" + player.serverLevel().getBlockState(seat)
+                + " serverSeatEntityCount=" + seatEntityCount
+                + " serverCellEntityCount=" + cellEntities.size()
+                + " serverCellEntityClasses=[" + entityClasses + "]"
+                + " playerPassenger=" + player.isPassenger()
+                + " playerVehicle=" + (player.getVehicle() == null ? "<null>" : player.getVehicle().getClass().getName())
+                + " playerPosition=" + player.position()
+                + " plotSeatCenter=" + plotCenter
+                + " globalSeatCenter=" + globalCenter
+                + " plotDistanceSquared=" + player.distanceToSqr(plotCenter)
+                + " globalDistanceSquared=" + player.distanceToSqr(globalCenter);
     }
 
     private static Vec3 projectThroughBoundParent(Vec3 plotPosition) {
