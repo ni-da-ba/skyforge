@@ -32,6 +32,7 @@ class PilotTrackingTests(unittest.TestCase):
             "trackingContract": {
                 "acquisition": "natural_create_seat_vehicle_containment",
                 "inspection": "sable_helper_get_tracking_sub_level",
+                "parentIdentityMethod": "sable_persistent_sublevel_uuid",
                 "measurementBeginsAfterDismount": True,
                 "trackingSetterAllowed": False,
                 "playerHarnessMutationDuringMeasurementAllowed": False,
@@ -45,7 +46,7 @@ class PilotTrackingTests(unittest.TestCase):
             },
             "runtimeObligations": [
                 {"id": "natural_player_sable_tracking", "method": "observe"},
-                {"id": "tracking_parent_identity", "method": "identity"},
+                {"id": "tracking_parent_identity", "method": "persistent Sable UUID"},
                 {"id": "post_dismount_inherited_parent_translation", "method": "motion"},
             ],
         }
@@ -55,6 +56,10 @@ class PilotTrackingTests(unittest.TestCase):
         second = lower_pilot_tracking(self.source, self.profile)
         self.assertEqual(first["digestSha256"], second["digestSha256"])
         self.assertEqual(first["schemaVersion"], "aircraft-pilot-tracking-ir-0.21")
+        self.assertEqual(
+            first["trackingContract"]["parentIdentityMethod"],
+            "sable_persistent_sublevel_uuid",
+        )
         self.assertTrue(first["readiness"]["pilotTrackingStaticContractPassed"])
         self.assertTrue(first["readiness"]["v020ActualClientRuntimePrerequisiteAccepted"])
         self.assertTrue(first["readiness"]["pilotTrackingRuntimeProbeReady"])
@@ -67,6 +72,12 @@ class PilotTrackingTests(unittest.TestCase):
     def test_rejects_tracking_setter_as_evidence(self) -> None:
         profile = copy.deepcopy(self.profile)
         profile["trackingContract"]["trackingSetterAllowed"] = True
+        with self.assertRaisesRegex(PilotTrackingError, "natural tracking contract"):
+            lower_pilot_tracking(self.source, profile)
+
+    def test_rejects_nonpersistent_parent_identity(self) -> None:
+        profile = copy.deepcopy(self.profile)
+        profile["trackingContract"]["parentIdentityMethod"] = "runtime_object_identity"
         with self.assertRaisesRegex(PilotTrackingError, "natural tracking contract"):
             lower_pilot_tracking(self.source, profile)
 
