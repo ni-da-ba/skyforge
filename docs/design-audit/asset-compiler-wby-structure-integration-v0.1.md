@@ -33,6 +33,14 @@ Later isolated waves validate additional WBY capabilities such as Reliable Glide
 
 The Create target is pinned twice: repository Wave C1 identifies Modrinth coordinate `maven.modrinth:LNytGWDc:UjX6dr61`, and the audited upstream 1.21.1 source commit `79b5d3b37e2d1970818dd97ca460b649cd0a456c` is the commit that bumps Create to 6.0.10. The latter gives substantially stronger source provenance for catalogued block/state contracts than a floating branch audit.
 
+## Wave C1 structure-authority audit
+
+`minecraft_data/wby_wave_c1_structure_audit.json` mirrors every exact Wave C1 version/coordinate pin and records whether that mod currently has any structure-compiler authority. Runtime presence is not placement authority.
+
+Only Create owns an architectural capability catalog in this tranche. RPL and JEI have no declared structure contract; Create Big Cannons, Create Crafts & Additions, and Create Metallurgy remain deferred pending explicit structure semantics; Sable, Create Aeronautics, and Create Propulsion are explicitly held outside structure authority to preserve the aircraft-compiler concurrency boundary.
+
+The audit is tested directly against `skyforge-neoforge-1211/wave-c1-mods.properties`. Adding, removing, or repinning a Wave C1 mod therefore makes the structure audit stale and fails its test until the disposition is reviewed. Deferred mods cannot declare a capability catalog or automatic structure resources.
+
 ## v0.1 active realization subset
 
 The automatic overlay remains intentionally conservative:
@@ -94,16 +102,17 @@ The dedicated asset-compiler workflow now executes this WBY compile path explici
 Before broadening the automatic WBY palette:
 
 1. the existing asset-compiler unit suite remains green;
-2. WBY profile tests prove vanilla-registry fallback and deterministic active Create selection;
-3. catalogued/non-active blocks are mechanically excluded from the resolver registry;
-4. catalog state/default schemas fail closed when malformed;
-5. full Guild v0.14 lowering proves concrete Create resource IDs appear only after the resource-name-free IR boundary;
-6. the dedicated CI workflow executes the WBY compile entry point directly;
-7. WBY NBT export is byte-deterministic;
-8. stateful blocks are promoted only after exact pinned-runtime registry/state validation;
-9. decorative variants require a semantic reason to choose them;
-10. functional mod blocks require explicit semantic roles, lifecycle ownership, and NBT policy instead of palette-wide opportunistic substitution.
+2. the machine-readable Wave C1 audit exactly matches the immutable runtime pin file;
+3. WBY profile tests prove vanilla-registry fallback and deterministic active Create selection;
+4. catalogued/non-active blocks are mechanically excluded from the resolver registry;
+5. catalog state/default schemas fail closed when malformed;
+6. full Guild v0.14 lowering proves concrete Create resource IDs appear only after the resource-name-free IR boundary;
+7. the dedicated CI workflow executes the WBY compile entry point directly;
+8. WBY NBT export is byte-deterministic;
+9. stateful blocks are promoted only after exact pinned-runtime registry/state validation;
+10. decorative variants require a semantic reason to choose them;
+11. functional mod blocks require explicit semantic roles, lifecycle ownership, and NBT policy instead of palette-wide opportunistic substitution.
 
 ## Aircraft compiler concurrency boundary
 
-This work does not alter the `aircraft-compiler-proof` branch, aircraft route fixtures, yaw contracts, or occupancy/player-interaction work. The common architectural rule is only that both compilers should consume WBY capabilities through explicit Minecraft-side contracts rather than allowing mod implementation details to become upstream semantic authority.
+This work does not alter the `aircraft-compiler-proof` branch, aircraft route fixtures, yaw contracts, or occupancy/player-interaction work. Sable, Create Aeronautics, and Create Propulsion are explicitly marked `aircraft-owned-deferred` in the Wave C1 structure audit. The common architectural rule is only that both compilers should consume WBY capabilities through explicit Minecraft-side contracts rather than allowing mod implementation details to become upstream semantic authority.
