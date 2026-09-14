@@ -99,7 +99,7 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
         boolean plateActorRepairApplied = false;
         Object platePosValue = publicMethod(bearing, "getPlatePos").invoke(bearing);
         if (!(platePosValue instanceof BlockPos platePos)) {
-            fail("assembled Swivel plate position unavailable before v0.20 physical settle");
+            throw new IllegalStateException("assembled Swivel plate position unavailable before v0.20 physical settle");
         }
         if (!plateActorReadyBeforeRepair) {
             requireBlockEntity(level, platePos, "SwivelBearingPlateBlockEntity");
@@ -227,7 +227,7 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
         Object childPlot = publicMethod(childSubLevel, "getPlot").invoke(childSubLevel);
         Object actors = publicMethod(childPlot, "getBlockEntityActors").invoke(childPlot);
         if (!(actors instanceof Iterable<?> iterable)) {
-            fail("Sable child plot did not expose iterable block-entity actors");
+            throw new IllegalStateException("Sable child plot did not expose iterable block-entity actors");
         }
         for (Object actor : iterable) {
             if (actor != null && actor.getClass().getName().endsWith("SwivelBearingPlateBlockEntity")) {
