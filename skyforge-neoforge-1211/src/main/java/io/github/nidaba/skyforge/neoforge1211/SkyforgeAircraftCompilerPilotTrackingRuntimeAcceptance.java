@@ -3,10 +3,10 @@ package io.github.nidaba.skyforge.neoforge1211;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.joml.Vector3d;
@@ -116,12 +116,18 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
 
         try {
             Object trackingSubLevel = trackingSubLevel(player);
+            UUID expectedParentId = subLevelUniqueId(assembledParentSubLevel);
+            UUID observedTrackingId = subLevelUniqueId(trackingSubLevel);
+            boolean trackingParentIdentity = expectedParentId != null && expectedParentId.equals(observedTrackingId);
+
             if (!measurementStarted) {
                 trackingAcquireTicks++;
-                if (trackingSubLevel != assembledParentSubLevel) {
+                if (!trackingParentIdentity) {
                     if (trackingAcquireTicks > trackingAcquireSettleTicks) {
                         fail("natural Sable tracking did not resolve to the assembled parent within "
-                                + trackingAcquireSettleTicks + " ticks; observed=" + className(trackingSubLevel));
+                                + trackingAcquireSettleTicks + " ticks; expectedParent="
+                                + subLevelDiagnostic(assembledParentSubLevel, expectedParentId)
+                                + " observedTracking=" + subLevelDiagnostic(trackingSubLevel, observedTrackingId));
                     }
                     return;
                 }
@@ -139,6 +145,7 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
                         "AIRCRAFT_001_V021_TRACKING_ACQUIRED"
                                 + " naturalSeatVehicleAcquisition=true"
                                 + " trackingParentIdentity=true"
+                                + " trackingParentUuid=" + expectedParentId
                                 + " afterDismount=true"
                                 + " harnessTrackingSetterInvoked=false"
                                 + " harnessPlayerMutationDuringMeasurement=false"
@@ -149,9 +156,11 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
             }
 
             motionTicks++;
-            if (trackingSubLevel != assembledParentSubLevel) {
+            if (!trackingParentIdentity) {
                 cleanupPhysics();
-                fail("Sable player tracking left the assembled parent during the measured translation");
+                fail("Sable player tracking left the assembled parent during the measured translation; expectedParent="
+                        + subLevelDiagnostic(assembledParentSubLevel, expectedParentId)
+                        + " observedTracking=" + subLevelDiagnostic(trackingSubLevel, observedTrackingId));
             }
             if (player.isPassenger()) {
                 cleanupPhysics();
@@ -179,6 +188,7 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
                         "AIRCRAFT_001_RUNTIME_PILOT_TRACKING PASS"
                                 + " naturalTrackingAcquired=true"
                                 + " trackingParentIdentity=true"
+                                + " trackingParentUuid=" + expectedParentId
                                 + " postDismountMeasurement=true"
                                 + " parentTranslationApplied=true"
                                 + " parentDeltaX=" + measuredParentDeltaX
@@ -211,6 +221,23 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
         Object helper = sableClass.getField("HELPER").get(null);
         Method method = helper.getClass().getMethod("getTrackingSubLevel", Entity.class);
         return method.invoke(helper, player);
+    }
+
+    private static UUID subLevelUniqueId(Object subLevel) throws ReflectiveOperationException {
+        if (subLevel == null) {
+            return null;
+        }
+        Object value = subLevel.getClass().getMethod("getUniqueId").invoke(subLevel);
+        if (!(value instanceof UUID uniqueId)) {
+            throw new IllegalStateException("Sable sub-level unique ID is not UUID: " + value);
+        }
+        return uniqueId;
+    }
+
+    private static String subLevelDiagnostic(Object subLevel, UUID uniqueId) {
+        return subLevel == null
+                ? "<null>"
+                : "{class=" + subLevel.getClass().getName() + ",uuid=" + uniqueId + ",value=" + subLevel + "}";
     }
 
     private static double parentPositionX(Object parentSubLevel) throws ReflectiveOperationException {
