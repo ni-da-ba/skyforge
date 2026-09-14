@@ -102,6 +102,10 @@ jobs:
           grep -Fxq 'status=PASS' "$result"
           grep -Fxq 'pilotClientWorldPrepared=true' "$result"
           grep -Fxq 'aircraftAssemblyPersistedIntoPreparedWorld=false' "$result"
+          client_dir=skyforge-neoforge-1211/run-aircraft-compiler-pilot-client
+          printf '%s\n' 'onboardAccessibility:false' 'pauseOnLostFocus:false' > "$client_dir/options.txt"
+          grep -Fxq 'onboardAccessibility:false' "$client_dir/options.txt"
+          grep -Fxq 'pauseOnLostFocus:false' "$client_dir/options.txt"
 
       - name: Execute genuine v0.20 actual-client pilot interaction
         shell: bash
