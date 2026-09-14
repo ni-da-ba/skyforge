@@ -152,7 +152,7 @@ def _prepare_worker_branch(
         else ""
     )
     branch = f"codex/{lane_slug}{authority_slug}-{stamp}"
-    worktree = self._ensure_worker_worktree(branch, "origin/main")
+    start_ref = "origin/main"
 
     if source_pr:
         try:
@@ -160,15 +160,24 @@ def _prepare_worker_branch(
                 [
                     "gh", "pr", "view", str(source_pr),
                     "--repo", self.repo,
-                    "--json", "headRefName",
+                    "--json", "headRefName,headRefOid,state",
                 ],
                 cwd=self.root,
             )
-            old_branch = pr.get("headRefName")
-            if old_branch:
-                core._run(["git", "fetch", "origin", old_branch], cwd=self.root, timeout=120)
-        except Exception:
-            pass
+            source_branch = str(pr.get("headRefName") or "").strip()
+            source_head = str(pr.get("headRefOid") or "").strip()
+            if str(pr.get("state") or "").upper() == "OPEN" and source_branch and source_head:
+                core._run(["git", "fetch", "origin", source_branch], cwd=self.root, timeout=120)
+                core._run(["git", "cat-file", "-e", f"{source_head}^{{commit}}"], cwd=self.root, timeout=60)
+                start_ref = source_head
+        except Exception as exc:
+            print(
+                f"[orchestrator] could not resolve source PR #{source_pr} head; "
+                f"falling back to origin/main: {exc}",
+                flush=True,
+            )
+
+    worktree = self._ensure_worker_worktree(branch, start_ref)
     return branch, None, worktree
 
 

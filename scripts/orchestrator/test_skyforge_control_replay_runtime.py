@@ -156,6 +156,37 @@ class ControlReplayRuntimeTests(unittest.TestCase):
             )
         )
 
+    def test_unmanaged_ci_repair_starts_from_exact_source_pr_head(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            o = self.make_orchestrator(root)
+            source_head = "b" * 40
+            worker = root / "repair-worker"
+
+            with (
+                mock.patch.object(o, "_validated_managed_branch", return_value=None),
+                mock.patch.object(
+                    core,
+                    "_json_cmd",
+                    return_value={
+                        "headRefName": "codex/source-pr",
+                        "headRefOid": source_head,
+                        "state": "OPEN",
+                    },
+                ),
+                mock.patch.object(core, "_run", return_value=completed(["git"])),
+                mock.patch.object(o, "_ensure_worker_worktree", return_value=worker) as ensure_worktree,
+            ):
+                branch, managed_pr, worktree = runtime._prepare_worker_branch(
+                    o,
+                    "Implementation",
+                    569,
+                )
+
+            self.assertIsNone(managed_pr)
+            self.assertEqual(worktree, worker)
+            ensure_worktree.assert_called_once_with(branch, source_head)
+
     def test_machine_only_implementation_task_is_auto_merge_candidate(self):
         self.assertTrue(
             runtime._machine_only_auto_merge_candidate(
