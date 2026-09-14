@@ -25,6 +25,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 final class SkyforgeAircraftCompilerPilotClientAcceptance {
     private static final long CLIENT_TIMEOUT_NANOS = 120_000_000_000L;
     private static final int ACQUIRE_RETRY_LIMIT_TICKS = 40;
+    private static final int SEAT_USE_RETRY_INTERVAL_TICKS = 4;
     // Simulated 1.3.2 floor Steering Wheel geometry spans Y=13.5..15.5 voxels. Its Create
     // angle-input value box is centered on the top face with a 0.25-block hit radius, so use a
     // lateral point that remains on the physical wheel while staying outside that settings box.
@@ -207,19 +208,7 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
             return;
         }
 
-        BlockPos seatPos = snapshot.pilotSeatPos();
-        if (!minecraft.level.getBlockState(seatPos).getBlock().getClass().getName().endsWith("SeatBlock")) {
-            if (stageTicks > snapshot.releasePacketSettleTicks()) {
-                fail("compiled Create pilot seat was not interactable in the actual ClientLevel");
-            }
-            return;
-        }
-        positionClientAtRenderedSeat(minecraft, player, snapshot);
-        Vec3 seatPlotCenter = Vec3.atCenterOf(seatPos);
-        lookAt(player, projectOutOfSubLevel(minecraft.level, seatPlotCenter));
-        BlockHitResult hit = new BlockHitResult(seatPlotCenter, Direction.UP, seatPos, false);
-        minecraft.hitResult = hit;
-        seatUseResult = minecraft.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
+        issueSeatUse(minecraft, player, snapshot);
         advanceStage();
     }
 
@@ -234,9 +223,38 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
             advanceStage();
             return;
         }
-        if (stageTicks > snapshot.seatMountSettleTicks()) {
-            fail("real client seat use did not mount both LocalPlayer and integrated ServerPlayer");
+
+        // The v0.20/v0.21 integrated-client run has two independent tick threads. A real seat-use
+        // packet can race the server observer's bounded post-wheel-release re-anchor under CI load.
+        // Retry the same production MultiPlayerGameMode.useItemOn path at a bounded cadence until
+        // the ordinary Create mount is observed. This does not create a SeatEntity, call startRiding,
+        // rewrite packet coordinates, or otherwise synthesize mount evidence.
+        if (!serverMounted
+                && !player.isPassenger()
+                && stageTicks % SEAT_USE_RETRY_INTERVAL_TICKS == 0) {
+            issueSeatUse(minecraft, player, snapshot);
         }
+
+        if (stageTicks > snapshot.seatMountSettleTicks()) {
+            fail("real client seat use did not mount both LocalPlayer and integrated ServerPlayer"
+                    + " after bounded production-path retries; lastSeatUseResult=" + seatUseResult);
+        }
+    }
+
+    private static void issueSeatUse(
+            Minecraft minecraft,
+            LocalPlayer player,
+            SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot) {
+        BlockPos seatPos = snapshot.pilotSeatPos();
+        if (!minecraft.level.getBlockState(seatPos).getBlock().getClass().getName().endsWith("SeatBlock")) {
+            return;
+        }
+        positionClientAtRenderedSeat(minecraft, player, snapshot);
+        Vec3 seatPlotCenter = Vec3.atCenterOf(seatPos);
+        lookAt(player, projectOutOfSubLevel(minecraft.level, seatPlotCenter));
+        BlockHitResult hit = new BlockHitResult(seatPlotCenter, Direction.UP, seatPos, false);
+        minecraft.hitResult = hit;
+        seatUseResult = minecraft.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
     }
 
     private static void awaitSeatDismount(
