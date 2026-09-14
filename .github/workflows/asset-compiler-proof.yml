@@ -47,6 +47,12 @@ jobs:
           --out build/asset-compiler-v014-first-principles-detail
           --minecraft-structure
 
+      - name: Compile v0.14 through WBY target profile
+        run: >-
+          python tools/asset_compiler/compile_wby.py
+          tools/asset_compiler/specimens/bootstrap_guild_branch_v0.14_first_principles_detail.json
+          --out build/asset-compiler-v014-wby
+
       - name: Upload v0.12 QA and structure artifact
         uses: actions/upload-artifact@v4
         with:
