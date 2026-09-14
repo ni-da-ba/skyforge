@@ -10,6 +10,7 @@ from model import Cell, SpecError
 
 _PROFILE_NAME = "guild-v0.14-wby-c1-create"
 _CATALOG = Path(__file__).with_name("minecraft_data") / "wby_c1_create_6_0_10_capabilities.json"
+_ALLOWED_CATALOG_STATUSES = frozenset({"active", "cataloged"})
 
 
 def _capability_from_catalog(entry: dict) -> BlockCapability:
@@ -40,20 +41,47 @@ def _capability_from_catalog(entry: dict) -> BlockCapability:
     )
 
 
-def wby_c1_create_registry() -> dict[str, BlockCapability]:
-    """Load the bounded WBY C1 overlay and compose it over the vanilla Guild registry.
-
-    The catalog is data-driven so additional audited blocks do not require resolver edits. Admission
-    to the catalog is still conservative: stateful, functional, block-entity, aircraft, and addon
-    content must carry an explicit verified contract before it is added.
-    """
+def _load_catalog() -> dict:
     try:
         document = json.loads(_CATALOG.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise SpecError(f"could not read WBY capability catalog {_CATALOG}: {exc}") from exc
 
+    blocks = document.get("blocks")
+    if not isinstance(blocks, list):
+        raise SpecError("WBY capability catalog must contain a blocks list")
+
+    seen: set[str] = set()
+    for raw in blocks:
+        if not isinstance(raw, dict):
+            raise SpecError(f"invalid WBY capability catalog entry: {raw!r}")
+        status = raw.get("status")
+        if status not in _ALLOWED_CATALOG_STATUSES:
+            raise SpecError(
+                f"WBY capability catalog entry {raw.get('name')!r} has unsupported status {status!r}; "
+                f"expected one of {sorted(_ALLOWED_CATALOG_STATUSES)}"
+            )
+        cap = _capability_from_catalog(raw)
+        if cap.name in seen:
+            raise SpecError(f"duplicate WBY capability catalog entry {cap.name}")
+        seen.add(cap.name)
+
+    return document
+
+
+def wby_c1_create_registry() -> dict[str, BlockCapability]:
+    """Compose the active WBY C1 overlay over the vanilla Guild registry.
+
+    Catalog membership and automatic placement authority are deliberately separate. Every catalog
+    entry is parsed and validated, but only entries carrying ``status: active`` enter the resolver
+    registry. ``cataloged`` entries therefore cannot become selectable merely because their
+    capabilities happen to match a future intent.
+    """
+    document = _load_catalog()
     registry = vanilla_1_21_1_registry()
-    for raw in document.get("blocks", []):
+    for raw in document["blocks"]:
+        if raw["status"] != "active":
+            continue
         cap = _capability_from_catalog(raw)
         if cap.name in registry:
             raise SpecError(f"WBY capability catalog may not replace baseline registry entry {cap.name}")
