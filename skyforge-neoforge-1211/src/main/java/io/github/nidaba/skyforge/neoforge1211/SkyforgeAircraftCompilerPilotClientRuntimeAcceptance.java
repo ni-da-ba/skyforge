@@ -18,7 +18,10 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * player. Because v0.20 explicitly does not qualify Sable player tracking, it performs bounded
  * test-setup positioning: one initial teleport to establish aircraft tracking, then a temporary
  * server-authoritative seat re-anchor after the wheel release packet and before the real Create
- * seat interaction. These setup teleports are not player-tracking evidence.
+ * seat interaction. The pre-release setup also preserves/enables player invulnerability so vanilla
+ * fall damage cannot kill the deliberately-untracked test player before the wheel packet proof;
+ * the original invulnerability state is restored before the seat interaction. None of these setup
+ * controls are player-tracking evidence.
  */
 final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.aircraftCompilerPilotClient";
@@ -27,6 +30,9 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
 
     private static volatile Object assembledParentSubLevel;
     private static volatile boolean playerPositioned;
+    private static volatile boolean playerInvulnerabilityCaptured;
+    private static volatile boolean originalPlayerInvulnerable;
+    private static volatile boolean playerInvulnerabilityRestored;
     private static volatile boolean seatSetupReanchorLogged;
     private static volatile boolean activePacketObserved;
     private static volatile boolean releasePacketObserved;
@@ -62,6 +68,9 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
         ServerPlayer player = players.getFirst();
 
         if (!playerPositioned) {
+            originalPlayerInvulnerable = player.isInvulnerable();
+            playerInvulnerabilityCaptured = true;
+            player.setInvulnerable(true);
             Vec3 globalStandPosition = positionServerPlayerAtCurrentSeat(player, snapshot);
             playerPositioned = true;
             LOGGER.log(
@@ -70,6 +79,8 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
                             + " pilotSeatPlot=" + snapshot.pilotSeatPos()
                             + " globalStand=" + globalStandPosition
                             + " directParentPoseProjection=true"
+                            + " testSetupInvulnerable=true"
+                            + " originalPlayerInvulnerable=" + originalPlayerInvulnerable
                             + " playerSableTrackingQualified=false");
             return;
         }
@@ -96,6 +107,18 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
                 LOGGER.log(System.Logger.Level.INFO,
                         "AIRCRAFT_001_V020_RELEASE_PACKET OBSERVED retainedTargetDegrees=" + target);
             }
+        }
+
+        // Fall immunity is test setup only. Restore the player's exact pre-test state as soon as
+        // the real Simulated release packet completes the wheel proof, before probing Create seat use.
+        if (releasePacketObserved && playerInvulnerabilityCaptured && !playerInvulnerabilityRestored) {
+            player.setInvulnerable(originalPlayerInvulnerable);
+            playerInvulnerabilityRestored = true;
+            LOGGER.log(
+                    System.Logger.Level.INFO,
+                    "AIRCRAFT_001_V020_PLAYER_INVULNERABILITY_RESTORED"
+                            + " invulnerable=" + originalPlayerInvulnerable
+                            + " beforeSeatInteraction=true");
         }
 
         // The SteeringWheelPacket itself has no player-distance gate, but Create's ordinary seat
@@ -139,6 +162,7 @@ final class SkyforgeAircraftCompilerPilotClientRuntimeAcceptance {
                             + " pilotSeatDismount=true"
                             + " activeTargetDegrees=" + activeTargetDegrees
                             + " testSetupSeatReanchor=true"
+                            + " testSetupInvulnerabilityRestored=" + playerInvulnerabilityRestored
                             + " playerSableTrackingQualified=false"
                             + " flightQualified=false");
         }
