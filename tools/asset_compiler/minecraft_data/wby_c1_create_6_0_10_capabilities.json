@@ -7,9 +7,11 @@
   "scope": "automatic-structure-realization-safe-subset",
   "validation": {
     "runtimeTargetPin": "repository-verified-wave-c1",
-    "blockstateSourceAudit": "create-1.21.1-source-line",
+    "createSourceCommit": "79b5d3b37e2d1970818dd97ca460b649cd0a456c",
+    "createSourceCommitEvidence": "Create commit that bumps the 1.21.1 line to 6.0.10",
+    "blockstateSourceAudit": "exact-create-6.0.10-source-commit",
     "exactPinnedRuntimeRegistryProbe": "pending",
-    "policy": "only state-free simple blocks are active before exact-runtime probing"
+    "policy": "catalog entries are non-selectable unless status is active; stateful entries require exact-runtime registry validation before promotion"
   },
   "blocks": [
     {
@@ -35,6 +37,82 @@
       "properties": {},
       "defaults": {},
       "status": "cataloged"
+    },
+    {
+      "name": "create:industrial_iron_block",
+      "families": ["industrial_metal", "hardware"],
+      "capabilities": ["full_cube", "solid_support"],
+      "properties": {},
+      "defaults": {},
+      "status": "cataloged"
+    },
+    {
+      "name": "create:weathered_iron_block",
+      "families": ["weathered_metal", "history_hardware"],
+      "capabilities": ["full_cube", "solid_support"],
+      "properties": {},
+      "defaults": {},
+      "status": "cataloged"
+    },
+    {
+      "name": "create:framed_glass_pane",
+      "families": ["glazing"],
+      "capabilities": ["pane", "neighbor_sensitive", "thin"],
+      "properties": {
+        "east": ["false", "true"],
+        "north": ["false", "true"],
+        "south": ["false", "true"],
+        "waterlogged": ["false", "true"],
+        "west": ["false", "true"]
+      },
+      "defaults": {
+        "east": "false",
+        "north": "false",
+        "south": "false",
+        "waterlogged": "false",
+        "west": "false"
+      },
+      "status": "cataloged"
+    },
+    {
+      "name": "create:industrial_iron_window_pane",
+      "families": ["glazing", "industrial_window"],
+      "capabilities": ["pane", "neighbor_sensitive", "thin"],
+      "properties": {
+        "east": ["false", "true"],
+        "north": ["false", "true"],
+        "south": ["false", "true"],
+        "waterlogged": ["false", "true"],
+        "west": ["false", "true"]
+      },
+      "defaults": {
+        "east": "false",
+        "north": "false",
+        "south": "false",
+        "waterlogged": "false",
+        "west": "false"
+      },
+      "status": "cataloged"
+    },
+    {
+      "name": "create:ornate_iron_window_pane",
+      "families": ["glazing", "ornate_window"],
+      "capabilities": ["pane", "neighbor_sensitive", "thin"],
+      "properties": {
+        "east": ["false", "true"],
+        "north": ["false", "true"],
+        "south": ["false", "true"],
+        "waterlogged": ["false", "true"],
+        "west": ["false", "true"]
+      },
+      "defaults": {
+        "east": "false",
+        "north": "false",
+        "south": "false",
+        "waterlogged": "false",
+        "west": "false"
+      },
+      "status": "cataloged"
     }
   ],
   "deferredCandidates": [
@@ -43,12 +121,8 @@
       "reason": "state-free source candidate, but current Guild glazing intent is pane-shaped and must not be changed to a full cube merely for palette variety"
     },
     {
-      "name": "create:framed_glass_pane",
-      "reason": "neighbor-sensitive state must be verified against the exact pinned runtime before automatic substitution"
-    },
-    {
-      "name": "create:ornate_iron_window",
-      "reason": "requires an explicit semantic window/detail role rather than opportunistic palette replacement"
+      "name": "create:metal_girder",
+      "reason": "useful structural-detail geometry, but requires a dedicated girder/brace semantic role and exact runtime property-domain validation before admission"
     },
     {
       "name": "create machinery / addon block entities",
