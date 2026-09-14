@@ -121,6 +121,18 @@
       "reason": "state-free source candidate, but current Guild glazing intent is pane-shaped and must not be changed to a full cube merely for palette variety"
     },
     {
+      "name": "create:andesite_bars / create:brass_bars / create:copper_bars",
+      "reason": "exact Create 6.0.10 source registers ordinary IronBarsBlock variants; promotion needs a target-neutral railing/bars role and generic cardinal-connectable thin topology rather than misusing glazing semantics"
+    },
+    {
+      "name": "create:andesite_ladder / create:brass_ladder / create:copper_ladder",
+      "reason": "exact Create 6.0.10 source registers MetalLadderBlock variants inheriting LadderBlock; promotion needs explicit climbable/attachment-sensitive structure semantics and runtime state validation"
+    },
+    {
+      "name": "create:andesite_scaffolding / create:brass_scaffolding / create:copper_scaffolding",
+      "reason": "useful industrial access/detail vocabulary, but MetalScaffoldingBlock has richer survival/state behavior that needs a dedicated compiler capability and runtime validation"
+    },
+    {
       "name": "create:metal_girder",
       "reason": "useful structural-detail geometry, but requires a dedicated girder/brace semantic role and exact runtime property-domain validation before admission"
     },
