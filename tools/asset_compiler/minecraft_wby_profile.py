@@ -1,37 +1,63 @@
 from __future__ import annotations
 
+import json
 from dataclasses import replace
+from pathlib import Path
 
 from minecraft_adapter import BlockCapability, BlockIntent, MinecraftAdapter, vanilla_1_21_1_registry
 from minecraft_guild_profile import guild_v014_intent
-from model import Cell
+from model import Cell, SpecError
 
 _PROFILE_NAME = "guild-v0.14-wby-c1-create"
+_CATALOG = Path(__file__).with_name("minecraft_data") / "wby_c1_create_6_0_10_capabilities.json"
 
 
-def _simple_full_cube(name: str, families: tuple[str, ...]) -> BlockCapability:
+def _capability_from_catalog(entry: dict) -> BlockCapability:
+    try:
+        name = str(entry["name"])
+        families = frozenset(str(value) for value in entry["families"])
+        capabilities = frozenset(str(value) for value in entry["capabilities"])
+        properties = tuple(
+            sorted(
+                (
+                    str(key),
+                    frozenset(str(value).lower() for value in values),
+                )
+                for key, values in entry.get("properties", {}).items()
+            )
+        )
+        defaults = tuple(
+            sorted((str(key), str(value).lower()) for key, value in entry.get("defaults", {}).items())
+        )
+    except (KeyError, TypeError) as exc:
+        raise SpecError(f"invalid WBY capability catalog entry: {entry!r}") from exc
     return BlockCapability(
         name=name,
-        families=frozenset(families),
-        capabilities=frozenset({"full_cube", "solid_support"}),
+        families=families,
+        capabilities=capabilities,
+        properties=properties,
+        defaults=defaults,
     )
 
 
 def wby_c1_create_registry() -> dict[str, BlockCapability]:
-    """Bounded WBY C1 overlay on the ordinary Java 1.21.1 Guild registry.
+    """Load the bounded WBY C1 overlay and compose it over the vanilla Guild registry.
 
-    The overlay is intentionally small. Only simple Create casing blocks whose state-free
-    blockstate form has been audited are admitted here. Stateful panes, machinery, block entities,
-    aircraft parts, and addon-specific detail remain outside this automatic realization profile
-    until their exact runtime state/capability contract is independently verified.
+    The catalog is data-driven so additional audited blocks do not require resolver edits. Admission
+    to the catalog is still conservative: stateful, functional, block-entity, aircraft, and addon
+    content must carry an explicit verified contract before it is added.
     """
+    try:
+        document = json.loads(_CATALOG.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SpecError(f"could not read WBY capability catalog {_CATALOG}: {exc}") from exc
+
     registry = vanilla_1_21_1_registry()
-    additions = (
-        _simple_full_cube("create:andesite_casing", ("hardware", "masonry")),
-        _simple_full_cube("create:brass_casing", ("warm_hardware", "brass_surrogate")),
-        _simple_full_cube("create:copper_casing", ("hardware", "copper_detail")),
-    )
-    registry.update((entry.name, entry) for entry in additions)
+    for raw in document.get("blocks", []):
+        cap = _capability_from_catalog(raw)
+        if cap.name in registry:
+            raise SpecError(f"WBY capability catalog may not replace baseline registry entry {cap.name}")
+        registry[cap.name] = cap
     return registry
 
 
