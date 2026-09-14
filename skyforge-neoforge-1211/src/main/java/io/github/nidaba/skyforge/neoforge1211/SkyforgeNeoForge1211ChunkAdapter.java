@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceFoundationEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceSupportEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainBoxObserver;
@@ -7,6 +8,7 @@ import io.github.nidaba.skyforge.world.SkyIslandTerrainInterpreter;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainSemantic;
 import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.SurfaceFoundationAssessment;
 import io.github.nidaba.skyforge.world.SurfaceFoundationRequirements;
@@ -42,14 +44,25 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     private final SkyforgeMinecraftBlockPalette palette;
     private final Map<SkyIslandWorldVolumeId, SkyIslandTerrainInterpreter> interpretersByVolumeId;
     private final Map<SkyIslandWorldVolumeId, WorldBounds> boundsByVolumeId;
+    private final Map<SkyIslandWorldVolumeId, SkyIslandDescriptor> authoredDescriptorsByVolumeId;
 
     public SkyforgeNeoForge1211ChunkAdapter(
             SkyIslandWorldCatalog catalog,
             SkyIslandTerrainProfile terrainProfile,
             SkyforgeMinecraftBlockPalette palette) {
+        this(catalog, terrainProfile, palette, Map.of());
+    }
+
+    public SkyforgeNeoForge1211ChunkAdapter(
+            SkyIslandWorldCatalog catalog,
+            SkyIslandTerrainProfile terrainProfile,
+            SkyforgeMinecraftBlockPalette palette,
+            Map<SkyIslandWorldVolumeId, SkyIslandDescriptor> authoredDescriptorsByVolumeId) {
         this.catalog = Objects.requireNonNull(catalog, "catalog");
         this.terrainProfile = Objects.requireNonNull(terrainProfile, "terrainProfile");
         this.palette = Objects.requireNonNull(palette, "palette");
+        this.authoredDescriptorsByVolumeId = Map.copyOf(
+                Objects.requireNonNull(authoredDescriptorsByVolumeId, "authoredDescriptorsByVolumeId"));
 
         var cachedInterpreters = new LinkedHashMap<SkyIslandWorldVolumeId, SkyIslandTerrainInterpreter>();
         var cachedBounds = new LinkedHashMap<SkyIslandWorldVolumeId, WorldBounds>();
@@ -67,6 +80,12 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         this.boundsByVolumeId = Map.copyOf(cachedBounds);
     }
 
+    /** Returns authored provenance when this runtime was explicitly bound to it. */
+    Optional<SkyIslandDescriptor> authoredDescriptor(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return Optional.ofNullable(authoredDescriptorsByVolumeId.get(volumeId));
+    }
+
     /** Returns whether the supplied Minecraft chunk interval intersects any planned Skyforge volume. */
     boolean hasCandidateVolume(ChunkPos chunkPos, int minimumY, int height) {
         Objects.requireNonNull(chunkPos, "chunkPos");
@@ -75,6 +94,20 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         }
         MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(chunkPos, minimumY, height);
         return !catalog.query(chunkBounds.worldBounds()).isEmpty();
+    }
+
+    /**
+     * Returns only catalog volumes already intersecting this available chunk interval.
+     *
+     * <p>This is intentionally a query over the supplied chunk, not a request for neighboring
+     * chunks. Consumers such as authored visible hydrology can therefore remain exact-volume and
+     * non-forcing while sharing the normal realization lifecycle.
+     */
+    List<SkyIslandWorldVolume> candidateVolumes(net.minecraft.world.level.chunk.ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        return catalog.query(new MinecraftChunkBounds(
+                        chunk.getPos(), chunk.getMinBuildHeight(), chunk.getHeight())
+                .worldBounds());
     }
 
     /** Materializes one Minecraft chunk's composite Skyforge contribution for the supplied span. */

@@ -87,7 +87,8 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                 new SkyforgeNeoForge1211ChunkAdapter(
                         FIXTURE.catalog(),
                         io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
-                        new SkyforgeMinecraftBlockPalette()),
+                        new SkyforgeMinecraftBlockPalette(),
+                        java.util.Map.of(FIXTURE.volume().id(), FIXTURE.descriptor())),
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
         persistentAdmissionBinding = SkyforgePhysicalVolumeAdmissionStage.install(FIXTURE.catalog());
 
