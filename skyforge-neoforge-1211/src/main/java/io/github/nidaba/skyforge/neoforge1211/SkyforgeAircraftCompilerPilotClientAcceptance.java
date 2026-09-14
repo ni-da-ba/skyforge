@@ -35,6 +35,7 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
     private static int stage;
     private static int stageTicks;
     private static boolean clientSubLevelReady;
+    private static boolean clientGameplayReady;
     private static boolean clientSetupRepositioningUsed;
     private static boolean clientHoldAcquired;
     private static boolean clientSeatMounted;
@@ -68,6 +69,7 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
                     + ",bridge=" + (snapshot != null)
                     + ",playerPositioned=" + SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.playerPositioned()
                     + ",clientSubLevelReady=" + clientSubLevelReady
+                    + ",clientGameplayReady=" + clientGameplayReady
                     + ",clientSetupRepositioningUsed=" + clientSetupRepositioningUsed
                     + ",screen=" + screen + "}");
             return;
@@ -117,6 +119,17 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
             return;
         }
 
+        // Simulated 1.3.2 stops all HoldInteractionManager activity whenever any client screen is
+        // open and ignores mouse movement in that state. In integrated quick-play startup the real
+        // ClientLevel can be Sable-ready before ReceivingLevelScreen closes, so wait for ordinary
+        // gameplay before attempting the production useItemOn -> QuietUse -> SteeringWheelHandler
+        // path or spending its bounded acquisition retry budget.
+        if (minecraft.screen != null) {
+            stageTicks = 0;
+            return;
+        }
+        clientGameplayReady = true;
+
         if (!minecraft.level.getBlockState(wheelPos).getBlock().getClass().getName().endsWith("SteeringWheelBlock")) {
             stageTicks = 0;
             return;
@@ -149,7 +162,7 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
         if (!holdInteractionActive()) {
             if (stageTicks >= ACQUIRE_RETRY_LIMIT_TICKS) {
                 fail("real MultiPlayerGameMode.useItemOn never acquired Simulated SteeringWheelHandler"
-                        + " afterClientSubLevelReady=true "
+                        + " afterClientSubLevelReady=true afterGameplayReady=true "
                         + steeringWheelPredicateDiagnostics(minecraft, player, wheelPos, wheelBlockEntity));
             }
             return;
@@ -246,6 +259,7 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
     private static void complete(Minecraft minecraft) {
         LinkedHashMap<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("actualClient", true);
+        evidence.put("clientGameplayReady", clientGameplayReady);
         evidence.put("clientTestSetupRepositioning", clientSetupRepositioningUsed);
         evidence.put("steeringWheelUseResult", String.valueOf(wheelUseResult));
         evidence.put("steeringHoldAcquired", clientHoldAcquired);
