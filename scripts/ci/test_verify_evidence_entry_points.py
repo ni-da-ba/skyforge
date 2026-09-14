@@ -1,7 +1,10 @@
+import hashlib
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import verify_evidence_entry_points as verifier
 
@@ -29,6 +32,15 @@ class EvidenceContractTests(unittest.TestCase):
         ):
             with self.subTest(path=path), self.assertRaises(verifier.ContractError):
                 verifier._validate_path(path)
+
+    def test_contract_digest_is_ordered_and_newline_delimited(self):
+        paths = [
+            "skyforge-reference/build/evidence/a/index.html",
+            "skyforge-reference/build/evidence/b/index.html",
+        ]
+        expected = hashlib.sha256(("\n".join(paths) + "\n").encode("utf-8")).hexdigest()
+        self.assertEqual(expected, verifier.contract_digest(paths))
+        self.assertNotEqual(verifier.contract_digest(paths), verifier.contract_digest(list(reversed(paths))))
 
     def test_compact_manifest_round_trips_exact_order(self):
         paths = [
@@ -93,6 +105,56 @@ class EvidenceContractTests(unittest.TestCase):
             target.parent.mkdir(parents=True)
             target.write_text("ok", encoding="utf-8")
             verifier.verify_files(paths, root)
+
+    def test_verify_files_cli_does_not_require_workflow_yaml(self):
+        paths = ["skyforge-reference/build/evidence/a/index.html"]
+        payload = {
+            "schema_version": 1,
+            "source_step": verifier.STEP_NAME,
+            "required_paths": paths,
+        }
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            target = root / paths[0]
+            target.parent.mkdir(parents=True)
+            target.write_text("ok", encoding="utf-8")
+            missing_workflow = root / "does-not-exist.yml"
+            argv = [
+                "verify_evidence_entry_points.py",
+                "--workflow",
+                str(missing_workflow),
+                "--manifest",
+                str(manifest),
+                "--verify-files",
+                "--root",
+                str(root),
+            ]
+            with mock.patch.object(sys, "argv", argv):
+                self.assertEqual(0, verifier.main())
+
+    def test_validate_manifest_cli_does_not_require_workflow_yaml(self):
+        paths = ["skyforge-reference/build/evidence/a/index.html"]
+        payload = {
+            "schema_version": 1,
+            "source_step": verifier.STEP_NAME,
+            "required_paths": paths,
+        }
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            argv = [
+                "verify_evidence_entry_points.py",
+                "--workflow",
+                str(root / "does-not-exist.yml"),
+                "--manifest",
+                str(manifest),
+                "--validate-manifest",
+            ]
+            with mock.patch.object(sys, "argv", argv):
+                self.assertEqual(0, verifier.main())
 
 
 if __name__ == "__main__":
