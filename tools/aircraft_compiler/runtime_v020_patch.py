@@ -75,12 +75,87 @@ def patch_runtime_source(source: str) -> str:
     return source
 
 
+def patch_cockpit_settle_diagnostics(source: str) -> str:
+    outbound_anchor = '''        runPhysics(physicsSystem, container, physicalSettlePhysicsTicks);
+        double physicalDeflected = relativeYawDegrees(parentSubLevel, childSubLevel);
+        assertTrue("physical rudder follows cockpit-routed target",
+                Math.abs(physicalDeflected) >= minimumPhysicalRudderDeflectionDegrees);
+        assertTrue("physical rudder sign follows compiled extra-cog sign",
+                Math.signum(physicalDeflected) == expectedExtraCogSign);
+'''
+    outbound_injected = '''        runPhysics(physicsSystem, container, physicalSettlePhysicsTicks);
+        double physicalDeflected = relativeYawDegrees(parentSubLevel, childSubLevel);
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE SETTLE"
+                        + " phase=outbound"
+                        + " physicsTicks=" + physicalSettlePhysicsTicks
+                        + " targetDegrees=" + targetDeflected
+                        + " physicalDegrees=" + physicalDeflected
+                        + " minimumPhysicalDegrees=" + minimumPhysicalRudderDeflectionDegrees
+                        + " expectedSign=" + expectedExtraCogSign);
+        assertTrue(
+                "physical rudder follows cockpit-routed target"
+                        + " observedDegrees=" + physicalDeflected
+                        + " minimumDegrees=" + minimumPhysicalRudderDeflectionDegrees
+                        + " targetDegrees=" + targetDeflected,
+                Math.abs(physicalDeflected) >= minimumPhysicalRudderDeflectionDegrees);
+        assertTrue(
+                "physical rudder sign follows compiled extra-cog sign"
+                        + " observedDegrees=" + physicalDeflected
+                        + " expectedSign=" + expectedExtraCogSign,
+                Math.signum(physicalDeflected) == expectedExtraCogSign);
+'''
+    source = _replace_once(
+        source,
+        outbound_anchor,
+        outbound_injected,
+        "v0.20 integrated-client outbound physical-settle diagnostics",
+    )
+
+    inbound_anchor = '''        runPhysics(physicsSystem, container, physicalSettlePhysicsTicks);
+        double physicalReturned = relativeYawDegrees(parentSubLevel, childSubLevel);
+        assertTrue("physical rudder returns near neutral through cockpit route",
+                Math.abs(physicalReturned) <= physicalNeutralToleranceDegrees);
+'''
+    inbound_injected = '''        runPhysics(physicsSystem, container, physicalSettlePhysicsTicks);
+        double physicalReturned = relativeYawDegrees(parentSubLevel, childSubLevel);
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE SETTLE"
+                        + " phase=neutral-return"
+                        + " physicsTicks=" + physicalSettlePhysicsTicks
+                        + " targetDegrees=" + targetReturned
+                        + " physicalDegrees=" + physicalReturned
+                        + " neutralToleranceDegrees=" + physicalNeutralToleranceDegrees);
+        assertTrue(
+                "physical rudder returns near neutral through cockpit route"
+                        + " observedDegrees=" + physicalReturned
+                        + " toleranceDegrees=" + physicalNeutralToleranceDegrees,
+                Math.abs(physicalReturned) <= physicalNeutralToleranceDegrees);
+'''
+    return _replace_once(
+        source,
+        inbound_anchor,
+        inbound_injected,
+        "v0.20 integrated-client neutral-return physical-settle diagnostics",
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Patch AIRCRAFT-001 runtime harness with v0.20 actual-client handoff")
     parser.add_argument("java_source", type=Path)
     args = parser.parse_args()
     source = args.java_source.read_text(encoding="utf-8")
     args.java_source.write_text(patch_runtime_source(source), encoding="utf-8")
+
+    cockpit_source = args.java_source.with_name("SkyforgeAircraftCompilerCockpitYawRouteRuntimeAcceptance.java")
+    if not cockpit_source.is_file():
+        raise RuntimePatchError(f"v0.20 cockpit runtime source missing: {cockpit_source}")
+    cockpit_source.write_text(
+        patch_cockpit_settle_diagnostics(cockpit_source.read_text(encoding="utf-8")),
+        encoding="utf-8",
+    )
     return 0
 
 
