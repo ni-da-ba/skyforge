@@ -39,6 +39,7 @@ def lower_pilot_tracking(pilot_client_binding: dict[str, Any], profile: dict[str
     expected_tracking = {
         "acquisition": "natural_create_seat_vehicle_containment",
         "inspection": "sable_helper_get_tracking_sub_level",
+        "parentIdentityMethod": "sable_persistent_sublevel_uuid",
         "measurementBeginsAfterDismount": True,
         "trackingSetterAllowed": False,
         "playerHarnessMutationDuringMeasurementAllowed": False,
