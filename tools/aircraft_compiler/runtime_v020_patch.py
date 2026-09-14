@@ -127,6 +127,32 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
         assertTrue("Swivel rotary constraint handle present for v0.20 physical proof", constraintHandlePresent);
         assertTrue("Swivel rotary constraint handle valid for v0.20 physical proof", constraintHandleValid);
 
+        Class<?> serverSubLevelClass = Class.forName("dev.ryanhcode.sable.sublevel.ServerSubLevel");
+        Class<?> ticketTypeClass = Class.forName("dev.ryanhcode.sable.api.sublevel.ticket.SubLevelLoadingTicketType");
+        Object commandForcedTicket = ticketTypeClass.getField("COMMAND_FORCED").get(null);
+        Class<?> unitClass = Class.forName("net.minecraft.util.Unit");
+        Object unitKey = unitClass.getField("INSTANCE").get(null);
+        Method addForceLoadTicket = container.getClass().getMethod(
+                "addForceLoadTicket", serverSubLevelClass, ticketTypeClass, Object.class);
+        Method removeForceLoadTicket = container.getClass().getMethod(
+                "removeForceLoadTicket", serverSubLevelClass, ticketTypeClass, Object.class);
+        boolean physicalForceLoadTicketAdded = (boolean) addForceLoadTicket.invoke(
+                container, parentSubLevel, commandForcedTicket, unitKey);
+        Object forceLoadedValue = publicMethod(container, "collectForceLoadedSubLevels").invoke(container);
+        if (!(forceLoadedValue instanceof java.util.Collection<?> forceLoadedSubLevels)) {
+            throw new IllegalStateException("Sable force-loaded sub-level collection unavailable");
+        }
+        boolean parentForceLoaded = forceLoadedSubLevels.contains(parentSubLevel);
+        boolean childForceLoaded = forceLoadedSubLevels.contains(childSubLevel);
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE FORCE_LOAD"
+                        + " ticketAdded=" + physicalForceLoadTicketAdded
+                        + " parentForceLoaded=" + parentForceLoaded
+                        + " childForceLoaded=" + childForceLoaded);
+        assertTrue("v0.20 physical proof parent is force-loaded", parentForceLoaded);
+        assertTrue("v0.20 physical proof rudder child is force-loaded through dependency chain", childForceLoaded);
+
         Object physicsPipeline = publicMethod(physicsSystem, "getPipeline").invoke(physicsSystem);
         oneArgMethod(physicsPipeline, "wakeUp", parentSubLevel).invoke(physicsPipeline, parentSubLevel);
         oneArgMethod(physicsPipeline, "wakeUp", childSubLevel).invoke(physicsPipeline, childSubLevel);
@@ -162,20 +188,25 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
                 double servoLastTargetAfter = number(declaredFieldObject(bearing, "lastTargetAngleDegrees"));
                 double servoTargetAfter = normalizeDegrees(number(publicMethod(bearing, "getTargetAngleDegrees").invoke(bearing)));
                 double servoPartialAfter = number(publicMethod(physicsSystem, "getPartialPhysicsTick").invoke(physicsSystem));
-                Object parentHandle = oneArgMethod(physicsSystem, "getPhysicsHandle", parentSubLevel)
-                        .invoke(physicsSystem, parentSubLevel);
-                Object childHandle = oneArgMethod(physicsSystem, "getPhysicsHandle", childSubLevel)
-                        .invoke(physicsSystem, childSubLevel);
+                boolean parentRemovedAfterFirst = (boolean) publicMethod(parentSubLevel, "isRemoved").invoke(parentSubLevel);
+                boolean childRemovedAfterFirst = (boolean) publicMethod(childSubLevel, "isRemoved").invoke(childSubLevel);
                 Vector3d parentAngularVelocity = new Vector3d();
                 Vector3d childAngularVelocity = new Vector3d();
-                oneArgMethod(parentHandle, "getAngularVelocity", parentAngularVelocity)
-                        .invoke(parentHandle, parentAngularVelocity);
-                oneArgMethod(childHandle, "getAngularVelocity", childAngularVelocity)
-                        .invoke(childHandle, childAngularVelocity);
                 Vector3d linearJointImpulse = new Vector3d();
                 Vector3d angularJointImpulse = new Vector3d();
-                twoArgMethod(constraintHandle, "getJointImpulses", linearJointImpulse, angularJointImpulse)
-                        .invoke(constraintHandle, linearJointImpulse, angularJointImpulse);
+                if (!parentRemovedAfterFirst && !childRemovedAfterFirst
+                        && (boolean) publicMethod(constraintHandle, "isValid").invoke(constraintHandle)) {
+                    Object parentHandle = oneArgMethod(physicsSystem, "getPhysicsHandle", parentSubLevel)
+                            .invoke(physicsSystem, parentSubLevel);
+                    Object childHandle = oneArgMethod(physicsSystem, "getPhysicsHandle", childSubLevel)
+                            .invoke(physicsSystem, childSubLevel);
+                    oneArgMethod(parentHandle, "getAngularVelocity", parentAngularVelocity)
+                            .invoke(parentHandle, parentAngularVelocity);
+                    oneArgMethod(childHandle, "getAngularVelocity", childAngularVelocity)
+                            .invoke(childHandle, childAngularVelocity);
+                    twoArgMethod(constraintHandle, "getJointImpulses", linearJointImpulse, angularJointImpulse)
+                            .invoke(constraintHandle, linearJointImpulse, angularJointImpulse);
+                }
                 LOGGER.log(
                         System.Logger.Level.INFO,
                         "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE SERVO_STATE"
@@ -184,6 +215,8 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
                                 + " targetDegrees=" + servoTargetAfter
                                 + " partialPhysicsTick=" + servoPartialAfter
                                 + " physicalDegrees=" + physicalDeflected
+                                + " parentRemoved=" + parentRemovedAfterFirst
+                                + " childRemoved=" + childRemovedAfterFirst
                                 + " parentAngularVelocity=" + parentAngularVelocity
                                 + " childAngularVelocity=" + childAngularVelocity
                                 + " linearJointImpulse=" + linearJointImpulse
@@ -265,11 +298,18 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
                         + " maximumPhysicsTicks=" + maximumPhysicalSettlePhysicsTicks,
                 Math.abs(physicalReturned) <= physicalNeutralToleranceDegrees);
 
+        if (physicalForceLoadTicketAdded) {
+            boolean physicalForceLoadTicketRemoved = (boolean) removeForceLoadTicket.invoke(
+                    container, parentSubLevel, commandForcedTicket, unitKey);
+            assertTrue("v0.20 physical proof temporary Sable force-load ticket removed",
+                    physicalForceLoadTicketRemoved);
+        }
         setPhysicsPaused.invoke(physicsSystem, physicsWasPaused);
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE PHYSICS_STATE_RESTORED"
-                        + " paused=" + physicsWasPaused);
+                        + " paused=" + physicsWasPaused
+                        + " temporaryForceLoadTicketRemoved=" + physicalForceLoadTicketAdded);
 '''
     source = _replace_once(
         source,
