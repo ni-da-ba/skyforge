@@ -1,7 +1,17 @@
 # Skyforge Manual Producer Protocol
 
-**Status:** machine-facing companion to `ORCHESTRATION_PROTOCOL.md`  
-**Purpose:** allow interactive/manual Skyforge agents to add parallel capacity without racing the hosted controller.
+**Status:** machine-facing companion to `ORCHESTRATION_PROTOCOL.md` and `EXECUTION_BOUNDARIES.md`  
+**Purpose:** allow interactive/manual Skyforge agents to add parallel capacity without racing the hosted controller, while preserving the canonical separation between orchestration, automated machine evidence, and human/manual execution.
+
+## 0. Execution surface boundary
+
+`EXECUTION_BOUNDARIES.md` is authoritative for **where** work runs.
+
+- The DigitalOcean `skyforge-orchestrator` droplet is the orchestration control plane, not a project build/test/runtime workstation.
+- GitHub / GitHub Actions performs automated project machine work and produces automated verification evidence.
+- The project owner's local machine performs manual/human-gated execution: Minecraft play/flight/visual review, listening/taste review, interactive inspection, and other qualitative checks.
+
+A manual producer may author repository changes on its ordinary branch, but required automated machine evidence must still come from GitHub Actions. Local machine results may satisfy an explicitly manual/human gate; they do not silently replace an Actions check required by `VALIDATION_POLICY.md`.
 
 ## 1. Ownership unit
 
@@ -17,7 +27,7 @@ GitHub remains the durable handoff substrate. Conversation state is never suffic
 
 Before editing:
 
-1. Reconstruct current `main`, relevant lane state/contracts, open PRs, and issue authority.
+1. Read `EXECUTION_BOUNDARIES.md`, reconstruct current `main`, relevant lane state/contracts, open PRs, and issue authority.
 2. Read hosted controller status from issue #349.
 3. Reject any candidate already represented by:
    - `pending_worker` / active bounded-roadmap issue;
@@ -47,6 +57,9 @@ Before editing:
 - Do not modify the controller's isolated worktree or state directory.
 - Do not post a second task directive for the claimed issue.
 - Keep the PR/task bounded and preserve normal validation policy.
+- Send automated verification to GitHub Actions; do not use the DigitalOcean orchestrator host as an alternate runner.
+- Perform visual/play/listening/interactive human gates on the project owner's local machine only.
+- Record the exact PR/head, procedure, specimens/seeds/artifacts, and human pass/fail result back into durable GitHub state when a manual gate is completed.
 - After opening the PR, refresh the claim with the exact PR/branch metadata so the controller can
   retire it automatically when that PR closes or merges:
 
@@ -82,13 +95,19 @@ If a controller worker or managed PR already owns the issue, a new external clai
 makes the race barrier reciprocal: manual producers check controller ownership, and the controller
 checks manual ownership.
 
+The controller must also respect execution surfaces while coordinating a manual producer: it may
+observe and route Actions evidence, but it must not reproduce those builds/tests on the droplet, and it
+must surface rather than simulate a local human gate.
+
 ## 6. Manual-agent bootstrap prompt
 
 A fresh manual agent should receive this invariant in addition to its lane-specific instructions:
 
-> Reconstruct current repository/controller state before selecting work. Treat controller-owned tasks,
-> controller-managed PRs, and active external-producer claims as unavailable. Claim exactly one
-> unowned governing issue with `/skyforge-claim-external` and verify the claim appears in
-> `/skyforge-status` before editing. Work on a separate ordinary branch. Refresh the claim with PR and
-> branch metadata after opening a PR. Release an abandoned unbound claim. Never race the active DR
-> critical-path node or another healthy producer.
+> Read `EXECUTION_BOUNDARIES.md` first. Reconstruct current repository/controller state before selecting
+> work. Treat controller-owned tasks, controller-managed PRs, and active external-producer claims as
+> unavailable. Claim exactly one unowned governing issue with `/skyforge-claim-external` and verify the
+> claim appears in `/skyforge-status` before editing. Work on a separate ordinary branch. Use GitHub
+> Actions for automated project machine verification. Use the project owner's local machine for
+> visual/play/listening/interactive human gates and record those results durably. Refresh the claim with
+> PR and branch metadata after opening a PR. Release an abandoned unbound claim. Never race the active
+> DR critical-path node or another healthy producer.
