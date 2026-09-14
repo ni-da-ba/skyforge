@@ -98,9 +98,10 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
         boolean plateActorReadyBeforeRepair = hasSwivelPlateActor(childSubLevel);
         boolean plateActorRepairApplied = false;
         Object platePosValue = publicMethod(bearing, "getPlatePos").invoke(bearing);
-        if (!(platePosValue instanceof BlockPos platePos)) {
+        if (!(platePosValue instanceof BlockPos)) {
             throw new IllegalStateException("assembled Swivel plate position unavailable before v0.20 physical settle");
         }
+        BlockPos platePos = (BlockPos) platePosValue;
         if (!plateActorReadyBeforeRepair) {
             requireBlockEntity(level, platePos, "SwivelBearingPlateBlockEntity");
             Object childPlot = publicMethod(childSubLevel, "getPlot").invoke(childSubLevel);
@@ -125,6 +126,16 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
         assertTrue("Swivel plate physics actor ready for v0.20 physical proof", plateActorReadyAfterRepair);
         assertTrue("Swivel rotary constraint handle present for v0.20 physical proof", constraintHandlePresent);
         assertTrue("Swivel rotary constraint handle valid for v0.20 physical proof", constraintHandleValid);
+
+        Object physicsPipeline = publicMethod(physicsSystem, "getPipeline").invoke(physicsSystem);
+        oneArgMethod(physicsPipeline, "wakeUp", parentSubLevel).invoke(physicsPipeline, parentSubLevel);
+        oneArgMethod(physicsPipeline, "wakeUp", childSubLevel).invoke(physicsPipeline, childSubLevel);
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE BODY_WAKE"
+                        + " phase=outbound"
+                        + " parentWake=true"
+                        + " childWake=true");
 
         int maximumPhysicalSettlePhysicsTicks = Math.max(physicalSettlePhysicsTicks, 1) * 2;
         int physicalDeflectTicks = 0;
@@ -175,7 +186,16 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
         assertTrue("physical rudder returns near neutral through cockpit route",
                 Math.abs(physicalReturned) <= physicalNeutralToleranceDegrees);
 '''
-    inbound_injected = '''        int physicalReturnTicks = 0;
+    inbound_injected = '''        oneArgMethod(physicsPipeline, "wakeUp", parentSubLevel).invoke(physicsPipeline, parentSubLevel);
+        oneArgMethod(physicsPipeline, "wakeUp", childSubLevel).invoke(physicsPipeline, childSubLevel);
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE BODY_WAKE"
+                        + " phase=neutral-return"
+                        + " parentWake=true"
+                        + " childWake=true");
+
+        int physicalReturnTicks = 0;
         double physicalReturned = relativeYawDegrees(parentSubLevel, childSubLevel);
         while (physicalReturnTicks < maximumPhysicalSettlePhysicsTicks
                 && Math.abs(physicalReturned) > physicalNeutralToleranceDegrees) {
