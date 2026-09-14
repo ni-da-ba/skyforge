@@ -120,11 +120,24 @@ jobs:
         run: |
           set -euo pipefail
           log=aircraft-compiler-pilot-client-runtime.log
-          xvfb-run -a ./gradlew :skyforge-neoforge-1211:runAircraftCompilerPilotClient --no-configuration-cache >"$log" 2>&1 || {
-            tail -n 600 "$log"
-            exit 1
-          }
           result=skyforge-neoforge-1211/build/acceptance/aircraft-001-v020/client.properties
+          set +e
+          xvfb-run -a ./gradlew :skyforge-neoforge-1211:runAircraftCompilerPilotClient --no-configuration-cache >"$log" 2>&1
+          gradle_status=$?
+          set -e
+          echo '=== AIRCRAFT-001 v0.20 focused diagnostics ==='
+          grep -nEi 'AIRCRAFT_001|Exception|ERROR|FAIL|Steering|pilot|seat|Passenger' "$log" || true
+          echo '=== AIRCRAFT-001 v0.20 client result ==='
+          if [[ -f "$result" ]]; then
+            cat "$result"
+          else
+            echo 'client result missing'
+          fi
+          echo '=== AIRCRAFT-001 v0.20 log tail ==='
+          tail -n 600 "$log" || true
+          if [[ "$gradle_status" -ne 0 ]]; then
+            exit "$gradle_status"
+          fi
           test -f "$result"
           grep -Fxq 'status=PASS' "$result"
           grep -Fxq 'actualClient=true' "$result"
