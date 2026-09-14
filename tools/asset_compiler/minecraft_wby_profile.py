@@ -43,22 +43,33 @@ def _prepend_preferences(intent: BlockIntent, *names: str) -> BlockIntent:
     return replace(intent, preferred_blocks=tuple(ordered))
 
 
-def guild_v014_wby_intent(cell: Cell) -> BlockIntent:
-    """Apply WBY realization preferences without changing architectural semantics."""
-    intent = guild_v014_intent(cell)
+def wby_c1_target_intent(intent: BlockIntent) -> BlockIntent:
+    """Add WBY target preferences using only target-neutral semantic intent."""
     family_set = set(intent.families)
 
-    if cell.role == "hardware" and {"warm_hardware", "brass_surrogate"}.issubset(family_set):
+    if {"warm_hardware", "brass_surrogate"}.issubset(family_set):
         return _prepend_preferences(intent, "create:brass_casing")
 
-    if cell.role == "hardware" and {"hardware", "masonry"}.issubset(family_set):
+    if {"hardware", "masonry"}.issubset(family_set):
         return _prepend_preferences(intent, "create:andesite_casing")
 
     return intent
 
 
+def guild_v014_wby_intent(cell: Cell) -> BlockIntent:
+    """Apply the same WBY preference policy to direct Guild adapter passes."""
+    return wby_c1_target_intent(guild_v014_intent(cell))
+
+
+class WbyC1MinecraftAdapter(MinecraftAdapter):
+    """Minecraft resolver that overlays WBY choices at the concrete target boundary."""
+
+    def resolve_intent(self, intent: BlockIntent):
+        return super().resolve_intent(wby_c1_target_intent(intent))
+
+
 def guild_v014_wby_adapter() -> MinecraftAdapter:
-    return MinecraftAdapter(
+    return WbyC1MinecraftAdapter(
         registry=wby_c1_create_registry(),
         intent_provider=guild_v014_wby_intent,
         intent_profile_name=_PROFILE_NAME,
