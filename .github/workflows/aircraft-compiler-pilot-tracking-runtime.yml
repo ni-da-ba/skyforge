@@ -24,11 +24,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "25"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: ./.github/actions/setup-java-gradle
 
       - name: Compile AIRCRAFT-001 contract chain through v0.21
         shell: bash
