@@ -1,5 +1,4 @@
 import importlib.util
-import os
 import pathlib
 import subprocess
 import sys
@@ -13,8 +12,6 @@ assert SPEC and SPEC.loader
 deps = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = deps
 SPEC.loader.exec_module(deps)
-
-import hosted_jdk
 
 
 class RuntimeDependencySyncTests(unittest.TestCase):
@@ -83,7 +80,7 @@ class RuntimeDependencySyncTests(unittest.TestCase):
 
             self.assertFalse(fingerprint.exists())
 
-    def test_hosted_clone_provisions_jdk_without_rerunning_pip(self):
+    def test_legacy_project_toolchains_are_removed_without_running_pip(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.make_root(pathlib.Path(tmp))
             state = root / ".skyforge-orchestrator"
@@ -92,35 +89,22 @@ class RuntimeDependencySyncTests(unittest.TestCase):
             (state / "requirements.sha256").write_text(
                 deps.requirements_fingerprint(req) + "\n"
             )
+            legacy = state / "toolchains" / "temurin-25"
+            legacy.mkdir(parents=True)
+            (legacy / "java").write_text("legacy")
 
-            with (
-                mock.patch.dict(os.environ, {"SKYFORGE_ORCHESTRATOR_DEDICATED_CLONE": "1"}),
-                mock.patch.object(deps.subprocess, "run") as run,
-                mock.patch.object(deps, "ensure_hosted_jdk", return_value=True) as ensure,
-            ):
+            with mock.patch.object(deps.subprocess, "run") as run:
                 changed = deps.sync_runtime_dependencies(root)
 
             self.assertTrue(changed)
             run.assert_not_called()
-            ensure.assert_called_once_with(root)
+            self.assertFalse((state / "toolchains").exists())
 
-    def test_worker_worktree_uses_shared_controller_toolchain(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            base = pathlib.Path(tmp)
-            root = self.make_root(base)
-            common_git = root / ".git"
-            worker_git = common_git / "worktrees" / "worker"
-            worker_git.mkdir(parents=True)
-            (worker_git / "commondir").write_text("../..\n")
-
-            worktree = base / "worker"
-            worktree.mkdir()
-            (worktree / ".git").write_text(f"gitdir: {worker_git}\n")
-
-            self.assertEqual(
-                hosted_jdk.java_home(worktree),
-                root / ".skyforge-orchestrator" / "toolchains" / hosted_jdk.TOOLCHAIN_ID,
-            )
+    def test_no_hosted_jdk_bootstrap_dependency_remains(self):
+        text = MODULE_PATH.read_text()
+        self.assertNotIn("hosted_jdk", text)
+        self.assertNotIn("ensure_hosted_jdk", text)
+        self.assertNotIn("with_hosted_jdk", text)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ on:
       - "docs/agent-state/ORCHESTRATION_PROTOCOL.md"
       - "docs/agent-state/PROGRAM_ROADMAP.md"
       - "docs/agent-state/ORCHESTRATOR_ROADMAP.json"
+      - "docs/agent-state/EXECUTION_BOUNDARIES.md"
       - ".github/workflows/orchestrator-smoke.yml"
       - ".github/workflows/ci.yml"
   push:
@@ -20,6 +21,7 @@ on:
       - "docs/agent-state/ORCHESTRATION_PROTOCOL.md"
       - "docs/agent-state/PROGRAM_ROADMAP.md"
       - "docs/agent-state/ORCHESTRATOR_ROADMAP.json"
+      - "docs/agent-state/EXECUTION_BOUNDARIES.md"
       - ".github/workflows/orchestrator-smoke.yml"
 
 permissions:
@@ -52,6 +54,7 @@ jobs:
           python -m py_compile scripts/orchestrator/skyforge_control_replay_runtime.py
           python -m py_compile scripts/orchestrator/roadmap_policy.py
           python -m py_compile scripts/orchestrator/skyforge_roadmap_runtime.py
+          python -m py_compile scripts/orchestrator/skyforge_control_plane_runtime.py
           python -m py_compile scripts/orchestrator/codex_quota.py
           python -m py_compile scripts/orchestrator/run_pilot.py
           python -m py_compile scripts/orchestrator/daily_value_report.py
@@ -86,6 +89,7 @@ jobs:
           python -m unittest scripts/orchestrator/test_skyforge_control_replay_runtime.py
           python -m unittest scripts/orchestrator/test_skyforge_roadmap_runtime.py
           python -m unittest scripts/orchestrator/test_skyforge_roadmap_binding.py
+          python -m unittest scripts/orchestrator/test_skyforge_control_plane_runtime.py
           python -m unittest scripts/orchestrator/test_daily_value_report.py
           python -m unittest scripts/orchestrator/test_verify_main_protection.py
           python -m unittest scripts/orchestrator/test_decommission_contract.py
