@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "0.1",
+  "target": "wild-blue-yonder-wave-c1",
+  "pinSource": "skyforge-neoforge-1211/wave-c1-mods.properties",
+  "minecraftVersion": "1.21.1",
+  "neoforgeVersion": "21.1.249",
+  "policy": {
+    "automaticStructureAuthority": "explicit-only",
+    "rule": "runtime presence does not grant procedural structure-placement authority",
+    "activeCatalogOwners": ["create"],
+    "aircraftOwnedMods": ["sable", "aeronautics", "createpropulsion"]
+  },
+  "mods": [
+    {
+      "id": "create",
+      "version": "6.0.10+mc1.21.1",
+      "coordinate": "maven.modrinth:LNytGWDc:UjX6dr61",
+      "disposition": "architectural-catalog",
+      "automaticStructureResources": true,
+      "capabilityCatalog": "minecraft_data/wby_c1_create_6_0_10_capabilities.json",
+      "notes": "Bounded passive construction vocabulary is audited separately; only catalog entries marked active enter the resolver."
+    },
+    {
+      "id": "rpl",
+      "version": "2.1.2",
+      "coordinate": "maven.modrinth:B3pb093D:hZ6B2Z0x",
+      "disposition": "deferred-no-structure-contract",
+      "automaticStructureResources": false,
+      "notes": "Wave C1 runtime presence alone does not establish a structure-placement contract."
+    },
+    {
+      "id": "createbigcannons",
+      "version": "5.11.7",
+      "coordinate": "maven.modrinth:GWp4jCJj:bOiDu0LS",
+      "disposition": "deferred-functional-content",
+      "automaticStructureResources": false,
+      "notes": "No generic procedural-building authority; any future use requires explicit semantic role, lifecycle, and target contract."
+    },
+    {
+      "id": "createaddition",
+      "version": "1.6.0",
+      "coordinate": "maven.modrinth:kU1G12Nn:qPr8V4G2",
+      "disposition": "deferred-functional-content",
+      "automaticStructureResources": false,
+      "notes": "Potential fixtures or utility components require dedicated structure semantics before placement."
+    },
+    {
+      "id": "createmetallurgy",
+      "version": "1.0.3-1.21.1",
+      "coordinate": "maven.modrinth:Soft45xC:4RhIMmaJ",
+      "disposition": "deferred-functional-content",
+      "automaticStructureResources": false,
+      "notes": "Passive-looking blocks may be audited later, but no Metallurgy resource currently has automatic structure authority."
+    },
+    {
+      "id": "sable",
+      "version": "2.0.5+mc1.21.1",
+      "coordinate": "maven.modrinth:T9PomCSv:U678xqle",
+      "disposition": "aircraft-owned-deferred",
+      "automaticStructureResources": false,
+      "notes": "Kept outside structure-compiler authority to preserve the aircraft compiler concurrency boundary."
+    },
+    {
+      "id": "aeronautics",
+      "version": "1.3.2+mc1.21.1",
+      "coordinate": "maven.modrinth:oWaK0Q19:44pLdPGg",
+      "disposition": "aircraft-owned-deferred",
+      "automaticStructureResources": false,
+      "notes": "Kept outside structure-compiler authority to preserve the aircraft compiler concurrency boundary."
+    },
+    {
+      "id": "createpropulsion",
+      "version": "1.1.5",
+      "coordinate": "maven.modrinth:ApkoHNO9:H13U56dc",
+      "disposition": "aircraft-owned-deferred",
+      "automaticStructureResources": false,
+      "notes": "Kept outside structure-compiler authority to preserve the aircraft compiler concurrency boundary."
+    },
+    {
+      "id": "jei",
+      "version": "19.50.0.414",
+      "coordinate": "maven.modrinth:u6dRKJwZ:zKog3N6a",
+      "disposition": "deferred-no-structure-contract",
+      "automaticStructureResources": false,
+      "notes": "No structure-placement authority is declared."
+    }
+  ]
+}
