@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/auth-0094-regional-base-metal-evidence.yml"
       - ".github/actions/setup-java-gradle/action.yml"
+      - ".github/actions/run-authorship-evidence/action.yml"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandRegionalBaseMetalOpportunity*.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandRegionalBaseMetalOpportunityProfilerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipRegionalBaseMetalOpportunityCorpusCli.java"
@@ -29,29 +30,20 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Java and Gradle
-        uses: ./.github/actions/setup-java-gradle
-
-      - name: Verify AUTH-0094 contract and generate evidence
-        run: |
-          ./gradlew :skyforge-world:test --tests '*SkyIslandRegionalBaseMetalOpportunityProfilerTest' \
-            :skyforge-reference:test --tests '*AuthorshipRegionalBaseMetalOpportunityCorpusTest' \
-            --no-configuration-cache
-
-      - name: Verify AUTH-0094 evidence entry points
-        run: |
-          test -f skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/index.html
-          test -f skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/atlas.png
-          test -f skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/manifest.csv
-          test -f skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/inventory.csv
-          test -f skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/ranking.csv
-          test "$(tail -n +2 skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/manifest.csv | grep -vc ',true$' || true)" -eq 0
-
-      - name: Publish AUTH-0094 evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Run Authorship evidence contract
+        uses: ./.github/actions/run-authorship-evidence
         with:
-          name: auth-0094-regional-base-metal-evidence-${{ github.sha }}
-          path: skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/**
-          if-no-files-found: error
-          retention-days: 7
-          compression-level: 9
+          gradle_command: |
+            ./gradlew :skyforge-world:test --tests '*SkyIslandRegionalBaseMetalOpportunityProfilerTest' \
+              :skyforge-reference:test --tests '*AuthorshipRegionalBaseMetalOpportunityCorpusTest' \
+              --no-configuration-cache
+          verify_command: |
+            test -f skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/index.html
+            test -f skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/atlas.png
+            test -f skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/manifest.csv
+            test -f skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/inventory.csv
+            test -f skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/ranking.csv
+            test "$(tail -n +2 skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/manifest.csv | grep -vc ',true$' || true)" -eq 0
+          artifact_name: auth-0094-regional-base-metal-evidence
+          artifact_path: |
+            skyforge-reference/build/evidence/authorship-regional-base-metal-opportunity-v1/**
