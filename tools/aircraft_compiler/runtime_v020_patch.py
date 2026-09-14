@@ -137,6 +137,18 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
                         + " parentWake=true"
                         + " childWake=true");
 
+        double servoLastTargetBefore = number(declaredFieldObject(bearing, "lastTargetAngleDegrees"));
+        double servoTargetBefore = normalizeDegrees(number(publicMethod(bearing, "getTargetAngleDegrees").invoke(bearing)));
+        double servoPartialBefore = number(publicMethod(physicsSystem, "getPartialPhysicsTick").invoke(physicsSystem));
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE SERVO_STATE"
+                        + " phase=before-first-physics"
+                        + " lastTargetDegrees=" + servoLastTargetBefore
+                        + " targetDegrees=" + servoTargetBefore
+                        + " partialPhysicsTick=" + servoPartialBefore
+                        + " constraintClass=" + constraintHandle.getClass().getName());
+
         int maximumPhysicalSettlePhysicsTicks = Math.max(physicalSettlePhysicsTicks, 1) * 2;
         int physicalDeflectTicks = 0;
         double physicalDeflected = relativeYawDegrees(parentSubLevel, childSubLevel);
@@ -146,6 +158,37 @@ def patch_cockpit_settle_diagnostics(source: str) -> str:
             runPhysics(physicsSystem, container, 1);
             physicalDeflectTicks++;
             physicalDeflected = relativeYawDegrees(parentSubLevel, childSubLevel);
+            if (physicalDeflectTicks == 1) {
+                double servoLastTargetAfter = number(declaredFieldObject(bearing, "lastTargetAngleDegrees"));
+                double servoTargetAfter = normalizeDegrees(number(publicMethod(bearing, "getTargetAngleDegrees").invoke(bearing)));
+                double servoPartialAfter = number(publicMethod(physicsSystem, "getPartialPhysicsTick").invoke(physicsSystem));
+                Object parentHandle = oneArgMethod(physicsSystem, "getPhysicsHandle", parentSubLevel)
+                        .invoke(physicsSystem, parentSubLevel);
+                Object childHandle = oneArgMethod(physicsSystem, "getPhysicsHandle", childSubLevel)
+                        .invoke(physicsSystem, childSubLevel);
+                Vector3d parentAngularVelocity = new Vector3d();
+                Vector3d childAngularVelocity = new Vector3d();
+                oneArgMethod(parentHandle, "getAngularVelocity", parentAngularVelocity)
+                        .invoke(parentHandle, parentAngularVelocity);
+                oneArgMethod(childHandle, "getAngularVelocity", childAngularVelocity)
+                        .invoke(childHandle, childAngularVelocity);
+                Vector3d linearJointImpulse = new Vector3d();
+                Vector3d angularJointImpulse = new Vector3d();
+                twoArgMethod(constraintHandle, "getJointImpulses", linearJointImpulse, angularJointImpulse)
+                        .invoke(constraintHandle, linearJointImpulse, angularJointImpulse);
+                LOGGER.log(
+                        System.Logger.Level.INFO,
+                        "AIRCRAFT_001_RUNTIME_COCKPIT_YAW_ROUTE SERVO_STATE"
+                                + " phase=after-first-physics"
+                                + " lastTargetDegrees=" + servoLastTargetAfter
+                                + " targetDegrees=" + servoTargetAfter
+                                + " partialPhysicsTick=" + servoPartialAfter
+                                + " physicalDegrees=" + physicalDeflected
+                                + " parentAngularVelocity=" + parentAngularVelocity
+                                + " childAngularVelocity=" + childAngularVelocity
+                                + " linearJointImpulse=" + linearJointImpulse
+                                + " angularJointImpulse=" + angularJointImpulse);
+            }
         }
         LOGGER.log(
                 System.Logger.Level.INFO,
