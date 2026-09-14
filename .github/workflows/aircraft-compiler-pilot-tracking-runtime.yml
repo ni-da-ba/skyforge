@@ -1,0 +1,146 @@
+name: Aircraft compiler pilot tracking runtime
+
+on:
+  pull_request:
+    paths:
+      - "tools/aircraft_compiler/**"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance.java"
+      - ".github/workflows/aircraft-compiler-pilot-tracking-runtime.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aircraft-compiler-pilot-tracking-runtime-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actual-client-pilot-tracking:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compile AIRCRAFT-001 contract chain through v0.21
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tools/aircraft_compiler/tests -v
+          out=build/aircraft-compiler-pilot-tracking-runtime
+          python tools/aircraft_compiler/compile.py tools/aircraft_compiler/specimens/guild_utility_monoplane_v0.1.json --blockspace-config tools/aircraft_compiler/specimens/guild_utility_monoplane_blockspace_v0.2.json --target-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_target_v0.4.json --propulsion-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_propulsion_v0.5.json --surface-state-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_surface_state_v0.6.json --tail-lowering-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_tail_lowering_v0.7.json --pilot-station-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_station_v0.8.json --probe-manifest-profile tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_probe_manifest_v0.9.json --out "$out"
+          python tools/aircraft_compiler/assembly_fixture_cli.py "$out/probe_placement_manifest.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_assembly_fixture_v0.10.json --out "$out"
+          python tools/aircraft_compiler/glue_encoding_cli.py "$out/assembly_fixture.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_glue_encoding_v0.11.json --out "$out"
+          python tools/aircraft_compiler/powertrain_lowering_cli.py "$out/probe_placement_manifest.json" "$out/glue_encoding.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_powertrain_v0.12.json --out "$out"
+          python tools/aircraft_compiler/control_surface_lowering_cli.py "$out/probe_placement_manifest.json" "$out/glue_encoding.json" "$out/powertrain_v0.12.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_control_v0.13.json --out "$out"
+          python tools/aircraft_compiler/control_surface_correction_cli.py "$out/probe_placement_manifest.json" "$out/glue_encoding.json" "$out/powertrain_v0.12.json" "$out/yaw_control_v0.13.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_control_v0.13.1.json --out "$out"
+          python tools/aircraft_compiler/yaw_actuation_cli.py "$out/probe_placement_manifest.json" "$out/powertrain_v0.12.json" "$out/yaw_control_v0.13.1.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_actuation_v0.14.json --out "$out"
+          python tools/aircraft_compiler/yaw_authority_cli.py "$out/yaw_actuation_v0.14.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_authority_v0.15.json --out "$out"
+          python tools/aircraft_compiler/yaw_neutral_return_cli.py "$out/yaw_actuation_v0.14.json" "$out/yaw_authority_v0.15.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_yaw_neutral_return_v0.16.json --out "$out"
+          python tools/aircraft_compiler/steering_control_cli.py "$out/yaw_actuation_v0.14.json" "$out/yaw_neutral_return_v0.16.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_steering_control_v0.17.json --out "$out"
+          python tools/aircraft_compiler/cockpit_yaw_route_cli.py "$out/probe_placement_manifest.json" "$out/powertrain_v0.12.json" "$out/yaw_control_v0.13.1.json" "$out/steering_control_v0.17.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_cockpit_yaw_route_v0.18.json --out "$out"
+          python tools/aircraft_compiler/pilot_interaction_cli.py "$out/pilot_station_realization.json" "$out/cockpit_yaw_route_v0.18.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_interaction_v0.19.json --out "$out"
+          python tools/aircraft_compiler/pilot_client_binding_cli.py "$out/pilot_interaction_v0.19.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_client_binding_v0.20.json --out "$out"
+          python tools/aircraft_compiler/pilot_tracking_cli.py "$out/pilot_client_binding_v0.20.json" tools/aircraft_compiler/specimens/create_aeronautics_1.3.2_pilot_tracking_v0.21.json --out "$out"
+          grep -Fq '"schemaVersion": "aircraft-pilot-tracking-ir-0.21"' "$out/pilot_tracking_v0.21.json"
+          grep -Fq '"playerSableTrackingQualified": false' "$out/pilot_tracking_v0.21.json"
+          grep -Fq '"flightQualified": false' "$out/pilot_tracking_v0.21.json"
+
+      - name: Patch disposable runtime harness through v0.21
+        shell: bash
+        run: |
+          set -euo pipefail
+          src=skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerRuntimeAcceptance.java
+          client=skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftCompilerPilotClientAcceptance.java
+          python tools/aircraft_compiler/runtime_v012_patch.py "$src"
+          python tools/aircraft_compiler/runtime_v0131_patch.py "$src"
+          python tools/aircraft_compiler/runtime_v018_patch.py "$src"
+          python tools/aircraft_compiler/runtime_v019_patch.py "$src"
+          python tools/aircraft_compiler/runtime_v020_patch.py "$src"
+          python tools/aircraft_compiler/runtime_v021_patch.py "$src"
+          python tools/aircraft_compiler/client_v021_patch.py "$client"
+          grep -Fq 'SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance.configure' "$src"
+          grep -Fq 'awaitPilotTracking' "$client"
+
+      - name: Resolve exact retained flight stack before disposable Gradle patch
+        run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
+
+      - name: Patch disposable client runs
+        shell: bash
+        run: python tools/aircraft_compiler/gradle_v020_patch.py skyforge-neoforge-1211/build.gradle.kts
+
+      - name: Verify patched Gradle configuration
+        run: ./gradlew :skyforge-neoforge-1211:tasks --no-configuration-cache
+
+      - name: Prepare disposable blank quick-play world
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:runAircraftCompilerPilotWorldPrepareServer --no-configuration-cache
+          result=skyforge-neoforge-1211/build/acceptance/aircraft-001-v020/prepare.properties
+          test -f "$result"
+          grep -Fxq 'status=PASS' "$result"
+          client_dir=skyforge-neoforge-1211/run-aircraft-compiler-pilot-client
+          printf '%s\n' 'onboardAccessibility:false' 'pauseOnLostFocus:false' > "$client_dir/options.txt"
+
+      - name: Execute genuine v0.21 actual-client tracking proof
+        shell: bash
+        env:
+          JAVA_TOOL_OPTIONS: >-
+            -Dskyforge.dev.aircraftCompilerRuntime=true
+            -Dskyforge.dev.aircraftCompilerPilotTracking=true
+            -Dskyforge.dev.aircraftCompilerManifest=${{ github.workspace }}/build/aircraft-compiler-pilot-tracking-runtime/probe_placement_manifest.json
+            -Dskyforge.dev.aircraftCompilerAssemblyFixture=${{ github.workspace }}/build/aircraft-compiler-pilot-tracking-runtime/assembly_fixture.json
+            -Dskyforge.dev.aircraftCompilerGlueEncoding=${{ github.workspace }}/build/aircraft-compiler-pilot-tracking-runtime/glue_encoding.json
+            -Dskyforge.dev.aircraftCompilerPowertrain=${{ github.workspace }}/build/aircraft-compiler-pilot-tracking-runtime/powertrain_v0.12.json
+            -Dskyforge.dev.aircraftCompilerYawControlCorrection=${{ github.workspace }}/build/aircraft-compiler-pilot-tracking-runtime/yaw_control_v0.13.1.json
+            -Dskyforge.dev.aircraftCompilerSteeringControl=${{ github.workspace }}/build/aircraft-compiler-pilot-tracking-runtime/steering_control_v0.17.json
+            -Dskyforge.dev.aircraftCompilerCockpitYawRoute=${{ github.workspace }}/build/aircraft-compiler-pilot-tracking-runtime/cockpit_yaw_route_v0.18.json
+            -Dskyforge.dev.aircraftCompilerPilotInteraction=${{ github.workspace }}/build/aircraft-compiler-pilot-tracking-runtime/pilot_interaction_v0.19.json
+            -Dskyforge.dev.aircraftCompilerPilotClientBinding=${{ github.workspace }}/build/aircraft-compiler-pilot-tracking-runtime/pilot_client_binding_v0.20.json
+            -Dskyforge.dev.aircraftCompilerPilotTrackingArtifact=${{ github.workspace }}/build/aircraft-compiler-pilot-tracking-runtime/pilot_tracking_v0.21.json
+        run: |
+          set -euo pipefail
+          log=aircraft-compiler-pilot-tracking-runtime.log
+          result=skyforge-neoforge-1211/build/acceptance/aircraft-001-v020/client.properties
+          set +e
+          timeout --signal=TERM --kill-after=10s 300s xvfb-run -a ./gradlew :skyforge-neoforge-1211:runAircraftCompilerPilotClient --no-configuration-cache >"$log" 2>&1
+          gradle_status=$?
+          set -e
+          echo '=== AIRCRAFT-001 v0.21 focused diagnostics ==='
+          grep -nEi 'AIRCRAFT_001|Exception|ERROR|FAIL|tracking|pilot|seat' "$log" || true
+          if [[ -f "$result" ]]; then cat "$result"; fi
+          tail -n 600 "$log" || true
+          if [[ "$gradle_status" -ne 0 ]]; then exit "$gradle_status"; fi
+          test -f "$result"
+          grep -Fxq 'status=PASS' "$result"
+          grep -Fxq 'actualClient=true' "$result"
+          grep -Fxq 'pilotSeatMounted=true' "$result"
+          grep -Fxq 'pilotSeatDismounted=true' "$result"
+          grep -Fxq 'playerSableTrackingQualified=true' "$result"
+          grep -Fxq 'inheritedParentTranslationQualified=true' "$result"
+          grep -Fxq 'completedControlsPersistenceQualified=false' "$result"
+          grep -Fxq 'flightQualified=false' "$result"
+          grep -Fq 'AIRCRAFT_001_RUNTIME_PILOT_CLIENT_SERVER_OBSERVER PASS' "$log"
+          grep -Fq 'AIRCRAFT_001_RUNTIME_PILOT_TRACKING PASS' "$log"
+          grep -Fq 'harnessTrackingSetterInvoked=false' "$log"
+          grep -Fq 'harnessPlayerMutationDuringMeasurement=false' "$log"
+
+      - name: Upload v0.21 actual-client diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aircraft-compiler-pilot-tracking-runtime-diagnostics
+          if-no-files-found: warn
+          path: |
+            aircraft-compiler-pilot-tracking-runtime.log
+            skyforge-neoforge-1211/build/acceptance/aircraft-001-v020/client.properties
+            build/aircraft-compiler-pilot-tracking-runtime/pilot_tracking_v0.21.json
