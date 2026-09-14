@@ -21,26 +21,67 @@ CATALOG = ROOT / "minecraft_data" / "wby_c1_create_6_0_10_capabilities.json"
 
 
 class MinecraftWbyProfileTests(unittest.TestCase):
-    def test_wby_registry_is_vanilla_superset_with_bounded_create_catalog(self):
+    def test_wby_registry_contains_only_active_catalog_entries(self):
         registry = wby_c1_create_registry()
         doc = json.loads(CATALOG.read_text(encoding="utf-8"))
         self.assertEqual(doc["createVersion"], "6.0.10+mc1.21.1")
         self.assertEqual(doc["createCoordinate"], "maven.modrinth:LNytGWDc:UjX6dr61")
+        self.assertEqual(
+            doc["validation"]["createSourceCommit"],
+            "79b5d3b37e2d1970818dd97ca460b649cd0a456c",
+        )
 
         declared = {entry["name"]: entry for entry in doc["blocks"]}
+        active = {name for name, entry in declared.items() if entry["status"] == "active"}
+        cataloged = {name for name, entry in declared.items() if entry["status"] == "cataloged"}
+
+        self.assertEqual(active, {"create:andesite_casing", "create:brass_casing"})
         self.assertEqual(
-            set(declared),
-            {"create:andesite_casing", "create:brass_casing", "create:copper_casing"},
+            cataloged,
+            {
+                "create:copper_casing",
+                "create:industrial_iron_block",
+                "create:weathered_iron_block",
+                "create:framed_glass_pane",
+                "create:industrial_iron_window_pane",
+                "create:ornate_iron_window_pane",
+            },
         )
-        for name, entry in declared.items():
+
+        for name in active:
+            entry = declared[name]
             cap = registry[name]
             self.assertEqual(sorted(cap.families), sorted(entry["families"]))
             self.assertEqual(sorted(cap.capabilities), sorted(entry["capabilities"]))
             self.assertEqual(cap.property_map(), entry["properties"])
             self.assertEqual(cap.default_map(), entry["defaults"])
 
+        for name in cataloged:
+            self.assertNotIn(name, registry)
+
         self.assertIn("minecraft:stone_bricks", registry)
         self.assertIn("minecraft:glass_pane", registry)
+
+    def test_cataloged_stateful_glazing_contract_is_explicit_but_not_selectable(self):
+        doc = json.loads(CATALOG.read_text(encoding="utf-8"))
+        declared = {entry["name"]: entry for entry in doc["blocks"]}
+        pane = declared["create:framed_glass_pane"]
+        self.assertEqual(pane["status"], "cataloged")
+        self.assertEqual(
+            pane["properties"],
+            {
+                "east": ["false", "true"],
+                "north": ["false", "true"],
+                "south": ["false", "true"],
+                "waterlogged": ["false", "true"],
+                "west": ["false", "true"],
+            },
+        )
+        self.assertEqual(set(pane["defaults"].values()), {"false"})
+
+        cell = Cell("window", BlockState.of("example:ignored"), "fp_public_window")
+        intent = guild_v014_wby_intent(cell)
+        self.assertEqual(guild_v014_wby_adapter().resolve_intent(intent).name, "minecraft:glass_pane")
 
     def test_warm_guild_hardware_uses_brass_casing_only_in_wby_profile(self):
         cell = Cell("hardware", BlockState.of("example:ignored"), "service_marker")
@@ -57,7 +98,7 @@ class MinecraftWbyProfileTests(unittest.TestCase):
         realized = guild_v014_wby_adapter().resolve_intent(intent)
         self.assertEqual(intent.preferred_blocks[0], "create:andesite_casing")
         self.assertEqual(realized.name, "create:andesite_casing")
-        self.assertNotEqual(realized.name, "create:copper_casing")
+        self.assertNotIn("create:copper_casing", wby_c1_create_registry())
 
     def test_resource_name_does_not_enter_wby_semantic_intent(self):
         left = Cell("hardware", BlockState.of("minecraft:yellow_terracotta"), "service_marker")
