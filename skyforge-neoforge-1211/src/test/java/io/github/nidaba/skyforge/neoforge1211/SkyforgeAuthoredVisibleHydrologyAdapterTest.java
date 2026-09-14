@@ -15,7 +15,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Test
     void realizesAllRequiredAuthoredKindsWithoutNativeSpringClassificationOrForeignOwnership() throws Exception {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
-        var terrain = terrain(fixture.catalog());
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
         var first = SkyforgeAuthoredVisibleHydrologyAdapter.plan(fixture.descriptor(), fixture.volume(), terrain);
         var replay = SkyforgeAuthoredVisibleHydrologyAdapter.plan(fixture.descriptor(), fixture.volume(), terrain);
         assertEquals(first, replay);
@@ -40,7 +40,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Test
     void lifecycleRealizesOnlyAvailableChunksAndReplayRetainsAuthoredWater() throws Exception {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
-        var terrain = terrain(fixture.catalog());
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
         var deployments = SkyforgeAuthoredVisibleHydrologyAdapter.plan(fixture.descriptor(), fixture.volume(), terrain);
         for (var deployment : deployments) {
             var chunks = new java.util.HashMap<Long, ProtoChunk>();
@@ -77,7 +77,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Test
     void staticAuthoredWaterCanBePersistedWithoutAChunkLifecycleBinding() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
-        var terrain = terrain(fixture.catalog());
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
         var deployment = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
                 fixture.descriptor(), fixture.volume(), terrain).getFirst();
         var chunks = new java.util.HashMap<Long, ProtoChunk>();
@@ -97,7 +97,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Test
     void stackedVolumesKeepAuthoredWaterExactOwnerLocal() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.stacked();
-        var terrain = terrain(fixture.catalog());
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
         var lower = SkyforgeAuthoredVisibleHydrologyAdapter.plan(fixture.descriptor(), fixture.lower(), terrain);
         var upper = SkyforgeAuthoredVisibleHydrologyAdapter.plan(fixture.descriptor(), fixture.upper(), terrain);
 
@@ -116,8 +116,20 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         }
     }
 
-    private static SkyforgeNeoForge1211ChunkAdapter terrain(io.github.nidaba.skyforge.world.SkyIslandWorldCatalog catalog) {
-        return new SkyforgeNeoForge1211ChunkAdapter(catalog, io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(), new SkyforgeMinecraftBlockPalette());
+    private static SkyforgeNeoForge1211ChunkAdapter terrain(
+            io.github.nidaba.skyforge.world.SkyIslandWorldCatalog catalog,
+            io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor descriptor) {
+        var authoredDescriptors = new java.util.LinkedHashMap<
+                io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId,
+                io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor>();
+        for (var volume : catalog.volumes()) {
+            authoredDescriptors.put(volume.id(), descriptor);
+        }
+        return new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette(),
+                authoredDescriptors);
     }
 
     private static ProtoChunk realizedChunk(SkyforgeNeoForge1211ChunkAdapter terrain, net.minecraft.world.level.ChunkPos pos) throws Exception {

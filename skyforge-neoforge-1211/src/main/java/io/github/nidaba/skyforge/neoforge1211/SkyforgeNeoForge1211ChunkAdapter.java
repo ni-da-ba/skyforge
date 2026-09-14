@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceFoundationEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceSupportEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainBoxObserver;
@@ -43,14 +44,25 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     private final SkyforgeMinecraftBlockPalette palette;
     private final Map<SkyIslandWorldVolumeId, SkyIslandTerrainInterpreter> interpretersByVolumeId;
     private final Map<SkyIslandWorldVolumeId, WorldBounds> boundsByVolumeId;
+    private final Map<SkyIslandWorldVolumeId, SkyIslandDescriptor> authoredDescriptorsByVolumeId;
 
     public SkyforgeNeoForge1211ChunkAdapter(
             SkyIslandWorldCatalog catalog,
             SkyIslandTerrainProfile terrainProfile,
             SkyforgeMinecraftBlockPalette palette) {
+        this(catalog, terrainProfile, palette, Map.of());
+    }
+
+    public SkyforgeNeoForge1211ChunkAdapter(
+            SkyIslandWorldCatalog catalog,
+            SkyIslandTerrainProfile terrainProfile,
+            SkyforgeMinecraftBlockPalette palette,
+            Map<SkyIslandWorldVolumeId, SkyIslandDescriptor> authoredDescriptorsByVolumeId) {
         this.catalog = Objects.requireNonNull(catalog, "catalog");
         this.terrainProfile = Objects.requireNonNull(terrainProfile, "terrainProfile");
         this.palette = Objects.requireNonNull(palette, "palette");
+        this.authoredDescriptorsByVolumeId = Map.copyOf(
+                Objects.requireNonNull(authoredDescriptorsByVolumeId, "authoredDescriptorsByVolumeId"));
 
         var cachedInterpreters = new LinkedHashMap<SkyIslandWorldVolumeId, SkyIslandTerrainInterpreter>();
         var cachedBounds = new LinkedHashMap<SkyIslandWorldVolumeId, WorldBounds>();
@@ -66,6 +78,12 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         }
         this.interpretersByVolumeId = Map.copyOf(cachedInterpreters);
         this.boundsByVolumeId = Map.copyOf(cachedBounds);
+    }
+
+    /** Returns authored provenance when this runtime was explicitly bound to it. */
+    Optional<SkyIslandDescriptor> authoredDescriptor(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return Optional.ofNullable(authoredDescriptorsByVolumeId.get(volumeId));
     }
 
     /** Returns whether the supplied Minecraft chunk interval intersects any planned Skyforge volume. */
