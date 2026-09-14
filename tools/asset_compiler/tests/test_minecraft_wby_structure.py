@@ -22,12 +22,14 @@ class MinecraftWbyStructureTests(unittest.TestCase):
         spec = json.loads(SPEC.read_text(encoding="utf-8"))
         return compile_guild_branch_first_principles_detail(spec)
 
-    def test_wby_target_realization_uses_create_casings_after_resource_free_ir_boundary(self):
+    def test_wby_target_realization_uses_create_detail_after_resource_free_ir_boundary(self):
         realized, report = realize_wby_target(self._compile())
         names = Counter(cell.state.name for cell in realized.model.cells.values())
 
+        # The canonical v0.14 specimen contains warm/brass hardware but currently no generic
+        # hardware+masonry cells. Generic andesite-casing selection is covered independently by
+        # the profile-level semantic-intent test rather than inventing fixture geometry here.
         self.assertGreater(names["create:brass_casing"], 0)
-        self.assertGreater(names["create:andesite_casing"], 0)
         self.assertEqual(names["create:copper_casing"], 0)
         self.assertEqual(report["minecraftProfile"], "wby-c1-create")
         self.assertFalse(report["realizationIntentIr"]["containsConcreteResourceNames"])
