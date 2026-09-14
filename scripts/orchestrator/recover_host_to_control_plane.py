@@ -80,16 +80,16 @@ def load_state(path: Path) -> dict[str, Any]:
 
 
 def atomic_state_write(primary: Path, backup: Path, state: dict[str, Any]) -> None:
+    """Replace both durable state mirrors without changing controller ownership/mode."""
     payload = json.dumps(state, indent=2, sort_keys=True) + "\n"
+    template = primary.stat() if primary.exists() else backup.stat()
     for path in (primary, backup):
+        prior = path.stat() if path.exists() else template
         tmp = path.with_name(path.name + ".migration.tmp")
         tmp.write_text(payload)
-        os.chmod(tmp, 0o600)
+        os.chown(tmp, prior.st_uid, prior.st_gid)
+        os.chmod(tmp, prior.st_mode & 0o7777)
         os.replace(tmp, path)
-
-
-def git_changed(worktree: Path, user: str) -> bool:
-    return bool(run(["git", "status", "--porcelain"], cwd=worktree, user=user).stdout.strip())
 
 
 def preserve_pending_worker(
