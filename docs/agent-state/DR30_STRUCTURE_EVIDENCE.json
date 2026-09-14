@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "milestone": "DR-30",
+  "state": "BLOCKED_AUTHORITY",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "consumes": [
+    "DR00_SPECIMEN_LOCK.json",
+    "AUTH-0096",
+    "AUTH-0097",
+    "C24 / PR #373"
+  ],
+  "gate": {
+    "code": "CONTENT_ROLE_REQUIRED",
+    "reason": "C24 authorizes only coarse PETROLEUM_EXTRACTION_INTERFACE, REFINERY_PROCESSING, and FREIGHT_TRANSFER_EDGE candidate nomination. It explicitly selects no site, supplies no local ranking, and defers concrete infrastructure requirement envelopes to a subsequent Content boundary. The canonical specimen therefore has no accepted Content-selected generic structure role/site/envelope to realize.",
+    "fail_closed_behavior": "Do not select a C24 candidate, use candidate order as a site choice, infer footprint/flatness/grade/approach thresholds, or instantiate a generic structure as petroleum, settlement, freight, or route infrastructure. Existing native structure support, clearance, accommodation, persistence, mutation-preservation, and volume-isolation machinery remains reusable once Content supplies the missing concrete authority."
+  },
+  "next_authority_required": "An accepted Content contract that selects or deterministically replans a canonical-specimen structure candidate and supplies the concrete asset/role requirement envelope. That contract must remain distinct from final architecture, settlement layout, civilization meaning, route meaning, and aesthetic policy.",
+  "verification": "No project validation was run on the hosted editing worker. After a Content authority change, GitHub Actions must validate the existing native-structure admission/accommodation regressions plus the new DR-30 canonical realization, deterministic accommodation, reload, player-mutation preservation, exact-volume, and stacked-island isolation evidence."
+}
