@@ -70,7 +70,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(terrain, "terrain");
         int written = 0;
         for (SkyIslandWorldVolume volume : terrain.candidateVolumes(chunk)) {
-            for (Deployment deployment : plan(volume.requireAuthoredDescriptor(), volume, terrain)) {
+            for (Deployment deployment : plan(volume.compiledVolume().descriptor(), volume, terrain)) {
                 written += apply(chunk, deployment);
             }
         }
