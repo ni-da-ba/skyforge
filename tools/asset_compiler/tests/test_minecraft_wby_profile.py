@@ -85,13 +85,16 @@ class MinecraftWbyProfileTests(unittest.TestCase):
         intent = guild_v014_wby_intent(cell)
         self.assertEqual(guild_v014_wby_adapter().resolve_intent(intent).name, "minecraft:glass_pane")
 
+    def _write_bad_catalog(self, document: dict, tmp: str) -> Path:
+        path = Path(tmp) / "bad.json"
+        path.write_text(json.dumps(document), encoding="utf-8")
+        return path
+
     def test_catalog_status_is_mandatory_and_fail_closed(self):
         doc = json.loads(CATALOG.read_text(encoding="utf-8"))
         doc["blocks"][0]["status"] = "research-only"
         with tempfile.TemporaryDirectory() as tmp:
-            bad_catalog = Path(tmp) / "bad.json"
-            bad_catalog.write_text(json.dumps(doc), encoding="utf-8")
-            with patch("minecraft_wby_profile._CATALOG", bad_catalog):
+            with patch("minecraft_wby_profile._CATALOG", self._write_bad_catalog(doc, tmp)):
                 with self.assertRaisesRegex(SpecError, "unsupported status"):
                     wby_c1_create_registry()
 
@@ -99,10 +102,17 @@ class MinecraftWbyProfileTests(unittest.TestCase):
         doc = json.loads(CATALOG.read_text(encoding="utf-8"))
         doc["blocks"].append(dict(doc["blocks"][0]))
         with tempfile.TemporaryDirectory() as tmp:
-            bad_catalog = Path(tmp) / "bad.json"
-            bad_catalog.write_text(json.dumps(doc), encoding="utf-8")
-            with patch("minecraft_wby_profile._CATALOG", bad_catalog):
+            with patch("minecraft_wby_profile._CATALOG", self._write_bad_catalog(doc, tmp)):
                 with self.assertRaisesRegex(SpecError, "duplicate WBY capability"):
+                    wby_c1_create_registry()
+
+    def test_catalog_defaults_must_belong_to_declared_property_domains(self):
+        doc = json.loads(CATALOG.read_text(encoding="utf-8"))
+        pane = next(entry for entry in doc["blocks"] if entry["name"] == "create:framed_glass_pane")
+        pane["defaults"]["east"] = "invalid"
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("minecraft_wby_profile._CATALOG", self._write_bad_catalog(doc, tmp)):
+                with self.assertRaisesRegex(SpecError, "defaults outside property domains"):
                     wby_c1_create_registry()
 
     def test_warm_guild_hardware_uses_brass_casing_only_in_wby_profile(self):
