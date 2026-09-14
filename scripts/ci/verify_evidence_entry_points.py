@@ -2,14 +2,16 @@
 """Manage the canonical CI evidence entry-point contract.
 
 This tool is intentionally dependency-free. During migration it can extract the
-existing inline `test -f` contract from `.github/workflows/ci.yml`, emit a
-compact ordered manifest, compare that manifest with the inline source, and
-verify required files against a repository root.
+legacy inline `test -f` contract from `.github/workflows/ci.yml`, emit a compact
+ordered manifest, and compare that manifest with the inline source. At runtime,
+the persisted manifest is authoritative and can be validated or used to verify
+required evidence files without reading workflow YAML.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shlex
@@ -91,6 +93,13 @@ def _validate_filename(filename: object, source: str) -> str:
     if any(char in filename for char in "*?[\n\r"):
         raise ContractError(f"{source} contains glob/control filename: {filename!r}")
     return filename
+
+
+def contract_digest(paths: Iterable[str]) -> str:
+    """Return the stable SHA-256 used to identify an ordered path contract."""
+    ordered = list(paths)
+    _validate_required_paths(ordered, "contract digest input")
+    return hashlib.sha256(("\n".join(ordered) + "\n").encode("utf-8")).hexdigest()
 
 
 def make_manifest(paths: Iterable[str]) -> dict[str, object]:
@@ -235,29 +244,53 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workflow", type=Path, default=DEFAULT_WORKFLOW)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
-    parser.add_argument("--emit-manifest", action="store_true", help="emit compact JSON derived from the current inline CI contract")
-    parser.add_argument("--check-equivalence", action="store_true", help="require manifest and inline CI contracts to match exactly")
-    parser.add_argument("--verify-files", action="store_true", help="verify every required manifest path exists")
+    parser.add_argument("--emit-manifest", action="store_true", help="emit compact JSON derived from the legacy inline CI contract")
+    parser.add_argument("--check-equivalence", action="store_true", help="migration check: require manifest and legacy inline CI contracts to match exactly")
+    parser.add_argument("--validate-manifest", action="store_true", help="validate the persisted manifest and print its ordered contract identity")
+    parser.add_argument("--verify-files", action="store_true", help="verify every required manifest path exists without reading workflow YAML")
     parser.add_argument("--root", type=Path, default=Path("."), help="repository root used by --verify-files")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    workflow_paths = extract_required_paths(args.workflow.read_text(encoding="utf-8"))
+    requested = args.emit_manifest or args.check_equivalence or args.validate_manifest or args.verify_files
+
+    workflow_paths: list[str] | None = None
+    if args.emit_manifest or args.check_equivalence or not requested:
+        try:
+            workflow_text = args.workflow.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise ContractError(f"unable to load workflow {args.workflow}: {exc}") from exc
+        workflow_paths = extract_required_paths(workflow_text)
 
     if args.emit_manifest:
+        assert workflow_paths is not None
         print(json.dumps(make_manifest(workflow_paths), indent=2) + "\n", end="")
 
-    if args.check_equivalence or args.verify_files:
+    manifest_paths: list[str] | None = None
+    if args.check_equivalence or args.validate_manifest or args.verify_files:
         manifest = load_manifest(args.manifest)
         manifest_paths = list(manifest["required_paths"])
-        if args.check_equivalence:
-            verify_equivalence(workflow_paths, manifest_paths)
-        if args.verify_files:
-            verify_files(manifest_paths, args.root)
 
-    if not (args.emit_manifest or args.check_equivalence or args.verify_files):
+    if args.check_equivalence:
+        assert workflow_paths is not None and manifest_paths is not None
+        verify_equivalence(workflow_paths, manifest_paths)
+
+    if args.validate_manifest:
+        assert manifest_paths is not None
+        print(
+            f"manifest_paths={len(manifest_paths)} "
+            f"contract_sha256={contract_digest(manifest_paths)}"
+        )
+
+    if args.verify_files:
+        assert manifest_paths is not None
+        verify_files(manifest_paths, args.root)
+        print(f"verified_files={len(manifest_paths)}")
+
+    if not requested:
+        assert workflow_paths is not None
         print(f"{len(workflow_paths)} canonical evidence paths extracted from {args.workflow}")
     return 0
 
