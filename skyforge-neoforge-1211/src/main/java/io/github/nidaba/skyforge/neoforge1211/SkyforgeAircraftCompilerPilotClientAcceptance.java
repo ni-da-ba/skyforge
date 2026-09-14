@@ -25,6 +25,7 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
     private static long firstClientTickNanos = Long.MIN_VALUE;
     private static int stage;
     private static int stageTicks;
+    private static boolean clientSubLevelReady;
     private static boolean clientHoldAcquired;
     private static boolean clientSeatMounted;
     private static InteractionResult wheelUseResult;
@@ -56,6 +57,7 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
                     + ",gameMode=" + (minecraft.gameMode != null)
                     + ",bridge=" + (snapshot != null)
                     + ",playerPositioned=" + SkyforgeAircraftCompilerPilotClientRuntimeAcceptance.playerPositioned()
+                    + ",clientSubLevelReady=" + clientSubLevelReady
                     + ",screen=" + screen + "}");
             return;
         }
@@ -90,7 +92,28 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
             SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot)
             throws ReflectiveOperationException {
         BlockPos wheelPos = snapshot.steeringWheelPos();
+
+        // Sable creates/synchronizes ClientSubLevel state after the integrated player becomes a
+        // tracking player. Do not spend the bounded Simulated interaction retry budget until the
+        // real ClientLevel can resolve the compiled wheel's plot coordinate to that sublevel.
+        if (!clientSubLevelReady) {
+            if (!sableSubLevelReady(minecraft.level, wheelPos)) {
+                stageTicks = 0;
+                return;
+            }
+            clientSubLevelReady = true;
+            stageTicks = 0;
+            return;
+        }
+
         if (!minecraft.level.getBlockState(wheelPos).getBlock().getClass().getName().endsWith("SteeringWheelBlock")) {
+            stageTicks = 0;
+            return;
+        }
+        var wheelBlockEntity = minecraft.level.getBlockEntity(wheelPos);
+        if (wheelBlockEntity == null
+                || !wheelBlockEntity.getClass().getName().endsWith("SteeringWheelBlockEntity")) {
+            stageTicks = 0;
             return;
         }
         if (!player.getItemInHand(InteractionHand.MAIN_HAND).isEmpty()) {
@@ -106,7 +129,8 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
 
         if (!holdInteractionActive()) {
             if (stageTicks >= ACQUIRE_RETRY_LIMIT_TICKS) {
-                fail("real MultiPlayerGameMode.useItemOn never acquired Simulated SteeringWheelHandler");
+                fail("real MultiPlayerGameMode.useItemOn never acquired Simulated SteeringWheelHandler"
+                        + " afterClientSubLevelReady=true");
             }
             return;
         }
@@ -217,6 +241,23 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
         player.setYRot(yaw);
         player.setXRot(pitch);
         player.setYHeadRot(yaw);
+    }
+
+    private static boolean sableSubLevelReady(Level level, BlockPos plotPosition) {
+        try {
+            Class<?> sable = Class.forName("dev.ryanhcode.sable.Sable");
+            Object helper = sable.getField("HELPER").get(null);
+            Method method = helper.getClass().getMethod(
+                    "getContaining", Level.class, double.class, double.class);
+            return method.invoke(
+                            helper,
+                            level,
+                            plotPosition.getX() + 0.5,
+                            plotPosition.getZ() + 0.5)
+                    != null;
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("could not resolve AIRCRAFT-001 client Sable sublevel readiness", failure);
+        }
     }
 
     private static Vec3 projectOutOfSubLevel(Level level, Vec3 plotPosition) {
