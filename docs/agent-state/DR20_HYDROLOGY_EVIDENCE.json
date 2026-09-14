@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
   "milestone": "DR-20",
-  "state": "READY",
+  "state": "VERIFYING",
   "specimen_id": "P2_DRESSED_REGION_A",
   "consumes": ["DR00_SPECIMEN_LOCK.json", "AUTH-0086"],
-  "realization": "One deterministic exact-owner deployment each for authored channel, retained water, cascade/waterfall, and edge discharge. Static authored water is intentionally separate from native FLUID_SPRINGS provenance.",
+  "realization": "The locked canonical specimen deterministically realizes only the accepted authored visible-water intents actually present on that specimen. No missing water kind is synthesized. Bounded deterministic accepted-corpus fixtures cover the distinct channel, retained-water, cascade/waterfall, and edge-discharge implementation risks required by #492.",
+  "canonical_limit": "P2_DRESSED_REGION_A currently carries no accepted AUTH-0086 retained-waterbody intent. DR-20 therefore does not fabricate a lake or alter the DR-00 lock; retained-water realization is verified on a bounded accepted-corpus fixture permitted by the convergence roadmap.",
   "verification": "GitHub Actions: :skyforge-neoforge-1211:test --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest",
-  "fail_closed": "Missing required authored intent or a non-owner target aborts planning; the adapter creates no substitute watershed, spring, biome, or chunk request."
+  "fail_closed": "An absent accepted intent produces no deployment. An accepted intent that cannot map to exact owner voxels still aborts planning; the adapter creates no substitute watershed, spring, biome, waterbody, or chunk request."
 }
