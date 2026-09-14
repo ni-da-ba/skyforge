@@ -32,6 +32,15 @@ final class SkyforgePhysicalVolumeCatchupService {
      * guard, but no tick can start more than the hard work cap.
      */
     static final int MAX_TERRAIN_CATCHUP_CHUNKS_PER_LEVEL_TICK = 64;
+    /** Issue #524 safety ceiling: no scheduler quantum may assign more than 1024 solid writes. */
+    static final int MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM = 1024;
+    /**
+     * Evidence-tuned operating target. At 256 writes, two independent ordinary 4-CPU runs retained
+     * low packet percentiles (p99 near 3.2 ms) but failed the issue #524 <16 ms max gate with
+     * 17.07 ms and 24.99 ms outliers. Use 128 writes to halve deterministic mutation work per packet
+     * while retaining the issue #524 1024-write hard safety ceiling.
+     */
+    static final int TARGET_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM = 128;
     static final long TERRAIN_CATCHUP_TIME_BUDGET_NANOS = 8_000_000L;
     static final int MAX_COMPOSED_CAVE_QUANTA_PER_LEVEL_TICK = 128;
     static final long COMPOSED_CAVE_TIME_BUDGET_NANOS = 8_000_000L;
@@ -60,17 +69,24 @@ final class SkyforgePhysicalVolumeCatchupService {
                 continue;
             }
 
-            int completed;
+            SkyforgeNeoForge1211SurfaceStage.DeferredCatchupPacketResult packet;
             var mutationLifecycle = SkyforgeDeferredChunkMutationLifecycle.open(level, chunk);
             try {
-                completed = SkyforgeNeoForge1211SurfaceStage.serviceOneCatchup(chunk);
+                packet = SkyforgeNeoForge1211SurfaceStage.serviceOneCatchupPacket(
+                        level,
+                        chunk,
+                        TARGET_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM);
             } finally {
                 mutationLifecycle.close();
             }
-            if (completed <= 0) {
+            if (!packet.worked()) {
                 return false;
             }
-            if (SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
+            if (packet.assignedSolidWrites() > MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM) {
+                throw new IllegalStateException("deferred terrain packet exceeded scheduler write budget");
+            }
+            if (packet.completed()
+                    && SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
                 SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
             }
             return true;

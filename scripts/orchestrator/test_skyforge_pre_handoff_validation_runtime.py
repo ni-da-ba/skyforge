@@ -41,23 +41,6 @@ class _FakeOrchestrator:
 
 
 class PreHandoffValidationRuntimeTests(unittest.TestCase):
-    def test_java_compile_tasks_are_diff_sensitive_and_deduplicated(self) -> None:
-        self.assertEqual(
-            runtime._java_compile_tasks(
-                [
-                    "docs/agent-state/CONTENT_STATE.md",
-                    "skyforge-neoforge-1211/src/test/java/a/OneTest.java",
-                    "skyforge-neoforge-1211/src/test/java/a/TwoTest.java",
-                    "skyforge-world/src/main/java/a/World.java",
-                    "scripts/orchestrator/not-a-module/src/test/java/Nope.java",
-                ]
-            ),
-            [
-                ":skyforge-neoforge-1211:compileTestJava",
-                ":skyforge-world:compileJava",
-            ],
-        )
-
     def test_docs_only_preflight_stops_after_diff_check(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -74,11 +57,11 @@ class PreHandoffValidationRuntimeTests(unittest.TestCase):
             self.assertEqual(run.call_args.args[0], ["git", "diff", "--check", "HEAD"])
             self.assertIn("pre_handoff_validation_passes", fake.metrics)
 
-    def test_changed_java_runs_only_affected_compile_task(self) -> None:
+    def test_changed_java_still_runs_only_diff_check(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             fake = _FakeOrchestrator(root)
-            ok = subprocess.CompletedProcess(["command"], 0, "", "")
+            ok = subprocess.CompletedProcess(["git"], 0, "", "")
             with mock.patch.object(runtime.core, "_run", return_value=ok) as run:
                 runtime._run_pre_handoff_validation(
                     fake,
@@ -86,13 +69,11 @@ class PreHandoffValidationRuntimeTests(unittest.TestCase):
                     ["skyforge-neoforge-1211/src/test/java/example/BrokenTest.java"],
                 )
 
-            self.assertEqual(run.call_count, 2)
-            compile_command = run.call_args_list[1].args[0]
-            self.assertIn(":skyforge-neoforge-1211:compileTestJava", compile_command)
-            self.assertNotIn(":skyforge-neoforge-1211:test", compile_command)
+            self.assertEqual(run.call_count, 1)
+            self.assertEqual(run.call_args.args[0], ["git", "diff", "--check", "HEAD"])
             self.assertIn("pre_handoff_validation_passes", fake.metrics)
 
-    def test_compile_failure_keeps_worker_in_repairable_editing_state(self) -> None:
+    def test_preflight_failure_keeps_worker_in_repairable_editing_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             worktree = root / "worker"
@@ -102,18 +83,18 @@ class PreHandoffValidationRuntimeTests(unittest.TestCase):
                 mock.patch.object(
                     runtime,
                     "_run_pre_handoff_validation",
-                    side_effect=RuntimeError("compile failed"),
+                    side_effect=RuntimeError("diff check failed"),
                 ),
                 mock.patch.object(runtime, "_ORIGINAL_MARK_WORKER_HANDOFF") as mark,
             ):
-                with self.assertRaisesRegex(RuntimeError, "compile failed"):
+                with self.assertRaisesRegex(RuntimeError, "diff check failed"):
                     runtime._mark_worker_handoff(fake, "summary")
 
             pending = fake.state.data["pending_worker"]
             self.assertEqual(pending["stage"], "editing")
             self.assertEqual(
                 pending["last_pre_handoff_validation_error"]["summary"],
-                "compile failed",
+                "diff check failed",
             )
             self.assertIsNotNone(fake.state.data["last_pre_handoff_validation_error"])
             self.assertGreater(fake.state.saves, 0)

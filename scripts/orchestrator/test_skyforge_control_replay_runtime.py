@@ -75,6 +75,10 @@ class ControlReplayRuntimeTests(unittest.TestCase):
 
     def test_runtime_path_is_refresh_tracked(self):
         self.assertIn(runtime.RUNTIME_PATH, core.CONTROLLER_RUNTIME_PATHS)
+        self.assertIn(
+            "scripts/orchestrator/skyforge_control_replay_base.py",
+            core.CONTROLLER_RUNTIME_PATHS,
+        )
 
     def test_new_task_cannot_reuse_unrelated_lane_pr(self):
         with tempfile.TemporaryDirectory() as td:
@@ -155,6 +159,37 @@ class ControlReplayRuntimeTests(unittest.TestCase):
                 source_pr=481,
             )
         )
+
+    def test_unmanaged_ci_repair_starts_from_exact_source_pr_head(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            o = self.make_orchestrator(root)
+            source_head = "b" * 40
+            worker = root / "repair-worker"
+
+            with (
+                mock.patch.object(o, "_validated_managed_branch", return_value=None),
+                mock.patch.object(
+                    core,
+                    "_json_cmd",
+                    return_value={
+                        "headRefName": "codex/source-pr",
+                        "headRefOid": source_head,
+                        "state": "OPEN",
+                    },
+                ),
+                mock.patch.object(core, "_run", return_value=completed(["git"])),
+                mock.patch.object(o, "_ensure_worker_worktree", return_value=worker) as ensure_worktree,
+            ):
+                branch, managed_pr, worktree = runtime._prepare_worker_branch(
+                    o,
+                    "Implementation",
+                    569,
+                )
+
+            self.assertIsNone(managed_pr)
+            self.assertEqual(worktree, worker)
+            ensure_worktree.assert_called_once_with(branch, source_head)
 
     def test_machine_only_implementation_task_is_auto_merge_candidate(self):
         self.assertTrue(

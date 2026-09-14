@@ -1,5 +1,5 @@
 [Unit]
-Description=Skyforge event-driven Codex orchestrator
+Description=Skyforge event-driven orchestration and lightweight Codex editing
 After=network-online.target
 Wants=network-online.target
 
@@ -8,15 +8,29 @@ Type=simple
 User=@@USER@@
 WorkingDirectory=@@ROOT@@
 Environment=HOME=@@HOME@@
+# Fail closed for any stale Gradle wrapper instruction. Project Java/NeoForge validation belongs to
+# GitHub Actions; the hosted process is allowed to edit but not build/test project code.
+Environment=JAVA_HOME=/nonexistent/skyforge-project-java-is-github-actions-only
 EnvironmentFile=/etc/skyforge-orchestrator/env
 ExecStartPre=@@VENV_PYTHON@@ @@ROOT@@/scripts/orchestrator/sync_runtime_dependencies.py --root @@ROOT@@
-ExecStart=@@VENV_PYTHON@@ @@ROOT@@/scripts/orchestrator/skyforge_roadmap_runtime.py --root @@ROOT@@ --repo ni-da-ba/skyforge --bind 127.0.0.1 --port 3000 --require-webhook-secret --startup-reconcile
+ExecStart=@@VENV_PYTHON@@ @@ROOT@@/scripts/orchestrator/skyforge_control_plane_runtime.py --root @@ROOT@@ --repo ni-da-ba/skyforge --bind 127.0.0.1 --port 3000 --require-webhook-secret --startup-reconcile
 Restart=on-failure
 RestartSec=10
 TimeoutStopSec=30
 KillSignal=SIGINT
 NoNewPrivileges=true
 PrivateTmp=true
+
+# Keep the 2 GB Droplet responsive even if a model-side subprocess misbehaves. A worker that exceeds
+# these bounds is disposable; durable controller state allows recovery on restart.
+MemoryHigh=1200M
+MemoryMax=1600M
+CPUQuota=85%
+TasksMax=256
+
+# The pre-boundary hosted JDK is retired at ExecStartPre. These masks add an OS-level backstop against
+# reusing a stale ignored toolchain or a system JDK for project validation.
+InaccessiblePaths=-@@ROOT@@/.skyforge-orchestrator/toolchains -/usr/lib/jvm
 
 [Install]
 WantedBy=multi-user.target

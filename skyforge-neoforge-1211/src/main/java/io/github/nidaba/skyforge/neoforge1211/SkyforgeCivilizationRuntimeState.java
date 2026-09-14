@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.content.BellancaOnboardingStateMachine;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -16,7 +17,8 @@ import net.minecraft.nbt.Tag;
  * supplied here exactly once; it must not manufacture a second semantic shipment.
  */
 final class SkyforgeCivilizationRuntimeState {
-    static final int SCHEMA_VERSION = 1;
+    static final int SCHEMA_VERSION = 2;
+    private static final int LEGACY_SCHEMA_VERSION = 1;
     static final long MAX_RECONCILIATION_TICKS = 24_000L;
     private static final int MAX_SETTLEMENTS = 128;
     private static final int MAX_SHIPMENTS = 512;
@@ -42,6 +44,7 @@ final class SkyforgeCivilizationRuntimeState {
     private final TreeMap<String, Settlement> settlements = new TreeMap<>();
     private final TreeMap<String, Shipment> shipments = new TreeMap<>();
     private final TreeMap<String, Capability> capabilities = new TreeMap<>();
+    private BellancaOnboardingStateMachine.Snapshot bellancaOnboarding;
     private long settledPaymentTotal;
 
     /** Stable across process, chunk and entity lifecycle; the input is a semantic cluster key. */
@@ -164,6 +167,40 @@ final class SkyforgeCivilizationRuntimeState {
         return new CapabilitySnapshot(settlementId, capabilityId, state.anchorId, state.status);
     }
 
+    boolean hasBellancaOnboarding() {
+        return bellancaOnboarding != null;
+    }
+
+    BellancaOnboardingStateMachine.Snapshot bellancaOnboarding() {
+        if (bellancaOnboarding == null) throw new IllegalStateException("Bellanca onboarding has not been initialized");
+        return bellancaOnboarding;
+    }
+
+    void initializeBellancaOnboarding(BellancaOnboardingStateMachine.Snapshot crash) {
+        crash = validateBellancaSnapshot(crash);
+        if (crash.state() != BellancaOnboardingStateMachine.State.CRASHED_BELLANCA
+                || crash.recorderRecovered()
+                || crash.restitution() != null) {
+            throw new IllegalArgumentException("Bellanca onboarding must initialize from the authoritative crash state");
+        }
+        if (bellancaOnboarding == null) {
+            bellancaOnboarding = crash;
+        } else if (!bellancaOnboarding.equals(crash)) {
+            throw new IllegalStateException("Bellanca onboarding is already initialized");
+        }
+    }
+
+    void advanceBellancaOnboarding(
+            BellancaOnboardingStateMachine.Snapshot expected,
+            BellancaOnboardingStateMachine.Snapshot next) {
+        expected = validateBellancaSnapshot(expected);
+        next = validateBellancaSnapshot(next);
+        if (!bellancaOnboarding().equals(expected)) {
+            throw new IllegalStateException("Bellanca onboarding changed before authoritative transition commit");
+        }
+        bellancaOnboarding = next;
+    }
+
     long settledPaymentTotal() { return settledPaymentTotal; }
 
     CompoundTag save() {
@@ -173,18 +210,25 @@ final class SkyforgeCivilizationRuntimeState {
         tag.put("settlements", saveSettlements());
         tag.put("shipments", saveShipments());
         tag.put("capabilities", saveCapabilities());
+        if (bellancaOnboarding != null) tag.put("bellanca_onboarding", saveBellancaOnboarding(bellancaOnboarding));
         return tag;
     }
 
     static SkyforgeCivilizationRuntimeState load(CompoundTag tag) {
         Objects.requireNonNull(tag, "tag");
-        if (tag.getInt("schema_version") != SCHEMA_VERSION) throw new IllegalStateException("unsupported civilization state schema");
+        int schemaVersion = tag.getInt("schema_version");
+        if (schemaVersion != LEGACY_SCHEMA_VERSION && schemaVersion != SCHEMA_VERSION) {
+            throw new IllegalStateException("unsupported civilization state schema");
+        }
         SkyforgeCivilizationRuntimeState state = new SkyforgeCivilizationRuntimeState();
         state.settledPaymentTotal = tag.getLong("settled_payment_total");
         if (state.settledPaymentTotal < 0) throw new IllegalStateException("invalid settled payment total");
         loadSettlements(state, tag.getList("settlements", Tag.TAG_COMPOUND));
         loadShipments(state, tag.getList("shipments", Tag.TAG_COMPOUND));
         loadCapabilities(state, tag.getList("capabilities", Tag.TAG_COMPOUND));
+        if (schemaVersion >= 2 && tag.contains("bellanca_onboarding", Tag.TAG_COMPOUND)) {
+            state.bellancaOnboarding = loadBellancaOnboarding(tag.getCompound("bellanca_onboarding"));
+        }
         return state;
     }
 
@@ -202,6 +246,38 @@ final class SkyforgeCivilizationRuntimeState {
         ListTag entries = new ListTag();
         capabilities.forEach((key, state) -> { CompoundTag entry = new CompoundTag(); entry.putString("key", key); entry.putString("anchor", state.anchorId); entry.putString("status", state.status.name()); entries.add(entry); });
         return entries;
+    }
+    private static CompoundTag saveBellancaOnboarding(BellancaOnboardingStateMachine.Snapshot snapshot) {
+        CompoundTag entry = new CompoundTag();
+        entry.putString("wreck_identity", snapshot.wreckIdentity().name());
+        entry.putString("state", snapshot.state().name());
+        entry.putBoolean("recorder_recovered", snapshot.recorderRecovered());
+        entry.putString("restitution", snapshot.restitution() == null ? "" : snapshot.restitution().name());
+        return entry;
+    }
+    private static BellancaOnboardingStateMachine.Snapshot loadBellancaOnboarding(CompoundTag entry) {
+        String restitutionName = entry.getString("restitution");
+        BellancaOnboardingStateMachine.Restitution restitution = restitutionName.isBlank()
+                ? null
+                : enumValue(BellancaOnboardingStateMachine.Restitution.class, restitutionName);
+        return validateBellancaSnapshot(new BellancaOnboardingStateMachine.Snapshot(
+                enumValue(BellancaOnboardingStateMachine.WreckIdentity.class, entry.getString("wreck_identity")),
+                enumValue(BellancaOnboardingStateMachine.State.class, entry.getString("state")),
+                entry.getBoolean("recorder_recovered"),
+                restitution));
+    }
+    private static BellancaOnboardingStateMachine.Snapshot validateBellancaSnapshot(
+            BellancaOnboardingStateMachine.Snapshot snapshot) {
+        snapshot = Objects.requireNonNull(snapshot, "snapshot");
+        if (snapshot.wreckIdentity() != BellancaOnboardingStateMachine.WreckIdentity.BELLANCA_B0_A) {
+            throw new IllegalArgumentException("unsupported Bellanca wreck identity");
+        }
+        if ((snapshot.state() == BellancaOnboardingStateMachine.State.GUILD_LIABILITY_ESTABLISHED
+                        || snapshot.state() == BellancaOnboardingStateMachine.State.TUTORIAL_COMPLETE)
+                && !snapshot.recorderRecovered()) {
+            throw new IllegalArgumentException("Bellanca liability/restitution requires recovered recorder evidence");
+        }
+        return snapshot;
     }
     private static void loadSettlements(SkyforgeCivilizationRuntimeState state, ListTag entries) {
         cap(entries, MAX_SETTLEMENTS, "settlements");
