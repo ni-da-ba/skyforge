@@ -2,9 +2,9 @@
 """Manage the canonical CI evidence entry-point contract.
 
 This tool is intentionally dependency-free. During migration it can extract the
-existing inline `test -f` contract from `.github/workflows/ci.yml`, emit that
-contract as JSON, compare a persisted manifest with the inline source, and
-verify the required files against a repository root.
+existing inline `test -f` contract from `.github/workflows/ci.yml`, emit a
+compact ordered manifest, compare that manifest with the inline source, and
+verify required files against a repository root.
 """
 
 from __future__ import annotations
@@ -19,6 +19,8 @@ from typing import Iterable
 STEP_NAME = "Verify evidence review entry points"
 DEFAULT_WORKFLOW = Path(".github/workflows/ci.yml")
 DEFAULT_MANIFEST = Path("config/ci/evidence-entry-points.json")
+EVIDENCE_ROOT = "skyforge-reference/build/evidence/"
+DEFAULT_FILES = ["index.html", "atlas.png", "manifest.csv"]
 STEP_RE = re.compile(r"^(?P<indent>\s*)-\s+name:\s*(?P<name>.+?)\s*$")
 
 
@@ -57,16 +59,12 @@ def extract_required_paths(workflow_text: str, step_name: str = STEP_NAME) -> li
         _validate_path(path)
         paths.append(path)
 
-    if not paths:
-        raise ContractError(f"workflow step {step_name!r} contains no `test -f` assertions")
-    if len(paths) != len(set(paths)):
-        duplicates = sorted({path for path in paths if paths.count(path) > 1})
-        raise ContractError(f"duplicate evidence paths: {duplicates}")
+    _validate_required_paths(paths, f"workflow step {step_name!r}")
     return paths
 
 
 def _validate_path(path: str) -> None:
-    if not path.startswith("skyforge-reference/build/evidence/"):
+    if not path.startswith(EVIDENCE_ROOT):
         raise ContractError(f"evidence path escapes canonical evidence root: {path}")
     if any(char in path for char in "*?[\n\r"):
         raise ContractError(f"evidence path must be concrete, not a glob/control string: {path}")
@@ -75,12 +73,111 @@ def _validate_path(path: str) -> None:
         raise ContractError(f"unsafe evidence path: {path}")
 
 
+def _validate_required_paths(paths: list[str], source: str) -> None:
+    if not paths:
+        raise ContractError(f"{source} contains no evidence paths")
+    for path in paths:
+        _validate_path(path)
+    if len(paths) != len(set(paths)):
+        duplicates = sorted({path for path in paths if paths.count(path) > 1})
+        raise ContractError(f"{source} contains duplicate evidence paths: {duplicates}")
+
+
+def _validate_filename(filename: object, source: str) -> str:
+    if not isinstance(filename, str) or not filename:
+        raise ContractError(f"{source} contains a non-string or empty filename")
+    if "/" in filename or "\\" in filename or filename in {".", ".."}:
+        raise ContractError(f"{source} contains unsafe filename: {filename!r}")
+    if any(char in filename for char in "*?[\n\r"):
+        raise ContractError(f"{source} contains glob/control filename: {filename!r}")
+    return filename
+
+
 def make_manifest(paths: Iterable[str]) -> dict[str, object]:
+    """Compact an ordered path contract without changing its expansion order."""
+    ordered = list(paths)
+    _validate_required_paths(ordered, "manifest input")
+
+    directories: list[str] = []
+    files_by_directory: dict[str, list[str]] = {}
+    for path in ordered:
+        directory, filename = path.rsplit("/", 1)
+        short_directory = directory.removeprefix(EVIDENCE_ROOT)
+        if not short_directory or directory != EVIDENCE_ROOT.rstrip("/") + "/" + short_directory:
+            raise ContractError(f"unable to compact evidence directory safely: {directory}")
+        if short_directory not in files_by_directory:
+            directories.append(short_directory)
+            files_by_directory[short_directory] = []
+        files_by_directory[short_directory].append(filename)
+
+    groups: list[dict[str, object]] = []
+    for directory in directories:
+        files = files_by_directory[directory]
+        group: dict[str, object] = {"d": directory}
+        if files[: len(DEFAULT_FILES)] == DEFAULT_FILES:
+            extras = files[len(DEFAULT_FILES) :]
+            if extras:
+                group["x"] = extras
+        else:
+            group["f"] = files
+        groups.append(group)
+
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "source_step": STEP_NAME,
-        "required_paths": list(paths),
+        "root": EVIDENCE_ROOT,
+        "default_files": DEFAULT_FILES,
+        "groups": groups,
     }
+
+
+def _expand_schema_v2(payload: dict[str, object], path: Path) -> list[str]:
+    if payload.get("root") != EVIDENCE_ROOT:
+        raise ContractError(f"unexpected evidence root in {path}")
+    defaults = payload.get("default_files")
+    if not isinstance(defaults, list) or not defaults:
+        raise ContractError(f"default_files in {path} must be a non-empty list")
+    default_files = [_validate_filename(item, f"default_files in {path}") for item in defaults]
+
+    groups = payload.get("groups")
+    if not isinstance(groups, list) or not groups:
+        raise ContractError(f"groups in {path} must be a non-empty list")
+
+    required: list[str] = []
+    seen_directories: set[str] = set()
+    for index, raw_group in enumerate(groups):
+        source = f"group {index} in {path}"
+        if not isinstance(raw_group, dict):
+            raise ContractError(f"{source} must be an object")
+        directory = raw_group.get("d")
+        if not isinstance(directory, str) or not directory:
+            raise ContractError(f"{source} must contain non-empty string `d`")
+        if directory in seen_directories:
+            raise ContractError(f"duplicate evidence directory in {path}: {directory}")
+        seen_directories.add(directory)
+        if directory.startswith("/") or ".." in Path(directory).parts or any(char in directory for char in "*?[\n\r"):
+            raise ContractError(f"unsafe evidence directory in {source}: {directory}")
+
+        explicit = raw_group.get("f")
+        extras = raw_group.get("x")
+        if explicit is not None and extras is not None:
+            raise ContractError(f"{source} cannot contain both `f` and `x`")
+        if explicit is None:
+            files = list(default_files)
+            if extras is not None:
+                if not isinstance(extras, list):
+                    raise ContractError(f"`x` in {source} must be a list")
+                files.extend(_validate_filename(item, f"`x` in {source}") for item in extras)
+        else:
+            if not isinstance(explicit, list) or not explicit:
+                raise ContractError(f"`f` in {source} must be a non-empty list")
+            files = [_validate_filename(item, f"`f` in {source}") for item in explicit]
+
+        for filename in files:
+            required.append(f"{EVIDENCE_ROOT}{directory}/{filename}")
+
+    _validate_required_paths(required, f"manifest {path}")
+    return required
 
 
 def load_manifest(path: Path) -> dict[str, object]:
@@ -88,18 +185,26 @@ def load_manifest(path: Path) -> dict[str, object]:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ContractError(f"unable to load manifest {path}: {exc}") from exc
-    if payload.get("schema_version") != 1:
-        raise ContractError(f"unsupported manifest schema in {path}")
+    if not isinstance(payload, dict):
+        raise ContractError(f"manifest {path} must contain a JSON object")
     if payload.get("source_step") != STEP_NAME:
         raise ContractError(f"unexpected source_step in {path}")
-    required = payload.get("required_paths")
-    if not isinstance(required, list) or not required or not all(isinstance(item, str) for item in required):
-        raise ContractError(f"required_paths in {path} must be a non-empty string list")
-    for item in required:
-        _validate_path(item)
-    if len(required) != len(set(required)):
-        raise ContractError(f"manifest {path} contains duplicate paths")
-    return payload
+
+    version = payload.get("schema_version")
+    if version == 1:
+        required = payload.get("required_paths")
+        if not isinstance(required, list) or not all(isinstance(item, str) for item in required):
+            raise ContractError(f"required_paths in {path} must be a string list")
+        normalized = list(required)
+        _validate_required_paths(normalized, f"manifest {path}")
+    elif version == 2:
+        normalized = _expand_schema_v2(payload, path)
+    else:
+        raise ContractError(f"unsupported manifest schema in {path}: {version!r}")
+
+    result = dict(payload)
+    result["required_paths"] = normalized
+    return result
 
 
 def verify_equivalence(workflow_paths: list[str], manifest_paths: list[str]) -> None:
@@ -130,7 +235,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workflow", type=Path, default=DEFAULT_WORKFLOW)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
-    parser.add_argument("--emit-manifest", action="store_true", help="emit JSON derived from the current inline CI contract")
+    parser.add_argument("--emit-manifest", action="store_true", help="emit compact JSON derived from the current inline CI contract")
     parser.add_argument("--check-equivalence", action="store_true", help="require manifest and inline CI contracts to match exactly")
     parser.add_argument("--verify-files", action="store_true", help="verify every required manifest path exists")
     parser.add_argument("--root", type=Path, default=Path("."), help="repository root used by --verify-files")

@@ -30,15 +30,49 @@ class EvidenceContractTests(unittest.TestCase):
             with self.subTest(path=path), self.assertRaises(verifier.ContractError):
                 verifier._validate_path(path)
 
-    def test_manifest_loader_validates_schema_and_paths(self):
-        payload = verifier.make_manifest(
-            ["skyforge-reference/build/evidence/alpha/index.html"]
-        )
+    def test_compact_manifest_round_trips_exact_order(self):
+        paths = [
+            "skyforge-reference/build/evidence/alpha/index.html",
+            "skyforge-reference/build/evidence/alpha/atlas.png",
+            "skyforge-reference/build/evidence/alpha/manifest.csv",
+            "skyforge-reference/build/evidence/alpha/cells.csv",
+            "skyforge-reference/build/evidence/beta/index.html",
+        ]
+        payload = verifier.make_manifest(paths)
+        self.assertEqual(2, payload["schema_version"])
+        self.assertLess(len(json.dumps(payload)), len(json.dumps({"required_paths": paths})))
         with tempfile.TemporaryDirectory() as td:
             manifest = Path(td) / "manifest.json"
             manifest.write_text(json.dumps(payload), encoding="utf-8")
             loaded = verifier.load_manifest(manifest)
-        self.assertEqual(payload, loaded)
+        self.assertEqual(paths, loaded["required_paths"])
+
+    def test_schema_one_remains_readable_during_migration(self):
+        paths = ["skyforge-reference/build/evidence/alpha/index.html"]
+        payload = {
+            "schema_version": 1,
+            "source_step": verifier.STEP_NAME,
+            "required_paths": paths,
+        }
+        with tempfile.TemporaryDirectory() as td:
+            manifest = Path(td) / "manifest.json"
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            loaded = verifier.load_manifest(manifest)
+        self.assertEqual(paths, loaded["required_paths"])
+
+    def test_compact_manifest_rejects_duplicate_directories(self):
+        payload = {
+            "schema_version": 2,
+            "source_step": verifier.STEP_NAME,
+            "root": verifier.EVIDENCE_ROOT,
+            "default_files": verifier.DEFAULT_FILES,
+            "groups": [{"d": "alpha"}, {"d": "alpha"}],
+        }
+        with tempfile.TemporaryDirectory() as td:
+            manifest = Path(td) / "manifest.json"
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaises(verifier.ContractError):
+                verifier.load_manifest(manifest)
 
     def test_equivalence_is_order_sensitive(self):
         paths = [
