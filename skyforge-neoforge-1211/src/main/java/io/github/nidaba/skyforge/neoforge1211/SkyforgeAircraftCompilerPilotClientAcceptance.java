@@ -24,8 +24,10 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 final class SkyforgeAircraftCompilerPilotClientAcceptance {
     private static final long CLIENT_TIMEOUT_NANOS = 120_000_000_000L;
     private static final int ACQUIRE_RETRY_LIMIT_TICKS = 40;
-    // Simulated 1.3.2 floor Steering Wheel geometry spans Y=13.5..15.5 voxels. Aim at its
-    // geometric center instead of the block centroid, which can select the lower mount.
+    // Simulated 1.3.2 floor Steering Wheel geometry spans Y=13.5..15.5 voxels. Its Create
+    // angle-input value box is centered on the top face with a 0.25-block hit radius, so use a
+    // lateral point that remains on the physical wheel while staying outside that settings box.
+    private static final double STEERING_WHEEL_VISUAL_X = 2.5 / 16.0;
     private static final double STEERING_WHEEL_VISUAL_Y = 14.5 / 16.0;
 
     private static long firstClientTickNanos = Long.MIN_VALUE;
@@ -135,7 +137,7 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
         positionClientAtRenderedSeat(minecraft, player, snapshot);
 
         Vec3 wheelPlotHit = new Vec3(
-                wheelPos.getX() + 0.5,
+                wheelPos.getX() + STEERING_WHEEL_VISUAL_X,
                 wheelPos.getY() + STEERING_WHEEL_VISUAL_Y,
                 wheelPos.getZ() + 0.5);
         lookAt(player, projectOutOfSubLevel(minecraft.level, wheelPlotHit));
