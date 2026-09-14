@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "milestone": "DR-20",
+  "state": "READY",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "consumes": ["DR00_SPECIMEN_LOCK.json", "AUTH-0086"],
+  "realization": "One deterministic exact-owner deployment each for authored channel, retained water, cascade/waterfall, and edge discharge. Static authored water is intentionally separate from native FLUID_SPRINGS provenance.",
+  "verification": "python3 scripts/orchestrator/with_hosted_jdk.py -- ./gradlew :skyforge-neoforge-1211:test --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest",
+  "fail_closed": "Missing required authored intent or a non-owner target aborts planning; the adapter creates no substitute watershed, spring, biome, or chunk request."
+}

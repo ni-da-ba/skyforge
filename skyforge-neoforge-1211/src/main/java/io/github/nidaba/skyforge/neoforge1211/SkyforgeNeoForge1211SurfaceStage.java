@@ -81,6 +81,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                     : adapter.adapt(chunk, materialization);
         }
         MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
+        SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
         SkyforgeNeoForge1211IsolationDevRuntime.verifyAfterSkyforge(chunk, isolationProof);
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize", performanceStart);
         return Optional.of(result);
@@ -239,6 +240,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         }
         long completeStart = SkyforgeRuntimePerformanceMetrics.start();
         SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+        SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
         SkyforgeRuntimePerformanceMetrics.recordSince(
                 "terrain.deferred.completeCatchup",
                 completeStart);
