@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "contract_id": "CONTENT-BOOTSTRAP-ATMOSPHERE-001",
+  "issue": 495,
+  "lane": "CONTENT",
+  "status": "CONSUMABLE_BY_IMPLEMENTATION",
+  "authority": {
+    "provider": "Aerodynamics4MC",
+    "version": "0.2.1",
+    "modrinth_version_id": "6Z0Z1pfP",
+    "source_repository": "MozillaFiredoge/Aerodynamics4MC-Core",
+    "source_commit": "62a52a584e9c65246e50226b29a1f0449e43995e",
+    "public_entrypoint": "com.aerodynamics4mc.api.AeroWindApi#sampleGameplay",
+    "sample_policy": "com.aerodynamics4mc.api.SamplePolicy.AERONAUTICS_DEFAULT",
+    "runtime_owner": "A4MC_INSTALLED_RUNTIME_PROVIDER",
+    "skyforge_duplicate_atmosphere_state": false
+  },
+  "bootstrap_semantics": {
+    "wind": {
+      "classification": "SUPPLIED",
+      "field": "physicalAggregate",
+      "meaning": "Final A4MC gameplay physics wind vector at the query position."
+    },
+    "updraft": {
+      "classification": "SUPPLIED",
+      "field": "updraft",
+      "meaning": "Post-policy positive vertical component supplied by A4MC."
+    },
+    "downdraft": {
+      "classification": "SUPPLIED",
+      "field": "downdraft",
+      "meaning": "Post-policy negative vertical component supplied by A4MC."
+    },
+    "turbulence": {
+      "classification": "SUPPLIED",
+      "field": "turbulenceIntensity",
+      "upstream_range": [0.0, 1.0],
+      "meaning": "A4MC-bounded gameplay turbulence intensity; Skyforge adds no remapping."
+    },
+    "shear": {
+      "classification": "SUPPLIED",
+      "field": "shearMagnitude",
+      "meaning": "A4MC gameplay shear magnitude; this contract adds no new bound or scaling."
+    },
+    "altitude": {
+      "classification": "DERIVABLE",
+      "source": "sample query position Y",
+      "meaning": "Query A4MC at the consumer's actual world position; Skyforge defines no separate altitude atmosphere model."
+    },
+    "pressure": {
+      "classification": "SUPPLIED",
+      "field": "pressureProxy",
+      "upstream_range": [0.0, 1.0],
+      "meaning": "A4MC normalized pressure proxy; it is not physical pressure and Skyforge defines no altitude-to-pressure curve."
+    },
+    "trust_and_freshness": {
+      "classification": "SUPPLIED",
+      "fields": ["trustedSource", "sourceTrust", "sourceAgeTicks"],
+      "fallback": "GameplayWindSample.CALM",
+      "meaning": "Use A4MC gameplay-policy trust/freshness handling; do not add a competing Skyforge trust model."
+    },
+    "provenance": {
+      "classification": "SUPPLIED",
+      "fields": ["primarySource", "contributingSourceCount"]
+    }
+  },
+  "thermal_identity": {
+    "classification": "DERIVABLE",
+    "model": "SPATIALLY_SAMPLED_AUTHORITATIVE_FIELD",
+    "test_identity": "controlled A4MC authority state plus query position",
+    "persistent_skyforge_thermal_object_required": false,
+    "meaning": "Bootstrap guidance/tests identify shared lift through deterministic A4MC field sampling and provenance, not a new persistent thermal entity."
+  },
+  "ownership_and_reconstruction": {
+    "query_model": "READ_THROUGH_A4MC_AUTHORITY",
+    "deterministic_owner": "AERODYNAMICS4MC",
+    "skyforge_persistence": "NONE_FOR_ATMOSPHERIC_TRUTH",
+    "save_reload_rule": "Reconstruct by querying the A4MC authority after reload; never serialize a duplicate Skyforge atmosphere field.",
+    "server_rule": "Gameplay authority is sampled on the server; semantic truth must not depend on a rendering backend.",
+    "implementation_proof": "Issue #495 must still prove bounded update cost, dedicated-server safety, deterministic fixture behavior, and reload/reconstruction against the pinned runtime."
+  },
+  "consumers": {
+    "aircraft": "Retained A4MC/Create Aeronautics compatibility may consume the same installed A4MC provider directly.",
+    "player_glider": "Thin Skyforge compatibility code consumes trusted AeroWindApi.sampleGameplay output without creating weather state.",
+    "soaring_fauna": "Behavior planning consumes the same trusted AeroWindApi.sampleGameplay authority without creating weather state."
+  },
+  "shared_truth_rule": "Consumers may interpret atmospheric truth differently, but must not own or fork per-consumer wind, thermal, turbulence, shear, or pressure state.",
+  "not_authorized": [
+    "second wind or thermal simulation",
+    "persistent Skyforge thermal objects",
+    "custom altitude-to-pressure curve",
+    "custom turbulence or shear remapping",
+    "consumer-specific weather authority",
+    "rendering-backend-dependent semantic weather state",
+    "regional climatology or Phase-4 atmosphere expansion"
+  ],
+  "provenance": [
+    {
+      "id": "A4MC-API",
+      "role": "gameplay sampling entrypoint and trust/freshness policy",
+      "source": "api/src/main/java/com/aerodynamics4mc/api/AeroWindApi.java",
+      "source_commit": "62a52a584e9c65246e50226b29a1f0449e43995e"
+    },
+    {
+      "id": "A4MC-SAMPLE",
+      "role": "exact Bootstrap atmosphere fields",
+      "source": "api/src/main/java/com/aerodynamics4mc/api/GameplayWindSample.java",
+      "source_commit": "62a52a584e9c65246e50226b29a1f0449e43995e"
+    },
+    {
+      "id": "A4MC-DOCS",
+      "role": "deterministic public sampling and shared-provider semantics",
+      "source": "docs/wind-sampling-api.md; docs/wind-system-overview.md",
+      "source_commit": "62a52a584e9c65246e50226b29a1f0449e43995e"
+    },
+    {
+      "id": "SKYFORGE-C3-C6-C7",
+      "role": "accepted single-authority, soaring-fauna, and Reliable Gliders shared-lift boundaries",
+      "source": "docs/design-audit/wave-c3-atmosphere-authority-prototype-v0.1.md; wave-c6-hawk-thermal-compatibility-v0.1.md; wave-c7-reliable-gliders-shared-lift-v0.1.md"
+    }
+  ],
+  "human_product_decision_required": false
+}
