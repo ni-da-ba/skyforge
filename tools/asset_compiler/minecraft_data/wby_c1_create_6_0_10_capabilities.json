@@ -1,0 +1,48 @@
+{
+  "target": "minecraft-java-1.21.1+wby-c1-create",
+  "minecraftVersion": "1.21.1",
+  "neoforgeVersion": "21.1.249",
+  "createVersion": "6.0.10+mc1.21.1",
+  "createCoordinate": "maven.modrinth:LNytGWDc:UjX6dr61",
+  "scope": "automatic-structure-realization-safe-subset",
+  "blocks": [
+    {
+      "name": "create:andesite_casing",
+      "families": ["hardware", "masonry"],
+      "capabilities": ["full_cube", "solid_support"],
+      "properties": {},
+      "defaults": {},
+      "status": "active"
+    },
+    {
+      "name": "create:brass_casing",
+      "families": ["brass_surrogate", "warm_hardware"],
+      "capabilities": ["full_cube", "solid_support"],
+      "properties": {},
+      "defaults": {},
+      "status": "active"
+    },
+    {
+      "name": "create:copper_casing",
+      "families": ["copper_detail", "hardware"],
+      "capabilities": ["full_cube", "solid_support"],
+      "properties": {},
+      "defaults": {},
+      "status": "cataloged"
+    }
+  ],
+  "deferredCandidates": [
+    {
+      "name": "create:framed_glass_pane",
+      "reason": "neighbor-sensitive state must be verified against the exact pinned runtime before automatic substitution"
+    },
+    {
+      "name": "create:ornate_iron_window",
+      "reason": "requires an explicit semantic window/detail role rather than opportunistic palette replacement"
+    },
+    {
+      "name": "create machinery / addon block entities",
+      "reason": "functional blocks require explicit structure capability semantics, lifecycle ownership, and NBT policy"
+    }
+  ]
+}
