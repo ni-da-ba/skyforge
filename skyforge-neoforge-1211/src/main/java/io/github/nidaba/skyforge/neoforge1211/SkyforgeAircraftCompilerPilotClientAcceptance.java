@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
 import net.minecraft.client.Minecraft;
@@ -177,7 +178,8 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
             return;
         }
         if (stageTicks > snapshot.activePacketSettleTicks()) {
-            fail("server never observed the real client SteeringWheelPacket active command");
+            fail("server never observed the real client SteeringWheelPacket active command "
+                    + steeringHandlerDiagnostics(minecraft, snapshot));
         }
     }
 
@@ -345,6 +347,42 @@ final class SkyforgeAircraftCompilerPilotClientAcceptance {
                 + ",eye=" + player.getEyePosition(partialTick)
                 + ",view=" + player.getViewVector(partialTick)
                 + ",partialTick=" + partialTick
+                + "}";
+    }
+
+    private static String steeringHandlerDiagnostics(
+            Minecraft minecraft,
+            SkyforgeAircraftCompilerPilotClientBridge.Snapshot snapshot)
+            throws ReflectiveOperationException {
+        Class<?> handler = Class.forName(
+                "dev.simulated_team.simulated.content.blocks.steering_wheel.SteeringWheelHandler");
+        Field updatedField = handler.getDeclaredField("updated");
+        Field rawAngleField = handler.getDeclaredField("rawAngle");
+        Field effectiveAngleField = handler.getDeclaredField("effectiveAngle");
+        Field wasShiftKeyDownField = handler.getDeclaredField("wasShiftKeyDown");
+        updatedField.setAccessible(true);
+        rawAngleField.setAccessible(true);
+        effectiveAngleField.setAccessible(true);
+        wasShiftKeyDownField.setAccessible(true);
+
+        Object wheel = minecraft.level.getBlockEntity(snapshot.steeringWheelPos());
+        boolean clientWheelHeld = wheel != null
+                && wheel.getClass().getField("held").getBoolean(wheel);
+        float clientWheelTarget = wheel == null
+                ? Float.NaN
+                : wheel.getClass().getField("targetAngleToUpdate").getFloat(wheel);
+        String screen = minecraft.screen == null ? "<null>" : minecraft.screen.getClass().getName();
+
+        return "steeringHandler={active=" + holdInteractionActive()
+                + ",updated=" + updatedField.getBoolean(null)
+                + ",rawAngle=" + rawAngleField.getFloat(null)
+                + ",effectiveAngle=" + effectiveAngleField.getFloat(null)
+                + ",wasShiftKeyDown=" + wasShiftKeyDownField.getBoolean(null)
+                + ",clientWheelHeld=" + clientWheelHeld
+                + ",clientWheelTarget=" + clientWheelTarget
+                + ",stageTicks=" + stageTicks
+                + ",settleLimit=" + snapshot.activePacketSettleTicks()
+                + ",screen=" + screen
                 + "}";
     }
 
