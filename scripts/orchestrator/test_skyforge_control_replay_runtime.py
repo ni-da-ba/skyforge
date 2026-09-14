@@ -75,6 +75,10 @@ class ControlReplayRuntimeTests(unittest.TestCase):
 
     def test_runtime_path_is_refresh_tracked(self):
         self.assertIn(runtime.RUNTIME_PATH, core.CONTROLLER_RUNTIME_PATHS)
+        self.assertIn(
+            "scripts/orchestrator/skyforge_control_replay_base.py",
+            core.CONTROLLER_RUNTIME_PATHS,
+        )
 
     def test_new_task_cannot_reuse_unrelated_lane_pr(self):
         with tempfile.TemporaryDirectory() as td:

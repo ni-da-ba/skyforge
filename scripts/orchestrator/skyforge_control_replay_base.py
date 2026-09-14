@@ -26,7 +26,8 @@ import skyforge_quota_runtime as quota_runtime
 
 core = quota_runtime.core
 RUNTIME_PATH = "scripts/orchestrator/skyforge_control_replay_runtime.py"
-core.CONTROLLER_RUNTIME_PATHS.add(RUNTIME_PATH)
+BASE_RUNTIME_PATH = "scripts/orchestrator/skyforge_control_replay_base.py"
+core.CONTROLLER_RUNTIME_PATHS.update({RUNTIME_PATH, BASE_RUNTIME_PATH})
 
 _ORIGINAL_DISCARD_PENDING_WORKER = core.Orchestrator.discard_pending_worker
 _ORIGINAL_RESUME_OR_PREPARE_WORKER = core.Orchestrator._resume_or_prepare_worker
