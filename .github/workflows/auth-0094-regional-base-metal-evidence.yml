@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - ".github/workflows/auth-0094-regional-base-metal-evidence.yml"
-      - ".github/actions/setup-java-gradle/action.yml"
       - ".github/actions/run-authorship-evidence/action.yml"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandRegionalBaseMetalOpportunity*.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandRegionalBaseMetalOpportunityProfilerTest.java"

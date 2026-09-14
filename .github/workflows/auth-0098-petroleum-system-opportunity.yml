@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - ".github/workflows/auth-0098-petroleum-system-opportunity.yml"
-      - ".github/actions/setup-java-gradle/action.yml"
       - ".github/actions/run-authorship-evidence/action.yml"
       - "docs/authorship/AUTH-0098-petroleum-system-geological-opportunity.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandPetroleumSystemOpportunityCell.java"

@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - ".github/workflows/auth-0097-directional-surface-access.yml"
-      - ".github/actions/setup-java-gradle/action.yml"
       - ".github/actions/run-authorship-evidence/action.yml"
       - "docs/authorship/AUTH-0097-directional-surface-access-evidence.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWatershedPhysicalSurfaceGrid.java"
