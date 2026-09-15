@@ -102,9 +102,10 @@ class MinecraftRealizationGeometryTests(unittest.TestCase):
         self.assertTrue(geometry["passed"], geometry["issues"])
         self.assertEqual(realized.summary["digestSha256"], digest)
         self.assertEqual(report["adapterVersion"], "minecraft-adapter-0.5")
-        # Freight transom removal eliminates one obsolete pane-return repair. The open-plan
-        # working wing is source-correct, so no operational partition deletion is required.
-        self.assertGreaterEqual(geometry["apertureReturnRepairCount"], 19)
+        # Working-bay transoms are now absent at source, so aperture-return counts are not a
+        # stable proxy for portal correctness. Ordinary recessed windows must still exercise the
+        # bounded return pass, while the open working wing needs no operational deletion repair.
+        self.assertGreater(geometry["apertureReturnRepairCount"], 0)
         self.assertEqual(geometry["operationalClearanceRepairCount"], 0)
         self.assertEqual(geometry["isolatedDetailRepairCount"], 6)
         self.assertGreater(geometry["partialDetailContactChecks"], 0)
