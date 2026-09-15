@@ -414,6 +414,13 @@
       },
       "negative_evidence": [
         {
+          "workflow_run": 35027165065,
+          "job": 104577322957,
+          "commit": "8d49579000f2676a28a17d23384de83850b542d8",
+          "result": "ASYNC_GLUE_ENTITY_REHYDRATION_RACE",
+          "finding": "Reduced Boot A passed cleanly. Boot B recovered the same canonical Sable UUID/current physics state and normalized plot blocks, but recreated a main Super Glue domain on the first canonical tick before the persisted entity finished rehydrating; one tick later two exact matching main glue entities were visible. Recovery was corrected to allow a bounded entity-rehydration grace period, reuse exactly-one persisted domains, create only still-missing domains after the grace window, and fail on duplicate authority."
+        },
+        {
           "workflow_run": 35026037023,
           "job": 104573714401,
           "commit": "9e8b4f2d0fa66ff12d5a4c42944cb2bb60068bb2",
