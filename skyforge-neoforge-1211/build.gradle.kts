@@ -478,6 +478,66 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // DR-30 CI-only native-structure qualification. Placement and reload share one disposable
+        // world; stacked isolation uses a second world with vertically aligned exact volumes.
+        create("dr30NativeStructureAcceptancePlace") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr30-native-structure").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.dr30NativeStructureAcceptance", "true")
+            systemProperty("skyforge.dev.dr30NativeStructureMode", "single")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-30-native-structure-place")
+            systemProperty("skyforge.dev.acceptanceRadius", "8")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "300")
+            systemProperty("skyforge.dev.acceptanceResultFile", layout.buildDirectory.file("acceptance/dr-30-native-structure/place.properties").get().asFile.absolutePath)
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr30NativeStructureAcceptanceReload") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr30-native-structure").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.dr30NativeStructureAcceptance", "true")
+            systemProperty("skyforge.dev.dr30NativeStructureMode", "reload")
+            systemProperty("skyforge.dev.dr30NativeStructureExpectedResultFile", layout.buildDirectory.file("acceptance/dr-30-native-structure/place.properties").get().asFile.absolutePath)
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-30-native-structure-reload")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "120")
+            systemProperty("skyforge.dev.acceptanceResultFile", layout.buildDirectory.file("acceptance/dr-30-native-structure/reload.properties").get().asFile.absolutePath)
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr30NativeStructureAcceptanceStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr30-native-structure-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.dr30NativeStructureAcceptance", "true")
+            systemProperty("skyforge.dev.dr30NativeStructureMode", "stacked")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-30-native-structure-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "8")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "300")
+            systemProperty("skyforge.dev.acceptanceResultFile", layout.buildDirectory.file("acceptance/dr-30-native-structure/stacked.properties").get().asFile.absolutePath)
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // SF-IMP-0058 layers durable client-visible biome presentation onto the accepted 0056
         // admission specimen. The admitted upper island maps to taiga in Minecraft biome storage;
         // vertically unrelated native cells in the same X/Z column must remain unchanged.
@@ -6254,4 +6314,121 @@ tasks.register("productionMorphologyAtlasViewerVerify") {
     group = "verification"
     description = "Actual-client persistence verification for all four remaining morphology carriers."
     dependsOn(skyforgeProductionMorphologyAtlasViewerTasks)
+}
+
+// DR-30 production native-structure runtime qualification. This boots real NeoForge server
+// processes and persists/reopens a disposable world, so it stays outside ordinary unit CI.
+val dr30NativeStructureResultDirectory = layout.buildDirectory.dir("acceptance/dr-30-native-structure")
+val dr30NativeStructureServerProperties = """
+    level-name=acceptance
+    level-seed=493030
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=5
+    simulation-distance=5
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareDr30NativeStructureServerDirectory(relativePath: String, stacked: Boolean = false) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(dr30NativeStructureServerProperties)
+    if (stacked) {
+        val pack = directory.resolve("saves/acceptance/datapacks/dr30-stacked-probe")
+        pack.resolve("data/skyforge/worldgen/structure_set").mkdirs()
+        pack.resolve("data/minecraft/tags/worldgen/biome/has_structure").mkdirs()
+        pack.resolve("pack.mcmeta").writeText(
+            """{"pack":{"pack_format":48,"description":"Skyforge DR-30 stacked native-structure probe"}}"""
+        )
+        // With level-seed 493030, spacing 512 / separation 510 and salt 493082
+        // deterministically select random-spread offset (1,0) in placement region (0,0).
+        // The existing development mansion set retains the lower probe at (0,0).
+        pack.resolve("data/skyforge/worldgen/structure_set/dr30_upper_mansion.json").writeText(
+            """
+            {
+              "placement": {
+                "type": "minecraft:random_spread",
+                "salt": 493082,
+                "separation": 510,
+                "spacing": 512
+              },
+              "structures": [
+                {
+                  "structure": "minecraft:mansion",
+                  "weight": 1
+                }
+              ]
+            }
+            """.trimIndent() + "\n"
+        )
+    }
+}
+
+fun requireDr30NativeStructurePass(name: String): Properties {
+    val file = dr30NativeStructureResultDirectory.get().file("$name.properties").asFile
+    check(file.isFile) { "missing DR-30 native-structure acceptance result: $file" }
+    val properties = Properties().also { result -> file.inputStream().use(result::load) }
+    check(properties.getProperty("status") == "PASS") {
+        "DR-30 native-structure case $name did not PASS: $properties"
+    }
+    return properties
+}
+
+tasks.named("runDr30NativeStructureAcceptancePlace").configure {
+    notCompatibleWithConfigurationCache("DR-30 qualification owns a disposable persisted server world.")
+    doFirst {
+        delete(dr30NativeStructureResultDirectory)
+        prepareDr30NativeStructureServerDirectory("run-dr30-native-structure")
+    }
+    doLast { requireDr30NativeStructurePass("place") }
+}
+
+tasks.named("runDr30NativeStructureAcceptanceReload").configure {
+    notCompatibleWithConfigurationCache("DR-30 qualification reopens the prior server world.")
+    mustRunAfter("runDr30NativeStructureAcceptancePlace")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-dr30-native-structure").asFile
+        check(directory.resolve("saves/acceptance/level.dat").isFile) {
+            "DR-30 placement world is missing before reload"
+        }
+    }
+    doLast { requireDr30NativeStructurePass("reload") }
+}
+
+tasks.named("runDr30NativeStructureAcceptanceStacked").configure {
+    notCompatibleWithConfigurationCache("DR-30 stacked qualification owns a disposable server world.")
+    mustRunAfter("runDr30NativeStructureAcceptanceReload")
+    doFirst { prepareDr30NativeStructureServerDirectory("run-dr30-native-structure-stacked", stacked = true) }
+    doLast { requireDr30NativeStructurePass("stacked") }
+}
+
+tasks.register("dr30NativeStructureAcceptance") {
+    group = "verification"
+    description = "Qualify DR-30 native placement, reload mutation preservation, and stacked exact-volume identity."
+    dependsOn(
+        "runDr30NativeStructureAcceptancePlace",
+        "runDr30NativeStructureAcceptanceReload",
+        "runDr30NativeStructureAcceptanceStacked",
+    )
+    doLast {
+        val place = requireDr30NativeStructurePass("place")
+        val reload = requireDr30NativeStructurePass("reload")
+        val stacked = requireDr30NativeStructurePass("stacked")
+        check(place.getProperty("physicalStructureBlockObserved") == "true")
+        check(reload.getProperty("mutationPreserved") == "true")
+        check(reload.getProperty("secondProcessingDisposition") == "SKIP_COMPLETED_IDENTITY")
+        check(reload.getProperty("mutationX") == place.getProperty("mutationX"))
+        check(reload.getProperty("mutationY") == place.getProperty("mutationY"))
+        check(reload.getProperty("mutationZ") == place.getProperty("mutationZ"))
+        check(stacked.getProperty("exactVolumeIdentitiesDistinct") == "true")
+        check(stacked.getProperty("physicalPlacementsDistinct") == "true")
+        check(stacked.getProperty("lowerStructureMinY") != stacked.getProperty("upperStructureMinY"))
+        println("DR-30 NATIVE STRUCTURE ACCEPTANCE PASS: placement + reload mutation + stacked exact-volume identity")
+    }
 }

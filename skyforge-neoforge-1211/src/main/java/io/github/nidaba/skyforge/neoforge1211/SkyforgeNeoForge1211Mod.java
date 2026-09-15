@@ -28,6 +28,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211BiomePopulationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211SurfacePopulationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.installFromSystemProperty();
+        SkyforgeDr30NativeStructureAcceptance.installFromSystemProperty();
         SkyforgeNeoForge1211ProductionMorphologyMassifDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ProductionMorphologyAtlasDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ShowcaseEcologyDevRuntime.installFromSystemProperty();

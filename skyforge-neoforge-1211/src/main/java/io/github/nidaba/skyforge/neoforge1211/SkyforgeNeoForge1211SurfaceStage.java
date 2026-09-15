@@ -666,13 +666,13 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     }
 
     /**
-     * Requires one exact runtime-bound volume to own the available native target chunk.
+     * Requires the explicit runtime-bound volume to intersect the native target chunk.
      *
-     * <p>The native structure-start seam cannot safely select between stacked or overlapping
-     * catalog candidates. It therefore fails closed rather than inferring an owner from X/Z or
-     * retaining a cross-chunk completion record.
+     * <p>Stacked X/Z candidates are valid because the caller already owns an exact generation-domain
+     * identity and structure placement is fenced to that same exact volume. This guard therefore
+     * validates membership only; it never infers an owner from horizontal position.
      */
-    static void requireExactlyOneCandidateVolume(
+    static void requireCandidateVolume(
             SkyIslandWorldVolumeId volumeId,
             ChunkAccess chunk) {
         Objects.requireNonNull(volumeId, "volumeId");
@@ -681,10 +681,11 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         if (binding == null) {
             throw new IllegalStateException("native structure lifecycle requires an active Skyforge runtime binding");
         }
-        var candidates = binding.adapter().candidateVolumes(chunk);
-        if (candidates.size() != 1 || !candidates.getFirst().id().equals(volumeId)) {
+        boolean candidate = binding.adapter().candidateVolumes(chunk).stream()
+                .anyMatch(volume -> volume.id().equals(volumeId));
+        if (!candidate) {
             throw new IllegalStateException(
-                    "native structure lifecycle requires exactly one exact Skyforge volume for its target chunk");
+                    "native structure lifecycle requires its exact Skyforge volume to intersect the target chunk");
         }
     }
 

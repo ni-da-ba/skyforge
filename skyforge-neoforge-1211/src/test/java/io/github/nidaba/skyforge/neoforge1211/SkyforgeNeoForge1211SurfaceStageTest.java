@@ -158,6 +158,25 @@ final class SkyforgeNeoForge1211SurfaceStageTest {
     }
 
     @Test
+    void exactVolumeStructureGuardAcceptsExplicitStackedCandidates() throws Exception {
+        var catalog = SkyforgeDr30NativeStructureAcceptance.catalog(true);
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+
+        assertEquals(2, adapter.candidateVolumes(chunk).size());
+        try (AutoCloseable activeBinding = SkyforgeNeoForge1211SurfaceStage.install(
+                adapter,
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(activeBinding);
+            SkyforgeNeoForge1211SurfaceStage.requireCandidateVolume(catalog.volumes().get(0).id(), chunk);
+            SkyforgeNeoForge1211SurfaceStage.requireCandidateVolume(catalog.volumes().get(1).id(), chunk);
+        }
+    }
+
+    @Test
     void activeStageSkipsProjectionForChunkWithoutSkyforgeCandidates() throws Exception {
         ChunkPos chunkPos = new ChunkPos(100, 100);
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
