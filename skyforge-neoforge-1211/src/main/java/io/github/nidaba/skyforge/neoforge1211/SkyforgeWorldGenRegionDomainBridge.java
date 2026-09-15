@@ -14,11 +14,15 @@ public final class SkyforgeWorldGenRegionDomainBridge {
     private SkyforgeWorldGenRegionDomainBridge() {}
 
     public static boolean active() {
-        return SkyforgePopulationExecutionStage.activeExecution().isPresent();
+        return SkyforgePopulationExecutionStage.activeExecution().isPresent()
+                || SkyforgeStructurePlacementExecutionStage.active();
     }
 
     public static boolean isVisible(BlockPos position) {
         Objects.requireNonNull(position, "position");
+        if (!SkyforgeStructurePlacementExecutionStage.isVisible(position)) {
+            return false;
+        }
         return SkyforgePopulationExecutionStage.activeExecution()
                 .map(execution -> execution.isVisible(position))
                 .orElse(true);
@@ -40,6 +44,9 @@ public final class SkyforgeWorldGenRegionDomainBridge {
      */
     public static boolean canWrite(BlockPos position) {
         Objects.requireNonNull(position, "position");
+        if (!SkyforgeStructurePlacementExecutionStage.canWrite(position)) {
+            return false;
+        }
         var execution = SkyforgePopulationExecutionStage.activeExecution();
         if (execution.isEmpty()) {
             return true;
@@ -55,6 +62,9 @@ public final class SkyforgeWorldGenRegionDomainBridge {
 
     public static boolean acceptWrite(BlockPos position) {
         Objects.requireNonNull(position, "position");
+        if (!SkyforgeStructurePlacementExecutionStage.canWrite(position)) {
+            return false;
+        }
         var execution = SkyforgePopulationExecutionStage.activeExecution();
         if (execution.isEmpty()) {
             return true;
@@ -72,6 +82,9 @@ public final class SkyforgeWorldGenRegionDomainBridge {
     public static boolean acceptWrite(BlockPos position, BlockState state) {
         Objects.requireNonNull(position, "position");
         Objects.requireNonNull(state, "state");
+        if (!SkyforgeStructurePlacementExecutionStage.canWrite(position)) {
+            return false;
+        }
         var execution = SkyforgePopulationExecutionStage.activeExecution();
         if (execution.isEmpty()) {
             return true;
