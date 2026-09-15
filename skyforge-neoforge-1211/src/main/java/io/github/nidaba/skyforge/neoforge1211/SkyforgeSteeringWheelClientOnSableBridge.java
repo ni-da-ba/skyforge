@@ -16,6 +16,7 @@ final class SkyforgeSteeringWheelClientOnSableBridge {
             BlockPos steeringWheelPos,
             BlockPos endpointPos,
             Vec3 standPlotPosition,
+            Vec3 expectedGlobalWheelCenter,
             double mouseYawDelta,
             float minimumAbsoluteTargetDegrees,
             float maximumAbsoluteTargetDegrees) {
@@ -24,6 +25,7 @@ final class SkyforgeSteeringWheelClientOnSableBridge {
                 Objects.requireNonNull(steeringWheelPos, "steeringWheelPos").immutable(),
                 Objects.requireNonNull(endpointPos, "endpointPos").immutable(),
                 Objects.requireNonNull(standPlotPosition, "standPlotPosition"),
+                Objects.requireNonNull(expectedGlobalWheelCenter, "expectedGlobalWheelCenter"),
                 mouseYawDelta,
                 minimumAbsoluteTargetDegrees,
                 maximumAbsoluteTargetDegrees);
@@ -37,6 +39,7 @@ final class SkyforgeSteeringWheelClientOnSableBridge {
             BlockPos steeringWheelPos,
             BlockPos endpointPos,
             Vec3 standPlotPosition,
+            Vec3 expectedGlobalWheelCenter,
             double mouseYawDelta,
             float minimumAbsoluteTargetDegrees,
             float maximumAbsoluteTargetDegrees) {}

@@ -307,8 +307,8 @@ final class SkyforgeSteeringWheelClientOnSableLifecycleAcceptance {
             return;
         }
         physicsWasPaused = (Boolean) publicMethod(physicsSystem, "getPaused").invoke(physicsSystem);
-        if (physicsWasPaused) {
-            publicMethod(physicsSystem, "setPaused", boolean.class).invoke(physicsSystem, false);
+        if (!physicsWasPaused) {
+            publicMethod(physicsSystem, "setPaused", boolean.class).invoke(physicsSystem, true);
             physicsPauseChanged = true;
         }
         requireCanonicalPlotOwnership(canonical, movedWheel);
@@ -320,11 +320,13 @@ final class SkyforgeSteeringWheelClientOnSableLifecycleAcceptance {
                 movedWheel.getX() - 0.5,
                 movedWheel.getY(),
                 movedWheel.getZ() + 0.5);
+        Vec3 expectedGlobalWheelCenter = projectThroughCanonicalBody(canonical, Vec3.atCenterOf(movedWheel));
         SkyforgeSteeringWheelClientOnSableBridge.publish(
                 bodyId,
                 movedWheel,
                 movedEndpoint,
                 standPlot,
+                expectedGlobalWheelCenter,
                 MOUSE_YAW_DELTA,
                 MINIMUM_ABSOLUTE_TARGET_DEGREES,
                 MAXIMUM_ABSOLUTE_TARGET_DEGREES);
@@ -336,12 +338,15 @@ final class SkyforgeSteeringWheelClientOnSableLifecycleAcceptance {
                 now + CLIENT_INTERACTION_DEADLINE_TICKS,
                 movedIds(),
                 safeServerState(),
-                "currentPhysicsHandleValid=true; actualClientBridgePublished=true");
+                "currentPhysicsHandleValid=true; actualClientBridgePublished=true; testSetupPhysicsPinned=true"
+                        + "; expectedGlobalWheelCenter=" + expectedGlobalWheelCenter);
         LOGGER.log(System.Logger.Level.INFO,
                 PREFIX + " CLIENT_READY bodyId=" + bodyId
                         + " movedWheel=" + movedWheel
                         + " standPlot=" + standPlot
-                        + " currentPhysicsHandleValid=true");
+                        + " expectedGlobalWheelCenter=" + expectedGlobalWheelCenter
+                        + " currentPhysicsHandleValid=true"
+                        + " testSetupPhysicsPinned=true originalPhysicsPaused=" + physicsWasPaused);
     }
 
     private static void pollClientInteraction(ServerTickEvent.Post event, long now) throws ReflectiveOperationException {
@@ -449,6 +454,7 @@ final class SkyforgeSteeringWheelClientOnSableLifecycleAcceptance {
                                 + " canonicalBodyResolutionPerPhase=true"
                                 + " blockEntityResolutionPerPoll=true"
                                 + " fixtureLivenessTicket=sable:command_forced(released)"
+                                + " testSetupPhysicsPinned=true"
                                 + " playerSableTrackingQualified=false");
                 return;
             }

@@ -25,6 +25,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
     private static final long CLIENT_TIMEOUT_NANOS = 120_000_000_000L;
     private static final int ACQUIRE_RETRY_LIMIT_TICKS = 40;
+    private static final double CLIENT_SERVER_POSE_TOLERANCE_BLOCKS = 0.25;
     private static final double STEERING_WHEEL_VISUAL_X = 2.5 / 16.0;
     private static final double STEERING_WHEEL_VISUAL_Y = 14.5 / 16.0;
 
@@ -33,6 +34,7 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
     private static int stageTicks;
     private static boolean clientSubLevelReady;
     private static boolean clientGameplayReady;
+    private static boolean clientServerPoseConverged;
     private static boolean clientSetupRepositioningUsed;
     private static boolean clientHoldAcquired;
     private static InteractionResult wheelUseResult;
@@ -65,6 +67,7 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
                     + SkyforgeSteeringWheelClientOnSableLifecycleAcceptance.playerPositioned()
                     + ",clientSubLevelReady=" + clientSubLevelReady
                     + ",clientGameplayReady=" + clientGameplayReady
+                    + ",clientServerPoseConverged=" + clientServerPoseConverged
                     + ",screen=" + screen + "}");
             return;
         }
@@ -111,6 +114,14 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
             return;
         }
         clientGameplayReady = true;
+
+        Vec3 clientGlobalWheelCenter = projectOutOfSubLevel(minecraft.level, Vec3.atCenterOf(wheelPos));
+        if (clientGlobalWheelCenter.distanceTo(snapshot.expectedGlobalWheelCenter())
+                > CLIENT_SERVER_POSE_TOLERANCE_BLOCKS) {
+            stageTicks = 0;
+            return;
+        }
+        clientServerPoseConverged = true;
 
         if (!minecraft.level.getBlockState(wheelPos).getBlock().getClass().getName().endsWith("SteeringWheelBlock")) {
             stageTicks = 0;
@@ -196,6 +207,7 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
         evidence.put("movedSteeringWheel", snapshot.steeringWheelPos());
         evidence.put("clientSableSubLevelReady", clientSubLevelReady);
         evidence.put("clientGameplayReady", clientGameplayReady);
+        evidence.put("clientServerPoseConverged", clientServerPoseConverged);
         evidence.put("clientTestSetupRepositioning", clientSetupRepositioningUsed);
         evidence.put("steeringWheelUseResult", String.valueOf(wheelUseResult));
         evidence.put("steeringHoldAcquired", clientHoldAcquired);
@@ -308,6 +320,8 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
                 + ",wheelUseResult=" + wheelUseResult
                 + ",hitLocation=" + hitLocation
                 + ",projectedCenter=" + projectOutOfSubLevel(minecraft.level, Vec3.atCenterOf(wheelPos))
+                + ",expectedGlobalCenter=" + SkyforgeSteeringWheelClientOnSableBridge.snapshot().expectedGlobalWheelCenter()
+                + ",clientServerPoseConverged=" + clientServerPoseConverged
                 + ",eye=" + player.getEyePosition(partialTick)
                 + ",view=" + player.getViewVector(partialTick)
                 + ",partialTick=" + partialTick + "}";

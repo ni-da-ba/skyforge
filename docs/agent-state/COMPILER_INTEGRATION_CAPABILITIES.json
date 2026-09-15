@@ -312,7 +312,8 @@
         "The fixture uses one floor-mounted simulated:steering_wheel, one create:shaft, and one create:gearbox observable endpoint inside a single Physics Assembler capture domain.",
         "Persistent Sable UUID is primary-body identity; moved wheel/block entities and physics handles are re-resolved from current canonical state rather than retained across assembly.",
         "Client positioning is bounded qualification setup only and does not qualify natural Sable player tracking, seats, cockpit occupancy, or flight.",
-        "The production interaction path is MultiPlayerGameMode.useItemOn -> Simulated hold interaction -> Simulated mouse callback -> real SteeringWheelPacket active/release delivery; no direct packet handler or wheel-state mutation is accepted as evidence."
+        "The production interaction path is MultiPlayerGameMode.useItemOn -> Simulated hold interaction -> Simulated mouse callback -> real SteeringWheelPacket active/release delivery; no direct packet handler or wheel-state mutation is accepted as evidence.",
+        "The Sable physics pipeline is temporarily paused only while the actual-client interaction is acquired and observed so the minimal unsupported body cannot free-fall ahead of client pose synchronization; the original pause state is restored before PASS, and this setup does not qualify moving-body player tracking or free-flight."
       ],
       "failure_taxonomy": [
         "FAIL_DEPENDENCY_RESOLUTION",
@@ -333,7 +334,15 @@
         "B": false,
         "C": false
       },
-      "negative_evidence": []
+      "negative_evidence": [
+        {
+          "workflow_run": 34997444078,
+          "job": 104477639361,
+          "commit": "5e3011b38174eda49ad25d5ea52069467308e8a6",
+          "result": "FIXTURE_SYNCHRONIZATION_FAILURE",
+          "finding": "The first exact-stack actual-client run assembled a valid mass-10 Sable body and current physics handle, then reached the real moved Steering Wheel with useItemOn=PASS but could not acquire Simulated hold interaction because lookingAtWheel remained false. Diagnostics showed the unpaused unsupported body had moved far enough during client startup that server and client global pose projections diverged (server stand Y\u2248179.19 while client projected wheel/eye were near Y\u2248103-105). This is fixture stabilization/synchronization negative evidence, not a Simulated packet or control-runtime failure."
+        }
+      ]
     }
   }
 }

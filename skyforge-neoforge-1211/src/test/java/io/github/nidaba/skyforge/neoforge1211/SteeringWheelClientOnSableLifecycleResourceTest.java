@@ -42,6 +42,8 @@ final class SteeringWheelClientOnSableLifecycleResourceTest {
         assertTrue(client.contains("invokeSimulatedUseRelease"));
         assertTrue(client.contains("HoldInteractionManager"));
         assertTrue(client.contains("SimulatedCommonClientEvents"));
+        assertTrue(client.contains("CLIENT_SERVER_POSE_TOLERANCE_BLOCKS"));
+        assertTrue(client.contains("expectedGlobalWheelCenter"));
         assertFalse(client.contains("new SteeringWheelPacket"));
         assertFalse(client.contains("startHolding("));
         assertFalse(client.contains("stopHolding("));
@@ -62,6 +64,7 @@ final class SteeringWheelClientOnSableLifecycleResourceTest {
         assertTrue(server.contains("settledEndpointSpeed"));
         assertTrue(server.contains("playerSableTrackingQualified=false"));
         assertTrue(server.contains("fixtureLivenessTicket=sable:command_forced(released)"));
+        assertTrue(server.contains("testSetupPhysicsPinned=true"));
         assertFalse(server.contains("SteeringWheelPacket"));
     }
 
