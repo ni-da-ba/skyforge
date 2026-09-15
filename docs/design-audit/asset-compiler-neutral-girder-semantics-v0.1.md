@@ -15,7 +15,7 @@ At the pinned Create source commit `79b5d3b37e2d1970818dd97ca460b649cd0a456c`, `
 - horizontal connection state that can be enabled by the girder's primary axis, neighboring girder state, or several Create-specific attachment types;
 - vertical `top`/`bottom` attachment state with additional Create-specific cases.
 
-The structure compiler will use only the generic beam/pole subset of that state surface.
+The structure compiler uses only the generic beam/pole subset of that state surface.
 
 ## Neutral semantic contract
 
@@ -39,7 +39,7 @@ For the conservative generic subset:
 - perpendicular neighboring girder cells may add the corresponding horizontal flag at an intersection;
 - non-girder target-specific neighbors do not create girder beam flags.
 
-This permits straight X beams, straight Z beams, vertical poles, and girder-only X/Z intersections without importing Create-specific machinery semantics.
+This permits straight X beams, straight Z beams, vertical poles, and girder-only X/Z intersections without importing Create-specific machinery semantics. Legal authored `x`/`z` values are replaced by this derived state.
 
 ### Vertical attachment flags
 
@@ -49,7 +49,7 @@ This permits straight X beams, straight Z beams, vertical poles, and girder-only
 - a neighboring cell exposing the corresponding sturdy support face may set the flag;
 - Create-specific attachment blocks are ignored by the neutral compiler contract.
 
-The compiler does not require these flags for survival; they are topology/detail state only.
+Legal authored `top`/`bottom` values are likewise non-authoritative. The compiler does not require these flags for survival; they are topology/detail state only.
 
 ## Shape contract
 
@@ -60,13 +60,15 @@ The coarse realization model distinguishes:
 - `girder_beam_z` when `x=false,z=true`;
 - `girder_cross` when `x=true,z=true`.
 
-All are partial-collision and neighbor-dependent. They expose no generic sturdy support faces in the compiler support model; support/attachment authority must remain explicit rather than being inferred from a thin decorative beam.
+All are partial-collision and neighbor-dependent. They expose no generic sturdy support faces in the compiler support model; support/attachment authority remains explicit rather than being inferred from a thin decorative beam.
 
 ## WBY authority
 
-`create:metal_girder` remains non-selectable until this neutral topology is implemented and proven. After proof it may be moved into the WBY catalog as `cataloged`, not `active`.
+`create:metal_girder` is now present in the Create 6.0.10 WBY capability document as `cataloged`, not `active`. Its exact `axis/bottom/top/waterlogged/x/z` state and defaults are mandatory in the pinned-runtime registry probe.
 
-No current Guild semantic role is remapped. Activation requires an explicit upstream neutral girder/brace intent.
+Cataloged status does not place the girder in `wby_c1_create_registry()`, so it cannot change current Guild output. No current Guild semantic role is remapped. Activation still requires an explicit upstream neutral girder/brace intent.
+
+With the girder contract enforced, all ten previously deferred stateful structural resources in this audit set—three bars, three ladders, three scaffolds, and the girder—have generic compiler semantics plus exact live registry contracts. There are zero remaining observation-only resources in that bounded set.
 
 ## Concurrency boundary
 
