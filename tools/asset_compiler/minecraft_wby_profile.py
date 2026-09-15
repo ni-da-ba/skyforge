@@ -124,6 +124,9 @@ def wby_c1_target_intent(intent: BlockIntent) -> BlockIntent:
     if {"hardware", "masonry"}.issubset(family_set):
         return _prepend_preferences(intent, "create:andesite_casing")
 
+    if "glazing" in family_set and "pane" in intent.required_capabilities:
+        return _prepend_preferences(intent, "create:framed_glass_pane")
+
     return intent
 
 
