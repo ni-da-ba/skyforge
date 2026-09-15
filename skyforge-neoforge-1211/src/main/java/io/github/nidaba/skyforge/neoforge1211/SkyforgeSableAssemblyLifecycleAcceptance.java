@@ -182,6 +182,34 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         }
         if (created.size() == 1) {
             bodyId = created.iterator().next();
+            Object canonicalBody = findCanonicalBody(bodyId);
+            if (canonicalBody == null) {
+                fail(
+                        SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
+                        waitDiagnostic.withFinalState(
+                                "bodyId=" + bodyId + " assembler=" + ASSEMBLER_POS + " glueId=" + glueId,
+                                safeServerState(),
+                                "headless",
+                                "UUID was visible in getAllSubLevels but canonical getSubLevel(UUID) returned null"),
+                        "new Sable UUID did not resolve canonically during assembly observation");
+            }
+            String massSummary = bodyMassSummary(canonicalBody);
+            int sourceNonAir = countSourceFixtureNonAir();
+            if (bodyMassInvalid(canonicalBody)) {
+                fail(
+                        SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
+                        diagnostic(
+                                SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,
+                                "newly assembled Sable body has valid positive mass and center of mass",
+                                now,
+                                now,
+                                "bodyId=" + bodyId + " assembler=" + ASSEMBLER_POS + " glueId=" + glueId,
+                                safeServerState(),
+                                "assemblyRegistrationObservedSynchronously=" + synchronousObservation
+                                        + " sourceNonAirAfterAssembly=" + sourceNonAir
+                                        + " " + massSummary),
+                        "new Sable body is mass-invalid immediately after synchronous assembly");
+            }
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,
                     "registered Sable UUID resolves to a live canonical body and valid physics handle",
@@ -189,7 +217,9 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                     now + PHYSICS_INITIALIZATION_DEADLINE_TICKS,
                     "bodyId=" + bodyId + " assembler=" + ASSEMBLER_POS + " glueId=" + glueId,
                     safeServerState(),
-                    "assemblyRegistrationObservedSynchronously=" + synchronousObservation);
+                    "assemblyRegistrationObservedSynchronously=" + synchronousObservation
+                            + " sourceNonAirAfterAssembly=" + sourceNonAir
+                            + " " + massSummary);
             return;
         }
         if (waitDiagnostic.expired(now)) {
@@ -435,6 +465,40 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             throw new IllegalStateException("Sable sub-level unique ID is not UUID: " + value);
         }
         return uuid;
+    }
+
+    private static boolean bodyMassInvalid(Object canonicalBody) throws ReflectiveOperationException {
+        Object massTracker = publicMethod(canonicalBody, "getMassTracker").invoke(canonicalBody);
+        if (massTracker == null) {
+            return true;
+        }
+        Object invalid = publicMethod(massTracker, "isInvalid").invoke(massTracker);
+        return !(invalid instanceof Boolean validFlag) || validFlag;
+    }
+
+    private static String bodyMassSummary(Object canonicalBody) throws ReflectiveOperationException {
+        Object massTracker = publicMethod(canonicalBody, "getMassTracker").invoke(canonicalBody);
+        if (massTracker == null) {
+            return "massTracker=null";
+        }
+        Object mass = publicMethod(massTracker, "getMass").invoke(massTracker);
+        Object centerOfMass = publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
+        Object invalid = publicMethod(massTracker, "isInvalid").invoke(massTracker);
+        return "mass=" + mass + " centerOfMass=" + centerOfMass + " massInvalid=" + invalid;
+    }
+
+    private static int countSourceFixtureNonAir() {
+        int count = level.getBlockState(ASSEMBLER_POS).isAir() ? 0 : 1;
+        for (int x = BODY_MIN.getX(); x <= BODY_MAX.getX(); x++) {
+            for (int y = BODY_MIN.getY(); y <= BODY_MAX.getY(); y++) {
+                for (int z = BODY_MIN.getZ(); z <= BODY_MAX.getZ(); z++) {
+                    if (!level.getBlockState(new BlockPos(x, y, z)).isAir()) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
     }
 
     private static Object findCanonicalBody(UUID uuid) throws ReflectiveOperationException {

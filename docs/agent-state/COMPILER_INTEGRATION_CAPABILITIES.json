@@ -76,6 +76,13 @@
           "commit": "bc7b415ea9f7749a92e7f4d3ff6d034a39ae0b04",
           "result": "TIMEOUT_ASSEMBLY_REGISTRATION",
           "finding": "Adding one explicit bounded Create Super Glue domain still left the assembler vacated with no Sable UUID observed on the following tick. Glue alone therefore does not explain the reduced-fixture gap; because Simulated assembly is synchronous, the next experiment observes registration before the first physics tick to distinguish assembly failure from immediate body removal."
+        },
+        {
+          "workflow_run": 34921926515,
+          "job": 104232071760,
+          "commit": "41e8c49b030d9e2b4eede2a6056ee13d014fde62",
+          "result": "FAIL_PHYSICS",
+          "finding": "Synchronous observation captured a real newly allocated Sable UUID, but the body was removed by tick 1 before a stable physics handle was observed. Assembly registration is therefore proven for the reduced specimen; the remaining reduction target is immediate mass/physics validity."
         }
       ]
     }
