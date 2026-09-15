@@ -3264,13 +3264,24 @@ class Orchestrator:
             ["git", "log", "-12", "--pretty=format:%h %cI %s"],
             cwd=self.root,
         ).stdout.splitlines()
+
+        # Classifier truth must never include a controller-managed PR that is already terminal in
+        # GitHub. Reconcile each durable lane record through the same current-truth validator used
+        # by worker preparation before exposing ownership to the model. Visibility failures remain
+        # fail-closed by propagating rather than silently deleting uncertain ownership.
+        controller_managed: dict[str, dict[str, Any]] = {}
+        for lane in list((self.state.data.get("managed") or {}).keys()):
+            validated = self._validated_managed_branch(str(lane))
+            if validated is not None:
+                controller_managed[str(lane)] = dict(validated)
+
         return {
             "captured_at": _utc_now(),
             "main": _run(["git", "rev-parse", "HEAD"], cwd=self.root).stdout.strip(),
             "open_prs": prs,
             "recent_runs": runs,
             "recent_commits": log,
-            "controller_managed": self.state.data.get("managed", {}),
+            "controller_managed": controller_managed,
             "orchestrator_metrics": self.state.data.get("metrics", {}),
         }
 
