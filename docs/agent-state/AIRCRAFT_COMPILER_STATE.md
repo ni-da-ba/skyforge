@@ -1,7 +1,7 @@
 # Skyforge Aircraft Compiler state
 
 **Program authority:** issue #545  
-**Productionization boundary:** AIRCRAFT-PROD-005 / issue #641
+**Productionization boundary:** AIRCRAFT-PROD-006 / issue #645
 **Frozen evidence only:** `aircraft-compiler-proof@0651bcee7dc879ab43db2f0b224f77e5026222bd`  
 **Frozen implementation beneath checkpoint:** `cc020c872b9c53198cebbb0ae9094097f23c9c45`
 
@@ -94,12 +94,31 @@ the exact AIRCRAFT-PROD-003 target-preflight and AIRCRAFT-PROD-004 propulsion id
 The emitted facing remains source-backed static lowering. Live Sable force sign for that facing is not
 qualified by this tranche.
 
+## Productionized by AIRCRAFT-PROD-006
+
+On acceptance of issue #645, the bounded horizontal/vertical regular-sail tail junction is lowered as a
+deterministic discrete transformation downstream of AIRCRAFT-PROD-005:
+
+- v0.6 conflict coordinates must match exactly the horizontal/vertical tail intersections;
+- the complete vertical-tail cell set is translated exactly one block upward rather than deleting
+  aerodynamic area or selecting an arbitrary facing at the shared lattice coordinate;
+- the former junction retains only the horizontal-tail role with its accepted horizontal state;
+- translated vertical-tail cells retain the accepted vertical state;
+- the compiler fails closed on immutable-placement collisions, duplicate aerodynamic output coordinates,
+  lost vertical cells, changed longitudinal first moment, changed relative fin shape, disconnected fin
+  topology, missing root-face attachment, or missing/mismatched v0.6 conflicts;
+- only the `unresolved_surface_state_conflicts` blocker is discharged by a passing transform; pilot,
+  runtime, persistence, control, and flight blockers remain explicit.
+
+The transformation proves discrete geometry/topology only. It does not prove Create/Sable attachment or
+runtime side-force behavior at the translated fin root.
+
 ## Frozen evidence not yet productionized
 
 The frozen branch contains accepted evidence for later compiler/runtime stages, but that evidence is
 not current-`main` production authority for:
 
-- complete combined placement-manifest emission and live registry/blockstate validation;
+- pilot-station static lowering, complete probe placement-manifest emission, and live registry/blockstate validation;
 - Sable primary/nested assembly, bounded Super Glue domains, and live propulsion/governor mechanism behavior;
 - yaw mechanism, cockpit routing, player interaction, and moving-body tracking.
 
@@ -129,9 +148,10 @@ work around the Platform fixture inside a complete aircraft.
 
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-PROD-005 is accepted on `main`, close the remaining static target-lowering seam by
-combining accepted airframe placements, propulsion companions, and resolved regular-sail block states
-into one deterministic placement manifest without inventing unresolved pilot/control resources. Live
-runtime qualification must consume only capabilities explicitly granted by
-`docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`; persistence and new control-axis work remain
-downstream of those applicable Platform contracts.
+After AIRCRAFT-PROD-006 is accepted on `main`, productionize the frozen v0.8 pilot-station lowering
+before final manifest emission: place the explicit Create seat relative to the semantic pilot anchor,
+prove static support/clearance against the accepted airframe + tail + propulsion topology, and keep
+occupancy/control binding runtime-unverified. The final combined probe placement manifest is downstream
+of that pilot-station artifact. Live runtime qualification must consume only capabilities explicitly
+granted by `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`; persistence and new control-axis
+work remain downstream of those applicable Platform contracts.
