@@ -666,11 +666,10 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
     }
 
     private static Object findCanonicalBody(UUID uuid) throws ReflectiveOperationException {
-        Object canonical = publicMethod(container, "getSubLevel", UUID.class).invoke(container, uuid);
-        if (canonical == null) {
-            return null;
-        }
-        return uuid.equals(subLevelUniqueId(canonical)) ? canonical : null;
+        // ServerSubLevelContainer overrides getAllSubLevels(), so selecting the current live
+        // object by persistent UUID avoids reflecting across SubLevelContainer's client-side
+        // overload signatures while preserving canonical live-body authority.
+        return findListedBody(uuid);
     }
 
     private static Object requireCanonicalBody(UUID uuid) throws ReflectiveOperationException {

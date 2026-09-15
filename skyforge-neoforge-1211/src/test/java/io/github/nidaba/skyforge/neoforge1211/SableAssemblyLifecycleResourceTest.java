@@ -42,7 +42,9 @@ final class SableAssemblyLifecycleResourceTest {
         String source = fixtureSource();
 
         assertTrue(source.contains("getUniqueId"));
-        assertTrue(source.contains("getSubLevel"));
+        assertTrue(source.contains("getAllSubLevels"));
+        assertTrue(source.contains("findCanonicalBody(bodyId)"));
+        assertFalse(source.contains("publicMethod(container, \"getSubLevel\""));
         assertTrue(source.contains("getPhysicsHandle"));
         assertTrue(source.contains("isValid"));
         assertTrue(source.contains("requireCanonicalBody(bodyId)"));
