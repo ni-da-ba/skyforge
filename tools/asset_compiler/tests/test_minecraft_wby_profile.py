@@ -66,6 +66,7 @@ class MinecraftWbyProfileTests(unittest.TestCase):
                 "create:andesite_scaffolding",
                 "create:brass_scaffolding",
                 "create:copper_scaffolding",
+                "create:metal_girder",
             },
         )
 
@@ -172,6 +173,36 @@ class MinecraftWbyProfileTests(unittest.TestCase):
                 {"bottom": "false", "distance": "7", "waterlogged": "false"},
             )
             self.assertNotIn(name, registry)
+
+    def test_live_validated_girder_is_cataloged_but_has_no_selection_authority(self):
+        doc = json.loads(CATALOG.read_text(encoding="utf-8"))
+        declared = {entry["name"]: entry for entry in doc["blocks"]}
+        registry = wby_c1_create_registry()
+        entry = declared["create:metal_girder"]
+        self.assertEqual(entry["status"], "cataloged")
+        self.assertEqual(
+            set(entry["capabilities"]),
+            {"girder", "axis_orientable", "neighbor_sensitive", "thin"},
+        )
+        self.assertEqual(
+            set(entry["properties"]),
+            {"axis", "bottom", "top", "waterlogged", "x", "z"},
+        )
+        self.assertEqual(set(entry["properties"]["axis"]), {"x", "y", "z"})
+        for key in ("bottom", "top", "waterlogged", "x", "z"):
+            self.assertEqual(set(entry["properties"][key]), {"false", "true"})
+        self.assertEqual(
+            entry["defaults"],
+            {
+                "axis": "y",
+                "bottom": "false",
+                "top": "false",
+                "waterlogged": "false",
+                "x": "false",
+                "z": "false",
+            },
+        )
+        self.assertNotIn("create:metal_girder", registry)
 
     def _write_bad_catalog(self, document: dict, tmp: str) -> Path:
         path = Path(tmp) / "bad.json"
