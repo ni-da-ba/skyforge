@@ -39,6 +39,7 @@ _ORIGINAL_APPLY_CONTROL_PAYLOAD = core.Orchestrator._apply_control_payload
 _ORIGINAL_HEALTH_SNAPSHOT = core.Orchestrator.health_snapshot
 _ORIGINAL_CONSUME_BUDGET = core.Orchestrator._consume_budget
 _ORIGINAL_DISCARD_PENDING_WORKER = core.Orchestrator.discard_pending_worker
+_ORIGINAL_REFRESH_RUNTIME = core.Orchestrator.refresh_runtime
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -62,7 +63,37 @@ def _governor_enabled() -> bool:
     return _env_bool("SKYFORGE_PROVIDER_QUOTA_GOVERNOR", True)
 
 
-def _governor_settings() -> dict[str, Any]:
+def _protected_authority_attempt(self: core.Orchestrator, kind: str) -> bool:
+    """Return whether this model turn advances explicit protected task/roadmap authority."""
+    with self._state_lock:
+        pending_worker = self.state.data.get("pending_worker")
+        if kind in {"worker", "luna_worker"} and isinstance(pending_worker, dict):
+            if str(pending_worker.get("authority_key") or "").startswith("task:"):
+                return True
+
+        pending_decision = self.state.data.get("pending_decision")
+        if isinstance(pending_decision, dict) and pending_decision.get("task_issue_numbers"):
+            return True
+
+        if kind == "classifier":
+            for raw in self.state.data.get("pending_events") or []:
+                if not isinstance(raw, dict):
+                    continue
+                event = core.EventDecision.from_state(raw)
+                if event.event == "roadmap" or event.signal_kind == "task":
+                    return True
+    return False
+
+
+def _governor_settings(*, protected_authority: bool = False) -> dict[str, Any]:
+    ordinary_burst = _env_float(
+        "SKYFORGE_WEEKLY_BURST_MARGIN_PERCENT",
+        quota_governor.DEFAULT_WEEKLY_BURST_MARGIN_PERCENT,
+    )
+    protected_burst = _env_float(
+        "SKYFORGE_PROTECTED_WEEKLY_BURST_MARGIN_PERCENT",
+        10.0,
+    )
     return {
         "preferred_limit_id": os.environ.get("SKYFORGE_QUOTA_LIMIT_ID") or None,
         "weekly_reserve_percent": _env_float(
@@ -73,9 +104,8 @@ def _governor_settings() -> dict[str, Any]:
             "SKYFORGE_FIVE_HOUR_RESERVE_PERCENT",
             quota_governor.DEFAULT_FIVE_HOUR_RESERVE_PERCENT,
         ),
-        "weekly_burst_margin_percent": _env_float(
-            "SKYFORGE_WEEKLY_BURST_MARGIN_PERCENT",
-            quota_governor.DEFAULT_WEEKLY_BURST_MARGIN_PERCENT,
+        "weekly_burst_margin_percent": (
+            max(ordinary_burst, protected_burst) if protected_authority else ordinary_burst
         ),
         "meter_tolerance_percent": _env_float(
             "SKYFORGE_QUOTA_METER_TOLERANCE_PERCENT",
@@ -128,11 +158,15 @@ def _safe_error(exc: Exception) -> dict[str, Any]:
     }
 
 
-def _evaluate(snapshot: dict[str, Any]) -> dict[str, Any]:
+def _evaluate(
+    snapshot: dict[str, Any],
+    *,
+    protected_authority: bool = False,
+) -> dict[str, Any]:
     return quota_governor.evaluate_quota(
         snapshot,
         now_epoch=time.time(),
-        **_governor_settings(),
+        **_governor_settings(protected_authority=protected_authority),
     )
 
 
@@ -168,8 +202,10 @@ def _provider_decision(self: core.Orchestrator, kind: str) -> dict[str, Any] | N
             self.state.save()
         return None
     try:
+        protected_authority = _protected_authority_attempt(self, kind)
         snapshot = codex_quota.quota_snapshot()
-        decision = _evaluate(snapshot)
+        decision = _evaluate(snapshot, protected_authority=protected_authority)
+        decision["protected_authority"] = protected_authority
     except Exception as exc:
         error = _safe_error(exc)
         _persist_quota_result(
@@ -234,6 +270,16 @@ def _consume_budget(self: core.Orchestrator, kind: str) -> None:
             int(decision.get("retry_after_seconds") or 300),
             str(decision.get("reason") or "provider quota pacing deferred this model turn"),
         )
+    # A fresh authoritative admission supersedes an older persisted pacing delay. Without this, an
+    # operator/runtime-policy refresh can admit the current protected turn while the stale block still
+    # prevents the following roadmap seed until the original wall-clock deadline.
+    with self._state_lock:
+        if self.state.data.get("blocked_kind") == "quota_pacing":
+            self.state.data["blocked_until_epoch"] = 0.0
+            self.state.data["blocked_kind"] = None
+            self.state.data["blocked_reason"] = None
+            self.state.save()
+            self._metric("quota_pacing_blocks_superseded")
     _record_governed_attempt(self, kind)
 
 
@@ -337,6 +383,18 @@ def _retire_merged_managed_handoff(
     self._metric("operator_merged_handoff_retirements")
 
 
+def refresh_runtime(self: core.Orchestrator, *, actor: str | None = None) -> None:
+    """Refresh controller code and force persisted pacing delays to be re-evaluated afterward."""
+    _ORIGINAL_REFRESH_RUNTIME(self, actor=actor)
+    with self._state_lock:
+        if self.state.data.get("blocked_kind") == "quota_pacing":
+            self.state.data["blocked_until_epoch"] = 0.0
+            self.state.data["blocked_kind"] = None
+            self.state.data["blocked_reason"] = None
+            self.state.save()
+            self._metric("quota_pacing_blocks_invalidated_by_runtime_refresh")
+
+
 def discard_pending_worker(self: core.Orchestrator, *, actor: str | None = None) -> None:
     """Preserve the original discard guard, plus a merged-PR-only terminal handoff path."""
     with self._state_lock:
@@ -431,6 +489,9 @@ def health_snapshot(self: core.Orchestrator) -> dict[str, Any]:
         )
         snapshot["quota_governor_enabled"] = _governor_enabled()
         snapshot["quota_governor_settings"] = _governor_settings()
+        snapshot["quota_governor_protected_settings"] = _governor_settings(
+            protected_authority=True
+        )
     return snapshot
 
 
@@ -443,6 +504,7 @@ def install_extension() -> None:
     core.Orchestrator._apply_control_payload = _apply_control_payload
     core.Orchestrator.health_snapshot = health_snapshot
     core.Orchestrator._consume_budget = _consume_budget
+    core.Orchestrator.refresh_runtime = refresh_runtime
     core.Orchestrator.discard_pending_worker = discard_pending_worker
     core._skyforge_quota_extension_installed = True
 

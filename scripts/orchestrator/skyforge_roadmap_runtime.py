@@ -507,6 +507,21 @@ def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
                     )
                 return False
 
+            if self._task_no_change_blocker_unchanged(int(node.issue_number)):
+                with self._state_lock:
+                    state["last_error"] = {
+                        "at": core._utc_now(),
+                        "kind": "RoadmapNoChangeAuthorityUnchanged",
+                        "summary": (
+                            f"roadmap issue #{node.issue_number} previously returned TASK_NO_CHANGE; "
+                            "task authority is unchanged, so redispatch is suppressed until new authority arrives"
+                        ),
+                    }
+                    state["last_trigger"] = trigger
+                    self.state.save()
+                self._metric("roadmap_no_change_redispatch_suppressed")
+                return False
+
             issue_state = _roadmap_issue_open(self, int(node.issue_number))
             if issue_state is None:
                 with self._state_lock:

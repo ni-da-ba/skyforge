@@ -1362,12 +1362,39 @@ class DurableStateTests(unittest.TestCase):
                     )
                 )
 
-            args = run.call_args.args[0]
-            self.assertEqual(args[:4], ["gh", "issue", "comment", "387"])
+            comment_calls = [
+                call.args[0]
+                for call in run.call_args_list
+                if call.args and call.args[0][:4] == ["gh", "issue", "comment", "387"]
+            ]
+            self.assertEqual(len(comment_calls), 1)
+            args = comment_calls[0]
             self.assertIn("TASK_NO_CHANGE", args[-1])
             self.assertIn("not task acceptance", args[-1])
             self.assertIn("exact compatible artifact is unavailable", args[-1])
             self.assertEqual(o.state.data["metrics"].get("task_no_change_handoffs"), 1)
+
+    def test_task_no_change_blocker_clears_only_after_authority_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            with mock.patch.object(
+                o,
+                "_task_authority_fingerprint",
+                side_effect=["authority-a", "authority-a", "authority-b"],
+            ):
+                o._record_task_no_change_blocker(493, "Missing concrete authority.")
+                self.assertTrue(o._task_no_change_blocker_unchanged(493))
+                self.assertFalse(o._task_no_change_blocker_unchanged(493))
+
+            self.assertNotIn("493", o.state.data.get("task_no_change_blockers") or {})
+            self.assertEqual(
+                o.state.data["metrics"].get("task_no_change_blockers_recorded"),
+                1,
+            )
+            self.assertEqual(
+                o.state.data["metrics"].get("task_no_change_blockers_invalidated"),
+                1,
+            )
 
     def test_non_task_no_change_does_not_post_task_handoff(self):
         with tempfile.TemporaryDirectory() as tmp:
