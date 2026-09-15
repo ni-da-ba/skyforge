@@ -215,17 +215,8 @@ def compile_guild_branch_first_principles_detail(spec: dict) -> CompiledAsset:
         for z in (9, 10):
             set_empty(x, 2, z, "floor_detail_passable", carpet, "fp14_public_rug")
     set_empty(18, 4, 3, "hardware", panel, "fp14_repair_tool_panel")
-    # Mount the freight manifest against the warehouse side of the working partition instead
-    # of leaving a full-block panel isolated in open space. The partition opening remains
-    # circulation-first; this station is the first retained wall column beside that opening.
-    freight_manifest_x = wing_x0 + 4
-    freight_manifest_z = freight_open[0]
-    freight_manifest_support = (freight_manifest_x, 4, freight_manifest_z - 1)
-    if freight_manifest_support in model.cells:
-        set_empty(
-            freight_manifest_x, 4, freight_manifest_z,
-            "hardware", panel, "fp14_freight_manifest"
-        )
+    # No freestanding freight manifest is emitted in the open warehouse. Richer signage/furniture
+    # belongs in the later furnishing vocabulary rather than being forced onto circulation geometry.
 
     # Roof identity is located from the already-solved shared roof field, not from a new coordinate rule.
     ridge = layout["firstPrinciples"]["roofFields"]["public"]["ridgeStations"]

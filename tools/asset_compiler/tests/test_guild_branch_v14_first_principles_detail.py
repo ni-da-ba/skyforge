@@ -93,23 +93,13 @@ class GuildBranchFirstPrinciplesDetailTests(unittest.TestCase):
         detail = compiled.summary["layout"]["firstPrinciplesDetail"]
         self.assertIn("shared_roof_field_preserved", detail["authorities"])
 
-    def test_freight_manifest_is_attached_not_floating(self):
+    def test_open_warehouse_does_not_reintroduce_partition_or_floating_manifest(self):
         compiled = self._compile()
-        manifests = [
-            (pos, cell) for pos, cell in compiled.model.cells.items()
-            if cell.module == "fp14_freight_manifest"
-        ]
-        self.assertEqual(len(manifests), 1)
-        (x, y, z), _ = manifests[0]
-        neighbors = (
-            (x + 1, y, z), (x - 1, y, z),
-            (x, y + 1, z), (x, y - 1, z),
-            (x, y, z + 1), (x, y, z - 1),
-        )
-        self.assertTrue(any(pos in compiled.model.cells for pos in neighbors))
-        support = compiled.model.cells.get((x, y, z - 1))
-        self.assertIsNotNone(support)
-        self.assertEqual(support.module, "fp_working_partition")
+        modules = {cell.module for cell in compiled.model.cells.values()}
+        self.assertNotIn("fp_working_partition", modules)
+        self.assertNotIn("fp14_freight_manifest", modules)
+        self.assertNotIn("fp_freight_transom", modules)
+        self.assertIn("fp_repair_transom", modules)
 
     def test_v14_exports_minecraft_structure_and_full_qa(self):
         compiled = self._compile()

@@ -446,7 +446,11 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
             hinge = "left" if (z - a) % 2 == 0 else "right"
             model.set(wing_x1, 2, z, "door", BlockState.of(_material(materials, "workingDoor"), facing="east", half="lower", hinge=hinge), f"fp_{name}_door")
             model.set(wing_x1, 3, z, "door", BlockState.of(_material(materials, "workingDoor"), facing="east", half="upper", hinge=hinge), f"fp_{name}_door")
-            model.set(wing_x1 - 1, 4, z, "window", transom, f"fp_{name}_transom")
+            # Repair bays retain a glazed transom for daylight. Freight doors intentionally do
+            # not: the high glazing is functionally useless above the warehouse portal and adds
+            # visual clutter to an otherwise utilitarian loading face.
+            if name != "freight":
+                model.set(wing_x1 - 1, 4, z, "window", transom, f"fp_{name}_transom")
             model.set(wing_x1, 4, z, "structural_frame", frame_z, f"fp_{name}_header")
             model.set(wing_x1, 5, z, "structural_frame", frame_z, f"fp_{name}_lintel")
             for x in range(wing_x1 + 1, wing_x1 + 3):
@@ -489,15 +493,9 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
     for x in range(2, min(5, hall_x1 - 1)):
         model.set(x, 2, desk_z, "desk", desk, "fp_backoffice_desk")
 
-    # Keep the repair/warehouse partition legible without dead-ending the staff connection.
-    # The staff door enters at wing_x0; a three-cell opening beginning one cell into the wing
-    # preserves an immediate sightline/circulation path instead of presenting a wall column
-    # directly in front of the doorway.
-    working_partition_open_x = {wing_x0 + 1, wing_x0 + 2, wing_x0 + 3}
-    for x in range(wing_x0 + 1, wing_x1):
-        if x not in working_partition_open_x:
-            for y in range(2, 5):
-                model.set(x, y, split_z, "wall_infill", wall, "fp_working_partition")
+    # Keep the working wing open-plan. The repair and warehouse programs remain semantically
+    # distinct through their volumes, fixtures, anchors, and exterior portals; a full masonry
+    # divider adds circulation friction without providing useful gameplay or architectural value.
     repair_bench_x = wing_x0 + 1
     for z in range(repair_z0 + 1, repair_z1):
         model.set(repair_bench_x, 2, z, "workbench", repair_bench, "fp_repair_bench")
