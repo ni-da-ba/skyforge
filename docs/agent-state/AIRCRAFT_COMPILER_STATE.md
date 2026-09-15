@@ -1,7 +1,7 @@
 # Skyforge Aircraft Compiler state
 
 **Program authority:** issue #545  
-**Productionization boundary:** AIRCRAFT-PROD-006 / issue #645
+**Productionization boundary:** AIRCRAFT-PROD-007 / issue #648
 **Frozen evidence only:** `aircraft-compiler-proof@0651bcee7dc879ab43db2f0b224f77e5026222bd`  
 **Frozen implementation beneath checkpoint:** `cc020c872b9c53198cebbb0ae9094097f23c9c45`
 
@@ -113,12 +113,31 @@ deterministic discrete transformation downstream of AIRCRAFT-PROD-005:
 The transformation proves discrete geometry/topology only. It does not prove Create/Sable attachment or
 runtime side-force behavior at the translated fin root.
 
+## Productionized by AIRCRAFT-PROD-007
+
+On acceptance of issue #648, the unresolved semantic pilot station is lowered to one deterministic
+static Create seat placement downstream of target preflight, propulsion, and tail-junction lowering:
+
+- exactly one unresolved `PILOT_STATION` contract is required from the accepted target preflight;
+- the retained bounded profile places `create:brown_seat` exactly one block above the semantic pilot
+  anchor with explicit `waterlogged=false` state;
+- the pilot anchor must coincide with accepted structural airframe geometry;
+- the seat coordinate must be free of structural, resolved aerodynamic, and propulsion placements and
+  must be supported directly by that pilot-anchor structure;
+- target-preflight, propulsion, and tail artifacts are provenance-bound by production SHA-256 identities;
+- only `unresolved_required_station_providers` is discharged by a passing static placement;
+- pilot occupancy and pilot-control binding remain explicit runtime obligations and flight qualification
+  still requires the latter.
+
+This tranche does not claim Create-seat passenger behavior on a Sable body, input routing, persistence,
+or any control/flight authority.
+
 ## Frozen evidence not yet productionized
 
 The frozen branch contains accepted evidence for later compiler/runtime stages, but that evidence is
 not current-`main` production authority for:
 
-- pilot-station static lowering, complete probe placement-manifest emission, and live registry/blockstate validation;
+- complete probe placement-manifest emission and live registry/blockstate validation;
 - Sable primary/nested assembly, bounded Super Glue domains, and live propulsion/governor mechanism behavior;
 - yaw mechanism, cockpit routing, player interaction, and moving-body tracking.
 
@@ -148,10 +167,10 @@ work around the Platform fixture inside a complete aircraft.
 
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-PROD-006 is accepted on `main`, productionize the frozen v0.8 pilot-station lowering
-before final manifest emission: place the explicit Create seat relative to the semantic pilot anchor,
-prove static support/clearance against the accepted airframe + tail + propulsion topology, and keep
-occupancy/control binding runtime-unverified. The final combined probe placement manifest is downstream
-of that pilot-station artifact. Live runtime qualification must consume only capabilities explicitly
-granted by `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`; persistence and new control-axis
-work remain downstream of those applicable Platform contracts.
+After AIRCRAFT-PROD-007 is accepted on `main`, productionize the frozen v0.9 combined probe placement
+manifest over the accepted structural airframe, lowered aerodynamic surfaces, propulsion companions,
+and pilot seat. The manifest must preserve coordinate uniqueness, exact resource/blockstate provenance,
+placement counts, bounds, and explicit mechanical/runtime blockers without claiming assembly success.
+Live runtime qualification must consume only capabilities explicitly granted by
+`docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`; persistence and new control-axis work remain
+downstream of those applicable Platform contracts.
