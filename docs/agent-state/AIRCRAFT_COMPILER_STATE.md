@@ -1,7 +1,7 @@
 # Skyforge Aircraft Compiler state
 
 **Program authority:** issue #545  
-**Productionization boundary:** AIRCRAFT-PROD-008 / issue #651
+**Productionization boundary:** AIRCRAFT-PROD-009 / issue #656
 **Frozen evidence only:** `aircraft-compiler-proof@0651bcee7dc879ab43db2f0b224f77e5026222bd`  
 **Frozen implementation beneath checkpoint:** `cc020c872b9c53198cebbb0ae9094097f23c9c45`
 
@@ -153,12 +153,33 @@ The manifest still carries explicit mechanical blockers for Physics Assembler pl
 adhesion, and control-surface child-body topology. It does not claim world placement, Sable capture,
 Super Glue completeness, nested-propeller capture, persistence, or flight.
 
+## Productionized by AIRCRAFT-PROD-009
+
+On acceptance of issue #656, the v0.9 placement manifest is lowered into the bounded v0.10 static
+Physics Assembler fixture topology:
+
+- manifest placement kinds are partitioned explicitly into moving main-body and nested-propeller-child
+  sets, with unknown or overlapping classification rejected;
+- one source-backed `simulated:physics_assembler` fixture placement is added exactly one block below
+  seed `[0,2,0]`, with `face=ceiling` so the sticky/seed direction is upward;
+- the assembler is required to become part of the moving main body rather than remaining an external
+  assemble-only actuator;
+- a deterministic six-neighbor spanning tree expresses conservative logical adhesion intent over the
+  moving main body including the assembler, with full reachability and N-1 edge count required;
+- nested propeller hub/sails are excluded from that adhesion graph while exactly one main-body bearing
+  must have exactly one face-adjacent child hub;
+- Physics Assembler capture, adhesion application, and nested-propeller capture remain explicit unverified
+  runtime obligations.
+
+This tranche proves fixture geometry and logical adhesion topology only. It does not encode Super Glue,
+invoke Sable assembly, prove nested capture, or qualify persistence, controls, forces, or flight.
+
 ## Frozen evidence not yet productionized
 
 The frozen branch contains accepted evidence for later compiler/runtime stages, but that evidence is
 not current-`main` production authority for:
 
-- assembly-fixture planning, bounded Super Glue lowering, governed powertrain lowering, and live registry/blockstate validation;
+- bounded Super Glue lowering, governed powertrain lowering, and live registry/blockstate validation;
 - Sable primary/nested assembly, bounded Super Glue domains, and live propulsion/governor mechanism behavior;
 - yaw mechanism, cockpit routing, player interaction, and moving-body tracking.
 
@@ -188,11 +209,12 @@ work around the Platform fixture inside a complete aircraft.
 
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-PROD-008 is accepted on `main`, productionize the frozen v0.10 assembly-fixture planner
-over the accepted probe manifest before glue or powertrain work. That tranche must preserve the
-source-backed `simulated:physics_assembler` fixture geometry and static assembly/adhesion topology while
-keeping live Sable capture separate. Exact-stack runtime qualification may consume only capabilities
-explicitly granted to Agent B by `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`; currently
-accepted Sable-primary and Create-kinetic-on-Sable seams may be consumed when the aircraft-specific
-compiler artifact reaches the corresponding runtime boundary. Persistence and new control-axis work
-remain downstream of their applicable Platform contracts.
+After AIRCRAFT-PROD-009 is accepted on `main`, productionize the frozen v0.11 bounded Super Glue
+encoding over the accepted main-body spanning-tree intent. That tranche must preserve edge coverage,
+source-backed Create 6.0.10 glue semantics, assembler membership, and nested-child exclusion without
+claiming that the encoded domains have succeeded in a live assembly. Exact-stack runtime qualification
+may consume only capabilities explicitly granted to Agent B by
+`docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`; accepted Sable-primary and
+Create-kinetic-on-Sable seams may be consumed when the aircraft-specific compiler artifact reaches the
+corresponding runtime boundary. Persistence and new control-axis work remain downstream of their
+applicable Platform contracts.
