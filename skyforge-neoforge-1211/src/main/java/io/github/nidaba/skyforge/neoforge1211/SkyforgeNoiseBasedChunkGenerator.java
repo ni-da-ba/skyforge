@@ -9,8 +9,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import net.minecraft.core.Holder;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.core.SectionPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelHeightAccessor;
@@ -20,10 +23,14 @@ import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.RandomState;
+import net.minecraft.world.level.levelgen.RandomSupport;
+import net.minecraft.world.level.levelgen.WorldgenRandom;
+import net.minecraft.world.level.levelgen.XoroshiroRandomSource;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructurePiece;
@@ -133,6 +140,91 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 structureManager,
                 chunk,
                 structureTemplateManager);
+    }
+
+    /**
+     * Places one already-created native start after exact Skyforge terrain realization.
+     *
+     * <p>This is the placement half of the bounded post-admission structure lifecycle. It does not
+     * replay biome decoration or rediscover/select starts. Minecraft retains piece placement through
+     * {@link StructureStart#placeInChunk}; Skyforge supplies only the exact-volume write fence, the
+     * same structure-step random seed vanilla decoration would use, and the target-chunk writable
+     * area. Completion/idempotence remains a caller-owned DR-30 concern.
+     */
+    void placeStructureStartForExactSkyforgeVolume(
+            WorldGenLevel level,
+            ChunkAccess chunk,
+            StructureManager structureManager,
+            StructureStart start,
+            SkyIslandWorldVolumeId volumeId) {
+        java.util.Objects.requireNonNull(level, "level");
+        java.util.Objects.requireNonNull(chunk, "chunk");
+        java.util.Objects.requireNonNull(structureManager, "structureManager");
+        java.util.Objects.requireNonNull(start, "start");
+        java.util.Objects.requireNonNull(volumeId, "volumeId");
+        if (!start.isValid()) {
+            throw new IllegalArgumentException("native structure placement requires a valid StructureStart");
+        }
+
+        SkyforgeGenerationDomainStage.requireExactIslandVolume(volumeId);
+        SkyforgeNeoForge1211SurfaceStage.requireExactlyOneCandidateVolume(volumeId, chunk);
+        if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(volumeId)) {
+            throw new IllegalStateException(
+                    "native structure placement requires an admitted exact Skyforge volume");
+        }
+        BoundingBox writableArea = writableArea(chunk);
+        if (!start.getBoundingBox().intersects(writableArea)) {
+            throw new IllegalArgumentException(
+                    "native structure start does not intersect its target chunk writable area");
+        }
+
+        var structureRegistry = level.registryAccess().registryOrThrow(Registries.STRUCTURE);
+        List<Structure> stepStructures = structureRegistry.stream()
+                .filter(structure -> structure.step() == start.getStructure().step())
+                .toList();
+        int structureIndex = stepStructures.indexOf(start.getStructure());
+        if (structureIndex < 0) {
+            throw new IllegalStateException("native structure start is not registered in its generation step");
+        }
+
+        SectionPos sectionPos = SectionPos.of(chunk.getPos(), level.getMinSection());
+        BlockPos origin = sectionPos.origin();
+        WorldgenRandom random = new WorldgenRandom(new XoroshiroRandomSource(RandomSupport.generateUniqueSeed()));
+        long decorationSeed = random.setDecorationSeed(level.getSeed(), origin.getX(), origin.getZ());
+        random.setFeatureSeed(decorationSeed, structureIndex, start.getStructure().step().ordinal());
+
+        SkyforgeDeferredPopulationPostProcessingBridge.Scope postProcessing = null;
+        if (level instanceof ServerLevel serverLevel && chunk instanceof LevelChunk levelChunk) {
+            if (levelChunk.getLevel() != serverLevel) {
+                throw new IllegalArgumentException("stable native structure target belongs to another level");
+            }
+            postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(serverLevel);
+        }
+        try (var placement = SkyforgeStructurePlacementExecutionStage.open(volumeId, start.getBoundingBox())) {
+            level.setCurrentlyGenerating(() -> "Skyforge exact-volume structure "
+                    + structureRegistry.getKey(start.getStructure()));
+            start.placeInChunk(level, structureManager, this, random, writableArea, chunk.getPos());
+            SkyforgeDeferredPopulationPostProcessingBridge.flushIfActive();
+        } finally {
+            level.setCurrentlyGenerating(null);
+            if (postProcessing != null) {
+                postProcessing.close();
+            }
+        }
+    }
+
+    private static BoundingBox writableArea(ChunkAccess chunk) {
+        ChunkPos chunkPos = chunk.getPos();
+        int minX = chunkPos.getMinBlockX();
+        int minZ = chunkPos.getMinBlockZ();
+        LevelHeightAccessor height = chunk.getHeightAccessorForGeneration();
+        return new BoundingBox(
+                minX,
+                height.getMinBuildHeight() + 1,
+                minZ,
+                minX + 15,
+                height.getMaxBuildHeight() - 1,
+                minZ + 15);
     }
 
     /**
