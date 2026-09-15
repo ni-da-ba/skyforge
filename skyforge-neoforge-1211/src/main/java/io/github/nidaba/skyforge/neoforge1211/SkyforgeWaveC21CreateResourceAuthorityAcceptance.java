@@ -74,6 +74,10 @@ final class SkyforgeWaveC21CreateResourceAuthorityAcceptance {
             }
         }
 
+        // The WBY structure proof is a separate opt-in concern, but intentionally reuses this
+        // exact Create-capable server process so it observes the real pinned Wave C1 registry.
+        SkyforgeWbyC1StructureRegistryProbe.runIfEnabled(server);
+
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "WAVE_C21 PASS mode="
