@@ -300,6 +300,9 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                                         + " staleGroundChild=" + staleGroundChild),
                         "primary assembly registered an invalid Sable body");
             }
+            // Stabilize the newly valid body before waiting for parent-world cleanup to settle.
+            // The ticket is fixture-only and is still released before the save boundary.
+            addFixtureForceLoadTicket(listedBody);
             boolean staleChildAlive = staleGroundChild != null && staleGroundChild.isAlive();
             if (sourceNonAir != 0 || staleChildAlive) {
                 if (waitDiagnostic.expired(now)) {
@@ -323,7 +326,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             requireMovedBlockId(movedShaft, SHAFT_ID, "shaft");
             requireMovedBlockId(movedEndpoint, ENDPOINT_ID, "accepted PLATFORM-003 gearbox endpoint");
             requireMovedBlockId(movedBearing, id("minecraft:oak_planks"), "bearing realization plate cell");
-            addFixtureForceLoadTicket(listedBody);
             stage = Stage.PHYSICS_INITIALIZATION;
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,

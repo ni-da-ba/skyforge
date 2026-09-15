@@ -414,6 +414,13 @@
       },
       "negative_evidence": [
         {
+          "workflow_run": 35031835513,
+          "job": 104592227867,
+          "commit": "cb1c060316ec44bf936ea8f525afc244147f222b",
+          "result": "TICKET_AFTER_CLEANUP_LIVENESS_RACE",
+          "finding": "Boot A discovered a single primary UUID and later found that exact UUID in Sable holding storage, but could not keep it live. The harness delayed its bounded COMMAND_FORCED ticket until source-world cleanup reached zero; therefore a valid assembled body could enter holding storage while cleanup was still being polled. The ticket is now attached immediately after UUID/body/mass/COM validity is established, while source cleanup remains a mandatory bounded acceptance condition before proceeding."
+        },
+        {
           "workflow_run": 35031073642,
           "job": 104589832046,
           "commit": "65d99ae2b4a8d3a570daa026635e4a51b0a6cce5",
