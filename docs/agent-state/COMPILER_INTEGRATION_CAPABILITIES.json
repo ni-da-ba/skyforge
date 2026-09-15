@@ -239,6 +239,62 @@
         "C": true
       },
       "negative_evidence": []
+    },
+    "NESTED_PROPELLER_BEARING_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeNestedPropellerBearingLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "NestedPropellerBearingLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-nested-propeller-bearing-lifecycle.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 34983839814,
+        "job": 104431264483,
+        "commit": "30a5f9aee10657e23c645c543c85e80ca3df3ca7",
+        "result": "PASS",
+        "finding": "Exact-stack L2 proved the complete nested Propeller Bearing lifecycle: a fixed-world 3-block child (create:shaft hub plus two simulated:white_symmetric_sail cells) assembled under one Propeller Bearing, was flattened through the real Physics Assembler into one canonical Sable primary body, recovered moved bearing speed 16.0, then reassembled as a fresh nested child with a distinct entity UUID, running=true, exact 3-block/2-sail membership, no stale ground child retained, successful child teardown/restoration, current canonical-body/block-entity resolution, and released the bounded COMMAND_FORCED fixture ticket before PASS."
+      },
+      "assumptions_preconditions": [
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE, CREATE_KINETIC_ON_SABLE_LIFECYCLE, and SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE semantics without widening those prerequisites.",
+        "The fixed-world Propeller Bearing child is one axial create:shaft hub plus exactly two simulated:white_symmetric_sail cells, satisfying the exact Aeronautics minimum sail-power boundary.",
+        "Main-body and child-internal Super Glue domains are disjoint and no glue spans the Propeller Bearing controller plane.",
+        "The ground controlled child is fixture setup; the qualification target is clean flattening through the real Physics Assembler followed by fresh nested child reassembly from the canonical moved bearing.",
+        "Persistent Sable UUID is primary-body identity; moved bearing/block entities and physics handles are re-resolved from current canonical state rather than retained across assembly."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_TARGET_LOWERING",
+        "FAIL_BOOT",
+        "FAIL_RUNTIME_EXIT",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_ASSEMBLY",
+        "FAIL_CHILD_ASSEMBLY",
+        "FAIL_KINETIC_REBUILD",
+        "FAIL_PHYSICS",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_KINETIC_BUILD",
+        "TIMEOUT_CHILD_ASSEMBLY",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": true,
+        "C": true
+      },
+      "negative_evidence": [
+        {
+          "workflow_run": 34982385779,
+          "job": 104426287139,
+          "commit": "b4eff3bdb5db94e1e6d731f01f7dcde55f983ec8",
+          "result": "HARNESS_PRECONDITION_FAILURE",
+          "finding": "The first L2 attempt stopped before lifecycle execution because the harness guessed the PropellerBearingContraptionEntity package incorrectly. Exact runtime/source inspection corrected the class path from bearing.propeller_bearing to bearing.contraption; this is harness negative evidence, not a Propeller Bearing runtime failure."
+        }
+      ]
     }
   }
 }
