@@ -270,7 +270,9 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             bodyId = candidateId;
             Object listedBody = findListedBody(bodyId);
             if (listedBody == null) {
-                if (primaryRecoveredFromHolding) {
+                Set<UUID> holdingIds = currentHoldingSubLevelIds();
+                if (primaryRecoveredFromHolding || holdingIds.contains(bodyId)) {
+                    primaryRecoveredFromHolding = true;
                     requestHoldingLoadIfAvailable();
                     listedBody = findListedBody(bodyId);
                 }
@@ -300,10 +302,10 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                                         + " staleGroundChild=" + staleGroundChild),
                         "primary assembly registered an invalid Sable body");
             }
-            // Stabilize the newly valid body before waiting for parent-world cleanup to settle.
-            // pollAssembly may revisit this body while cleanup finishes, so ticket acquisition must be idempotent.
-            // The ticket is fixture-only and is still released before the save boundary.
-            if (!forceLoadTicketAdded) {
+            // A normally live body must be allowed to finish Simulated parent-world cleanup before force-loading.
+            // If the known UUID already fell into Sable holding during that window, recover it and ticket that
+            // recovered live authority immediately so it cannot cycle back into holding.
+            if (primaryRecoveredFromHolding && !forceLoadTicketAdded) {
                 addFixtureForceLoadTicket(listedBody);
             }
             boolean staleChildAlive = staleGroundChild != null && staleGroundChild.isAlive();
@@ -316,6 +318,9 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                             "primary assembly source cleanup did not settle before deadline");
                 }
                 return;
+            }
+            if (!forceLoadTicketAdded) {
+                addFixtureForceLoadTicket(listedBody);
             }
             movedOffset = movedOffset(listedBody, centerOfMass);
             movedMotor = MOTOR_SOURCE.offset(movedOffset);

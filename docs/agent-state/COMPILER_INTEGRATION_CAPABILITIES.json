@@ -420,6 +420,13 @@
       },
       "negative_evidence": [
         {
+          "workflow_run": 35034563292,
+          "job": 104600913610,
+          "commit": "e8eaff0025473c8bfff37f4c57f02dd41ce3dd49",
+          "result": "EARLY_FORCELOAD_SOURCE_CLEANUP_STALL",
+          "finding": "The authority-bearing rerun created one valid live Sable UUID but the normal Simulated parent-world source cleanup remained at 15 non-air cells through the bounded deadline after COMMAND_FORCED was attached immediately on first registration. The previous behavioral PASS showed cleanup can complete naturally. Recovery is now conditional: normal live bodies are ticketed only after source cleanup reaches zero; if the already-known UUID enters Sable holding during that wait, the fixture snatches that same UUID and immediately tickets the recovered live body before continuing. This combines holding-race protection without force-loading an in-progress normal assembly transition."
+        },
+        {
           "workflow_run": 35032336867,
           "job": 104593871396,
           "commit": "ee3e264566618ffaf137d73562061a388d82a7b2",
