@@ -73,17 +73,18 @@ final class NestedPropellerBearingLifecycleResourceTest {
     }
 
     @Test
-    void ledgerStartsFailClosedPendingExactStackAcceptance() throws IOException {
+    void ledgerPublishesAcceptedAuthorityAfterExactStackAcceptance() throws IOException {
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
                         "../docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json").normalize());
         int start = ledger.indexOf("\"NESTED_PROPELLER_BEARING_LIFECYCLE\"");
         assertTrue(start >= 0);
         String entry = ledger.substring(start);
 
-        assertTrue(entry.contains("\"status\": \"qualification_pending\""));
-        assertTrue(entry.contains("\"latest_accepted_evidence\": null"));
-        assertTrue(entry.contains("\"B\": false"));
-        assertTrue(entry.contains("\"C\": false"));
+        assertTrue(entry.contains("\"status\": \"accepted\""));
+        assertTrue(entry.contains("\"workflow_run\": 34983839814"));
+        assertTrue(entry.contains("\"job\": 104431264483"));
+        assertTrue(entry.contains("\"B\": true"));
+        assertTrue(entry.contains("\"C\": true"));
     }
 
     private static String fixtureSource() throws IOException {
