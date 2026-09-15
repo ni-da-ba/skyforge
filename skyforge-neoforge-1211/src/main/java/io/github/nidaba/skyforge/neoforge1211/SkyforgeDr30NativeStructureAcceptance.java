@@ -43,6 +43,10 @@ final class SkyforgeDr30NativeStructureAcceptance {
     private static AutoCloseable terrainBinding;
     private static AutoCloseable admissionBinding;
     private static boolean complete;
+    private static long lastPlaceDiagnosticNanos = Long.MIN_VALUE;
+    private static final long PLACE_DIAGNOSTIC_INTERVAL_NANOS = 10_000_000_000L;
+    private static final System.Logger LOGGER =
+            System.getLogger(SkyforgeDr30NativeStructureAcceptance.class.getName());
 
     private SkyforgeDr30NativeStructureAcceptance() {}
 
@@ -93,15 +97,27 @@ final class SkyforgeDr30NativeStructureAcceptance {
 
     private static void observeSingle(ServerLevel level) {
         SkyIslandWorldVolumeId volumeId = lowerId();
-        if (!ready(volumeId)) {
+        var snapshot = SkyforgePhysicalVolumeAdmissionStage.snapshot(volumeId);
+        var pendingCatchup = SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId);
+        var saved = SkyforgeNativeStructurePlacementSavedData.forLevel(level);
+        var identities = saved.ownedFor(volumeId, ChunkPos.asLong(0, 0));
+        long completedStarts = identities.stream().filter(saved::completed).count();
+
+        if (snapshot.state() != SkyforgePhysicalVolumeAdmissionState.ADMITTED || !pendingCatchup.isEmpty()) {
+            logPlaceDiagnostic(
+                    "awaiting-terrain", snapshot, pendingCatchup.size(), identities.size(), completedStarts);
             return;
         }
-        var identity = completedOriginIdentity(level, volumeId);
+        var identity = identities.stream().filter(saved::completed).findFirst().orElse(null);
         if (identity == null) {
+            logPlaceDiagnostic(
+                    "awaiting-completed-start", snapshot, 0, identities.size(), completedStarts);
             return;
         }
         BlockPos structureBlock = findMansionBlock(level, identity);
         if (structureBlock == null) {
+            logPlaceDiagnostic(
+                    "awaiting-physical-block", snapshot, 0, identities.size(), completedStarts);
             return;
         }
         level.setBlockAndUpdate(structureBlock, Blocks.DIAMOND_BLOCK.defaultBlockState());
@@ -181,6 +197,31 @@ final class SkyforgeDr30NativeStructureAcceptance {
         evidence.put("physicalPlacementsDistinct", true);
         complete = true;
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(level.getServer(), evidence);
+    }
+
+    private static void logPlaceDiagnostic(
+            String stage,
+            SkyforgePhysicalVolumeAdmissionLedger.Observation snapshot,
+            int pendingCatchup,
+            int ownedStarts,
+            long completedStarts) {
+        long now = System.nanoTime();
+        if (lastPlaceDiagnosticNanos != Long.MIN_VALUE
+                && now - lastPlaceDiagnosticNanos < PLACE_DIAGNOSTIC_INTERVAL_NANOS) {
+            return;
+        }
+        lastPlaceDiagnosticNanos = now;
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "DR-30 PLACE DIAGNOSTIC: stage=" + stage
+                        + ", admissionState=" + snapshot.state()
+                        + ", observedChunks=" + snapshot.observedChunks()
+                        + ", requiredChunks=" + snapshot.requiredChunks()
+                        + ", pendingCatchup=" + pendingCatchup
+                        + ", eligibleCatchup="
+                        + SkyforgePhysicalVolumeAdmissionStage.eligibleCatchupChunkKeys().size()
+                        + ", ownedStarts=" + ownedStarts
+                        + ", completedStarts=" + completedStarts);
     }
 
     private static boolean ready(SkyIslandWorldVolumeId volumeId) {
