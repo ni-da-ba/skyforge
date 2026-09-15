@@ -115,7 +115,9 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
         }
         clientGameplayReady = true;
 
-        Vec3 clientGlobalWheelCenter = projectOutOfSubLevel(minecraft.level, Vec3.atCenterOf(wheelPos));
+        float partialTick = minecraft.getTimer().getGameTimeDeltaPartialTick(true);
+        Vec3 clientGlobalWheelCenter = projectOutOfClientRenderPose(
+                minecraft.level, wheelPos, Vec3.atCenterOf(wheelPos), partialTick);
         if (clientGlobalWheelCenter.distanceTo(snapshot.expectedGlobalWheelCenter())
                 > CLIENT_SERVER_POSE_TOLERANCE_BLOCKS) {
             stageTicks = 0;
@@ -138,12 +140,12 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
             return;
         }
 
-        positionClientAtRenderedStand(minecraft, player, snapshot);
+        positionClientAtRenderedStand(minecraft, player, snapshot, partialTick);
         Vec3 wheelPlotHit = new Vec3(
                 wheelPos.getX() + STEERING_WHEEL_VISUAL_X,
                 wheelPos.getY() + STEERING_WHEEL_VISUAL_Y,
                 wheelPos.getZ() + 0.5);
-        lookAt(player, projectOutOfSubLevel(minecraft.level, wheelPlotHit));
+        lookAt(player, projectOutOfClientRenderPose(minecraft.level, wheelPos, wheelPlotHit, partialTick));
         BlockHitResult hit = new BlockHitResult(wheelPlotHit, Direction.UP, wheelPos, false);
         minecraft.hitResult = hit;
         wheelUseResult = minecraft.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
@@ -166,7 +168,8 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
             LocalPlayer player,
             SkyforgeSteeringWheelClientOnSableBridge.Snapshot snapshot)
             throws ReflectiveOperationException {
-        positionClientAtRenderedStand(minecraft, player, snapshot);
+        positionClientAtRenderedStand(
+                minecraft, player, snapshot, minecraft.getTimer().getGameTimeDeltaPartialTick(true));
         if (SkyforgeSteeringWheelClientOnSableLifecycleAcceptance.activePacketObserved()
                 && SkyforgeSteeringWheelClientOnSableLifecycleAcceptance.activeResponseSettled()) {
             invokeSimulatedUseRelease();
@@ -178,7 +181,7 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
             return;
         }
         if (stageTicks > 160) {
-            fail("server never observed real client SteeringWheelPacket active command and completed response "
+            fail("server never observed real client Steering Wheel active command and completed response "
                     + steeringHandlerDiagnostics(minecraft, snapshot));
         }
     }
@@ -187,7 +190,8 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
             Minecraft minecraft,
             LocalPlayer player,
             SkyforgeSteeringWheelClientOnSableBridge.Snapshot snapshot) {
-        positionClientAtRenderedStand(minecraft, player, snapshot);
+        positionClientAtRenderedStand(
+                minecraft, player, snapshot, minecraft.getTimer().getGameTimeDeltaPartialTick(true));
         if (!SkyforgeSteeringWheelClientOnSableLifecycleAcceptance.releasePacketObserved()
                 || !SkyforgeSteeringWheelClientOnSableLifecycleAcceptance.settledObserved()) {
             if (stageTicks > 160) {
@@ -230,8 +234,10 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
     private static void positionClientAtRenderedStand(
             Minecraft minecraft,
             LocalPlayer player,
-            SkyforgeSteeringWheelClientOnSableBridge.Snapshot snapshot) {
-        Vec3 renderedStand = projectOutOfSubLevel(minecraft.level, snapshot.standPlotPosition());
+            SkyforgeSteeringWheelClientOnSableBridge.Snapshot snapshot,
+            float partialTick) {
+        Vec3 renderedStand = projectOutOfClientRenderPose(
+                minecraft.level, snapshot.steeringWheelPos(), snapshot.standPlotPosition(), partialTick);
         player.setPos(renderedStand.x, renderedStand.y, renderedStand.z);
         player.setDeltaMovement(Vec3.ZERO);
         clientSetupRepositioningUsed = true;
@@ -258,18 +264,28 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
         }
     }
 
-    private static Vec3 projectOutOfSubLevel(Level level, Vec3 plotPosition) {
+    private static Vec3 projectOutOfClientRenderPose(
+            Level level, BlockPos plotAnchor, Vec3 plotPosition, float partialTick) {
         try {
             Class<?> sable = Class.forName("dev.ryanhcode.sable.Sable");
             Object helper = sable.getField("HELPER").get(null);
-            Method method = helper.getClass().getMethod("projectOutOfSubLevel", Level.class, Vec3.class);
-            Object projected = method.invoke(helper, level, plotPosition);
+            Method containingMethod = helper.getClass().getMethod(
+                    "getContaining", Level.class, double.class, double.class);
+            Object subLevel = containingMethod.invoke(
+                    helper, level, plotAnchor.getX() + 0.5, plotAnchor.getZ() + 0.5);
+            if (subLevel == null || !subLevel.getClass().getName().endsWith("ClientSubLevel")) {
+                throw new IllegalStateException("Sable client sublevel unavailable for render-pose projection: " + subLevel);
+            }
+            Object renderPose = subLevel.getClass().getMethod("renderPose", float.class).invoke(subLevel, partialTick);
+            Object projected = renderPose.getClass().getMethod("transformPosition", Vec3.class)
+                    .invoke(renderPose, plotPosition);
             if (!(projected instanceof Vec3 globalPosition)) {
-                throw new IllegalStateException("Sable projectOutOfSubLevel returned " + projected);
+                throw new IllegalStateException("Sable client renderPose transformPosition returned " + projected);
             }
             return globalPosition;
         } catch (ReflectiveOperationException failure) {
-            throw new IllegalStateException("could not project PLATFORM-006 plot position into Sable global space", failure);
+            throw new IllegalStateException(
+                    "could not project PLATFORM-006 plot position through client renderPose", failure);
         }
     }
 
@@ -319,7 +335,8 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
                 + ",angleInputHit=" + angleInputHit
                 + ",wheelUseResult=" + wheelUseResult
                 + ",hitLocation=" + hitLocation
-                + ",projectedCenter=" + projectOutOfSubLevel(minecraft.level, Vec3.atCenterOf(wheelPos))
+                + ",projectedCenter=" + projectOutOfClientRenderPose(
+                        minecraft.level, wheelPos, Vec3.atCenterOf(wheelPos), partialTick)
                 + ",expectedGlobalCenter=" + SkyforgeSteeringWheelClientOnSableBridge.snapshot().expectedGlobalWheelCenter()
                 + ",clientServerPoseConverged=" + clientServerPoseConverged
                 + ",eye=" + player.getEyePosition(partialTick)

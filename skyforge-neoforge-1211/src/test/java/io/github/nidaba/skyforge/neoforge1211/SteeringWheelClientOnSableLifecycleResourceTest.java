@@ -42,6 +42,10 @@ final class SteeringWheelClientOnSableLifecycleResourceTest {
         assertTrue(client.contains("invokeSimulatedUseRelease"));
         assertTrue(client.contains("HoldInteractionManager"));
         assertTrue(client.contains("SimulatedCommonClientEvents"));
+        assertTrue(client.contains("projectOutOfClientRenderPose"));
+        assertTrue(client.contains("getMethod(\"renderPose\", float.class)"));
+        assertTrue(client.contains("getMethod(\"transformPosition\", Vec3.class)"));
+        assertFalse(client.contains("projectOutOfSubLevel"));
         assertTrue(client.contains("CLIENT_SERVER_POSE_TOLERANCE_BLOCKS"));
         assertTrue(client.contains("expectedGlobalWheelCenter"));
         assertFalse(client.contains("new SteeringWheelPacket"));
