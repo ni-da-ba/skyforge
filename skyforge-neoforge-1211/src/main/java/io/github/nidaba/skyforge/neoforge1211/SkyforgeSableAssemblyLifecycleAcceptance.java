@@ -331,14 +331,17 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         Set<UUID> currentIds = currentSubLevelIds(container);
         if (!currentIds.contains(bodyId)) {
             String retainedState = assembledBody == null ? "assembledBody=null" : bodySnapshot(assembledBody);
+            String holdingState = holdingState(bodyId);
             fail(
                     SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
                     waitDiagnostic.withFinalState(
                             "bodyId=" + bodyId + " currentSubLevelIds=" + currentIds,
                             safeServerState(),
                             "headless",
-                            "registered body disappeared before a stable physics handle was observed; retained=" + retainedState),
-                    "registered Sable body was removed before physics initialization; retained=" + retainedState);
+                            "registered body disappeared before a stable physics handle was observed; retained=" + retainedState
+                                    + " holding=" + holdingState),
+                    "registered Sable body was removed before physics initialization; retained=" + retainedState
+                            + " holding=" + holdingState);
         }
 
         Object canonicalBody = findCanonicalBody(bodyId);
@@ -573,6 +576,19 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             }
         }
         return null;
+    }
+
+
+    private static String holdingState(UUID uuid) throws ReflectiveOperationException {
+        Object holdingChunkMap = publicMethod(container, "getHoldingChunkMap").invoke(container);
+        if (holdingChunkMap == null) {
+            return "holdingChunkMap=null";
+        }
+        Method lookup = holdingChunkMap.getClass().getMethod("getHoldingSubLevel", UUID.class);
+        Object holdingSubLevel = lookup.invoke(holdingChunkMap, uuid);
+        return holdingSubLevel == null
+                ? "holdingSubLevel=false"
+                : "holdingSubLevel=true type=" + holdingSubLevel.getClass().getName();
     }
 
     private static String bodySnapshot(Object listedBody) throws ReflectiveOperationException {
