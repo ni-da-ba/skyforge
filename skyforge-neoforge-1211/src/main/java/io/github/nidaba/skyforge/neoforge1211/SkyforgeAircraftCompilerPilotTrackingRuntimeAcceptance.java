@@ -140,11 +140,16 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
                     fail("v0.21 measurement must begin after ordinary seat dismount");
                 }
 
+                // The parent object captured at assembly time can be replaced by Sable while preserving
+                // its persistent UUID. The naturally tracked sublevel is the authoritative live runtime
+                // object for this measurement; persistent UUID equality above proves it is the same
+                // compiled aircraft identity without relying on stale Java object identity.
+                Object liveParentSubLevel = trackingSubLevel;
                 reflectionStage = "initialParentLogicalPose";
-                startParentX = parentPositionX(assembledParentSubLevel);
+                startParentX = parentPositionX(liveParentSubLevel);
                 startPlayerX = player.getX();
                 reflectionStage = "preparePhysics";
-                physicsContext = preparePhysics(player.serverLevel(), assembledParentSubLevel);
+                physicsContext = preparePhysics(player.serverLevel(), liveParentSubLevel);
                 reflectionStage = "setInitialLinearVelocity";
                 setLinearVelocityX(physicsContext.handle(), translationVelocityMetersPerSecond);
                 measurementStarted = true;
@@ -154,6 +159,7 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
                                 + " naturalClientCollisionMovementPacketAcquisition=true"
                                 + " trackingParentIdentity=true"
                                 + " trackingParentUuid=" + expectedParentId
+                                + " liveTrackedParentUsed=true"
                                 + " afterDismount=true"
                                 + " harnessTrackingSetterInvoked=false"
                                 + " harnessPlayerMutationDuringMeasurement=false"
@@ -176,7 +182,7 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
             }
 
             reflectionStage = "measuredParentLogicalPose";
-            measuredParentDeltaX = parentPositionX(assembledParentSubLevel) - startParentX;
+            measuredParentDeltaX = parentPositionX(trackingSubLevel) - startParentX;
             measuredPlayerDeltaX = player.getX() - startPlayerX;
             if (Math.abs(measuredParentDeltaX) >= minimumParentTranslationBlocks) {
                 cleanupPhysics();
@@ -199,6 +205,7 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
                                 + " acquisitionPath=client_sublevel_collision_then_movement_packet"
                                 + " trackingParentIdentity=true"
                                 + " trackingParentUuid=" + expectedParentId
+                                + " liveTrackedParentUsed=true"
                                 + " postDismountMeasurement=true"
                                 + " parentTranslationApplied=true"
                                 + " parentDeltaX=" + measuredParentDeltaX
