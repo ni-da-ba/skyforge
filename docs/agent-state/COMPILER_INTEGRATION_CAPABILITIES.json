@@ -295,6 +295,45 @@
           "finding": "The first L2 attempt stopped before lifecycle execution because the harness guessed the PropellerBearingContraptionEntity package incorrectly. Exact runtime/source inspection corrected the class path from bearing.propeller_bearing to bearing.contraption; this is harness negative evidence, not a Propeller Bearing runtime failure."
         }
       ]
+    },
+    "STEERING_WHEEL_CLIENT_ON_SABLE_LIFECYCLE": {
+      "status": "qualification_pending",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeSteeringWheelClientOnSableLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "SteeringWheelClientOnSableLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-steering-wheel-client-on-sable.yml",
+      "latest_accepted_evidence": null,
+      "assumptions_preconditions": [
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE, CREATE_KINETIC_ON_SABLE_LIFECYCLE, and SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE only as fixture prerequisites; this capability independently qualifies actual-client Steering Wheel interaction on the live Sable body.",
+        "The fixture uses one floor-mounted simulated:steering_wheel, one create:shaft, and one create:gearbox observable endpoint inside a single Physics Assembler capture domain.",
+        "Persistent Sable UUID is primary-body identity; moved wheel/block entities and physics handles are re-resolved from current canonical state rather than retained across assembly.",
+        "Client positioning is bounded qualification setup only and does not qualify natural Sable player tracking, seats, cockpit occupancy, or flight.",
+        "The production interaction path is MultiPlayerGameMode.useItemOn -> Simulated hold interaction -> Simulated mouse callback -> real SteeringWheelPacket active/release delivery; no direct packet handler or wheel-state mutation is accepted as evidence."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_TARGET_LOWERING",
+        "FAIL_BOOT",
+        "FAIL_RUNTIME_EXIT",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_ASSEMBLY",
+        "FAIL_PHYSICS",
+        "FAIL_CLIENT_INTERACTION",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": false,
+        "C": false
+      },
+      "negative_evidence": []
     }
   }
 }
