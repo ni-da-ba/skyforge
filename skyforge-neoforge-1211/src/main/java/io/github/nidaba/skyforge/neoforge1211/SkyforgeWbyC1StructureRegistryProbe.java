@@ -33,13 +33,13 @@ final class SkyforgeWbyC1StructureRegistryProbe {
     static final String RESULT_FILE_PROPERTY = "skyforge.dev.wbyC1StructureRegistryResultFile";
 
     private static final Set<String> BOOLEAN_DOMAIN = Set.of("false", "true");
-    private static final Map<String, Set<String>> PANE_PROPERTIES = Map.of(
+    private static final Map<String, Set<String>> CARDINAL_CONNECTIVE_PROPERTIES = Map.of(
             "east", BOOLEAN_DOMAIN,
             "north", BOOLEAN_DOMAIN,
             "south", BOOLEAN_DOMAIN,
             "waterlogged", BOOLEAN_DOMAIN,
             "west", BOOLEAN_DOMAIN);
-    private static final Map<String, String> PANE_DEFAULTS = Map.of(
+    private static final Map<String, String> CARDINAL_CONNECTIVE_DEFAULTS = Map.of(
             "east", "false",
             "north", "false",
             "south", "false",
@@ -74,16 +74,40 @@ final class SkyforgeWbyC1StructureRegistryProbe {
             requireStateContract("create:copper_casing", Map.of(), Map.of(), evidence);
             requireStateContract("create:industrial_iron_block", Map.of(), Map.of(), evidence);
             requireStateContract("create:weathered_iron_block", Map.of(), Map.of(), evidence);
-            requireStateContract("create:framed_glass_pane", PANE_PROPERTIES, PANE_DEFAULTS, evidence);
-            requireStateContract("create:industrial_iron_window_pane", PANE_PROPERTIES, PANE_DEFAULTS, evidence);
-            requireStateContract("create:ornate_iron_window_pane", PANE_PROPERTIES, PANE_DEFAULTS, evidence);
+            requireStateContract(
+                    "create:framed_glass_pane",
+                    CARDINAL_CONNECTIVE_PROPERTIES,
+                    CARDINAL_CONNECTIVE_DEFAULTS,
+                    evidence);
+            requireStateContract(
+                    "create:industrial_iron_window_pane",
+                    CARDINAL_CONNECTIVE_PROPERTIES,
+                    CARDINAL_CONNECTIVE_DEFAULTS,
+                    evidence);
+            requireStateContract(
+                    "create:ornate_iron_window_pane",
+                    CARDINAL_CONNECTIVE_PROPERTIES,
+                    CARDINAL_CONNECTIVE_DEFAULTS,
+                    evidence);
+            requireStateContract(
+                    "create:andesite_bars",
+                    CARDINAL_CONNECTIVE_PROPERTIES,
+                    CARDINAL_CONNECTIVE_DEFAULTS,
+                    evidence);
+            requireStateContract(
+                    "create:brass_bars",
+                    CARDINAL_CONNECTIVE_PROPERTIES,
+                    CARDINAL_CONNECTIVE_DEFAULTS,
+                    evidence);
+            requireStateContract(
+                    "create:copper_bars",
+                    CARDINAL_CONNECTIVE_PROPERTIES,
+                    CARDINAL_CONNECTIVE_DEFAULTS,
+                    evidence);
 
             // Discovery-only structural vocabulary. These observations intentionally do not grant
             // automatic compiler authority; they establish the exact pinned-runtime state surface
-            // for the next semantic/compiler tranche.
-            observeStateContract("create:andesite_bars", evidence);
-            observeStateContract("create:brass_bars", evidence);
-            observeStateContract("create:copper_bars", evidence);
+            // for later semantic/compiler tranches.
             observeStateContract("create:andesite_ladder", evidence);
             observeStateContract("create:brass_ladder", evidence);
             observeStateContract("create:copper_ladder", evidence);
@@ -92,9 +116,10 @@ final class SkyforgeWbyC1StructureRegistryProbe {
             observeStateContract("create:copper_scaffolding", evidence);
             observeStateContract("create:metal_girder", evidence);
 
-            evidence.put("catalogBlocksValidated", "8");
+            evidence.put("catalogBlocksValidated", "11");
             evidence.put("paneContractsValidated", "3");
-            evidence.put("deferredStructuralContractsObserved", "10");
+            evidence.put("barsContractsValidated", "3");
+            evidence.put("deferredStructuralContractsObserved", "7");
             evidence.put("status", "PASS");
             writeResult(evidence);
             LOGGER.log(
