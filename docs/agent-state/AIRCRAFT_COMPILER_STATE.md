@@ -1,7 +1,7 @@
 # Skyforge Aircraft Compiler state
 
 **Program authority:** issue #545  
-**Productionization boundary:** AIRCRAFT-PROD-010 / issue #658
+**Productionization boundary:** AIRCRAFT-PROD-011 / issue #664
 **Frozen evidence only:** `aircraft-compiler-proof@0651bcee7dc879ab43db2f0b224f77e5026222bd`  
 **Frozen implementation beneath checkpoint:** `cc020c872b9c53198cebbb0ae9094097f23c9c45`
 
@@ -194,12 +194,35 @@ deterministic bounded Create 6.0.10 Super Glue command/domain data:
 This tranche is static encoding only and does not consume the separate Platform-owned live Super Glue
 qualification work. Runtime qualification, persistence, controls, forces, and flight remain unclaimed.
 
+## Productionized by AIRCRAFT-PROD-011
+
+On acceptance of issue #664, the frozen v0.12 governed powertrain topology is productionized as a
+static, provenance-bound patch over the accepted probe manifest, assembly fixture, and glue encoding:
+
+- the exact `manifest -> assembly fixture -> glue encoding` chain is SHA-256-bound before lowering;
+- two Simulated Portable Engines remain source-constrained 32-RPM additions on opposite sides of the
+  governor coordinate;
+- exactly one `airframe_structure`/`minecraft:spruce_planks` cell is replaced by
+  `create:rotation_speed_controller`, while the dedicated large cog and X-axis prop shaft are additions;
+- the large cog must remain directly above the governor, and the shaft must be collinear/face-adjacent
+  between the cog and the retained propeller bearing;
+- no powertrain placement may enter the nested propeller child domain;
+- the bounded powerplant glue domain must stay within the accepted Create selection limit, contain every
+  emitted powertrain coordinate, exclude nested-child cells, and overlap accepted main-body glue coverage;
+- 128 RPM remains the only accepted initial governor point; 160/192/224/256 RPM remain explicitly
+  downstream of the 128-RPM runtime gate;
+- Sable recapture, dual-engine shared-network behavior, live governor speed, kinetic stress margin, and
+  propeller thrust sign/magnitude remain explicit unverified runtime obligations.
+
+This tranche does not claim live powertrain behavior, save/reload persistence, controls, force fidelity,
+or flight qualification.
+
 ## Frozen evidence not yet productionized
 
 The frozen branch contains accepted evidence for later compiler/runtime stages, but that evidence is
 not current-`main` production authority for:
 
-- governed powertrain lowering and live registry/blockstate validation;
+- live registry/blockstate validation and aircraft-specific governed-powertrain runtime qualification;
 - Sable primary/nested assembly, bounded Super Glue domains, and live propulsion/governor mechanism behavior;
 - yaw mechanism, cockpit routing, player interaction, and moving-body tracking.
 
@@ -229,12 +252,13 @@ work around the Platform fixture inside a complete aircraft.
 
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-PROD-010 is accepted on `main`, productionize the frozen v0.12 governed powertrain
-lowering over the accepted placement manifest plus glue encoding. Keep its source-backed Create/Simulated
-resource topology, replacement/addition semantics, governor point, RPM/stress/thrust obligations, and
-nested-propeller boundary compile-visible without claiming live mechanism behavior. Exact-stack runtime
-qualification may consume only capabilities explicitly granted to Agent B by
-`docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`; accepted Sable-primary and
-Create-kinetic-on-Sable seams may be consumed when the aircraft-specific compiler artifact reaches the
-corresponding runtime boundary, while Platform-owned Super Glue realization must not be duplicated.
-Persistence and new control-axis work remain downstream of their applicable Platform contracts.
+After AIRCRAFT-PROD-011 is accepted on `main`, qualify the bounded v0.12 governed-powertrain specimen on
+the exact stack rather than immediately extending into a new control axis. That runtime tranche may
+consume the accepted Agent-B authorities for `SABLE_PRIMARY_ASSEMBLY_LIFECYCLE`,
+`SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE`, and `CREATE_KINETIC_ON_SABLE_LIFECYCLE`; it must not reproduce
+those Platform fixtures. The aircraft-specific gate must verify primary-body recapture, both real
+32-RPM Portable Engines on the intended shared moved network, commanded 128-RPM governor delivery,
+finite positive kinetic stress margin, and propeller thrust sign/magnitude while preserving analytical
+aerodynamics as independent first-principles authority. Platform lifecycle grants do **not** qualify
+save/reload persistence, so completed-aircraft persistence remains a separate downstream requirement
+before new control-axis work is treated as production-ready.
