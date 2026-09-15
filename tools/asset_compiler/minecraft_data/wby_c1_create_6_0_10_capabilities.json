@@ -10,7 +10,8 @@
     "createSourceCommit": "79b5d3b37e2d1970818dd97ca460b649cd0a456c",
     "createSourceCommitEvidence": "Create commit that bumps the 1.21.1 line to 6.0.10",
     "blockstateSourceAudit": "exact-create-6.0.10-source-commit",
-    "exactPinnedRuntimeRegistryProbe": "pending",
+    "exactPinnedRuntimeRegistryProbe": "passed-wave-c1-exact-create-runtime",
+    "exactPinnedRuntimeRegistryEvidence": "asset-compiler-proof resolves LNytGWDc-UjX6dr61 then runs WBY_C1_STRUCTURE_REGISTRY against Create 6.0.10; eight catalog blocks and all three pane state/default contracts validated live",
     "policy": "catalog entries are non-selectable unless status is active; stateful entries require exact-runtime registry validation before promotion"
   },
   "blocks": [
@@ -72,7 +73,7 @@
         "waterlogged": "false",
         "west": "false"
       },
-      "status": "cataloged"
+      "status": "active"
     },
     {
       "name": "create:industrial_iron_window_pane",
