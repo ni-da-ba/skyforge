@@ -79,6 +79,11 @@ class GuildBranchV14SiblingRoiTests(unittest.TestCase):
         for absent in ("minecraft:blue_wool", "minecraft:yellow_terracotta", "minecraft:blue_carpet"):
             self.assertNotIn(absent, names)
 
+        shelves = [pos for pos, cell in sibling.model.cells.items() if cell.module == "fp_repair_service_shelf"]
+        self.assertGreater(len(shelves), 0)
+        for x, y, z in shelves:
+            self.assertIn((x - 1, y, z), sibling.model.cells, (x, y, z))
+
         fp = sibling.summary["layout"]["firstPrinciples"]
         self.assertEqual(fp["spaceGraph"]["entranceConnectedFraction"], 1.0)
         self.assertTrue(fp["spaceGraph"]["entranceSeesService"])

@@ -494,9 +494,13 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
     # distinct through their volumes, fixtures, anchors, and exterior portals; a full masonry
     # divider adds circulation friction without providing useful gameplay or architectural value.
     repair_bench_x = wing_x0 + 1
+    repair_shelf_x = wing_x0
     for z in range(repair_z0 + 1, repair_z1):
         model.set(repair_bench_x, 2, z, "workbench", repair_bench, "fp_repair_bench")
-        model.set(repair_bench_x, 4, z, "structural_frame", trim_top, "fp_repair_service_shelf")
+        # Mount the service shelf directly against the retained public/working separator. Keeping
+        # the shelf over the bench center happened to remain connected in the compact Hall but
+        # becomes a floating partial-detail component when the working wing scales outward.
+        model.set(repair_shelf_x, 4, z, "structural_frame", trim_top, "fp_repair_service_shelf")
     model.set(repair_bench_x + 1, 2, repair_z0 + 1, "tool_storage", tools, "fp_repair_tools")
     model.set(repair_bench_x + 1, 3, repair_z0 + 1, "tool_storage", tools, "fp_repair_tools")
 
