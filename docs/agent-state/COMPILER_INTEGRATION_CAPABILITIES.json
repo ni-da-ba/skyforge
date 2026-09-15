@@ -147,6 +147,54 @@
         "C": true
       },
       "negative_evidence": []
+    },
+    "CREATE_KINETIC_ON_SABLE_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeCreateKineticOnSableLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "CreateKineticOnSableLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-create-kinetic-on-sable-lifecycle.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 34930106677,
+        "job": 104256633806,
+        "commit": "b6c5e3181f7617786b279e726fd0d437618609b4",
+        "result": "PASS",
+        "finding": "Exact-stack L2 assembled a real Sable primary body containing create:creative_motor -> create:shaft -> create:gearbox, reselected the live body by persistent UUID, validated current physics and moved block-entity authority, observed downstream Create speed 16.0, severed the moved shaft to reach zero/disconnected state, restored it to recover 16.0 with source/network state, and released the bounded COMMAND_FORCED fixture ticket before PASS."
+      },
+      "assumptions_preconditions": [
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE and CREATE_KINETIC_NETWORK_LIFECYCLE semantics without widening either prerequisite.",
+        "The primary fixture contains create:creative_motor -> create:shaft -> create:gearbox before real Physics Assembler capture.",
+        "Persistent Sable UUID is body identity; each lifecycle phase reselects the current live body and each kinetic poll re-fetches current moved block entities from that body plot.",
+        "The moved plot offset is derived from the accepted center-of-mass minus logical-pose integer relocation rule used by frozen AIRCRAFT-001 runtime evidence.",
+        "The bounded Create Super Glue domain and Sable COMMAND_FORCED ticket remain fixture preconditions only; neither becomes independent production policy through this capability."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_TARGET_LOWERING",
+        "FAIL_BOOT",
+        "FAIL_RUNTIME_EXIT",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_ASSEMBLY",
+        "FAIL_PHYSICS",
+        "FAIL_KINETIC_REBUILD",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_KINETIC_BUILD",
+        "TIMEOUT_KINETIC_DISCONNECT",
+        "TIMEOUT_KINETIC_REBUILD",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": true,
+        "C": true
+      },
+      "negative_evidence": []
     }
   }
 }
