@@ -1,7 +1,7 @@
 # Skyforge Aircraft Compiler state
 
 **Program authority:** issue #545  
-**Productionization boundary:** AIRCRAFT-PROD-001 / issue #615 / PR #616  
+**Productionization boundary:** AIRCRAFT-PROD-002 / issue #618
 **Frozen evidence only:** `aircraft-compiler-proof@0651bcee7dc879ab43db2f0b224f77e5026222bd`  
 **Frozen implementation beneath checkpoint:** `cc020c872b9c53198cebbb0ae9094097f23c9c45`
 
@@ -27,12 +27,23 @@ Python prototype artifact. Production Java does not claim byte-for-byte serializ
 with that prototype; its canonical JSON/SHA-256 identity is the production provenance boundary for
 new downstream artifacts.
 
+## Productionized by AIRCRAFT-PROD-002
+
+On acceptance of issue #618, the production compiler also contains:
+
+- explicit artifact identity plus exact source-design asset/digest provenance for blockspace;
+- deterministic `x = nose_to_tail`, `y = up`, `z = starboard_positive` integer-lattice transcription;
+- straight-taper scanline wing/tail surfaces, centerline fuselage spine, and orthogonal-only connectors;
+- target-neutral propeller, CG, pilot, and cargo anchors as requirements rather than occupied cells;
+- fail-closed six-neighbor connectivity, mirror-symmetry, propeller-clearance, CG-quantization, and dimensional-error validation;
+- coordinate-unique semantic assembly planning that unions roles/capabilities without inventing target resources;
+- canonical production JSON/SHA-256 identity for both blockspace and assembly artifacts.
+
 ## Frozen evidence not yet productionized
 
 The frozen branch contains accepted evidence for later compiler/runtime stages, but that evidence is
 not current-`main` production authority for:
 
-- blockspace transcription and coordinate-unique assembly planning;
 - target placement/resource lowering and Create sail/state lowering;
 - Sable primary/nested assembly, bounded Super Glue domains, and propulsion/governor topology;
 - yaw mechanism, cockpit routing, player interaction, and moving-body tracking.
@@ -63,7 +74,7 @@ work around the Platform fixture inside a complete aircraft.
 
 ## Next bounded aircraft tranche
 
-Issue #618 is the queued successor for productionizing accepted frozen v0.2 blockspace transcription
-and v0.3 coordinate-unique assembly semantics. It must start from current `main` after AIRCRAFT-PROD-001
-is merged and accepted. Target lowering, persistence, and new control-axis work remain downstream of
-that foundation and their applicable Platform capabilities.
+After AIRCRAFT-PROD-002 is accepted on `main`, the next compiler tranche is target placement/resource
+lowering over the production blockspace/assembly identities. Runtime Sable/Create realization must
+consume only capabilities explicitly granted by `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`;
+persistence and new control-axis work remain downstream of those applicable Platform contracts.
