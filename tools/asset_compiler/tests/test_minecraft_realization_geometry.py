@@ -91,7 +91,7 @@ class MinecraftRealizationGeometryTests(unittest.TestCase):
         with self.assertRaises(SpecError):
             enforce_realized_geometry_correctness(asset(model), adapter)
 
-    def test_canonical_v014_repairs_human_gate_defects_without_touching_architecture_digest(self):
+    def test_canonical_v014_realizes_open_working_wing_without_portal_repair(self):
         spec = json.loads(SPEC.read_text(encoding="utf-8"))
         compiled = compile_guild_branch_first_principles_detail(copy.deepcopy(spec))
         digest = compiled.summary["digestSha256"]
@@ -102,8 +102,10 @@ class MinecraftRealizationGeometryTests(unittest.TestCase):
         self.assertTrue(geometry["passed"], geometry["issues"])
         self.assertEqual(realized.summary["digestSha256"], digest)
         self.assertEqual(report["adapterVersion"], "minecraft-adapter-0.5")
-        self.assertGreaterEqual(geometry["apertureReturnRepairCount"], 20)
-        self.assertEqual(geometry["operationalClearanceRepairCount"], 3)
+        # Freight transom removal eliminates one obsolete pane-return repair. The open-plan
+        # working wing is source-correct, so no operational partition deletion is required.
+        self.assertGreaterEqual(geometry["apertureReturnRepairCount"], 19)
+        self.assertEqual(geometry["operationalClearanceRepairCount"], 0)
         self.assertEqual(geometry["isolatedDetailRepairCount"], 6)
         self.assertGreater(geometry["partialDetailContactChecks"], 0)
         self.assertGreater(geometry["workingPortalChecks"], 0)

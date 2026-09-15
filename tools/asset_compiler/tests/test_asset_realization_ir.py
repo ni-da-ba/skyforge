@@ -52,7 +52,9 @@ class AssetRealizationIrTests(unittest.TestCase):
         self.assertEqual(len(realized.model.cells), geometry["targetCellCountAfter"])
         self.assertEqual(geometry["targetCellCountBefore"], len(compiled.model.cells))
         self.assertGreater(geometry["apertureReturnRepairCount"], 0)
-        self.assertGreater(geometry["operationalClearanceRepairCount"], 0)
+        # Current architecture expresses the open working wing directly, so the adapter must not
+        # need to delete partition cells to make the working portals usable.
+        self.assertEqual(geometry["operationalClearanceRepairCount"], 0)
         self.assertGreater(geometry["isolatedDetailRepairCount"], 0)
         self.assertFalse(report["realizationIntentIr"]["containsConcreteResourceNames"])
         self.assertFalse(report["realizationIntentIr"]["architectureConcreteResourceNamesConsumed"])
