@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.io.IOException;
@@ -81,6 +82,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static Object forceLoadTicketKey;
     private static boolean forceLoadTicketAdded;
     private static Set<UUID> beforeIds = Set.of();
+    private static Set<UUID> beforeHoldingIds = Set.of();
     private static UUID bodyId;
     private static UUID mainGlueId;
     private static UUID childGlueId;
@@ -108,6 +110,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static boolean reloadChildAssemblyRequested;
     private static long reloadCanonicalResolvedTick = -1L;
     private static boolean primaryAssemblyTriggered;
+    private static boolean primaryRecoveredFromHolding;
     private static Stage stage;
     private static SkyforgeCompilerIntegrationDiagnostic waitDiagnostic;
 
@@ -150,6 +153,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             }
 
             beforeIds = currentSubLevelIds();
+            beforeHoldingIds = currentHoldingSubLevelIds();
             prepareFixture();
             GlueFixture mainGlue = addGlue(MAIN_GLUE_MIN, MAIN_GLUE_MAX, "main");
             mainGlueId = mainGlue.id();
@@ -163,7 +167,8 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                     now + ASSEMBLY_DEADLINE_TICKS,
                     sourceIds(),
                     safeServerState(),
-                    "beforeSubLevelIds=" + beforeIds + "; nested child realization deferred until live primary body");
+                    "beforeSubLevelIds=" + beforeIds + " beforeHoldingIds=" + beforeHoldingIds
+                            + "; nested child realization deferred until live primary body");
             publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
             primaryAssemblyTriggered = true;
             pollAssembly(now, true);
@@ -234,15 +239,52 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         if (created.size() > 1) {
             fail(SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
                     waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless", "createdIds=" + created),
-                    "minimal fixture created multiple Sable bodies");
+                    "minimal fixture created multiple live Sable bodies");
         }
-        if (created.size() == 1) {
-            bodyId = created.iterator().next();
+
+        UUID candidateId = created.size() == 1 ? created.iterator().next() : bodyId;
+        if (candidateId == null && primaryAssemblyTriggered && level.getBlockEntity(ASSEMBLER_SOURCE) == null) {
+            Set<UUID> holdingIds = currentHoldingSubLevelIds();
+            Set<UUID> createdHolding = new LinkedHashSet<>(holdingIds);
+            createdHolding.removeAll(beforeHoldingIds);
+            if (createdHolding.size() > 1) {
+                fail(SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
+                        waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
+                                "createdIds=" + created + " createdHoldingIds=" + createdHolding),
+                        "consumed primary assembly produced multiple new holding Sable UUIDs");
+            }
+            if (createdHolding.size() == 1) {
+                candidateId = createdHolding.iterator().next();
+                bodyId = candidateId;
+                primaryRecoveredFromHolding = true;
+                requestHoldingLoadIfAvailable();
+                currentIds = currentSubLevelIds();
+                LOGGER.log(System.Logger.Level.INFO,
+                        PREFIX + " PRIMARY_HOLDING_RECOVERY bodyId=" + bodyId
+                                + " holdingIds=" + holdingIds + " liveIdsAfterSnatch=" + currentIds
+                                + " tick=" + now);
+            }
+        }
+
+        if (candidateId != null) {
+            bodyId = candidateId;
             Object listedBody = findListedBody(bodyId);
             if (listedBody == null) {
-                fail(SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
-                        waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless", "bodyId=" + bodyId),
-                        "created Sable UUID cannot be reselected");
+                if (primaryRecoveredFromHolding) {
+                    requestHoldingLoadIfAvailable();
+                    listedBody = findListedBody(bodyId);
+                }
+                if (listedBody == null) {
+                    if (waitDiagnostic.expired(now)) {
+                        fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_ASSEMBLY_REGISTRATION,
+                                waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
+                                        "bodyId=" + bodyId + " primaryRecoveredFromHolding=" + primaryRecoveredFromHolding
+                                                + " liveIds=" + currentSubLevelIds()
+                                                + " holdingIds=" + currentHoldingSubLevelIds()),
+                                "created Sable UUID could not be restored to the live collection");
+                    }
+                    return;
+                }
             }
             assembledBody = listedBody;
             Object massTracker = publicMethod(listedBody, "getMassTracker").invoke(listedBody);
@@ -285,14 +327,16 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             stage = Stage.PHYSICS_INITIALIZATION;
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,
-                    "canonical Sable body and current physics handle remain live after child flattening",
+                    "canonical Sable body and current physics handle remain live after primary assembly",
                     now, now + PHYSICS_INITIALIZATION_DEADLINE_TICKS, movedIds(), safeServerState(),
                     "assemblyRegistrationObservedSynchronously=" + synchronousObservation
+                            + " primaryRecoveredFromHolding=" + primaryRecoveredFromHolding
                             + " primaryAssemblyTriggered=" + primaryAssemblyTriggered
                             + " movedOffset=" + movedOffset + " groundChildId=" + groundChildId);
             LOGGER.log(System.Logger.Level.INFO,
                     PREFIX + " FLATTENED bodyId=" + bodyId + " groundChildId=" + groundChildId
-                            + " movedOffset=" + movedOffset + " mass=" + mass);
+                            + " movedOffset=" + movedOffset + " mass=" + mass
+                            + " primaryRecoveredFromHolding=" + primaryRecoveredFromHolding);
             return;
         }
         if (waitDiagnostic.expired(now)) {
@@ -302,7 +346,8 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                     : publicMethod(assembler, "getLastAssemblyException").invoke(assembler);
             fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_ASSEMBLY_REGISTRATION,
                     waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
-                            "createdIds=" + created + " lastAssemblyException=" + lastAssemblyException),
+                            "createdIds=" + created + " holdingIds=" + currentHoldingSubLevelIds()
+                                    + " lastAssemblyException=" + lastAssemblyException),
                     "Sable primary-body registration deadline expired");
         }
     }
@@ -861,6 +906,24 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             throw new IllegalStateException("Sable ServerSubLevelContainer unavailable");
         }
         return value;
+    }
+
+    private static Set<UUID> currentHoldingSubLevelIds() throws ReflectiveOperationException {
+        Object holdingMap = publicMethod(container, "getHoldingChunkMap").invoke(container);
+        Field field = holdingMap.getClass().getDeclaredField("allHoldingSubLevels");
+        field.setAccessible(true);
+        Object value = field.get(holdingMap);
+        if (!(value instanceof Map<?, ?> holdings)) {
+            throw new IllegalStateException("Sable allHoldingSubLevels is not Map-like: " + value);
+        }
+        Set<UUID> ids = new LinkedHashSet<>();
+        for (Object key : holdings.keySet()) {
+            if (!(key instanceof UUID uuid)) {
+                throw new IllegalStateException("Sable holding sub-level key is not UUID: " + key);
+            }
+            ids.add(uuid);
+        }
+        return ids;
     }
 
     private static Set<UUID> currentSubLevelIds() throws ReflectiveOperationException {

@@ -414,6 +414,13 @@
       },
       "negative_evidence": [
         {
+          "workflow_run": 35031073642,
+          "job": 104589832046,
+          "commit": "65d99ae2b4a8d3a570daa026635e4a51b0a6cce5",
+          "result": "PRIMARY_BODY_HOLDING_LIVENESS_RACE",
+          "finding": "Boot A used the accepted PLATFORM-003 primary geometry, the source Physics Assembler was consumed (assembler=null), yet no new UUID remained in getAllSubLevels() through the bounded deadline. With accepted PLATFORM-003 green on the same stack, this isolates a fixture liveness race in which the new body can enter Sable holding storage before the persistence harness claims it. The fixture now discovers only newly-created holding UUIDs as diagnostic instrumentation, immediately snatches the single UUID through Sable holding storage, reselects current live authority by UUID, and attaches the bounded COMMAND_FORCED ticket."
+        },
+        {
           "workflow_run": 35030091364,
           "job": 104586686559,
           "commit": "246e30c9962d7802efe6a995aaa9cfa18e0a686a",
