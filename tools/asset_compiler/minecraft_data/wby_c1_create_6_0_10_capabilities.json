@@ -11,8 +11,8 @@
     "createSourceCommitEvidence": "Create commit that bumps the 1.21.1 line to 6.0.10",
     "blockstateSourceAudit": "exact-create-6.0.10-source-commit",
     "exactPinnedRuntimeRegistryProbe": "passed-wave-c1-exact-create-runtime",
-    "exactPinnedRuntimeRegistryEvidence": "asset-compiler-proof resolves LNytGWDc-UjX6dr61 then runs WBY_C1_STRUCTURE_REGISTRY against Create 6.0.10; seventeen catalog block IDs, all pane/bar/ladder/scaffolding state/default contracts, and the remaining deferred girder resource are validated or observed live",
-    "deferredStructuralRuntimeObservation": "passed-wave-c1-exact-create-runtime-1-resources",
+    "exactPinnedRuntimeRegistryEvidence": "asset-compiler-proof resolves LNytGWDc-UjX6dr61 then runs WBY_C1_STRUCTURE_REGISTRY against Create 6.0.10; eighteen catalog block IDs and all pane/bar/ladder/scaffolding/girder state/default contracts are validated live with zero remaining observation-only structural resources",
+    "deferredStructuralRuntimeObservation": "passed-wave-c1-exact-create-runtime-0-resources",
     "policy": "catalog entries are non-selectable unless status is active; deferredStateContracts are evidence only and never enter the resolver registry"
   },
   "blocks": [
@@ -226,6 +226,21 @@
       },
       "defaults": {"bottom": "false", "distance": "7", "waterlogged": "false"},
       "status": "cataloged"
+    },
+    {
+      "name": "create:metal_girder",
+      "families": ["brace", "industrial_metal"],
+      "capabilities": ["girder", "axis_orientable", "neighbor_sensitive", "thin"],
+      "properties": {
+        "axis": ["x", "y", "z"],
+        "bottom": ["false", "true"],
+        "top": ["false", "true"],
+        "waterlogged": ["false", "true"],
+        "x": ["false", "true"],
+        "z": ["false", "true"]
+      },
+      "defaults": {"axis": "y", "bottom": "false", "top": "false", "waterlogged": "false", "x": "false", "z": "false"},
+      "status": "cataloged"
     }
   ],
   "deferredStateContracts": [
@@ -322,7 +337,7 @@
         "z": ["false", "true"]
       },
       "defaults": {"axis": "y", "bottom": "false", "top": "false", "waterlogged": "false", "x": "false", "z": "false"},
-      "semanticGate": "dedicated girder/brace role with axis and connectivity lowering"
+      "semanticGate": "generic girder/brace axis and connectivity lowering are implemented; activation still requires an explicit upstream neutral girder/brace intent"
     }
   ],
   "deferredCandidates": [
@@ -344,7 +359,7 @@
     },
     {
       "name": "create:metal_girder",
-      "reason": "live Create 6.0.10 runtime confirms axis/bottom/top/waterlogged/x/z state; a dedicated girder/brace semantic role and connectivity lowering are still required"
+      "reason": "exact runtime contract and conservative generic girder/brace axis/connectivity semantics are implemented and the resource is cataloged; activation remains gated on an explicit upstream neutral girder/brace intent"
     },
     {
       "name": "create machinery / addon block entities",
