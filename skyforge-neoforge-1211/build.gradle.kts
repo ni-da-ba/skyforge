@@ -1940,6 +1940,16 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // AIRCRAFT-RUNTIME-001: production v0.12 Guild utility powertrain, first accepted 128-RPM point only.
+        create("aircraftPowertrainRuntime128Server") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-aircraft-powertrain-runtime-128").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.aircraftPowertrainRuntime128", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
 
         // PLATFORM-006: prepare a blank quick-play world, then exercise a real client Steering Wheel on Sable.
         create("compilerPlatformSteeringWheelClientWorldPrepareServer") {
@@ -2550,6 +2560,29 @@ tasks.named("runCompilerPlatformNestedPropellerBearingLifecycleServer").configur
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(compilerPlatformNestedPropellerBearingLifecycleServerProperties)
+    }
+}
+
+val aircraftPowertrainRuntime128ServerProperties = """
+    level-name=aircraft-powertrain-runtime-128
+    level-seed=668001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runAircraftPowertrainRuntime128Server").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-aircraft-powertrain-runtime-128").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(aircraftPowertrainRuntime128ServerProperties)
     }
 }
 

@@ -167,13 +167,13 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         }
         RuntimeBinding binding = ACTIVE.get();
         if (binding == null) {
-            return new DeferredCatchupPacketResult(false, false, 0);
+            return new DeferredCatchupPacketResult(false, false, 0, Optional.empty());
         }
         var progressData = SkyforgeDeferredTerrainWriteProgressData.get(level);
         for (var pending : SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos())) {
             return realizeDeferredPacket(binding, chunk, pending, progressData, maximumAssignedSolidWrites);
         }
-        return new DeferredCatchupPacketResult(false, false, 0);
+        return new DeferredCatchupPacketResult(false, false, 0, Optional.empty());
     }
 
     private static DeferredCatchupPacketResult realizeDeferredPacket(
@@ -233,7 +233,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
                         "terrain.deferred.quantumWallNanos",
                         quantumElapsedNanos);
-                return new DeferredCatchupPacketResult(true, false, 0);
+                return new DeferredCatchupPacketResult(true, false, 0, Optional.of(pending.volumeId()));
             }
 
             materialization = preparationAdvance.completedMaterialization().orElseThrow();
@@ -282,7 +282,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.realizeDeferredPacket", quantumElapsedNanos);
             SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
                     "terrain.deferred.quantumWallNanos", quantumElapsedNanos);
-            return new DeferredCatchupPacketResult(true, true, 0);
+            return new DeferredCatchupPacketResult(true, true, 0, Optional.of(pending.volumeId()));
         }
 
         boolean exactAdmissionFastPath = SkyforgePhysicalVolumeAdmissionStage.canUseExactDeferredWriteFastPath(
@@ -323,16 +323,24 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
                 "terrain.deferred.quantumWallNanos", quantumElapsedNanos);
         boolean worked = terminal || advance.assignedSolidWrites() > 0;
-        return new DeferredCatchupPacketResult(worked, terminal, advance.assignedSolidWrites());
+        return new DeferredCatchupPacketResult(worked, terminal, advance.assignedSolidWrites(), Optional.of(pending.volumeId()));
     }
 
-    record DeferredCatchupPacketResult(boolean worked, boolean completed, int assignedSolidWrites) {
+    record DeferredCatchupPacketResult(
+            boolean worked,
+            boolean completed,
+            int assignedSolidWrites,
+            Optional<SkyIslandWorldVolumeId> servicedVolumeId) {
         DeferredCatchupPacketResult {
+            Objects.requireNonNull(servicedVolumeId, "servicedVolumeId");
             if (assignedSolidWrites < 0) {
                 throw new IllegalArgumentException("assignedSolidWrites must be nonnegative");
             }
             if (completed && !worked) {
                 throw new IllegalArgumentException("completed packet must count as worked");
+            }
+            if (worked != servicedVolumeId.isPresent()) {
+                throw new IllegalArgumentException("worked packet must identify exactly one serviced volume");
             }
         }
     }

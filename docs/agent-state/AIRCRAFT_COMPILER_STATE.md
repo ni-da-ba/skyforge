@@ -1,7 +1,7 @@
 # Skyforge Aircraft Compiler state
 
 **Program authority:** issue #545  
-**Productionization boundary:** AIRCRAFT-PROD-011 / issue #664
+**Productionization boundary:** AIRCRAFT-RUNTIME-001 / issue #668
 **Frozen evidence only:** `aircraft-compiler-proof@0651bcee7dc879ab43db2f0b224f77e5026222bd`  
 **Frozen implementation beneath checkpoint:** `cc020c872b9c53198cebbb0ae9094097f23c9c45`
 
@@ -217,13 +217,39 @@ static, provenance-bound patch over the accepted probe manifest, assembly fixtur
 This tranche does not claim live powertrain behavior, save/reload persistence, controls, force fidelity,
 or flight qualification.
 
+## Qualified by AIRCRAFT-RUNTIME-001
+
+On acceptance of issue #668, the production v0.12 Guild utility specimen is qualified at the first
+exact-stack governed-powertrain operating point only:
+
+- the runtime fixture compiles the retained production aircraft in-process through AIRCRAFT-PROD-011,
+  then materializes that exact manifest/fixture/glue/powertrain chain rather than maintaining a second
+  hand-authored aircraft geometry;
+- the 118-block moving main body plus nine-block propeller payload must transfer into exactly one
+  canonical Sable primary body, with persistent UUID re-resolution and current block-entity/physics
+  authority on every later phase;
+- the runtime consumes the accepted Agent-B authorities for Sable primary assembly, bounded Super Glue,
+  Create kinetics on Sable, and nested Propeller Bearing lifecycle without reproducing their reduced
+  qualification fixtures;
+- both real Simulated Portable Engines must remain 32-RPM sources on one shared moved kinetic network;
+- only the first accepted Rotation Speed Controller point, 128 RPM, is qualified, with finite positive
+  kinetic stress margin;
+- the compiler-emitted propeller payload must re-form as one nine-block nested child with one hub, eight
+  symmetric sails, and realized sail power 8 without an undeclared child-glue domain;
+- WEST-facing propeller thrust must be finite and nonzero with the expected local -X applied-force sign;
+- analytical aerodynamic constants remain independent first-principles authority and are not fitted to
+  the runtime force observation.
+
+This gate does **not** qualify 160/192/224/256 RPM, save/reload persistence, any control axis, handling,
+or flight.
+
 ## Frozen evidence not yet productionized
 
 The frozen branch contains accepted evidence for later compiler/runtime stages, but that evidence is
 not current-`main` production authority for:
 
-- live registry/blockstate validation and aircraft-specific governed-powertrain runtime qualification;
-- Sable primary/nested assembly, bounded Super Glue domains, and live propulsion/governor mechanism behavior;
+- live registry/blockstate validation beyond the bounded 128-RPM specimen;
+- aircraft-specific save/reload/disassembly-reassembly behavior, higher governed RPM points, and live behavior beyond the bounded 128-RPM powertrain gate;
 - yaw mechanism, cockpit routing, player interaction, and moving-body tracking.
 
 Those capabilities must be extracted through their own bounded production issues from current
@@ -252,13 +278,9 @@ work around the Platform fixture inside a complete aircraft.
 
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-PROD-011 is accepted on `main`, qualify the bounded v0.12 governed-powertrain specimen on
-the exact stack rather than immediately extending into a new control axis. That runtime tranche may
-consume the accepted Agent-B authorities for `SABLE_PRIMARY_ASSEMBLY_LIFECYCLE`,
-`SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE`, and `CREATE_KINETIC_ON_SABLE_LIFECYCLE`; it must not reproduce
-those Platform fixtures. The aircraft-specific gate must verify primary-body recapture, both real
-32-RPM Portable Engines on the intended shared moved network, commanded 128-RPM governor delivery,
-finite positive kinetic stress margin, and propeller thrust sign/magnitude while preserving analytical
-aerodynamics as independent first-principles authority. Platform lifecycle grants do **not** qualify
-save/reload persistence, so completed-aircraft persistence remains a separate downstream requirement
-before new control-axis work is treated as production-ready.
+After AIRCRAFT-RUNTIME-001 is accepted on `main`, the next required aircraft gate is completed-aircraft
+save/reload persistence before new control-axis production work. Current Platform lifecycle grants do
+**not** qualify persistence; Agent B must consume a reusable accepted save/reload seam when one exists
+and must not invent an aircraft-specific persistence workaround. Until that dependency is available,
+static frozen yaw-control evidence may remain reference material but must not be promoted as a
+production-ready new axis.

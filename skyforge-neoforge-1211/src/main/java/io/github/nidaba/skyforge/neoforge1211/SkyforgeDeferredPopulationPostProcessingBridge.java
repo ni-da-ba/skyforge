@@ -89,7 +89,8 @@ public final class SkyforgeDeferredPopulationPostProcessingBridge {
 
     private static boolean exactVolumeMutationActive() {
         return SkyforgePopulationExecutionStage.activeExecution().isPresent()
-                || SkyforgeCarverExecutionStage.active();
+                || SkyforgeCarverExecutionStage.active()
+                || SkyforgeStructurePlacementExecutionStage.active();
     }
 
     private static boolean nativeQueueEmpty(LevelChunk chunk) {
