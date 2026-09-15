@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -259,7 +260,14 @@ class WorkerRetryRuntimeTests(unittest.TestCase):
                     calls.append(("run", prompt))
                     return types.SimpleNamespace(final_response="done")
 
+            class _CodexConfig:
+                def __init__(self, *, config_overrides=()):
+                    self.config_overrides = config_overrides
+
             class _Codex:
+                def __init__(self, config=None):
+                    calls.append(("config", getattr(config, "config_overrides", None)))
+
                 def __enter__(self):
                     return self
 
@@ -276,6 +284,7 @@ class WorkerRetryRuntimeTests(unittest.TestCase):
 
             module = types.SimpleNamespace(
                 Codex=_Codex,
+                CodexConfig=_CodexConfig,
                 Sandbox=types.SimpleNamespace(workspace_write="workspace-write"),
             )
             with mock.patch.dict(sys.modules, {"openai_codex": module}):
@@ -341,6 +350,20 @@ class WorkerRetryRuntimeTests(unittest.TestCase):
                 snapshot = runtime.health_snapshot(fake)
             self.assertEqual(snapshot["worker_progress_state"], "IN_FLIGHT")
             self.assertIsNone(snapshot["worker_last_progress_at"] )
+
+
+class HostedWorkerSandboxBackendTests(unittest.TestCase):
+    def test_hosted_worker_opts_legacy_workspace_sandbox_into_landlock(self):
+        config = runtime._hosted_worker_codex_config(
+            lambda **kwargs: types.SimpleNamespace(**kwargs)
+        )
+        self.assertEqual(
+            config.config_overrides,
+            ("features.use_legacy_landlock=true",),
+        )
+
+    def test_classifier_runtime_is_not_globally_reconfigured(self):
+        self.assertNotIn("CODEX_CONFIG", os.environ)
 
 
 if __name__ == "__main__":
