@@ -183,6 +183,24 @@ class RoadmapRuntimeTests(unittest.TestCase):
             self.assertFalse(seeded)
             o.enqueue.assert_not_called()
 
+    def test_unchanged_task_no_change_blocker_prevents_roadmap_redispatch(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            manifest = self.manifest()
+            o._task_no_change_blocker_unchanged = mock.Mock(return_value=True)
+            with (
+                mock.patch.object(runtime, "_roadmap_manifest", return_value=manifest),
+                mock.patch.object(runtime, "_roadmap_live_task_prs", return_value=[]),
+            ):
+                seeded = runtime._roadmap_maybe_advance(o, trigger="no-change-fence-test")
+
+            self.assertFalse(seeded)
+            o.enqueue.assert_not_called()
+            self.assertEqual(
+                o.state.data["roadmap"]["last_error"]["kind"],
+                "RoadmapNoChangeAuthorityUnchanged",
+            )
+
     def test_existing_open_task_owned_pr_prevents_parallel_seed(self):
         with tempfile.TemporaryDirectory() as td:
             o = self.make_orchestrator(pathlib.Path(td))

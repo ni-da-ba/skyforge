@@ -62,7 +62,37 @@ def _governor_enabled() -> bool:
     return _env_bool("SKYFORGE_PROVIDER_QUOTA_GOVERNOR", True)
 
 
-def _governor_settings() -> dict[str, Any]:
+def _protected_authority_attempt(self: core.Orchestrator, kind: str) -> bool:
+    """Return whether this model turn advances explicit protected task/roadmap authority."""
+    with self._state_lock:
+        pending_worker = self.state.data.get("pending_worker")
+        if kind in {"worker", "luna_worker"} and isinstance(pending_worker, dict):
+            if str(pending_worker.get("authority_key") or "").startswith("task:"):
+                return True
+
+        pending_decision = self.state.data.get("pending_decision")
+        if isinstance(pending_decision, dict) and pending_decision.get("task_issue_numbers"):
+            return True
+
+        if kind == "classifier":
+            for raw in self.state.data.get("pending_events") or []:
+                if not isinstance(raw, dict):
+                    continue
+                event = core.EventDecision.from_state(raw)
+                if event.event == "roadmap" or event.signal_kind == "task":
+                    return True
+    return False
+
+
+def _governor_settings(*, protected_authority: bool = False) -> dict[str, Any]:
+    ordinary_burst = _env_float(
+        "SKYFORGE_WEEKLY_BURST_MARGIN_PERCENT",
+        quota_governor.DEFAULT_WEEKLY_BURST_MARGIN_PERCENT,
+    )
+    protected_burst = _env_float(
+        "SKYFORGE_PROTECTED_WEEKLY_BURST_MARGIN_PERCENT",
+        10.0,
+    )
     return {
         "preferred_limit_id": os.environ.get("SKYFORGE_QUOTA_LIMIT_ID") or None,
         "weekly_reserve_percent": _env_float(
@@ -73,9 +103,8 @@ def _governor_settings() -> dict[str, Any]:
             "SKYFORGE_FIVE_HOUR_RESERVE_PERCENT",
             quota_governor.DEFAULT_FIVE_HOUR_RESERVE_PERCENT,
         ),
-        "weekly_burst_margin_percent": _env_float(
-            "SKYFORGE_WEEKLY_BURST_MARGIN_PERCENT",
-            quota_governor.DEFAULT_WEEKLY_BURST_MARGIN_PERCENT,
+        "weekly_burst_margin_percent": (
+            max(ordinary_burst, protected_burst) if protected_authority else ordinary_burst
         ),
         "meter_tolerance_percent": _env_float(
             "SKYFORGE_QUOTA_METER_TOLERANCE_PERCENT",
@@ -128,11 +157,15 @@ def _safe_error(exc: Exception) -> dict[str, Any]:
     }
 
 
-def _evaluate(snapshot: dict[str, Any]) -> dict[str, Any]:
+def _evaluate(
+    snapshot: dict[str, Any],
+    *,
+    protected_authority: bool = False,
+) -> dict[str, Any]:
     return quota_governor.evaluate_quota(
         snapshot,
         now_epoch=time.time(),
-        **_governor_settings(),
+        **_governor_settings(protected_authority=protected_authority),
     )
 
 
@@ -168,8 +201,10 @@ def _provider_decision(self: core.Orchestrator, kind: str) -> dict[str, Any] | N
             self.state.save()
         return None
     try:
+        protected_authority = _protected_authority_attempt(self, kind)
         snapshot = codex_quota.quota_snapshot()
-        decision = _evaluate(snapshot)
+        decision = _evaluate(snapshot, protected_authority=protected_authority)
+        decision["protected_authority"] = protected_authority
     except Exception as exc:
         error = _safe_error(exc)
         _persist_quota_result(
@@ -431,6 +466,9 @@ def health_snapshot(self: core.Orchestrator) -> dict[str, Any]:
         )
         snapshot["quota_governor_enabled"] = _governor_enabled()
         snapshot["quota_governor_settings"] = _governor_settings()
+        snapshot["quota_governor_protected_settings"] = _governor_settings(
+            protected_authority=True
+        )
     return snapshot
 
 
