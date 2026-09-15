@@ -194,12 +194,11 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                         "new Sable UUID did not resolve canonically during assembly observation");
             }
             int sourceNonAir = countSourceFixtureNonAir();
-            LOGGER.info(
-                    "{} ASSEMBLED bodyId={} sourceNonAirAfterAssembly={} synchronous={}",
-                    PREFIX,
-                    bodyId,
-                    sourceNonAir,
-                    synchronousObservation);
+            LOGGER.log(
+                    System.Logger.Level.INFO,
+                    PREFIX + " ASSEMBLED bodyId=" + bodyId
+                            + " sourceNonAirAfterAssembly=" + sourceNonAir
+                            + " synchronous=" + synchronousObservation);
             if (sourceNonAir != 0) {
                 fail(
                         SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
