@@ -60,6 +60,9 @@ class MinecraftWbyProfileTests(unittest.TestCase):
                 "create:andesite_bars",
                 "create:brass_bars",
                 "create:copper_bars",
+                "create:andesite_ladder",
+                "create:brass_ladder",
+                "create:copper_ladder",
             },
         )
 
@@ -117,6 +120,29 @@ class MinecraftWbyProfileTests(unittest.TestCase):
             self.assertEqual(entry["status"], "cataloged")
             self.assertEqual(set(entry["capabilities"]), {"bars", "neighbor_sensitive", "thin"})
             self.assertEqual(set(entry["properties"]), {"east", "north", "south", "west", "waterlogged"})
+            self.assertNotIn(name, registry)
+
+    def test_live_validated_ladders_are_cataloged_but_have_no_selection_authority(self):
+        doc = json.loads(CATALOG.read_text(encoding="utf-8"))
+        declared = {entry["name"]: entry for entry in doc["blocks"]}
+        registry = wby_c1_create_registry()
+        for name in (
+            "create:andesite_ladder",
+            "create:brass_ladder",
+            "create:copper_ladder",
+        ):
+            entry = declared[name]
+            self.assertEqual(entry["status"], "cataloged")
+            self.assertEqual(
+                set(entry["capabilities"]),
+                {"ladder", "climbable", "directional", "attachment_sensitive", "thin"},
+            )
+            self.assertEqual(set(entry["properties"]), {"facing", "waterlogged"})
+            self.assertEqual(
+                set(entry["properties"]["facing"]),
+                {"north", "east", "south", "west"},
+            )
+            self.assertEqual(entry["defaults"], {"facing": "north", "waterlogged": "false"})
             self.assertNotIn(name, registry)
 
     def _write_bad_catalog(self, document: dict, tmp: str) -> Path:
