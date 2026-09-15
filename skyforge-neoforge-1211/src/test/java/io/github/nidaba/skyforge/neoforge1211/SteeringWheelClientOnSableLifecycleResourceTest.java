@@ -43,6 +43,14 @@ final class SteeringWheelClientOnSableLifecycleResourceTest {
         assertTrue(client.contains("HoldInteractionManager"));
         assertTrue(client.contains("SimulatedCommonClientEvents"));
         assertTrue(client.contains("projectOutOfClientRenderPose"));
+        assertTrue(client.contains("STEERING_WHEEL_FLOOR"));
+        assertTrue(client.contains("wheelShape.toAabbs()"));
+        assertTrue(client.contains("lookingAtWheel.invoke"));
+        assertTrue(client.contains("player.yRotO = yaw"));
+        assertTrue(client.contains("player.xRotO = pitch"));
+        assertTrue(client.contains("!angleInputHit"));
+        assertFalse(client.contains("STEERING_WHEEL_VISUAL_X"));
+        assertFalse(client.contains("STEERING_WHEEL_VISUAL_Y"));
         assertTrue(client.contains("getMethod(\"renderPose\", float.class)"));
         assertTrue(client.contains("getMethod(\"transformPosition\", Vec3.class)"));
         assertFalse(client.contains("projectOutOfSubLevel"));

@@ -341,6 +341,20 @@
           "commit": "5e3011b38174eda49ad25d5ea52069467308e8a6",
           "result": "FIXTURE_SYNCHRONIZATION_FAILURE",
           "finding": "The first exact-stack actual-client run assembled a valid mass-10 Sable body and current physics handle, then reached the real moved Steering Wheel with useItemOn=PASS but could not acquire Simulated hold interaction because lookingAtWheel remained false. Diagnostics showed the unpaused unsupported body had moved far enough during client startup that server and client global pose projections diverged (server stand Y\u2248179.19 while client projected wheel/eye were near Y\u2248103-105). This is fixture stabilization/synchronization negative evidence, not a Simulated packet or control-runtime failure."
+        },
+        {
+          "workflow_run": 34998715526,
+          "job": 104481951693,
+          "commit": "6c59d0a8c7f1ec056dfcc8445a62a1c42a08bc52",
+          "result": "CLIENT_RAY_PREDICATE_FAILURE",
+          "finding": "After test-only physics pause stabilized the minimal Sable body, exact-stack L2 proved server/client wheel centers converged but Simulated lookingAtWheel still rejected the client interaction. Generic Sable projection therefore was insufficient to establish Simulated client ray semantics; no Steering Wheel active packet was emitted."
+        },
+        {
+          "workflow_run": 35005175608,
+          "job": 104503778081,
+          "commit": "291a77b78c37a4311d3f3f5d673d1f82b1fed05e",
+          "result": "CLIENT_WHEEL_SHAPE_RAY_FAILURE",
+          "finding": "Using ClientSubLevel.renderPose(partialTick) for convergence, player placement, and aim projection produced exact server/client wheel-center agreement, yet Simulated lookingAtWheel remained false. This isolates the remaining harness defect to the actual wheel-versus-mount voxel ray geometry and same-tick interpolated camera ray rather than Sable pose synchronization."
         }
       ]
     }

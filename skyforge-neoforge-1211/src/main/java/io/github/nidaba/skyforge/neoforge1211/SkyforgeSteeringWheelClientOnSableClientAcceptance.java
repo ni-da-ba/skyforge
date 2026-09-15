@@ -12,9 +12,12 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -26,8 +29,6 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
     private static final long CLIENT_TIMEOUT_NANOS = 120_000_000_000L;
     private static final int ACQUIRE_RETRY_LIMIT_TICKS = 40;
     private static final double CLIENT_SERVER_POSE_TOLERANCE_BLOCKS = 0.25;
-    private static final double STEERING_WHEEL_VISUAL_X = 2.5 / 16.0;
-    private static final double STEERING_WHEEL_VISUAL_Y = 14.5 / 16.0;
 
     private static long firstClientTickNanos = Long.MIN_VALUE;
     private static int stage;
@@ -36,7 +37,9 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
     private static boolean clientGameplayReady;
     private static boolean clientServerPoseConverged;
     private static boolean clientSetupRepositioningUsed;
+    private static boolean clientShapeQualifiedAim;
     private static boolean clientHoldAcquired;
+    private static Vec3 qualifiedWheelPlotHit;
     private static InteractionResult wheelUseResult;
 
     private SkyforgeSteeringWheelClientOnSableClientAcceptance() {}
@@ -141,10 +144,17 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
         }
 
         positionClientAtRenderedStand(minecraft, player, snapshot, partialTick);
-        Vec3 wheelPlotHit = new Vec3(
-                wheelPos.getX() + STEERING_WHEEL_VISUAL_X,
-                wheelPos.getY() + STEERING_WHEEL_VISUAL_Y,
-                wheelPos.getZ() + 0.5);
+        Vec3 wheelPlotHit = selectShapeQualifiedSteeringWheelAim(
+                minecraft, player, wheelPos, wheelBlockEntity, partialTick);
+        if (wheelPlotHit == null) {
+            if (stageTicks >= ACQUIRE_RETRY_LIMIT_TICKS) {
+                fail("no shape-qualified Steering Wheel aim point satisfied Simulated lookingAtWheel "
+                        + steeringWheelPredicateDiagnostics(minecraft, player, wheelPos, wheelBlockEntity));
+            }
+            return;
+        }
+        qualifiedWheelPlotHit = wheelPlotHit;
+        clientShapeQualifiedAim = true;
         lookAt(player, projectOutOfClientRenderPose(minecraft.level, wheelPos, wheelPlotHit, partialTick));
         BlockHitResult hit = new BlockHitResult(wheelPlotHit, Direction.UP, wheelPos, false);
         minecraft.hitResult = hit;
@@ -212,6 +222,8 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
         evidence.put("clientSableSubLevelReady", clientSubLevelReady);
         evidence.put("clientGameplayReady", clientGameplayReady);
         evidence.put("clientServerPoseConverged", clientServerPoseConverged);
+        evidence.put("clientShapeQualifiedAim", clientShapeQualifiedAim);
+        evidence.put("qualifiedWheelPlotHit", qualifiedWheelPlotHit);
         evidence.put("clientTestSetupRepositioning", clientSetupRepositioningUsed);
         evidence.put("steeringWheelUseResult", String.valueOf(wheelUseResult));
         evidence.put("steeringHoldAcquired", clientHoldAcquired);
@@ -231,6 +243,55 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
         minecraft.stop();
     }
 
+
+    private static Vec3 selectShapeQualifiedSteeringWheelAim(
+            Minecraft minecraft,
+            LocalPlayer player,
+            BlockPos wheelPos,
+            Object wheelBlockEntity,
+            float partialTick)
+            throws ReflectiveOperationException {
+        BlockState state = minecraft.level.getBlockState(wheelPos);
+        Direction facing = state.getValue(HorizontalDirectionalBlock.FACING);
+        Class<?> shapes = Class.forName("dev.simulated_team.simulated.index.SimBlockShapes");
+        Object wheelShaper = shapes.getField("STEERING_WHEEL_FLOOR").get(null);
+        VoxelShape wheelShape = (VoxelShape) wheelShaper.getClass().getMethod("get", Direction.class)
+                .invoke(wheelShaper, facing);
+        Method lookingAtWheel = state.getBlock().getClass().getMethod(
+                "lookingAtWheel", Player.class, BlockPos.class, float.class, BlockState.class);
+        Object angleInput = wheelBlockEntity.getClass().getField("angleInput").get(wheelBlockEntity);
+        Class<?> scrollValueBehaviour = Class.forName(
+                "com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour");
+        Method testHit = scrollValueBehaviour.getMethod("testHit", Vec3.class);
+        double[] fractions = {0.25, 0.5, 0.75};
+        for (AABB box : wheelShape.toAabbs()) {
+            for (double fx : fractions) {
+                for (double fy : fractions) {
+                    for (double fz : fractions) {
+                        Vec3 candidate = new Vec3(
+                                wheelPos.getX() + lerp(box.minX, box.maxX, fx),
+                                wheelPos.getY() + lerp(box.minY, box.maxY, fy),
+                                wheelPos.getZ() + lerp(box.minZ, box.maxZ, fz));
+                        lookAt(player, projectOutOfClientRenderPose(
+                                minecraft.level, wheelPos, candidate, partialTick));
+                        minecraft.hitResult = new BlockHitResult(candidate, Direction.UP, wheelPos, false);
+                        boolean wheelVisible = (boolean) lookingAtWheel.invoke(
+                                null, player, wheelPos, partialTick, state);
+                        boolean angleInputHit = (boolean) testHit.invoke(angleInput, candidate);
+                        if (wheelVisible && !angleInputHit) {
+                            return candidate;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private static double lerp(double from, double to, double fraction) {
+        return from + (to - from) * fraction;
+    }
+
     private static void positionClientAtRenderedStand(
             Minecraft minecraft,
             LocalPlayer player,
@@ -248,6 +309,8 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
         double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
         float yaw = (float) Math.toDegrees(Math.atan2(-delta.x, delta.z));
         float pitch = (float) -Math.toDegrees(Math.atan2(delta.y, horizontal));
+        player.yRotO = yaw;
+        player.xRotO = pitch;
         player.setYRot(yaw);
         player.setXRot(pitch);
         player.setYHeadRot(yaw);

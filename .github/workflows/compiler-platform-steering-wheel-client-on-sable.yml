@@ -90,6 +90,7 @@ jobs:
           grep -q '^clientSableSubLevelReady=true$' "$result"
           grep -q '^clientGameplayReady=true$' "$result"
           grep -q '^clientServerPoseConverged=true$' "$result"
+          grep -q '^clientShapeQualifiedAim=true$' "$result"
           grep -q '^steeringHoldAcquired=true$' "$result"
           grep -q '^activePacketRoundTrip=true$' "$result"
           grep -q '^activeResponseSettled=true$' "$result"
