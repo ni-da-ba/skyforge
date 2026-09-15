@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.model.aircraft;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -93,7 +94,7 @@ final class AircraftDesignCompilerTest {
         AircraftDesignCompiler compiler = new AircraftDesignCompiler();
         AircraftDesignIR first = compiler.compile(guildUtilitySpec());
         AircraftDesignIR second = compiler.compile(guildUtilitySpec());
-        String diagnosticText = first.toString();
+        String diagnosticText = new AircraftDesignIRJson().writeString(first);
 
         assertAll(
                 () -> assertEquals(first, second),
@@ -112,6 +113,64 @@ final class AircraftDesignCompilerTest {
                 () -> assertEquals("fraction_of_fuselage_length",
                         first.massLedger().get(4).source()),
                 () -> assertEquals(4.32, first.massLedger().get(4).stationXM(), EPS));
+    }
+
+    @Test
+    void canonicalJsonAndDigestProvideStableProductionIdentity() {
+        AircraftDesignCompiler compiler = new AircraftDesignCompiler();
+        AircraftDesignIR first = compiler.compile(guildUtilitySpec());
+        AircraftDesignIR second = compiler.compile(guildUtilitySpec());
+        AircraftDesignIRJson json = new AircraftDesignIRJson();
+        AircraftDesignIR renamed = new AircraftDesignIR(
+                first.schemaVersion(),
+                first.assetId() + ".variant",
+                first.compilerVersion(),
+                first.configuration(),
+                first.mission(),
+                first.declaredAssumptions(),
+                first.referenceTargets(),
+                first.geometry(),
+                first.massLedger(),
+                first.metrics(),
+                first.solver(),
+                first.validation(),
+                first.targetBoundary());
+
+        String canonical = json.writeString(first);
+        assertAll(
+                () -> assertEquals(canonical, json.writeString(second)),
+                () -> assertEquals(first.sha256(), second.sha256()),
+                () -> assertEquals(64, first.sha256().length()),
+                () -> assertTrue(canonical.endsWith("\n")),
+                () -> assertTrue(canonical.contains("\"schemaVersion\":1")),
+                () -> assertTrue(canonical.contains("\"compilerVersion\":\"aircraft-design-compiler-1\"")),
+                () -> assertFalse(canonical.contains("minecraft:")),
+                () -> assertFalse(canonical.contains("create:")),
+                () -> assertFalse(canonical.contains("sable:")),
+                () -> assertFalse(canonical.contains("aeronautics:")),
+                () -> assertNotEquals(first.sha256(), renamed.sha256()));
+    }
+
+    @Test
+    void productionIrRejectsMalformedConstructedState() {
+        assertAll(
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> new AircraftDesignIR.Fuselage(Double.NaN, 1.0, 1.0)),
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> new AircraftDesignIR.Wing(10.0, 1.0, 2.0, 3.0, "high", "zero")),
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> new AircraftDesignIR.MassItem("invalid", 0.0, 1.0, "test")),
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> new AircraftDesignIR.SolverEvidence(
+                                "deterministic",
+                                1,
+                                Map.of(),
+                                List.of("objective"),
+                                List.of(Double.NaN))));
     }
 
     @Test
