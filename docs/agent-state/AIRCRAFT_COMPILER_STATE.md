@@ -1,7 +1,7 @@
 # Skyforge Aircraft Compiler state
 
 **Program authority:** issue #545  
-**Productionization boundary:** AIRCRAFT-PROD-007 / issue #648
+**Productionization boundary:** AIRCRAFT-PROD-008 / issue #651
 **Frozen evidence only:** `aircraft-compiler-proof@0651bcee7dc879ab43db2f0b224f77e5026222bd`  
 **Frozen implementation beneath checkpoint:** `cc020c872b9c53198cebbb0ae9094097f23c9c45`
 
@@ -132,12 +132,33 @@ static Create seat placement downstream of target preflight, propulsion, and tai
 This tranche does not claim Create-seat passenger behavior on a Sable body, input routing, persistence,
 or any control/flight authority.
 
+## Productionized by AIRCRAFT-PROD-008
+
+On acceptance of issue #651, the accepted static aircraft realization layers are combined into one
+deterministic v0.9-equivalent probe placement manifest:
+
+- structural target-preflight placements, excluding the aerodynamic provider, emit with explicit empty
+  block-state objects;
+- AIRCRAFT-PROD-006 resolved aerodynamic placements emit with their accepted Create sail states;
+- AIRCRAFT-PROD-004 bearing, hub, and Simulated symmetric-sail companions emit unchanged;
+- AIRCRAFT-PROD-007 contributes exactly one explicit pilot-seat placement;
+- target, propulsion, tail, and pilot identities are provenance-bound by production SHA-256 digests;
+- placements sort deterministically by lattice, kind, and resource and fail closed on duplicate
+  coordinates, malformed resource IDs, or tail/propulsion/pilot count mismatch;
+- manifest bounds, resource IDs, kind counts, duplicate coordinates, and the frozen isolated destructive
+  probe-origin contract are explicit production data;
+- static manifest/command readiness is separate from physics assembly, runtime qualification, and flight.
+
+The manifest still carries explicit mechanical blockers for Physics Assembler placement, airframe
+adhesion, and control-surface child-body topology. It does not claim world placement, Sable capture,
+Super Glue completeness, nested-propeller capture, persistence, or flight.
+
 ## Frozen evidence not yet productionized
 
 The frozen branch contains accepted evidence for later compiler/runtime stages, but that evidence is
 not current-`main` production authority for:
 
-- complete probe placement-manifest emission and live registry/blockstate validation;
+- assembly-fixture planning, bounded Super Glue lowering, governed powertrain lowering, and live registry/blockstate validation;
 - Sable primary/nested assembly, bounded Super Glue domains, and live propulsion/governor mechanism behavior;
 - yaw mechanism, cockpit routing, player interaction, and moving-body tracking.
 
@@ -167,10 +188,11 @@ work around the Platform fixture inside a complete aircraft.
 
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-PROD-007 is accepted on `main`, productionize the frozen v0.9 combined probe placement
-manifest over the accepted structural airframe, lowered aerodynamic surfaces, propulsion companions,
-and pilot seat. The manifest must preserve coordinate uniqueness, exact resource/blockstate provenance,
-placement counts, bounds, and explicit mechanical/runtime blockers without claiming assembly success.
-Live runtime qualification must consume only capabilities explicitly granted by
-`docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`; persistence and new control-axis work remain
-downstream of those applicable Platform contracts.
+After AIRCRAFT-PROD-008 is accepted on `main`, productionize the frozen v0.10 assembly-fixture planner
+over the accepted probe manifest before glue or powertrain work. That tranche must preserve the
+source-backed `simulated:physics_assembler` fixture geometry and static assembly/adhesion topology while
+keeping live Sable capture separate. Exact-stack runtime qualification may consume only capabilities
+explicitly granted to Agent B by `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`; currently
+accepted Sable-primary and Create-kinetic-on-Sable seams may be consumed when the aircraft-specific
+compiler artifact reaches the corresponding runtime boundary. Persistence and new control-axis work
+remain downstream of their applicable Platform contracts.
