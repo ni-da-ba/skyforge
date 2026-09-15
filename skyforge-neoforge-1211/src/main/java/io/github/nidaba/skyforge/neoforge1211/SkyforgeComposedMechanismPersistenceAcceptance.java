@@ -102,7 +102,9 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static UUID preReloadNestedChildId;
     private static UUID preReloadMovedGlueId;
     private static UUID postReloadMovedGlueId;
+    private static UUID postReloadChildGlueId;
     private static String childRecoveryMode = "unresolved";
+    private static String glueRecoveryMode = "unresolved";
     private static boolean reloadChildAssemblyRequested;
     private static boolean primaryAssemblyTriggered;
     private static long primaryAssemblyTriggerTick;
@@ -404,6 +406,22 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             GlueState movedGlue = requireMovedMainGlue(now);
             preReloadMovedGlueId = movedGlue.id();
             preReloadNestedChildId = nestedChildId;
+            publicMethod(bearing, "disassemble").invoke(bearing);
+            ChildState normalized = childState(bearing);
+            if (normalized.present() || Boolean.TRUE.equals(publicMethod(bearing, "isRunning").invoke(bearing))) {
+                fail(SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE,
+                        finalDiagnostic("nestedBefore=" + child + " nestedAfterNormalize=" + normalized),
+                        "nested child did not normalize back into the Sable plot before save");
+            }
+            requireMovedBlockId(movedHub, SHAFT_ID, "normalized child hub");
+            requireMovedBlockId(movedSailUp, SAIL_ID, "normalized child sail up");
+            requireMovedBlockId(movedSailDown, SAIL_ID, "normalized child sail down");
+            Entity staleNested = findEntity(preReloadNestedChildId);
+            if (staleNested != null && staleNested.isAlive()) {
+                fail(SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE,
+                        finalDiagnostic("preReloadNestedChildId=" + preReloadNestedChildId),
+                        "normalized save boundary retained the nested child entity");
+            }
             restorePhysicsPause();
             removeFixtureForceLoadTicket();
             if (!level.getServer().saveEverything(false, true, true)) {
@@ -419,7 +437,8 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                             + " groundChildId=" + groundChildId + " nestedChildId=" + nestedChildId
                             + " movedGlueId=" + movedGlue.id() + " movedGlueCount=" + movedGlue.count()
                             + " bearingSpeed=" + bearingNetworkSpeed
-                            + " childBlocks=3 sailBlocks=2 running=true saveSuccess=true"
+                            + " childBlocks=3 sailBlocks=2 runningObserved=true childRunningAtSave=false"
+                            + " normalizedChildBlocksInPlot=true entityBackedRuntimeNormalized=true saveSuccess=true"
                             + " canonicalBodyResolutionPerPhase=true"
                             + " fixtureLivenessTicket=sable:command_forced(released) clientState=headless");
             return;
@@ -506,8 +525,20 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         requireMovedBlockId(movedBearing, BEARING_ID, "reloaded bearing");
         requireMovedBlockId(GLUE_BRIDGE_SEED.offset(movedOffset), SLIME_ID, "reloaded glue bridge slime");
         requireMovedBlockId(GLUE_BRIDGE_SECONDARY.offset(movedOffset), HONEY_ID, "reloaded glue bridge honey");
-        GlueState glue = requireMovedMainGlue(now);
-        postReloadMovedGlueId = glue.id();
+        GlueState mainGlue;
+        if ("unresolved".equals(glueRecoveryMode)) {
+            requireMovedBlockId(movedHub, SHAFT_ID, "reloaded normalized child hub");
+            requireMovedBlockId(movedSailUp, SAIL_ID, "reloaded normalized child sail up");
+            requireMovedBlockId(movedSailDown, SAIL_ID, "reloaded normalized child sail down");
+            mainGlue = recoverMovedGlueDomain(MAIN_GLUE_MIN, MAIN_GLUE_MAX, "main", now);
+            GlueState recoveredChildGlue = recoverMovedGlueDomain(CHILD_GLUE_MIN, CHILD_GLUE_MAX, "child", now);
+            postReloadMovedGlueId = mainGlue.id();
+            postReloadChildGlueId = recoveredChildGlue.id();
+            requireMovedGlueBoundary(mainGlue, recoveredChildGlue);
+            glueRecoveryMode = "recreated-from-topology";
+        } else {
+            mainGlue = requireMovedMainGlue(now);
+        }
         Object bearing = requireExpectedMovedBlockEntity(canonical, movedBearing, "PropellerBearingBlockEntity", now);
         KineticState kinetic = kineticState(bearing);
         ChildState child = childState(bearing);
@@ -524,7 +555,8 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             if (waitDiagnostic.expired(now)) {
                 fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_PERSISTENCE_RELOAD,
                         waitDiagnostic.withFinalState(movedIds(), safeServerState(), "headless",
-                                "glue=" + glue + " child=" + child + " bearing=" + kinetic),
+                                "mainGlue=" + mainGlue + " recoveredChildGlueId=" + postReloadChildGlueId
+                                        + " child=" + child + " bearing=" + kinetic),
                         "composed mechanism did not recover before reload deadline");
             }
             return;
@@ -538,7 +570,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         }
         childRecoveryMode = child.id().equals(preReloadNestedChildId)
                 ? "persisted-current"
-                : "reassembled-fresh";
+                : "reassembled-from-normalized-plot";
         nestedChildId = child.id();
         bearingNetworkSpeed = kinetic.speed();
         if (!level.setBlock(movedShaft, Blocks.AIR.defaultBlockState(), 3)) {
@@ -599,8 +631,10 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                             + " preReloadNestedChildId=" + preReloadNestedChildId
                             + " postReloadNestedChildId=" + child.id()
                             + " childRecoveryMode=" + childRecoveryMode
+                            + " glueRecoveryMode=" + glueRecoveryMode
                             + " preReloadMovedGlueId=" + preReloadMovedGlueId
                             + " postReloadMovedGlueId=" + glue.id() + " movedGlueCount=" + glue.count()
+                            + " postReloadChildGlueId=" + postReloadChildGlueId + " childGlueRecoveryValidated=true"
                             + " reloadedSpeed=" + bearingNetworkSpeed + " rebuiltSpeed=" + state.speed()
                             + " samePersistentUuid=true currentPhysicsHandleValid=true"
                             + " staleChildDuplicate=false glueDuplicate=false"
@@ -612,7 +646,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_KINETIC_REBUILD,
                     waitDiagnostic.withFinalState(movedIds(), safeServerState(), "headless",
                             "handleValid=" + (handle != null) + " bearing=" + state + " child=" + child
-                                    + " glue=" + glue),
+                                    + " glue=" + glue + " postReloadChildGlueId=" + postReloadChildGlueId),
                     "reloaded Create network did not rebuild before deadline");
         }
     }
@@ -1028,17 +1062,53 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     }
 
 
-    private static GlueState requireMovedMainGlue(long now) throws ReflectiveOperationException {
-        Class<?> glueClass = Class.forName(GLUE_CLASS_NAME);
-        AABB sourceBox = (AABB) glueClass.getMethod("span", BlockPos.class, BlockPos.class)
-                .invoke(null, MAIN_GLUE_MIN, MAIN_GLUE_MAX);
-        AABB expected = sourceBox.move(movedOffset.getX(), movedOffset.getY(), movedOffset.getZ());
-        List<Entity> matches = new ArrayList<>();
-        for (Entity entity : level.getEntitiesOfClass(Entity.class, expected.inflate(1.0))) {
-            if (GLUE_CLASS_NAME.equals(entity.getClass().getName()) && sameBox(entity.getBoundingBox(), expected)) {
-                matches.add(entity);
-            }
+    private static GlueState recoverMovedGlueDomain(
+            BlockPos sourceMin, BlockPos sourceMax, String label, long now) throws ReflectiveOperationException {
+        AABB expected = movedGlueBox(sourceMin, sourceMax);
+        List<Entity> matches = matchingGlueEntities(expected);
+        if (!matches.isEmpty()) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE,
+                    diagnostic(SkyforgeCompilerIntegrationPhase.PERSISTENCE_RELOAD,
+                            "entity-backed glue is absent before deterministic lifecycle reactivation",
+                            now, now, "bodyId=" + bodyId + " label=" + label, safeServerState(),
+                            "expectedGlueBox=" + expected + " preexistingMatches=" + matches.size()),
+                    "reload unexpectedly retained stale or duplicate " + label + " glue authority");
         }
+        Class<?> glueClass = Class.forName(GLUE_CLASS_NAME);
+        Constructor<?> constructor = glueClass.getConstructor(Level.class, AABB.class);
+        Entity glue = (Entity) constructor.newInstance(level, expected);
+        if (!level.addFreshEntity(glue)) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_GLUE_REGISTRATION,
+                    finalDiagnostic("label=" + label + " expectedGlueBox=" + expected),
+                    "could not re-realize " + label + " glue topology after reload");
+        }
+        matches = matchingGlueEntities(expected);
+        if (matches.size() != 1) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE,
+                    finalDiagnostic("label=" + label + " expectedGlueBox=" + expected + " exactMatches=" + matches.size()),
+                    "post-reload glue topology did not realize exactly once");
+        }
+        return new GlueState(matches.getFirst().getUUID(), expected, 1);
+    }
+
+    private static GlueState requireMovedGlueDomain(
+            BlockPos sourceMin, BlockPos sourceMax, String label, long now) throws ReflectiveOperationException {
+        AABB expected = movedGlueBox(sourceMin, sourceMax);
+        List<Entity> matches = matchingGlueEntities(expected);
+        if (matches.size() != 1) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE,
+                    diagnostic(SkyforgeCompilerIntegrationPhase.PERSISTENCE_RELOAD,
+                            "exactly one recovered Super Glue domain remains at the canonical moved box",
+                            now, now, "bodyId=" + bodyId + " label=" + label, safeServerState(),
+                            "expectedGlueBox=" + expected + " exactMatches=" + matches.size()),
+                    "recovered " + label + " glue domain was missing or duplicated");
+        }
+        return new GlueState(matches.getFirst().getUUID(), expected, matches.size());
+    }
+
+    private static GlueState requireMovedMainGlue(long now) throws ReflectiveOperationException {
+        AABB expected = movedGlueBox(MAIN_GLUE_MIN, MAIN_GLUE_MAX);
+        List<Entity> matches = matchingGlueEntities(expected);
         if (matches.size() != 1) {
             fail(SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE,
                     diagnostic(SkyforgeCompilerIntegrationPhase.PERSISTENCE_RELOAD,
@@ -1048,6 +1118,34 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                     "moved main-body glue domain was missing or duplicated");
         }
         return new GlueState(matches.getFirst().getUUID(), expected, matches.size());
+    }
+
+    private static AABB movedGlueBox(BlockPos sourceMin, BlockPos sourceMax) throws ReflectiveOperationException {
+        Class<?> glueClass = Class.forName(GLUE_CLASS_NAME);
+        AABB sourceBox = (AABB) glueClass.getMethod("span", BlockPos.class, BlockPos.class)
+                .invoke(null, sourceMin, sourceMax);
+        return sourceBox.move(movedOffset.getX(), movedOffset.getY(), movedOffset.getZ());
+    }
+
+    private static List<Entity> matchingGlueEntities(AABB expected) {
+        List<Entity> matches = new ArrayList<>();
+        for (Entity entity : level.getEntitiesOfClass(Entity.class, expected.inflate(1.0))) {
+            if (GLUE_CLASS_NAME.equals(entity.getClass().getName()) && sameBox(entity.getBoundingBox(), expected)) {
+                matches.add(entity);
+            }
+        }
+        return matches;
+    }
+
+    private static void requireMovedGlueBoundary(GlueState main, GlueState child) {
+        BlockPos movedHubPos = CHILD_HUB_SOURCE.offset(movedOffset);
+        BlockPos movedBearingPos = BEARING_SOURCE.offset(movedOffset);
+        if (main.box().contains(movedHubPos.getX() + 0.5, movedHubPos.getY() + 0.5, movedHubPos.getZ() + 0.5)
+                || child.box().contains(movedBearingPos.getX() + 0.5, movedBearingPos.getY() + 0.5, movedBearingPos.getZ() + 0.5)) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE,
+                    finalDiagnostic("main=" + main + " child=" + child),
+                    "recovered glue topology crosses the Propeller Bearing controller boundary");
+        }
     }
 
     private static boolean sameBox(AABB first, AABB second) {

@@ -43,6 +43,9 @@ final class ComposedMechanismPersistenceResourceTest {
         assertTrue(source.contains("currentPhysicsHandleValid=true"));
         assertTrue(source.contains("staleChildDuplicate=false"));
         assertTrue(source.contains("glueDuplicate=false"));
+        assertTrue(source.contains("normalizedChildBlocksInPlot=true"));
+        assertTrue(source.contains("recreated-from-topology"));
+        assertTrue(source.contains("reassembled-from-normalized-plot"));
         assertTrue(workflow.contains("runCompilerPlatformComposedMechanismPersistencePrepareServer"));
         assertTrue(workflow.contains("runCompilerPlatformComposedMechanismPersistenceVerifyServer"));
         assertTrue(workflow.contains("PREPARE PASS"));

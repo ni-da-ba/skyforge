@@ -380,7 +380,8 @@
       "assumptions_preconditions": [
         "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE, SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE, CREATE_KINETIC_ON_SABLE_LIFECYCLE, and NESTED_PROPELLER_BEARING_LIFECYCLE without widening those prerequisites.",
         "The fixture persists only durable identity (primary UUID, pre-reload child/glue UUIDs, and integer plot offset); all Java objects, block entities, entity handles, physics handles, and kinetic state are re-resolved in Boot B.",
-        "Boot A releases the bounded COMMAND_FORCED qualification ticket before save; Boot B recovers the UUID through Sable holding storage and applies a fresh bounded ticket only after canonical reload begins.",
+        "Boot A normalizes the entity-backed Propeller Bearing child back into the canonical Sable plot before save, then releases the bounded COMMAND_FORCED qualification ticket; Boot B recovers the UUID through Sable holding storage and applies a fresh bounded ticket only after canonical reload begins.",
+        "Exact Sable persistence serializes the sublevel plot/pose rather than arbitrary runtime entities, so Boot B deterministically re-realizes the two previously qualified disjoint Super Glue topology domains and reassembles a fresh nested Propeller Bearing child from normalized plot blocks; this lifecycle reactivation is generic platform behavior, not an aircraft-specific persistence format.",
         "A post-reload shaft sever/rebuild is required so serialized residue alone cannot satisfy persistence acceptance.",
         "The production aircraft, Steering Wheel/client interaction, controls, player tracking, handling, and flight remain outside this capability."
       ],
@@ -439,6 +440,13 @@
           "commit": "458cc73dd38380f2c469072059fe459021f29d1c",
           "result": "HARNESS_CHILD_TO_PRIMARY_ASSEMBLY_TIMING_FAILURE",
           "finding": "Boot A occasionally failed to create a primary Sable body when Physics Assembler was invoked in the same ServerStarted callback immediately after the Propeller Bearing child was assembled. Exact stack and physics initialization were otherwise healthy. The fixture now revalidates the live ground child and fires the primary assembler on the next server tick, keeping the transition bounded while separating the two lifecycle edges."
+        },
+        {
+          "workflow_run": 35014874397,
+          "job": 104536134602,
+          "commit": "60c06b4d58ab69e934450fa58b328683f27eb0d7",
+          "result": "ENTITY_STATE_REQUIRES_LIFECYCLE_REACTIVATION",
+          "finding": "Boot A saved a live composed mechanism and Boot B recovered the same canonical Sable UUID, current physics state, and moved bearing block, but the moved Super Glue entity was absent after fresh-process reload. Exact Sable serializer authority persists the sublevel plot/pose and not arbitrary runtime entities. PLATFORM-007 therefore normalizes the entity-backed bearing child into plot blocks before save, then deterministically re-realizes the accepted disjoint glue topology and reassembles a fresh child after reload before live kinetic sever/rebuild proof."
         }
       ]
     }
