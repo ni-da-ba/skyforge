@@ -284,3 +284,9 @@ save/reload persistence before new control-axis production work. Current Platfor
 and must not invent an aircraft-specific persistence workaround. Until that dependency is available,
 static frozen yaw-control evidence may remain reference material but must not be promoted as a
 production-ready new axis.
+
+## Prepared by AIRCRAFT-DESIGN-001
+
+Issue #687 records target-neutral pitch/roll semantic direction and a discrete feasibility study against the accepted Guild utility blockspace plus corrected-yaw occupancy. It defines nose-up/down and port/starboard-down moment signs in the production coordinate frame, demonstrates collision-aware split-elevator and mirrored outboard-aileron candidate partitions, and quantifies their target-realization centroid shifts without feeding those shifts back into the analytical design.
+
+This is design evidence only. Pitch, roll, multi-axis control, stability, handling, and flight remain unqualified. No target mechanism, actuator sign, lowering IR, or runtime authority is introduced by #687.

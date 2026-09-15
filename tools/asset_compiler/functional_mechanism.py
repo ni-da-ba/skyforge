@@ -42,31 +42,60 @@ def _block_state(name: str, **properties: str) -> dict[str, Any]:
     return state
 
 
-def compile_functional_mechanism(
-    spec: dict[str, Any],
-    capability_ledger: dict[str, Any],
-) -> dict[str, Any]:
-    """Compile the single bounded MECH-001 fixed-world airflow utility mechanism.
+def _validate_common_spec(spec: dict[str, Any]) -> dict[str, Any]:
+    """Validate the bounded semantic envelope shared by fixed-world mechanism specimens.
 
-    This is intentionally not a general mechanism DSL. The semantic specimen names roles and
-    geometry; concrete Minecraft/Create resources appear only in this target-lowering function.
+    This validates only already-accepted schema fields. It does not select a concrete Create source
+    or introduce new mechanism vocabulary.
     """
     _require(spec.get("schemaVersion") == SCHEMA_VERSION, f"expected schemaVersion {SCHEMA_VERSION}")
     _require(isinstance(spec.get("assetId"), str) and spec["assetId"], "assetId is required")
-    _require(isinstance(spec.get("seed"), int), "integer seed is required")
+    _require(
+        isinstance(spec.get("seed"), int) and not isinstance(spec.get("seed"), bool),
+        "integer seed is required",
+    )
     _require(
         spec.get("targetStackAuthority") == EXPECTED_TARGET_STACK,
         f"targetStackAuthority must be {EXPECTED_TARGET_STACK}",
-    )
-    _require(
-        spec.get("requiredPlatformCapability") == EXPECTED_CAPABILITY,
-        f"requiredPlatformCapability must be {EXPECTED_CAPABILITY}",
     )
 
     mechanism = spec.get("mechanism")
     _require(isinstance(mechanism, dict), "mechanism object is required")
     unknown = sorted(set(mechanism) - _ALLOWED_MECHANISM_KEYS)
     _require(not unknown, f"unsupported mechanism fields: {unknown}")
+    return mechanism
+
+
+def _require_accepted_agent_c_capability(
+    capability_ledger: dict[str, Any],
+    capability_id: str,
+    target_stack_authority: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return accepted capability/evidence only when Agent C may consume it."""
+    capabilities = capability_ledger.get("capabilities")
+    _require(isinstance(capabilities, dict), "capability ledger has no capabilities object")
+    capability = capabilities.get(capability_id)
+    _require(isinstance(capability, dict), f"{capability_id} is missing from capability ledger")
+    _require(capability.get("status") == "accepted", f"{capability_id} is not accepted")
+    _require(capability.get("verification_level") == "L2", f"{capability_id} must be L2")
+    _require(
+        capability.get("target_stack_authority") == target_stack_authority,
+        "platform target-stack authority does not match mechanism target",
+    )
+    authority = capability.get("production_authority_for_agents")
+    _require(isinstance(authority, dict) and authority.get("C") is True, "Agent C lacks platform authority")
+    evidence = capability.get("latest_accepted_evidence")
+    _require(isinstance(evidence, dict) and evidence.get("result") == "PASS", "platform evidence is not PASS")
+    _require(
+        isinstance(evidence.get("workflow_run"), int) and not isinstance(evidence.get("workflow_run"), bool),
+        "platform evidence workflow_run is missing",
+    )
+    _require(isinstance(evidence.get("commit"), str) and evidence["commit"], "platform evidence commit is missing")
+    return capability, evidence
+
+
+def _lower_mech_001_airflow_bench(mechanism: dict[str, Any]) -> dict[str, Any]:
+    """Lower only the already-accepted MECH-001 semantic specimen to exact target state."""
     _require(mechanism.get("orientation") == "east", "MECH-001 v0.1 supports only east orientation")
     _require(
         mechanism.get("sourceRole") == "qualified_kinetic_source",
@@ -80,23 +109,6 @@ def compile_functional_mechanism(
         isinstance(front_clearance, int) and not isinstance(front_clearance, bool) and 1 <= front_clearance <= 6,
         "frontClearance must be an integer in [1, 6]",
     )
-
-    capabilities = capability_ledger.get("capabilities")
-    _require(isinstance(capabilities, dict), "capability ledger has no capabilities object")
-    capability = capabilities.get(EXPECTED_CAPABILITY)
-    _require(isinstance(capability, dict), f"{EXPECTED_CAPABILITY} is missing from capability ledger")
-    _require(capability.get("status") == "accepted", f"{EXPECTED_CAPABILITY} is not accepted")
-    _require(capability.get("verification_level") == "L2", f"{EXPECTED_CAPABILITY} must be L2")
-    _require(
-        capability.get("target_stack_authority") == EXPECTED_TARGET_STACK,
-        "platform target-stack authority does not match mechanism target",
-    )
-    authority = capability.get("production_authority_for_agents")
-    _require(isinstance(authority, dict) and authority.get("C") is True, "Agent C lacks platform authority")
-    evidence = capability.get("latest_accepted_evidence")
-    _require(isinstance(evidence, dict) and evidence.get("result") == "PASS", "platform evidence is not PASS")
-    _require(isinstance(evidence.get("workflow_run"), int), "platform evidence workflow_run is missing")
-    _require(isinstance(evidence.get("commit"), str) and evidence["commit"], "platform evidence commit is missing")
 
     placements: list[dict[str, Any]] = []
     for x in range(3):
@@ -148,6 +160,36 @@ def compile_functional_mechanism(
         _require(requirement["placementId"] in by_id, "support requirement references unknown placement")
         _require(tuple(requirement["supportBelow"]) in occupied, "machinery support is missing")
 
+    return {
+        "frontClearance": front_clearance,
+        "placements": placements,
+        "clearanceCells": clearance_cells,
+        "supportRequirements": support_requirements,
+    }
+
+
+def compile_functional_mechanism(
+    spec: dict[str, Any],
+    capability_ledger: dict[str, Any],
+) -> dict[str, Any]:
+    """Compile the accepted MECH-001 fixed-world airflow utility mechanism.
+
+    The phases are deliberately separated so later mechanisms can reuse validation without acquiring
+    MECH-001's target lowering. This function still accepts only the existing MECH-001 vocabulary.
+    """
+    mechanism = _validate_common_spec(spec)
+    _require(
+        spec.get("requiredPlatformCapability") == EXPECTED_CAPABILITY,
+        f"requiredPlatformCapability must be {EXPECTED_CAPABILITY}",
+    )
+    capability, evidence = _require_accepted_agent_c_capability(
+        capability_ledger,
+        EXPECTED_CAPABILITY,
+        EXPECTED_TARGET_STACK,
+    )
+    lowered = _lower_mech_001_airflow_bench(mechanism)
+    front_clearance = lowered["frontClearance"]
+
     plan: dict[str, Any] = {
         "schema": PLAN_SCHEMA,
         "assetId": spec["assetId"],
@@ -170,14 +212,14 @@ def compile_functional_mechanism(
             "size": [3 + front_clearance, 2, 3],
         },
         "mountingRegion": {"min": [0, 0, 0], "max": [2, 0, 2]},
-        "placements": placements,
+        "placements": lowered["placements"],
         "connectivity": {
             "nodes": ["source", "relay_0", "endpoint"],
             "edges": [["source", "relay_0"], ["relay_0", "endpoint"]],
             "severNode": "relay_0",
         },
-        "supportRequirements": support_requirements,
-        "clearanceCells": clearance_cells,
+        "supportRequirements": lowered["supportRequirements"],
+        "clearanceCells": lowered["clearanceCells"],
         "runtimeExpectations": {
             "active": {"endpointSpeed": "nonzero", "hasSource": True, "hasNetwork": True},
             "severed": {"endpointSpeed": 0, "hasSource": False},

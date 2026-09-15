@@ -14,7 +14,7 @@ if str(ASSET_COMPILER) not in sys.path:
     sys.path.insert(0, str(ASSET_COMPILER))
 
 from functional_mechanism import compile_functional_mechanism
-from functional_mechanism_structure import encode_mechanism_structure_nbt
+from functional_mechanism_structure import compiled_asset_for_mechanism_structure, encode_mechanism_structure_nbt
 from model import SpecError
 
 
@@ -103,6 +103,77 @@ class FunctionalMechanismCompilerTest(unittest.TestCase):
         spec["mechanism"]["transmissionLength"] = 2
         with self.assertRaisesRegex(SpecError, "exactly one relay"):
             compile_functional_mechanism(spec, self.ledger)
+
+    def test_unknown_semantic_vocabulary_fails_before_target_lowering(self) -> None:
+        spec = copy.deepcopy(self.spec)
+        spec["mechanism"]["waterWheelRadius"] = 2
+        with self.assertRaisesRegex(SpecError, "unsupported mechanism fields"):
+            compile_functional_mechanism(spec, self.ledger)
+
+    def test_structure_export_rejects_duplicate_identity_and_occupancy(self) -> None:
+        plan = self.compile()
+        duplicate_id = copy.deepcopy(plan)
+        duplicate_id["placements"][1]["id"] = duplicate_id["placements"][0]["id"]
+        with self.assertRaisesRegex(SpecError, "duplicate placement IDs"):
+            compiled_asset_for_mechanism_structure(duplicate_id)
+
+        overlapping = copy.deepcopy(plan)
+        overlapping["placements"][1]["pos"] = overlapping["placements"][0]["pos"]
+        with self.assertRaisesRegex(SpecError, "overlapping placements"):
+            compiled_asset_for_mechanism_structure(overlapping)
+
+    def test_structure_export_rejects_invalid_envelope_and_graph_references(self) -> None:
+        plan = self.compile()
+        outside = copy.deepcopy(plan)
+        outside["placements"][0]["pos"] = [99, 0, 0]
+        with self.assertRaisesRegex(SpecError, "outside mechanism envelope"):
+            compiled_asset_for_mechanism_structure(outside)
+
+        bad_graph = copy.deepcopy(plan)
+        bad_graph["connectivity"]["nodes"].append("missing_node")
+        with self.assertRaisesRegex(SpecError, "unknown placements"):
+            compiled_asset_for_mechanism_structure(bad_graph)
+
+    def test_structure_export_rejects_support_and_clearance_tampering(self) -> None:
+        plan = self.compile()
+        unsupported = copy.deepcopy(plan)
+        unsupported["supportRequirements"][0]["supportBelow"] = [5, 0, 2]
+        with self.assertRaisesRegex(SpecError, "unoccupied cell"):
+            compiled_asset_for_mechanism_structure(unsupported)
+
+        blocked_clearance = copy.deepcopy(plan)
+        blocked_clearance["clearanceCells"][0] = [2, 1, 1]
+        with self.assertRaisesRegex(SpecError, "overlaps a mechanism placement"):
+            compiled_asset_for_mechanism_structure(blocked_clearance)
+
+    def test_boolean_integer_fields_fail_closed(self) -> None:
+        spec = copy.deepcopy(self.spec)
+        spec["seed"] = True
+        with self.assertRaisesRegex(SpecError, "integer seed is required"):
+            compile_functional_mechanism(spec, self.ledger)
+
+        ledger = copy.deepcopy(self.ledger)
+        ledger["capabilities"]["CREATE_KINETIC_NETWORK_LIFECYCLE"]["latest_accepted_evidence"]["workflow_run"] = True
+        with self.assertRaisesRegex(SpecError, "workflow_run is missing"):
+            compile_functional_mechanism(self.spec, ledger)
+
+    def test_structure_export_rejects_valid_shape_with_stale_digest(self) -> None:
+        plan = self.compile()
+        plan["placements"][0]["blockState"] = {"name": "minecraft:cobblestone"}
+        with self.assertRaisesRegex(SpecError, "digest mismatch"):
+            compiled_asset_for_mechanism_structure(plan)
+
+    def test_structure_export_requires_nonempty_resource_and_role(self) -> None:
+        plan = self.compile()
+        empty_resource = copy.deepcopy(plan)
+        empty_resource["placements"][0]["blockState"]["name"] = ""
+        with self.assertRaisesRegex(SpecError, "missing blockState.name"):
+            compiled_asset_for_mechanism_structure(empty_resource)
+
+        bad_role = copy.deepcopy(plan)
+        bad_role["placements"][0]["mechanicalRole"] = 7
+        with self.assertRaisesRegex(SpecError, "mechanicalRole must be a non-empty string"):
+            compiled_asset_for_mechanism_structure(bad_role)
 
 
 if __name__ == "__main__":
