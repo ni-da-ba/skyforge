@@ -17,15 +17,19 @@ final class SkyforgeStructurePlacementExecutionStageTest {
         var foreign = new BlockPos(8, 121, 8);
         var exterior = new BlockPos(16, 120, 8);
 
-        try (var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
-                var placement = SkyforgeStructurePlacementExecutionStage.openForTest(
-                        volumeId, bounds, foreign::equals)) {
+        var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
+        var placement = SkyforgeStructurePlacementExecutionStage.openForTest(
+                volumeId, bounds, foreign::equals);
+        try {
             assertTrue(SkyforgeStructurePlacementExecutionStage.active());
             assertTrue(SkyforgeStructurePlacementExecutionStage.canWrite(allowed));
             assertTrue(SkyforgeStructurePlacementExecutionStage.isVisible(allowed));
             assertFalse(SkyforgeStructurePlacementExecutionStage.canWrite(foreign));
             assertFalse(SkyforgeStructurePlacementExecutionStage.isVisible(foreign));
             assertFalse(SkyforgeStructurePlacementExecutionStage.canWrite(exterior));
+        } finally {
+            placement.close();
+            domain.close();
         }
 
         assertFalse(SkyforgeStructurePlacementExecutionStage.active());
