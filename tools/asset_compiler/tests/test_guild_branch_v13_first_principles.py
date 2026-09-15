@@ -99,6 +99,9 @@ class GuildBranchFirstPrinciplesTests(unittest.TestCase):
         self.assertNotIn("fp_working_partition", modules)
         self.assertNotIn("fp_freight_transom", modules)
         self.assertNotIn("fp_repair_transom", modules)
+        states = {cell.state.name for cell in compiled.model.cells.values()}
+        self.assertNotIn("minecraft:blue_wool", states)
+        self.assertNotIn("minecraft:yellow_terracotta", states)
 
     def test_roof_field_and_structure_are_connected(self):
         compiled = self._compile()

@@ -100,6 +100,10 @@ class GuildBranchFirstPrinciplesDetailTests(unittest.TestCase):
         self.assertNotIn("fp14_freight_manifest", modules)
         self.assertNotIn("fp_freight_transom", modules)
         self.assertNotIn("fp_repair_transom", modules)
+        self.assertNotIn("fp14_public_rug", modules)
+        self.assertNotIn("minecraft:blue_wool", {cell.state.name for cell in compiled.model.cells.values()})
+        self.assertNotIn("minecraft:yellow_terracotta", {cell.state.name for cell in compiled.model.cells.values()})
+        self.assertNotIn("minecraft:blue_carpet", {cell.state.name for cell in compiled.model.cells.values()})
 
         rp = compiled.summary["layout"]["resolvedParameters"]
         hall_x1 = int(rp["hallWidth"]) - 1

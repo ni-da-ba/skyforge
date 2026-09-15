@@ -1,6 +1,6 @@
 # Guild blue / brass palette evaluation
 
-Status: **provisional; not an accepted Guild palette**.
+Status: **deferred; no Guild color palette is currently accepted**.
 
 The v0.7 cohesion pass intentionally freezes geometry work against the current temporary realization:
 
@@ -8,6 +8,8 @@ The v0.7 cohesion pass intentionally freezes geometry work against the current t
 - brass accent: `minecraft:yellow_terracotta`
 
 Those blocks are placeholders for semantic material roles, not canon. The compiler must continue to refer to `institutionalAccent` and `brassAccent` rather than depending on either concrete block ID.
+
+The accepted v0.13/v0.14 current path is therefore intentionally neutral: identity full blocks resolve as dark timber, identity hardware resolves as ordinary masonry hardware, and the provisional blue public rug is omitted. The historical blue/yellow candidates below remain research evidence only; they must not be read as current canon.
 
 ## Target read
 

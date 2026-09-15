@@ -78,13 +78,13 @@ def guild_v014_intent(cell: Cell) -> BlockIntent:
         return BlockIntent(("lighting",), frozenset({"light", "attachment_sensitive"}), _props(cell, "hanging"))
 
     if role == "institutional_accent":
-        return BlockIntent(("guild_blue", "textile"), frozenset({"full_cube", "solid_support"}))
+        return BlockIntent(("dark_timber",), frozenset({"full_cube", "solid_support"}))
 
     if role == "hardware":
         if "compact_roof_signal" in module:
             return BlockIntent(("hardware", "metal"), frozenset({"directional", "attachment_sensitive"}), _props(cell, "facing"))
         if any(token in module for token in ("service_marker", "guild_identity", "service_counter_end")):
-            return BlockIntent(("warm_hardware", "brass_surrogate"), frozenset({"full_cube", "solid_support"}))
+            return BlockIntent(("hardware", "masonry"), frozenset({"full_cube", "solid_support"}))
         if any(token in module for token in ("manifest", "tool_panel")):
             return BlockIntent(("dark_timber",), frozenset({"full_cube", "solid_support"}))
         return BlockIntent(("hardware", "masonry"), frozenset({"full_cube", "solid_support"}))

@@ -97,7 +97,6 @@ def compile_guild_branch_first_principles_detail(spec: dict) -> CompiledAsset:
     lantern = BlockState.of(_material(spec, "lighting", "lighting"), hanging=True)
     panel = BlockState.of(_material(spec, "interiorPanel", "publicBoard"))
     brass = BlockState.of(_material(spec, "brassAccent", "brassAccent"))
-    carpet = BlockState.of(_material(spec, "publicRug", "institutionalAccent"))
     signal = BlockState.of(_material(spec, "signalHardware", "hardware"), facing="up")
 
     def set_empty(x: int, y: int, z: int, role: str, state: BlockState, module: str) -> bool:
@@ -216,9 +215,8 @@ def compile_guild_branch_first_principles_detail(spec: dict) -> CompiledAsset:
     for z in range(2, 6):
         if model.cells.get((14, 2, z)) is not None:
             set_empty(14, 4, z, "records_detail", trim_slab, "fp14_records_cap")
-    for x in range(public_center, public_center + 2):
-        for z in (9, 10):
-            set_empty(x, 2, z, "floor_detail_passable", carpet, "fp14_public_rug")
+    # Guild identity floor color is deliberately omitted until an in-game identity-material
+    # treatment is accepted. Keep the public floor neutral rather than encoding a provisional rug.
     set_empty(18, 4, 3, "hardware", panel, "fp14_repair_tool_panel")
     # No freestanding freight manifest is emitted in the open warehouse. Richer signage/furniture
     # belongs in the later furnishing vocabulary rather than being forced onto circulation geometry.

@@ -148,6 +148,10 @@ class MinecraftAdapterTests(unittest.TestCase):
         self.assertGreater(report["neighborSensitiveStateChanges"], 0)
         self.assertGreater(report["shapeModel"]["partialCollisionBlockCount"], 0)
         self.assertEqual(report["semanticReResolution"]["concreteNameChanges"], 0)
+        realized_names = {cell.state.name for cell in realized.model.cells.values()}
+        self.assertNotIn("minecraft:blue_wool", realized_names)
+        self.assertNotIn("minecraft:yellow_terracotta", realized_names)
+        self.assertNotIn("minecraft:blue_carpet", realized_names)
         self.assertFalse(report["semanticReResolution"]["resolverUsedConcreteBlockNames"])
         self.assertFalse(report["semanticReResolution"]["sourceConcreteNamesReadForIntent"])
         self.assertTrue(report["adapterIsExportAuthority"])

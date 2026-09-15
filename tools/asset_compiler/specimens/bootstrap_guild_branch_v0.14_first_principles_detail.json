@@ -66,17 +66,17 @@
     ]
   },
   "paletteReview": {
-    "status": "provisional",
+    "status": "deferred",
     "geometryPassLocksPalette": true,
     "intent": {
-      "institutionalBlue": "deep navy institutional paint/textile accent",
-      "brassAccent": "aged warm brass-like hardware accent"
+      "institutionalBlue": "deferred; use neutral dark timber until identity materials are accepted",
+      "brassAccent": "deferred; use neutral masonry hardware until identity materials are accepted"
     },
     "current": {
-      "institutionalBlue": "minecraft:blue_wool",
-      "brassAccent": "minecraft:yellow_terracotta"
+      "institutionalBlue": "minecraft:dark_oak_planks",
+      "brassAccent": "minecraft:polished_andesite"
     },
-    "nextGate": "dedicated in-game blue/brass palette swatch comparison"
+    "nextGate": "dedicated in-game Guild identity-material gate before any canonical color returns"
   },
   "materialRoles": {
     "foundation": "minecraft:stone_bricks",
@@ -91,8 +91,8 @@
     "workingDoor": "minecraft:dark_oak_door",
     "hardware": "minecraft:polished_andesite",
     "lighting": "minecraft:lantern",
-    "institutionalAccent": "minecraft:blue_wool",
-    "brassAccent": "minecraft:yellow_terracotta",
+    "institutionalAccent": "minecraft:dark_oak_planks",
+    "brassAccent": "minecraft:polished_andesite",
     "canopy": "minecraft:dark_oak_slab",
     "seating": "minecraft:spruce_slab",
     "recordsShelf": "minecraft:bookshelf",
@@ -109,7 +109,6 @@
     "detailBracket": "minecraft:dark_oak_fence",
     "historyMasonry": "minecraft:polished_diorite",
     "interiorPanel": "minecraft:dark_oak_planks",
-    "publicRug": "minecraft:blue_carpet",
     "signalHardware": "minecraft:lightning_rod"
   },
   "requestedAnchors": [
