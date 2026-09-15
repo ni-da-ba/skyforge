@@ -1907,6 +1907,14 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // MECH-001 human gate: exact C11 stack plus the compiler-emitted development structure.
+        create("mech001FunctionalMechanismClient") {
+            client()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-mech-001-functional-mechanism-client").asFile
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
 
         // PLATFORM-003: preassembled Create kinetic network transferred into one live Sable body.
         create("compilerPlatformCreateKineticOnSableLifecycleServer") {

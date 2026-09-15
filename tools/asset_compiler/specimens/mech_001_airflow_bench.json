@@ -1,0 +1,15 @@
+{
+  "assetId": "guild.utility.airflow_bench.mech_001",
+  "mechanism": {
+    "endpointRole": "airflow",
+    "frontClearance": 3,
+    "mountingRole": "masonry_pad",
+    "orientation": "east",
+    "sourceRole": "qualified_kinetic_source",
+    "transmissionLength": 1
+  },
+  "requiredPlatformCapability": "CREATE_KINETIC_NETWORK_LIFECYCLE",
+  "schemaVersion": "mech-0.1",
+  "seed": 628001,
+  "targetStackAuthority": "C11_FLIGHT_EXACT_2026-09-05"
+}
