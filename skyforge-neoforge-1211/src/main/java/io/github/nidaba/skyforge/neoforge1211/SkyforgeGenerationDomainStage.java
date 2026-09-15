@@ -34,6 +34,14 @@ final class SkyforgeGenerationDomainStage {
         return ACTIVE_ISLAND.get() == null;
     }
 
+    static void requireExactIslandVolume(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        if (!volumeId.equals(ACTIVE_ISLAND.get())) {
+            throw new IllegalStateException(
+                    "native structure lifecycle requires its exact active Skyforge generation-domain scope");
+        }
+    }
+
     static final class Scope implements AutoCloseable {
         private final SkyIslandWorldVolumeId volumeId;
         private boolean closed;

@@ -19,6 +19,7 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
@@ -87,6 +88,51 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         MinecraftSkyforgeHeightClaim claim = skyforgeClaim.orElseThrow();
         SkyforgeStructureCandidateStage.record(claim);
         return claim.height();
+    }
+
+    /**
+     * Invokes Minecraft's native structure-start lifecycle for one already-admitted exact volume.
+     *
+     * <p>This is deliberately a package-visible adapter instead of an override of
+     * {@link ChunkGenerator#createStructures}. BASE_WORLD therefore keeps Minecraft's ordinary
+     * lifecycle unchanged. The inherited lifecycle retains structure-set selection, weighted
+     * fallback, start construction, and its calls to this generator's
+     * {@link #tryGenerateStructure(StructureSet.StructureSelectionEntry, StructureManager,
+     * RegistryAccess, RandomState, StructureTemplateManager, long, ChunkAccess, ChunkPos,
+     * SectionPos)} admission/support/accommodation override.
+     *
+     * <p>Callers must invoke this after exact terrain realization and before downstream
+     * population. This seam intentionally records neither placement completion nor mutation
+     * policy; DR-30 remains responsible for those later lifecycle concerns.
+     */
+    void createStructuresForExactSkyforgeVolume(
+            RegistryAccess registryAccess,
+            ChunkGeneratorStructureState structureState,
+            StructureManager structureManager,
+            ChunkAccess chunk,
+            StructureTemplateManager structureTemplateManager,
+            SkyIslandWorldVolumeId volumeId) {
+        java.util.Objects.requireNonNull(registryAccess, "registryAccess");
+        java.util.Objects.requireNonNull(structureState, "structureState");
+        java.util.Objects.requireNonNull(structureManager, "structureManager");
+        java.util.Objects.requireNonNull(chunk, "chunk");
+        java.util.Objects.requireNonNull(structureTemplateManager, "structureTemplateManager");
+        java.util.Objects.requireNonNull(volumeId, "volumeId");
+
+        SkyforgeGenerationDomainStage.requireExactIslandVolume(volumeId);
+        SkyforgeNeoForge1211SurfaceStage.requireExactlyOneCandidateVolume(volumeId, chunk);
+        if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(volumeId)) {
+            throw new IllegalStateException(
+                    "native structure lifecycle requires an admitted exact Skyforge volume");
+        }
+        SkyforgeStructureCandidateStage.requireInactive();
+
+        super.createStructures(
+                registryAccess,
+                structureState,
+                structureManager,
+                chunk,
+                structureTemplateManager);
     }
 
     /**
