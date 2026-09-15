@@ -71,7 +71,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Resolve exact WBY C1 Create artifact
-        run: ./gradlew :skyforge-neoforge-1211:waveC9ResolvePinnedMods
+        run: ./gradlew :skyforge-neoforge-1211:waveC9ResolvePinnedMods --no-configuration-cache
 
       - name: Probe exact WBY C1 Create structure registry
         shell: bash
@@ -80,7 +80,7 @@ jobs:
           result="${GITHUB_WORKSPACE}/build/wby-c1-runtime-proof/registry.properties"
           mkdir -p "$(dirname "${result}")"
           JAVA_TOOL_OPTIONS="-Dskyforge.dev.wbyC1StructureRegistryProbe=true -Dskyforge.dev.wbyC1StructureRegistryResultFile=${result}" \
-            ./gradlew :skyforge-neoforge-1211:runWaveC21CreateResourceBaselineServer --no-daemon
+            ./gradlew :skyforge-neoforge-1211:runWaveC21CreateResourceBaselineServer --no-daemon --no-configuration-cache
           test -f "${result}"
           grep -Fxq 'status=PASS' "${result}"
           grep -Fxq 'catalogBlocksValidated=8' "${result}"
