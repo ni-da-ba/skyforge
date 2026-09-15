@@ -134,6 +134,55 @@ class RoadmapRuntimeTests(unittest.TestCase):
             self.assertEqual(state["active"]["node_id"], "task-a")
             self.assertEqual(state["claims_today"], 1)
 
+    def test_ordinary_pending_wake_does_not_block_roadmap_seed(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            manifest = self.manifest()
+            ordinary = core.EventDecision(
+                actionable=True,
+                reason="main advanced",
+                event="push",
+                head_sha="abc123",
+            )
+            with o._state_lock:
+                o.state.data["pending_events"] = [ordinary.to_state()]
+                o.state.save()
+
+            with (
+                mock.patch.object(runtime, "_roadmap_manifest", return_value=manifest),
+                mock.patch.object(runtime, "_roadmap_live_task_prs", return_value=[]),
+                mock.patch.object(runtime, "_roadmap_issue_open", return_value=True),
+            ):
+                seeded = runtime._roadmap_maybe_advance(o, trigger="ordinary-wake-test")
+
+            self.assertTrue(seeded)
+            o.enqueue.assert_called_once()
+            self.assertEqual(o.enqueue.call_args.args[0].pr_number, 284)
+            self.assertEqual(o.state.data["roadmap"]["active"]["node_id"], "task-a")
+
+    def test_protected_pending_task_still_blocks_parallel_roadmap_seed(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            manifest = self.manifest()
+            protected = core.EventDecision(
+                actionable=True,
+                reason="explicit task",
+                event="issue_comment",
+                action="audit_signal",
+                pr_number=999,
+                signal_kind="task",
+                signal_text="AUDIT — NEW IMPLEMENTATION TASK",
+            )
+            with o._state_lock:
+                o.state.data["pending_events"] = [protected.to_state()]
+                o.state.save()
+
+            with mock.patch.object(runtime, "_roadmap_manifest", return_value=manifest):
+                seeded = runtime._roadmap_maybe_advance(o, trigger="protected-task-test")
+
+            self.assertFalse(seeded)
+            o.enqueue.assert_not_called()
+
     def test_existing_open_task_owned_pr_prevents_parallel_seed(self):
         with tempfile.TemporaryDirectory() as td:
             o = self.make_orchestrator(pathlib.Path(td))
