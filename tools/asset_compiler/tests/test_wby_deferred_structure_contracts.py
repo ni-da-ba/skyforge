@@ -21,7 +21,7 @@ class WbyDeferredStructureContractTests(unittest.TestCase):
         doc = json.loads(CATALOG.read_text(encoding="utf-8"))
         self.assertEqual(
             doc["validation"]["deferredStructuralRuntimeObservation"],
-            "passed-wave-c1-exact-create-runtime-4-resources",
+            "passed-wave-c1-exact-create-runtime-1-resources",
         )
         contracts = doc["deferredStateContracts"]
         self.assertEqual(len(contracts), 10)
