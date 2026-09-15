@@ -70,17 +70,18 @@ final class SuperGlueAssemblyDomainResourceTest {
     }
 
     @Test
-    void ledgerStartsFailClosedPendingExactStackAcceptance() throws IOException {
+    void ledgerPublishesAcceptedGlueAuthorityAfterExactStackAcceptance() throws IOException {
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
                         "../docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json").normalize());
         int start = ledger.indexOf("\"SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE\"");
         assertTrue(start >= 0);
         String entry = ledger.substring(start);
 
-        assertTrue(entry.contains("\"status\": \"qualification_pending\""));
-        assertTrue(entry.contains("\"latest_accepted_evidence\": null"));
-        assertTrue(entry.contains("\"B\": false"));
-        assertTrue(entry.contains("\"C\": false"));
+        assertTrue(entry.contains("\"status\": \"accepted\""));
+        assertTrue(entry.contains("\"workflow_run\": 34978729090"));
+        assertTrue(entry.contains("\"job\": 104413810290"));
+        assertTrue(entry.contains("\"B\": true"));
+        assertTrue(entry.contains("\"C\": true"));
     }
 
     private static String fixtureSource() throws IOException {

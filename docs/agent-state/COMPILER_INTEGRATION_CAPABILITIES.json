@@ -197,7 +197,7 @@
       "negative_evidence": []
     },
     "SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE": {
-      "status": "qualification_pending",
+      "status": "accepted",
       "verification_level": "L2",
       "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
       "minimal_fixture": "SkyforgeSuperGlueAssemblyDomainAcceptance",
@@ -206,7 +206,13 @@
         "SuperGlueAssemblyDomainResourceTest"
       ],
       "owning_workflow": ".github/workflows/compiler-platform-super-glue-assembly-domain.yml",
-      "latest_accepted_evidence": null,
+      "latest_accepted_evidence": {
+        "workflow_run": 34978729090,
+        "job": 104413810290,
+        "commit": "a699e2842efa76dc237410d94fbab9e0e08fe408",
+        "result": "PASS",
+        "finding": "Exact-stack L2 proved one causal Create Super Glue domain across a runtime-verified non-sticky slime/honey boundary: glued case transferred seed 8/8 plus secondary 8/8 and recreated exactly one translated glue domain; the otherwise-identical unglued control transferred seed 8/8, secondary 0/8, and left all 8 secondary cells in the parent world."
+      },
       "assumptions_preconditions": [
         "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE semantics only as the real Physics Assembler/Sable transfer substrate; this capability independently qualifies the causal effect of one bounded Create Super Glue domain.",
         "The comparison boundary is minecraft:slime_block adjacent to minecraft:honey_block, and the fixture asserts at runtime that NeoForge canStickTo is false in both directions before either case assembles.",
@@ -229,8 +235,8 @@
         "TIMEOUT_FIXTURE_TERMINAL_STATE"
       ],
       "production_authority_for_agents": {
-        "B": false,
-        "C": false
+        "B": true,
+        "C": true
       },
       "negative_evidence": []
     }
