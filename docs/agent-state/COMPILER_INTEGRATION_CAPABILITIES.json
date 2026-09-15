@@ -432,6 +432,13 @@
           "commit": "12d479d625e4cec94deba51e0b124341b0901b5f",
           "result": "HARNESS_SYNCHRONOUS_SOURCE_CLEANUP_RACE",
           "finding": "Boot A registered one valid Sable body with positive mass, but the synchronous first observation still saw one source fixture block before Simulated source cleanup completed. Earlier runs observed zero source blocks on the same tick. The fixture now treats source/ground-child cleanup as a bounded post-registration condition while retaining immediate failure for removed/invalid-mass bodies."
+        },
+        {
+          "workflow_run": 35014255759,
+          "job": 104534087732,
+          "commit": "458cc73dd38380f2c469072059fe459021f29d1c",
+          "result": "HARNESS_CHILD_TO_PRIMARY_ASSEMBLY_TIMING_FAILURE",
+          "finding": "Boot A occasionally failed to create a primary Sable body when Physics Assembler was invoked in the same ServerStarted callback immediately after the Propeller Bearing child was assembled. Exact stack and physics initialization were otherwise healthy. The fixture now revalidates the live ground child and fires the primary assembler on the next server tick, keeping the transition bounded while separating the two lifecycle edges."
         }
       ]
     }

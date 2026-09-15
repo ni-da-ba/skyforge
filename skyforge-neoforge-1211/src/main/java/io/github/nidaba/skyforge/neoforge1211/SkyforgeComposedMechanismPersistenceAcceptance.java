@@ -104,6 +104,8 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static UUID postReloadMovedGlueId;
     private static String childRecoveryMode = "unresolved";
     private static boolean reloadChildAssemblyRequested;
+    private static boolean primaryAssemblyTriggered;
+    private static long primaryAssemblyTriggerTick;
     private static Stage stage;
     private static SkyforgeCompilerIntegrationDiagnostic waitDiagnostic;
 
@@ -161,8 +163,9 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             groundChildId = ground.id();
             requireSourceChildRemoved("ground child assembly");
 
-            BlockEntity assembler = requireExpectedBlockEntity(ASSEMBLER_SOURCE, "PhysicsAssemblerBlockEntity");
+            requireExpectedBlockEntity(ASSEMBLER_SOURCE, "PhysicsAssemblerBlockEntity");
             stage = Stage.ASSEMBLY;
+            primaryAssemblyTriggerTick = now + 1L;
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.ASSEMBLY,
                     "real Physics Assembler flattens the controlled Propeller Bearing child into one new Sable primary body",
@@ -170,9 +173,8 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                     now + ASSEMBLY_DEADLINE_TICKS,
                     sourceIds(),
                     safeServerState(),
-                    "groundChild=" + ground + " beforeSubLevelIds=" + beforeIds);
-            publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
-            pollAssembly(now, true);
+                    "groundChild=" + ground + " beforeSubLevelIds=" + beforeIds
+                            + " primaryAssemblyTriggerTick=" + primaryAssemblyTriggerTick);
         } catch (ReflectiveOperationException exception) {
             failReflection(stageFailureCode(), exception);
         } catch (RuntimeException exception) {
@@ -234,6 +236,19 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     }
 
     private static void pollAssembly(long now, boolean synchronousObservation) throws ReflectiveOperationException {
+        if (!primaryAssemblyTriggered) {
+            if (now < primaryAssemblyTriggerTick) {
+                return;
+            }
+            BlockEntity sourceBearing = requireExpectedBlockEntity(BEARING_SOURCE, "PropellerBearingBlockEntity");
+            requireExactChild(childState(sourceBearing), "ground", now);
+            requireSourceChildRemoved("pre-primary assembly recheck");
+            BlockEntity assembler = requireExpectedBlockEntity(ASSEMBLER_SOURCE, "PhysicsAssemblerBlockEntity");
+            publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
+            primaryAssemblyTriggered = true;
+            LOGGER.log(System.Logger.Level.INFO,
+                    PREFIX + " PRIMARY_ASSEMBLY_TRIGGER tick=" + now + " bodyIdsBefore=" + beforeIds);
+        }
         Set<UUID> currentIds = currentSubLevelIds();
         Set<UUID> created = new LinkedHashSet<>(currentIds);
         created.removeAll(beforeIds);
@@ -297,6 +312,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                     "canonical Sable body and current physics handle remain live after child flattening",
                     now, now + PHYSICS_INITIALIZATION_DEADLINE_TICKS, movedIds(), safeServerState(),
                     "assemblyRegistrationObservedSynchronously=" + synchronousObservation
+                            + " primaryAssemblyTriggered=" + primaryAssemblyTriggered
                             + " movedOffset=" + movedOffset + " groundChildId=" + groundChildId);
             LOGGER.log(System.Logger.Level.INFO,
                     PREFIX + " FLATTENED bodyId=" + bodyId + " groundChildId=" + groundChildId
