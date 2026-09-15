@@ -1,20 +1,56 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "milestone": "DR-30",
-  "state": "BLOCKED_AUTHORITY",
+  "state": "READY",
   "specimen_id": "P2_DRESSED_REGION_A",
   "consumes": [
     "DR00_SPECIMEN_LOCK.json",
     "AUTH-0096",
     "AUTH-0097",
     "C24 / PR #373",
-    "DR30_CONTENT_ROLE_SITE_ENVELOPE.json / PR #593"
+    "DR30_CONTENT_ROLE_SITE_ENVELOPE.json / PR #593",
+    "DR30_CONTENT_CANDIDATE_ROUTE_BINDING.json / PR #603"
   ],
-  "gate": {
-    "code": "CONTENT_CANDIDATE_PROVENANCE_AND_ROUTE_PLAN_REQUIRED",
-    "reason": "PR #593 retires CONTENT_ROLE_REQUIRED: CONTENT-DR30-ROLE-SITE-001 accepts the generic FREIGHT_TRANSFER_EDGE role, its threshold-free C24/AUTH-0096/AUTH-0097 eligibility predicate, canonical tie-break order, and REPLAN_REQUIRED outcomes. It does not persist an exact C24 selected candidate or exact published-association/anchor/direction provenance for P2_DRESSED_REGION_A, and it explicitly marks route_plan as CONTENT_REQUIRED. The Implementation handoff requires selected semantic role and candidate provenance. No concrete structure realization can therefore be bound without inventing the missing site selection or planned-route meaning.",
-    "fail_closed_behavior": "Do not treat the candidate-policy input or canonical order as an already selected candidate; infer association, anchor, direction, route plan, footprint/flatness/grade/approach thresholds; or instantiate a generic structure as petroleum, settlement, freight, or route infrastructure. Existing native structure exact geometry/orientation admission, support/clearance, deterministic foundation accommodation, serialized provenance, mutation-preserving fill, reload, lifecycle, and exact-volume/stacked-island isolation machinery remains reusable once Content supplies the missing selected-candidate provenance and route-plan authority."
+  "authority_resolution": {
+    "supersedes": "PR #582 BLOCKED_AUTHORITY / CONTENT_CANDIDATE_PROVENANCE_AND_ROUTE_PLAN_REQUIRED",
+    "role": "FREIGHT_TRANSFER_EDGE",
+    "role_site_contract": "CONTENT-DR30-ROLE-SITE-001",
+    "canonical_binding_contract": "CONTENT-DR30-CANONICAL-FREIGHT-002",
+    "canonical_association_authority": "DR00_SPECIMEN_LOCK.json",
+    "candidate_policy": "FreightTransferEdgeSitePolicy",
+    "route_plan_authority": "CONTENT_BOUND",
+    "status": "CONSUMABLE_BY_IMPLEMENTATION",
+    "meaning": "Content now supplies the exact canonical association, deterministic supported/open candidate selection, selected provenance, and semantic freight-connection direction required by DR-30. Final structure architecture and route geometry remain intentionally unauthorized and unnecessary for the generic/native machine probe."
   },
-  "next_authority_required": "An accepted Content handoff for P2_DRESSED_REGION_A that supplies either (a) the exact C24 selected candidate's published association, canonical anchor, and canonical direction plus the planned-route authority, or (b) a deterministic Content-owned replan result with the same provenance and route-plan authority. It must remain distinct from final architecture, settlement layout, civilization meaning, and aesthetics.",
-  "verification": "No project validation was run on the hosted editing worker. After that narrow Content authority exists, GitHub Actions must validate the retained native-structure admission/accommodation regressions and a DR-30 canonical realization covering exact geometry/orientation, support/clearance, deterministic accommodation, serialized persistence/reload, player-mutation preservation, lifecycle, and exact-volume/stacked-island isolation."
+  "remaining_work": {
+    "code": "IMPLEMENTATION_REQUIRED",
+    "reason": "DR-30 still requires the production exact-volume native-structure lifecycle seam and positive machine evidence. This READY state is not acceptance.",
+    "required": [
+      "exact-volume native structure population after admitted terrain realization and before surface/ecology population",
+      "exact geometry/orientation admission",
+      "support/clearance and bounded fill-only accommodation",
+      "native start/foundation persistence and reload",
+      "player-mutation preservation",
+      "deterministic/idempotent lifecycle",
+      "exact-volume and stacked-island isolation",
+      "BASE_WORLD immutability",
+      "direct-generation and deferred-catch-up ordering"
+    ]
+  },
+  "fixture_authority": {
+    "kind": "GENERIC_NATIVE_MACHINE_PROBE",
+    "source": "issue #493 explicit machine-fixture authority",
+    "meaning": "An existing generic/native representative structure on main may be reused solely to qualify the physical/runtime seam.",
+    "does_not_authorize": [
+      "final structure architecture",
+      "settlement layout",
+      "civilization meaning",
+      "route geometry",
+      "runway",
+      "dock",
+      "vehicle corridor",
+      "aesthetic policy"
+    ]
+  },
+  "verification": "No DR-30 implementation acceptance is claimed by this artifact. GitHub Actions must replace READY with positive implementation evidence before state may become ACCEPTED and before DR-40 can advance."
 }
