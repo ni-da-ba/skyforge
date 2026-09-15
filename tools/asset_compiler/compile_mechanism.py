@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from functional_mechanism import compile_functional_mechanism
+from functional_mechanism_structure import encode_mechanism_structure_nbt
 from model import SpecError
 
 
@@ -30,6 +31,8 @@ def main() -> int:
     args.out.mkdir(parents=True, exist_ok=True)
     resolved = args.out / "resolved.json"
     resolved.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    structure = args.out / "mech_001_airflow_bench.nbt"
+    structure.write_bytes(encode_mechanism_structure_nbt(plan))
     print(json.dumps({
         "assetId": plan["assetId"],
         "compilerVersion": plan["compilerVersion"],
@@ -37,6 +40,7 @@ def main() -> int:
         "digestSha256": plan["digestSha256"],
         "requiredPlatformCapability": plan["requiredPlatformCapability"],
         "output": str(resolved),
+        "minecraftStructure": str(structure),
     }, indent=2))
     return 0
 

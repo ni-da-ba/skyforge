@@ -1907,6 +1907,14 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // MECH-001 human gate: exact C11 stack plus the compiler-emitted development structure.
+        create("mech001FunctionalMechanismClient") {
+            client()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-mech-001-functional-mechanism-client").asFile
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
 
         // C12 B0-A1/A2: exact 105-block MAIN_BODY through the real Physics Assembler, then
         // authoritative Sable mass/center-of-mass measurement.

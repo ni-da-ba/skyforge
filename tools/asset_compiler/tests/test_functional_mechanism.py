@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+import gzip
+import hashlib
 import json
 import sys
 import unittest
@@ -12,6 +14,7 @@ if str(ASSET_COMPILER) not in sys.path:
     sys.path.insert(0, str(ASSET_COMPILER))
 
 from functional_mechanism import compile_functional_mechanism
+from functional_mechanism_structure import encode_mechanism_structure_nbt
 from model import SpecError
 
 
@@ -64,6 +67,19 @@ class FunctionalMechanismCompilerTest(unittest.TestCase):
         for requirement in plan["supportRequirements"]:
             self.assertIn(tuple(requirement["supportBelow"]), occupied)
         self.assertTrue(occupied.isdisjoint(map(tuple, plan["clearanceCells"])))
+
+
+    def test_structure_export_is_deterministic_and_contains_exact_target_states(self) -> None:
+        encoded = encode_mechanism_structure_nbt(self.compile())
+        self.assertEqual(
+            hashlib.sha256(encoded).hexdigest(),
+            "dee1563daa925034f13a9481744bbf2da9b0bb36937ae8cb6a7192a1b45e9b84",
+        )
+        raw = gzip.decompress(encoded)
+        self.assertIn(b"create:creative_motor", raw)
+        self.assertIn(b"create:shaft", raw)
+        self.assertIn(b"create:encased_fan", raw)
+        self.assertIn(b"minecraft:stone_bricks", raw)
 
     def test_platform_authority_is_required_fail_closed(self) -> None:
         ledger = copy.deepcopy(self.ledger)

@@ -37,6 +37,7 @@ final class SkyforgeMech001FunctionalMechanismAcceptance {
             "da905478f5f3e42e197bd0ef1a38baba848c8ce65c2a911d7153743597098ce1";
     private static final String PLAN_RESOURCE =
             "/data/skyforge/mechanisms/mech_001_airflow_bench.json";
+    private static final String STRUCTURE_ID = "skyforge:mech_001_airflow_bench";
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeMech001FunctionalMechanismAcceptance.class.getName());
 
@@ -332,10 +333,6 @@ final class SkyforgeMech001FunctionalMechanismAcceptance {
             JsonObject placement = element.getAsJsonObject();
             BlockPos worldPos = BASE.offset(localPos(placement));
             BlockState state = blockState(placement.getAsJsonObject("blockState"));
-            if (!level.setBlock(worldPos, state, 3)) {
-                throw new IllegalStateException("failed to place " + placement.get("id").getAsString()
-                        + " at " + worldPos + " state=" + state);
-            }
             String role = placement.get("mechanicalRole").getAsString();
             if ("kinetic_source".equals(role)) {
                 sourcePos = worldPos;
@@ -348,6 +345,23 @@ final class SkyforgeMech001FunctionalMechanismAcceptance {
         }
         if (sourcePos == null || relayPos == null || endpointPos == null || relayState == null) {
             throw new IllegalStateException("compiled mechanism is missing source/relay/endpoint roles");
+        }
+
+        String placeCommand = "place template " + STRUCTURE_ID
+                + " " + BASE.getX() + " " + BASE.getY() + " " + BASE.getZ();
+        level.getServer().getCommands().performPrefixedCommand(
+                level.getServer().createCommandSourceStack(), placeCommand);
+
+        for (JsonElement element : loaded.getAsJsonArray("placements")) {
+            JsonObject placement = element.getAsJsonObject();
+            BlockPos worldPos = BASE.offset(localPos(placement));
+            BlockState expected = blockState(placement.getAsJsonObject("blockState"));
+            BlockState actual = level.getBlockState(worldPos);
+            if (!actual.equals(expected)) {
+                throw new IllegalStateException("structure-template placement mismatch for "
+                        + placement.get("id").getAsString() + " at " + worldPos
+                        + " expected=" + expected + " actual=" + actual);
+            }
         }
 
         for (JsonElement element : loaded.getAsJsonArray("supportRequirements")) {

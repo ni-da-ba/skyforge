@@ -30,6 +30,10 @@ final class Mech001FunctionalMechanismResourceTest {
         assertTrue(plan.contains("\"name\": \"create:shaft\""));
         assertTrue(plan.contains("\"name\": \"create:encased_fan\""));
         assertTrue(plan.contains("da905478f5f3e42e197bd0ef1a38baba848c8ce65c2a911d7153743597098ce1"));
+        Path structure = PROJECT_DIRECTORY.resolve(
+                "src/development/resources/data/skyforge/structure/mech_001_airflow_bench.nbt");
+        assertTrue(Files.exists(structure));
+        assertTrue(Files.size(structure) > 0L);
     }
 
     @Test
@@ -47,6 +51,10 @@ final class Mech001FunctionalMechanismResourceTest {
         assertTrue(source.contains("relayRemoved=true"));
         assertTrue(source.contains("relayRestored=true"));
         assertTrue(source.contains("requireClearance"));
+        assertTrue(source.contains("place template "));
+        assertTrue(source.contains("skyforge:mech_001_airflow_bench"));
+        assertTrue(source.contains("performPrefixedCommand"));
+        assertTrue(source.contains("structure-template placement mismatch"));
         assertFalse(source.contains("Sable"));
         assertFalse(source.contains("PhysicsAssembler"));
     }
@@ -58,6 +66,7 @@ final class Mech001FunctionalMechanismResourceTest {
                 "../.github/workflows/mech-001-functional-mechanism.yml").normalize());
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
                 "../docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json").normalize());
+        String build = Files.readString(PROJECT_DIRECTORY.resolve("build.gradle.kts"));
 
         assertTrue(source.contains("INIT_DEADLINE_TICKS"));
         assertTrue(source.contains("DISCONNECT_DEADLINE_TICKS"));
@@ -70,6 +79,10 @@ final class Mech001FunctionalMechanismResourceTest {
         assertTrue(workflow.contains("runCompilerPlatformCreateKineticNetworkLifecycleServer"));
         assertTrue(workflow.contains("skyforge.dev.mech001FunctionalMechanism=true"));
         assertTrue(workflow.contains("cmp build/mech-001/resolved.json"));
+        assertTrue(workflow.contains("cmp build/mech-001/mech_001_airflow_bench.nbt"));
+        assertTrue(build.contains("mech001FunctionalMechanismClient"));
+        assertTrue(build.contains("sourceSet.set(waveC11Runtime)"));
+        assertTrue(build.contains("run-mech-001-functional-mechanism-client"));
         assertTrue(ledger.contains("\"CREATE_KINETIC_NETWORK_LIFECYCLE\""));
         assertTrue(ledger.contains("\"C\": true"));
     }
