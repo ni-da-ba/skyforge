@@ -83,11 +83,12 @@ jobs:
             ./gradlew :skyforge-neoforge-1211:runWaveC21CreateResourceBaselineServer --no-daemon --no-configuration-cache
           test -f "${result}"
           grep -Fxq 'status=PASS' "${result}"
-          grep -Fxq 'catalogBlocksValidated=14' "${result}"
+          grep -Fxq 'catalogBlocksValidated=17' "${result}"
           grep -Fxq 'paneContractsValidated=3' "${result}"
           grep -Fxq 'barsContractsValidated=3' "${result}"
           grep -Fxq 'ladderContractsValidated=3' "${result}"
-          grep -Fxq 'deferredStructuralContractsObserved=4' "${result}"
+          grep -Fxq 'scaffoldingContractsValidated=3' "${result}"
+          grep -Fxq 'deferredStructuralContractsObserved=1' "${result}"
           cat "${result}"
 
       - name: Upload v0.12 QA and structure artifact
