@@ -50,7 +50,10 @@ def _validate_common_spec(spec: dict[str, Any]) -> dict[str, Any]:
     """
     _require(spec.get("schemaVersion") == SCHEMA_VERSION, f"expected schemaVersion {SCHEMA_VERSION}")
     _require(isinstance(spec.get("assetId"), str) and spec["assetId"], "assetId is required")
-    _require(isinstance(spec.get("seed"), int), "integer seed is required")
+    _require(
+        isinstance(spec.get("seed"), int) and not isinstance(spec.get("seed"), bool),
+        "integer seed is required",
+    )
     _require(
         spec.get("targetStackAuthority") == EXPECTED_TARGET_STACK,
         f"targetStackAuthority must be {EXPECTED_TARGET_STACK}",
@@ -83,7 +86,10 @@ def _require_accepted_agent_c_capability(
     _require(isinstance(authority, dict) and authority.get("C") is True, "Agent C lacks platform authority")
     evidence = capability.get("latest_accepted_evidence")
     _require(isinstance(evidence, dict) and evidence.get("result") == "PASS", "platform evidence is not PASS")
-    _require(isinstance(evidence.get("workflow_run"), int), "platform evidence workflow_run is missing")
+    _require(
+        isinstance(evidence.get("workflow_run"), int) and not isinstance(evidence.get("workflow_run"), bool),
+        "platform evidence workflow_run is missing",
+    )
     _require(isinstance(evidence.get("commit"), str) and evidence["commit"], "platform evidence commit is missing")
     return capability, evidence
 

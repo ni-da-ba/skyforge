@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import json
+from copy import deepcopy
 from typing import Any
 
 from minecraft_structure import encode_structure_nbt
@@ -97,6 +100,20 @@ def _validate_plan_references(
         clearance.add(position)
 
 
+
+
+def _verify_plan_digest(plan: dict[str, Any]) -> None:
+    digest = plan.get("digestSha256")
+    if not isinstance(digest, str) or len(digest) != 64:
+        raise SpecError("mechanism plan digestSha256 must be a 64-character string")
+    digest_input = deepcopy(plan)
+    digest_input.pop("digestSha256", None)
+    payload = json.dumps(digest_input, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    actual = hashlib.sha256(payload).hexdigest()
+    if actual != digest:
+        raise SpecError("mechanism plan digest mismatch")
+
+
 def compiled_asset_for_mechanism_structure(plan: dict[str, Any]) -> CompiledAsset:
     if plan.get("schema") != EXPECTED_SCHEMA:
         raise SpecError(f"expected mechanism plan schema {EXPECTED_SCHEMA}")
@@ -130,22 +147,30 @@ def compiled_asset_for_mechanism_structure(plan: dict[str, Any]) -> CompiledAsse
         occupied.add(pos)
 
         state_data = placement.get("blockState")
-        if not isinstance(state_data, dict) or not isinstance(state_data.get("name"), str):
+        if (
+            not isinstance(state_data, dict)
+            or not isinstance(state_data.get("name"), str)
+            or not state_data["name"]
+        ):
             raise SpecError("mechanism placement is missing blockState.name")
         properties = state_data.get("properties", {})
         if not isinstance(properties, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in properties.items()):
             raise SpecError("mechanism block-state properties must be a string object")
+        role = placement.get("mechanicalRole", "mechanism")
+        if not isinstance(role, str) or not role:
+            raise SpecError("mechanism placement mechanicalRole must be a non-empty string")
         state = BlockState.of(state_data["name"], **properties)
         validated.append((placement, pos, state))
 
     _validate_plan_references(plan, placement_ids, occupied, minimum, maximum)
+    _verify_plan_digest(plan)
 
     for placement, pos, state in validated:
         model.set(
             pos[0],
             pos[1],
             pos[2],
-            str(placement.get("mechanicalRole", "mechanism")),
+            placement.get("mechanicalRole", "mechanism"),
             state,
             str(placement["id"]),
         )
