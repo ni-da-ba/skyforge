@@ -1,20 +1,21 @@
 {
   "schema_version": 1,
   "milestone": "DR-30",
-  "state": "BLOCKED_AUTHORITY",
+  "state": "BLOCKED_RUNTIME",
   "specimen_id": "P2_DRESSED_REGION_A",
   "consumes": [
     "DR00_SPECIMEN_LOCK.json",
     "AUTH-0096",
     "AUTH-0097",
     "C24 / PR #373",
-    "DR30_CONTENT_ROLE_SITE_ENVELOPE.json / PR #593"
+    "DR30_CONTENT_ROLE_SITE_ENVELOPE.json / PR #593",
+    "DR30_CONTENT_CANDIDATE_ROUTE_BINDING.json / PR #602"
   ],
   "gate": {
-    "code": "CONTENT_CANDIDATE_PROVENANCE_AND_ROUTE_PLAN_REQUIRED",
-    "reason": "PR #593 retires CONTENT_ROLE_REQUIRED: CONTENT-DR30-ROLE-SITE-001 accepts the generic FREIGHT_TRANSFER_EDGE role, its threshold-free C24/AUTH-0096/AUTH-0097 eligibility predicate, canonical tie-break order, and REPLAN_REQUIRED outcomes. It does not persist an exact C24 selected candidate or exact published-association/anchor/direction provenance for P2_DRESSED_REGION_A, and it explicitly marks route_plan as CONTENT_REQUIRED. The Implementation handoff requires selected semantic role and candidate provenance. No concrete structure realization can therefore be bound without inventing the missing site selection or planned-route meaning.",
-    "fail_closed_behavior": "Do not treat the candidate-policy input or canonical order as an already selected candidate; infer association, anchor, direction, route plan, footprint/flatness/grade/approach thresholds; or instantiate a generic structure as petroleum, settlement, freight, or route infrastructure. Existing native structure exact geometry/orientation admission, support/clearance, deterministic foundation accommodation, serialized provenance, mutation-preserving fill, reload, lifecycle, and exact-volume/stacked-island isolation machinery remains reusable once Content supplies the missing selected-candidate provenance and route-plan authority."
+    "code": "EXACT_VOLUME_NATIVE_STRUCTURE_POPULATION_OPERATION_REQUIRED",
+    "reason": "PR #602 retires the prior Content gate: CONTENT-DR30-CANONICAL-FREIGHT-002 binds the exact P2_DRESSED_REGION_A association, the deterministic FREIGHT_TRANSFER_EDGE site/ray selection, and the representative semantic connection direction. The current production exact-volume lifecycle still has no native-structure population operation that consumes that binding. SkyforgeNoiseBasedChunkGenerator.tryGenerateStructure(...) runs only in Minecraft's native structure-start stream; production applies BASE_WORLD structure generation before Skyforge terrain is physically realized, then realizes admitted Skyforge volumes in applyBiomeDecoration(...). The retained admission/accommodation hook consequently has no admitted-volume lifecycle invocation after physical admission. Reusing it now would require inventing a post-admission native StructureStart generation/placement lifecycle or reopening BASE_WORLD isolation.",
+    "fail_closed_behavior": "Do not reinterpret the selected direction as route geometry, choose or author a structure, move native structure generation into the BASE_WORLD stream, invoke a StructureStart after decoration without a defined native lifecycle, or relax exact-volume/stacked-island ownership. The accepted generic/native fixture remains only an authorized non-semantic geometry/lifecycle probe once a bounded admitted-volume native-structure population operation exists."
   },
-  "next_authority_required": "An accepted Content handoff for P2_DRESSED_REGION_A that supplies either (a) the exact C24 selected candidate's published association, canonical anchor, and canonical direction plus the planned-route authority, or (b) a deterministic Content-owned replan result with the same provenance and route-plan authority. It must remain distinct from final architecture, settlement layout, civilization meaning, and aesthetics.",
-  "verification": "No project validation was run on the hosted editing worker. After that narrow Content authority exists, GitHub Actions must validate the retained native-structure admission/accommodation regressions and a DR-30 canonical realization covering exact geometry/orientation, support/clearance, deterministic accommodation, serialized persistence/reload, player-mutation preservation, lifecycle, and exact-volume/stacked-island isolation."
+  "next_implementation_required": "Define one opt-in, exact-volume native-structure population operation that runs only after physical admission and before any structure mutation; it must carry CONTENT-DR30-CANONICAL-FREIGHT-002 provenance into the retained native StructureStart admission/accommodation seam without changing BASE_WORLD behavior. Its first implementation may use the existing native fixture solely as the authorized non-semantic geometry/lifecycle probe.",
+  "verification": "No project validation was run on the hosted editing worker. After the bounded operation exists, GitHub Actions must validate the Content-binding resource test and retained native-structure admission/accommodation regressions, then a DR-30 canonical realization covering exact geometry/orientation, support/clearance, deterministic accommodation, serialized persistence/reload, player-mutation preservation, lifecycle, and exact-volume/stacked-island isolation."
 }
