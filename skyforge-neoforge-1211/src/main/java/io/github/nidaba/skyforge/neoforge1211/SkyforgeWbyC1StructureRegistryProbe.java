@@ -45,6 +45,12 @@ final class SkyforgeWbyC1StructureRegistryProbe {
             "south", "false",
             "waterlogged", "false",
             "west", "false");
+    private static final Map<String, Set<String>> LADDER_PROPERTIES = Map.of(
+            "facing", Set.of("north", "east", "south", "west"),
+            "waterlogged", BOOLEAN_DOMAIN);
+    private static final Map<String, String> LADDER_DEFAULTS = Map.of(
+            "facing", "north",
+            "waterlogged", "false");
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeWbyC1StructureRegistryProbe.class.getName());
 
@@ -104,22 +110,23 @@ final class SkyforgeWbyC1StructureRegistryProbe {
                     CARDINAL_CONNECTIVE_PROPERTIES,
                     CARDINAL_CONNECTIVE_DEFAULTS,
                     evidence);
+            requireStateContract("create:andesite_ladder", LADDER_PROPERTIES, LADDER_DEFAULTS, evidence);
+            requireStateContract("create:brass_ladder", LADDER_PROPERTIES, LADDER_DEFAULTS, evidence);
+            requireStateContract("create:copper_ladder", LADDER_PROPERTIES, LADDER_DEFAULTS, evidence);
 
             // Discovery-only structural vocabulary. These observations intentionally do not grant
             // automatic compiler authority; they establish the exact pinned-runtime state surface
             // for later semantic/compiler tranches.
-            observeStateContract("create:andesite_ladder", evidence);
-            observeStateContract("create:brass_ladder", evidence);
-            observeStateContract("create:copper_ladder", evidence);
             observeStateContract("create:andesite_scaffolding", evidence);
             observeStateContract("create:brass_scaffolding", evidence);
             observeStateContract("create:copper_scaffolding", evidence);
             observeStateContract("create:metal_girder", evidence);
 
-            evidence.put("catalogBlocksValidated", "11");
+            evidence.put("catalogBlocksValidated", "14");
             evidence.put("paneContractsValidated", "3");
             evidence.put("barsContractsValidated", "3");
-            evidence.put("deferredStructuralContractsObserved", "7");
+            evidence.put("ladderContractsValidated", "3");
+            evidence.put("deferredStructuralContractsObserved", "4");
             evidence.put("status", "PASS");
             writeResult(evidence);
             LOGGER.log(
