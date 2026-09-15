@@ -200,12 +200,14 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             }
             postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(serverLevel);
         }
-        try (var placement = SkyforgeStructurePlacementExecutionStage.open(volumeId, start.getBoundingBox())) {
+        var placement = SkyforgeStructurePlacementExecutionStage.open(volumeId, start.getBoundingBox());
+        try {
             level.setCurrentlyGenerating(() -> "Skyforge exact-volume structure "
                     + structureRegistry.getKey(start.getStructure()));
             start.placeInChunk(level, structureManager, this, random, writableArea, chunk.getPos());
             SkyforgeDeferredPopulationPostProcessingBridge.flushIfActive();
         } finally {
+            placement.close();
             level.setCurrentlyGenerating(null);
             if (postProcessing != null) {
                 postProcessing.close();
