@@ -54,6 +54,7 @@
         "FAIL_PHYSICS",
         "TIMEOUT_SERVER_BOOT",
         "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
         "TIMEOUT_PHYSICS_PROGRESSION",
         "TIMEOUT_FIXTURE_TERMINAL_STATE"
       ],
@@ -67,7 +68,14 @@
           "job": 104229026193,
           "commit": "6f5256b4556e20f254d32f9d75c2b1de8d0aaa9d",
           "result": "TIMEOUT_ASSEMBLY_REGISTRATION",
-          "finding": "A real Physics Assembler vacated the source assembler but registered no Sable body when the tiny specimen relied only on ordinary slime stickiness; use an explicit bounded Create Super Glue domain for the real-assembler lifecycle fixture."
+          "finding": "A real Physics Assembler vacated the source assembler but no Sable UUID was observed on the following tick when the tiny specimen relied only on ordinary slime stickiness. This falsifies ordinary stickiness as a sufficient fixture precondition."
+        },
+        {
+          "workflow_run": 34921294612,
+          "job": 104230066405,
+          "commit": "bc7b415ea9f7749a92e7f4d3ff6d034a39ae0b04",
+          "result": "TIMEOUT_ASSEMBLY_REGISTRATION",
+          "finding": "Adding one explicit bounded Create Super Glue domain still left the assembler vacated with no Sable UUID observed on the following tick. Glue alone therefore does not explain the reduced-fixture gap; because Simulated assembly is synchronous, the next experiment observes registration before the first physics tick to distinguish assembly failure from immediate body removal."
         }
       ]
     }

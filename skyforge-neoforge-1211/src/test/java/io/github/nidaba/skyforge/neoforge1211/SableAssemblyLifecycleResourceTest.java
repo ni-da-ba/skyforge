@@ -63,7 +63,9 @@ final class SableAssemblyLifecycleResourceTest {
                 .normalize());
 
         assertTrue(source.contains("TIMEOUT_ASSEMBLY_REGISTRATION"));
+        assertTrue(source.contains("TIMEOUT_PHYSICS_INITIALIZATION"));
         assertTrue(source.contains("TIMEOUT_PHYSICS_PROGRESSION"));
+        assertTrue(source.contains("assemblyRegistrationObservedSynchronously"));
         assertTrue(runner.contains("TIMEOUT_SERVER_BOOT"));
         assertTrue(runner.contains("TIMEOUT_FIXTURE_TERMINAL_STATE"));
         assertTrue(runner.contains("FAIL_RUNTIME_EXIT"));

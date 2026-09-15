@@ -42,6 +42,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
     private static final BlockPos GLUE_MIN = BODY_MIN;
     private static final BlockPos GLUE_MAX = new BlockPos(1, 202, 1);
     private static final long ASSEMBLY_DEADLINE_TICKS = 80L;
+    private static final long PHYSICS_INITIALIZATION_DEADLINE_TICKS = 40L;
     private static final long PHYSICS_DEADLINE_TICKS = 80L;
     private static final double TARGET_VELOCITY_X = 1.0;
     private static final double MIN_TRANSLATION_X = 0.05;
@@ -117,6 +118,9 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                     "beforeSubLevelIds=" + beforeIds,
                     "assembly invoked; awaiting registration");
             publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
+            // Assembly is synchronous. Observe registration before the first physics tick so a
+            // short-lived body is classified as a lifecycle failure rather than a false timeout.
+            pollAssembly(now, true);
         } catch (ReflectiveOperationException exception) {
             failReflection(SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY, exception);
         } catch (RuntimeException exception) {
@@ -144,7 +148,8 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         long now = level.getGameTime();
         try {
             switch (waitDiagnostic.phase()) {
-                case ASSEMBLY -> pollAssembly(now);
+                case ASSEMBLY -> pollAssembly(now, false);
+                case PHYSICS_INITIALIZATION -> pollPhysicsInitialization(now);
                 case PHYSICS_PROGRESSION -> pollPhysics(now);
                 default -> fail(
                         SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
@@ -152,15 +157,16 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                         "fixture entered unexpected wait phase");
             }
         } catch (ReflectiveOperationException exception) {
-            SkyforgeCompilerIntegrationFailure code = waitDiagnostic.phase()
-                            == SkyforgeCompilerIntegrationPhase.PHYSICS_PROGRESSION
-                    ? SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS
-                    : SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY;
+            SkyforgeCompilerIntegrationFailure code =
+                    waitDiagnostic.phase() == SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION
+                                    || waitDiagnostic.phase() == SkyforgeCompilerIntegrationPhase.PHYSICS_PROGRESSION
+                            ? SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS
+                            : SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY;
             failReflection(code, exception);
         }
     }
 
-    private static void pollAssembly(long now) throws ReflectiveOperationException {
+    private static void pollAssembly(long now, boolean synchronousObservation) throws ReflectiveOperationException {
         Set<UUID> currentIds = currentSubLevelIds(container);
         Set<UUID> created = new LinkedHashSet<>(currentIds);
         created.removeAll(beforeIds);
@@ -176,34 +182,14 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         }
         if (created.size() == 1) {
             bodyId = created.iterator().next();
-            Object canonicalBody = requireCanonicalBody(bodyId);
-            physicsSystem = publicMethod(container, "physicsSystem").invoke(container);
-            if (physicsSystem == null) {
-                fail(
-                        SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
-                        waitDiagnostic.withFinalState(
-                                "bodyId=" + bodyId,
-                                safeServerState(),
-                                "headless",
-                                "Sable physicsSystem=null"),
-                        "Sable physics system unavailable after body registration");
-            }
-            physicsWasPaused = (Boolean) publicMethod(physicsSystem, "getPaused").invoke(physicsSystem);
-            if (physicsWasPaused) {
-                publicMethod(physicsSystem, "setPaused", boolean.class).invoke(physicsSystem, false);
-            }
-            Object handle = requireCurrentPhysicsHandle(canonicalBody);
-            startPoseX = poseX(canonicalBody);
-            setLinearVelocityX(handle, TARGET_VELOCITY_X);
-            velocityApplied = true;
             waitDiagnostic = diagnostic(
-                    SkyforgeCompilerIntegrationPhase.PHYSICS_PROGRESSION,
-                    "canonical Sable body translates after bounded velocity nudge",
+                    SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,
+                    "registered Sable UUID resolves to a live canonical body and valid physics handle",
                     now,
-                    now + PHYSICS_DEADLINE_TICKS,
-                    "bodyId=" + bodyId,
-                    "startPoseX=" + startPoseX + " handleValid=true physicsPaused=false",
-                    "velocityX=" + TARGET_VELOCITY_X);
+                    now + PHYSICS_INITIALIZATION_DEADLINE_TICKS,
+                    "bodyId=" + bodyId + " assembler=" + ASSEMBLER_POS + " glueId=" + glueId,
+                    safeServerState(),
+                    "assemblyRegistrationObservedSynchronously=" + synchronousObservation);
             return;
         }
         if (waitDiagnostic.expired(now)) {
@@ -218,9 +204,104 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         }
     }
 
+    private static void pollPhysicsInitialization(long now) throws ReflectiveOperationException {
+        Set<UUID> currentIds = currentSubLevelIds(container);
+        if (!currentIds.contains(bodyId)) {
+            fail(
+                    SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
+                    waitDiagnostic.withFinalState(
+                            "bodyId=" + bodyId + " currentSubLevelIds=" + currentIds,
+                            safeServerState(),
+                            "headless",
+                            "registered body disappeared before a stable physics handle was observed"),
+                    "registered Sable body was removed before physics initialization");
+        }
+
+        Object canonicalBody = findCanonicalBody(bodyId);
+        if (canonicalBody == null) {
+            if (waitDiagnostic.expired(now)) {
+                fail(
+                        SkyforgeCompilerIntegrationFailure.TIMEOUT_PHYSICS_INITIALIZATION,
+                        waitDiagnostic.withFinalState(
+                                "bodyId=" + bodyId,
+                                safeServerState(),
+                                "headless",
+                                "UUID remained registered but canonical body lookup returned null"),
+                        "canonical Sable body did not become available before physics initialization deadline");
+            }
+            return;
+        }
+
+        if (physicsSystem == null) {
+            physicsSystem = publicMethod(container, "physicsSystem").invoke(container);
+        }
+        if (physicsSystem == null) {
+            fail(
+                    SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
+                    waitDiagnostic.withFinalState(
+                            "bodyId=" + bodyId,
+                            safeServerState(),
+                            "headless",
+                            "Sable physicsSystem=null"),
+                    "Sable physics system unavailable after body registration");
+        }
+
+        Object handle = findCurrentPhysicsHandle(canonicalBody);
+        if (handle == null) {
+            if (waitDiagnostic.expired(now)) {
+                fail(
+                        SkyforgeCompilerIntegrationFailure.TIMEOUT_PHYSICS_INITIALIZATION,
+                        waitDiagnostic.withFinalState(
+                                "bodyId=" + bodyId,
+                                safeServerState(),
+                                "headless",
+                                "canonical body exists but no valid current physics handle was observed"),
+                        "Sable physics handle did not become valid before initialization deadline");
+            }
+            return;
+        }
+
+        physicsWasPaused = (Boolean) publicMethod(physicsSystem, "getPaused").invoke(physicsSystem);
+        if (physicsWasPaused) {
+            publicMethod(physicsSystem, "setPaused", boolean.class).invoke(physicsSystem, false);
+        }
+        startPoseX = poseX(canonicalBody);
+        setLinearVelocityX(handle, TARGET_VELOCITY_X);
+        velocityApplied = true;
+        waitDiagnostic = diagnostic(
+                SkyforgeCompilerIntegrationPhase.PHYSICS_PROGRESSION,
+                "canonical Sable body translates after bounded velocity nudge",
+                now,
+                now + PHYSICS_DEADLINE_TICKS,
+                "bodyId=" + bodyId,
+                "startPoseX=" + startPoseX + " handleValid=true physicsPaused=false",
+                "velocityX=" + TARGET_VELOCITY_X);
+    }
+
     private static void pollPhysics(long now) throws ReflectiveOperationException {
-        Object canonicalBody = requireCanonicalBody(bodyId);
-        Object handle = requireCurrentPhysicsHandle(canonicalBody);
+        Set<UUID> currentIds = currentSubLevelIds(container);
+        Object canonicalBody = findCanonicalBody(bodyId);
+        if (!currentIds.contains(bodyId) || canonicalBody == null) {
+            fail(
+                    SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
+                    waitDiagnostic.withFinalState(
+                            "bodyId=" + bodyId + " currentSubLevelIds=" + currentIds,
+                            safeServerState(),
+                            "headless",
+                            "body disappeared after a valid physics handle had already been observed"),
+                    "canonical Sable body disappeared during physics progression");
+        }
+        Object handle = findCurrentPhysicsHandle(canonicalBody);
+        if (handle == null) {
+            fail(
+                    SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
+                    waitDiagnostic.withFinalState(
+                            "bodyId=" + bodyId,
+                            safeServerState(),
+                            "headless",
+                            "physics handle became null or invalid after initialization"),
+                    "Sable physics handle was removed during physics progression");
+        }
         double currentPoseX = poseX(canonicalBody);
         double deltaX = currentPoseX - startPoseX;
         if (Math.abs(deltaX) >= MIN_TRANSLATION_X) {
@@ -356,23 +437,36 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         return uuid;
     }
 
-    private static Object requireCanonicalBody(UUID uuid) throws ReflectiveOperationException {
+    private static Object findCanonicalBody(UUID uuid) throws ReflectiveOperationException {
         Object canonical = publicMethod(container, "getSubLevel", UUID.class).invoke(container, uuid);
-        if (canonical == null || !uuid.equals(subLevelUniqueId(canonical))) {
+        if (canonical == null) {
+            return null;
+        }
+        return uuid.equals(subLevelUniqueId(canonical)) ? canonical : null;
+    }
+
+    private static Object requireCanonicalBody(UUID uuid) throws ReflectiveOperationException {
+        Object canonical = findCanonicalBody(uuid);
+        if (canonical == null) {
             throw new IllegalStateException("Sable canonical live body unavailable for UUID " + uuid);
         }
         return canonical;
     }
 
-    private static Object requireCurrentPhysicsHandle(Object canonicalBody) throws ReflectiveOperationException {
+    private static Object findCurrentPhysicsHandle(Object canonicalBody) throws ReflectiveOperationException {
         Object handle = oneArgMethod(physicsSystem, "getPhysicsHandle", canonicalBody)
                 .invoke(physicsSystem, canonicalBody);
         if (handle == null) {
-            throw new IllegalStateException("Sable physics handle unavailable for canonical body " + bodyId);
+            return null;
         }
         Object valid = publicMethod(handle, "isValid").invoke(handle);
-        if (!(valid instanceof Boolean booleanValid) || !booleanValid) {
-            throw new IllegalStateException("Sable physics handle removed for canonical body " + bodyId);
+        return valid instanceof Boolean booleanValid && booleanValid ? handle : null;
+    }
+
+    private static Object requireCurrentPhysicsHandle(Object canonicalBody) throws ReflectiveOperationException {
+        Object handle = findCurrentPhysicsHandle(canonicalBody);
+        if (handle == null) {
+            throw new IllegalStateException("Sable physics handle unavailable or removed for canonical body " + bodyId);
         }
         return handle;
     }
