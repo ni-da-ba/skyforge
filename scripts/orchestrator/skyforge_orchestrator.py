@@ -3798,6 +3798,111 @@ class Orchestrator:
         print(f"[orchestrator] handed off {lane} on {branch} / PR #{pr_number}", flush=True)
         return True
 
+    def _task_authority_fingerprint(self, issue_number: int) -> str:
+        """Hash durable task authority while excluding controller-authored no-change comments."""
+        issue = _json_cmd(
+            ["gh", "api", f"repos/{self.repo}/issues/{int(issue_number)}"],
+            cwd=self.root,
+            timeout=60,
+        )
+        comments = _json_cmd(
+            [
+                "gh",
+                "api",
+                f"repos/{self.repo}/issues/{int(issue_number)}/comments?per_page=100",
+            ],
+            cwd=self.root,
+            timeout=60,
+        )
+        trusted = {actor.lower() for actor in self.trusted_actors}
+        task_comments: list[dict[str, Any]] = []
+        if isinstance(comments, list):
+            for comment in comments:
+                if not isinstance(comment, dict):
+                    continue
+                body = str(comment.get("body") or "")
+                body_lower = body.lower()
+                login = str(((comment.get("user") or {}).get("login")) or "").lower()
+                if login not in trusted or SELF_COMMENT_MARKER in body_lower:
+                    continue
+                if _audit_signal_kind(body_lower) != "task":
+                    continue
+                task_comments.append(
+                    {
+                        "id": comment.get("id"),
+                        "body": body[:6000],
+                    }
+                )
+        payload = {
+            "number": int(issue_number),
+            "title": issue.get("title"),
+            "state": issue.get("state"),
+            "body": str(issue.get("body") or "")[:16000],
+            "task_comments": task_comments,
+        }
+        return hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+
+    def _record_task_no_change_blocker(
+        self,
+        issue_number: int,
+        worker_summary: str,
+    ) -> None:
+        try:
+            fingerprint = self._task_authority_fingerprint(issue_number)
+        except Exception as exc:
+            with self._state_lock:
+                self.state.data["last_task_no_change_fingerprint_error"] = {
+                    "at": _utc_now(),
+                    "issue_number": int(issue_number),
+                    "kind": type(exc).__name__,
+                    "summary": str(exc)[:500],
+                }
+                self.state.save()
+            self._metric("task_no_change_fingerprint_errors")
+            return
+        with self._state_lock:
+            blockers = self.state.data.setdefault("task_no_change_blockers", {})
+            blockers[str(int(issue_number))] = {
+                "authority_fingerprint": fingerprint,
+                "recorded_at": _utc_now(),
+                "summary": str(worker_summary or "")[:2000],
+            }
+            self.state.save()
+        self._metric("task_no_change_blockers_recorded")
+
+    def _task_no_change_blocker_unchanged(self, issue_number: int) -> bool:
+        key = str(int(issue_number))
+        with self._state_lock:
+            blockers = self.state.data.get("task_no_change_blockers") or {}
+            record = dict(blockers.get(key) or {}) if isinstance(blockers, dict) else {}
+        expected = str(record.get("authority_fingerprint") or "")
+        if not expected:
+            return False
+        try:
+            current = self._task_authority_fingerprint(issue_number)
+        except Exception as exc:
+            with self._state_lock:
+                self.state.data["last_task_no_change_fingerprint_error"] = {
+                    "at": _utc_now(),
+                    "issue_number": int(issue_number),
+                    "kind": type(exc).__name__,
+                    "summary": str(exc)[:500],
+                }
+                self.state.save()
+            self._metric("task_no_change_fingerprint_errors")
+            return False
+        if current == expected:
+            return True
+        with self._state_lock:
+            blockers = self.state.data.get("task_no_change_blockers")
+            if isinstance(blockers, dict):
+                blockers.pop(key, None)
+            self.state.save()
+        self._metric("task_no_change_blockers_invalidated")
+        return False
+
     def _persist_task_no_change_handoff(
         self,
         events: list[EventDecision],
@@ -3824,6 +3929,7 @@ class Orchestrator:
             cwd=self.root,
             timeout=120,
         )
+        self._record_task_no_change_blocker(task_issue, worker_summary)
         self._metric("task_no_change_handoffs")
         return True
 
@@ -4081,6 +4187,40 @@ class Orchestrator:
             snap["task_issue_context"] = self._task_issue_context(events)
             events = self._normalize_captured_events_for_snapshot(events, snap)
             if not events:
+                return
+            task_issues = sorted(
+                {
+                    issue
+                    for event in events
+                    if (issue := _task_issue_number(event)) is not None
+                }
+            )
+            unchanged_blocker = next(
+                (issue for issue in task_issues if self._task_no_change_blocker_unchanged(issue)),
+                None,
+            )
+            if unchanged_blocker is not None:
+                self._metric("task_no_change_redispatch_suppressed")
+                decision = {
+                    "decision": "NOOP",
+                    "lane": None,
+                    "pr_number": None,
+                    "objective": None,
+                    "stop_boundary": None,
+                    "reusable_evidence": None,
+                    "reason": (
+                        f"task #{unchanged_blocker} previously returned TASK_NO_CHANGE and its "
+                        "durable task authority fingerprint is unchanged"
+                    ),
+                    "human_message": None,
+                }
+                self._cache_decision(decision, events, snap)
+                print(
+                    f"[orchestrator] suppressed unchanged TASK_NO_CHANGE redispatch for "
+                    f"issue #{unchanged_blocker}",
+                    flush=True,
+                )
+                self._clear_completed_decision()
                 return
             summaries = [e.summary() for e in events]
             with self._state_lock:
