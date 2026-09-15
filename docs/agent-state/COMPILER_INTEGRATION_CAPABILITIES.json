@@ -414,6 +414,13 @@
       },
       "negative_evidence": [
         {
+          "workflow_run": 35026037023,
+          "job": 104573714401,
+          "commit": "9e8b4f2d0fa66ff12d5a4c42944cb2bb60068bb2",
+          "result": "DUPLICATED_GROUND_CHILD_FLATTEN_EDGE_VARIANCE",
+          "finding": "Boot A again timed out creating the primary Sable body after a live fixed-world Propeller Bearing child had already been assembled. Exact Simulated source shows Physics Assembler internally disassembles controlled Create contraptions during primary assembly and does not expose a failed AssemblyResult; this duplicates the already accepted PLATFORM-005 flatten edge and introduced nondeterministic setup risk unrelated to persistence. PLATFORM-007 was reduced to primary Sable/Create assembly first, then moved-plot child topology realization and nested Propeller Bearing assembly before normalization/save."
+        },
+        {
           "workflow_run": 35022295981,
           "job": 104561148086,
           "commit": "1be43eda85dd0af7102c22e39fb0e3c93468e7ec",

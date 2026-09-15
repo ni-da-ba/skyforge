@@ -107,8 +107,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static String glueRecoveryMode = "unresolved";
     private static boolean reloadChildAssemblyRequested;
     private static boolean primaryAssemblyTriggered;
-    private static int primaryAssemblyAttempts;
-    private static long primaryAssemblyTriggerTick;
     private static Stage stage;
     private static SkyforgeCompilerIntegrationDiagnostic waitDiagnostic;
 
@@ -154,31 +152,20 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             prepareFixture();
             requireNonStickyBridge(now);
             GlueFixture mainGlue = addGlue(MAIN_GLUE_MIN, MAIN_GLUE_MAX, "main");
-            GlueFixture childGlue = addGlue(CHILD_GLUE_MIN, CHILD_GLUE_MAX, "child");
             mainGlueId = mainGlue.id();
-            childGlueId = childGlue.id();
-            requireGlueBoundary(mainGlue, childGlue);
 
-            BlockEntity sourceBearing = requireExpectedBlockEntity(BEARING_SOURCE, "PropellerBearingBlockEntity");
-            publicMethod(sourceBearing, "assemble").invoke(sourceBearing);
-            ChildState ground = childState(sourceBearing);
-            requireExactChild(ground, "ground", now);
-            groundChildId = ground.id();
-            requireSourceChildRemoved("ground child assembly");
-
-            requireExpectedBlockEntity(ASSEMBLER_SOURCE, "PhysicsAssemblerBlockEntity");
+            BlockEntity assembler = requireExpectedBlockEntity(ASSEMBLER_SOURCE, "PhysicsAssemblerBlockEntity");
             stage = Stage.ASSEMBLY;
-            primaryAssemblyTriggerTick = now;
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.ASSEMBLY,
-                    "real Physics Assembler flattens the controlled Propeller Bearing child into one new Sable primary body",
+                    "real Physics Assembler captures the bounded primary Sable/Create mechanism",
                     now,
                     now + ASSEMBLY_DEADLINE_TICKS,
                     sourceIds(),
                     safeServerState(),
-                    "groundChild=" + ground + " beforeSubLevelIds=" + beforeIds
-                            + " primaryAssemblyTriggerTick=" + primaryAssemblyTriggerTick);
-            triggerPrimaryAssembly(now);
+                    "beforeSubLevelIds=" + beforeIds + "; nested child realization deferred until live primary body");
+            publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
+            primaryAssemblyTriggered = true;
             pollAssembly(now, true);
         } catch (ReflectiveOperationException exception) {
             failReflection(stageFailureCode(), exception);
@@ -292,9 +279,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             requireMovedBlockId(movedMotor, MOTOR_ID, "motor");
             requireMovedBlockId(movedShaft, SHAFT_ID, "shaft");
             requireMovedBlockId(movedBearing, BEARING_ID, "bearing");
-            requireMovedBlockId(movedHub, SHAFT_ID, "flattened child hub");
-            requireMovedBlockId(movedSailUp, SAIL_ID, "flattened child sail up");
-            requireMovedBlockId(movedSailDown, SAIL_ID, "flattened child sail down");
             requireMovedBlockId(GLUE_BRIDGE_SEED.offset(movedOffset), SLIME_ID, "glue bridge slime");
             requireMovedBlockId(GLUE_BRIDGE_SECONDARY.offset(movedOffset), HONEY_ID, "glue bridge honey");
             addFixtureForceLoadTicket(listedBody);
@@ -311,31 +295,12 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                             + " movedOffset=" + movedOffset + " mass=" + mass);
             return;
         }
-        if (now >= primaryAssemblyTriggerTick && primaryAssemblyAttempts < 3
-                && level.getBlockEntity(ASSEMBLER_SOURCE) != null) {
-            triggerPrimaryAssembly(now);
-            return;
-        }
         if (waitDiagnostic.expired(now)) {
             fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_ASSEMBLY_REGISTRATION,
                     waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
-                            "createdIds=" + created + " primaryAssemblyAttempts=" + primaryAssemblyAttempts),
+                            "createdIds=" + created),
                     "Sable primary-body registration deadline expired");
         }
-    }
-
-    private static void triggerPrimaryAssembly(long now) throws ReflectiveOperationException {
-        BlockEntity sourceBearing = requireExpectedBlockEntity(BEARING_SOURCE, "PropellerBearingBlockEntity");
-        requireExactChild(childState(sourceBearing), "ground", now);
-        requireSourceChildRemoved("pre-primary assembly recheck");
-        BlockEntity assembler = requireExpectedBlockEntity(ASSEMBLER_SOURCE, "PhysicsAssemblerBlockEntity");
-        publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
-        primaryAssemblyTriggered = true;
-        primaryAssemblyAttempts++;
-        primaryAssemblyTriggerTick = now + 4L;
-        LOGGER.log(System.Logger.Level.INFO,
-                PREFIX + " PRIMARY_ASSEMBLY_TRIGGER tick=" + now + " attempt=" + primaryAssemblyAttempts
-                        + " bodyIdsBefore=" + beforeIds);
     }
 
     private static void pollPhysicsInitialization(long now) throws ReflectiveOperationException {
@@ -375,7 +340,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                 SkyforgeCompilerIntegrationPhase.MECHANISM_INITIALIZATION,
                 "moved Create network propagates nonzero speed to the canonical Propeller Bearing",
                 now, now + KINETIC_BUILD_DEADLINE_TICKS, movedIds(), safeServerState(),
-                "currentPhysicsHandleValid=true; flattenedChildBlocksPresent=true");
+                "currentPhysicsHandleValid=true; nested child realization deferred=true");
     }
 
     private static void pollKineticBuild(long now) throws ReflectiveOperationException {
@@ -384,6 +349,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         KineticState state = kineticState(bearing);
         if (Math.abs(state.speed()) > 0.0f && state.hasSource() && state.hasNetwork()) {
             bearingNetworkSpeed = state.speed();
+            realizeMovedChildTopology(canonical, bearing, now);
             stage = Stage.CHILD_REASSEMBLY;
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.MECHANISM_INITIALIZATION,
@@ -400,6 +366,32 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         }
     }
 
+    private static void realizeMovedChildTopology(Object canonical, Object bearing, long now)
+            throws ReflectiveOperationException {
+        for (BlockPos pos : List.of(movedHub, movedSailUp, movedSailDown)) {
+            requireCanonicalPlotOwnership(canonical, pos);
+        }
+        BlockState sail = withProperty(requireBlock(SAIL_ID).defaultBlockState(), "axis", "x");
+        if (!level.setBlock(movedHub, shaftState, 3)
+                || !level.setBlock(movedSailUp, sail, 3)
+                || !level.setBlock(movedSailDown, sail, 3)) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_PLACEMENT,
+                    finalDiagnostic("movedHub=" + movedHub + " movedSailUp=" + movedSailUp
+                            + " movedSailDown=" + movedSailDown),
+                    "failed to realize moved nested-child topology inside canonical Sable plot");
+        }
+        GlueFixture childGlue = addGlue(
+                CHILD_GLUE_MIN.offset(movedOffset), CHILD_GLUE_MAX.offset(movedOffset), "moved-child");
+        childGlueId = childGlue.id();
+        GlueState mainGlue = requireMovedMainGlue(now);
+        GlueState childGlueState = new GlueState(childGlue.id(), childGlue.box(), 1);
+        requireMovedGlueBoundary(mainGlue, childGlueState);
+        publicMethod(bearing, "assemble").invoke(bearing);
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " CHILD_REALIZATION_REQUEST bodyId=" + bodyId + " childGlueId=" + childGlueId
+                        + " movedHub=" + movedHub + " tick=" + now);
+    }
+
     private static void pollChildReassembly(long now) throws ReflectiveOperationException {
         Object canonical = requireCanonicalBody();
         Object bearing = requireExpectedMovedBlockEntity(canonical, movedBearing, "PropellerBearingBlockEntity", now);
@@ -407,11 +399,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         if (child.present()) {
             requireExactChild(child, "nested", now);
             nestedChildId = child.id();
-            if (nestedChildId.equals(groundChildId)) {
-                fail(SkyforgeCompilerIntegrationFailure.FAIL_CHILD_ASSEMBLY,
-                        finalDiagnostic("groundChildId=" + groundChildId + " nestedChildId=" + nestedChildId),
-                        "moved bearing retained stale pre-assembly child identity");
-            }
             requireMovedChildRemoved();
             GlueState movedGlue = requireMovedMainGlue(now);
             preReloadMovedGlueId = movedGlue.id();
@@ -725,15 +712,11 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         BlockState shaft = shaftState;
         BlockState bearing = withProperty(requireBlock(BEARING_ID).defaultBlockState(), "facing", "east");
         BlockState assembler = withProperty(requireBlock(PHYSICS_ASSEMBLER).defaultBlockState(), "face", "floor");
-        BlockState sail = withProperty(requireBlock(SAIL_ID).defaultBlockState(), "axis", "x");
         if (!level.setBlock(MOTOR_SOURCE, motor, 3)
                 || !level.setBlock(SHAFT_SOURCE, shaft, 3)
                 || !level.setBlock(BEARING_SOURCE, bearing, 3)
-                || !level.setBlock(ASSEMBLER_SOURCE, assembler, 3)
-                || !level.setBlock(CHILD_HUB_SOURCE, shaft, 3)
-                || !level.setBlock(CHILD_SAIL_UP_SOURCE, sail, 3)
-                || !level.setBlock(CHILD_SAIL_DOWN_SOURCE, sail, 3)) {
-            throw new IllegalStateException("failed to place nested Propeller Bearing fixture");
+                || !level.setBlock(ASSEMBLER_SOURCE, assembler, 3)) {
+            throw new IllegalStateException("failed to place primary composed persistence fixture");
         }
     }
 
