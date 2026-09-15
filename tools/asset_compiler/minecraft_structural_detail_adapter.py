@@ -13,7 +13,7 @@ from minecraft_adapter import (
 from model import BlockState, Cell, SpecError, VoxelModel
 
 DETAIL_REALIZATION_CAPABILITIES = REALIZATION_CAPABILITIES | frozenset(
-    {"bars", "ladder", "climbable", "scaffolding"}
+    {"bars", "ladder", "climbable", "scaffolding", "girder"}
 )
 
 
@@ -64,11 +64,38 @@ class StructuralDetailMinecraftAdapter(MinecraftAdapter):
                 True,
                 True,
             )
+        if "girder" in cap.capabilities:
+            props = normalized.property_dict()
+            x_beam = props["x"] == "true"
+            z_beam = props["z"] == "true"
+            if x_beam and z_beam:
+                shape_class = "girder_cross"
+                collision_fraction = 0.45
+            elif x_beam:
+                shape_class = "girder_beam_x"
+                collision_fraction = 0.35
+            elif z_beam:
+                shape_class = "girder_beam_z"
+                collision_fraction = 0.35
+            else:
+                shape_class = "girder_pole"
+                collision_fraction = 0.25
+            return ShapeDescriptor(
+                shape_class,
+                collision_fraction,
+                frozenset(),
+                True,
+                True,
+            )
         return super().shape_descriptor(normalized)
 
     def _is_scaffolding_cell(self, model: VoxelModel, pos: tuple[int, int, int]) -> bool:
         cell = model.cells.get(pos)
         return cell is not None and "scaffolding" in self.capability(cell.state.name).capabilities
+
+    def _is_girder_cell(self, model: VoxelModel, pos: tuple[int, int, int]) -> bool:
+        cell = model.cells.get(pos)
+        return cell is not None and "girder" in self.capability(cell.state.name).capabilities
 
     def _scaffolding_distance_map(
         self,
@@ -116,6 +143,43 @@ class StructuralDetailMinecraftAdapter(MinecraftAdapter):
             model, below, "up"
         )
 
+    def _girder_state(
+        self,
+        model: VoxelModel,
+        pos: tuple[int, int, int],
+        state: BlockState,
+    ) -> BlockState:
+        props = state.property_dict()
+        axis = props["axis"]
+        x, y, z = pos
+
+        x_beam = axis == "x"
+        for neighbor_pos in ((x - 1, y, z), (x + 1, y, z)):
+            if not self._is_girder_cell(model, neighbor_pos):
+                continue
+            neighbor = self.normalize_defaults(model.cells[neighbor_pos].state)
+            if neighbor.property_dict()["axis"] == "x":
+                x_beam = True
+
+        z_beam = axis == "z"
+        for neighbor_pos in ((x, y, z - 1), (x, y, z + 1)):
+            if not self._is_girder_cell(model, neighbor_pos):
+                continue
+            neighbor = self.normalize_defaults(model.cells[neighbor_pos].state)
+            if neighbor.property_dict()["axis"] == "z":
+                z_beam = True
+
+        above = (x, y + 1, z)
+        below = (x, y - 1, z)
+        top = self._is_girder_cell(model, above) or self._supports_face(model, above, "down")
+        bottom = self._is_girder_cell(model, below) or self._supports_face(model, below, "up")
+
+        props["x"] = str(x_beam).lower()
+        props["z"] = str(z_beam).lower()
+        props["top"] = str(top).lower()
+        props["bottom"] = str(bottom).lower()
+        return BlockState.of(state.name, **props)
+
     def _connective_state(
         self,
         model: VoxelModel,
@@ -148,6 +212,9 @@ class StructuralDetailMinecraftAdapter(MinecraftAdapter):
             props["distance"] = str(distance)
             props["bottom"] = str(self._scaffolding_bottom(model, pos)).lower()
             return BlockState.of(state.name, **props)
+
+        if "girder" in cap.capabilities:
+            return self._girder_state(model, pos, state)
 
         return super()._connective_state(model, pos, cell)
 
