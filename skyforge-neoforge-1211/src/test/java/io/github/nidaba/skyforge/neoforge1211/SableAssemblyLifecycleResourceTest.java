@@ -31,6 +31,9 @@ final class SableAssemblyLifecycleResourceTest {
         assertTrue(source.contains("simulated\", \"physics_assembler"));
         assertTrue(source.contains("assembleOrDisassemble"));
         assertTrue(source.contains("PhysicsAssemblerBlockEntity"));
+        assertTrue(source.contains("SuperGlueEntity"));
+        assertTrue(source.contains("GLUE_MIN"));
+        assertTrue(source.contains("GLUE_MAX"));
         assertFalse(source.contains("assembleFromSingleBlock"));
     }
 
@@ -46,7 +49,6 @@ final class SableAssemblyLifecycleResourceTest {
         assertTrue(source.contains("canonicalResolutionPerTick=true"));
         assertTrue(source.contains("staleHandleRetained=false"));
         assertFalse(source.contains("SkyforgeAircraftCompiler"));
-        assertFalse(source.contains("SuperGlueEntity"));
         assertFalse(source.contains("propeller_bearing"));
     }
 

@@ -40,7 +40,8 @@
         "The exact C11 Create/Sable/Aeronautics artifacts resolve from immutable coordinates.",
         "Simulated is provided by the accepted Create Aeronautics distribution.",
         "The persistent Sable sublevel UUID, not Java object identity, is runtime body identity.",
-        "Physics operations re-resolve the canonical live sublevel and current valid handle."
+        "Physics operations re-resolve the canonical live sublevel and current valid handle.",
+        "The minimal Physics Assembler fixture uses one bounded Create Super Glue domain; this is a fixture precondition, not independent SUPER_GLUE_REALIZATION qualification."
       ],
       "failure_taxonomy": [
         "FAIL_DEPENDENCY_RESOLUTION",
@@ -59,7 +60,16 @@
       "production_authority_for_agents": {
         "B": false,
         "C": false
-      }
+      },
+      "negative_evidence": [
+        {
+          "workflow_run": 34920943109,
+          "job": 104229026193,
+          "commit": "6f5256b4556e20f254d32f9d75c2b1de8d0aaa9d",
+          "result": "TIMEOUT_ASSEMBLY_REGISTRATION",
+          "finding": "A real Physics Assembler vacated the source assembler but registered no Sable body when the tiny specimen relied only on ordinary slime stickiness; use an explicit bounded Create Super Glue domain for the real-assembler lifecycle fixture."
+        }
+      ]
     }
   }
 }

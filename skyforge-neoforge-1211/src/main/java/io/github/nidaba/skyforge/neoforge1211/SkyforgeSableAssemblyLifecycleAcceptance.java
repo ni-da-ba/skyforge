@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.LinkedHashSet;
@@ -10,11 +11,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.world.phys.AABB;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -35,6 +39,8 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
     private static final BlockPos BODY_MIN = new BlockPos(0, 200, 0);
     private static final BlockPos BODY_MAX = new BlockPos(1, 201, 1);
     private static final BlockPos ASSEMBLER_POS = new BlockPos(0, 202, 0);
+    private static final BlockPos GLUE_MIN = BODY_MIN;
+    private static final BlockPos GLUE_MAX = new BlockPos(1, 202, 1);
     private static final long ASSEMBLY_DEADLINE_TICKS = 80L;
     private static final long PHYSICS_DEADLINE_TICKS = 80L;
     private static final double TARGET_VELOCITY_X = 1.0;
@@ -45,6 +51,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
     private static Object physicsSystem;
     private static Set<UUID> beforeIds = Set.of();
     private static UUID bodyId;
+    private static UUID glueId;
     private static boolean physicsWasPaused;
     private static double startPoseX;
     private static boolean velocityApplied;
@@ -72,6 +79,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             container = requireServerSubLevelContainer(level);
             beforeIds = currentSubLevelIds(container);
             prepareFixture(level);
+            glueId = addFixtureGlue(level);
             BlockEntity assembler = level.getBlockEntity(ASSEMBLER_POS);
             if (assembler == null) {
                 fail(
@@ -105,7 +113,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                     "exactly one new canonical Sable ServerSubLevel UUID is registered",
                     now,
                     now + ASSEMBLY_DEADLINE_TICKS,
-                    "assembler=" + ASSEMBLER_POS,
+                    "assembler=" + ASSEMBLER_POS + " glueId=" + glueId,
                     "beforeSubLevelIds=" + beforeIds,
                     "assembly invoked; awaiting registration");
             publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
@@ -160,7 +168,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             fail(
                     SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
                     waitDiagnostic.withFinalState(
-                            "assembler=" + ASSEMBLER_POS + " createdIds=" + created,
+                            "assembler=" + ASSEMBLER_POS + " glueId=" + glueId + " createdIds=" + created,
                             safeServerState(),
                             "headless",
                             "more than one new Sable body registered"),
@@ -202,7 +210,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             fail(
                     SkyforgeCompilerIntegrationFailure.TIMEOUT_ASSEMBLY_REGISTRATION,
                     waitDiagnostic.withFinalState(
-                            "assembler=" + ASSEMBLER_POS + " createdIds=" + created,
+                            "assembler=" + ASSEMBLER_POS + " glueId=" + glueId + " createdIds=" + created,
                             safeServerState(),
                             "headless",
                             "currentSubLevelIds=" + currentIds),
@@ -290,20 +298,29 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             for (int y = BODY_MIN.getY(); y <= BODY_MAX.getY(); y++) {
                 for (int z = BODY_MIN.getZ(); z <= BODY_MAX.getZ(); z++) {
                     BlockPos pos = new BlockPos(x, y, z);
-                    if (!level.setBlock(pos, Blocks.SLIME_BLOCK.defaultBlockState(), 3)) {
-                        throw new IllegalStateException("failed to place slime fixture block at " + pos);
+                    if (!level.setBlock(pos, Blocks.OAK_PLANKS.defaultBlockState(), 3)) {
+                        throw new IllegalStateException("failed to place body fixture block at " + pos);
                     }
                 }
             }
         }
-        BlockState slimeState = Blocks.SLIME_BLOCK.defaultBlockState();
         BlockState assemblerState = withProperty(requireBlock(PHYSICS_ASSEMBLER).defaultBlockState(), "face", "floor");
-        if (!slimeState.canStickTo(assemblerState) || !assemblerState.canStickTo(slimeState)) {
-            throw new IllegalStateException("slime fixture cannot retain the Physics Assembler through ordinary stickiness");
-        }
         if (!level.setBlock(ASSEMBLER_POS, assemblerState, 3)) {
             throw new IllegalStateException("failed to place Physics Assembler at " + ASSEMBLER_POS);
         }
+    }
+
+
+    private static UUID addFixtureGlue(ServerLevel level) throws ReflectiveOperationException {
+        Class<?> glueClass = Class.forName("com.simibubi.create.content.contraptions.glue.SuperGlueEntity");
+        Method span = glueClass.getMethod("span", BlockPos.class, BlockPos.class);
+        AABB box = (AABB) span.invoke(null, GLUE_MIN, GLUE_MAX);
+        Constructor<?> constructor = glueClass.getConstructor(Level.class, AABB.class);
+        Entity glue = (Entity) constructor.newInstance(level, box);
+        if (!level.addFreshEntity(glue)) {
+            throw new IllegalStateException("failed to add bounded Create Super Glue fixture entity");
+        }
+        return glue.getUUID();
     }
 
     private static Object requireServerSubLevelContainer(ServerLevel level) throws ReflectiveOperationException {
@@ -485,12 +502,12 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                     "fixture reaches a classified terminal state",
                     now,
                     now,
-                    "bodyId=" + bodyId + " assembler=" + ASSEMBLER_POS,
+                    "bodyId=" + bodyId + " glueId=" + glueId + " assembler=" + ASSEMBLER_POS,
                     safeServerState(),
                     dump);
         }
         return current.withFinalState(
-                "bodyId=" + bodyId + " assembler=" + ASSEMBLER_POS,
+                "bodyId=" + bodyId + " glueId=" + glueId + " assembler=" + ASSEMBLER_POS,
                 safeServerState(),
                 "headless",
                 dump);
