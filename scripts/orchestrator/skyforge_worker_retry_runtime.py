@@ -54,6 +54,17 @@ def _progress_stall_seconds() -> int:
     )
 
 
+def _hosted_worker_codex_config(config_type):
+    """Opt legacy workspace-write workers into Codex's Landlock Linux fallback.
+
+    Ubuntu 24.04 can deny the user/network namespaces required by Codex's default bubblewrap
+    backend. The hosted worker uses legacy ``Sandbox.workspace_write``, whose equivalent policy can
+    be enforced by Landlock without broadening filesystem or network authority. Keep this override
+    worker-local so classifier/runtime callers retain their existing configuration.
+    """
+    return config_type(config_overrides=("features.use_legacy_landlock=true",))
+
+
 def _age_seconds(raw: Any, *, now: datetime | None = None) -> float | None:
     if not raw:
         return None
@@ -417,9 +428,9 @@ def _worker(
         # The wrapped budget method checks the per-worker hard cap before provider admission, then
         # increments the durable model-turn count only after the provider governor allows the turn.
         self._consume_budget(budget_kind)
-        from openai_codex import Codex, Sandbox
+        from openai_codex import Codex, CodexConfig, Sandbox
 
-        with Codex() as codex:
+        with Codex(_hosted_worker_codex_config(CodexConfig)) as codex:
             thread_id = None
             with self._state_lock:
                 current = _matching_pending(self, root)
