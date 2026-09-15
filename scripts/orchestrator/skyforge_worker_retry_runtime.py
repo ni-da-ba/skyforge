@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -54,15 +56,121 @@ def _progress_stall_seconds() -> int:
     )
 
 
-def _hosted_worker_codex_config(config_type):
-    """Opt legacy workspace-write workers into Codex's Landlock Linux fallback.
+PATCH_BEGIN = "SKYFORGE_PATCH_BEGIN"
+PATCH_END = "SKYFORGE_PATCH_END"
+PATCH_SUMMARY = "SKYFORGE_WORKER_SUMMARY"
 
-    Ubuntu 24.04 can deny the user/network namespaces required by Codex's default bubblewrap
-    backend. The hosted worker uses legacy ``Sandbox.workspace_write``, whose equivalent policy can
-    be enforced by Landlock without broadening filesystem or network authority. Keep this override
-    worker-local so classifier/runtime callers retain their existing configuration.
+
+PATCH_WORKER_INSTRUCTIONS = core.WORKER_INSTRUCTIONS + f"""
+
+HOSTED MUTATION TRANSPORT OVERRIDE:
+The hosted worktree is read-only to you. The outer controller, not the model sandbox, owns all
+repository mutation. Therefore do NOT attempt apply_patch, redirection/file writes, chmod, mv/cp, or
+other filesystem mutation even though the base worker instructions describe local edits. Instead,
+inspect the repository and produce the complete proposed local change as a git-style unified diff in
+your final response using exactly these markers:
+
+{PATCH_SUMMARY}
+<concise implementation/verification summary or precise blocker>
+{PATCH_BEGIN}
+<complete git-style unified diff beginning with diff --git lines; empty only for a genuine blocker>
+{PATCH_END}
+
+Do not wrap the patch in Markdown fences. Do not include content after the patch terminator. You may
+run read-only inspection commands. Verification that requires mutation or generated build outputs must
+be left to the outer controller/GitHub Actions.
+"""
+
+
+def _hosted_worker_codex_config(config_type):
+    """Use ordinary Codex configuration for read-only hosted reasoning.
+
+    Repository mutation is controller-owned: the worker returns a unified patch and never needs
+    Codex's host-dependent workspace-write sandbox. This avoids both Ubuntu user-namespace failures
+    in bubblewrap and the deprecated legacy-Landlock compatibility path.
     """
-    return config_type(config_overrides=("features.use_legacy_landlock=true",))
+    return config_type()
+
+
+def _extract_controller_patch(response: str) -> tuple[str, str | None]:
+    """Extract one controller-applied unified patch from a worker response."""
+    text = str(response or "")
+    if PATCH_BEGIN not in text and PATCH_END not in text:
+        return text.strip(), None
+    if text.count(PATCH_BEGIN) != 1 or text.count(PATCH_END) != 1:
+        raise ValueError("worker patch response must contain exactly one patch marker pair")
+    before, remainder = text.split(PATCH_BEGIN, 1)
+    patch, after = remainder.split(PATCH_END, 1)
+    if after.strip():
+        raise ValueError("worker patch response contains trailing content after patch terminator")
+    summary = before.replace(PATCH_SUMMARY, "", 1).strip()
+    patch = patch.strip("\n")
+    return summary, (patch + "\n" if patch.strip() else None)
+
+
+def _patch_paths(patch: str) -> list[str]:
+    paths: list[str] = []
+    for line in patch.splitlines():
+        if not line.startswith("diff --git "):
+            continue
+        match = re.fullmatch(r"diff --git a/([^\t\r\n]+) b/([^\t\r\n]+)", line)
+        if match is None:
+            raise ValueError(f"unsupported git patch header: {line[:200]}")
+        for raw in match.groups():
+            normalized = raw.replace("\\", "/")
+            if (
+                not normalized
+                or normalized.startswith("/")
+                or normalized.startswith("../")
+                or "/../" in normalized
+                or normalized == ".."
+            ):
+                raise ValueError(f"unsafe patch path: {raw}")
+            paths.append(normalized)
+    if patch.strip() and not paths:
+        raise ValueError("worker returned non-empty content without git diff headers")
+    return sorted(set(paths))
+
+
+def _apply_controller_patch(
+    self: core.Orchestrator,
+    root: Path,
+    patch: str,
+    *,
+    lane: str | None,
+    allowed_paths: list[str] | None,
+) -> list[str]:
+    """Validate and apply a model-produced patch using controller repository authority only."""
+    paths = _patch_paths(patch)
+    forbidden = [
+        path for path in paths
+        if self._worker_path_forbidden(path, lane=lane, allowed_paths=allowed_paths)
+    ]
+    out_of_scope = [path for path in paths if not self._worker_path_allowed(path, allowed_paths)]
+    if forbidden or out_of_scope:
+        raise core.SafetyPause(
+            f"controller-applied worker patch rejected: forbidden={forbidden}, "
+            f"out_of_scope={out_of_scope}"
+        )
+    for args in (["git", "apply", "--check", "--whitespace=error-all", "-"], ["git", "apply", "-"]):
+        completed = subprocess.run(
+            args, cwd=root, input=patch, text=True, capture_output=True, timeout=60, check=False
+        )
+        if completed.returncode != 0:
+            raise ValueError(
+                f"controller git apply failed ({' '.join(args)}): "
+                f"{(completed.stderr or completed.stdout).strip()[:2000]}"
+            )
+    changed = sorted(set(self._changed_paths(root)))
+    if not changed:
+        raise ValueError("controller applied worker patch but worktree remained clean")
+    unexpected = [path for path in changed if path not in paths]
+    if unexpected:
+        raise core.SafetyPause(
+            f"controller-applied worker patch changed paths absent from patch headers: {unexpected}"
+        )
+    self._metric("worker_controller_patches_applied")
+    return changed
 
 
 def _age_seconds(raw: Any, *, now: datetime | None = None) -> float | None:
@@ -444,8 +552,8 @@ def _worker(
                         cwd=str(root),
                         model=model,
                         config={"model_reasoning_effort": effort},
-                        sandbox=Sandbox.workspace_write,
-                        developer_instructions=core.WORKER_INSTRUCTIONS,
+                        sandbox=Sandbox.read_only,
+                        developer_instructions=PATCH_WORKER_INSTRUCTIONS,
                     )
                     self._metric("worker_thread_resumes")
                 except Exception as exc:
@@ -466,14 +574,36 @@ def _worker(
                     cwd=str(root),
                     model=model,
                     config={"model_reasoning_effort": effort},
-                    sandbox=Sandbox.workspace_write,
-                    developer_instructions=core.WORKER_INSTRUCTIONS,
+                    sandbox=Sandbox.read_only,
+                    developer_instructions=PATCH_WORKER_INSTRUCTIONS,
                 )
                 _persist_worker_thread_id(self, root, str(thread.id))
                 self._metric("worker_thread_starts")
 
-            result_obj = thread.run(prompt, sandbox=Sandbox.workspace_write)
-            response = str(result_obj.final_response)
+            patch_prompt = prompt + f"""
+
+Return the bounded result using the controller-applied patch format required by your developer
+instructions. The outer controller will validate scope and apply any non-empty patch.
+"""
+            result_obj = thread.run(patch_prompt, sandbox=Sandbox.read_only)
+            raw_response = str(result_obj.final_response)
+            response, patch = _extract_controller_patch(raw_response)
+            if patch is not None:
+                with self._state_lock:
+                    current = _matching_pending(self, root)
+                    lane = str((current or {}).get("lane") or "") or None
+                    raw_scope = (current or {}).get("allowed_paths")
+                    allowed_paths = (
+                        [str(value) for value in raw_scope]
+                        if isinstance(raw_scope, list)
+                        else None
+                    )
+                applied_paths = _apply_controller_patch(
+                    self, root, patch, lane=lane, allowed_paths=allowed_paths
+                )
+                response = (
+                    response + "\n\nController-applied patch paths: " + ", ".join(applied_paths)
+                ).strip()
             _record_worker_result(
                 self,
                 root,

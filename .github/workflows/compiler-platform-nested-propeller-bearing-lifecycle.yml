@@ -1,0 +1,67 @@
+name: Compiler Platform Nested Propeller Bearing Lifecycle
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/compiler-platform-nested-propeller-bearing-lifecycle.yml"
+      - "docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json"
+      - "scripts/compiler-integration/run-exact-stack-fixture.sh"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCompilerIntegrationDiagnostic.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCompilerIntegrationFailure.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCompilerIntegrationPhase.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNestedPropellerBearingLifecycleAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/CompilerIntegrationDiagnosticTest.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/NestedPropellerBearingLifecycleResourceTest.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-platform-nested-propeller-bearing-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  l1-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Verify bounded platform contracts
+        run: >-
+          ./gradlew :skyforge-neoforge-1211:test
+          --tests '*CompilerIntegrationDiagnosticTest'
+          --tests '*NestedPropellerBearingLifecycleResourceTest'
+          --no-configuration-cache
+
+  l2-exact-stack:
+    needs: l1-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Resolve exact accepted Create/Sable/Aeronautics stack
+        run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
+      - name: Qualify nested Propeller Bearing lifecycle on live Sable body
+        run: >-
+          scripts/compiler-integration/run-exact-stack-fixture.sh
+          :skyforge-neoforge-1211:runCompilerPlatformNestedPropellerBearingLifecycleServer
+          compiler-platform-nested-propeller-bearing-lifecycle.log
+          'COMPILER_PLATFORM_NESTED_PROPELLER_BEARING_LIFECYCLE START'
+          'COMPILER_PLATFORM_NESTED_PROPELLER_BEARING_LIFECYCLE PASS'
+          'COMPILER_PLATFORM_NESTED_PROPELLER_BEARING_LIFECYCLE FAIL'
+          120
+          180

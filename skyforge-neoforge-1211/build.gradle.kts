@@ -1916,6 +1916,91 @@ neoForge {
         }
 
 
+        // PLATFORM-003: preassembled Create kinetic network transferred into one live Sable body.
+        create("compilerPlatformCreateKineticOnSableLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-create-kinetic-on-sable-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformCreateKineticOnSableLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // PLATFORM-004: causal one-domain Super Glue assembly fixture with an unglued control.
+        create("compilerPlatformSuperGlueAssemblyDomainServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-super-glue-assembly-domain").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformSuperGlueAssemblyDomain", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // PLATFORM-005: ground child -> Physics Assembler flatten -> nested Propeller Bearing reassembly.
+        create("compilerPlatformNestedPropellerBearingLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-nested-propeller-bearing-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformNestedPropellerBearingLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // AIRCRAFT-RUNTIME-001: production v0.12 Guild utility powertrain, first accepted 128-RPM point only.
+        create("aircraftPowertrainRuntime128Server") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-aircraft-powertrain-runtime-128").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.aircraftPowertrainRuntime128", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // PLATFORM-006: prepare a blank quick-play world, then exercise a real client Steering Wheel on Sable.
+        create("compilerPlatformSteeringWheelClientWorldPrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-steering-wheel-client").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("compiler-platform-steering-wheel-client")
+            systemProperty("skyforge.dev.compilerPlatformSteeringWheelClientWorldPrepare", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "compiler-platform-steering-wheel-client-world-prepare")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "120")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/compiler-platform-steering-wheel-client/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("compilerPlatformSteeringWheelClient") {
+            client()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-steering-wheel-client").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("compiler-platform-steering-wheel-client")
+            systemProperty("skyforge.dev.compilerPlatformSteeringWheelClientOnSableLifecycle", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "compiler-platform-steering-wheel-client-on-sable")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/compiler-platform-steering-wheel-client/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         // C12 B0-A1/A2: exact 105-block MAIN_BODY through the real Physics Assembler, then
         // authoritative Sable mass/center-of-mass measurement.
         create("waveC12BellancaB0AssemblyServer") {
@@ -2411,6 +2496,125 @@ tasks.named("runCompilerPlatformCreateKineticNetworkLifecycleServer").configure 
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(compilerPlatformCreateKineticNetworkLifecycleServerProperties)
+    }
+}
+
+
+val compilerPlatformCreateKineticOnSableLifecycleServerProperties = """
+    level-name=compiler-platform-create-kinetic-on-sable-lifecycle
+    level-seed=635001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformCreateKineticOnSableLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-create-kinetic-on-sable-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformCreateKineticOnSableLifecycleServerProperties)
+    }
+}
+
+
+val compilerPlatformSuperGlueAssemblyDomainServerProperties = """
+    level-name=compiler-platform-super-glue-assembly-domain
+    level-seed=647001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformSuperGlueAssemblyDomainServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-super-glue-assembly-domain").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformSuperGlueAssemblyDomainServerProperties)
+    }
+}
+
+
+val compilerPlatformNestedPropellerBearingLifecycleServerProperties = """
+    level-name=compiler-platform-nested-propeller-bearing-lifecycle
+    level-seed=660001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformNestedPropellerBearingLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-nested-propeller-bearing-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformNestedPropellerBearingLifecycleServerProperties)
+    }
+}
+
+val aircraftPowertrainRuntime128ServerProperties = """
+    level-name=aircraft-powertrain-runtime-128
+    level-seed=668001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runAircraftPowertrainRuntime128Server").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-aircraft-powertrain-runtime-128").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(aircraftPowertrainRuntime128ServerProperties)
+    }
+}
+
+
+val compilerPlatformSteeringWheelClientServerProperties = """
+    level-name=compiler-platform-steering-wheel-client
+    level-seed=669001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformSteeringWheelClientWorldPrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-steering-wheel-client").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformSteeringWheelClientServerProperties)
     }
 }
 

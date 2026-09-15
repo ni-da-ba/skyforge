@@ -67,6 +67,16 @@ class _FakeOrchestrator:
     def _consume_budget(self, kind: str) -> None:
         self.metrics.append(f"budget:{kind}")
 
+    @staticmethod
+    def _worker_path_forbidden(path: str, *, lane=None, allowed_paths=None) -> bool:
+        return runtime.core.Orchestrator._worker_path_forbidden(
+            path, lane=lane, allowed_paths=allowed_paths
+        )
+
+    @staticmethod
+    def _worker_path_allowed(path: str, allowed_paths) -> bool:
+        return runtime.core.Orchestrator._worker_path_allowed(path, allowed_paths)
+
 
 def _git_repo(path: Path) -> None:
     subprocess.run(["git", "init", "-q"], cwd=path, check=True)
@@ -285,7 +295,7 @@ class WorkerRetryRuntimeTests(unittest.TestCase):
             module = types.SimpleNamespace(
                 Codex=_Codex,
                 CodexConfig=_CodexConfig,
-                Sandbox=types.SimpleNamespace(workspace_write="workspace-write"),
+                Sandbox=types.SimpleNamespace(workspace_write="workspace-write", read_only="read-only"),
             )
             with mock.patch.dict(sys.modules, {"openai_codex": module}):
                 response = runtime._worker(fake, "continue", "TERRA", root)
@@ -352,15 +362,104 @@ class WorkerRetryRuntimeTests(unittest.TestCase):
             self.assertIsNone(snapshot["worker_last_progress_at"] )
 
 
-class HostedWorkerSandboxBackendTests(unittest.TestCase):
-    def test_hosted_worker_opts_legacy_workspace_sandbox_into_landlock(self):
+class HostedWorkerControllerPatchTests(unittest.TestCase):
+    def test_hosted_worker_uses_default_config_without_deprecated_landlock(self):
         config = runtime._hosted_worker_codex_config(
             lambda **kwargs: types.SimpleNamespace(**kwargs)
         )
-        self.assertEqual(
-            config.config_overrides,
-            ("features.use_legacy_landlock=true",),
-        )
+        self.assertFalse(hasattr(config, "config_overrides"))
+
+    def test_extract_controller_patch_accepts_exact_marker_pair(self):
+        response = f"""{runtime.PATCH_SUMMARY}
+changed one file
+{runtime.PATCH_BEGIN}
+diff --git a/seed.txt b/seed.txt
+--- a/seed.txt
++++ b/seed.txt
+@@ -1 +1 @@
+-seed
++changed
+{runtime.PATCH_END}
+"""
+        summary, patch = runtime._extract_controller_patch(response)
+        self.assertEqual(summary, "changed one file")
+        self.assertIn("diff --git a/seed.txt b/seed.txt", patch or "")
+
+    def test_extract_controller_patch_rejects_malformed_markers(self):
+        with self.assertRaises(ValueError):
+            runtime._extract_controller_patch(
+                f"{runtime.PATCH_BEGIN}\ndiff --git a/x b/x\n"
+            )
+
+    def test_empty_patch_is_a_genuine_no_change_handoff(self):
+        response = f"""{runtime.PATCH_SUMMARY}
+blocked by missing authority
+{runtime.PATCH_BEGIN}
+{runtime.PATCH_END}
+"""
+        summary, patch = runtime._extract_controller_patch(response)
+        self.assertEqual(summary, "blocked by missing authority")
+        self.assertIsNone(patch)
+
+    def test_controller_applies_valid_patch_inside_worktree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git_repo(root)
+            fake = _FakeOrchestrator(root)
+            patch = """diff --git a/seed.txt b/seed.txt
+--- a/seed.txt
++++ b/seed.txt
+@@ -1 +1 @@
+-seed
++changed
+"""
+            changed = runtime._apply_controller_patch(
+                fake, root, patch, lane="Implementation", allowed_paths=None
+            )
+            self.assertEqual(changed, ["seed.txt"])
+            self.assertEqual((root / "seed.txt").read_text(), "changed\n")
+            self.assertIn("worker_controller_patches_applied", fake.metrics)
+
+    def test_controller_rejects_out_of_scope_patch_before_apply(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git_repo(root)
+            fake = _FakeOrchestrator(root)
+            patch = """diff --git a/seed.txt b/seed.txt
+--- a/seed.txt
++++ b/seed.txt
+@@ -1 +1 @@
+-seed
++changed
+"""
+            with self.assertRaises(runtime.core.SafetyPause):
+                runtime._apply_controller_patch(
+                    fake, root, patch, lane="Implementation", allowed_paths=["docs/**"]
+                )
+            self.assertEqual((root / "seed.txt").read_text(), "seed\n")
+
+    def test_controller_rejects_protected_path_before_apply(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _git_repo(root)
+            fake = _FakeOrchestrator(root)
+            patch = """diff --git a/.git/config b/.git/config
+--- a/.git/config
++++ b/.git/config
+@@ -1 +1 @@
+-old
++new
+"""
+            with self.assertRaises(runtime.core.SafetyPause):
+                runtime._apply_controller_patch(
+                    fake, root, patch, lane="Implementation", allowed_paths=None
+                )
+
+    def test_patch_path_traversal_is_rejected(self):
+        with self.assertRaises(ValueError):
+            runtime._patch_paths(
+                "diff --git a/../escape.txt b/../escape.txt\n"
+            )
 
     def test_classifier_runtime_is_not_globally_reconfigured(self):
         self.assertNotIn("CODEX_CONFIG", os.environ)

@@ -147,6 +147,224 @@
         "C": true
       },
       "negative_evidence": []
+    },
+    "CREATE_KINETIC_ON_SABLE_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeCreateKineticOnSableLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "CreateKineticOnSableLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-create-kinetic-on-sable-lifecycle.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 34930106677,
+        "job": 104256633806,
+        "commit": "b6c5e3181f7617786b279e726fd0d437618609b4",
+        "result": "PASS",
+        "finding": "Exact-stack L2 assembled a real Sable primary body containing create:creative_motor -> create:shaft -> create:gearbox, reselected the live body by persistent UUID, validated current physics and moved block-entity authority, observed downstream Create speed 16.0, severed the moved shaft to reach zero/disconnected state, restored it to recover 16.0 with source/network state, and released the bounded COMMAND_FORCED fixture ticket before PASS."
+      },
+      "assumptions_preconditions": [
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE and CREATE_KINETIC_NETWORK_LIFECYCLE semantics without widening either prerequisite.",
+        "The primary fixture contains create:creative_motor -> create:shaft -> create:gearbox before real Physics Assembler capture.",
+        "Persistent Sable UUID is body identity; each lifecycle phase reselects the current live body and each kinetic poll re-fetches current moved block entities from that body plot.",
+        "The moved plot offset is derived from the accepted center-of-mass minus logical-pose integer relocation rule used by frozen AIRCRAFT-001 runtime evidence.",
+        "The bounded Create Super Glue domain and Sable COMMAND_FORCED ticket remain fixture preconditions only; neither becomes independent production policy through this capability."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_TARGET_LOWERING",
+        "FAIL_BOOT",
+        "FAIL_RUNTIME_EXIT",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_ASSEMBLY",
+        "FAIL_PHYSICS",
+        "FAIL_KINETIC_REBUILD",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_KINETIC_BUILD",
+        "TIMEOUT_KINETIC_DISCONNECT",
+        "TIMEOUT_KINETIC_REBUILD",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": true,
+        "C": true
+      },
+      "negative_evidence": []
+    },
+    "SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeSuperGlueAssemblyDomainAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "SuperGlueAssemblyDomainResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-super-glue-assembly-domain.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 34978729090,
+        "job": 104413810290,
+        "commit": "a699e2842efa76dc237410d94fbab9e0e08fe408",
+        "result": "PASS",
+        "finding": "Exact-stack L2 proved one causal Create Super Glue domain across a runtime-verified non-sticky slime/honey boundary: glued case transferred seed 8/8 plus secondary 8/8 and recreated exactly one translated glue domain; the otherwise-identical unglued control transferred seed 8/8, secondary 0/8, and left all 8 secondary cells in the parent world."
+      },
+      "assumptions_preconditions": [
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE semantics only as the real Physics Assembler/Sable transfer substrate; this capability independently qualifies the causal effect of one bounded Create Super Glue domain.",
+        "The comparison boundary is minecraft:slime_block adjacent to minecraft:honey_block, and the fixture asserts at runtime that NeoForge canStickTo is false in both directions before either case assembles.",
+        "The positive case registers exactly one SuperGlueEntity containing only the intended adjacent bridge-cell centers; the negative control registers none.",
+        "Glue insertion and Simulated assembly registration are synchronous on the exact stack; no artificial glue-registration polling wait is introduced, while the shared outer runner still bounds server boot and terminal-state execution.",
+        "Physics Assembler presence and valid synchronous Sable mass/center-of-mass are fixture preconditions; nested moving children, kinetics, controls, persistence, and flight remain outside this capability."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_TARGET_LOWERING",
+        "FAIL_BOOT",
+        "FAIL_RUNTIME_EXIT",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_GLUE_REGISTRATION",
+        "FAIL_ASSEMBLY",
+        "FAIL_PHYSICS",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_GLUE_REGISTRATION",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": true,
+        "C": true
+      },
+      "negative_evidence": []
+    },
+    "NESTED_PROPELLER_BEARING_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeNestedPropellerBearingLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "NestedPropellerBearingLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-nested-propeller-bearing-lifecycle.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 34983839814,
+        "job": 104431264483,
+        "commit": "30a5f9aee10657e23c645c543c85e80ca3df3ca7",
+        "result": "PASS",
+        "finding": "Exact-stack L2 proved the complete nested Propeller Bearing lifecycle: a fixed-world 3-block child (create:shaft hub plus two simulated:white_symmetric_sail cells) assembled under one Propeller Bearing, was flattened through the real Physics Assembler into one canonical Sable primary body, recovered moved bearing speed 16.0, then reassembled as a fresh nested child with a distinct entity UUID, running=true, exact 3-block/2-sail membership, no stale ground child retained, successful child teardown/restoration, current canonical-body/block-entity resolution, and released the bounded COMMAND_FORCED fixture ticket before PASS."
+      },
+      "assumptions_preconditions": [
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE, CREATE_KINETIC_ON_SABLE_LIFECYCLE, and SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE semantics without widening those prerequisites.",
+        "The fixed-world Propeller Bearing child is one axial create:shaft hub plus exactly two simulated:white_symmetric_sail cells, satisfying the exact Aeronautics minimum sail-power boundary.",
+        "Main-body and child-internal Super Glue domains are disjoint and no glue spans the Propeller Bearing controller plane.",
+        "The ground controlled child is fixture setup; the qualification target is clean flattening through the real Physics Assembler followed by fresh nested child reassembly from the canonical moved bearing.",
+        "Persistent Sable UUID is primary-body identity; moved bearing/block entities and physics handles are re-resolved from current canonical state rather than retained across assembly."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_TARGET_LOWERING",
+        "FAIL_BOOT",
+        "FAIL_RUNTIME_EXIT",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_ASSEMBLY",
+        "FAIL_CHILD_ASSEMBLY",
+        "FAIL_KINETIC_REBUILD",
+        "FAIL_PHYSICS",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_KINETIC_BUILD",
+        "TIMEOUT_CHILD_ASSEMBLY",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": true,
+        "C": true
+      },
+      "negative_evidence": [
+        {
+          "workflow_run": 34982385779,
+          "job": 104426287139,
+          "commit": "b4eff3bdb5db94e1e6d731f01f7dcde55f983ec8",
+          "result": "HARNESS_PRECONDITION_FAILURE",
+          "finding": "The first L2 attempt stopped before lifecycle execution because the harness guessed the PropellerBearingContraptionEntity package incorrectly. Exact runtime/source inspection corrected the class path from bearing.propeller_bearing to bearing.contraption; this is harness negative evidence, not a Propeller Bearing runtime failure."
+        }
+      ]
+    },
+    "STEERING_WHEEL_CLIENT_ON_SABLE_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeSteeringWheelClientOnSableLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "SteeringWheelClientOnSableLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-steering-wheel-client-on-sable.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 35006562183,
+        "job": 104508371907,
+        "commit": "e98ea2734c5f89cf1ad87981f9a24d0e454e09c8",
+        "result": "PASS",
+        "finding": "Exact-stack L2 assembled one real mass-10 Sable body, synchronized the actual client to the current ClientSubLevel render pose, selected a runtime wheel-shape aim satisfying Simulated lookingAtWheel without hitting Create angle input, acquired SteeringWheelHandler through MultiPlayerGameMode.useItemOn=SUCCESS, delivered a 48-degree active command with wheel/endpoint speed -16.0, reached the retained target while held, delivered the real release lifecycle, settled endpoint speed to 0.0, and released the bounded COMMAND_FORCED liveness ticket before PASS."
+      },
+      "assumptions_preconditions": [
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE, CREATE_KINETIC_ON_SABLE_LIFECYCLE, and SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE only as fixture prerequisites; this capability independently qualifies actual-client Steering Wheel interaction on the live Sable body.",
+        "The fixture uses one floor-mounted simulated:steering_wheel, one create:shaft, and one create:gearbox observable endpoint inside a single Physics Assembler capture domain.",
+        "Persistent Sable UUID is primary-body identity; moved wheel/block entities and physics handles are re-resolved from current canonical state rather than retained across assembly.",
+        "Client positioning is bounded qualification setup only and does not qualify natural Sable player tracking, seats, cockpit occupancy, or flight.",
+        "The production interaction path is MultiPlayerGameMode.useItemOn -> Simulated hold interaction -> Simulated mouse callback -> real SteeringWheelPacket active/release delivery; no direct packet handler or wheel-state mutation is accepted as evidence.",
+        "The Sable physics pipeline is temporarily paused only while the actual-client interaction is acquired and observed so the minimal unsupported body cannot free-fall ahead of client pose synchronization; the original pause state is restored before PASS, and this setup does not qualify moving-body player tracking or free-flight.",
+        "The actual-client aim point is derived from Simulated STEERING_WHEEL_FLOOR runtime VoxelShape geometry and must satisfy Simulated lookingAtWheel while avoiding Create angle-input hit geometry; fixed visual-coordinate guesses are not accepted as qualification evidence.",
+        "Test-only camera setup pins previous and current yaw/pitch because Simulated evaluates getViewVector(partialTick); this affects only automated interaction acquisition and does not bypass MultiPlayerGameMode.useItemOn or Simulated hold/packet handling."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_TARGET_LOWERING",
+        "FAIL_BOOT",
+        "FAIL_RUNTIME_EXIT",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_ASSEMBLY",
+        "FAIL_PHYSICS",
+        "FAIL_CLIENT_INTERACTION",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": true,
+        "C": true
+      },
+      "negative_evidence": [
+        {
+          "workflow_run": 34997444078,
+          "job": 104477639361,
+          "commit": "5e3011b38174eda49ad25d5ea52069467308e8a6",
+          "result": "FIXTURE_SYNCHRONIZATION_FAILURE",
+          "finding": "The first exact-stack actual-client run assembled a valid mass-10 Sable body and current physics handle, then reached the real moved Steering Wheel with useItemOn=PASS but could not acquire Simulated hold interaction because lookingAtWheel remained false. Diagnostics showed the unpaused unsupported body had moved far enough during client startup that server and client global pose projections diverged (server stand Y\u2248179.19 while client projected wheel/eye were near Y\u2248103-105). This is fixture stabilization/synchronization negative evidence, not a Simulated packet or control-runtime failure."
+        },
+        {
+          "workflow_run": 34998715526,
+          "job": 104481951693,
+          "commit": "6c59d0a8c7f1ec056dfcc8445a62a1c42a08bc52",
+          "result": "CLIENT_RAY_PREDICATE_FAILURE",
+          "finding": "After test-only physics pause stabilized the minimal Sable body, exact-stack L2 proved server/client wheel centers converged but Simulated lookingAtWheel still rejected the client interaction. Generic Sable projection therefore was insufficient to establish Simulated client ray semantics; no Steering Wheel active packet was emitted."
+        },
+        {
+          "workflow_run": 35005175608,
+          "job": 104503778081,
+          "commit": "291a77b78c37a4311d3f3f5d673d1f82b1fed05e",
+          "result": "CLIENT_WHEEL_SHAPE_RAY_FAILURE",
+          "finding": "Using ClientSubLevel.renderPose(partialTick) for convergence, player placement, and aim projection produced exact server/client wheel-center agreement, yet Simulated lookingAtWheel remained false. This isolates the remaining harness defect to the actual wheel-versus-mount voxel ray geometry and same-tick interpolated camera ray rather than Sable pose synchronization."
+        }
+      ]
     }
   }
 }
