@@ -274,17 +274,29 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
         if (container == null) {
             throw new IllegalStateException("Sable ServerSubLevelContainer unavailable for v0.21");
         }
+        // Tracking references can survive a Sable server-sublevel object replacement. Resolve the
+        // persistent identity back through the authoritative container before touching physics; the
+        // container's UUID map is Sable's canonical live-object registry.
+        UUID parentId = subLevelUniqueId(parentSubLevel);
+        Object canonicalParent = container.getClass().getMethod("getSubLevel", UUID.class)
+                .invoke(container, parentId);
+        if (canonicalParent == null || !parentId.equals(subLevelUniqueId(canonicalParent))) {
+            throw new IllegalStateException("Sable canonical live parent unavailable for UUID " + parentId);
+        }
+
         Object physicsSystem = container.getClass().getMethod("physicsSystem").invoke(container);
         boolean wasPaused = (boolean) physicsSystem.getClass().getMethod("getPaused").invoke(physicsSystem);
         if (wasPaused) {
             physicsSystem.getClass().getMethod("setPaused", boolean.class).invoke(physicsSystem, false);
         }
-        Object pipeline = physicsSystem.getClass().getMethod("getPipeline").invoke(physicsSystem);
-        oneArgMethod(pipeline, "wakeUp", parentSubLevel).invoke(pipeline, parentSubLevel);
-        Object handle = oneArgMethod(physicsSystem, "getPhysicsHandle", parentSubLevel)
-                .invoke(physicsSystem, parentSubLevel);
+        Object handle = oneArgMethod(physicsSystem, "getPhysicsHandle", canonicalParent)
+                .invoke(physicsSystem, canonicalParent);
         if (handle == null) {
-            throw new IllegalStateException("Sable physics handle unavailable for assembled parent");
+            throw new IllegalStateException("Sable physics handle unavailable for canonical live parent");
+        }
+        Object valid = handle.getClass().getMethod("isValid").invoke(handle);
+        if (!(valid instanceof Boolean) || !((Boolean) valid)) {
+            throw new IllegalStateException("Sable canonical live parent physics handle is removed for UUID " + parentId);
         }
         return new PhysicsContext(physicsSystem, handle, wasPaused);
     }
