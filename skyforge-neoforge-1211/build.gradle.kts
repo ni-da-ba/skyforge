@@ -6346,30 +6346,23 @@ fun prepareDr30NativeStructureServerDirectory(relativePath: String, stacked: Boo
         pack.resolve("pack.mcmeta").writeText(
             """{"pack":{"pack_format":48,"description":"Skyforge DR-30 stacked native-structure probe"}}"""
         )
-        pack.resolve("data/skyforge/worldgen/structure_set/dr30_desert_pyramid.json").writeText(
+        // With level-seed 493030, spacing 512 / separation 510 and salt 493082
+        // deterministically select random-spread offset (1,0) in placement region (0,0).
+        // The existing development mansion set retains the lower probe at (0,0).
+        pack.resolve("data/skyforge/worldgen/structure_set/dr30_upper_mansion.json").writeText(
             """
             {
               "placement": {
                 "type": "minecraft:random_spread",
-                "salt": 493031,
-                "separation": 511,
+                "salt": 493082,
+                "separation": 510,
                 "spacing": 512
               },
               "structures": [
                 {
-                  "structure": "minecraft:desert_pyramid",
+                  "structure": "minecraft:mansion",
                   "weight": 1
                 }
-              ]
-            }
-            """.trimIndent() + "\n"
-        )
-        pack.resolve("data/minecraft/tags/worldgen/biome/has_structure/desert_pyramid.json").writeText(
-            """
-            {
-              "replace": false,
-              "values": [
-                "#c:is_overworld"
               ]
             }
             """.trimIndent() + "\n"

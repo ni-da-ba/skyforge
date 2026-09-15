@@ -20,7 +20,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.Structure;
-import net.minecraft.world.level.levelgen.structure.structures.DesertPyramidStructure;
 import net.minecraft.world.level.levelgen.structure.structures.WoodlandMansionStructure;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -39,7 +38,11 @@ final class SkyforgeDr30NativeStructureAcceptance {
     private static final long ROOT_SEED = SkyforgeNeoForge1211AccommodationDevRuntime.ROOT_SEED;
     private static final String GROUP = "dr-30-native-structure-probe";
     private static final double UPPER_ELEVATION = 300.0;
-    private static final double HORIZONTAL_RADIUS = 64.0;
+    private static final double HORIZONTAL_RADIUS = 120.0;
+    private static final int LOWER_PROBE_CHUNK_X = 0;
+    private static final int LOWER_PROBE_CHUNK_Z = 0;
+    private static final int UPPER_PROBE_CHUNK_X = 1;
+    private static final int UPPER_PROBE_CHUNK_Z = 0;
     private static final int PROOF_RADIUS_CHUNKS = 8;
 
     private static AutoCloseable terrainBinding;
@@ -81,11 +84,10 @@ final class SkyforgeDr30NativeStructureAcceptance {
     }
 
     static boolean isProbeCandidate(Structure structure, ChunkPos chunkPos) {
-        if (!enabled() || !originProbeChunk(chunkPos)) {
+        if (!enabled() || !(structure instanceof WoodlandMansionStructure)) {
             return false;
         }
-        return structure instanceof WoodlandMansionStructure
-                || (MODE_STACKED.equals(mode()) && structure instanceof DesertPyramidStructure);
+        return lowerProbeChunk(chunkPos) || (MODE_STACKED.equals(mode()) && upperProbeChunk(chunkPos));
     }
 
     static IllegalStateException exactProbeFailure(
@@ -101,31 +103,31 @@ final class SkyforgeDr30NativeStructureAcceptance {
     }
 
     static boolean suppressBaseWorldProbe(Structure structure, ChunkPos chunkPos) {
-        if (!enabled() || MODE_RELOAD.equals(mode()) || !originProbeChunk(chunkPos)) {
-            return false;
-        }
-        return structure instanceof WoodlandMansionStructure
-                || (MODE_STACKED.equals(mode()) && structure instanceof DesertPyramidStructure);
+        return !MODE_RELOAD.equals(mode()) && isProbeCandidate(structure, chunkPos);
     }
 
     static boolean allowsExactProbe(
             Structure structure,
             ChunkPos chunkPos,
             SkyIslandWorldVolumeId volumeId) {
-        if (!enabled() || !originProbeChunk(chunkPos)) {
+        if (!enabled() || !(structure instanceof WoodlandMansionStructure)) {
             return true;
         }
-        if (structure instanceof WoodlandMansionStructure) {
+        if (lowerProbeChunk(chunkPos)) {
             return volumeId.equals(lowerId());
         }
-        if (structure instanceof DesertPyramidStructure) {
-            return MODE_STACKED.equals(mode()) && volumeId.equals(upperId());
+        if (MODE_STACKED.equals(mode()) && upperProbeChunk(chunkPos)) {
+            return volumeId.equals(upperId());
         }
         return true;
     }
 
-    private static boolean originProbeChunk(ChunkPos chunkPos) {
-        return chunkPos.x == 0 && chunkPos.z == 0;
+    private static boolean lowerProbeChunk(ChunkPos chunkPos) {
+        return chunkPos.x == LOWER_PROBE_CHUNK_X && chunkPos.z == LOWER_PROBE_CHUNK_Z;
+    }
+
+    private static boolean upperProbeChunk(ChunkPos chunkPos) {
+        return chunkPos.x == UPPER_PROBE_CHUNK_X && chunkPos.z == UPPER_PROBE_CHUNK_Z;
     }
 
     @SubscribeEvent
@@ -150,7 +152,7 @@ final class SkyforgeDr30NativeStructureAcceptance {
         var snapshot = SkyforgePhysicalVolumeAdmissionStage.snapshot(volumeId);
         var pendingCatchup = SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId);
         var saved = SkyforgeNativeStructurePlacementSavedData.forLevel(level);
-        var identities = saved.ownedFor(volumeId, ChunkPos.asLong(0, 0));
+        var identities = saved.ownedFor(volumeId, ChunkPos.asLong(LOWER_PROBE_CHUNK_X, LOWER_PROBE_CHUNK_Z));
         long completedStarts = identities.stream().filter(saved::completed).count();
 
         if (snapshot.state() != SkyforgePhysicalVolumeAdmissionState.ADMITTED || !pendingCatchup.isEmpty()) {
@@ -175,8 +177,12 @@ final class SkyforgeDr30NativeStructureAcceptance {
         Map<String, Object> evidence = commonEvidence("single");
         evidence.put("volume", volumeId.path());
         evidence.put("structure", identity.structureId());
+        evidence.put("structureMinX", identity.minX());
         evidence.put("structureMinY", identity.minY());
+        evidence.put("structureMinZ", identity.minZ());
+        evidence.put("structureMaxX", identity.maxX());
         evidence.put("structureMaxY", identity.maxY());
+        evidence.put("structureMaxZ", identity.maxZ());
         evidence.put("mutationX", structureBlock.getX());
         evidence.put("mutationY", structureBlock.getY());
         evidence.put("mutationZ", structureBlock.getZ());
@@ -197,7 +203,7 @@ final class SkyforgeDr30NativeStructureAcceptance {
             throw new IllegalStateException("DR-30 reload lost the post-placement mutation at " + mutation);
         }
         var saved = SkyforgeNativeStructurePlacementSavedData.forLevel(level);
-        var identities = saved.ownedFor(lowerId(), ChunkPos.asLong(0, 0));
+        var identities = saved.ownedFor(lowerId(), ChunkPos.asLong(LOWER_PROBE_CHUNK_X, LOWER_PROBE_CHUNK_Z));
         if (identities.isEmpty() || identities.stream().anyMatch(identity -> !saved.completed(identity))) {
             throw new IllegalStateException("DR-30 reload did not restore durable completed placement identity");
         }
@@ -220,15 +226,19 @@ final class SkyforgeDr30NativeStructureAcceptance {
         if (!ready(lower) || !ready(upper)) {
             return;
         }
-        var lowerIdentity = completedOriginIdentity(level, lower);
-        var upperIdentity = completedOriginIdentity(level, upper);
+        var lowerIdentity = completedIdentity(
+                level, lower, LOWER_PROBE_CHUNK_X, LOWER_PROBE_CHUNK_Z);
+        var upperIdentity = completedIdentity(
+                level, upper, UPPER_PROBE_CHUNK_X, UPPER_PROBE_CHUNK_Z);
         if (lowerIdentity == null || upperIdentity == null) {
             return;
         }
         BlockPos lowerBlock = findRepresentativeStructureBlock(level, lowerIdentity);
         BlockPos upperBlock = findRepresentativeStructureBlock(level, upperIdentity);
         if (lowerBlock == null || upperBlock == null) {
-            return;
+            throw new IllegalStateException(
+                    "DR-30 stacked placement completed without a representative physical block: lower="
+                            + lowerBlock + ", upper=" + upperBlock);
         }
         if (lowerIdentity.volumeId().equals(upperIdentity.volumeId())
                 || lowerIdentity.minY() == upperIdentity.minY()
@@ -243,6 +253,8 @@ final class SkyforgeDr30NativeStructureAcceptance {
         evidence.put("upperStructureMinY", upperIdentity.minY());
         evidence.put("lowerPhysicalBlockY", lowerBlock.getY());
         evidence.put("upperPhysicalBlockY", upperBlock.getY());
+        evidence.put("lowerTargetChunk", LOWER_PROBE_CHUNK_X + "," + LOWER_PROBE_CHUNK_Z);
+        evidence.put("upperTargetChunk", UPPER_PROBE_CHUNK_X + "," + UPPER_PROBE_CHUNK_Z);
         evidence.put("exactVolumeIdentitiesDistinct", true);
         evidence.put("physicalPlacementsDistinct", true);
         complete = true;
@@ -280,11 +292,13 @@ final class SkyforgeDr30NativeStructureAcceptance {
                 && SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId).isEmpty();
     }
 
-    private static SkyforgeNativeStructurePlacementSavedData.PlacementIdentity completedOriginIdentity(
+    private static SkyforgeNativeStructurePlacementSavedData.PlacementIdentity completedIdentity(
             ServerLevel level,
-            SkyIslandWorldVolumeId volumeId) {
+            SkyIslandWorldVolumeId volumeId,
+            int chunkX,
+            int chunkZ) {
         var saved = SkyforgeNativeStructurePlacementSavedData.forLevel(level);
-        return saved.ownedFor(volumeId, ChunkPos.asLong(0, 0)).stream()
+        return saved.ownedFor(volumeId, ChunkPos.asLong(chunkX, chunkZ)).stream()
                 .filter(saved::completed)
                 .findFirst()
                 .orElse(null);
@@ -293,10 +307,16 @@ final class SkyforgeDr30NativeStructureAcceptance {
     private static BlockPos findRepresentativeStructureBlock(
             ServerLevel level,
             SkyforgeNativeStructurePlacementSavedData.PlacementIdentity identity) {
-        int minX = Math.max(identity.minX(), 0);
-        int maxX = Math.min(identity.maxX(), 15);
-        int minZ = Math.max(identity.minZ(), 0);
-        int maxZ = Math.min(identity.maxZ(), 15);
+        int targetChunkX = ChunkPos.getX(identity.targetChunkKey());
+        int targetChunkZ = ChunkPos.getZ(identity.targetChunkKey());
+        int chunkMinX = targetChunkX * 16;
+        int chunkMaxX = chunkMinX + 15;
+        int chunkMinZ = targetChunkZ * 16;
+        int chunkMaxZ = chunkMinZ + 15;
+        int minX = Math.max(identity.minX(), chunkMinX);
+        int maxX = Math.min(identity.maxX(), chunkMaxX);
+        int minZ = Math.max(identity.minZ(), chunkMinZ);
+        int maxZ = Math.min(identity.maxZ(), chunkMaxZ);
         int minY = Math.max(identity.minY(), level.getMinBuildHeight());
         int maxY = Math.min(identity.maxY(), level.getMaxBuildHeight() - 1);
         for (int y = minY; y <= maxY; y++) {
@@ -380,7 +400,7 @@ final class SkyforgeDr30NativeStructureAcceptance {
         SkyIslandWorldVolumeId id = upperId();
         return new SkyIslandWorldVolume(
                 id,
-                new WorldBounds(-64.0, 79.0, UPPER_ELEVATION - 40.0, UPPER_ELEVATION + 32.0, -64.0, 79.0),
+                new WorldBounds(-120.0, 135.0, UPPER_ELEVATION - 40.0, UPPER_ELEVATION + 32.0, -120.0, 135.0),
                 SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.compileTableland(
                         id.geometrySeed(), 8.0, 8.0, UPPER_ELEVATION, HORIZONTAL_RADIUS, HORIZONTAL_RADIUS));
     }
