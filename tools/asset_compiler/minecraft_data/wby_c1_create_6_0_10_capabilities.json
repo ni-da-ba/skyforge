@@ -11,8 +11,8 @@
     "createSourceCommitEvidence": "Create commit that bumps the 1.21.1 line to 6.0.10",
     "blockstateSourceAudit": "exact-create-6.0.10-source-commit",
     "exactPinnedRuntimeRegistryProbe": "passed-wave-c1-exact-create-runtime",
-    "exactPinnedRuntimeRegistryEvidence": "asset-compiler-proof resolves LNytGWDc-UjX6dr61 then runs WBY_C1_STRUCTURE_REGISTRY against Create 6.0.10; eight original catalog block IDs, all three pane state/default contracts, and ten deferred structural resources validated or observed live",
-    "deferredStructuralRuntimeObservation": "passed-wave-c1-exact-create-runtime-10-resources",
+    "exactPinnedRuntimeRegistryEvidence": "asset-compiler-proof resolves LNytGWDc-UjX6dr61 then runs WBY_C1_STRUCTURE_REGISTRY against Create 6.0.10; fourteen catalog block IDs, all pane/bar/ladder state/default contracts, and four remaining deferred structural resources are validated or observed live",
+    "deferredStructuralRuntimeObservation": "passed-wave-c1-exact-create-runtime-4-resources",
     "policy": "catalog entries are non-selectable unless status is active; deferredStateContracts are evidence only and never enter the resolver registry"
   },
   "blocks": [
@@ -157,6 +157,39 @@
       },
       "defaults": {"east": "false", "north": "false", "south": "false", "waterlogged": "false", "west": "false"},
       "status": "cataloged"
+    },
+    {
+      "name": "create:andesite_ladder",
+      "families": ["access", "industrial_metal"],
+      "capabilities": ["ladder", "climbable", "directional", "attachment_sensitive", "thin"],
+      "properties": {
+        "facing": ["north", "east", "south", "west"],
+        "waterlogged": ["false", "true"]
+      },
+      "defaults": {"facing": "north", "waterlogged": "false"},
+      "status": "cataloged"
+    },
+    {
+      "name": "create:brass_ladder",
+      "families": ["access", "warm_hardware"],
+      "capabilities": ["ladder", "climbable", "directional", "attachment_sensitive", "thin"],
+      "properties": {
+        "facing": ["north", "east", "south", "west"],
+        "waterlogged": ["false", "true"]
+      },
+      "defaults": {"facing": "north", "waterlogged": "false"},
+      "status": "cataloged"
+    },
+    {
+      "name": "create:copper_ladder",
+      "families": ["access", "copper_detail"],
+      "capabilities": ["ladder", "climbable", "directional", "attachment_sensitive", "thin"],
+      "properties": {
+        "facing": ["north", "east", "south", "west"],
+        "waterlogged": ["false", "true"]
+      },
+      "defaults": {"facing": "north", "waterlogged": "false"},
+      "status": "cataloged"
     }
   ],
   "deferredStateContracts": [
@@ -204,21 +237,21 @@
       "runtimeClass": "com.simibubi.create.content.decoration.MetalLadderBlock",
       "properties": {"facing": ["north", "east", "south", "west"], "waterlogged": ["false", "true"]},
       "defaults": {"facing": "north", "waterlogged": "false"},
-      "semanticGate": "explicit climbable role plus attachment and survival validation"
+      "semanticGate": "generic ladder/climbable support semantics are implemented; activation still requires an explicit upstream neutral access/climbable intent"
     },
     {
       "name": "create:brass_ladder",
       "runtimeClass": "com.simibubi.create.content.decoration.MetalLadderBlock",
       "properties": {"facing": ["north", "east", "south", "west"], "waterlogged": ["false", "true"]},
       "defaults": {"facing": "north", "waterlogged": "false"},
-      "semanticGate": "explicit climbable role plus attachment and survival validation"
+      "semanticGate": "generic ladder/climbable support semantics are implemented; activation still requires an explicit upstream neutral access/climbable intent"
     },
     {
       "name": "create:copper_ladder",
       "runtimeClass": "com.simibubi.create.content.decoration.MetalLadderBlock",
       "properties": {"facing": ["north", "east", "south", "west"], "waterlogged": ["false", "true"]},
       "defaults": {"facing": "north", "waterlogged": "false"},
-      "semanticGate": "explicit climbable role plus attachment and survival validation"
+      "semanticGate": "generic ladder/climbable support semantics are implemented; activation still requires an explicit upstream neutral access/climbable intent"
     },
     {
       "name": "create:andesite_scaffolding",
@@ -263,11 +296,11 @@
     },
     {
       "name": "create:andesite_bars / create:brass_bars / create:copper_bars",
-      "reason": "exact runtime contracts and generic bars topology are now implemented and the resources are cataloged; activation remains gated on an explicit upstream neutral railing/bars intent"
+      "reason": "exact runtime contracts and generic bars topology are implemented and the resources are cataloged; activation remains gated on an explicit upstream neutral railing/bars intent"
     },
     {
       "name": "create:andesite_ladder / create:brass_ladder / create:copper_ladder",
-      "reason": "live Create 6.0.10 runtime confirms MetalLadderBlock facing/waterlogged state; promotion still needs explicit climbable/attachment-sensitive structure semantics"
+      "reason": "exact runtime contracts and conservative generic ladder/climbable support semantics are implemented and the resources are cataloged; activation remains gated on an explicit upstream neutral access/climbable intent"
     },
     {
       "name": "create:andesite_scaffolding / create:brass_scaffolding / create:copper_scaffolding",
