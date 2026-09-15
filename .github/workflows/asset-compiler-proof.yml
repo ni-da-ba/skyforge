@@ -4,6 +4,11 @@ on:
   pull_request:
     paths:
       - 'tools/asset_compiler/**'
+      - 'skyforge-neoforge-1211/build.gradle.kts'
+      - 'skyforge-neoforge-1211/wave-c1-mods.properties'
+      - 'skyforge-neoforge-1211/wave-c9-mods.properties'
+      - 'skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC21CreateResourceAuthorityAcceptance.java'
+      - 'skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyC1StructureRegistryProbe.java'
       - '.github/workflows/asset-compiler-proof.yml'
   workflow_dispatch:
 
@@ -13,7 +18,7 @@ permissions:
 jobs:
   proof:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,6 +57,35 @@ jobs:
           python tools/asset_compiler/compile_wby.py
           tools/asset_compiler/specimens/bootstrap_guild_branch_v0.14_first_principles_detail.json
           --out build/asset-compiler-v014-wby
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Resolve exact WBY C1 Create artifact
+        run: ./gradlew :skyforge-neoforge-1211:waveC9ResolvePinnedMods
+
+      - name: Probe exact WBY C1 Create structure registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          result="${GITHUB_WORKSPACE}/build/wby-c1-runtime-proof/registry.properties"
+          mkdir -p "$(dirname "${result}")"
+          JAVA_TOOL_OPTIONS="-Dskyforge.dev.wbyC1StructureRegistryProbe=true -Dskyforge.dev.wbyC1StructureRegistryResultFile=${result}" \
+            ./gradlew :skyforge-neoforge-1211:runWaveC21CreateResourceBaselineServer --no-daemon
+          test -f "${result}"
+          grep -Fxq 'status=PASS' "${result}"
+          grep -Fxq 'catalogBlocksValidated=8' "${result}"
+          grep -Fxq 'paneContractsValidated=3' "${result}"
+          cat "${result}"
 
       - name: Upload v0.12 QA and structure artifact
         uses: actions/upload-artifact@v4
