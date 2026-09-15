@@ -3855,6 +3855,65 @@ class Orchestrator:
             json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
 
+    @staticmethod
+    def _blocked_on_issue_markers(text: str) -> list[int]:
+        return sorted({
+            int(match.group(1))
+            for match in re.finditer(
+                r"(?mi)^\s*BLOCKED_ON_ISSUE\s*:\s*#(\d+)\s*$",
+                str(text or ""),
+            )
+        })
+
+    def _task_blocking_dependency_issues(self, issue_number: int) -> list[int]:
+        """Return explicit trusted issue dependencies that must close before redispatch.
+
+        A dependency marker is stronger than ordinary task-authority churn. While any marked issue
+        remains open, comments or unrelated main changes must not spend another worker turn on the
+        blocked task.
+        """
+        issue = _json_cmd(
+            ["gh", "api", f"repos/{self.repo}/issues/{int(issue_number)}"],
+            cwd=self.root,
+            timeout=60,
+        )
+        comments = _json_cmd(
+            [
+                "gh",
+                "api",
+                f"repos/{self.repo}/issues/{int(issue_number)}/comments?per_page=100",
+            ],
+            cwd=self.root,
+            timeout=60,
+        )
+        dependencies = set(self._blocked_on_issue_markers(str(issue.get("body") or "")))
+        trusted = {actor.lower() for actor in self.trusted_actors}
+        if isinstance(comments, list):
+            for comment in comments:
+                if not isinstance(comment, dict):
+                    continue
+                login = str(((comment.get("user") or {}).get("login")) or "").lower()
+                body = str(comment.get("body") or "")
+                if login not in trusted or SELF_COMMENT_MARKER in body.lower():
+                    continue
+                dependencies.update(self._blocked_on_issue_markers(body))
+        dependencies.discard(int(issue_number))
+        return sorted(dependencies)
+
+    def _task_dependency_issue_open(self, issue_number: int) -> bool | None:
+        try:
+            issue = _json_cmd(
+                [
+                    "gh", "issue", "view", str(int(issue_number)), "--repo", self.repo,
+                    "--json", "state,title",
+                ],
+                cwd=self.root,
+                timeout=60,
+            )
+        except Exception:
+            return None
+        return str(issue.get("state") or "").upper() == "OPEN"
+
     def _record_task_no_change_blocker(
         self,
         issue_number: int,
@@ -3891,6 +3950,64 @@ class Orchestrator:
         expected = str(record.get("authority_fingerprint") or "")
         if not expected:
             return False
+
+        try:
+            dependencies = self._task_blocking_dependency_issues(issue_number)
+        except Exception as exc:
+            with self._state_lock:
+                self.state.data["last_task_dependency_lookup_error"] = {
+                    "at": _utc_now(),
+                    "issue_number": int(issue_number),
+                    "kind": type(exc).__name__,
+                    "summary": str(exc)[:500],
+                }
+                self.state.save()
+            self._metric("task_dependency_lookup_errors")
+            # If a dependency was already observed, visibility loss must fail closed. Older blockers
+            # without an explicit dependency retain the pre-existing authority-fingerprint behavior.
+            stored_dependencies = record.get("blocked_on_issues")
+            if isinstance(stored_dependencies, list) and stored_dependencies:
+                return True
+            dependencies = []
+
+        if dependencies:
+            unresolved: list[int] = []
+            for dependency in dependencies:
+                state = self._task_dependency_issue_open(dependency)
+                if state is None:
+                    with self._state_lock:
+                        self.state.data["last_task_dependency_lookup_error"] = {
+                            "at": _utc_now(),
+                            "issue_number": int(issue_number),
+                            "dependency_issue": int(dependency),
+                            "kind": "DependencyIssueLookupError",
+                        }
+                        self.state.save()
+                    self._metric("task_dependency_lookup_errors")
+                    return True
+                if state:
+                    unresolved.append(int(dependency))
+            if unresolved:
+                with self._state_lock:
+                    blockers = self.state.data.get("task_no_change_blockers") or {}
+                    current_record = blockers.get(key) if isinstance(blockers, dict) else None
+                    if isinstance(current_record, dict):
+                        current_record["blocked_on_issues"] = unresolved
+                        current_record["dependency_checked_at"] = _utc_now()
+                        self.state.save()
+                self._metric("task_dependency_redispatch_suppressed")
+                return True
+
+            # Explicit dependency closure is the unblock condition. Do not require another task
+            # comment merely to perturb the authority fingerprint.
+            with self._state_lock:
+                blockers = self.state.data.get("task_no_change_blockers")
+                if isinstance(blockers, dict):
+                    blockers.pop(key, None)
+                self.state.save()
+            self._metric("task_no_change_blockers_invalidated_by_dependency")
+            return False
+
         try:
             current = self._task_authority_fingerprint(issue_number)
         except Exception as exc:
