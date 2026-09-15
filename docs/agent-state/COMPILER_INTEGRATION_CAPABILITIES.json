@@ -108,7 +108,7 @@
       ]
     },
     "CREATE_KINETIC_NETWORK_LIFECYCLE": {
-      "status": "qualification_pending",
+      "status": "accepted",
       "verification_level": "L2",
       "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
       "minimal_fixture": "SkyforgeCreateKineticNetworkLifecycleAcceptance",
@@ -117,7 +117,13 @@
         "CreateKineticNetworkLifecycleResourceTest"
       ],
       "owning_workflow": ".github/workflows/compiler-platform-create-kinetic-network-lifecycle.yml",
-      "latest_accepted_evidence": null,
+      "latest_accepted_evidence": {
+        "workflow_run": 34928238479,
+        "job": 104251065428,
+        "commit": "ebddb2ae4757dd6bdbacf675c2ef21a6954c830b",
+        "result": "PASS",
+        "finding": "Exact-stack L2 propagated 16.0 Create kinetic speed from create:creative_motor through the required create:shaft to the create:gearbox endpoint, observed zero downstream speed and source loss after severing the shaft, then restored the same shaft and recovered 16.0 speed with source/network state before PASS."
+      },
       "assumptions_preconditions": [
         "The exact retained Create artifact is Create 6.0.10 for Minecraft 1.21.1, upstream commit ac0c444d9828da3453ae8cc65338e8de063286fb.",
         "The minimal fixture uses create:creative_motor as a deterministic test source; this does not prescribe an in-world production power source.",
@@ -138,7 +144,7 @@
       ],
       "production_authority_for_agents": {
         "B": false,
-        "C": false
+        "C": true
       },
       "negative_evidence": []
     }

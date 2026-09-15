@@ -81,13 +81,14 @@ final class CreateKineticNetworkLifecycleResourceTest {
     }
 
     @Test
-    void capabilityLedgerStartsFailClosedForAgentC() throws IOException {
+    void capabilityLedgerPublishesAcceptedAgentCAuthority() throws IOException {
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
                         "../docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json")
                 .normalize());
 
         assertTrue(ledger.contains("CREATE_KINETIC_NETWORK_LIFECYCLE"));
-        assertTrue(ledger.contains("qualification_pending"));
+        assertTrue(ledger.contains("\"status\": \"accepted\""));
+        assertTrue(ledger.contains("\"C\": true"));
         assertTrue(ledger.contains("production_authority_for_agents"));
     }
 
