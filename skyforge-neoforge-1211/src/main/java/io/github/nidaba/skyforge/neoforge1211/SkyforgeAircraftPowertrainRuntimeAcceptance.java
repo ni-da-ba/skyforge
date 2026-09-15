@@ -297,17 +297,17 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
 
     private static void addCompilerGlue() throws ReflectiveOperationException {
         glueIds.clear();
+        List<Entity> insertedGlue = new ArrayList<>();
         for (SkyforgeAircraftGlueEncodingIR.GlueDomain domain : compilerFixture.glue().glueDomains()) {
-            glueIds.add(addGlue(source(domain.from()), source(domain.to()), domain.name()));
+            insertedGlue.add(addGlue(source(domain.from()), source(domain.to()), domain.name()));
         }
         SkyforgeAircraftPowertrainIR.GlueDomain powerplant = compilerFixture.powertrain().powerplantGlueDomain();
-        glueIds.add(addGlue(source(powerplant.from()), source(powerplant.to()), powerplant.name()));
-        if (glueIds.size() != 5) throw new IllegalStateException("v0.12 requires four accepted airframe glue domains plus one powerplant domain");
+        insertedGlue.add(addGlue(source(powerplant.from()), source(powerplant.to()), powerplant.name()));
+        insertedGlue.forEach(glue -> glueIds.add(glue.getUUID()));
+        if (insertedGlue.size() != 5) throw new IllegalStateException("v0.12 requires four accepted airframe glue domains plus one powerplant domain");
         BlockPos bearing = source(findManifestKind("propeller_bearing"));
         BlockPos hub = source(findManifestKind("propeller_hub"));
-        for (UUID glueId : glueIds) {
-            Entity glue = findEntity(glueId);
-            if (glue == null) throw new IllegalStateException("registered compiler glue entity disappeared before assembly");
+        for (Entity glue : insertedGlue) {
             boolean containsBearing = Boolean.TRUE.equals(publicMethod(glue, "contains", BlockPos.class).invoke(glue, bearing));
             boolean containsHub = Boolean.TRUE.equals(publicMethod(glue, "contains", BlockPos.class).invoke(glue, hub));
             if (containsBearing && containsHub) throw new IllegalStateException("compiler glue crosses Propeller Bearing controller boundary");
@@ -319,13 +319,13 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         }
     }
 
-    private static UUID addGlue(BlockPos from, BlockPos to, String label) throws ReflectiveOperationException {
+    private static Entity addGlue(BlockPos from, BlockPos to, String label) throws ReflectiveOperationException {
         Class<?> glueClass = Class.forName("com.simibubi.create.content.contraptions.glue.SuperGlueEntity");
         AABB box = (AABB) glueClass.getMethod("span", BlockPos.class, BlockPos.class).invoke(null, from, to);
         Constructor<?> constructor = glueClass.getConstructor(Level.class, AABB.class);
         Entity glue = (Entity) constructor.newInstance(level, box);
         if (!level.addFreshEntity(glue)) throw new IllegalStateException("failed to register compiler glue domain " + label);
-        return glue.getUUID();
+        return glue;
     }
 
     private static void pollAssembly(long now, boolean synchronousObservation) throws ReflectiveOperationException {
