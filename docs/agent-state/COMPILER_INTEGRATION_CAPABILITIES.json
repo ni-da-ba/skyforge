@@ -381,7 +381,7 @@
         "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE, SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE, CREATE_KINETIC_ON_SABLE_LIFECYCLE, and NESTED_PROPELLER_BEARING_LIFECYCLE without widening those prerequisites.",
         "The fixture persists only durable identity (primary UUID, pre-reload child/glue UUIDs, and integer plot offset); all Java objects, block entities, entity handles, physics handles, and kinetic state are re-resolved in Boot B.",
         "Boot A normalizes the entity-backed Propeller Bearing child back into the canonical Sable plot before save, then releases the bounded COMMAND_FORCED qualification ticket; Boot B recovers the UUID through Sable holding storage and applies a fresh bounded ticket only after canonical reload begins.",
-        "Exact Sable persistence serializes the sublevel plot/pose rather than arbitrary runtime entities, so Boot B deterministically re-realizes the two previously qualified disjoint Super Glue topology domains and reassembles a fresh nested Propeller Bearing child from normalized plot blocks; this lifecycle reactivation is generic platform behavior, not an aircraft-specific persistence format.",
+        "Boot B treats entity-backed Super Glue as asynchronously rehydrated state: after canonical Sable recovery it allows a bounded grace period, reuses exactly-one persisted domains when present, deterministically recreates only domains still absent after the grace window, and then reassembles a fresh nested Propeller Bearing child from normalized plot blocks; this lifecycle recovery is generic platform behavior, not an aircraft-specific persistence format.",
         "A post-reload shaft sever/rebuild is required so serialized residue alone cannot satisfy persistence acceptance.",
         "The production aircraft, Steering Wheel/client interaction, controls, player tracking, handling, and flight remain outside this capability."
       ],
@@ -413,6 +413,13 @@
         "C": false
       },
       "negative_evidence": [
+        {
+          "workflow_run": 35028018439,
+          "job": 104580039620,
+          "commit": "366b1c646d71bd14c202097ee469024f7567015f",
+          "result": "POST_REACTIVATION_CHILD_GLUE_ASSERTION",
+          "finding": "Boot A passed. Boot B recovered the same canonical Sable UUID/current physics state and both exact persisted Super Glue domains after bounded rehydration (mode=persisted-both), then requested nested Propeller Bearing reassembly. The child glue correctly ceased to exist as a parent-plot SuperGlueEntity on the following tick because child assembly consumed/transferred that topology, but the harness still required it in the parent plot. The assertion was narrowed so child glue is required exactly once before reactivation and is not treated as parent authority after bearing assembly is requested."
+        },
         {
           "workflow_run": 35027165065,
           "job": 104577322957,

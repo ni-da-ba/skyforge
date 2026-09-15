@@ -558,7 +558,9 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                             + " tick=" + now);
         } else {
             mainGlue = requireMovedMainGlue(now);
-            requireMovedGlueDomain(CHILD_GLUE_MIN, CHILD_GLUE_MAX, "child", now);
+            if (!reloadChildAssemblyRequested) {
+                requireMovedGlueDomain(CHILD_GLUE_MIN, CHILD_GLUE_MAX, "child", now);
+            }
         }
         Object bearing = requireExpectedMovedBlockEntity(canonical, movedBearing, "PropellerBearingBlockEntity", now);
         KineticState kinetic = kineticState(bearing);
