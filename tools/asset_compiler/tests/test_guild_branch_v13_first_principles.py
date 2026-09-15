@@ -123,7 +123,7 @@ class GuildBranchFirstPrinciplesTests(unittest.TestCase):
             self.assertIn(name, layout["volumes"])
         for name in self._spec()["requestedAnchors"]:
             self.assertIn(name, layout["anchors"])
-        self.assertEqual(layout["paletteReview"]["status"], "provisional")
+        self.assertEqual(layout["paletteReview"]["status"], "deferred")
 
     def test_v13_exports_minecraft_structure_and_full_qa(self):
         compiled = self._compile()
