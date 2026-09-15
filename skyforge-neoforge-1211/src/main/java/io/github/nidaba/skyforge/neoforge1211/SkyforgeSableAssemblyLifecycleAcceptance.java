@@ -728,9 +728,9 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         forceLoadTicketType = ticketTypeClass.getField("COMMAND_FORCED").get(null);
         Class<?> unitClass = Class.forName("net.minecraft.util.Unit");
         forceLoadTicketKey = unitClass.getField("INSTANCE").get(null);
-        Object added = threeArgMethod(
-                        container, "addForceLoadTicket", body, forceLoadTicketType, forceLoadTicketKey)
-                .invoke(container, body, forceLoadTicketType, forceLoadTicketKey);
+        Method addTicket = container.getClass().getMethod(
+                "addForceLoadTicket", body.getClass(), ticketTypeClass, Object.class);
+        Object added = addTicket.invoke(container, body, forceLoadTicketType, forceLoadTicketKey);
         if (!(added instanceof Boolean addedBoolean) || !addedBoolean) {
             throw new IllegalStateException(
                     "Sable command-forced liveness ticket was not added for body " + bodyId);
@@ -745,9 +745,9 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         if (!forceLoadTicketAdded || assembledBody == null || forceLoadTicketType == null || forceLoadTicketKey == null) {
             return;
         }
-        Object removed = threeArgMethod(
-                        container, "removeForceLoadTicket", assembledBody, forceLoadTicketType, forceLoadTicketKey)
-                .invoke(container, assembledBody, forceLoadTicketType, forceLoadTicketKey);
+        Method removeTicket = container.getClass().getMethod(
+                "removeForceLoadTicket", assembledBody.getClass(), forceLoadTicketType.getClass(), Object.class);
+        Object removed = removeTicket.invoke(container, assembledBody, forceLoadTicketType, forceLoadTicketKey);
         if (!(removed instanceof Boolean removedBoolean) || !removedBoolean) {
             throw new IllegalStateException(
                     "Sable command-forced liveness ticket was not removed for body " + bodyId);
@@ -824,22 +824,6 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             }
         }
         throw new NoSuchMethodException(target.getClass().getName() + "#" + name + "(1 arg)");
-    }
-
-    private static Method threeArgMethod(Object target, String name, Object first, Object second, Object third)
-            throws NoSuchMethodException {
-        for (Method method : target.getClass().getMethods()) {
-            if (!method.getName().equals(name) || method.getParameterCount() != 3) {
-                continue;
-            }
-            Class<?>[] types = method.getParameterTypes();
-            if ((first == null || types[0].isAssignableFrom(first.getClass()))
-                    && (second == null || types[1].isAssignableFrom(second.getClass()))
-                    && (third == null || types[2].isAssignableFrom(third.getClass()))) {
-                return method;
-            }
-        }
-        throw new NoSuchMethodException(target.getClass().getName() + "#" + name + "(3 args)");
     }
 
     private static Method twoArgMethod(Object target, String name, Object first, Object second)
