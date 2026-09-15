@@ -414,6 +414,13 @@
       },
       "negative_evidence": [
         {
+          "workflow_run": 35022295981,
+          "job": 104561148086,
+          "commit": "1be43eda85dd0af7102c22e39fb0e3c93468e7ec",
+          "result": "HARNESS_PRIMARY_ASSEMBLY_TRIGGER_VARIANCE",
+          "finding": "After entity-backed state normalization, one Boot A run assembled the fixed-world Propeller Bearing child but a single Physics Assembler trigger produced no Sable primary body before the bounded deadline. All prerequisite regressions and L1 passed. The harness now retries the same validated assembler transition at bounded four-tick intervals, at most three attempts, without changing fixture topology or acceptance semantics."
+        },
+        {
           "workflow_run": 35012533701,
           "job": 104528519283,
           "commit": "93e41b4925c212154f1b499e3af000a5b44fd6f2",
