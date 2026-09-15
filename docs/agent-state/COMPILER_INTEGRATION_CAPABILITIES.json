@@ -411,7 +411,15 @@
         "B": false,
         "C": false
       },
-      "negative_evidence": []
+      "negative_evidence": [
+        {
+          "workflow_run": 35012533701,
+          "job": 104528519283,
+          "commit": "93e41b4925c212154f1b499e3af000a5b44fd6f2",
+          "result": "HARNESS_RELOAD_POLL_ORDER_FAILURE",
+          "finding": "Boot A saved successfully. On Boot B, the terminal diagnostic showed the persisted primary UUID already present in Sable getAllSubLevels(), but the fixture had checked canonical state before snatchAndLoad and timed out without re-reading canonical state in the same tick. This is a harness poll-order race, not persistence negative evidence."
+        }
+      ]
     }
   }
 }

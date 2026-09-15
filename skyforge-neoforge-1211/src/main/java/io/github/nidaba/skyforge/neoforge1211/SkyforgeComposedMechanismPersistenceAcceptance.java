@@ -438,13 +438,18 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         Object canonical = findCanonicalBody(bodyId);
         if (canonical == null) {
             requestHoldingLoadIfAvailable();
-            if (waitDiagnostic.expired(now)) {
-                fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_PERSISTENCE_RELOAD,
-                        waitDiagnostic.withFinalState(movedIds(), safeServerState(), "headless",
-                                "bodyId=" + bodyId + " canonicalBody=null"),
-                        "persisted Sable UUID did not reload from holding storage");
+            canonical = findCanonicalBody(bodyId);
+            if (canonical == null) {
+                if (waitDiagnostic.expired(now)) {
+                    fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_PERSISTENCE_RELOAD,
+                            waitDiagnostic.withFinalState(movedIds(), safeServerState(), "headless",
+                                    "bodyId=" + bodyId + " canonicalBody=null"),
+                            "persisted Sable UUID did not reload from holding storage");
+                }
+                return;
             }
-            return;
+            LOGGER.log(System.Logger.Level.INFO,
+                    PREFIX + " RELOAD_CANONICAL_RESOLVED bodyId=" + bodyId + " tick=" + now);
         }
         assembledBody = canonical;
         if (!forceLoadTicketAdded) addFixtureForceLoadTicket(canonical);
