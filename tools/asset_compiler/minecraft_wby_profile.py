@@ -6,6 +6,7 @@ from pathlib import Path
 
 from minecraft_adapter import BlockCapability, BlockIntent, MinecraftAdapter, vanilla_1_21_1_registry
 from minecraft_guild_profile import guild_v014_intent
+from minecraft_structural_detail_adapter import StructuralDetailMinecraftAdapter
 from model import Cell, SpecError
 
 _PROFILE_NAME = "guild-v0.14-wby-c1-create"
@@ -135,7 +136,7 @@ def guild_v014_wby_intent(cell: Cell) -> BlockIntent:
     return wby_c1_target_intent(guild_v014_intent(cell))
 
 
-class WbyC1MinecraftAdapter(MinecraftAdapter):
+class WbyC1MinecraftAdapter(StructuralDetailMinecraftAdapter):
     """Minecraft resolver that overlays WBY choices at the concrete target boundary."""
 
     def resolve_intent(self, intent: BlockIntent):
