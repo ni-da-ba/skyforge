@@ -168,6 +168,21 @@ class SkyforgeQuotaRuntimeTests(unittest.TestCase):
                     5.0,
                 )
 
+    def test_runtime_refresh_invalidates_stale_quota_pacing_timer(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            o.state.data["blocked_kind"] = "quota_pacing"
+            o.state.data["blocked_until_epoch"] = 9999999999.0
+            o.state.data["blocked_reason"] = "old pacing policy"
+            o.state.save()
+            with mock.patch.object(quota_runtime, "_ORIGINAL_REFRESH_RUNTIME") as refresh:
+                quota_runtime.refresh_runtime(o, actor="operator")
+
+            refresh.assert_called_once_with(o, actor="operator")
+            self.assertIsNone(o.state.data["blocked_kind"])
+            self.assertEqual(o.state.data["blocked_until_epoch"], 0.0)
+            self.assertIsNone(o.state.data["blocked_reason"])
+
     def test_fresh_provider_admission_clears_stale_quota_pacing_block(self):
         with tempfile.TemporaryDirectory() as td:
             o = self.make_orchestrator(pathlib.Path(td))
