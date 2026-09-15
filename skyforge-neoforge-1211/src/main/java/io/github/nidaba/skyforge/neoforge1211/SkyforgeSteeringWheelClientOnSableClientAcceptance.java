@@ -39,6 +39,7 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
     private static boolean clientSetupRepositioningUsed;
     private static boolean clientShapeQualifiedAim;
     private static boolean clientHoldAcquired;
+    private static boolean clientComplete;
     private static Vec3 qualifiedWheelPlotHit;
     private static InteractionResult wheelUseResult;
 
@@ -47,7 +48,8 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
     @SubscribeEvent
     static void onClientTick(ClientTickEvent.Post event) {
         if (!Boolean.getBoolean(SkyforgeSteeringWheelClientOnSableLifecycleAcceptance.ENABLE_PROPERTY)
-                || !SkyforgeAutomatedAcceptanceHarness.clientMode()) {
+                || !SkyforgeAutomatedAcceptanceHarness.clientMode()
+                || clientComplete) {
             return;
         }
 
@@ -215,6 +217,10 @@ final class SkyforgeSteeringWheelClientOnSableClientAcceptance {
     private static void complete(
             Minecraft minecraft,
             SkyforgeSteeringWheelClientOnSableBridge.Snapshot snapshot) {
+        if (clientComplete) {
+            return;
+        }
+        clientComplete = true;
         LinkedHashMap<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("actualClient", true);
         evidence.put("bodyId", snapshot.bodyId());

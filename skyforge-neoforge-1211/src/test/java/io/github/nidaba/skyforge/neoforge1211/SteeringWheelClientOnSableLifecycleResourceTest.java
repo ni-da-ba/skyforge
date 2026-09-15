@@ -48,6 +48,7 @@ final class SteeringWheelClientOnSableLifecycleResourceTest {
         assertTrue(client.contains("lookingAtWheel.invoke"));
         assertTrue(client.contains("player.yRotO = yaw"));
         assertTrue(client.contains("player.xRotO = pitch"));
+        assertTrue(client.contains("clientComplete = true"));
         assertTrue(client.contains("!angleInputHit"));
         assertFalse(client.contains("STEERING_WHEEL_VISUAL_X"));
         assertFalse(client.contains("STEERING_WHEEL_VISUAL_Y"));
@@ -81,7 +82,7 @@ final class SteeringWheelClientOnSableLifecycleResourceTest {
     }
 
     @Test
-    void workflowRequiresActualXvfbClientAndLedgerStartsFailClosed() throws IOException {
+    void workflowRequiresActualXvfbClientAndLedgerRecordsAcceptedAuthority() throws IOException {
         String workflow = Files.readString(PROJECT_DIRECTORY.resolve(
                 "../.github/workflows/compiler-platform-steering-wheel-client-on-sable.yml").normalize());
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
@@ -94,10 +95,11 @@ final class SteeringWheelClientOnSableLifecycleResourceTest {
         assertTrue(workflow.contains("waveC11ResolvePinnedMods"));
         assertTrue(workflow.contains("runCompilerPlatformSteeringWheelClientWorldPrepareServer"));
         assertTrue(workflow.contains("runCompilerPlatformSteeringWheelClient"));
-        assertTrue(entry.contains("\"status\": \"qualification_pending\""));
-        assertTrue(entry.contains("\"latest_accepted_evidence\": null"));
-        assertTrue(entry.contains("\"B\": false"));
-        assertTrue(entry.contains("\"C\": false"));
+        assertTrue(entry.contains("\"status\": \"accepted\""));
+        assertTrue(entry.contains("\"workflow_run\": 35006562183"));
+        assertTrue(entry.contains("\"commit\": \"e98ea2734c5f89cf1ad87981f9a24d0e454e09c8\""));
+        assertTrue(entry.contains("\"B\": true"));
+        assertTrue(entry.contains("\"C\": true"));
     }
 
     private static String serverSource() throws IOException {
