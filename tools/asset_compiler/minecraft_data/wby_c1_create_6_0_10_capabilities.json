@@ -11,8 +11,8 @@
     "createSourceCommitEvidence": "Create commit that bumps the 1.21.1 line to 6.0.10",
     "blockstateSourceAudit": "exact-create-6.0.10-source-commit",
     "exactPinnedRuntimeRegistryProbe": "passed-wave-c1-exact-create-runtime",
-    "exactPinnedRuntimeRegistryEvidence": "asset-compiler-proof resolves LNytGWDc-UjX6dr61 then runs WBY_C1_STRUCTURE_REGISTRY against Create 6.0.10; fourteen catalog block IDs, all pane/bar/ladder state/default contracts, and four remaining deferred structural resources are validated or observed live",
-    "deferredStructuralRuntimeObservation": "passed-wave-c1-exact-create-runtime-4-resources",
+    "exactPinnedRuntimeRegistryEvidence": "asset-compiler-proof resolves LNytGWDc-UjX6dr61 then runs WBY_C1_STRUCTURE_REGISTRY against Create 6.0.10; seventeen catalog block IDs, all pane/bar/ladder/scaffolding state/default contracts, and the remaining deferred girder resource are validated or observed live",
+    "deferredStructuralRuntimeObservation": "passed-wave-c1-exact-create-runtime-1-resources",
     "policy": "catalog entries are non-selectable unless status is active; deferredStateContracts are evidence only and never enter the resolver registry"
   },
   "blocks": [
@@ -190,6 +190,42 @@
       },
       "defaults": {"facing": "north", "waterlogged": "false"},
       "status": "cataloged"
+    },
+    {
+      "name": "create:andesite_scaffolding",
+      "families": ["access", "industrial_metal"],
+      "capabilities": ["scaffolding", "climbable", "neighbor_sensitive"],
+      "properties": {
+        "bottom": ["false", "true"],
+        "distance": ["0", "1", "2", "3", "4", "5", "6", "7"],
+        "waterlogged": ["false", "true"]
+      },
+      "defaults": {"bottom": "false", "distance": "7", "waterlogged": "false"},
+      "status": "cataloged"
+    },
+    {
+      "name": "create:brass_scaffolding",
+      "families": ["access", "warm_hardware"],
+      "capabilities": ["scaffolding", "climbable", "neighbor_sensitive"],
+      "properties": {
+        "bottom": ["false", "true"],
+        "distance": ["0", "1", "2", "3", "4", "5", "6", "7"],
+        "waterlogged": ["false", "true"]
+      },
+      "defaults": {"bottom": "false", "distance": "7", "waterlogged": "false"},
+      "status": "cataloged"
+    },
+    {
+      "name": "create:copper_scaffolding",
+      "families": ["access", "copper_detail"],
+      "capabilities": ["scaffolding", "climbable", "neighbor_sensitive"],
+      "properties": {
+        "bottom": ["false", "true"],
+        "distance": ["0", "1", "2", "3", "4", "5", "6", "7"],
+        "waterlogged": ["false", "true"]
+      },
+      "defaults": {"bottom": "false", "distance": "7", "waterlogged": "false"},
+      "status": "cataloged"
     }
   ],
   "deferredStateContracts": [
@@ -258,21 +294,21 @@
       "runtimeClass": "com.simibubi.create.content.decoration.MetalScaffoldingBlock",
       "properties": {"bottom": ["false", "true"], "distance": ["0", "1", "2", "3", "4", "5", "6", "7"], "waterlogged": ["false", "true"]},
       "defaults": {"bottom": "false", "distance": "7", "waterlogged": "false"},
-      "semanticGate": "dedicated scaffolding role with state, collision, and support semantics"
+      "semanticGate": "generic scaffolding support-distance semantics are implemented; activation still requires an explicit upstream neutral scaffolding/access intent"
     },
     {
       "name": "create:brass_scaffolding",
       "runtimeClass": "com.simibubi.create.content.decoration.MetalScaffoldingBlock",
       "properties": {"bottom": ["false", "true"], "distance": ["0", "1", "2", "3", "4", "5", "6", "7"], "waterlogged": ["false", "true"]},
       "defaults": {"bottom": "false", "distance": "7", "waterlogged": "false"},
-      "semanticGate": "dedicated scaffolding role with state, collision, and support semantics"
+      "semanticGate": "generic scaffolding support-distance semantics are implemented; activation still requires an explicit upstream neutral scaffolding/access intent"
     },
     {
       "name": "create:copper_scaffolding",
       "runtimeClass": "com.simibubi.create.content.decoration.MetalScaffoldingBlock",
       "properties": {"bottom": ["false", "true"], "distance": ["0", "1", "2", "3", "4", "5", "6", "7"], "waterlogged": ["false", "true"]},
       "defaults": {"bottom": "false", "distance": "7", "waterlogged": "false"},
-      "semanticGate": "dedicated scaffolding role with state, collision, and support semantics"
+      "semanticGate": "generic scaffolding support-distance semantics are implemented; activation still requires an explicit upstream neutral scaffolding/access intent"
     },
     {
       "name": "create:metal_girder",
@@ -304,7 +340,7 @@
     },
     {
       "name": "create:andesite_scaffolding / create:brass_scaffolding / create:copper_scaffolding",
-      "reason": "live Create 6.0.10 runtime confirms bottom/distance/waterlogged state; dedicated compiler collision/support semantics are still required"
+      "reason": "exact runtime contracts and conservative generic scaffolding support-distance semantics are implemented and the resources are cataloged; activation remains gated on an explicit upstream neutral scaffolding/access intent"
     },
     {
       "name": "create:metal_girder",
