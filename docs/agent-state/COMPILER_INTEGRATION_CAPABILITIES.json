@@ -414,6 +414,13 @@
       },
       "negative_evidence": [
         {
+          "workflow_run": 35032336867,
+          "job": 104593871396,
+          "commit": "ee3e264566618ffaf137d73562061a388d82a7b2",
+          "result": "DUPLICATE_LIVENESS_TICKET_ADD",
+          "finding": "Boot A created one valid primary Sable UUID synchronously. The early liveness fix added COMMAND_FORCED successfully during the synchronous assembly poll, then pollAssembly revisited the same body on tick 1 while parent cleanup was still settling and attempted to add the identical ticket again. Exact Sable 2.0.5 addForceLoadTicket returns false when the same UUID/type/key ticket already exists. Ticket acquisition is now guarded by forceLoadTicketAdded so repeated assembly polling is idempotent."
+        },
+        {
           "workflow_run": 35031835513,
           "job": 104592227867,
           "commit": "cb1c060316ec44bf936ea8f525afc244147f222b",

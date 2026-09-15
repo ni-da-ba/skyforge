@@ -301,8 +301,11 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                         "primary assembly registered an invalid Sable body");
             }
             // Stabilize the newly valid body before waiting for parent-world cleanup to settle.
+            // pollAssembly may revisit this body while cleanup finishes, so ticket acquisition must be idempotent.
             // The ticket is fixture-only and is still released before the save boundary.
-            addFixtureForceLoadTicket(listedBody);
+            if (!forceLoadTicketAdded) {
+                addFixtureForceLoadTicket(listedBody);
+            }
             boolean staleChildAlive = staleGroundChild != null && staleGroundChild.isAlive();
             if (sourceNonAir != 0 || staleChildAlive) {
                 if (waitDiagnostic.expired(now)) {
