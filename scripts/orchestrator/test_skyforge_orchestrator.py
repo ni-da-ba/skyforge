@@ -1377,10 +1377,13 @@ class DurableStateTests(unittest.TestCase):
     def test_task_no_change_blocker_clears_only_after_authority_changes(self):
         with tempfile.TemporaryDirectory() as tmp:
             o = self.make_orchestrator(pathlib.Path(tmp))
-            with mock.patch.object(
-                o,
-                "_task_authority_fingerprint",
-                side_effect=["authority-a", "authority-a", "authority-b"],
+            with (
+                mock.patch.object(
+                    o,
+                    "_task_authority_fingerprint",
+                    side_effect=["authority-a", "authority-a", "authority-b"],
+                ),
+                mock.patch.object(o, "_task_blocking_dependency_issues", return_value=[]),
             ):
                 o._record_task_no_change_blocker(493, "Missing concrete authority.")
                 self.assertTrue(o._task_no_change_blocker_unchanged(493))
@@ -1395,6 +1398,69 @@ class DurableStateTests(unittest.TestCase):
                 o.state.data["metrics"].get("task_no_change_blockers_invalidated"),
                 1,
             )
+
+    def test_task_no_change_dependency_stays_blocked_despite_authority_churn(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.state.data["task_no_change_blockers"] = {
+                "493": {"authority_fingerprint": "authority-a", "summary": "blocked"}
+            }
+            with (
+                mock.patch.object(o, "_task_blocking_dependency_issues", return_value=[650]),
+                mock.patch.object(o, "_task_dependency_issue_open", return_value=True),
+                mock.patch.object(o, "_task_authority_fingerprint", return_value="authority-b") as fp,
+            ):
+                self.assertTrue(o._task_no_change_blocker_unchanged(493))
+            fp.assert_not_called()
+            record = o.state.data["task_no_change_blockers"]["493"]
+            self.assertEqual(record["blocked_on_issues"], [650])
+            self.assertEqual(
+                o.state.data["metrics"].get("task_dependency_redispatch_suppressed"), 1
+            )
+
+    def test_task_no_change_dependency_closure_invalidates_without_comment_churn(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.state.data["task_no_change_blockers"] = {
+                "493": {"authority_fingerprint": "authority-a", "summary": "blocked"}
+            }
+            with (
+                mock.patch.object(o, "_task_blocking_dependency_issues", return_value=[650]),
+                mock.patch.object(o, "_task_dependency_issue_open", return_value=False),
+                mock.patch.object(o, "_task_authority_fingerprint", return_value="authority-a") as fp,
+            ):
+                self.assertFalse(o._task_no_change_blocker_unchanged(493))
+            fp.assert_not_called()
+            self.assertNotIn("493", o.state.data.get("task_no_change_blockers") or {})
+            self.assertEqual(
+                o.state.data["metrics"].get("task_no_change_blockers_invalidated_by_dependency"), 1
+            )
+
+    def test_task_no_change_dependency_lookup_failure_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.state.data["task_no_change_blockers"] = {
+                "493": {"authority_fingerprint": "authority-a", "summary": "blocked"}
+            }
+            with (
+                mock.patch.object(o, "_task_blocking_dependency_issues", return_value=[650]),
+                mock.patch.object(o, "_task_dependency_issue_open", return_value=None),
+            ):
+                self.assertTrue(o._task_no_change_blocker_unchanged(493))
+            self.assertIn("493", o.state.data.get("task_no_change_blockers") or {})
+            self.assertEqual(o.state.data["metrics"].get("task_dependency_lookup_errors"), 1)
+
+    def test_blocked_on_issue_marker_parser_is_exact(self):
+        self.assertEqual(
+            orch.Orchestrator._blocked_on_issue_markers(
+                "AUDIT — BLOCKED DEPENDENCY\nBLOCKED_ON_ISSUE: #650\nblocked_on_issue: #651"
+            ),
+            [650, 651],
+        )
+        self.assertEqual(
+            orch.Orchestrator._blocked_on_issue_markers("mentioned #650 but no marker"),
+            [],
+        )
 
     def test_non_task_no_change_does_not_post_task_handoff(self):
         with tempfile.TemporaryDirectory() as tmp:
