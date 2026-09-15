@@ -74,17 +74,20 @@ final class ComposedMechanismPersistenceResourceTest {
     }
 
     @Test
-    void ledgerRemainsFailClosedUntilExactStackAcceptance() throws IOException {
+    void ledgerPublishesAcceptedExactStackAuthority() throws IOException {
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
                 "../docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json").normalize());
         int start = ledger.indexOf("\"SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE\"");
         assertTrue(start >= 0);
         String entry = ledger.substring(start);
 
-        assertTrue(entry.contains("\"status\": \"qualification_pending\""));
-        assertTrue(entry.contains("\"latest_accepted_evidence\": null"));
-        assertTrue(entry.contains("\"B\": false"));
-        assertTrue(entry.contains("\"C\": false"));
+        assertTrue(entry.contains("\"status\": \"accepted\""));
+        assertTrue(entry.contains("\"workflow_run\": 35034081917"));
+        assertTrue(entry.contains("\"job\": 104599373896"));
+        assertTrue(entry.contains("\"commit\": \"b0262d2a5ec7ffa170b31a5b42984b6301c29c1c\""));
+        assertTrue(entry.contains("\"result\": \"PASS\""));
+        assertTrue(entry.contains("\"B\": true"));
+        assertTrue(entry.contains("\"C\": true"));
     }
 
     private static String fixtureSource() throws IOException {

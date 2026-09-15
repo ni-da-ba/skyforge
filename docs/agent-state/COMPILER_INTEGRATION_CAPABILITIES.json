@@ -367,7 +367,7 @@
       ]
     },
     "SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE": {
-      "status": "qualification_pending",
+      "status": "accepted",
       "verification_level": "L2",
       "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
       "minimal_fixture": "SkyforgeComposedMechanismPersistenceAcceptance",
@@ -376,7 +376,13 @@
         "ComposedMechanismPersistenceResourceTest"
       ],
       "owning_workflow": ".github/workflows/compiler-platform-composed-mechanism-persistence.yml",
-      "latest_accepted_evidence": null,
+      "latest_accepted_evidence": {
+        "workflow_run": 35034081917,
+        "job": 104599373896,
+        "commit": "b0262d2a5ec7ffa170b31a5b42984b6301c29c1c",
+        "result": "PASS",
+        "finding": "Exact-stack two-boot L2 proved composed persistence across a genuine fresh-process boundary: Boot A assembled one canonical Sable primary body, realized a live Create-driven Propeller Bearing child with one hub plus two symmetric sails, normalized the child back into plot blocks, saved successfully, and released the bounded COMMAND_FORCED ticket. Boot B recovered the same persistent primary UUID with a valid current physics handle, observed both exact Super Glue domains through bounded asynchronous rehydration, reassembled a fresh nested child with no stale pre-reload duplicate, retained one main glue authority without duplication, recovered bearing speed -16.0, then proved the reloaded Create network live by shaft sever/rebuild back to -16.0 and released the fresh bounded ticket before PASS."
+      },
       "assumptions_preconditions": [
         "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE, SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE, CREATE_KINETIC_ON_SABLE_LIFECYCLE, and NESTED_PROPELLER_BEARING_LIFECYCLE without widening those prerequisites.",
         "The fixture persists only durable identity (primary UUID, pre-reload child/glue UUIDs, and integer plot offset); all Java objects, block entities, entity handles, physics handles, and kinetic state are re-resolved in Boot B.",
@@ -409,8 +415,8 @@
         "TIMEOUT_FIXTURE_TERMINAL_STATE"
       ],
       "production_authority_for_agents": {
-        "B": false,
-        "C": false
+        "B": true,
+        "C": true
       },
       "negative_evidence": [
         {
