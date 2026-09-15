@@ -1,0 +1,111 @@
+{
+  "schema": "skyforge.compiler-integration-capabilities.v1",
+  "updated_at": "2026-09-15",
+  "target_stack_authorities": {
+    "C11_FLIGHT_EXACT_2026-09-05": {
+      "minecraft": "1.21.1",
+      "neoforge": "21.1.249",
+      "create": {
+        "version": "6.0.10+mc1.21.1",
+        "coordinate": "maven.modrinth:LNytGWDc:UjX6dr61"
+      },
+      "sable": {
+        "version": "2.0.5+mc1.21.1",
+        "coordinate": "maven.modrinth:T9PomCSv:U678xqle"
+      },
+      "aeronautics": {
+        "version": "1.3.2+mc1.21.1",
+        "coordinate": "maven.modrinth:oWaK0Q19:44pLdPGg"
+      },
+      "simulated": {
+        "provenance": "bundled by the exact Create Aeronautics coordinate above"
+      },
+      "pin_file": "skyforge-neoforge-1211/wave-c1-mods.properties",
+      "resolver": ":skyforge-neoforge-1211:waveC11ResolvePinnedMods"
+    }
+  },
+  "capabilities": {
+    "SABLE_PRIMARY_ASSEMBLY_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeSableAssemblyLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "SableAssemblyLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-sable-assembly-lifecycle.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 34926701032,
+        "job": 104246435939,
+        "commit": "45ef746701a9dfa93a8c572c2682477d21203600",
+        "result": "PASS",
+        "finding": "Exact-stack L2 assembled one real Sable body, resolved the current live body by persistent UUID on each tick, obtained a valid current physics handle, translated +X by 0.0996633768081665 blocks, retained no stale handle, and released the bounded COMMAND_FORCED fixture liveness ticket before PASS."
+      },
+      "assumptions_preconditions": [
+        "The exact C11 Create/Sable/Aeronautics artifacts resolve from immutable coordinates.",
+        "Simulated is provided by the accepted Create Aeronautics distribution.",
+        "The persistent Sable sublevel UUID, not Java object identity, is runtime body identity.",
+        "Physics operations re-resolve the canonical live sublevel and current valid handle.",
+        "The minimal Physics Assembler fixture uses one bounded Create Super Glue domain; this is a fixture precondition, not independent SUPER_GLUE_REALIZATION qualification.",
+        "The headless L2 fixture uses Sable COMMAND_FORCED only as a bounded qualification liveness ticket and releases it before PASS; this is fixture policy, not production world-placement authority."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_TARGET_LOWERING",
+        "FAIL_BOOT",
+        "FAIL_RUNTIME_EXIT",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_ASSEMBLY",
+        "FAIL_PHYSICS",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_PHYSICS_PROGRESSION",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": true,
+        "C": true
+      },
+      "negative_evidence": [
+        {
+          "workflow_run": 34920943109,
+          "job": 104229026193,
+          "commit": "6f5256b4556e20f254d32f9d75c2b1de8d0aaa9d",
+          "result": "TIMEOUT_ASSEMBLY_REGISTRATION",
+          "finding": "A real Physics Assembler vacated the source assembler but no Sable UUID was observed on the following tick when the tiny specimen relied only on ordinary slime stickiness. This falsifies ordinary stickiness as a sufficient fixture precondition."
+        },
+        {
+          "workflow_run": 34921294612,
+          "job": 104230066405,
+          "commit": "bc7b415ea9f7749a92e7f4d3ff6d034a39ae0b04",
+          "result": "TIMEOUT_ASSEMBLY_REGISTRATION",
+          "finding": "Adding one explicit bounded Create Super Glue domain still left the assembler vacated with no Sable UUID observed on the following tick. Glue alone therefore does not explain the reduced-fixture gap; because Simulated assembly is synchronous, the next experiment observes registration before the first physics tick to distinguish assembly failure from immediate body removal."
+        },
+        {
+          "workflow_run": 34921926515,
+          "job": 104232071760,
+          "commit": "41e8c49b030d9e2b4eede2a6056ee13d014fde62",
+          "result": "FAIL_PHYSICS",
+          "finding": "Synchronous observation captured a real newly allocated Sable UUID, but the body was removed by tick 1 before a stable physics handle was observed. Assembly registration is therefore proven for the reduced specimen; the remaining reduction target is immediate mass/physics validity."
+        },
+        {
+          "workflow_run": 34922213651,
+          "job": 104232940446,
+          "commit": "42aa858926f864ea47a76a77aa417470b12c65ed",
+          "result": "HARNESS_DIAGNOSTIC_FAILURE",
+          "finding": "A synchronous diagnostic call to MassTracker.isInvalid() attempted to load ClientLevel on DEDICATED_SERVER. The platform harness must derive the documented invalid-mass predicate from server-safe getMass() and getCenterOfMass() instead of invoking that helper reflectively."
+        },
+        {
+          "workflow_run": 34922501534,
+          "job": 104233798788,
+          "commit": "9615353ff7b50ba37d524c2b2012d21c97603ce9",
+          "result": "HARNESS_DIAGNOSTIC_FAILURE",
+          "finding": "Even server-safe mass/COM reflection from the synchronous assembly callback triggered a dedicated-server ClientLevel dist-cleaner failure, while the unchanged C12 control remained healthy. PLATFORM-001 therefore removes synchronous mass introspection and separates transfer completeness from next-tick physics validity."
+        }
+      ]
+    }
+  }
+}

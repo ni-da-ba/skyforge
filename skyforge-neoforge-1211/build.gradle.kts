@@ -1886,6 +1886,17 @@ neoForge {
         }
 
 
+        // PLATFORM-001: minimal exact-stack Sable primary assembly/physics lifecycle fixture.
+        create("compilerPlatformSableAssemblyLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-sable-assembly-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformSableAssemblyLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         // C12 B0-A1/A2: exact 105-block MAIN_BODY through the real Physics Assembler, then
         // authoritative Sable mass/center-of-mass measurement.
         create("waveC12BellancaB0AssemblyServer") {
@@ -2333,6 +2344,30 @@ tasks.named("runPortableEngineCutoffSableAcceptanceServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(portableEngineCutoffSableServerProperties)
+    }
+}
+
+
+val compilerPlatformSableAssemblyLifecycleServerProperties = """
+    level-name=compiler-platform-sable-assembly-lifecycle
+    level-seed=613001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformSableAssemblyLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-sable-assembly-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformSableAssemblyLifecycleServerProperties)
     }
 }
 
