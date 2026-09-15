@@ -414,6 +414,13 @@
       },
       "negative_evidence": [
         {
+          "workflow_run": 35029386358,
+          "job": 104584445024,
+          "commit": "a21b91466177b93d3e32a2330db0d03ceeef2b2e",
+          "result": "DUPLICATED_GLUE_CAUSALITY_SETUP_VARIANCE",
+          "finding": "After synchronization to current main, accepted NESTED_PROPELLER_BEARING_LIFECYCLE passed on the same exact stack while PLATFORM-007 twice timed out before creating its primary Sable body. The shared 3x2x2 bearing/assembler geometry is therefore healthy; the remaining PLATFORM-007-only pre-primary mutation was a slime/honey non-sticky bridge used to re-prove Super Glue causality. That causality is already owned by accepted SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE, so PLATFORM-007 removes the redundant material mutation and retains only the bounded main glue domain whose fresh-process recovery is the persistence subject."
+        },
+        {
           "workflow_run": 35028018439,
           "job": 104580039620,
           "commit": "366b1c646d71bd14c202097ee469024f7567015f",

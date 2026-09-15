@@ -46,8 +46,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static final ResourceLocation SHAFT_ID = id("create:shaft");
     private static final ResourceLocation BEARING_ID = id("aeronautics:propeller_bearing");
     private static final ResourceLocation SAIL_ID = id("simulated:white_symmetric_sail");
-    private static final ResourceLocation SLIME_ID = id("minecraft:slime_block");
-    private static final ResourceLocation HONEY_ID = id("minecraft:honey_block");
 
     private static final BlockPos BODY_MIN = new BlockPos(0, 200, 0);
     private static final BlockPos BODY_MAX = new BlockPos(2, 201, 1);
@@ -59,8 +57,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static final BlockPos CHILD_SAIL_UP_SOURCE = new BlockPos(3, 202, 0);
     private static final BlockPos CHILD_SAIL_DOWN_SOURCE = new BlockPos(3, 200, 0);
     private static final BlockPos MAIN_GLUE_MIN = BODY_MIN;
-    private static final BlockPos GLUE_BRIDGE_SEED = new BlockPos(0, 200, 1);
-    private static final BlockPos GLUE_BRIDGE_SECONDARY = new BlockPos(1, 200, 1);
     private static final BlockPos MAIN_GLUE_MAX = ASSEMBLER_SOURCE;
     private static final BlockPos CHILD_GLUE_MIN = CHILD_SAIL_DOWN_SOURCE;
     private static final BlockPos CHILD_GLUE_MAX = CHILD_SAIL_UP_SOURCE;
@@ -152,7 +148,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
 
             beforeIds = currentSubLevelIds();
             prepareFixture();
-            requireNonStickyBridge(now);
             GlueFixture mainGlue = addGlue(MAIN_GLUE_MIN, MAIN_GLUE_MAX, "main");
             mainGlueId = mainGlue.id();
 
@@ -281,8 +276,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             requireMovedBlockId(movedMotor, MOTOR_ID, "motor");
             requireMovedBlockId(movedShaft, SHAFT_ID, "shaft");
             requireMovedBlockId(movedBearing, BEARING_ID, "bearing");
-            requireMovedBlockId(GLUE_BRIDGE_SEED.offset(movedOffset), SLIME_ID, "glue bridge slime");
-            requireMovedBlockId(GLUE_BRIDGE_SECONDARY.offset(movedOffset), HONEY_ID, "glue bridge honey");
             addFixtureForceLoadTicket(listedBody);
             stage = Stage.PHYSICS_INITIALIZATION;
             waitDiagnostic = diagnostic(
@@ -525,8 +518,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         requireMovedBlockId(movedMotor, MOTOR_ID, "reloaded motor");
         requireMovedBlockId(movedShaft, SHAFT_ID, "reloaded shaft");
         requireMovedBlockId(movedBearing, BEARING_ID, "reloaded bearing");
-        requireMovedBlockId(GLUE_BRIDGE_SEED.offset(movedOffset), SLIME_ID, "reloaded glue bridge slime");
-        requireMovedBlockId(GLUE_BRIDGE_SECONDARY.offset(movedOffset), HONEY_ID, "reloaded glue bridge honey");
         GlueState mainGlue;
         if ("unresolved".equals(glueRecoveryMode)) {
             requireMovedBlockId(movedHub, SHAFT_ID, "reloaded normalized child hub");
@@ -729,10 +720,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                 }
             }
         }
-        if (!level.setBlock(GLUE_BRIDGE_SEED, Blocks.SLIME_BLOCK.defaultBlockState(), 3)
-                || !level.setBlock(GLUE_BRIDGE_SECONDARY, Blocks.HONEY_BLOCK.defaultBlockState(), 3)) {
-            throw new IllegalStateException("failed to place causal slime/honey glue bridge");
-        }
         BlockState motor = withProperty(requireBlock(MOTOR_ID).defaultBlockState(), "facing", "east");
         shaftState = withProperty(requireBlock(SHAFT_ID).defaultBlockState(), "axis", "x");
         BlockState shaft = shaftState;
@@ -743,21 +730,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                 || !level.setBlock(BEARING_SOURCE, bearing, 3)
                 || !level.setBlock(ASSEMBLER_SOURCE, assembler, 3)) {
             throw new IllegalStateException("failed to place primary composed persistence fixture");
-        }
-    }
-
-    private static void requireNonStickyBridge(long now) {
-        BlockState slime = level.getBlockState(GLUE_BRIDGE_SEED);
-        BlockState honey = level.getBlockState(GLUE_BRIDGE_SECONDARY);
-        boolean slimeToHoney = slime.canStickTo(honey);
-        boolean honeyToSlime = honey.canStickTo(slime);
-        if (slimeToHoney || honeyToSlime) {
-            fail(SkyforgeCompilerIntegrationFailure.FAIL_PLACEMENT,
-                    diagnostic(SkyforgeCompilerIntegrationPhase.FIXTURE_PLACEMENT,
-                            "causal slime/honey bridge has no ordinary NeoForge adhesion in either direction",
-                            now, now, sourceIds(), safeServerState(),
-                            "slimeToHoney=" + slimeToHoney + " honeyToSlime=" + honeyToSlime),
-                    "persistence fixture glue bridge is ordinarily adhesive");
         }
     }
 
