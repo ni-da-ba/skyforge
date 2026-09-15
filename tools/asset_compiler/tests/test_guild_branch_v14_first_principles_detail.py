@@ -93,13 +93,20 @@ class GuildBranchFirstPrinciplesDetailTests(unittest.TestCase):
         detail = compiled.summary["layout"]["firstPrinciplesDetail"]
         self.assertIn("shared_roof_field_preserved", detail["authorities"])
 
-    def test_open_warehouse_does_not_reintroduce_partition_or_floating_manifest(self):
+    def test_open_working_wing_has_clear_bays_and_public_approach(self):
         compiled = self._compile()
         modules = {cell.module for cell in compiled.model.cells.values()}
         self.assertNotIn("fp_working_partition", modules)
         self.assertNotIn("fp14_freight_manifest", modules)
         self.assertNotIn("fp_freight_transom", modules)
-        self.assertIn("fp_repair_transom", modules)
+        self.assertNotIn("fp_repair_transom", modules)
+
+        rp = compiled.summary["layout"]["resolvedParameters"]
+        hall_x1 = int(rp["hallWidth"]) - 1
+        hall_z1 = int(rp["hallDepth"]) - 1
+        entrance_x0, entrance_x1 = map(int, rp["publicEntranceSpan"])
+        for x in range(max(0, entrance_x0 - 1), min(hall_x1, entrance_x1 + 1) + 1):
+            self.assertNotIn((x, 2, hall_z1 + 1), compiled.model.cells)
 
     def test_v14_exports_minecraft_structure_and_full_qa(self):
         compiled = self._compile()

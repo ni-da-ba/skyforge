@@ -317,7 +317,6 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
     repair_bench = BlockState.of(_material(materials, "repairBench"))
     tools = BlockState.of(_material(materials, "toolStorage"))
     desk = BlockState.of(_material(materials, "desk"), type="top")
-    transom = BlockState.of(_material(materials, "bayTransom"))
 
     def in_hall(x: int, z: int) -> bool:
         return hall_x0 <= x <= hall_x1 and hall_z0 <= z <= hall_z1
@@ -446,11 +445,9 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
             hinge = "left" if (z - a) % 2 == 0 else "right"
             model.set(wing_x1, 2, z, "door", BlockState.of(_material(materials, "workingDoor"), facing="east", half="lower", hinge=hinge), f"fp_{name}_door")
             model.set(wing_x1, 3, z, "door", BlockState.of(_material(materials, "workingDoor"), facing="east", half="upper", hinge=hinge), f"fp_{name}_door")
-            # Repair bays retain a glazed transom for daylight. Freight doors intentionally do
-            # not: the high glazing is functionally useless above the warehouse portal and adds
-            # visual clutter to an otherwise utilitarian loading face.
-            if name != "freight":
-                model.set(wing_x1 - 1, 4, z, "window", transom, f"fp_{name}_transom")
+            # Working bay portals stay visually and functionally direct: no high glazing is
+            # emitted above either the repair or freight doors. Daylight belongs in ordinary
+            # wall apertures rather than in a noninteractive strip over service openings.
             model.set(wing_x1, 4, z, "structural_frame", frame_z, f"fp_{name}_header")
             model.set(wing_x1, 5, z, "structural_frame", frame_z, f"fp_{name}_lintel")
             for x in range(wing_x1 + 1, wing_x1 + 3):

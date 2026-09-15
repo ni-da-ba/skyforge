@@ -93,12 +93,12 @@ class GuildBranchFirstPrinciplesTests(unittest.TestCase):
                 self.assertNotIn((x, y, staff_z), compiled.model.cells)
         self.assertEqual(compiled.model.cells[(hall_x1, 2, staff_z)].module, "fp_staff_connection")
 
-    def test_working_wing_is_open_plan_and_freight_portal_has_no_glazing(self):
+    def test_working_wing_is_open_plan_and_working_portals_have_no_glazing(self):
         compiled = self._compile()
         modules = {cell.module for cell in compiled.model.cells.values()}
         self.assertNotIn("fp_working_partition", modules)
         self.assertNotIn("fp_freight_transom", modules)
-        self.assertIn("fp_repair_transom", modules)
+        self.assertNotIn("fp_repair_transom", modules)
 
     def test_roof_field_and_structure_are_connected(self):
         compiled = self._compile()

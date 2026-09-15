@@ -84,6 +84,7 @@ def compile_guild_branch_first_principles_detail(spec: dict) -> CompiledAsset:
     public_center = sum(map(int, rp["publicEntranceSpan"])) // 2
     repair_open = tuple(map(int, rp["repairOpeningZ"]))
     freight_open = tuple(map(int, rp["freightOpeningZ"]))
+    public_entrance = tuple(map(int, rp["publicEntranceSpan"]))
 
     base_block_count = len(model.cells)
     added_positions: set[tuple[int, int, int]] = set()
@@ -108,9 +109,13 @@ def compile_guild_branch_first_principles_detail(spec: dict) -> CompiledAsset:
         return True
 
     # Layered exterior articulation. Detail fills only free planes so opening grammar stays authoritative.
+    public_approach_x = set(range(max(hall_x0, public_entrance[0] - 1), min(hall_x1, public_entrance[1] + 1) + 1))
     for x in range(hall_x0, hall_x1 + 1):
         for z in (hall_z0 - 1, hall_z1 + 1):
-            set_empty(x, 2, z, "foundation", masonry_slab, "fp14_public_plinth_band")
+            # Keep the decorative plinth away from the public threshold and one-cell shoulders so
+            # the customer approach remains a flat, unobstructed gameplay path.
+            if not (z == hall_z1 + 1 and x in public_approach_x):
+                set_empty(x, 2, z, "foundation", masonry_slab, "fp14_public_plinth_band")
             set_empty(x, wall_h, z, "structural_frame", trim_slab, "fp14_public_eave_fascia")
     for z in range(hall_z0, hall_z1 + 1):
         set_empty(hall_x0 - 1, 2, z, "foundation", masonry_slab, "fp14_west_plinth_band")
