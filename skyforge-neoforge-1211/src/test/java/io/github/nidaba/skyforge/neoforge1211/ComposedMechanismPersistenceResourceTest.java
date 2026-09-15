@@ -27,6 +27,8 @@ final class ComposedMechanismPersistenceResourceTest {
         assertTrue(pins.contains("neoforge.version=21.1.249"));
         assertTrue(source.contains("simulated:physics_assembler"));
         assertTrue(source.contains("create:creative_motor"));
+        assertTrue(source.contains("create:gearbox"));
+        assertTrue(source.contains("BEARING_REALIZED"));
         assertTrue(source.contains("aeronautics:propeller_bearing"));
     }
 

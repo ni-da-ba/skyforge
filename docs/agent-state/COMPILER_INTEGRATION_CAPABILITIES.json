@@ -414,11 +414,18 @@
       },
       "negative_evidence": [
         {
+          "workflow_run": 35030091364,
+          "job": 104586686559,
+          "commit": "246e30c9962d7802efe6a995aaa9cfa18e0a686a",
+          "result": "IDLE_BEARING_PRIMARY_CAPTURE_TIMEOUT",
+          "finding": "Removing the redundant slime/honey bridge still left Boot A with createdIds=[] through the 80-tick primary-assembly deadline, while accepted PLATFORM-005 remained green on the same current-main exact stack. PLATFORM-007 therefore stops presenting an idle Propeller Bearing to primary Sable capture: Boot A now reuses the exact accepted PLATFORM-003 4x2x2 creative-motor -> shaft -> gearbox primary specimen, then realizes the Propeller Bearing into a canonical moved plot cell before nested-child qualification and persistence."
+        },
+        {
           "workflow_run": 35029386358,
           "job": 104584445024,
           "commit": "a21b91466177b93d3e32a2330db0d03ceeef2b2e",
-          "result": "DUPLICATED_GLUE_CAUSALITY_SETUP_VARIANCE",
-          "finding": "After synchronization to current main, accepted NESTED_PROPELLER_BEARING_LIFECYCLE passed on the same exact stack while PLATFORM-007 twice timed out before creating its primary Sable body. The shared 3x2x2 bearing/assembler geometry is therefore healthy; the remaining PLATFORM-007-only pre-primary mutation was a slime/honey non-sticky bridge used to re-prove Super Glue causality. That causality is already owned by accepted SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE, so PLATFORM-007 removes the redundant material mutation and retains only the bounded main glue domain whose fresh-process recovery is the persistence subject."
+          "result": "PRE_PRIMARY_ASSEMBLY_VARIANCE_INVESTIGATION",
+          "finding": "After synchronization to current main, accepted NESTED_PROPELLER_BEARING_LIFECYCLE passed on the same exact stack while PLATFORM-007 twice timed out before creating its primary Sable body. The first reduction removed a redundant slime/honey Super Glue causality mutation already owned by SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE; a later exact-stack run showed that removal alone did not resolve the timeout, so the hypothesis was falsified rather than promoted as authority."
         },
         {
           "workflow_run": 35028018439,

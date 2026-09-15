@@ -44,18 +44,20 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static final ResourceLocation PHYSICS_ASSEMBLER = id("simulated:physics_assembler");
     private static final ResourceLocation MOTOR_ID = id("create:creative_motor");
     private static final ResourceLocation SHAFT_ID = id("create:shaft");
+    private static final ResourceLocation ENDPOINT_ID = id("create:gearbox");
     private static final ResourceLocation BEARING_ID = id("aeronautics:propeller_bearing");
     private static final ResourceLocation SAIL_ID = id("simulated:white_symmetric_sail");
 
     private static final BlockPos BODY_MIN = new BlockPos(0, 200, 0);
-    private static final BlockPos BODY_MAX = new BlockPos(2, 201, 1);
+    private static final BlockPos BODY_MAX = new BlockPos(3, 201, 1);
     private static final BlockPos MOTOR_SOURCE = new BlockPos(0, 201, 0);
     private static final BlockPos SHAFT_SOURCE = new BlockPos(1, 201, 0);
-    private static final BlockPos BEARING_SOURCE = new BlockPos(2, 201, 0);
-    private static final BlockPos ASSEMBLER_SOURCE = new BlockPos(2, 202, 1);
-    private static final BlockPos CHILD_HUB_SOURCE = new BlockPos(3, 201, 0);
-    private static final BlockPos CHILD_SAIL_UP_SOURCE = new BlockPos(3, 202, 0);
-    private static final BlockPos CHILD_SAIL_DOWN_SOURCE = new BlockPos(3, 200, 0);
+    private static final BlockPos ENDPOINT_SOURCE = new BlockPos(2, 201, 0);
+    private static final BlockPos BEARING_SOURCE = new BlockPos(3, 201, 0);
+    private static final BlockPos ASSEMBLER_SOURCE = new BlockPos(3, 202, 1);
+    private static final BlockPos CHILD_HUB_SOURCE = new BlockPos(4, 201, 0);
+    private static final BlockPos CHILD_SAIL_UP_SOURCE = new BlockPos(4, 202, 0);
+    private static final BlockPos CHILD_SAIL_DOWN_SOURCE = new BlockPos(4, 200, 0);
     private static final BlockPos MAIN_GLUE_MIN = BODY_MIN;
     private static final BlockPos MAIN_GLUE_MAX = ASSEMBLER_SOURCE;
     private static final BlockPos CHILD_GLUE_MIN = CHILD_SAIL_DOWN_SOURCE;
@@ -87,6 +89,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static BlockPos movedOffset;
     private static BlockPos movedMotor;
     private static BlockPos movedShaft;
+    private static BlockPos movedEndpoint;
     private static BlockPos movedBearing;
     private static BlockPos movedHub;
     private static BlockPos movedSailUp;
@@ -269,13 +272,15 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             movedOffset = movedOffset(listedBody, centerOfMass);
             movedMotor = MOTOR_SOURCE.offset(movedOffset);
             movedShaft = SHAFT_SOURCE.offset(movedOffset);
+            movedEndpoint = ENDPOINT_SOURCE.offset(movedOffset);
             movedBearing = BEARING_SOURCE.offset(movedOffset);
             movedHub = CHILD_HUB_SOURCE.offset(movedOffset);
             movedSailUp = CHILD_SAIL_UP_SOURCE.offset(movedOffset);
             movedSailDown = CHILD_SAIL_DOWN_SOURCE.offset(movedOffset);
             requireMovedBlockId(movedMotor, MOTOR_ID, "motor");
             requireMovedBlockId(movedShaft, SHAFT_ID, "shaft");
-            requireMovedBlockId(movedBearing, BEARING_ID, "bearing");
+            requireMovedBlockId(movedEndpoint, ENDPOINT_ID, "accepted PLATFORM-003 gearbox endpoint");
+            requireMovedBlockId(movedBearing, id("minecraft:oak_planks"), "bearing realization plate cell");
             addFixtureForceLoadTicket(listedBody);
             stage = Stage.PHYSICS_INITIALIZATION;
             waitDiagnostic = diagnostic(
@@ -291,9 +296,13 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             return;
         }
         if (waitDiagnostic.expired(now)) {
+            BlockEntity assembler = level.getBlockEntity(ASSEMBLER_SOURCE);
+            Object lastAssemblyException = assembler == null
+                    ? "assembler=null"
+                    : publicMethod(assembler, "getLastAssemblyException").invoke(assembler);
             fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_ASSEMBLY_REGISTRATION,
                     waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
-                            "createdIds=" + created),
+                            "createdIds=" + created + " lastAssemblyException=" + lastAssemblyException),
                     "Sable primary-body registration deadline expired");
         }
     }
@@ -325,11 +334,12 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             publicMethod(physicsSystem, "setPaused", boolean.class).invoke(physicsSystem, false);
             physicsPauseChanged = true;
         }
-        for (BlockPos pos : List.of(movedMotor, movedShaft, movedBearing, movedHub, movedSailUp, movedSailDown)) {
+        for (BlockPos pos : List.of(movedMotor, movedShaft, movedEndpoint, movedBearing, movedHub, movedSailUp, movedSailDown)) {
             requireCanonicalPlotOwnership(canonical, pos);
         }
         requireExpectedMovedBlockEntity(canonical, movedMotor, "CreativeMotorBlockEntity", now);
-        requireExpectedMovedBlockEntity(canonical, movedBearing, "PropellerBearingBlockEntity", now);
+        requireExpectedMovedBlockEntity(canonical, movedEndpoint, "GearboxBlockEntity", now);
+        realizeMovedBearing(canonical, now);
         stage = Stage.KINETIC_BUILD;
         waitDiagnostic = diagnostic(
                 SkyforgeCompilerIntegrationPhase.MECHANISM_INITIALIZATION,
@@ -341,6 +351,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static void pollKineticBuild(long now) throws ReflectiveOperationException {
         Object canonical = requireCanonicalBody();
         Object bearing = requireExpectedMovedBlockEntity(canonical, movedBearing, "PropellerBearingBlockEntity", now);
+        if (bearing == null) return;
         KineticState state = kineticState(bearing);
         if (Math.abs(state.speed()) > 0.0f && state.hasSource() && state.hasNetwork()) {
             bearingNetworkSpeed = state.speed();
@@ -359,6 +370,20 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                     waitDiagnostic.withFinalState(movedIds(), safeServerState(), "headless", "bearing=" + state),
                     "moved Propeller Bearing kinetic network did not initialize");
         }
+    }
+
+    private static void realizeMovedBearing(Object canonical, long now) throws ReflectiveOperationException {
+        requireCanonicalPlotOwnership(canonical, movedBearing);
+        BlockState bearing = withProperty(requireBlock(BEARING_ID).defaultBlockState(), "facing", "east");
+        if (!level.setBlock(movedBearing, bearing, 3)) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_PLACEMENT,
+                    finalDiagnostic("movedBearing=" + movedBearing),
+                    "failed to realize Propeller Bearing into accepted PLATFORM-003 primary plot");
+        }
+        requireMovedBlockId(movedBearing, BEARING_ID, "post-primary Propeller Bearing");
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " BEARING_REALIZED bodyId=" + bodyId + " movedBearing=" + movedBearing
+                        + " upstreamEndpoint=" + movedEndpoint + " tick=" + now);
     }
 
     private static void realizeMovedChildTopology(Object canonical, Object bearing, long now)
@@ -511,12 +536,14 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         requireFiniteVector(position, "reloaded logicalPose.position");
         movedMotor = MOTOR_SOURCE.offset(movedOffset);
         movedShaft = SHAFT_SOURCE.offset(movedOffset);
+        movedEndpoint = ENDPOINT_SOURCE.offset(movedOffset);
         movedBearing = BEARING_SOURCE.offset(movedOffset);
         movedHub = CHILD_HUB_SOURCE.offset(movedOffset);
         movedSailUp = CHILD_SAIL_UP_SOURCE.offset(movedOffset);
         movedSailDown = CHILD_SAIL_DOWN_SOURCE.offset(movedOffset);
         requireMovedBlockId(movedMotor, MOTOR_ID, "reloaded motor");
         requireMovedBlockId(movedShaft, SHAFT_ID, "reloaded shaft");
+        requireMovedBlockId(movedEndpoint, ENDPOINT_ID, "reloaded gearbox endpoint");
         requireMovedBlockId(movedBearing, BEARING_ID, "reloaded bearing");
         GlueState mainGlue;
         if ("unresolved".equals(glueRecoveryMode)) {
@@ -723,13 +750,13 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         BlockState motor = withProperty(requireBlock(MOTOR_ID).defaultBlockState(), "facing", "east");
         shaftState = withProperty(requireBlock(SHAFT_ID).defaultBlockState(), "axis", "x");
         BlockState shaft = shaftState;
-        BlockState bearing = withProperty(requireBlock(BEARING_ID).defaultBlockState(), "facing", "east");
+        BlockState endpoint = withProperty(requireBlock(ENDPOINT_ID).defaultBlockState(), "axis", "y");
         BlockState assembler = withProperty(requireBlock(PHYSICS_ASSEMBLER).defaultBlockState(), "face", "floor");
         if (!level.setBlock(MOTOR_SOURCE, motor, 3)
                 || !level.setBlock(SHAFT_SOURCE, shaft, 3)
-                || !level.setBlock(BEARING_SOURCE, bearing, 3)
+                || !level.setBlock(ENDPOINT_SOURCE, endpoint, 3)
                 || !level.setBlock(ASSEMBLER_SOURCE, assembler, 3)) {
-            throw new IllegalStateException("failed to place primary composed persistence fixture");
+            throw new IllegalStateException("failed to place accepted PLATFORM-003 primary persistence fixture");
         }
     }
 
@@ -1252,14 +1279,14 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
 
     private static String sourceIds() {
         return "assembler=" + ASSEMBLER_SOURCE + " motor=" + MOTOR_SOURCE + " shaft=" + SHAFT_SOURCE
-                + " bearing=" + BEARING_SOURCE + " hub=" + CHILD_HUB_SOURCE
+                + " endpoint=" + ENDPOINT_SOURCE + " bearingRealization=" + BEARING_SOURCE + " hub=" + CHILD_HUB_SOURCE
                 + " sailUp=" + CHILD_SAIL_UP_SOURCE + " sailDown=" + CHILD_SAIL_DOWN_SOURCE
                 + " mainGlueId=" + mainGlueId + " childGlueId=" + childGlueId + " groundChildId=" + groundChildId;
     }
 
     private static String movedIds() {
         return "bodyId=" + bodyId + " movedOffset=" + movedOffset + " motor=" + movedMotor + " shaft=" + movedShaft
-                + " bearing=" + movedBearing + " hub=" + movedHub + " sailUp=" + movedSailUp
+                + " endpoint=" + movedEndpoint + " bearing=" + movedBearing + " hub=" + movedHub + " sailUp=" + movedSailUp
                 + " sailDown=" + movedSailDown + " groundChildId=" + groundChildId + " nestedChildId=" + nestedChildId;
     }
 
