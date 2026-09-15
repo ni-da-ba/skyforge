@@ -14,6 +14,7 @@ from model import BlockState, Cell, CompiledAsset, SpecError, VoxelModel
 
 BOOLS = frozenset({"false", "true"})
 FACINGS = frozenset({"north", "east", "south", "west"})
+DISTANCES = frozenset(str(i) for i in range(8))
 
 
 def _bars_capability() -> BlockCapability:
@@ -54,10 +55,29 @@ def _ladder_capability() -> BlockCapability:
     )
 
 
+def _scaffolding_capability() -> BlockCapability:
+    return BlockCapability(
+        name="example:metal_scaffolding",
+        families=frozenset({"access", "industrial_metal"}),
+        capabilities=frozenset({"scaffolding", "climbable", "neighbor_sensitive"}),
+        properties=(
+            ("bottom", BOOLS),
+            ("distance", DISTANCES),
+            ("waterlogged", BOOLS),
+        ),
+        defaults=(
+            ("bottom", "false"),
+            ("distance", "7"),
+            ("waterlogged", "false"),
+        ),
+    )
+
+
 def _adapter() -> StructuralDetailMinecraftAdapter:
     registry = vanilla_1_21_1_registry()
     registry["example:iron_bars"] = _bars_capability()
     registry["example:metal_ladder"] = _ladder_capability()
+    registry["example:metal_scaffolding"] = _scaffolding_capability()
     return StructuralDetailMinecraftAdapter(registry=registry)
 
 
@@ -67,9 +87,9 @@ def _compiled(model: VoxelModel) -> CompiledAsset:
             "validation": {"passed": True},
             "layout": {
                 "bounds": {
-                    "min": [-1, 0, -1],
-                    "max": [1, 0, 1],
-                    "size": [3, 1, 3],
+                    "min": [-2, -1, -2],
+                    "max": [3, 3, 2],
+                    "size": [6, 5, 5],
                 }
             },
         },
@@ -180,6 +200,85 @@ class MinecraftStructuralDetailAdapterTests(unittest.TestCase):
         self.assertIn("climbable", intent.required_capabilities)
         self.assertIn("attachment_sensitive", intent.required_capabilities)
         self.assertEqual(adapter.resolve_intent(intent).name, "example:metal_ladder")
+
+    def test_scaffolding_solves_vertical_and_horizontal_support_distance(self):
+        adapter = _adapter()
+        model = VoxelModel()
+        model.set(0, -1, 0, "foundation", BlockState.of("minecraft:stone_bricks"))
+        model.set(0, 0, 0, "access", BlockState.of("example:metal_scaffolding"))
+        model.set(0, 1, 0, "access", BlockState.of("example:metal_scaffolding"))
+        model.set(1, 0, 0, "access", BlockState.of("example:metal_scaffolding"))
+        model.set(2, 0, 0, "access", BlockState.of("example:metal_scaffolding"))
+
+        realized, report = adapter.adapt(_compiled(model))
+        states = {
+            pos: realized.model.cells[pos].state.property_dict()
+            for pos in ((0, 0, 0), (0, 1, 0), (1, 0, 0), (2, 0, 0))
+        }
+        self.assertEqual(states[(0, 0, 0)]["distance"], "0")
+        self.assertEqual(states[(0, 1, 0)]["distance"], "0")
+        self.assertEqual(states[(1, 0, 0)]["distance"], "1")
+        self.assertEqual(states[(2, 0, 0)]["distance"], "2")
+        self.assertEqual(states[(0, 0, 0)]["bottom"], "false")
+        self.assertEqual(states[(0, 1, 0)]["bottom"], "false")
+        self.assertEqual(states[(1, 0, 0)]["bottom"], "true")
+        self.assertEqual(states[(2, 0, 0)]["bottom"], "true")
+        self.assertGreaterEqual(report["connectivityStateChanges"], 4)
+
+    def test_scaffolding_derived_state_overrides_legal_authored_state(self):
+        adapter = _adapter()
+        model = VoxelModel()
+        model.set(0, -1, 0, "foundation", BlockState.of("minecraft:stone_bricks"))
+        model.set(
+            0,
+            0,
+            0,
+            "access",
+            BlockState.of("example:metal_scaffolding", bottom=True, distance=6),
+        )
+
+        realized, _report = adapter.adapt(_compiled(model))
+        props = realized.model.cells[(0, 0, 0)].state.property_dict()
+        self.assertEqual(props["bottom"], "false")
+        self.assertEqual(props["distance"], "0")
+
+    def test_scaffolding_rejects_cluster_without_portable_support_path(self):
+        adapter = _adapter()
+        model = VoxelModel()
+        model.set(0, 0, 0, "access", BlockState.of("example:metal_scaffolding"))
+        model.set(0, 1, 0, "access", BlockState.of("example:metal_scaffolding"))
+        with self.assertRaisesRegex(SpecError, "portable support path"):
+            adapter.adapt(_compiled(model))
+
+    def test_scaffolding_has_distinct_partial_neighbor_dependent_shapes(self):
+        adapter = _adapter()
+        normal = adapter.shape_descriptor(
+            BlockState.of("example:metal_scaffolding", bottom=False, distance=0)
+        )
+        bottom = adapter.shape_descriptor(
+            BlockState.of("example:metal_scaffolding", bottom=True, distance=1)
+        )
+        self.assertEqual(normal.shape_class, "scaffolding")
+        self.assertEqual(bottom.shape_class, "scaffolding_bottom")
+        for shape in (normal, bottom):
+            self.assertTrue(shape.partial_collision)
+            self.assertTrue(shape.neighbor_dependent)
+            self.assertEqual(shape.support_faces, frozenset())
+        self.assertGreater(bottom.collision_volume_fraction, normal.collision_volume_fraction)
+
+    def test_scaffolding_and_climbable_capabilities_survive_semantic_roundtrip(self):
+        adapter = _adapter()
+        cell = Cell(
+            "access",
+            BlockState.of("example:metal_scaffolding"),
+            "synthetic_scaffold",
+        )
+        intent = adapter.intent_from_cell(cell)
+        self.assertIn("scaffolding", intent.required_capabilities)
+        self.assertIn("climbable", intent.required_capabilities)
+        self.assertIn("neighbor_sensitive", intent.required_capabilities)
+        self.assertNotIn("full_cube", intent.required_capabilities)
+        self.assertEqual(adapter.resolve_intent(intent).name, "example:metal_scaffolding")
 
 
 if __name__ == "__main__":
