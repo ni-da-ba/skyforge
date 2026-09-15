@@ -32,19 +32,29 @@ class MinecraftWbyProfileTests(unittest.TestCase):
             doc["validation"]["createSourceCommit"],
             "79b5d3b37e2d1970818dd97ca460b649cd0a456c",
         )
+        self.assertEqual(
+            doc["validation"]["exactPinnedRuntimeRegistryProbe"],
+            "passed-wave-c1-exact-create-runtime",
+        )
 
         declared = {entry["name"]: entry for entry in doc["blocks"]}
         active = {name for name, entry in declared.items() if entry["status"] == "active"}
         cataloged = {name for name, entry in declared.items() if entry["status"] == "cataloged"}
 
-        self.assertEqual(active, {"create:andesite_casing", "create:brass_casing"})
+        self.assertEqual(
+            active,
+            {
+                "create:andesite_casing",
+                "create:brass_casing",
+                "create:framed_glass_pane",
+            },
+        )
         self.assertEqual(
             cataloged,
             {
                 "create:copper_casing",
                 "create:industrial_iron_block",
                 "create:weathered_iron_block",
-                "create:framed_glass_pane",
                 "create:industrial_iron_window_pane",
                 "create:ornate_iron_window_pane",
             },
@@ -64,11 +74,11 @@ class MinecraftWbyProfileTests(unittest.TestCase):
         self.assertIn("minecraft:stone_bricks", registry)
         self.assertIn("minecraft:glass_pane", registry)
 
-    def test_cataloged_stateful_glazing_contract_is_explicit_but_not_selectable(self):
+    def test_live_validated_framed_glazing_is_active_and_specialized_panes_remain_catalog_only(self):
         doc = json.loads(CATALOG.read_text(encoding="utf-8"))
         declared = {entry["name"]: entry for entry in doc["blocks"]}
         pane = declared["create:framed_glass_pane"]
-        self.assertEqual(pane["status"], "cataloged")
+        self.assertEqual(pane["status"], "active")
         self.assertEqual(
             pane["properties"],
             {
@@ -83,7 +93,14 @@ class MinecraftWbyProfileTests(unittest.TestCase):
 
         cell = Cell("window", BlockState.of("example:ignored"), "fp_public_window")
         intent = guild_v014_wby_intent(cell)
-        self.assertEqual(guild_v014_wby_adapter().resolve_intent(intent).name, "minecraft:glass_pane")
+        self.assertEqual(intent.preferred_blocks[0], "create:framed_glass_pane")
+        self.assertEqual(
+            guild_v014_wby_adapter().resolve_intent(intent).name,
+            "create:framed_glass_pane",
+        )
+        registry = wby_c1_create_registry()
+        self.assertNotIn("create:industrial_iron_window_pane", registry)
+        self.assertNotIn("create:ornate_iron_window_pane", registry)
 
     def _write_bad_catalog(self, document: dict, tmp: str) -> Path:
         path = Path(tmp) / "bad.json"
