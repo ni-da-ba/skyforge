@@ -12,7 +12,8 @@
     "blockstateSourceAudit": "exact-create-6.0.10-source-commit",
     "exactPinnedRuntimeRegistryProbe": "passed-wave-c1-exact-create-runtime",
     "exactPinnedRuntimeRegistryEvidence": "asset-compiler-proof resolves LNytGWDc-UjX6dr61 then runs WBY_C1_STRUCTURE_REGISTRY against Create 6.0.10; eight catalog blocks and all three pane state/default contracts validated live",
-    "policy": "catalog entries are non-selectable unless status is active; stateful entries require exact-runtime registry validation before promotion"
+    "deferredStructuralRuntimeObservation": "passed-wave-c1-exact-create-runtime-10-resources",
+    "policy": "catalog entries are non-selectable unless status is active; deferredStateContracts are evidence only and never enter the resolver registry"
   },
   "blocks": [
     {
@@ -116,6 +117,103 @@
       "status": "cataloged"
     }
   ],
+  "deferredStateContracts": [
+    {
+      "name": "create:andesite_bars",
+      "runtimeClass": "net.minecraft.world.level.block.IronBarsBlock",
+      "properties": {
+        "east": ["false", "true"],
+        "north": ["false", "true"],
+        "south": ["false", "true"],
+        "waterlogged": ["false", "true"],
+        "west": ["false", "true"]
+      },
+      "defaults": {"east": "false", "north": "false", "south": "false", "waterlogged": "false", "west": "false"},
+      "semanticGate": "target-neutral railing/bars role plus generic cardinal-connectable thin topology"
+    },
+    {
+      "name": "create:brass_bars",
+      "runtimeClass": "net.minecraft.world.level.block.IronBarsBlock",
+      "properties": {
+        "east": ["false", "true"],
+        "north": ["false", "true"],
+        "south": ["false", "true"],
+        "waterlogged": ["false", "true"],
+        "west": ["false", "true"]
+      },
+      "defaults": {"east": "false", "north": "false", "south": "false", "waterlogged": "false", "west": "false"},
+      "semanticGate": "target-neutral railing/bars role plus generic cardinal-connectable thin topology"
+    },
+    {
+      "name": "create:copper_bars",
+      "runtimeClass": "net.minecraft.world.level.block.IronBarsBlock",
+      "properties": {
+        "east": ["false", "true"],
+        "north": ["false", "true"],
+        "south": ["false", "true"],
+        "waterlogged": ["false", "true"],
+        "west": ["false", "true"]
+      },
+      "defaults": {"east": "false", "north": "false", "south": "false", "waterlogged": "false", "west": "false"},
+      "semanticGate": "target-neutral railing/bars role plus generic cardinal-connectable thin topology"
+    },
+    {
+      "name": "create:andesite_ladder",
+      "runtimeClass": "com.simibubi.create.content.decoration.MetalLadderBlock",
+      "properties": {"facing": ["north", "east", "south", "west"], "waterlogged": ["false", "true"]},
+      "defaults": {"facing": "north", "waterlogged": "false"},
+      "semanticGate": "explicit climbable role plus attachment and survival validation"
+    },
+    {
+      "name": "create:brass_ladder",
+      "runtimeClass": "com.simibubi.create.content.decoration.MetalLadderBlock",
+      "properties": {"facing": ["north", "east", "south", "west"], "waterlogged": ["false", "true"]},
+      "defaults": {"facing": "north", "waterlogged": "false"},
+      "semanticGate": "explicit climbable role plus attachment and survival validation"
+    },
+    {
+      "name": "create:copper_ladder",
+      "runtimeClass": "com.simibubi.create.content.decoration.MetalLadderBlock",
+      "properties": {"facing": ["north", "east", "south", "west"], "waterlogged": ["false", "true"]},
+      "defaults": {"facing": "north", "waterlogged": "false"},
+      "semanticGate": "explicit climbable role plus attachment and survival validation"
+    },
+    {
+      "name": "create:andesite_scaffolding",
+      "runtimeClass": "com.simibubi.create.content.decoration.MetalScaffoldingBlock",
+      "properties": {"bottom": ["false", "true"], "distance": ["0", "1", "2", "3", "4", "5", "6", "7"], "waterlogged": ["false", "true"]},
+      "defaults": {"bottom": "false", "distance": "7", "waterlogged": "false"},
+      "semanticGate": "dedicated scaffolding role with state, collision, and support semantics"
+    },
+    {
+      "name": "create:brass_scaffolding",
+      "runtimeClass": "com.simibubi.create.content.decoration.MetalScaffoldingBlock",
+      "properties": {"bottom": ["false", "true"], "distance": ["0", "1", "2", "3", "4", "5", "6", "7"], "waterlogged": ["false", "true"]},
+      "defaults": {"bottom": "false", "distance": "7", "waterlogged": "false"},
+      "semanticGate": "dedicated scaffolding role with state, collision, and support semantics"
+    },
+    {
+      "name": "create:copper_scaffolding",
+      "runtimeClass": "com.simibubi.create.content.decoration.MetalScaffoldingBlock",
+      "properties": {"bottom": ["false", "true"], "distance": ["0", "1", "2", "3", "4", "5", "6", "7"], "waterlogged": ["false", "true"]},
+      "defaults": {"bottom": "false", "distance": "7", "waterlogged": "false"},
+      "semanticGate": "dedicated scaffolding role with state, collision, and support semantics"
+    },
+    {
+      "name": "create:metal_girder",
+      "runtimeClass": "com.simibubi.create.content.decoration.girder.GirderBlock",
+      "properties": {
+        "axis": ["x", "y", "z"],
+        "bottom": ["false", "true"],
+        "top": ["false", "true"],
+        "waterlogged": ["false", "true"],
+        "x": ["false", "true"],
+        "z": ["false", "true"]
+      },
+      "defaults": {"axis": "y", "bottom": "false", "top": "false", "waterlogged": "false", "x": "false", "z": "false"},
+      "semanticGate": "dedicated girder/brace role with axis and connectivity lowering"
+    }
+  ],
   "deferredCandidates": [
     {
       "name": "create:framed_glass",
@@ -123,19 +221,19 @@
     },
     {
       "name": "create:andesite_bars / create:brass_bars / create:copper_bars",
-      "reason": "exact Create 6.0.10 source registers ordinary IronBarsBlock variants; promotion needs a target-neutral railing/bars role and generic cardinal-connectable thin topology rather than misusing glazing semantics"
+      "reason": "live Create 6.0.10 runtime confirms ordinary IronBarsBlock state contracts; promotion still needs a target-neutral railing/bars role and generic cardinal-connectable thin topology rather than misusing glazing semantics"
     },
     {
       "name": "create:andesite_ladder / create:brass_ladder / create:copper_ladder",
-      "reason": "exact Create 6.0.10 source registers MetalLadderBlock variants inheriting LadderBlock; promotion needs explicit climbable/attachment-sensitive structure semantics and runtime state validation"
+      "reason": "live Create 6.0.10 runtime confirms MetalLadderBlock facing/waterlogged state; promotion still needs explicit climbable/attachment-sensitive structure semantics"
     },
     {
       "name": "create:andesite_scaffolding / create:brass_scaffolding / create:copper_scaffolding",
-      "reason": "useful industrial access/detail vocabulary, but MetalScaffoldingBlock has richer survival/state behavior that needs a dedicated compiler capability and runtime validation"
+      "reason": "live Create 6.0.10 runtime confirms bottom/distance/waterlogged state; dedicated compiler collision/support semantics are still required"
     },
     {
       "name": "create:metal_girder",
-      "reason": "useful structural-detail geometry, but requires a dedicated girder/brace semantic role and exact runtime property-domain validation before admission"
+      "reason": "live Create 6.0.10 runtime confirms axis/bottom/top/waterlogged/x/z state; a dedicated girder/brace semantic role and connectivity lowering are still required"
     },
     {
       "name": "create machinery / addon block entities",
