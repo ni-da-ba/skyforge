@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "0.13",
+  "assetId": "guild.branch.bootstrap.temperate.first_principles.v0_13",
+  "assetType": "guild_branch",
+  "generationMode": "first_principles",
+  "seed": 488001,
+  "family": {
+    "institution": "skyfarers_guild",
+    "grammar": "guild_mercantile_functionalism",
+    "region": "temperate",
+    "scale": "small"
+  },
+  "program": {
+    "publicHallMinArea": 120,
+    "repairMinArea": 18,
+    "warehouseMinArea": 22,
+    "maxFootprintArea": 500,
+    "publicCirculationWidth": 2,
+    "waitingSeats": 6,
+    "entranceSeesService": true,
+    "requiredAdjacency": [
+      ["publicEntrance", "waiting"],
+      ["waiting", "serviceCounter"],
+      ["serviceCounter", "staffWork"],
+      ["staffWork", "backOffice"],
+      ["staffWork", "repairBay"],
+      ["staffWork", "warehouse"],
+      ["repairBay", "airfield"],
+      ["warehouse", "airfield"]
+    ]
+  },
+  "firstPrinciples": {
+    "referenceProfile": "guild_branch_temperate_small_working_reference_v0.1.json",
+    "candidateDomains": {
+      "bayCount": [3, 5],
+      "bayWidth": [5, 6],
+      "wallHeight": [6, 7],
+      "hallDepth": [12, 13, 14, 15, 16, 17, 18],
+      "workingWingWidth": [7, 8, 9],
+      "roofRise": [3, 4, 5],
+      "roofOverhang": [1, 2],
+      "windowWidth": [2, 3]
+    },
+    "objectiveWeights": {
+      "bayWidthToWallHeight": 1.0,
+      "mainDepthToHallWidth": 1.25,
+      "workingWingWidthToHallWidth": 1.0,
+      "mainRoofRiseToDepth": 1.25,
+      "roofOverhangToDepth": 0.75,
+      "publicEntranceWidthToBayWidth": 1.0,
+      "averagePublicWindowWidthToBayWidth": 1.0,
+      "boundViolation": 5.0,
+      "compactness": 0.35,
+      "workingBalance": 0.20,
+      "grammarComplexity": 0.10
+    },
+    "authorities": [
+      "semantic_program_before_geometry",
+      "constraints_before_coordinates",
+      "attributed_facade_grammar",
+      "layer_contracts_before_voxelization",
+      "shared_roof_field",
+      "graph_theoretic_circulation",
+      "graph_theoretic_structural_legibility",
+      "minimum_description_length_bias"
+    ]
+  },
+  "paletteReview": {
+    "status": "provisional",
+    "geometryPassLocksPalette": true,
+    "intent": {
+      "institutionalBlue": "deep navy institutional paint/textile accent",
+      "brassAccent": "aged warm brass-like hardware accent"
+    },
+    "current": {
+      "institutionalBlue": "minecraft:blue_wool",
+      "brassAccent": "minecraft:yellow_terracotta"
+    },
+    "nextGate": "dedicated in-game blue/brass palette swatch comparison"
+  },
+  "materialRoles": {
+    "foundation": "minecraft:stone_bricks",
+    "structuralFrame": "minecraft:dark_oak_log",
+    "wallInfill": "minecraft:calcite",
+    "floor": "minecraft:spruce_planks",
+    "roof": "minecraft:deepslate_tiles",
+    "roofStair": "minecraft:deepslate_tile_stairs",
+    "roofSlab": "minecraft:deepslate_tile_slab",
+    "window": "minecraft:glass_pane",
+    "publicDoor": "minecraft:spruce_door",
+    "workingDoor": "minecraft:dark_oak_door",
+    "hardware": "minecraft:polished_andesite",
+    "lighting": "minecraft:lantern",
+    "institutionalAccent": "minecraft:blue_wool",
+    "brassAccent": "minecraft:yellow_terracotta",
+    "canopy": "minecraft:dark_oak_slab",
+    "seating": "minecraft:spruce_slab",
+    "recordsShelf": "minecraft:bookshelf",
+    "publicBoard": "minecraft:dark_oak_planks",
+    "freightContainer": "minecraft:barrel",
+    "repairBench": "minecraft:smithing_table",
+    "toolStorage": "minecraft:chest",
+    "desk": "minecraft:dark_oak_slab",
+    "exteriorTrimSlab": "minecraft:dark_oak_slab",
+    "masonryTrimSlab": "minecraft:stone_brick_slab",
+    "bayTransom": "minecraft:glass_pane"
+  },
+  "requestedAnchors": [
+    "PUBLIC_ENTRANCE",
+    "SERVICE_COUNTER",
+    "CONTRACT_BOARD",
+    "ROUTE_INFO",
+    "NPC_WORK_POINT",
+    "BACK_OFFICE_WORK",
+    "FREIGHT_PICKUP",
+    "FREIGHT_DROPOFF",
+    "REPAIR_BAY",
+    "AIRFIELD_INTERFACE"
+  ]
+}
