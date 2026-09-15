@@ -1,7 +1,7 @@
 # Skyforge Aircraft Compiler state
 
 **Program authority:** issue #545  
-**Productionization boundary:** AIRCRAFT-PROD-009 / issue #656
+**Productionization boundary:** AIRCRAFT-PROD-010 / issue #658
 **Frozen evidence only:** `aircraft-compiler-proof@0651bcee7dc879ab43db2f0b224f77e5026222bd`  
 **Frozen implementation beneath checkpoint:** `cc020c872b9c53198cebbb0ae9094097f23c9c45`
 
@@ -174,12 +174,32 @@ Physics Assembler fixture topology:
 This tranche proves fixture geometry and logical adhesion topology only. It does not encode Super Glue,
 invoke Sable assembly, prove nested capture, or qualify persistence, controls, forces, or flight.
 
+## Productionized by AIRCRAFT-PROD-010
+
+On acceptance of issue #658, the accepted v0.10 main-body spanning-tree adhesion intent is lowered to
+deterministic bounded Create 6.0.10 Super Glue command/domain data:
+
+- each proof edge is revalidated as unique, face-adjacent, main-body-only, and part of the exact N-1 tree;
+- the retained encoding uses `create glue`, permission level 2, a 24-block maximum selection dimension,
+  and the source-backed `Create-6.0.10-AllCommands/GlueCommand+SuperGlueEntity.span` contract;
+- every configured glue domain must cover at least one accepted proof edge, and the domain set must cover
+  all proof edges;
+- domains fail closed if they exceed the selection bound, contain nested propeller payload cells, or
+  contain both endpoints of a forbidden dynamic boundary;
+- relative glue commands and the Physics Assembler `setblock` command are deterministic, with assembler
+  block-state keys sorted in command output;
+- live command registration, SuperGlueEntity realization, Physics Assembler capture, nested propeller
+  capture, and moved-glue persistence remain explicit runtime obligations.
+
+This tranche is static encoding only and does not consume the separate Platform-owned live Super Glue
+qualification work. Runtime qualification, persistence, controls, forces, and flight remain unclaimed.
+
 ## Frozen evidence not yet productionized
 
 The frozen branch contains accepted evidence for later compiler/runtime stages, but that evidence is
 not current-`main` production authority for:
 
-- bounded Super Glue lowering, governed powertrain lowering, and live registry/blockstate validation;
+- governed powertrain lowering and live registry/blockstate validation;
 - Sable primary/nested assembly, bounded Super Glue domains, and live propulsion/governor mechanism behavior;
 - yaw mechanism, cockpit routing, player interaction, and moving-body tracking.
 
@@ -209,12 +229,12 @@ work around the Platform fixture inside a complete aircraft.
 
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-PROD-009 is accepted on `main`, productionize the frozen v0.11 bounded Super Glue
-encoding over the accepted main-body spanning-tree intent. That tranche must preserve edge coverage,
-source-backed Create 6.0.10 glue semantics, assembler membership, and nested-child exclusion without
-claiming that the encoded domains have succeeded in a live assembly. Exact-stack runtime qualification
-may consume only capabilities explicitly granted to Agent B by
+After AIRCRAFT-PROD-010 is accepted on `main`, productionize the frozen v0.12 governed powertrain
+lowering over the accepted placement manifest plus glue encoding. Keep its source-backed Create/Simulated
+resource topology, replacement/addition semantics, governor point, RPM/stress/thrust obligations, and
+nested-propeller boundary compile-visible without claiming live mechanism behavior. Exact-stack runtime
+qualification may consume only capabilities explicitly granted to Agent B by
 `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`; accepted Sable-primary and
 Create-kinetic-on-Sable seams may be consumed when the aircraft-specific compiler artifact reaches the
-corresponding runtime boundary. Persistence and new control-axis work remain downstream of their
-applicable Platform contracts.
+corresponding runtime boundary, while Platform-owned Super Glue realization must not be duplicated.
+Persistence and new control-axis work remain downstream of their applicable Platform contracts.
