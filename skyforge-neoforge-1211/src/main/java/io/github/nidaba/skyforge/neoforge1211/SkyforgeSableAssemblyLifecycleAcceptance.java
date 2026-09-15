@@ -187,10 +187,27 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             // transient object is still inside synchronous assembly. Persistent UUID authority
             // begins here; canonical live-body authority is required on the next bounded phase.
             int sourceNonAir = countSourceFixtureNonAir();
+            Object listedBody = findListedBody(bodyId);
+            if (listedBody == null) {
+                fail(
+                        SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
+                        waitDiagnostic.withFinalState(
+                                "bodyId=" + bodyId + " assembler=" + ASSEMBLER_POS + " glueId=" + glueId,
+                                safeServerState(),
+                                "headless",
+                                "UUID was observed in the collection but the listed object could not be reselected"),
+                        "new Sable UUID did not retain an assembly-time collection object");
+            }
+            Object massTracker = publicMethod(listedBody, "getMassTracker").invoke(listedBody);
+            Object massValue = massTracker == null ? null : publicMethod(massTracker, "getMass").invoke(massTracker);
+            Object centerOfMass = massTracker == null ? null : publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
+            double mass = massValue instanceof Number number ? number.doubleValue() : Double.NaN;
             LOGGER.log(
                     System.Logger.Level.INFO,
                     PREFIX + " ASSEMBLED bodyId=" + bodyId
                             + " sourceNonAirAfterAssembly=" + sourceNonAir
+                            + " mass=" + mass
+                            + " centerOfMass=" + centerOfMass
                             + " synchronous=" + synchronousObservation);
             if (sourceNonAir != 0) {
                 fail(
@@ -202,6 +219,22 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                                 "assemblyRegistrationObservedSynchronously=" + synchronousObservation
                                         + " sourceNonAirAfterAssembly=" + sourceNonAir),
                         "minimal fixture did not transfer every source cell into the Sable body");
+            }
+            if (!(mass > 0.0) || centerOfMass == null) {
+                fail(
+                        SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
+                        diagnostic(
+                                SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,
+                                "transferred Sable body has positive merged mass and non-null center of mass",
+                                now,
+                                now,
+                                "bodyId=" + bodyId + " assembler=" + ASSEMBLER_POS + " glueId=" + glueId,
+                                safeServerState(),
+                                "assemblyRegistrationObservedSynchronously=" + synchronousObservation
+                                        + " sourceNonAirAfterAssembly=" + sourceNonAir
+                                        + " mass=" + mass
+                                        + " centerOfMass=" + centerOfMass),
+                        "new Sable body is mass-invalid immediately after complete source transfer");
             }
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,
@@ -457,6 +490,20 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             throw new IllegalStateException("Sable sub-level unique ID is not UUID: " + value);
         }
         return uuid;
+    }
+
+
+    private static Object findListedBody(UUID uuid) throws ReflectiveOperationException {
+        Object value = publicMethod(container, "getAllSubLevels").invoke(container);
+        if (!(value instanceof List<?> subLevels)) {
+            throw new IllegalStateException("Sable getAllSubLevels did not return a List");
+        }
+        for (Object subLevel : subLevels) {
+            if (uuid.equals(subLevelUniqueId(subLevel))) {
+                return subLevel;
+            }
+        }
+        return null;
     }
 
     private static int countSourceFixtureNonAir() {
