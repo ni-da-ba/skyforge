@@ -57,6 +57,9 @@ class MinecraftWbyProfileTests(unittest.TestCase):
                 "create:weathered_iron_block",
                 "create:industrial_iron_window_pane",
                 "create:ornate_iron_window_pane",
+                "create:andesite_bars",
+                "create:brass_bars",
+                "create:copper_bars",
             },
         )
 
@@ -104,6 +107,17 @@ class MinecraftWbyProfileTests(unittest.TestCase):
         registry = wby_c1_create_registry()
         self.assertNotIn("create:industrial_iron_window_pane", registry)
         self.assertNotIn("create:ornate_iron_window_pane", registry)
+
+    def test_live_validated_bars_are_cataloged_but_have_no_selection_authority(self):
+        doc = json.loads(CATALOG.read_text(encoding="utf-8"))
+        declared = {entry["name"]: entry for entry in doc["blocks"]}
+        registry = wby_c1_create_registry()
+        for name in ("create:andesite_bars", "create:brass_bars", "create:copper_bars"):
+            entry = declared[name]
+            self.assertEqual(entry["status"], "cataloged")
+            self.assertEqual(set(entry["capabilities"]), {"bars", "neighbor_sensitive", "thin"})
+            self.assertEqual(set(entry["properties"]), {"east", "north", "south", "west", "waterlogged"})
+            self.assertNotIn(name, registry)
 
     def _write_bad_catalog(self, document: dict, tmp: str) -> Path:
         path = Path(tmp) / "bad.json"
