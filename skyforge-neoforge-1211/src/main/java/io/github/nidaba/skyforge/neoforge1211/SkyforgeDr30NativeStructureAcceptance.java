@@ -126,9 +126,7 @@ final class SkyforgeDr30NativeStructureAcceptance {
         int y = integer(previous, "mutationY");
         int z = integer(previous, "mutationZ");
         BlockPos mutation = new BlockPos(x, y, z);
-        if (!level.hasChunkAt(mutation)) {
-            level.getChunk(Math.floorDiv(x, 16), Math.floorDiv(z, 16));
-        }
+        level.getChunk(Math.floorDiv(x, 16), Math.floorDiv(z, 16));
         if (!level.getBlockState(mutation).is(Blocks.DIAMOND_BLOCK)) {
             throw new IllegalStateException("DR-30 reload lost the post-placement mutation at " + mutation);
         }
