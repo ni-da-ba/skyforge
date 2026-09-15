@@ -73,12 +73,15 @@ final class CreateKineticOnSableLifecycleResourceTest {
     }
 
     @Test
-    void ledgerStartsFailClosedUntilExactStackAcceptance() throws IOException {
+    void ledgerPublishesAcceptedMovingKineticAuthority() throws IOException {
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
                         "../docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json").normalize());
 
         assertTrue(ledger.contains("CREATE_KINETIC_ON_SABLE_LIFECYCLE"));
-        assertTrue(ledger.contains("\"status\": \"qualification_pending\""));
+        assertTrue(ledger.contains("\"status\": \"accepted\""));
+        assertTrue(ledger.contains("\"workflow_run\": 34930106677"));
+        assertTrue(ledger.contains("\"B\": true"));
+        assertTrue(ledger.contains("\"C\": true"));
         assertTrue(ledger.contains("production_authority_for_agents"));
     }
 

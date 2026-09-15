@@ -149,7 +149,7 @@
       "negative_evidence": []
     },
     "CREATE_KINETIC_ON_SABLE_LIFECYCLE": {
-      "status": "qualification_pending",
+      "status": "accepted",
       "verification_level": "L2",
       "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
       "minimal_fixture": "SkyforgeCreateKineticOnSableLifecycleAcceptance",
@@ -158,7 +158,13 @@
         "CreateKineticOnSableLifecycleResourceTest"
       ],
       "owning_workflow": ".github/workflows/compiler-platform-create-kinetic-on-sable-lifecycle.yml",
-      "latest_accepted_evidence": null,
+      "latest_accepted_evidence": {
+        "workflow_run": 34930106677,
+        "job": 104256633806,
+        "commit": "b6c5e3181f7617786b279e726fd0d437618609b4",
+        "result": "PASS",
+        "finding": "Exact-stack L2 assembled a real Sable primary body containing create:creative_motor -> create:shaft -> create:gearbox, reselected the live body by persistent UUID, validated current physics and moved block-entity authority, observed downstream Create speed 16.0, severed the moved shaft to reach zero/disconnected state, restored it to recover 16.0 with source/network state, and released the bounded COMMAND_FORCED fixture ticket before PASS."
+      },
       "assumptions_preconditions": [
         "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE and CREATE_KINETIC_NETWORK_LIFECYCLE semantics without widening either prerequisite.",
         "The primary fixture contains create:creative_motor -> create:shaft -> create:gearbox before real Physics Assembler capture.",
@@ -185,8 +191,8 @@
         "TIMEOUT_FIXTURE_TERMINAL_STATE"
       ],
       "production_authority_for_agents": {
-        "B": false,
-        "C": false
+        "B": true,
+        "C": true
       },
       "negative_evidence": []
     }
