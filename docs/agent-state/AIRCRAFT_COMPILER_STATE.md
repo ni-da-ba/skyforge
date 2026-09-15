@@ -1,7 +1,7 @@
 # Skyforge Aircraft Compiler state
 
 **Program authority:** issue #545  
-**Productionization boundary:** AIRCRAFT-PROD-002 / issue #618
+**Productionization boundary:** AIRCRAFT-PROD-003 / issue #632
 **Frozen evidence only:** `aircraft-compiler-proof@0651bcee7dc879ab43db2f0b224f77e5026222bd`  
 **Frozen implementation beneath checkpoint:** `cc020c872b9c53198cebbb0ae9094097f23c9c45`
 
@@ -39,12 +39,31 @@ On acceptance of issue #618, the production compiler also contains:
 - coordinate-unique semantic assembly planning that unions roles/capabilities without inventing target resources;
 - canonical production JSON/SHA-256 identity for both blockspace and assembly artifacts.
 
+## Productionized by AIRCRAFT-PROD-003
+
+On acceptance of issue #632, the aircraft compiler also has a backend-owned static exact-stack target
+preflight layer over production `AircraftAssemblyPlanIR`:
+
+- exact retained Minecraft/NeoForge/Create/Sable/Aeronautics stack identity is explicit;
+- coordinate-unique assembly sites lower to one target provider by semantic specificity first, with
+  provider priority used only as an equal-specificity tie-breaker;
+- concrete target resource IDs remain confined to the NeoForge backend rather than entering
+  `skyforge-model`;
+- semantic stations remain explicit target contracts and are not converted into fake occupied sites;
+- unresolved blockstate rules, companion requirements, required-station providers, and runtime
+  obligations remain fail-closed blockers;
+- static capability coverage is reported separately from schematic readiness, runtime qualification,
+  and flight qualification.
+
+This tranche does **not** claim live registry/blockstate validation, world placement, Sable assembly,
+propulsion realization, persistence, or any control/flight capability.
+
 ## Frozen evidence not yet productionized
 
 The frozen branch contains accepted evidence for later compiler/runtime stages, but that evidence is
 not current-`main` production authority for:
 
-- target placement/resource lowering and Create sail/state lowering;
+- resolved blockstate/orientation lowering, complete placement-manifest emission, and Create sail/state lowering;
 - Sable primary/nested assembly, bounded Super Glue domains, and propulsion/governor topology;
 - yaw mechanism, cockpit routing, player interaction, and moving-body tracking.
 
@@ -74,7 +93,8 @@ work around the Platform fixture inside a complete aircraft.
 
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-PROD-002 is accepted on `main`, the next compiler tranche is target placement/resource
-lowering over the production blockspace/assembly identities. Runtime Sable/Create realization must
-consume only capabilities explicitly granted by `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`;
-persistence and new control-axis work remain downstream of those applicable Platform contracts.
+After AIRCRAFT-PROD-003 is accepted on `main`, continue target lowering only by resolving the remaining
+state/orientation and companion/station blockers into a deterministic placement manifest. Live runtime
+qualification must consume only capabilities explicitly granted by
+`docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`; persistence and new control-axis work remain
+downstream of those applicable Platform contracts.
