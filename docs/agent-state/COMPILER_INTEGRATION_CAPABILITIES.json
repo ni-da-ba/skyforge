@@ -425,6 +425,13 @@
           "commit": "992ea20c919335c6d52a0185cec0a32b0fba3ca1",
           "result": "HARNESS_RELOAD_POSE_ASSERTION_FAILURE",
           "finding": "Boot B successfully reselected the persisted Sable UUID after fresh-process holding-store recovery, but the harness incorrectly required centerOfMass - logicalPose.position to remain an exact integer after reload. That relation is the initial plot relocation derivation, not a persistence invariant once a saved physical pose is restored. The fixture now treats the persisted integer plot offset only as a locator and validates current canonical plot ownership plus recovered blocks/block entities instead."
+        },
+        {
+          "workflow_run": 35013732627,
+          "job": 104532274795,
+          "commit": "12d479d625e4cec94deba51e0b124341b0901b5f",
+          "result": "HARNESS_SYNCHRONOUS_SOURCE_CLEANUP_RACE",
+          "finding": "Boot A registered one valid Sable body with positive mass, but the synchronous first observation still saw one source fixture block before Simulated source cleanup completed. Earlier runs observed zero source blocks on the same tick. The fixture now treats source/ground-child cleanup as a bounded post-registration condition while retaining immediate failure for removed/invalid-mass bodies."
         }
       ]
     }

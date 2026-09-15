@@ -257,13 +257,23 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             boolean removed = Boolean.TRUE.equals(publicMethod(listedBody, "isRemoved").invoke(listedBody));
             int sourceNonAir = countSourceFixtureNonAir();
             Entity staleGroundChild = findEntity(groundChildId);
-            if (sourceNonAir != 0 || removed || !(mass > 0.0) || centerOfMass == null
-                    || (staleGroundChild != null && staleGroundChild.isAlive())) {
+            if (removed || !(mass > 0.0) || centerOfMass == null) {
                 fail(SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
                         waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
                                 "sourceNonAir=" + sourceNonAir + " mass=" + mass + " removed=" + removed
                                         + " staleGroundChild=" + staleGroundChild),
-                        "primary assembly did not flatten the ground child cleanly");
+                        "primary assembly registered an invalid Sable body");
+            }
+            boolean staleChildAlive = staleGroundChild != null && staleGroundChild.isAlive();
+            if (sourceNonAir != 0 || staleChildAlive) {
+                if (waitDiagnostic.expired(now)) {
+                    fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_ASSEMBLY_REGISTRATION,
+                            waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
+                                    "sourceNonAir=" + sourceNonAir + " mass=" + mass + " removed=" + removed
+                                            + " staleGroundChild=" + staleGroundChild),
+                            "primary assembly source cleanup did not settle before deadline");
+                }
+                return;
             }
             movedOffset = movedOffset(listedBody, centerOfMass);
             movedMotor = MOTOR_SOURCE.offset(movedOffset);
