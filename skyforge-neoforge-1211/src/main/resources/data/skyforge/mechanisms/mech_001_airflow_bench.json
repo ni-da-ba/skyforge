@@ -1,0 +1,291 @@
+{
+  "assetId": "guild.utility.airflow_bench.mech_001",
+  "clearanceCells": [
+    [
+      3,
+      1,
+      1
+    ],
+    [
+      4,
+      1,
+      1
+    ],
+    [
+      5,
+      1,
+      1
+    ]
+  ],
+  "compilerVersion": "mech-0.1-fixed-world",
+  "connectivity": {
+    "edges": [
+      [
+        "source",
+        "relay_0"
+      ],
+      [
+        "relay_0",
+        "endpoint"
+      ]
+    ],
+    "nodes": [
+      "source",
+      "relay_0",
+      "endpoint"
+    ],
+    "severNode": "relay_0"
+  },
+  "digestSha256": "da905478f5f3e42e197bd0ef1a38baba848c8ce65c2a911d7153743597098ce1",
+  "envelope": {
+    "max": [
+      5,
+      1,
+      2
+    ],
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "size": [
+      6,
+      2,
+      3
+    ]
+  },
+  "mountingRegion": {
+    "max": [
+      2,
+      0,
+      2
+    ],
+    "min": [
+      0,
+      0,
+      0
+    ]
+  },
+  "placements": [
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "support_0_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "support_0_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "support_0_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "support_1_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "support_1_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        1,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "support_1_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        1,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "support_2_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "support_2_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "support_2_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "create:creative_motor",
+        "properties": {
+          "facing": "east"
+        }
+      },
+      "id": "source",
+      "mechanicalRole": "kinetic_source",
+      "pos": [
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "create:shaft",
+        "properties": {
+          "axis": "x"
+        }
+      },
+      "id": "relay_0",
+      "mechanicalRole": "required_relay",
+      "pos": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "create:encased_fan",
+        "properties": {
+          "facing": "east"
+        }
+      },
+      "id": "endpoint",
+      "mechanicalRole": "airflow_endpoint",
+      "pos": [
+        2,
+        1,
+        1
+      ]
+    }
+  ],
+  "platformEvidence": {
+    "agentCAuthorized": true,
+    "commit": "ebddb2ae4757dd6bdbacf675c2ef21a6954c830b",
+    "result": "PASS",
+    "status": "accepted",
+    "verificationLevel": "L2",
+    "workflowRun": 34928238479
+  },
+  "requiredPlatformCapability": "CREATE_KINETIC_NETWORK_LIFECYCLE",
+  "runtimeExpectations": {
+    "active": {
+      "endpointSpeed": "nonzero",
+      "hasNetwork": true,
+      "hasSource": true
+    },
+    "rebuilt": {
+      "endpointSpeed": "nonzero",
+      "hasNetwork": true,
+      "hasSource": true
+    },
+    "severed": {
+      "endpointSpeed": 0,
+      "hasSource": false
+    }
+  },
+  "schema": "skyforge.functional-mechanism-plan.v1",
+  "seed": 628001,
+  "semanticInput": {
+    "endpointRole": "airflow",
+    "frontClearance": 3,
+    "mountingRole": "masonry_pad",
+    "orientation": "east",
+    "sourceRole": "qualified_kinetic_source",
+    "transmissionLength": 1
+  },
+  "sourcePolicy": "qualified_test_source_not_gameplay_canon",
+  "supportRequirements": [
+    {
+      "placementId": "source",
+      "supportBelow": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "placementId": "relay_0",
+      "supportBelow": [
+        1,
+        0,
+        1
+      ]
+    },
+    {
+      "placementId": "endpoint",
+      "supportBelow": [
+        2,
+        0,
+        1
+      ]
+    }
+  ],
+  "targetStackAuthority": "C11_FLIGHT_EXACT_2026-09-05",
+  "validation": {
+    "issues": [],
+    "passed": true
+  }
+}
