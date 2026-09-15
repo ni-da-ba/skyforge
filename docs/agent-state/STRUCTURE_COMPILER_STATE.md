@@ -3,7 +3,7 @@
 **Completed structure proof authority:** issue #488  
 **Accepted compact-Hall tranche:** PR #612 / merge `0eca2194ddf4a7e3be401e5715a32e60525f315e`  
 **Accepted sibling/ROI tranche:** PR #623 / merge `20c3b9e37e16800eb258d1613714b90d1ec9c048`  
-**Active functional-asset authority:** issue #628 (`MECH-001`) / draft PR #640  
+**Accepted functional-asset authority:** issue #628 (`MECH-001`) / PR #640 / merge `c7c23e0d2f3abbb88db09e9b1feaf0d9d005209c`
 **Shared runtime qualification authority:** issue #613 / `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`
 
 This ledger records current production capability for Compiler Program Agent C. Historical
@@ -134,9 +134,9 @@ propagation, deterministic sever/inactivity, and rebuild/recovery on the exact r
 `SABLE_PRIMARY_ASSEMBLY_LIFECYCLE` is separately accepted, but is not required for fixed-world MECH-001.
 Moving-body Create kinetics remain a separate platform capability and are not implied here.
 
-## Active functional tranche: MECH-001 / issue #628
+## Accepted functional tranche: MECH-001 / issue #628
 
-PR #640 compiles one deliberately bounded fixed-world airflow utility bench:
+PR #640 accepted one deliberately bounded fixed-world airflow utility bench:
 
 `qualified_kinetic_source -> required axial relay -> airflow endpoint`
 
@@ -175,21 +175,25 @@ PR #640 head `3a91b558a7bfa2812af4c8cf5681622ed9187ed0` corrects the reproductio
 - the human gate has a dedicated `mech001FunctionalMechanismClient` using the same C11 runtime source
   set as the accepted platform/runtime proof.
 
-Exact-head machine evidence on `3a91b558...`:
+Final acceptance evidence:
 
-- MECH-001 workflow-dispatch run `35007081027`: L1 PASS and L3 exact-stack PASS;
+- conflict-resolved authority head `50554946e5fa598a36f84c3eb85e54e35c61380d`;
+- MECH-001 pull-request run `35010817569`: L1 PASS and L3 exact-stack PASS;
 - structure generation and exact byte comparison PASS;
 - Minecraft structure-template placement and state verification PASS;
 - fan initial speed `16.0` with source/network state;
 - relay sever observed with downstream stop/source loss;
 - relay restore recovered fan speed `16.0`, source speed `16.0`, and source/network state;
 - all three compiled airflow-clearance cells remained clear;
-- full repository CI workflow-dispatch run `35007083762`: PASS.
+- full repository CI run `35010817444`: PASS;
+- affected Create/Sable/platform, actual-client, aircraft powertrain, C11/C12, persistence/cutoff, and asset-compiler regressions: PASS;
+- local Minecraft structure-native human gate: **PASS** for readability, support/clearance, visible operation, sever/restore behavior, and practical editability;
+- PR #640 merged as `c7c23e0d2f3abbb88db09e9b1feaf0d9d005209c`.
 
 ## Current stop state
 
 Structure proof: **ACCEPTED / COMPLETE**.  
 Issue #488: **CLOSED COMPLETED**.  
-MECH-001 / #628: **MACHINE-GREEN ON STRUCTURE-NATIVE EXACT HEAD; HUMAN MINECRAFT GATE REQUIRED**.  
-PR #640 remains draft/unmerged until that human gate passes.  
+MECH-001 / #628: **ACCEPTED / COMPLETE**.
+PR #640: **MERGED**.
 No production-geography authority is changed and #493 remains untouched.
