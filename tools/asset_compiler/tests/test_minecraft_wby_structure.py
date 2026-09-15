@@ -30,13 +30,13 @@ class MinecraftWbyStructureTests(unittest.TestCase):
         # hardware+masonry cells. Generic andesite-casing selection is covered independently by
         # the profile-level semantic-intent test rather than inventing fixture geometry here.
         self.assertGreater(names["create:brass_casing"], 0)
+        self.assertGreater(names["create:framed_glass_pane"], 0)
         self.assertEqual(names["create:copper_casing"], 0)
         self.assertEqual(names["create:industrial_iron_block"], 0)
         self.assertEqual(names["create:weathered_iron_block"], 0)
-        self.assertEqual(names["create:framed_glass_pane"], 0)
         self.assertEqual(names["create:industrial_iron_window_pane"], 0)
         self.assertEqual(names["create:ornate_iron_window_pane"], 0)
-        self.assertGreater(names["minecraft:glass_pane"], 0)
+        self.assertEqual(names["minecraft:glass_pane"], 0)
         self.assertEqual(report["minecraftProfile"], "wby-c1-create")
         self.assertFalse(report["realizationIntentIr"]["containsConcreteResourceNames"])
         self.assertFalse(report["realizationIntentIr"]["architectureConcreteResourceNamesConsumed"])
