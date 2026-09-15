@@ -1,7 +1,7 @@
 # Skyforge Aircraft Compiler state
 
 **Program authority:** issue #545  
-**Productionization boundary:** AIRCRAFT-PROD-004 / issue #636
+**Productionization boundary:** AIRCRAFT-PROD-005 / issue #641
 **Frozen evidence only:** `aircraft-compiler-proof@0651bcee7dc879ab43db2f0b224f77e5026222bd`  
 **Frozen implementation beneath checkpoint:** `cc020c872b9c53198cebbb0ae9094097f23c9c45`
 
@@ -74,12 +74,32 @@ propulsion companion topology:
 
 This is compiler-visible topology, not runtime mechanism qualification.
 
+## Productionized by AIRCRAFT-PROD-005
+
+On acceptance of issue #641, regular Create airframe-sail block-state lowering is productionized over
+the exact AIRCRAFT-PROD-003 target-preflight and AIRCRAFT-PROD-004 propulsion identities:
+
+- the retained regular-sail profile binds `create_white_sail_lift_v1` to a declared `facing` state
+  vocabulary;
+- wing and horizontal-tail surface roles demand `facing=up`, while vertical-tail surface roles demand
+  `facing=south`;
+- role states must belong to the declared legal-state set before compilation can proceed;
+- a coordinate resolves only when all co-located aerodynamic semantics demand exactly one state;
+- incompatible co-located surface orientations and aerodynamic-provider sites with no declared role
+  state remain explicit compile-visible conflicts with no arbitrary fallback;
+- only the upstream unresolved blockstate/resource blocker actually discharged by this pass is cleared;
+- pilot-station, propulsion-runtime, aircraft-runtime, persistence, control, and flight blockers remain
+  explicit.
+
+The emitted facing remains source-backed static lowering. Live Sable force sign for that facing is not
+qualified by this tranche.
+
 ## Frozen evidence not yet productionized
 
 The frozen branch contains accepted evidence for later compiler/runtime stages, but that evidence is
 not current-`main` production authority for:
 
-- resolved blockstate/orientation lowering, complete placement-manifest emission, and Create sail/state lowering;
+- complete combined placement-manifest emission and live registry/blockstate validation;
 - Sable primary/nested assembly, bounded Super Glue domains, and live propulsion/governor mechanism behavior;
 - yaw mechanism, cockpit routing, player interaction, and moving-body tracking.
 
@@ -109,9 +129,9 @@ work around the Platform fixture inside a complete aircraft.
 
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-PROD-004 is accepted on `main`, the next target-lowering tranche is the accepted regular
-Create sail state/orientation resolution over the production preflight + propulsion identities, including
-compile-visible conflicts for co-located surfaces that demand incompatible facings. Live runtime
-qualification must consume only capabilities explicitly granted by
+After AIRCRAFT-PROD-005 is accepted on `main`, close the remaining static target-lowering seam by
+combining accepted airframe placements, propulsion companions, and resolved regular-sail block states
+into one deterministic placement manifest without inventing unresolved pilot/control resources. Live
+runtime qualification must consume only capabilities explicitly granted by
 `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`; persistence and new control-axis work remain
 downstream of those applicable Platform contracts.
