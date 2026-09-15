@@ -180,6 +180,78 @@ def _roadmap_mark_completed_locked(
     self._metric("roadmap_runs_completed")
 
 
+def _roadmap_retire_stale_pending_authority(
+    self: core.Orchestrator,
+    manifest: roadmap_policy.RoadmapManifest,
+) -> int:
+    """Retire roadmap task events that no longer match persisted roadmap ownership.
+
+    Roadmap authority is not a free-standing task signal: its validity derives from the exact
+    ``roadmap.active`` record that seeded it. Operator recovery, manifest reconciliation, or a
+    fail-closed correction may invalidate that active record while a protected physical queue copy
+    survives. Such a copy must never dispatch a successor after the roadmap has rolled back.
+    """
+    with self._state_lock:
+        state = _roadmap_state_locked(self, manifest)
+        active = state.get("active")
+        expected_key = None
+        if isinstance(active, dict) and isinstance(active.get("event"), dict):
+            expected_key = core._event_key(active["event"])
+
+        pending = [
+            value
+            for value in (self.state.data.get("pending_events") or [])
+            if isinstance(value, dict)
+        ]
+        kept: list[dict[str, Any]] = []
+        stale_keys: set[str] = set()
+        for value in pending:
+            event = core.EventDecision.from_state(value)
+            key = core._event_key(value)
+            if event.event != "roadmap" or (expected_key is not None and key == expected_key):
+                kept.append(value)
+                continue
+            stale_keys.add(key)
+
+        if not stale_keys:
+            return 0
+
+        retired = [
+            str(value)
+            for value in (self.state.data.get("retired_event_keys") or [])
+            if value
+        ]
+        seen = set(retired)
+        for key in stale_keys:
+            if key not in seen:
+                retired.append(key)
+                seen.add(key)
+        self.state.data["retired_event_keys"] = retired[-core.DEFAULT_MAX_RETIRED_EVENT_KEYS :]
+        self.state.data["pending_events"] = kept
+
+        decision = self.state.data.get("pending_decision")
+        decision_keys = set(decision.get("event_keys") or []) if isinstance(decision, dict) else set()
+        if stale_keys & decision_keys and not isinstance(self.state.data.get("pending_worker"), dict):
+            self.state.data["pending_decision"] = None
+            self.state.data["last_decision_invalidation"] = {
+                "at": core._utc_now(),
+                "reason": "stale roadmap authority no longer matches persisted roadmap ownership",
+            }
+
+        metrics = self.state.data.setdefault("metrics", {})
+        metrics["stale_roadmap_authorities_retired"] = int(
+            metrics.get("stale_roadmap_authorities_retired") or 0
+        ) + len(stale_keys)
+        self.state.data["last_stale_roadmap_authority_retirement"] = {
+            "at": core._utc_now(),
+            "retired": len(stale_keys),
+            "expected_event_key": expected_key,
+            "active_node": active.get("node_id") if isinstance(active, dict) else None,
+        }
+        self.state.save()
+        return len(stale_keys)
+
+
 def _roadmap_resolve_active(
     self: core.Orchestrator,
     manifest: roadmap_policy.RoadmapManifest,
@@ -229,8 +301,31 @@ def _roadmap_resolve_active(
             return True
 
         if pr.get("mergedAt") or str(pr.get("state") or "").upper() == "MERGED":
-            _roadmap_mark_completed_locked(self, state, node_id)
-            return False
+            issue_state = _roadmap_issue_open(self, int(issue_number)) if issue_number else None
+            if issue_state is False:
+                _roadmap_mark_completed_locked(self, state, node_id)
+                return False
+            if issue_state is True:
+                _roadmap_mark_blocked_locked(
+                    self,
+                    state,
+                    node_id,
+                    (
+                        f"controller-managed roadmap PR #{pr_number} merged, but backing issue "
+                        f"#{issue_number} remains open; merge is not objective acceptance"
+                    ),
+                )
+                return False
+            state["last_error"] = {
+                "at": core._utc_now(),
+                "kind": "RoadmapIssueLookupError",
+                "summary": (
+                    f"roadmap PR #{pr_number} merged but backing issue #{issue_number} "
+                    "state could not be verified; refusing successor completion"
+                ),
+            }
+            self.state.save()
+            return True
         if str(pr.get("state") or "").upper() == "OPEN":
             return True
         _roadmap_mark_blocked_locked(
@@ -310,6 +405,19 @@ def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
     """Seed at most one explicit roadmap authority when the ordinary controller is truly idle."""
     if not _roadmap_enabled() or self.is_paused():
         return False
+
+    try:
+        manifest = _roadmap_manifest(self)
+    except Exception as exc:
+        _roadmap_record_error(self, trigger=trigger, exc=exc)
+        self._metric("roadmap_manifest_errors")
+        return False
+
+    # A protected roadmap event can outlive an operator rollback/discard. Retire that stale physical
+    # queue copy before the ordinary pending-work guard, otherwise it can block correct reseeding or
+    # dispatch a successor whose prerequisite was explicitly rolled back.
+    _roadmap_retire_stale_pending_authority(self, manifest)
+
     with self._state_lock:
         if (
             self.state.data.get("pending_events")
@@ -318,13 +426,6 @@ def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
             or self.state.data.get("blocked_kind")
         ):
             return False
-
-    try:
-        manifest = _roadmap_manifest(self)
-    except Exception as exc:
-        _roadmap_record_error(self, trigger=trigger, exc=exc)
-        self._metric("roadmap_manifest_errors")
-        return False
     if not manifest.enabled:
         return False
 
@@ -466,6 +567,23 @@ def resume_pending(self: core.Orchestrator) -> None:
 
 
 def _drain_and_dispatch(self: core.Orchestrator) -> None:
+    # Revalidate protected roadmap authority against current persisted ownership immediately before
+    # classifier selection. This is the last model-free fence against replaying a successor event
+    # invalidated by an operator or reconciliation rollback.
+    if _roadmap_enabled():
+        try:
+            manifest = _roadmap_manifest(self)
+            _roadmap_retire_stale_pending_authority(self, manifest)
+        except Exception as exc:
+            with self._state_lock:
+                has_roadmap_event = any(
+                    isinstance(value, dict)
+                    and core.EventDecision.from_state(value).event == "roadmap"
+                    for value in (self.state.data.get("pending_events") or [])
+                )
+            if has_roadmap_event:
+                _roadmap_record_error(self, trigger="pre-dispatch-roadmap-validation", exc=exc)
+                return
     try:
         _ORIGINAL_DRAIN_AND_DISPATCH(self)
     finally:
