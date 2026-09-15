@@ -59,6 +59,20 @@ final class SkyforgeWbyC1StructureRegistryProbe {
             "bottom", "false",
             "distance", "7",
             "waterlogged", "false");
+    private static final Map<String, Set<String>> GIRDER_PROPERTIES = Map.of(
+            "axis", Set.of("x", "y", "z"),
+            "bottom", BOOLEAN_DOMAIN,
+            "top", BOOLEAN_DOMAIN,
+            "waterlogged", BOOLEAN_DOMAIN,
+            "x", BOOLEAN_DOMAIN,
+            "z", BOOLEAN_DOMAIN);
+    private static final Map<String, String> GIRDER_DEFAULTS = Map.of(
+            "axis", "y",
+            "bottom", "false",
+            "top", "false",
+            "waterlogged", "false",
+            "x", "false",
+            "z", "false");
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeWbyC1StructureRegistryProbe.class.getName());
 
@@ -136,18 +150,15 @@ final class SkyforgeWbyC1StructureRegistryProbe {
                     SCAFFOLDING_PROPERTIES,
                     SCAFFOLDING_DEFAULTS,
                     evidence);
+            requireStateContract("create:metal_girder", GIRDER_PROPERTIES, GIRDER_DEFAULTS, evidence);
 
-            // Discovery-only structural vocabulary. This observation intentionally does not grant
-            // automatic compiler authority; it establishes the exact pinned-runtime state surface
-            // for the remaining semantic/compiler tranche.
-            observeStateContract("create:metal_girder", evidence);
-
-            evidence.put("catalogBlocksValidated", "17");
+            evidence.put("catalogBlocksValidated", "18");
             evidence.put("paneContractsValidated", "3");
             evidence.put("barsContractsValidated", "3");
             evidence.put("ladderContractsValidated", "3");
             evidence.put("scaffoldingContractsValidated", "3");
-            evidence.put("deferredStructuralContractsObserved", "1");
+            evidence.put("girderContractsValidated", "1");
+            evidence.put("deferredStructuralContractsObserved", "0");
             evidence.put("status", "PASS");
             writeResult(evidence);
             LOGGER.log(
@@ -185,10 +196,6 @@ final class SkyforgeWbyC1StructureRegistryProbe {
                             + " actual=" + actual.defaults());
         }
         recordStateContract(resourceName, actual, evidence);
-    }
-
-    private static void observeStateContract(String resourceName, Map<String, String> evidence) {
-        recordStateContract(resourceName, stateContract(resourceName), evidence);
     }
 
     private static StateContract stateContract(String resourceName) {
