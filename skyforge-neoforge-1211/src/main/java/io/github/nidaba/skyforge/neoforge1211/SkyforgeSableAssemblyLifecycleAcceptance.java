@@ -51,6 +51,9 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
     private static Object container;
     private static Object physicsSystem;
     private static Object assembledBody;
+    private static Object forceLoadTicketType;
+    private static Object forceLoadTicketKey;
+    private static boolean forceLoadTicketAdded;
     private static Set<UUID> beforeIds = Set.of();
     private static UUID bodyId;
     private static UUID glueId;
@@ -304,6 +307,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                                         + " centerOfMass=" + centerOfMass),
                         "new Sable body is mass-invalid immediately after complete source transfer");
             }
+            addFixtureForceLoadTicket(listedBody);
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,
                     "registered Sable UUID survives initialization and resolves to a valid current physics handle",
@@ -312,7 +316,8 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                     "bodyId=" + bodyId + " assembler=" + ASSEMBLER_POS + " glueId=" + glueId,
                     safeServerState(),
                     "assemblyRegistrationObservedSynchronously=" + synchronousObservation
-                            + " sourceNonAirAfterAssembly=" + sourceNonAir);
+                            + " sourceNonAirAfterAssembly=" + sourceNonAir
+                            + " fixtureLivenessTicket=sable:command_forced");
             return;
         }
         if (waitDiagnostic.expired(now)) {
@@ -435,6 +440,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             setLinearVelocityX(handle, 0.0);
             velocityApplied = false;
             restorePhysicsPause();
+            removeFixtureForceLoadTicket();
             complete = true;
             LOGGER.log(
                     System.Logger.Level.INFO,
@@ -445,6 +451,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                             + " deltaX=" + deltaX
                             + " canonicalResolutionPerTick=true"
                             + " staleHandleRetained=false"
+                            + " fixtureLivenessTicket=sable:command_forced(released)"
                             + " clientState=headless");
             return;
         }
@@ -715,6 +722,50 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                 .invoke(handle, linearDelta, angularDelta);
     }
 
+    private static void addFixtureForceLoadTicket(Object body) throws ReflectiveOperationException {
+        Class<?> ticketTypeClass = Class.forName(
+                "dev.ryanhcode.sable.api.sublevel.ticket.SubLevelLoadingTicketType");
+        forceLoadTicketType = ticketTypeClass.getField("COMMAND_FORCED").get(null);
+        Class<?> unitClass = Class.forName("net.minecraft.util.Unit");
+        forceLoadTicketKey = unitClass.getField("INSTANCE").get(null);
+        Object added = threeArgMethod(
+                        container, "addForceLoadTicket", body, forceLoadTicketType, forceLoadTicketKey)
+                .invoke(container, body, forceLoadTicketType, forceLoadTicketKey);
+        if (!(added instanceof Boolean addedBoolean) || !addedBoolean) {
+            throw new IllegalStateException(
+                    "Sable command-forced liveness ticket was not added for body " + bodyId);
+        }
+        forceLoadTicketAdded = true;
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                PREFIX + " LIVENESS_TICKET_ADDED bodyId=" + bodyId + " ticket=sable:command_forced");
+    }
+
+    private static void removeFixtureForceLoadTicket() throws ReflectiveOperationException {
+        if (!forceLoadTicketAdded || assembledBody == null || forceLoadTicketType == null || forceLoadTicketKey == null) {
+            return;
+        }
+        Object removed = threeArgMethod(
+                        container, "removeForceLoadTicket", assembledBody, forceLoadTicketType, forceLoadTicketKey)
+                .invoke(container, assembledBody, forceLoadTicketType, forceLoadTicketKey);
+        if (!(removed instanceof Boolean removedBoolean) || !removedBoolean) {
+            throw new IllegalStateException(
+                    "Sable command-forced liveness ticket was not removed for body " + bodyId);
+        }
+        forceLoadTicketAdded = false;
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                PREFIX + " LIVENESS_TICKET_REMOVED bodyId=" + bodyId + " ticket=sable:command_forced");
+    }
+
+    private static void removeFixtureForceLoadTicketQuietly() {
+        try {
+            removeFixtureForceLoadTicket();
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // Preserve the original classified fixture result as authoritative.
+        }
+    }
+
     private static void restorePhysicsPause() throws ReflectiveOperationException {
         if (physicsSystem != null && physicsWasPaused) {
             publicMethod(physicsSystem, "setPaused", boolean.class).invoke(physicsSystem, true);
@@ -731,6 +782,8 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             restorePhysicsPause();
         } catch (ReflectiveOperationException | RuntimeException ignored) {
             // Preserve the original classified fixture failure as authoritative.
+        } finally {
+            removeFixtureForceLoadTicketQuietly();
         }
     }
 
@@ -771,6 +824,22 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             }
         }
         throw new NoSuchMethodException(target.getClass().getName() + "#" + name + "(1 arg)");
+    }
+
+    private static Method threeArgMethod(Object target, String name, Object first, Object second, Object third)
+            throws NoSuchMethodException {
+        for (Method method : target.getClass().getMethods()) {
+            if (!method.getName().equals(name) || method.getParameterCount() != 3) {
+                continue;
+            }
+            Class<?>[] types = method.getParameterTypes();
+            if ((first == null || types[0].isAssignableFrom(first.getClass()))
+                    && (second == null || types[1].isAssignableFrom(second.getClass()))
+                    && (third == null || types[2].isAssignableFrom(third.getClass()))) {
+                return method;
+            }
+        }
+        throw new NoSuchMethodException(target.getClass().getName() + "#" + name + "(3 args)");
     }
 
     private static Method twoArgMethod(Object target, String name, Object first, Object second)
