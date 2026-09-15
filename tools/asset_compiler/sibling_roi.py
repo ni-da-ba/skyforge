@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,11 @@ def flatten_config(value: Any, prefix: str = "") -> dict[str, Any]:
     return {prefix: value}
 
 
+def module_family(name: str) -> str:
+    """Collapse deterministic per-instance numeric suffixes to reusable grammar families."""
+    return re.sub(r"_\d+$", "", name)
+
+
 def build_report(base_spec: dict[str, Any], sibling_spec: dict[str, Any], base: dict[str, Any], sibling: dict[str, Any], base_adapter: dict[str, Any], sibling_adapter: dict[str, Any]) -> dict[str, Any]:
     base_fields = flatten_config(base_spec)
     sibling_fields = flatten_config(sibling_spec)
@@ -31,6 +37,9 @@ def build_report(base_spec: dict[str, Any], sibling_spec: dict[str, Any], base: 
     base_modules = set(base.get("moduleBlockCounts", {}))
     sibling_modules = set(sibling.get("moduleBlockCounts", {}))
     sibling_module_reuse = len(base_modules & sibling_modules) / max(len(sibling_modules), 1)
+    base_module_families = {module_family(name) for name in base_modules}
+    sibling_module_families = {module_family(name) for name in sibling_modules}
+    sibling_module_family_reuse = len(base_module_families & sibling_module_families) / max(len(sibling_module_families), 1)
     config_reuse = len(unchanged) / max(len(union), 1)
 
     sibling_realized = int(sibling_adapter["realizedGeometry"]["targetCellCountAfter"])
@@ -56,6 +65,12 @@ def build_report(base_spec: dict[str, Any], sibling_spec: dict[str, Any], base: 
         "siblingModuleReuseFraction": sibling_module_reuse,
         "siblingOnlyModules": sorted(sibling_modules - base_modules),
         "baseOnlyModules": sorted(base_modules - sibling_modules),
+        "baseModuleFamilyCount": len(base_module_families),
+        "siblingModuleFamilyCount": len(sibling_module_families),
+        "sharedModuleFamilyCount": len(base_module_families & sibling_module_families),
+        "siblingModuleFamilyReuseFraction": sibling_module_family_reuse,
+        "siblingOnlyModuleFamilies": sorted(sibling_module_families - base_module_families),
+        "baseOnlyModuleFamilies": sorted(base_module_families - sibling_module_families),
         "baseDigestSha256": base["digestSha256"],
         "siblingDigestSha256": sibling["digestSha256"],
         "baseArchitectureCellCount": int(base["blockCount"]),
