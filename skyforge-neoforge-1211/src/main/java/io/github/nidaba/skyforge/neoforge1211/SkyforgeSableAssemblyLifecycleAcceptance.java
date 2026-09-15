@@ -70,7 +70,6 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             return;
         }
         NeoForge.EVENT_BUS.addListener(SkyforgeSableAssemblyLifecycleAcceptance::onServerStarted);
-        NeoForge.EVENT_BUS.addListener(SkyforgeSableAssemblyLifecycleAcceptance::onServerTickPre);
         NeoForge.EVENT_BUS.addListener(SkyforgeSableAssemblyLifecycleAcceptance::onServerTickPost);
     }
 
@@ -146,36 +145,6 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         }
     }
 
-    private static void onServerTickPre(ServerTickEvent.Pre event) {
-        if (complete || level == null || bodyId == null || waitDiagnostic == null) {
-            return;
-        }
-        if (waitDiagnostic.phase() != SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION) {
-            return;
-        }
-        try {
-            Object listedBody = findListedBody(bodyId);
-            if (listedBody == null) {
-                LOGGER.log(
-                        System.Logger.Level.INFO,
-                        PREFIX + " PRE_TICK bodyId=" + bodyId
-                                + " gameTime=" + level.getGameTime()
-                                + " listed=false currentSubLevelIds=" + currentSubLevelIds(container));
-                return;
-            }
-            LOGGER.log(
-                    System.Logger.Level.INFO,
-                    PREFIX + " PRE_TICK bodyId=" + bodyId
-                            + " gameTime=" + level.getGameTime()
-                            + " listed=true " + bodySnapshot(listedBody)
-                            + " destination=" + destinationBlockSummary(listedBody));
-        } catch (ReflectiveOperationException | RuntimeException exception) {
-            LOGGER.log(
-                    System.Logger.Level.WARNING,
-                    PREFIX + " PRE_TICK_DIAGNOSTIC_FAILED bodyId=" + bodyId + " error=" + exception);
-        }
-    }
-
     private static void onServerTickPost(ServerTickEvent.Post event) {
         if (complete || level == null || waitDiagnostic == null) {
             return;
@@ -238,28 +207,15 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             Object massValue = massTracker == null ? null : publicMethod(massTracker, "getMass").invoke(massTracker);
             Object centerOfMass = massTracker == null ? null : publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
             double mass = massValue instanceof Number number ? number.doubleValue() : Double.NaN;
-            Object selfTracker = massTracker == null ? null : publicMethod(massTracker, "getSelfMassTracker").invoke(massTracker);
-            Object selfMassValue = selfTracker == null ? null : publicMethod(selfTracker, "getMass").invoke(selfTracker);
-            Object selfCenterOfMass = selfTracker == null ? null : publicMethod(selfTracker, "getCenterOfMass").invoke(selfTracker);
-            double selfMass = selfMassValue instanceof Number number ? number.doubleValue() : Double.NaN;
             Object removedValue = publicMethod(listedBody, "isRemoved").invoke(listedBody);
             boolean removed = removedValue instanceof Boolean booleanValue && booleanValue;
-            Object plot = publicMethod(listedBody, "getPlot").invoke(listedBody);
-            Object plotBounds = plot == null ? null : publicMethod(plot, "getBoundingBox").invoke(plot);
-            Object plotVolumeValue = plotBounds == null ? null : publicMethod(plotBounds, "volume").invoke(plotBounds);
-            int plotVolume = plotVolumeValue instanceof Number number ? number.intValue() : Integer.MIN_VALUE;
             LOGGER.log(
                     System.Logger.Level.INFO,
                     PREFIX + " ASSEMBLED bodyId=" + bodyId
                             + " sourceNonAirAfterAssembly=" + sourceNonAir
                             + " mass=" + mass
                             + " centerOfMass=" + centerOfMass
-                            + " selfMass=" + selfMass
-                            + " selfCenterOfMass=" + selfCenterOfMass
                             + " removed=" + removed
-                            + " plotBounds=" + plotBounds
-                            + " plotVolume=" + plotVolume
-                            + " destination=" + destinationBlockSummary(listedBody)
                             + " synchronous=" + synchronousObservation);
             if (sourceNonAir != 0) {
                 fail(
@@ -284,11 +240,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                                 safeServerState(),
                                 "sourceNonAirAfterAssembly=" + sourceNonAir
                                         + " mass=" + mass
-                                        + " centerOfMass=" + centerOfMass
-                                        + " selfMass=" + selfMass
-                                        + " selfCenterOfMass=" + selfCenterOfMass
-                                        + " plotBounds=" + plotBounds
-                                        + " plotVolume=" + plotVolume),
+                                        + " centerOfMass=" + centerOfMass),
                         "new Sable body is already marked removed when the assembler returns");
             }
             if (!(mass > 0.0) || centerOfMass == null) {
@@ -335,18 +287,14 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
     private static void pollPhysicsInitialization(long now) throws ReflectiveOperationException {
         Set<UUID> currentIds = currentSubLevelIds(container);
         if (!currentIds.contains(bodyId)) {
-            String retainedState = assembledBody == null ? "assembledBody=null" : bodySnapshot(assembledBody);
-            String holdingState = holdingState(bodyId);
             fail(
                     SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
                     waitDiagnostic.withFinalState(
                             "bodyId=" + bodyId + " currentSubLevelIds=" + currentIds,
                             safeServerState(),
                             "headless",
-                            "registered body disappeared before a stable physics handle was observed; retained=" + retainedState
-                                    + " holding=" + holdingState),
-                    "registered Sable body was removed before physics initialization; retained=" + retainedState
-                            + " holding=" + holdingState);
+                            "registered body disappeared despite the bounded Sable liveness ticket"),
+                    "registered Sable body disappeared before physics initialization");
         }
 
         Object canonicalBody = findCanonicalBody(bodyId);
@@ -585,71 +533,6 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         return null;
     }
 
-
-    private static String holdingState(UUID uuid) throws ReflectiveOperationException {
-        Object holdingChunkMap = publicMethod(container, "getHoldingChunkMap").invoke(container);
-        if (holdingChunkMap == null) {
-            return "holdingChunkMap=null";
-        }
-        Method lookup = holdingChunkMap.getClass().getMethod("getHoldingSubLevel", UUID.class);
-        Object holdingSubLevel = lookup.invoke(holdingChunkMap, uuid);
-        return holdingSubLevel == null
-                ? "holdingSubLevel=false"
-                : "holdingSubLevel=true type=" + holdingSubLevel.getClass().getName();
-    }
-
-    private static String bodySnapshot(Object listedBody) throws ReflectiveOperationException {
-        Object removedValue = publicMethod(listedBody, "isRemoved").invoke(listedBody);
-        boolean removed = removedValue instanceof Boolean booleanValue && booleanValue;
-        Object massTracker = publicMethod(listedBody, "getMassTracker").invoke(listedBody);
-        Object massValue = massTracker == null ? null : publicMethod(massTracker, "getMass").invoke(massTracker);
-        Object centerOfMass = massTracker == null ? null : publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
-        Object invalidValue = massTracker == null ? null : publicMethod(massTracker, "isInvalid").invoke(massTracker);
-        Object selfTracker = massTracker == null ? null : publicMethod(massTracker, "getSelfMassTracker").invoke(massTracker);
-        Object selfMassValue = selfTracker == null ? null : publicMethod(selfTracker, "getMass").invoke(selfTracker);
-        Object selfCenterOfMass = selfTracker == null ? null : publicMethod(selfTracker, "getCenterOfMass").invoke(selfTracker);
-        return "removed=" + removed
-                + " mass=" + massValue
-                + " centerOfMass=" + centerOfMass
-                + " massInvalid=" + invalidValue
-                + " selfMass=" + selfMassValue
-                + " selfCenterOfMass=" + selfCenterOfMass;
-    }
-
-    private static String destinationBlockSummary(Object listedBody) throws ReflectiveOperationException {
-        Object plot = publicMethod(listedBody, "getPlot").invoke(listedBody);
-        Object bounds = plot == null ? null : publicMethod(plot, "getBoundingBox").invoke(plot);
-        if (bounds == null) {
-            return "bounds=null";
-        }
-        int minX = ((Number) publicMethod(bounds, "minX").invoke(bounds)).intValue();
-        int minY = ((Number) publicMethod(bounds, "minY").invoke(bounds)).intValue();
-        int minZ = ((Number) publicMethod(bounds, "minZ").invoke(bounds)).intValue();
-        int maxX = ((Number) publicMethod(bounds, "maxX").invoke(bounds)).intValue();
-        int maxY = ((Number) publicMethod(bounds, "maxY").invoke(bounds)).intValue();
-        int maxZ = ((Number) publicMethod(bounds, "maxZ").invoke(bounds)).intValue();
-        int nonAir = 0;
-        StringBuilder blocks = new StringBuilder();
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    BlockPos pos = new BlockPos(x, y, z);
-                    BlockState state = level.getBlockState(pos);
-                    if (state.isAir()) {
-                        continue;
-                    }
-                    if (nonAir++ > 0) {
-                        blocks.append(',');
-                    }
-                    blocks.append(x - minX).append(':')
-                            .append(y - minY).append(':')
-                            .append(z - minZ).append('=')
-                            .append(BuiltInRegistries.BLOCK.getKey(state.getBlock()));
-                }
-            }
-        }
-        return "nonAir=" + nonAir + " blocks=[" + blocks + "]";
-    }
 
     private static int countSourceFixtureNonAir() {
         int count = level.getBlockState(ASSEMBLER_POS).isAir() ? 0 : 1;

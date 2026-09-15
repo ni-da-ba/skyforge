@@ -1,6 +1,6 @@
 {
   "schema": "skyforge.compiler-integration-capabilities.v1",
-  "updated_at": "2026-09-14",
+  "updated_at": "2026-09-15",
   "target_stack_authorities": {
     "C11_FLIGHT_EXACT_2026-09-05": {
       "minecraft": "1.21.1",
@@ -26,7 +26,7 @@
   },
   "capabilities": {
     "SABLE_PRIMARY_ASSEMBLY_LIFECYCLE": {
-      "status": "qualification_pending",
+      "status": "accepted",
       "verification_level": "L2",
       "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
       "minimal_fixture": "SkyforgeSableAssemblyLifecycleAcceptance",
@@ -35,13 +35,20 @@
         "SableAssemblyLifecycleResourceTest"
       ],
       "owning_workflow": ".github/workflows/compiler-platform-sable-assembly-lifecycle.yml",
-      "latest_accepted_evidence": null,
+      "latest_accepted_evidence": {
+        "workflow_run": 34926701032,
+        "job": 104246435939,
+        "commit": "45ef746701a9dfa93a8c572c2682477d21203600",
+        "result": "PASS",
+        "finding": "Exact-stack L2 assembled one real Sable body, resolved the current live body by persistent UUID on each tick, obtained a valid current physics handle, translated +X by 0.0996633768081665 blocks, retained no stale handle, and released the bounded COMMAND_FORCED fixture liveness ticket before PASS."
+      },
       "assumptions_preconditions": [
         "The exact C11 Create/Sable/Aeronautics artifacts resolve from immutable coordinates.",
         "Simulated is provided by the accepted Create Aeronautics distribution.",
         "The persistent Sable sublevel UUID, not Java object identity, is runtime body identity.",
         "Physics operations re-resolve the canonical live sublevel and current valid handle.",
-        "The minimal Physics Assembler fixture uses one bounded Create Super Glue domain; this is a fixture precondition, not independent SUPER_GLUE_REALIZATION qualification."
+        "The minimal Physics Assembler fixture uses one bounded Create Super Glue domain; this is a fixture precondition, not independent SUPER_GLUE_REALIZATION qualification.",
+        "The headless L2 fixture uses Sable COMMAND_FORCED only as a bounded qualification liveness ticket and releases it before PASS; this is fixture policy, not production world-placement authority."
       ],
       "failure_taxonomy": [
         "FAIL_DEPENDENCY_RESOLUTION",
@@ -59,8 +66,8 @@
         "TIMEOUT_FIXTURE_TERMINAL_STATE"
       ],
       "production_authority_for_agents": {
-        "B": false,
-        "C": false
+        "B": true,
+        "C": true
       },
       "negative_evidence": [
         {

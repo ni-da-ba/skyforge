@@ -48,6 +48,8 @@ final class SableAssemblyLifecycleResourceTest {
         assertTrue(source.contains("getPhysicsHandle"));
         assertTrue(source.contains("isValid"));
         assertTrue(source.contains("requireCanonicalBody(bodyId)"));
+        assertTrue(source.contains("COMMAND_FORCED"));
+        assertTrue(source.contains("removeFixtureForceLoadTicket"));
         assertTrue(source.contains("canonicalResolutionPerTick=true"));
         assertTrue(source.contains("staleHandleRetained=false"));
         assertFalse(source.contains("SkyforgeAircraftCompiler"));
