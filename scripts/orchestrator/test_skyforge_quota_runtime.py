@@ -168,6 +168,25 @@ class SkyforgeQuotaRuntimeTests(unittest.TestCase):
                     5.0,
                 )
 
+    def test_fresh_provider_admission_clears_stale_quota_pacing_block(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            o.state.data["blocked_kind"] = "quota_pacing"
+            o.state.data["blocked_until_epoch"] = 9999999999.0
+            o.state.data["blocked_reason"] = "old policy"
+            o.state.save()
+            with mock.patch.object(
+                quota_runtime,
+                "_provider_decision",
+                return_value={"authoritative": True, "allowed": True},
+            ), mock.patch.object(quota_runtime, "_record_governed_attempt") as record:
+                quota_runtime._consume_budget(o, "classifier")
+
+            self.assertIsNone(o.state.data["blocked_kind"])
+            self.assertEqual(o.state.data["blocked_until_epoch"], 0.0)
+            self.assertIsNone(o.state.data["blocked_reason"])
+            record.assert_called_once_with(o, "classifier")
+
     def test_task_owned_worker_is_protected_quota_attempt(self):
         with tempfile.TemporaryDirectory() as td:
             o = self.make_orchestrator(pathlib.Path(td))

@@ -269,6 +269,16 @@ def _consume_budget(self: core.Orchestrator, kind: str) -> None:
             int(decision.get("retry_after_seconds") or 300),
             str(decision.get("reason") or "provider quota pacing deferred this model turn"),
         )
+    # A fresh authoritative admission supersedes an older persisted pacing delay. Without this, an
+    # operator/runtime-policy refresh can admit the current protected turn while the stale block still
+    # prevents the following roadmap seed until the original wall-clock deadline.
+    with self._state_lock:
+        if self.state.data.get("blocked_kind") == "quota_pacing":
+            self.state.data["blocked_until_epoch"] = 0.0
+            self.state.data["blocked_kind"] = None
+            self.state.data["blocked_reason"] = None
+            self.state.save()
+            self._metric("quota_pacing_blocks_superseded")
     _record_governed_attempt(self, kind)
 
 
