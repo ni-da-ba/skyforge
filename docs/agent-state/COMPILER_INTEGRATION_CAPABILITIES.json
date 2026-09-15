@@ -365,6 +365,53 @@
           "finding": "Using ClientSubLevel.renderPose(partialTick) for convergence, player placement, and aim projection produced exact server/client wheel-center agreement, yet Simulated lookingAtWheel remained false. This isolates the remaining harness defect to the actual wheel-versus-mount voxel ray geometry and same-tick interpolated camera ray rather than Sable pose synchronization."
         }
       ]
+    },
+    "SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE": {
+      "status": "qualification_pending",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeComposedMechanismPersistenceAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "ComposedMechanismPersistenceResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-composed-mechanism-persistence.yml",
+      "latest_accepted_evidence": null,
+      "assumptions_preconditions": [
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE, SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE, CREATE_KINETIC_ON_SABLE_LIFECYCLE, and NESTED_PROPELLER_BEARING_LIFECYCLE without widening those prerequisites.",
+        "The fixture persists only durable identity (primary UUID, pre-reload child/glue UUIDs, and integer plot offset); all Java objects, block entities, entity handles, physics handles, and kinetic state are re-resolved in Boot B.",
+        "Boot A releases the bounded COMMAND_FORCED qualification ticket before save; Boot B recovers the UUID through Sable holding storage and applies a fresh bounded ticket only after canonical reload begins.",
+        "A post-reload shaft sever/rebuild is required so serialized residue alone cannot satisfy persistence acceptance.",
+        "The production aircraft, Steering Wheel/client interaction, controls, player tracking, handling, and flight remain outside this capability."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_TARGET_LOWERING",
+        "FAIL_BOOT",
+        "FAIL_RUNTIME_EXIT",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_GLUE_REGISTRATION",
+        "FAIL_ASSEMBLY",
+        "FAIL_CHILD_ASSEMBLY",
+        "FAIL_KINETIC_REBUILD",
+        "FAIL_PHYSICS",
+        "FAIL_PERSISTENCE",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_KINETIC_BUILD",
+        "TIMEOUT_KINETIC_DISCONNECT",
+        "TIMEOUT_KINETIC_REBUILD",
+        "TIMEOUT_CHILD_ASSEMBLY",
+        "TIMEOUT_PERSISTENCE_RELOAD",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": false,
+        "C": false
+      },
+      "negative_evidence": []
     }
   }
 }

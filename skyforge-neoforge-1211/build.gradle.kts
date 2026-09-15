@@ -1940,6 +1940,25 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // PLATFORM-007: fresh-process persistence of one composed Sable/Create/Aeronautics mechanism.
+        create("compilerPlatformComposedMechanismPersistencePrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-composed-mechanism-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformComposedMechanismPersistence", "prepare")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("compilerPlatformComposedMechanismPersistenceVerifyServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-composed-mechanism-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformComposedMechanismPersistence", "verify")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // AIRCRAFT-RUNTIME-001: production v0.12 Guild utility powertrain, first accepted 128-RPM point only.
         create("aircraftPowertrainRuntime128Server") {
             server()
@@ -2560,6 +2579,37 @@ tasks.named("runCompilerPlatformNestedPropellerBearingLifecycleServer").configur
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(compilerPlatformNestedPropellerBearingLifecycleServerProperties)
+    }
+}
+
+val compilerPlatformComposedMechanismPersistenceServerProperties = """
+    level-name=compiler-platform-composed-mechanism-persistence
+    level-seed=676001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformComposedMechanismPersistencePrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-composed-mechanism-persistence").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformComposedMechanismPersistenceServerProperties)
+    }
+}
+
+tasks.named("runCompilerPlatformComposedMechanismPersistenceVerifyServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-composed-mechanism-persistence").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformComposedMechanismPersistenceServerProperties)
     }
 }
 
