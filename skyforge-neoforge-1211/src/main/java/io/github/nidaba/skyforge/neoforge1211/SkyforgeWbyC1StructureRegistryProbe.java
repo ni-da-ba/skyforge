@@ -78,8 +78,23 @@ final class SkyforgeWbyC1StructureRegistryProbe {
             requireStateContract("create:industrial_iron_window_pane", PANE_PROPERTIES, PANE_DEFAULTS, evidence);
             requireStateContract("create:ornate_iron_window_pane", PANE_PROPERTIES, PANE_DEFAULTS, evidence);
 
+            // Discovery-only structural vocabulary. These observations intentionally do not grant
+            // automatic compiler authority; they establish the exact pinned-runtime state surface
+            // for the next semantic/compiler tranche.
+            observeStateContract("create:andesite_bars", evidence);
+            observeStateContract("create:brass_bars", evidence);
+            observeStateContract("create:copper_bars", evidence);
+            observeStateContract("create:andesite_ladder", evidence);
+            observeStateContract("create:brass_ladder", evidence);
+            observeStateContract("create:copper_ladder", evidence);
+            observeStateContract("create:andesite_scaffolding", evidence);
+            observeStateContract("create:brass_scaffolding", evidence);
+            observeStateContract("create:copper_scaffolding", evidence);
+            observeStateContract("create:metal_girder", evidence);
+
             evidence.put("catalogBlocksValidated", "8");
             evidence.put("paneContractsValidated", "3");
+            evidence.put("deferredStructuralContractsObserved", "10");
             evidence.put("status", "PASS");
             writeResult(evidence);
             LOGGER.log(
@@ -105,6 +120,25 @@ final class SkyforgeWbyC1StructureRegistryProbe {
             Map<String, Set<String>> expectedDomains,
             Map<String, String> expectedDefaults,
             Map<String, String> evidence) {
+        StateContract actual = stateContract(resourceName);
+        if (!actual.domains().equals(expectedDomains)) {
+            throw new IllegalStateException(
+                    resourceName + " property domains differ: expected=" + expectedDomains
+                            + " actual=" + actual.domains());
+        }
+        if (!actual.defaults().equals(expectedDefaults)) {
+            throw new IllegalStateException(
+                    resourceName + " defaults differ: expected=" + expectedDefaults
+                            + " actual=" + actual.defaults());
+        }
+        recordStateContract(resourceName, actual, evidence);
+    }
+
+    private static void observeStateContract(String resourceName, Map<String, String> evidence) {
+        recordStateContract(resourceName, stateContract(resourceName), evidence);
+    }
+
+    private static StateContract stateContract(String resourceName) {
         ResourceLocation key = ResourceLocation.parse(resourceName);
         Block block = BuiltInRegistries.BLOCK.get(key);
         if (block == Blocks.AIR || !BuiltInRegistries.BLOCK.containsKey(key)) {
@@ -119,26 +153,20 @@ final class SkyforgeWbyC1StructureRegistryProbe {
             }
             actualDomains.put(property.getName(), Set.copyOf(values));
         }
-        if (!actualDomains.equals(expectedDomains)) {
-            throw new IllegalStateException(
-                    resourceName + " property domains differ: expected=" + expectedDomains
-                            + " actual=" + actualDomains);
-        }
 
         BlockState defaultState = block.defaultBlockState();
         Map<String, String> actualDefaults = new TreeMap<>();
         for (var entry : defaultState.getValues().entrySet()) {
             actualDefaults.put(entry.getKey().getName(), String.valueOf(entry.getValue()));
         }
-        if (!actualDefaults.equals(expectedDefaults)) {
-            throw new IllegalStateException(
-                    resourceName + " defaults differ: expected=" + expectedDefaults
-                            + " actual=" + actualDefaults);
-        }
+        return new StateContract(block.getClass().getName(), Map.copyOf(actualDomains), Map.copyOf(actualDefaults));
+    }
 
-        evidence.put(resourceName + ".class", block.getClass().getName());
-        evidence.put(resourceName + ".properties", actualDomains.keySet().toString());
-        evidence.put(resourceName + ".defaults", actualDefaults.toString());
+    private static void recordStateContract(
+            String resourceName, StateContract actual, Map<String, String> evidence) {
+        evidence.put(resourceName + ".class", actual.blockClass());
+        evidence.put(resourceName + ".domains", new TreeMap<>(actual.domains()).toString());
+        evidence.put(resourceName + ".defaults", new TreeMap<>(actual.defaults()).toString());
     }
 
     private static void writeResult(Map<String, String> evidence) {
@@ -167,4 +195,7 @@ final class SkyforgeWbyC1StructureRegistryProbe {
             throw new IllegalStateException("failed to write WBY structure registry result " + path, exception);
         }
     }
+
+    private record StateContract(
+            String blockClass, Map<String, Set<String>> domains, Map<String, String> defaults) {}
 }
