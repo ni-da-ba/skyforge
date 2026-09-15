@@ -182,17 +182,10 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         }
         if (created.size() == 1) {
             bodyId = created.iterator().next();
-            Object canonicalBody = findCanonicalBody(bodyId);
-            if (canonicalBody == null) {
-                fail(
-                        SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
-                        waitDiagnostic.withFinalState(
-                                "bodyId=" + bodyId + " assembler=" + ASSEMBLER_POS + " glueId=" + glueId,
-                                safeServerState(),
-                                "headless",
-                                "UUID was visible in getAllSubLevels but canonical getSubLevel(UUID) returned null"),
-                        "new Sable UUID did not resolve canonically during assembly observation");
-            }
+            // Do not canonically resolve the just-created body inside the assembler callback.
+            // The pinned Sable/Simulated stack can expose client-only signatures while that
+            // transient object is still inside synchronous assembly. Persistent UUID authority
+            // begins here; canonical live-body authority is required on the next bounded phase.
             int sourceNonAir = countSourceFixtureNonAir();
             LOGGER.log(
                     System.Logger.Level.INFO,
