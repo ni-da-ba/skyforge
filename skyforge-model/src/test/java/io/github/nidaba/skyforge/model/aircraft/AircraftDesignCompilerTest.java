@@ -201,7 +201,7 @@ final class AircraftDesignCompilerTest {
         assertTrue(exception.getMessage().contains("does not equal gross mass"));
     }
 
-    private static AircraftDesignSpec guildUtilitySpec() {
+    static AircraftDesignSpec guildUtilitySpec() {
         return new AircraftDesignSpec(
                 AircraftDesignSpec.SCHEMA_VERSION,
                 "skyforge.aircraft.guild_utility_monoplane.v0_1",
