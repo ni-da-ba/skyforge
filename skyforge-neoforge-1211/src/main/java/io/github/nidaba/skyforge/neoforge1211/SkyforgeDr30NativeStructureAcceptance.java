@@ -81,6 +81,26 @@ final class SkyforgeDr30NativeStructureAcceptance {
         admissionBinding = SkyforgePhysicalVolumeAdmissionStage.install(catalog);
     }
 
+    static boolean isProbeCandidate(Structure structure, ChunkPos chunkPos) {
+        if (!enabled() || !originProbeChunk(chunkPos)) {
+            return false;
+        }
+        return structure instanceof WoodlandMansionStructure
+                || (MODE_STACKED.equals(mode()) && structure instanceof DesertPyramidStructure);
+    }
+
+    static IllegalStateException exactProbeFailure(
+            Structure structure,
+            ChunkPos chunkPos,
+            SkyIslandWorldVolumeId volumeId,
+            String reason) {
+        return new IllegalStateException(
+                "DR-30 exact native probe failed: structure=" + structure.getClass().getSimpleName()
+                        + ", chunk=" + chunkPos
+                        + ", volume=" + volumeId
+                        + ", reason=" + reason);
+    }
+
     static boolean suppressBaseWorldProbe(Structure structure, ChunkPos chunkPos) {
         if (!enabled() || MODE_RELOAD.equals(mode()) || !originProbeChunk(chunkPos)) {
             return false;

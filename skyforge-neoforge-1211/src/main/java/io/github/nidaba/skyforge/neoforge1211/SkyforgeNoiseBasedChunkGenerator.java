@@ -273,6 +273,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         if (!SkyforgeDr30NativeStructureAcceptance.allowsExactProbe(structure, chunkPos, domainVolumeId)) {
             return false;
         }
+        boolean dr30ProbeCandidate = SkyforgeDr30NativeStructureAcceptance.isProbeCandidate(structure, chunkPos);
         boolean accommodationProofCandidate = isAccommodationProofCandidate(structure, chunkPos);
         boolean undersideContradictionProofCandidate =
                 SkyforgeNeoForge1211UndersideContradictionDevRuntime.isProofCandidate(structure, chunkPos);
@@ -294,6 +295,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         }
 
         if (!generated || heightClaims.isEmpty()) {
+            if (dr30ProbeCandidate) {
+                throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "generated=" + generated + ", heightClaims=" + heightClaims.size());
+            }
             if (accommodationProofCandidate) {
                 throw new IllegalStateException(
                         "SF-IMP-0046 fixture invalid: forced origin mansion did not produce a Skyforge-height native start");
@@ -307,6 +315,10 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
 
         StructureStart start = chunk.getStartForStructure(structure);
         if (start == null || !start.isValid()) {
+            if (dr30ProbeCandidate) {
+                throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure, chunkPos, domainVolumeId, "native start missing or invalid");
+            }
             if (accommodationProofCandidate) {
                 throw new IllegalStateException(
                         "SF-IMP-0046 fixture invalid: forced origin mansion produced no valid StructureStart");
@@ -323,6 +335,14 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 .filter(claim -> claimResolvesSurfacePlane(start.getBoundingBox(), claim))
                 .toList();
         if (resolvedClaims.isEmpty()) {
+            if (dr30ProbeCandidate) {
+                throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "start did not resolve at claimed surface; bounds=" + start.getBoundingBox()
+                                + ", claims=" + heightClaims);
+            }
             if (accommodationProofCandidate) {
                 throw new IllegalStateException(
                         "SF-IMP-0046 fixture invalid: forced origin mansion did not resolve its start at the claimed "
@@ -339,6 +359,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         Set<SkyIslandWorldVolumeId> claimedVolumeIds = new LinkedHashSet<>();
         resolvedClaims.forEach(claim -> claimedVolumeIds.addAll(claim.volumeIds()));
         if (claimedVolumeIds.size() != 1 || !claimedVolumeIds.contains(domainVolumeId)) {
+            if (dr30ProbeCandidate) {
+                throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "resolved claims referenced volumes=" + claimedVolumeIds);
+            }
             chunk.setAllStarts(previousStarts);
             return false;
         }
@@ -357,6 +384,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 structureFloorY,
                 domainVolumeId);
         if (undersideContradiction.isPresent()) {
+            if (dr30ProbeCandidate) {
+                throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "underside contradiction=" + undersideContradiction.orElseThrow());
+            }
             if (undersideContradictionProofCandidate) {
                 SkyforgeNeoForge1211UndersideContradictionDevRuntime.recordRejected(
                         start.getBoundingBox(),
@@ -397,6 +431,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 .filter(assessment -> assessment.supportingVolumeId().equals(domainVolumeId))
                 .findFirst();
         if (foundationAssessment.isEmpty() || !foundationAssessment.orElseThrow().accepted()) {
+            if (dr30ProbeCandidate) {
+                throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "natural support rejected and bounded foundation accommodation was not accepted");
+            }
             if (accommodationProofCandidate) {
                 SkyforgeNeoForge1211AccommodationDevRuntime.requireFoundationAcceptance(start.getBoundingBox());
             }
