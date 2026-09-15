@@ -36,12 +36,11 @@ final class SkyforgeDr30NativeStructureAcceptance {
     private static final String MODE_SINGLE = "single";
     private static final String MODE_RELOAD = "reload";
     private static final String MODE_STACKED = "stacked";
-    private static final long ROOT_SEED = 0x445233304e415449L;
+    private static final long ROOT_SEED = SkyforgeNeoForge1211AccommodationDevRuntime.ROOT_SEED;
     private static final String GROUP = "dr-30-native-structure-probe";
-    private static final double LOWER_ELEVATION = 196.0;
-    private static final double UPPER_ELEVATION = 264.0;
+    private static final double UPPER_ELEVATION = 300.0;
     private static final double HORIZONTAL_RADIUS = 64.0;
-    private static final int PROOF_RADIUS_CHUNKS = 4;
+    private static final int PROOF_RADIUS_CHUNKS = 8;
 
     private static AutoCloseable terrainBinding;
     private static AutoCloseable admissionBinding;
@@ -328,6 +327,7 @@ final class SkyforgeDr30NativeStructureAcceptance {
         evidence.put("phase", phase);
         evidence.put("contentRole", "FREIGHT_TRANSFER_EDGE");
         evidence.put("fixtureAuthority", "GENERIC_NATIVE_MACHINE_PROBE");
+        evidence.put("lowerFixtureGeometry", "SF-IMP-0046_ACCEPTED_ACCOMMODATION");
         evidence.put("nativeRepresentative", "minecraft:mansion");
         return evidence;
     }
@@ -366,23 +366,27 @@ final class SkyforgeDr30NativeStructureAcceptance {
     }
 
     static SkyIslandWorldCatalog catalog(boolean stacked) {
-        SkyIslandWorldVolume lower = volume(lowerId(), LOWER_ELEVATION);
+        SkyIslandWorldVolume acceptedAccommodation =
+                SkyforgeNeoForge1211AccommodationDevRuntime.catalog().volumes().getFirst();
+        SkyIslandWorldVolume lower = new SkyIslandWorldVolume(
+                lowerId(), acceptedAccommodation.bounds(), acceptedAccommodation.compiledVolume());
         if (!stacked) {
             return new SkyIslandWorldCatalog(ROOT_SEED, List.of(lower));
         }
-        return new SkyIslandWorldCatalog(ROOT_SEED, List.of(lower, volume(upperId(), UPPER_ELEVATION)));
+        return new SkyIslandWorldCatalog(ROOT_SEED, List.of(lower, upperVolume()));
     }
 
-    private static SkyIslandWorldVolume volume(SkyIslandWorldVolumeId id, double elevation) {
+    private static SkyIslandWorldVolume upperVolume() {
+        SkyIslandWorldVolumeId id = upperId();
         return new SkyIslandWorldVolume(
                 id,
-                new WorldBounds(-64.0, 79.0, elevation - 40.0, elevation + 32.0, -64.0, 79.0),
+                new WorldBounds(-64.0, 79.0, UPPER_ELEVATION - 40.0, UPPER_ELEVATION + 32.0, -64.0, 79.0),
                 SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.compileTableland(
-                        id.geometrySeed(), 8.0, 8.0, elevation, HORIZONTAL_RADIUS, HORIZONTAL_RADIUS));
+                        id.geometrySeed(), 8.0, 8.0, UPPER_ELEVATION, HORIZONTAL_RADIUS, HORIZONTAL_RADIUS));
     }
 
     private static SkyIslandWorldVolumeId lowerId() {
-        return new SkyIslandWorldVolumeId(ROOT_SEED, GROUP, 0, 0, ROOT_SEED ^ 0x4c4f574552L);
+        return new SkyIslandWorldVolumeId(ROOT_SEED, GROUP, 0, 0, ROOT_SEED);
     }
 
     private static SkyIslandWorldVolumeId upperId() {
