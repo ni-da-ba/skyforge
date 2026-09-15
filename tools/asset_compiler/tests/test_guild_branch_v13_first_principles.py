@@ -80,6 +80,19 @@ class GuildBranchFirstPrinciplesTests(unittest.TestCase):
         self.assertTrue(space["entranceSeesService"])
         self.assertGreater(space["entranceVisibilityCount"], 0)
 
+    def test_staff_connection_does_not_dead_end_into_working_partition(self):
+        compiled = self._compile()
+        rp = compiled.summary["layout"]["resolvedParameters"]
+        hall_x1 = int(rp["hallWidth"]) - 1
+        wing_x0 = int(rp["hallWidth"])
+        staff_z = max(2, min(int(rp["hallDepth"]) - 3, int(rp["counterZ"]) - 1))
+        # Door occupies hall_x1. The first wing cell and the next cell must both remain clear
+        # at player height so the connection reads and functions as an actual passage.
+        for x in (wing_x0, wing_x0 + 1):
+            for y in (2, 3):
+                self.assertNotIn((x, y, staff_z), compiled.model.cells)
+        self.assertEqual(compiled.model.cells[(hall_x1, 2, staff_z)].module, "fp_staff_connection")
+
     def test_roof_field_and_structure_are_connected(self):
         compiled = self._compile()
         fp = compiled.summary["layout"]["firstPrinciples"]

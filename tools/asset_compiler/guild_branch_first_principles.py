@@ -489,8 +489,13 @@ def compile_guild_branch_first_principles(spec: dict[str, Any]) -> CompiledAsset
     for x in range(2, min(5, hall_x1 - 1)):
         model.set(x, 2, desk_z, "desk", desk, "fp_backoffice_desk")
 
+    # Keep the repair/warehouse partition legible without dead-ending the staff connection.
+    # The staff door enters at wing_x0; a three-cell opening beginning one cell into the wing
+    # preserves an immediate sightline/circulation path instead of presenting a wall column
+    # directly in front of the doorway.
+    working_partition_open_x = {wing_x0 + 1, wing_x0 + 2, wing_x0 + 3}
     for x in range(wing_x0 + 1, wing_x1):
-        if x not in (wing_x0 + 2, wing_x0 + 3):
+        if x not in working_partition_open_x:
             for y in range(2, 5):
                 model.set(x, y, split_z, "wall_infill", wall, "fp_working_partition")
     repair_bench_x = wing_x0 + 1
