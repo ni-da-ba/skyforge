@@ -195,6 +195,44 @@
         "C": true
       },
       "negative_evidence": []
+    },
+    "SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE": {
+      "status": "qualification_pending",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeSuperGlueAssemblyDomainAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "SuperGlueAssemblyDomainResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-super-glue-assembly-domain.yml",
+      "latest_accepted_evidence": null,
+      "assumptions_preconditions": [
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE semantics only as the real Physics Assembler/Sable transfer substrate; this capability independently qualifies the causal effect of one bounded Create Super Glue domain.",
+        "The comparison boundary is minecraft:slime_block adjacent to minecraft:honey_block, and the fixture asserts at runtime that NeoForge canStickTo is false in both directions before either case assembles.",
+        "The positive case registers exactly one SuperGlueEntity containing only the intended adjacent bridge-cell centers; the negative control registers none.",
+        "Glue insertion and Simulated assembly registration are synchronous on the exact stack; no artificial glue-registration polling wait is introduced, while the shared outer runner still bounds server boot and terminal-state execution.",
+        "Physics Assembler presence and valid synchronous Sable mass/center-of-mass are fixture preconditions; nested moving children, kinetics, controls, persistence, and flight remain outside this capability."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_TARGET_LOWERING",
+        "FAIL_BOOT",
+        "FAIL_RUNTIME_EXIT",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_GLUE_REGISTRATION",
+        "FAIL_ASSEMBLY",
+        "FAIL_PHYSICS",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_GLUE_REGISTRATION",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": false,
+        "C": false
+      },
+      "negative_evidence": []
     }
   }
 }
