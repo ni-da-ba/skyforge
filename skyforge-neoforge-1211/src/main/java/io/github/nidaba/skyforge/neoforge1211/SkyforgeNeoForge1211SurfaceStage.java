@@ -658,6 +658,29 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     }
 
     /**
+     * Requires one exact runtime-bound volume to own the available native target chunk.
+     *
+     * <p>The native structure-start seam cannot safely select between stacked or overlapping
+     * catalog candidates. It therefore fails closed rather than inferring an owner from X/Z or
+     * retaining a cross-chunk completion record.
+     */
+    static void requireExactlyOneCandidateVolume(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkAccess chunk) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(chunk, "chunk");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            throw new IllegalStateException("native structure lifecycle requires an active Skyforge runtime binding");
+        }
+        var candidates = binding.adapter().candidateVolumes(chunk);
+        if (candidates.size() != 1 || !candidates.getFirst().id().equals(volumeId)) {
+            throw new IllegalStateException(
+                    "native structure lifecycle requires exactly one exact Skyforge volume for its target chunk");
+        }
+    }
+
+    /**
      * Intersects Minecraft's half-open build interval with Skyforge's conservative closed volume
      * bounds. The +1 conversion on the maximum Y retains the closed upper support sample exactly.
      */
