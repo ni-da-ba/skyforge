@@ -3419,6 +3419,41 @@ class WorkerWorktreeIsolationTests(unittest.TestCase):
                 1,
             )
 
+    def test_snapshot_retires_closed_managed_pr_before_classifier_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_repository(pathlib.Path(tmp))
+            o = self.make_orchestrator(root)
+            o.state.data["managed"] = {
+                "Implementation": {
+                    "branch": "codex/implementation-task-493-old",
+                    "pr_number": 624,
+                    "authority_issue": 493,
+                    "authority_key": "task:493",
+                }
+            }
+            o.state.save()
+
+            with mock.patch.object(
+                orch,
+                "_json_cmd",
+                side_effect=[
+                    [],  # open PR snapshot
+                    [],  # workflow snapshot
+                    {
+                        "state": "CLOSED",
+                        "headRefName": "codex/implementation-task-493-old",
+                    },
+                ],
+            ):
+                snapshot = o.snapshot()
+
+            self.assertEqual(snapshot["controller_managed"], {})
+            self.assertNotIn("Implementation", o.state.data["managed"])
+            self.assertEqual(
+                o.state.data["metrics"].get("stale_managed_records_retired"),
+                1,
+            )
+
     def test_open_managed_pr_record_remains_reusable(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.make_repository(pathlib.Path(tmp))

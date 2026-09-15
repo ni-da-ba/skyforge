@@ -1,7 +1,7 @@
 # Skyforge Aircraft Compiler state
 
 **Program authority:** issue #545  
-**Productionization boundary:** AIRCRAFT-PROD-003 / issue #632
+**Productionization boundary:** AIRCRAFT-PROD-004 / issue #636
 **Frozen evidence only:** `aircraft-compiler-proof@0651bcee7dc879ab43db2f0b224f77e5026222bd`  
 **Frozen implementation beneath checkpoint:** `cc020c872b9c53198cebbb0ae9094097f23c9c45`
 
@@ -58,13 +58,29 @@ preflight layer over production `AircraftAssemblyPlanIR`:
 This tranche does **not** claim live registry/blockstate validation, world placement, Sable assembly,
 propulsion realization, persistence, or any control/flight capability.
 
+## Productionized by AIRCRAFT-PROD-004
+
+On acceptance of issue #636, the backend target-realization chain also contains deterministic static
+propulsion companion topology:
+
+- the production propeller-axis station and AIRCRAFT-PROD-003 target profile are provenance-bound;
+- the source-backed Aeronautics bearing, hub neighbor, and Simulated symmetric-sail resource/state
+  requirements are emitted as a deterministic companion geometry;
+- blade geometry fails closed on collisions, axis mismatch, disconnected topology, nonzero transverse
+  first moment, missing central symmetry, or sail-power mismatch;
+- satisfying the generated sail-power contract resolves only the upstream propeller companion blocker;
+- kinetic connectivity/RPM/stress, thrust sign, nested capture, persistence, and flight remain explicit
+  unverified runtime obligations.
+
+This is compiler-visible topology, not runtime mechanism qualification.
+
 ## Frozen evidence not yet productionized
 
 The frozen branch contains accepted evidence for later compiler/runtime stages, but that evidence is
 not current-`main` production authority for:
 
 - resolved blockstate/orientation lowering, complete placement-manifest emission, and Create sail/state lowering;
-- Sable primary/nested assembly, bounded Super Glue domains, and propulsion/governor topology;
+- Sable primary/nested assembly, bounded Super Glue domains, and live propulsion/governor mechanism behavior;
 - yaw mechanism, cockpit routing, player interaction, and moving-body tracking.
 
 Those capabilities must be extracted through their own bounded production issues from current
@@ -93,8 +109,9 @@ work around the Platform fixture inside a complete aircraft.
 
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-PROD-003 is accepted on `main`, continue target lowering only by resolving the remaining
-state/orientation and companion/station blockers into a deterministic placement manifest. Live runtime
+After AIRCRAFT-PROD-004 is accepted on `main`, the next target-lowering tranche is the accepted regular
+Create sail state/orientation resolution over the production preflight + propulsion identities, including
+compile-visible conflicts for co-located surfaces that demand incompatible facings. Live runtime
 qualification must consume only capabilities explicitly granted by
 `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`; persistence and new control-axis work remain
 downstream of those applicable Platform contracts.
