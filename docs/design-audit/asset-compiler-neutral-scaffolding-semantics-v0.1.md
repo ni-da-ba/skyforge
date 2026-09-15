@@ -2,7 +2,7 @@
 
 ## Scope
 
-This tranche defines a backend-neutral scaffolding primitive for structure realization. It is intentionally stricter than Create 6.0.10 `MetalScaffoldingBlock`: Create disables vanilla survival/falling, while the compiler will require a portable support path and derive state from geometry rather than relying on permissive target behavior.
+This tranche defines a backend-neutral scaffolding primitive for structure realization. It is intentionally stricter than Create 6.0.10 `MetalScaffoldingBlock`: Create disables vanilla survival/falling, while the compiler requires a portable support path and derives state from geometry rather than relying on permissive target behavior.
 
 ## Exact Create boundary
 
@@ -42,21 +42,27 @@ Distance is solved over the complete scaffolding cluster, independently of itera
 4. values are capped at 7;
 5. a cell that cannot reach a support seed remains 7 and is rejected for neutral compiler validity.
 
-This is a conservative portability rule. Create may keep distance-7 scaffolding alive, but generated structures must not depend on that Create-specific relaxation.
+This is a conservative portability rule. Create may keep distance-7 scaffolding alive, but generated structures do not depend on that Create-specific relaxation.
 
 ## Shape contract
 
-Scaffolding has its own coarse partial-collision shape class and exposes no sturdy support faces. `bottom=true` may use a distinct `scaffolding_bottom` shape class because the pinned Create implementation changes its collision/selection geometry in that state. Shape classification is neighbor-dependent because `bottom` is geometry-derived.
+Scaffolding has its own coarse partial-collision shape class and exposes no sturdy support faces. `bottom=true` uses a distinct `scaffolding_bottom` shape class because the pinned Create implementation changes its collision/selection geometry in that state. Shape classification is neighbor-dependent because `bottom` is geometry-derived.
+
+Synthetic adapter tests prove vertical inheritance, horizontal distance propagation, authored-state replacement, rejection of unsupported clusters, distinct bottom geometry, and semantic round-trip of `scaffolding` plus `climbable`.
 
 ## WBY authority
 
-The three Create metal scaffolds remain non-selectable until this neutral topology is implemented and proven. After proof they may be moved into the WBY catalog as `cataloged`, not `active`:
+The three Create metal scaffolds are now present in the WBY capability catalog as `cataloged`, not `active`:
 
 - `create:andesite_scaffolding`;
 - `create:brass_scaffolding`;
 - `create:copper_scaffolding`.
 
-No current Guild semantic role is remapped. Activation requires an explicit upstream neutral scaffolding/access intent.
+They therefore do not enter `wby_c1_create_registry()` and cannot alter current Guild output. Their exact `bottom`/`distance`/`waterlogged` contracts are enforced by the pinned Create 6.0.10 runtime probe.
+
+The live gate now validates seventeen catalog resources in total: the established casing/block vocabulary plus three panes, three bars, three ladders, and three scaffolds. `create:metal_girder` is the sole remaining observation-only structural resource in this audit lane.
+
+No current Guild semantic role is remapped. Activation requires an explicit upstream neutral scaffolding/access intent. Ordinary vanilla Guild realization is unchanged.
 
 ## Concurrency boundary
 
