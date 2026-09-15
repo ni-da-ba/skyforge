@@ -39,6 +39,7 @@ _ORIGINAL_APPLY_CONTROL_PAYLOAD = core.Orchestrator._apply_control_payload
 _ORIGINAL_HEALTH_SNAPSHOT = core.Orchestrator.health_snapshot
 _ORIGINAL_CONSUME_BUDGET = core.Orchestrator._consume_budget
 _ORIGINAL_DISCARD_PENDING_WORKER = core.Orchestrator.discard_pending_worker
+_ORIGINAL_REFRESH_RUNTIME = core.Orchestrator.refresh_runtime
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -382,6 +383,18 @@ def _retire_merged_managed_handoff(
     self._metric("operator_merged_handoff_retirements")
 
 
+def refresh_runtime(self: core.Orchestrator, *, actor: str | None = None) -> None:
+    """Refresh controller code and force persisted pacing delays to be re-evaluated afterward."""
+    _ORIGINAL_REFRESH_RUNTIME(self, actor=actor)
+    with self._state_lock:
+        if self.state.data.get("blocked_kind") == "quota_pacing":
+            self.state.data["blocked_until_epoch"] = 0.0
+            self.state.data["blocked_kind"] = None
+            self.state.data["blocked_reason"] = None
+            self.state.save()
+            self._metric("quota_pacing_blocks_invalidated_by_runtime_refresh")
+
+
 def discard_pending_worker(self: core.Orchestrator, *, actor: str | None = None) -> None:
     """Preserve the original discard guard, plus a merged-PR-only terminal handoff path."""
     with self._state_lock:
@@ -491,6 +504,7 @@ def install_extension() -> None:
     core.Orchestrator._apply_control_payload = _apply_control_payload
     core.Orchestrator.health_snapshot = health_snapshot
     core.Orchestrator._consume_budget = _consume_budget
+    core.Orchestrator.refresh_runtime = refresh_runtime
     core.Orchestrator.discard_pending_worker = discard_pending_worker
     core._skyforge_quota_extension_installed = True
 
