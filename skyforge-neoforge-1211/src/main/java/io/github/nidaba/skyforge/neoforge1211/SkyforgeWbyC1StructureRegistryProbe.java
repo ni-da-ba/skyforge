@@ -51,6 +51,14 @@ final class SkyforgeWbyC1StructureRegistryProbe {
     private static final Map<String, String> LADDER_DEFAULTS = Map.of(
             "facing", "north",
             "waterlogged", "false");
+    private static final Map<String, Set<String>> SCAFFOLDING_PROPERTIES = Map.of(
+            "bottom", BOOLEAN_DOMAIN,
+            "distance", Set.of("0", "1", "2", "3", "4", "5", "6", "7"),
+            "waterlogged", BOOLEAN_DOMAIN);
+    private static final Map<String, String> SCAFFOLDING_DEFAULTS = Map.of(
+            "bottom", "false",
+            "distance", "7",
+            "waterlogged", "false");
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeWbyC1StructureRegistryProbe.class.getName());
 
@@ -113,20 +121,33 @@ final class SkyforgeWbyC1StructureRegistryProbe {
             requireStateContract("create:andesite_ladder", LADDER_PROPERTIES, LADDER_DEFAULTS, evidence);
             requireStateContract("create:brass_ladder", LADDER_PROPERTIES, LADDER_DEFAULTS, evidence);
             requireStateContract("create:copper_ladder", LADDER_PROPERTIES, LADDER_DEFAULTS, evidence);
+            requireStateContract(
+                    "create:andesite_scaffolding",
+                    SCAFFOLDING_PROPERTIES,
+                    SCAFFOLDING_DEFAULTS,
+                    evidence);
+            requireStateContract(
+                    "create:brass_scaffolding",
+                    SCAFFOLDING_PROPERTIES,
+                    SCAFFOLDING_DEFAULTS,
+                    evidence);
+            requireStateContract(
+                    "create:copper_scaffolding",
+                    SCAFFOLDING_PROPERTIES,
+                    SCAFFOLDING_DEFAULTS,
+                    evidence);
 
-            // Discovery-only structural vocabulary. These observations intentionally do not grant
-            // automatic compiler authority; they establish the exact pinned-runtime state surface
-            // for later semantic/compiler tranches.
-            observeStateContract("create:andesite_scaffolding", evidence);
-            observeStateContract("create:brass_scaffolding", evidence);
-            observeStateContract("create:copper_scaffolding", evidence);
+            // Discovery-only structural vocabulary. This observation intentionally does not grant
+            // automatic compiler authority; it establishes the exact pinned-runtime state surface
+            // for the remaining semantic/compiler tranche.
             observeStateContract("create:metal_girder", evidence);
 
-            evidence.put("catalogBlocksValidated", "14");
+            evidence.put("catalogBlocksValidated", "17");
             evidence.put("paneContractsValidated", "3");
             evidence.put("barsContractsValidated", "3");
             evidence.put("ladderContractsValidated", "3");
-            evidence.put("deferredStructuralContractsObserved", "4");
+            evidence.put("scaffoldingContractsValidated", "3");
+            evidence.put("deferredStructuralContractsObserved", "1");
             evidence.put("status", "PASS");
             writeResult(evidence);
             LOGGER.log(
