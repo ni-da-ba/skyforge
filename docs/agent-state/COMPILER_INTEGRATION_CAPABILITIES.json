@@ -1,0 +1,65 @@
+{
+  "schema": "skyforge.compiler-integration-capabilities.v1",
+  "updated_at": "2026-09-14",
+  "target_stack_authorities": {
+    "C11_FLIGHT_EXACT_2026-09-05": {
+      "minecraft": "1.21.1",
+      "neoforge": "21.1.249",
+      "create": {
+        "version": "6.0.10+mc1.21.1",
+        "coordinate": "maven.modrinth:LNytGWDc:UjX6dr61"
+      },
+      "sable": {
+        "version": "2.0.5+mc1.21.1",
+        "coordinate": "maven.modrinth:T9PomCSv:U678xqle"
+      },
+      "aeronautics": {
+        "version": "1.3.2+mc1.21.1",
+        "coordinate": "maven.modrinth:oWaK0Q19:44pLdPGg"
+      },
+      "simulated": {
+        "provenance": "bundled by the exact Create Aeronautics coordinate above"
+      },
+      "pin_file": "skyforge-neoforge-1211/wave-c1-mods.properties",
+      "resolver": ":skyforge-neoforge-1211:waveC11ResolvePinnedMods"
+    }
+  },
+  "capabilities": {
+    "SABLE_PRIMARY_ASSEMBLY_LIFECYCLE": {
+      "status": "qualification_pending",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeSableAssemblyLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "SableAssemblyLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-sable-assembly-lifecycle.yml",
+      "latest_accepted_evidence": null,
+      "assumptions_preconditions": [
+        "The exact C11 Create/Sable/Aeronautics artifacts resolve from immutable coordinates.",
+        "Simulated is provided by the accepted Create Aeronautics distribution.",
+        "The persistent Sable sublevel UUID, not Java object identity, is runtime body identity.",
+        "Physics operations re-resolve the canonical live sublevel and current valid handle."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_TARGET_LOWERING",
+        "FAIL_BOOT",
+        "FAIL_RUNTIME_EXIT",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_ASSEMBLY",
+        "FAIL_PHYSICS",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_PROGRESSION",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": false,
+        "C": false
+      }
+    }
+  }
+}
