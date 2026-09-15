@@ -85,9 +85,14 @@ final class SkyforgePhysicalVolumeCatchupService {
             if (packet.assignedSolidWrites() > MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM) {
                 throw new IllegalStateException("deferred terrain packet exceeded scheduler write budget");
             }
-            if (packet.completed()
-                    && SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
-                SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
+            if (packet.completed()) {
+                SkyforgeNativeStructureRuntimeOperation.execute(
+                        level,
+                        chunk,
+                        packet.servicedVolumeId().orElseThrow());
+                if (SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
+                    SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
+                }
             }
             return true;
         }
