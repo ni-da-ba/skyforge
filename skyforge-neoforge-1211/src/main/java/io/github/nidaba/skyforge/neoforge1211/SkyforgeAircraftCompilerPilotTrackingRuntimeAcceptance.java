@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Objects;
@@ -37,6 +38,7 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
     private static volatile double measuredParentDeltaX;
     private static volatile double measuredPlayerDeltaX;
     private static volatile PhysicsContext physicsContext;
+    private static volatile String reflectionStage = "idle";
 
     private SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance() {}
 
@@ -115,8 +117,11 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
         ServerPlayer player = players.getFirst();
 
         try {
+            reflectionStage = "trackingSubLevel";
             Object trackingSubLevel = trackingSubLevel(player);
+            reflectionStage = "expectedParentUniqueId";
             UUID expectedParentId = subLevelUniqueId(assembledParentSubLevel);
+            reflectionStage = "observedTrackingUniqueId";
             UUID observedTrackingId = subLevelUniqueId(trackingSubLevel);
             boolean trackingParentIdentity = expectedParentId != null && expectedParentId.equals(observedTrackingId);
 
@@ -135,9 +140,12 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
                     fail("v0.21 measurement must begin after ordinary seat dismount");
                 }
 
+                reflectionStage = "initialParentLogicalPose";
                 startParentX = parentPositionX(assembledParentSubLevel);
                 startPlayerX = player.getX();
+                reflectionStage = "preparePhysics";
                 physicsContext = preparePhysics(player.serverLevel(), assembledParentSubLevel);
+                reflectionStage = "setInitialLinearVelocity";
                 setLinearVelocityX(physicsContext.handle(), translationVelocityMetersPerSecond);
                 measurementStarted = true;
                 LOGGER.log(
@@ -167,6 +175,7 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
                 fail("player became a passenger during the post-dismount tracking measurement");
             }
 
+            reflectionStage = "measuredParentLogicalPose";
             measuredParentDeltaX = parentPositionX(assembledParentSubLevel) - startParentX;
             measuredPlayerDeltaX = player.getX() - startPlayerX;
             if (Math.abs(measuredParentDeltaX) >= minimumParentTranslationBlocks) {
@@ -212,7 +221,8 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
             }
         } catch (ReflectiveOperationException failure) {
             cleanupPhysicsQuietly();
-            fail("v0.21 exact-stack reflection failed: " + failure);
+            fail("v0.21 exact-stack reflection failed at " + reflectionStage
+                    + ": " + reflectionFailureDiagnostic(failure));
         }
     }
 
@@ -334,6 +344,26 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
 
     private static String className(Object value) {
         return value == null ? "<null>" : value.getClass().getName();
+    }
+
+    private static String reflectionFailureDiagnostic(ReflectiveOperationException failure) {
+        StringBuilder diagnostic = new StringBuilder();
+        Throwable current = failure;
+        for (int depth = 0; current != null && depth < 6; depth++) {
+            if (depth > 0) {
+                diagnostic.append(" <- ");
+            }
+            diagnostic.append(current.getClass().getName());
+            if (current.getMessage() != null && !current.getMessage().isBlank()) {
+                diagnostic.append(": ").append(current.getMessage());
+            }
+            if (current instanceof InvocationTargetException invocation && invocation.getTargetException() != null) {
+                current = invocation.getTargetException();
+            } else {
+                current = current.getCause();
+            }
+        }
+        return diagnostic.toString();
     }
 
     private static void fail(String reason) {
