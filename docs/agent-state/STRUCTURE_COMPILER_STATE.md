@@ -127,40 +127,50 @@ Reusable Create/Sable/Simulated runtime seams are owned by issue #613. Agent C m
 seam only when `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json` on accepted `main` marks that
 capability `accepted` and grants Agent C production authority.
 
-`SABLE_PRIMARY_ASSEMBLY_LIFECYCLE` is accepted and consumable, but it is not sufficient authority for
-fixed-world Create mechanisms. Its bounded Super Glue use is only a fixture precondition and is not an
-independent qualification of glue or a Create kinetic network.
+`SABLE_PRIMARY_ASSEMBLY_LIFECYCLE` remains accepted and consumable for its bounded moving-body scope.
+Its Super Glue use is only a fixture precondition and is not independent glue/mechanism authority.
 
-The next required platform seam is a fixed-world Create kinetic-network lifecycle capability covering
-at least initialization, nonzero kinetic propagation to a downstream endpoint, deterministic sever /
-inactive behavior, and rebuild/recovery with classified bounded failure states.
+PLATFORM-002 / PR #631 is now accepted on `main` at merge
+`3d81e5369fda7123226524f236e826331c4e31d0`. The shared ledger records
+`CREATE_KINETIC_NETWORK_LIFECYCLE` as accepted L2 with Agent C production authority. That capability
+proves one fixed-world Create source -> required shaft -> endpoint network can initialize, propagate
+nonzero speed, disconnect when the relay is removed, and rebuild when the relay is restored with
+bounded classified diagnostics.
 
-## Next bounded Agent C tranche: MECH-001 / issue #628
+This fixed-world qualification is sufficient to begin MECH-001. It does not authorize moving-body
+kinetics, arbitrary Create resource catalogs, water-driven generation, or item-transport behavior.
 
-Do not start L3 runtime qualification for MECH-001 until the required Agent A Create kinetic capability
-is accepted in the shared ledger.
+## Active bounded Agent C tranche: MECH-001 / issue #628
 
-Once available, issue #628 should prove one compact compiled fixed-world utility mechanism, preferably
-a waterwheel-driven shaft plus short conveyor/transfer run if exact-stack source inspection supports
-that combination cleanly.
+MECH-001 is active on `compiler/628-mech-001` and consumes the accepted
+`CREATE_KINETIC_NETWORK_LIFECYCLE` platform contract.
 
-The mechanism compiler must remain deliberately small. It should encode only:
+Exact-stack inspection narrowed the first proof below the initially suggested waterwheel/conveyor
+combination so the specimen does not silently add two unqualified runtime seams. The current bounded
+mechanism is an **airflow utility bench**:
 
-- mechanism envelope/mounting region;
-- kinetic source role;
-- transmission path and axis/orientation;
-- downstream functional endpoint;
-- support/clearance requirements;
-- expected connectivity and active/inactive state;
-- exact target realization through accepted current-stack authority.
+- semantic source role: `qualified_kinetic_source`;
+- one required axial relay;
+- semantic downstream role: `airflow`;
+- concrete exact-stack L3 target: Creative Motor -> Shaft -> Encased Fan;
+- source policy: `qualified_test_source_not_gameplay_canon`;
+- 3x3 masonry support pad plus explicit three-block fan discharge clearance;
+- deterministic compiled plan digest
+  `da905478f5f3e42e197bd0ef1a38baba848c8ce65c2a911d7153743597098ce1`.
 
-It must fail closed on unsupported resources/states/orientations or missing qualified platform
-capabilities, prove break/rebuild behavior before human review, and stop at the exact Minecraft human
-gate with copy-paste commands.
+The semantic specimen contains no concrete Create resource identifiers. The compiler target-lowering
+layer resolves exact current-stack block states and carries PLATFORM-002 evidence into the compiled
+plan. The runtime fixture consumes that exact committed compiler artifact, checks support/clearance,
+observes real Create kinetic block-entity state, severs the compiler-designated relay, and restores it.
+
+The Creative Motor is only the already-qualified deterministic L3 test source. It is not accepted as
+the final in-world Guild power source; a later qualified waterwheel/other source may replace that
+source role without changing the mechanism contract.
 
 ## Current stop state
 
 Structure proof: **ACCEPTED / COMPLETE**.  
 Issue #488: **CLOSED COMPLETED**.  
-MECH-001 / #628: **OPEN, RESERVED FOR AGENT C, BLOCKED ON CREATE KINETIC PLATFORM QUALIFICATION**.  
-No human action is currently required.
+PLATFORM-002 fixed-world Create kinetic lifecycle: **ACCEPTED / CONSUMABLE BY AGENT C**.  
+MECH-001 / #628: **ACTIVE; MACHINE QUALIFICATION AND HUMAN MINECRAFT GATE PENDING**.  
+No human action is required until the exact-head machine evidence is green.
