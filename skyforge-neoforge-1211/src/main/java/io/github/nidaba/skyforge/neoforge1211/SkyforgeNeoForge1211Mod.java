@@ -72,6 +72,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeCreateKineticNetworkLifecycleAcceptance.installFromSystemProperty();
         SkyforgeCreateKineticOnSableLifecycleAcceptance.installFromSystemProperty();
         SkyforgeSuperGlueAssemblyDomainAcceptance.installFromSystemProperty();
+        SkyforgeNestedPropellerBearingLifecycleAcceptance.installFromSystemProperty();
         SkyforgeWaveC12BellancaB0AssemblyAcceptance.installFromSystemProperty();
         SkyforgeWaveC13ElytraBypassAcceptance.installFromSystemProperty();
         SkyforgeWaveC14AvionicsCapabilityAcceptance.installFromSystemProperty();

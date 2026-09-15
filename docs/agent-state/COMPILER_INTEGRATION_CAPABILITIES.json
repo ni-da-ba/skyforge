@@ -239,6 +239,48 @@
         "C": true
       },
       "negative_evidence": []
+    },
+    "NESTED_PROPELLER_BEARING_LIFECYCLE": {
+      "status": "qualification_pending",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeNestedPropellerBearingLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "NestedPropellerBearingLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-nested-propeller-bearing-lifecycle.yml",
+      "latest_accepted_evidence": null,
+      "assumptions_preconditions": [
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE, CREATE_KINETIC_ON_SABLE_LIFECYCLE, and SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE semantics without widening those prerequisites.",
+        "The fixed-world Propeller Bearing child is one axial create:shaft hub plus exactly two simulated:white_symmetric_sail cells, satisfying the exact Aeronautics minimum sail-power boundary.",
+        "Main-body and child-internal Super Glue domains are disjoint and no glue spans the Propeller Bearing controller plane.",
+        "The ground controlled child is fixture setup; the qualification target is clean flattening through the real Physics Assembler followed by fresh nested child reassembly from the canonical moved bearing.",
+        "Persistent Sable UUID is primary-body identity; moved bearing/block entities and physics handles are re-resolved from current canonical state rather than retained across assembly."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_TARGET_LOWERING",
+        "FAIL_BOOT",
+        "FAIL_RUNTIME_EXIT",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_ASSEMBLY",
+        "FAIL_CHILD_ASSEMBLY",
+        "FAIL_KINETIC_REBUILD",
+        "FAIL_PHYSICS",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_KINETIC_BUILD",
+        "TIMEOUT_CHILD_ASSEMBLY",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": false,
+        "C": false
+      },
+      "negative_evidence": []
     }
   }
 }

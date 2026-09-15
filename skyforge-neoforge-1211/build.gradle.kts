@@ -1930,6 +1930,17 @@ neoForge {
         }
 
 
+        // PLATFORM-005: ground child -> Physics Assembler flatten -> nested Propeller Bearing reassembly.
+        create("compilerPlatformNestedPropellerBearingLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-nested-propeller-bearing-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformNestedPropellerBearingLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         // C12 B0-A1/A2: exact 105-block MAIN_BODY through the real Physics Assembler, then
         // authoritative Sable mass/center-of-mass measurement.
         create("waveC12BellancaB0AssemblyServer") {
@@ -2473,6 +2484,30 @@ tasks.named("runCompilerPlatformSuperGlueAssemblyDomainServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(compilerPlatformSuperGlueAssemblyDomainServerProperties)
+    }
+}
+
+
+val compilerPlatformNestedPropellerBearingLifecycleServerProperties = """
+    level-name=compiler-platform-nested-propeller-bearing-lifecycle
+    level-seed=660001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformNestedPropellerBearingLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-nested-propeller-bearing-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformNestedPropellerBearingLifecycleServerProperties)
     }
 }
 
