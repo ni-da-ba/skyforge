@@ -24,7 +24,7 @@ final class SuperGlueAssemblyDomainResourceTest {
         assertTrue(build.contains("sourceSet.set(waveC11Runtime)"));
         assertTrue(pins.contains("minecraft.version=1.21.1"));
         assertTrue(pins.contains("neoforge.version=21.1.249"));
-        assertTrue(source.contains("simulated:physics_assembler"));
+        assertTrue(source.contains("ResourceLocation.fromNamespaceAndPath(\"simulated\", \"physics_assembler\")"));
         assertTrue(source.contains("Blocks.SLIME_BLOCK"));
         assertTrue(source.contains("Blocks.HONEY_BLOCK"));
         assertTrue(source.contains("canStickTo"));
