@@ -374,7 +374,7 @@ final class SkyforgeNestedPropellerBearingLifecycleAcceptance {
             }
             Class.forName("dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer");
             Class.forName("dev.eriksonn.aeronautics.content.blocks.propeller.bearing.propeller_bearing.PropellerBearingBlockEntity");
-            Class.forName("dev.eriksonn.aeronautics.content.blocks.propeller.bearing.propeller_bearing.PropellerBearingContraptionEntity");
+            Class.forName("dev.eriksonn.aeronautics.content.blocks.propeller.bearing.contraption.PropellerBearingContraptionEntity");
             Class.forName("com.simibubi.create.content.kinetics.base.KineticBlockEntity");
         } catch (ClassNotFoundException | IllegalStateException exception) {
             fail(SkyforgeCompilerIntegrationFailure.FAIL_DEPENDENCY_RESOLUTION,
