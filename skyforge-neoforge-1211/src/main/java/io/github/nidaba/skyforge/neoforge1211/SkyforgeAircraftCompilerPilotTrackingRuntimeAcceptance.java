@@ -151,7 +151,7 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
                 LOGGER.log(
                         System.Logger.Level.INFO,
                         "AIRCRAFT_001_V021_TRACKING_ACQUIRED"
-                                + " naturalSeatVehicleAcquisition=true"
+                                + " naturalClientCollisionMovementPacketAcquisition=true"
                                 + " trackingParentIdentity=true"
                                 + " trackingParentUuid=" + expectedParentId
                                 + " afterDismount=true"
@@ -196,6 +196,7 @@ final class SkyforgeAircraftCompilerPilotTrackingRuntimeAcceptance {
                         System.Logger.Level.INFO,
                         "AIRCRAFT_001_RUNTIME_PILOT_TRACKING PASS"
                                 + " naturalTrackingAcquired=true"
+                                + " acquisitionPath=client_sublevel_collision_then_movement_packet"
                                 + " trackingParentIdentity=true"
                                 + " trackingParentUuid=" + expectedParentId
                                 + " postDismountMeasurement=true"

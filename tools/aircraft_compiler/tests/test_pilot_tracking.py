@@ -30,7 +30,8 @@ class PilotTrackingTests(unittest.TestCase):
                 "evidenceBoundary": "accepted v0.20",
             },
             "trackingContract": {
-                "acquisition": "natural_create_seat_vehicle_containment",
+                "acquisition": "natural_client_sublevel_collision_then_movement_packet",
+                "preMeasurementInput": "bounded_ordinary_jump_key",
                 "inspection": "sable_helper_get_tracking_sub_level",
                 "parentIdentityMethod": "sable_persistent_sublevel_uuid",
                 "measurementBeginsAfterDismount": True,
@@ -56,6 +57,11 @@ class PilotTrackingTests(unittest.TestCase):
         second = lower_pilot_tracking(self.source, self.profile)
         self.assertEqual(first["digestSha256"], second["digestSha256"])
         self.assertEqual(first["schemaVersion"], "aircraft-pilot-tracking-ir-0.21")
+        self.assertEqual(
+            first["trackingContract"]["acquisition"],
+            "natural_client_sublevel_collision_then_movement_packet",
+        )
+        self.assertEqual(first["trackingContract"]["preMeasurementInput"], "bounded_ordinary_jump_key")
         self.assertEqual(
             first["trackingContract"]["parentIdentityMethod"],
             "sable_persistent_sublevel_uuid",
