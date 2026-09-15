@@ -146,6 +146,35 @@ class FunctionalMechanismCompilerTest(unittest.TestCase):
         with self.assertRaisesRegex(SpecError, "overlaps a mechanism placement"):
             compiled_asset_for_mechanism_structure(blocked_clearance)
 
+    def test_boolean_integer_fields_fail_closed(self) -> None:
+        spec = copy.deepcopy(self.spec)
+        spec["seed"] = True
+        with self.assertRaisesRegex(SpecError, "integer seed is required"):
+            compile_functional_mechanism(spec, self.ledger)
+
+        ledger = copy.deepcopy(self.ledger)
+        ledger["capabilities"]["CREATE_KINETIC_NETWORK_LIFECYCLE"]["latest_accepted_evidence"]["workflow_run"] = True
+        with self.assertRaisesRegex(SpecError, "workflow_run is missing"):
+            compile_functional_mechanism(self.spec, ledger)
+
+    def test_structure_export_rejects_valid_shape_with_stale_digest(self) -> None:
+        plan = self.compile()
+        plan["placements"][0]["blockState"] = {"name": "minecraft:cobblestone"}
+        with self.assertRaisesRegex(SpecError, "digest mismatch"):
+            compiled_asset_for_mechanism_structure(plan)
+
+    def test_structure_export_requires_nonempty_resource_and_role(self) -> None:
+        plan = self.compile()
+        empty_resource = copy.deepcopy(plan)
+        empty_resource["placements"][0]["blockState"]["name"] = ""
+        with self.assertRaisesRegex(SpecError, "missing blockState.name"):
+            compiled_asset_for_mechanism_structure(empty_resource)
+
+        bad_role = copy.deepcopy(plan)
+        bad_role["placements"][0]["mechanicalRole"] = 7
+        with self.assertRaisesRegex(SpecError, "mechanicalRole must be a non-empty string"):
+            compiled_asset_for_mechanism_structure(bad_role)
+
 
 if __name__ == "__main__":
     unittest.main()
