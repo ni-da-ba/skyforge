@@ -70,6 +70,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgePortableEngineCutoffSableAcceptance.installFromSystemProperty();
         SkyforgeSableAssemblyLifecycleAcceptance.installFromSystemProperty();
         SkyforgeCreateKineticNetworkLifecycleAcceptance.installFromSystemProperty();
+        SkyforgeMech001FunctionalMechanismAcceptance.installFromSystemProperty();
         SkyforgeCreateKineticOnSableLifecycleAcceptance.installFromSystemProperty();
         SkyforgeSuperGlueAssemblyDomainAcceptance.installFromSystemProperty();
         SkyforgeNestedPropellerBearingLifecycleAcceptance.installFromSystemProperty();
