@@ -196,7 +196,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             int sourceNonAir = countSourceFixtureNonAir();
             LOGGER.info(
                     "{} ASSEMBLED bodyId={} sourceNonAirAfterAssembly={} synchronous={}",
-                    MARKER,
+                    PREFIX,
                     bodyId,
                     sourceNonAir,
                     synchronousObservation);
