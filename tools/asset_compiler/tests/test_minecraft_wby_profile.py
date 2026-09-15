@@ -65,7 +65,10 @@ class MinecraftWbyProfileTests(unittest.TestCase):
             cap = registry[name]
             self.assertEqual(sorted(cap.families), sorted(entry["families"]))
             self.assertEqual(sorted(cap.capabilities), sorted(entry["capabilities"]))
-            self.assertEqual(cap.property_map(), entry["properties"])
+            self.assertEqual(
+                cap.property_map(),
+                {key: frozenset(values) for key, values in entry["properties"].items()},
+            )
             self.assertEqual(cap.default_map(), entry["defaults"])
 
         for name in cataloged:
