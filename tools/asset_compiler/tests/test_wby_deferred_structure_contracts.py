@@ -21,13 +21,13 @@ class WbyDeferredStructureContractTests(unittest.TestCase):
         doc = json.loads(CATALOG.read_text(encoding="utf-8"))
         self.assertEqual(
             doc["validation"]["deferredStructuralRuntimeObservation"],
-            "passed-wave-c1-exact-create-runtime-10-resources",
+            "passed-wave-c1-exact-create-runtime-4-resources",
         )
         contracts = doc["deferredStateContracts"]
         self.assertEqual(len(contracts), 10)
         return {entry["name"]: entry for entry in contracts}
 
-    def test_exact_runtime_observed_resource_set_is_frozen_and_non_selectable(self):
+    def test_exact_runtime_contract_evidence_set_is_frozen_and_non_selectable(self):
         contracts = self._contracts()
         self.assertEqual(
             set(contracts),
