@@ -202,12 +202,27 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             Object massValue = massTracker == null ? null : publicMethod(massTracker, "getMass").invoke(massTracker);
             Object centerOfMass = massTracker == null ? null : publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
             double mass = massValue instanceof Number number ? number.doubleValue() : Double.NaN;
+            Object selfTracker = massTracker == null ? null : publicMethod(massTracker, "getSelfMassTracker").invoke(massTracker);
+            Object selfMassValue = selfTracker == null ? null : publicMethod(selfTracker, "getMass").invoke(selfTracker);
+            Object selfCenterOfMass = selfTracker == null ? null : publicMethod(selfTracker, "getCenterOfMass").invoke(selfTracker);
+            double selfMass = selfMassValue instanceof Number number ? number.doubleValue() : Double.NaN;
+            Object removedValue = publicMethod(listedBody, "isRemoved").invoke(listedBody);
+            boolean removed = removedValue instanceof Boolean booleanValue && booleanValue;
+            Object plot = publicMethod(listedBody, "getPlot").invoke(listedBody);
+            Object plotBounds = plot == null ? null : publicMethod(plot, "getBoundingBox").invoke(plot);
+            Object plotVolumeValue = plotBounds == null ? null : publicMethod(plotBounds, "volume").invoke(plotBounds);
+            int plotVolume = plotVolumeValue instanceof Number number ? number.intValue() : Integer.MIN_VALUE;
             LOGGER.log(
                     System.Logger.Level.INFO,
                     PREFIX + " ASSEMBLED bodyId=" + bodyId
                             + " sourceNonAirAfterAssembly=" + sourceNonAir
                             + " mass=" + mass
                             + " centerOfMass=" + centerOfMass
+                            + " selfMass=" + selfMass
+                            + " selfCenterOfMass=" + selfCenterOfMass
+                            + " removed=" + removed
+                            + " plotBounds=" + plotBounds
+                            + " plotVolume=" + plotVolume
                             + " synchronous=" + synchronousObservation);
             if (sourceNonAir != 0) {
                 fail(
@@ -219,6 +234,25 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                                 "assemblyRegistrationObservedSynchronously=" + synchronousObservation
                                         + " sourceNonAirAfterAssembly=" + sourceNonAir),
                         "minimal fixture did not transfer every source cell into the Sable body");
+            }
+            if (removed) {
+                fail(
+                        SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
+                        diagnostic(
+                                SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,
+                                "transferred Sable body remains live after synchronous assembly",
+                                now,
+                                now,
+                                "bodyId=" + bodyId + " assembler=" + ASSEMBLER_POS + " glueId=" + glueId,
+                                safeServerState(),
+                                "sourceNonAirAfterAssembly=" + sourceNonAir
+                                        + " mass=" + mass
+                                        + " centerOfMass=" + centerOfMass
+                                        + " selfMass=" + selfMass
+                                        + " selfCenterOfMass=" + selfCenterOfMass
+                                        + " plotBounds=" + plotBounds
+                                        + " plotVolume=" + plotVolume),
+                        "new Sable body is already marked removed when the assembler returns");
             }
             if (!(mass > 0.0) || centerOfMass == null) {
                 fail(
