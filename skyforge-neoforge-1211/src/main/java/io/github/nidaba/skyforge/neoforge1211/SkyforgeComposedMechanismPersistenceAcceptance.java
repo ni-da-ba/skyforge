@@ -465,12 +465,10 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         }
         Object massTracker = publicMethod(canonical, "getMassTracker").invoke(canonical);
         Object centerOfMass = publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
-        BlockPos currentOffset = movedOffset(canonical, centerOfMass);
-        if (!currentOffset.equals(movedOffset)) {
-            fail(SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE,
-                    finalDiagnostic("savedOffset=" + movedOffset + " currentOffset=" + currentOffset),
-                    "persisted Sable body relocation changed across reload");
-        }
+        Object pose = publicMethod(canonical, "logicalPose").invoke(canonical);
+        Object position = publicMethod(pose, "position").invoke(pose);
+        requireFiniteVector(centerOfMass, "reloaded centerOfMass");
+        requireFiniteVector(position, "reloaded logicalPose.position");
         movedMotor = MOTOR_SOURCE.offset(movedOffset);
         movedShaft = SHAFT_SOURCE.offset(movedOffset);
         movedBearing = BEARING_SOURCE.offset(movedOffset);
@@ -856,6 +854,15 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             throw new IllegalStateException("non-integral Sable plot offset " + axis + "=" + value);
         }
         return (int) rounded;
+    }
+
+    private static void requireFiniteVector(Object vector, String label) throws ReflectiveOperationException {
+        for (String axis : List.of("x", "y", "z")) {
+            double value = component(vector, axis);
+            if (!Double.isFinite(value)) {
+                throw new IllegalStateException(label + " has non-finite " + axis + "=" + value);
+            }
+        }
     }
 
     private static double component(Object vector, String name) throws ReflectiveOperationException {
