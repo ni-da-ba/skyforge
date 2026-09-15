@@ -15,6 +15,7 @@ from model import BlockState, Cell, CompiledAsset, SpecError, VoxelModel
 BOOLS = frozenset({"false", "true"})
 FACINGS = frozenset({"north", "east", "south", "west"})
 DISTANCES = frozenset(str(i) for i in range(8))
+AXES = frozenset({"x", "y", "z"})
 
 
 def _bars_capability() -> BlockCapability:
@@ -73,11 +74,36 @@ def _scaffolding_capability() -> BlockCapability:
     )
 
 
+def _girder_capability() -> BlockCapability:
+    return BlockCapability(
+        name="example:metal_girder",
+        families=frozenset({"brace", "industrial_metal"}),
+        capabilities=frozenset({"girder", "axis_orientable", "neighbor_sensitive", "thin"}),
+        properties=(
+            ("axis", AXES),
+            ("bottom", BOOLS),
+            ("top", BOOLS),
+            ("waterlogged", BOOLS),
+            ("x", BOOLS),
+            ("z", BOOLS),
+        ),
+        defaults=(
+            ("axis", "y"),
+            ("bottom", "false"),
+            ("top", "false"),
+            ("waterlogged", "false"),
+            ("x", "false"),
+            ("z", "false"),
+        ),
+    )
+
+
 def _adapter() -> StructuralDetailMinecraftAdapter:
     registry = vanilla_1_21_1_registry()
     registry["example:iron_bars"] = _bars_capability()
     registry["example:metal_ladder"] = _ladder_capability()
     registry["example:metal_scaffolding"] = _scaffolding_capability()
+    registry["example:metal_girder"] = _girder_capability()
     return StructuralDetailMinecraftAdapter(registry=registry)
 
 
@@ -279,6 +305,82 @@ class MinecraftStructuralDetailAdapterTests(unittest.TestCase):
         self.assertIn("neighbor_sensitive", intent.required_capabilities)
         self.assertNotIn("full_cube", intent.required_capabilities)
         self.assertEqual(adapter.resolve_intent(intent).name, "example:metal_scaffolding")
+
+    def test_girder_axis_derives_straight_beam_state(self):
+        adapter = _adapter()
+        model = VoxelModel()
+        model.set(
+            0,
+            0,
+            0,
+            "brace",
+            BlockState.of("example:metal_girder", axis="x", x=False, z=True),
+        )
+
+        realized, _report = adapter.adapt(_compiled(model))
+        props = realized.model.cells[(0, 0, 0)].state.property_dict()
+        self.assertEqual(props["axis"], "x")
+        self.assertEqual(props["x"], "true")
+        self.assertEqual(props["z"], "false")
+
+    def test_girder_perpendicular_neighbors_form_girder_only_cross(self):
+        adapter = _adapter()
+        model = VoxelModel()
+        model.set(0, 0, 0, "brace", BlockState.of("example:metal_girder", axis="x"))
+        model.set(0, 0, -1, "brace", BlockState.of("example:metal_girder", axis="z"))
+        model.set(0, 0, 1, "brace", BlockState.of("example:metal_girder", axis="z"))
+        model.set(1, 0, 0, "wall", BlockState.of("minecraft:stone_bricks"))
+
+        realized, _report = adapter.adapt(_compiled(model))
+        center = realized.model.cells[(0, 0, 0)].state.property_dict()
+        north = realized.model.cells[(0, 0, -1)].state.property_dict()
+        self.assertEqual(center["x"], "true")
+        self.assertEqual(center["z"], "true")
+        self.assertEqual(north["z"], "true")
+        self.assertEqual(north["x"], "false")
+
+    def test_girder_vertical_flags_use_only_girder_or_sturdy_contact(self):
+        adapter = _adapter()
+        model = VoxelModel()
+        model.set(0, 0, 0, "brace", BlockState.of("example:metal_girder", axis="x"))
+        model.set(0, 1, 0, "wall", BlockState.of("minecraft:stone_bricks"))
+        model.set(0, -1, 0, "brace", BlockState.of("example:metal_girder", axis="y"))
+
+        realized, _report = adapter.adapt(_compiled(model))
+        props = realized.model.cells[(0, 0, 0)].state.property_dict()
+        self.assertEqual(props["top"], "true")
+        self.assertEqual(props["bottom"], "true")
+
+    def test_girder_shapes_distinguish_pole_beams_and_cross(self):
+        adapter = _adapter()
+        states = {
+            "girder_pole": BlockState.of("example:metal_girder", x=False, z=False),
+            "girder_beam_x": BlockState.of("example:metal_girder", x=True, z=False),
+            "girder_beam_z": BlockState.of("example:metal_girder", x=False, z=True),
+            "girder_cross": BlockState.of("example:metal_girder", x=True, z=True),
+        }
+        for expected, state in states.items():
+            shape = adapter.shape_descriptor(state)
+            self.assertEqual(shape.shape_class, expected)
+            self.assertTrue(shape.partial_collision)
+            self.assertTrue(shape.neighbor_dependent)
+            self.assertEqual(shape.support_faces, frozenset())
+            self.assertLess(shape.collision_volume_fraction, 0.5)
+
+    def test_girder_capability_survives_semantic_roundtrip(self):
+        adapter = _adapter()
+        cell = Cell(
+            "brace",
+            BlockState.of("example:metal_girder", axis="z"),
+            "synthetic_girder",
+        )
+        intent = adapter.intent_from_cell(cell)
+        self.assertIn("girder", intent.required_capabilities)
+        self.assertIn("axis_orientable", intent.required_capabilities)
+        self.assertIn("neighbor_sensitive", intent.required_capabilities)
+        self.assertIn("thin", intent.required_capabilities)
+        self.assertNotIn("full_cube", intent.required_capabilities)
+        self.assertEqual(adapter.resolve_intent(intent).name, "example:metal_girder")
 
 
 if __name__ == "__main__":
