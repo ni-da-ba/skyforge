@@ -3,10 +3,10 @@
 **Completed structure proof authority:** issue #488  
 **Accepted compact-Hall tranche:** PR #612 / merge `0eca2194ddf4a7e3be401e5715a32e60525f315e`  
 **Accepted sibling/ROI tranche:** PR #623 / merge `20c3b9e37e16800eb258d1613714b90d1ec9c048`  
-**Next functional-asset authority:** issue #628 (`MECH-001`)  
+**Active functional-asset authority:** issue #628 (`MECH-001`) / draft PR #640  
 **Shared runtime qualification authority:** issue #613 / `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`
 
-This ledger records current-`main` production capability for Compiler Program Agent C. Historical
+This ledger records current production capability for Compiler Program Agent C. Historical
 `wby-structure-*`, `asset-compiler-proof`, and draft PR #489 material is evidence/source material only;
 it must not be resumed, rebased into `main`, or merged wholesale.
 
@@ -127,50 +127,69 @@ Reusable Create/Sable/Simulated runtime seams are owned by issue #613. Agent C m
 seam only when `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json` on accepted `main` marks that
 capability `accepted` and grants Agent C production authority.
 
-`SABLE_PRIMARY_ASSEMBLY_LIFECYCLE` remains accepted and consumable for its bounded moving-body scope.
-Its Super Glue use is only a fixture precondition and is not independent glue/mechanism authority.
+`CREATE_KINETIC_NETWORK_LIFECYCLE` is accepted at L2 with Agent C production authority. Its bounded
+fixed-world contract qualifies Create kinetic source -> relay -> endpoint initialization, nonzero speed
+propagation, deterministic sever/inactivity, and rebuild/recovery on the exact retained C11 stack.
 
-PLATFORM-002 / PR #631 is now accepted on `main` at merge
-`3d81e5369fda7123226524f236e826331c4e31d0`. The shared ledger records
-`CREATE_KINETIC_NETWORK_LIFECYCLE` as accepted L2 with Agent C production authority. That capability
-proves one fixed-world Create source -> required shaft -> endpoint network can initialize, propagate
-nonzero speed, disconnect when the relay is removed, and rebuild when the relay is restored with
-bounded classified diagnostics.
+`SABLE_PRIMARY_ASSEMBLY_LIFECYCLE` is separately accepted, but is not required for fixed-world MECH-001.
+Moving-body Create kinetics remain a separate platform capability and are not implied here.
 
-This fixed-world qualification is sufficient to begin MECH-001. It does not authorize moving-body
-kinetics, arbitrary Create resource catalogs, water-driven generation, or item-transport behavior.
+## Active functional tranche: MECH-001 / issue #628
 
-## Active bounded Agent C tranche: MECH-001 / issue #628
+PR #640 compiles one deliberately bounded fixed-world airflow utility bench:
 
-MECH-001 is active on `compiler/628-mech-001` and consumes the accepted
-`CREATE_KINETIC_NETWORK_LIFECYCLE` platform contract.
+`qualified_kinetic_source -> required axial relay -> airflow endpoint`
 
-Exact-stack inspection narrowed the first proof below the initially suggested waterwheel/conveyor
-combination so the specimen does not silently add two unqualified runtime seams. The current bounded
-mechanism is an **airflow utility bench**:
+The semantic specimen remains target-neutral. Exact C11 target lowering is:
 
-- semantic source role: `qualified_kinetic_source`;
-- one required axial relay;
-- semantic downstream role: `airflow`;
-- concrete exact-stack L3 target: Creative Motor -> Shaft -> Encased Fan;
-- source policy: `qualified_test_source_not_gameplay_canon`;
-- 3x3 masonry support pad plus explicit three-block fan discharge clearance;
-- deterministic compiled plan digest
-  `da905478f5f3e42e197bd0ef1a38baba848c8ce65c2a911d7153743597098ce1`.
+- `create:creative_motor[facing=east]` as a qualified test source only;
+- `create:shaft[axis=x]` as the compiler-designated required relay/sever node;
+- `create:encased_fan[facing=east]` as the useful downstream airflow endpoint;
+- a 3x3 stone-brick mounting/support pad;
+- a three-block unobstructed discharge path.
 
-The semantic specimen contains no concrete Create resource identifiers. The compiler target-lowering
-layer resolves exact current-stack block states and carries PLATFORM-002 evidence into the compiled
-plan. The runtime fixture consumes that exact committed compiler artifact, checks support/clearance,
-observes real Create kinetic block-entity state, severs the compiler-designated relay, and restores it.
+The Creative Motor is explicitly **not gameplay/power-source canon**. Water-driven generation and
+conveyor/item transport remain later seams rather than being silently activated by this proof.
 
-The Creative Motor is only the already-qualified deterministic L3 test source. It is not accepted as
-the final in-world Guild power source; a later qualified waterwheel/other source may replace that
-source role without changing the mechanism contract.
+Canonical MECH-001 identity:
+
+- compiler version `mech-0.1-fixed-world`;
+- plan digest `da905478f5f3e42e197bd0ef1a38baba848c8ce65c2a911d7153743597098ce1`;
+- 12 placements;
+- deterministic Minecraft structure SHA256
+  `dee1563daa925034f13a9481744bbf2da9b0bb36937ae8cb6a7192a1b45e9b84`;
+- structure resource `skyforge:mech_001_airflow_bench` in the development-only local-run data pack.
+
+### Structure-native gate correction
+
+The first human-gate instructions reconstructed the mechanism with manual `/setblock` commands under
+an older Wave-C1 client profile. Local review reported `unknown block type`; that gate was therefore
+invalid as a reproduction path and does **not** count as a mechanism visual/function failure.
+
+PR #640 head `3a91b558a7bfa2812af4c8cf5681622ed9187ed0` corrects the reproduction boundary:
+
+- the compiler emits the exact Minecraft structure NBT;
+- CI byte-compares regenerated NBT against the committed development structure;
+- the L3 fixture itself invokes Minecraft `place template skyforge:mech_001_airflow_bench ...` and
+  verifies every resulting target block state against the compiled plan before kinetic observation;
+- the human gate has a dedicated `mech001FunctionalMechanismClient` using the same C11 runtime source
+  set as the accepted platform/runtime proof.
+
+Exact-head machine evidence on `3a91b558...`:
+
+- MECH-001 workflow-dispatch run `35007081027`: L1 PASS and L3 exact-stack PASS;
+- structure generation and exact byte comparison PASS;
+- Minecraft structure-template placement and state verification PASS;
+- fan initial speed `16.0` with source/network state;
+- relay sever observed with downstream stop/source loss;
+- relay restore recovered fan speed `16.0`, source speed `16.0`, and source/network state;
+- all three compiled airflow-clearance cells remained clear;
+- full repository CI workflow-dispatch run `35007083762`: PASS.
 
 ## Current stop state
 
 Structure proof: **ACCEPTED / COMPLETE**.  
 Issue #488: **CLOSED COMPLETED**.  
-PLATFORM-002 fixed-world Create kinetic lifecycle: **ACCEPTED / CONSUMABLE BY AGENT C**.  
-MECH-001 / #628: **ACTIVE; MACHINE QUALIFICATION AND HUMAN MINECRAFT GATE PENDING**.  
-No human action is required until the exact-head machine evidence is green.
+MECH-001 / #628: **MACHINE-GREEN ON STRUCTURE-NATIVE EXACT HEAD; HUMAN MINECRAFT GATE REQUIRED**.  
+PR #640 remains draft/unmerged until that human gate passes.  
+No production-geography authority is changed and #493 remains untouched.
