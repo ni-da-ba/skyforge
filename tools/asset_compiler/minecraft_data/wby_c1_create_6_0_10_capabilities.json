@@ -11,7 +11,7 @@
     "createSourceCommitEvidence": "Create commit that bumps the 1.21.1 line to 6.0.10",
     "blockstateSourceAudit": "exact-create-6.0.10-source-commit",
     "exactPinnedRuntimeRegistryProbe": "passed-wave-c1-exact-create-runtime",
-    "exactPinnedRuntimeRegistryEvidence": "asset-compiler-proof resolves LNytGWDc-UjX6dr61 then runs WBY_C1_STRUCTURE_REGISTRY against Create 6.0.10; eight catalog blocks and all three pane state/default contracts validated live",
+    "exactPinnedRuntimeRegistryEvidence": "asset-compiler-proof resolves LNytGWDc-UjX6dr61 then runs WBY_C1_STRUCTURE_REGISTRY against Create 6.0.10; eight original catalog block IDs, all three pane state/default contracts, and ten deferred structural resources validated or observed live",
     "deferredStructuralRuntimeObservation": "passed-wave-c1-exact-create-runtime-10-resources",
     "policy": "catalog entries are non-selectable unless status is active; deferredStateContracts are evidence only and never enter the resolver registry"
   },
@@ -115,6 +115,48 @@
         "west": "false"
       },
       "status": "cataloged"
+    },
+    {
+      "name": "create:andesite_bars",
+      "families": ["industrial_metal", "railing"],
+      "capabilities": ["bars", "neighbor_sensitive", "thin"],
+      "properties": {
+        "east": ["false", "true"],
+        "north": ["false", "true"],
+        "south": ["false", "true"],
+        "waterlogged": ["false", "true"],
+        "west": ["false", "true"]
+      },
+      "defaults": {"east": "false", "north": "false", "south": "false", "waterlogged": "false", "west": "false"},
+      "status": "cataloged"
+    },
+    {
+      "name": "create:brass_bars",
+      "families": ["railing", "warm_hardware"],
+      "capabilities": ["bars", "neighbor_sensitive", "thin"],
+      "properties": {
+        "east": ["false", "true"],
+        "north": ["false", "true"],
+        "south": ["false", "true"],
+        "waterlogged": ["false", "true"],
+        "west": ["false", "true"]
+      },
+      "defaults": {"east": "false", "north": "false", "south": "false", "waterlogged": "false", "west": "false"},
+      "status": "cataloged"
+    },
+    {
+      "name": "create:copper_bars",
+      "families": ["copper_detail", "railing"],
+      "capabilities": ["bars", "neighbor_sensitive", "thin"],
+      "properties": {
+        "east": ["false", "true"],
+        "north": ["false", "true"],
+        "south": ["false", "true"],
+        "waterlogged": ["false", "true"],
+        "west": ["false", "true"]
+      },
+      "defaults": {"east": "false", "north": "false", "south": "false", "waterlogged": "false", "west": "false"},
+      "status": "cataloged"
     }
   ],
   "deferredStateContracts": [
@@ -129,7 +171,7 @@
         "west": ["false", "true"]
       },
       "defaults": {"east": "false", "north": "false", "south": "false", "waterlogged": "false", "west": "false"},
-      "semanticGate": "target-neutral railing/bars role plus generic cardinal-connectable thin topology"
+      "semanticGate": "generic bars topology is implemented; activation still requires an explicit upstream neutral railing/bars intent"
     },
     {
       "name": "create:brass_bars",
@@ -142,7 +184,7 @@
         "west": ["false", "true"]
       },
       "defaults": {"east": "false", "north": "false", "south": "false", "waterlogged": "false", "west": "false"},
-      "semanticGate": "target-neutral railing/bars role plus generic cardinal-connectable thin topology"
+      "semanticGate": "generic bars topology is implemented; activation still requires an explicit upstream neutral railing/bars intent"
     },
     {
       "name": "create:copper_bars",
@@ -155,7 +197,7 @@
         "west": ["false", "true"]
       },
       "defaults": {"east": "false", "north": "false", "south": "false", "waterlogged": "false", "west": "false"},
-      "semanticGate": "target-neutral railing/bars role plus generic cardinal-connectable thin topology"
+      "semanticGate": "generic bars topology is implemented; activation still requires an explicit upstream neutral railing/bars intent"
     },
     {
       "name": "create:andesite_ladder",
@@ -221,7 +263,7 @@
     },
     {
       "name": "create:andesite_bars / create:brass_bars / create:copper_bars",
-      "reason": "live Create 6.0.10 runtime confirms ordinary IronBarsBlock state contracts; promotion still needs a target-neutral railing/bars role and generic cardinal-connectable thin topology rather than misusing glazing semantics"
+      "reason": "exact runtime contracts and generic bars topology are now implemented and the resources are cataloged; activation remains gated on an explicit upstream neutral railing/bars intent"
     },
     {
       "name": "create:andesite_ladder / create:brass_ladder / create:copper_ladder",
