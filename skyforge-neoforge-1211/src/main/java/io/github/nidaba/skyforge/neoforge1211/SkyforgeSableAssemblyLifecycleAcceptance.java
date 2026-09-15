@@ -66,6 +66,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             return;
         }
         NeoForge.EVENT_BUS.addListener(SkyforgeSableAssemblyLifecycleAcceptance::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(SkyforgeSableAssemblyLifecycleAcceptance::onServerTickPre);
         NeoForge.EVENT_BUS.addListener(SkyforgeSableAssemblyLifecycleAcceptance::onServerTickPost);
     }
 
@@ -138,6 +139,36 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                         "fixture preparation failed: " + exception);
             }
             throw exception;
+        }
+    }
+
+    private static void onServerTickPre(ServerTickEvent.Pre event) {
+        if (complete || level == null || bodyId == null || waitDiagnostic == null) {
+            return;
+        }
+        if (waitDiagnostic.phase() != SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION) {
+            return;
+        }
+        try {
+            Object listedBody = findListedBody(bodyId);
+            if (listedBody == null) {
+                LOGGER.log(
+                        System.Logger.Level.INFO,
+                        PREFIX + " PRE_TICK bodyId=" + bodyId
+                                + " gameTime=" + level.getGameTime()
+                                + " listed=false currentSubLevelIds=" + currentSubLevelIds(container));
+                return;
+            }
+            LOGGER.log(
+                    System.Logger.Level.INFO,
+                    PREFIX + " PRE_TICK bodyId=" + bodyId
+                            + " gameTime=" + level.getGameTime()
+                            + " listed=true " + bodySnapshot(listedBody)
+                            + " destination=" + destinationBlockSummary(listedBody));
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            LOGGER.log(
+                    System.Logger.Level.WARNING,
+                    PREFIX + " PRE_TICK_DIAGNOSTIC_FAILED bodyId=" + bodyId + " error=" + exception);
         }
     }
 
@@ -223,6 +254,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                             + " removed=" + removed
                             + " plotBounds=" + plotBounds
                             + " plotVolume=" + plotVolume
+                            + " destination=" + destinationBlockSummary(listedBody)
                             + " synchronous=" + synchronousObservation);
             if (sourceNonAir != 0) {
                 fail(
@@ -538,6 +570,57 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             }
         }
         return null;
+    }
+
+    private static String bodySnapshot(Object listedBody) throws ReflectiveOperationException {
+        Object removedValue = publicMethod(listedBody, "isRemoved").invoke(listedBody);
+        boolean removed = removedValue instanceof Boolean booleanValue && booleanValue;
+        Object massTracker = publicMethod(listedBody, "getMassTracker").invoke(listedBody);
+        Object massValue = massTracker == null ? null : publicMethod(massTracker, "getMass").invoke(massTracker);
+        Object centerOfMass = massTracker == null ? null : publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
+        Object selfTracker = massTracker == null ? null : publicMethod(massTracker, "getSelfMassTracker").invoke(massTracker);
+        Object selfMassValue = selfTracker == null ? null : publicMethod(selfTracker, "getMass").invoke(selfTracker);
+        Object selfCenterOfMass = selfTracker == null ? null : publicMethod(selfTracker, "getCenterOfMass").invoke(selfTracker);
+        return "removed=" + removed
+                + " mass=" + massValue
+                + " centerOfMass=" + centerOfMass
+                + " selfMass=" + selfMassValue
+                + " selfCenterOfMass=" + selfCenterOfMass;
+    }
+
+    private static String destinationBlockSummary(Object listedBody) throws ReflectiveOperationException {
+        Object plot = publicMethod(listedBody, "getPlot").invoke(listedBody);
+        Object bounds = plot == null ? null : publicMethod(plot, "getBoundingBox").invoke(plot);
+        if (bounds == null) {
+            return "bounds=null";
+        }
+        int minX = ((Number) publicMethod(bounds, "minX").invoke(bounds)).intValue();
+        int minY = ((Number) publicMethod(bounds, "minY").invoke(bounds)).intValue();
+        int minZ = ((Number) publicMethod(bounds, "minZ").invoke(bounds)).intValue();
+        int maxX = ((Number) publicMethod(bounds, "maxX").invoke(bounds)).intValue();
+        int maxY = ((Number) publicMethod(bounds, "maxY").invoke(bounds)).intValue();
+        int maxZ = ((Number) publicMethod(bounds, "maxZ").invoke(bounds)).intValue();
+        int nonAir = 0;
+        StringBuilder blocks = new StringBuilder();
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    BlockState state = level.getBlockState(pos);
+                    if (state.isAir()) {
+                        continue;
+                    }
+                    if (nonAir++ > 0) {
+                        blocks.append(',');
+                    }
+                    blocks.append(x - minX).append(':')
+                            .append(y - minY).append(':')
+                            .append(z - minZ).append('=')
+                            .append(BuiltInRegistries.BLOCK.getKey(state.getBlock()));
+                }
+            }
+        }
+        return "nonAir=" + nonAir + " blocks=[" + blocks + "]";
     }
 
     private static int countSourceFixtureNonAir() {
