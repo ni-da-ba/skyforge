@@ -50,6 +50,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
     private static ServerLevel level;
     private static Object container;
     private static Object physicsSystem;
+    private static Object assembledBody;
     private static Set<UUID> beforeIds = Set.of();
     private static UUID bodyId;
     private static UUID glueId;
@@ -229,6 +230,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                                 "UUID was observed in the collection but the listed object could not be reselected"),
                         "new Sable UUID did not retain an assembly-time collection object");
             }
+            assembledBody = listedBody;
             Object massTracker = publicMethod(listedBody, "getMassTracker").invoke(listedBody);
             Object massValue = massTracker == null ? null : publicMethod(massTracker, "getMass").invoke(massTracker);
             Object centerOfMass = massTracker == null ? null : publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
@@ -328,14 +330,15 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
     private static void pollPhysicsInitialization(long now) throws ReflectiveOperationException {
         Set<UUID> currentIds = currentSubLevelIds(container);
         if (!currentIds.contains(bodyId)) {
+            String retainedState = assembledBody == null ? "assembledBody=null" : bodySnapshot(assembledBody);
             fail(
                     SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
                     waitDiagnostic.withFinalState(
                             "bodyId=" + bodyId + " currentSubLevelIds=" + currentIds,
                             safeServerState(),
                             "headless",
-                            "registered body disappeared before a stable physics handle was observed"),
-                    "registered Sable body was removed before physics initialization");
+                            "registered body disappeared before a stable physics handle was observed; retained=" + retainedState),
+                    "registered Sable body was removed before physics initialization; retained=" + retainedState);
         }
 
         Object canonicalBody = findCanonicalBody(bodyId);
@@ -578,12 +581,14 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         Object massTracker = publicMethod(listedBody, "getMassTracker").invoke(listedBody);
         Object massValue = massTracker == null ? null : publicMethod(massTracker, "getMass").invoke(massTracker);
         Object centerOfMass = massTracker == null ? null : publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
+        Object invalidValue = massTracker == null ? null : publicMethod(massTracker, "isInvalid").invoke(massTracker);
         Object selfTracker = massTracker == null ? null : publicMethod(massTracker, "getSelfMassTracker").invoke(massTracker);
         Object selfMassValue = selfTracker == null ? null : publicMethod(selfTracker, "getMass").invoke(selfTracker);
         Object selfCenterOfMass = selfTracker == null ? null : publicMethod(selfTracker, "getCenterOfMass").invoke(selfTracker);
         return "removed=" + removed
                 + " mass=" + massValue
                 + " centerOfMass=" + centerOfMass
+                + " massInvalid=" + invalidValue
                 + " selfMass=" + selfMassValue
                 + " selfCenterOfMass=" + selfCenterOfMass;
     }
