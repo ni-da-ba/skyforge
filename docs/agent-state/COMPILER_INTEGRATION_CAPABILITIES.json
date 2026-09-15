@@ -90,6 +90,13 @@
           "commit": "42aa858926f864ea47a76a77aa417470b12c65ed",
           "result": "HARNESS_DIAGNOSTIC_FAILURE",
           "finding": "A synchronous diagnostic call to MassTracker.isInvalid() attempted to load ClientLevel on DEDICATED_SERVER. The platform harness must derive the documented invalid-mass predicate from server-safe getMass() and getCenterOfMass() instead of invoking that helper reflectively."
+        },
+        {
+          "workflow_run": 34922501534,
+          "job": 104233798788,
+          "commit": "9615353ff7b50ba37d524c2b2012d21c97603ce9",
+          "result": "HARNESS_DIAGNOSTIC_FAILURE",
+          "finding": "Even server-safe mass/COM reflection from the synchronous assembly callback triggered a dedicated-server ClientLevel dist-cleaner failure, while the unchanged C12 control remained healthy. PLATFORM-001 therefore removes synchronous mass introspection and separates transfer completeness from next-tick physics validity."
         }
       ]
     }

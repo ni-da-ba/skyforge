@@ -193,33 +193,33 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
                                 "UUID was visible in getAllSubLevels but canonical getSubLevel(UUID) returned null"),
                         "new Sable UUID did not resolve canonically during assembly observation");
             }
-            String massSummary = bodyMassSummary(canonicalBody);
             int sourceNonAir = countSourceFixtureNonAir();
-            if (bodyMassInvalid(canonicalBody)) {
+            LOGGER.info(
+                    "{} ASSEMBLED bodyId={} sourceNonAirAfterAssembly={} synchronous={}",
+                    MARKER,
+                    bodyId,
+                    sourceNonAir,
+                    synchronousObservation);
+            if (sourceNonAir != 0) {
                 fail(
-                        SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
-                        diagnostic(
-                                SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,
-                                "newly assembled Sable body has valid positive mass and center of mass",
-                                now,
-                                now,
+                        SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
+                        waitDiagnostic.withFinalState(
                                 "bodyId=" + bodyId + " assembler=" + ASSEMBLER_POS + " glueId=" + glueId,
                                 safeServerState(),
+                                "headless",
                                 "assemblyRegistrationObservedSynchronously=" + synchronousObservation
-                                        + " sourceNonAirAfterAssembly=" + sourceNonAir
-                                        + " " + massSummary),
-                        "new Sable body is mass-invalid immediately after synchronous assembly");
+                                        + " sourceNonAirAfterAssembly=" + sourceNonAir),
+                        "minimal fixture did not transfer every source cell into the Sable body");
             }
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,
-                    "registered Sable UUID resolves to a live canonical body and valid physics handle",
+                    "registered Sable UUID survives initialization and resolves to a valid current physics handle",
                     now,
                     now + PHYSICS_INITIALIZATION_DEADLINE_TICKS,
                     "bodyId=" + bodyId + " assembler=" + ASSEMBLER_POS + " glueId=" + glueId,
                     safeServerState(),
                     "assemblyRegistrationObservedSynchronously=" + synchronousObservation
-                            + " sourceNonAirAfterAssembly=" + sourceNonAir
-                            + " " + massSummary);
+                            + " sourceNonAirAfterAssembly=" + sourceNonAir);
             return;
         }
         if (waitDiagnostic.expired(now)) {
@@ -465,27 +465,6 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
             throw new IllegalStateException("Sable sub-level unique ID is not UUID: " + value);
         }
         return uuid;
-    }
-
-    private static boolean bodyMassInvalid(Object canonicalBody) throws ReflectiveOperationException {
-        Object massTracker = publicMethod(canonicalBody, "getMassTracker").invoke(canonicalBody);
-        if (massTracker == null) {
-            return true;
-        }
-        Object massValue = publicMethod(massTracker, "getMass").invoke(massTracker);
-        Object centerOfMass = publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
-        return !(massValue instanceof Number number) || number.doubleValue() <= 0.0 || centerOfMass == null;
-    }
-
-    private static String bodyMassSummary(Object canonicalBody) throws ReflectiveOperationException {
-        Object massTracker = publicMethod(canonicalBody, "getMassTracker").invoke(canonicalBody);
-        if (massTracker == null) {
-            return "massTracker=null";
-        }
-        Object mass = publicMethod(massTracker, "getMass").invoke(massTracker);
-        Object centerOfMass = publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
-        boolean invalid = !(mass instanceof Number number) || number.doubleValue() <= 0.0 || centerOfMass == null;
-        return "mass=" + mass + " centerOfMass=" + centerOfMass + " massInvalid=" + invalid;
     }
 
     private static int countSourceFixtureNonAir() {
