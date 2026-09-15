@@ -401,8 +401,19 @@ def _roadmap_record_error(
     self._metric("roadmap_advance_failures")
 
 
+def _roadmap_pending_authority_exists_locked(self: core.Orchestrator) -> bool:
+    """Return True only for pending authority that must outrank fresh roadmap seeding."""
+    for value in (self.state.data.get("pending_events") or []):
+        if not isinstance(value, dict):
+            continue
+        event = core.EventDecision.from_state(value)
+        if event.event == "roadmap" or event.signal_kind in core.PROTECTED_AUTHORITY_SIGNAL_KINDS:
+            return True
+    return False
+
+
 def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
-    """Seed at most one explicit roadmap authority when the ordinary controller is truly idle."""
+    """Seed one roadmap task even when only ordinary wake/reconcile noise is pending."""
     if not _roadmap_enabled() or self.is_paused():
         return False
 
@@ -420,7 +431,7 @@ def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
 
     with self._state_lock:
         if (
-            self.state.data.get("pending_events")
+            _roadmap_pending_authority_exists_locked(self)
             or self.state.data.get("pending_decision")
             or isinstance(self.state.data.get("pending_worker"), dict)
             or self.state.data.get("blocked_kind")
@@ -432,7 +443,7 @@ def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
     with self._dispatch_lock:
         with self._state_lock:
             if (
-                self.state.data.get("pending_events")
+                _roadmap_pending_authority_exists_locked(self)
                 or self.state.data.get("pending_decision")
                 or isinstance(self.state.data.get("pending_worker"), dict)
                 or self.state.data.get("blocked_kind")
@@ -567,6 +578,15 @@ def resume_pending(self: core.Orchestrator) -> None:
 
 
 def _drain_and_dispatch(self: core.Orchestrator) -> None:
+    # On an expired retry block, seed the eligible roadmap task before classifying ordinary wake
+    # noise. Protected task authority then wins the core selector's next classifier slot.
+    try:
+        if _roadmap_enabled() and self._blocked_remaining() <= 0:
+            _roadmap_maybe_advance(self, trigger="pre-dispatch-idle")
+    except Exception as exc:
+        _roadmap_record_error(self, trigger="pre-dispatch-roadmap-seed", exc=exc)
+        return
+
     # Revalidate protected roadmap authority against current persisted ownership immediately before
     # classifier selection. This is the last model-free fence against replaying a successor event
     # invalidated by an operator or reconciliation rollback.
