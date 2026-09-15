@@ -22,7 +22,7 @@ final class SkyforgeNativeStructureLifecycleAdapterTest {
         assertTrue(adapter.contains("ChunkGeneratorStructureState structureState"));
         assertTrue(adapter.contains("SkyIslandWorldVolumeId volumeId"));
         assertTrue(adapter.contains("SkyforgeGenerationDomainStage.requireExactIslandVolume(volumeId);"));
-        assertTrue(adapter.contains("SkyforgeNeoForge1211SurfaceStage.requireExactlyOneCandidateVolume(volumeId, chunk);"));
+        assertTrue(adapter.contains("SkyforgeNeoForge1211SurfaceStage.requireCandidateVolume(volumeId, chunk);"));
         assertTrue(adapter.contains("SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(volumeId)"));
         assertTrue(adapter.contains("SkyforgeStructureCandidateStage.requireInactive();"));
         assertTrue(adapter.contains("super.createStructures("));

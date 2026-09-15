@@ -6333,12 +6333,48 @@ val dr30NativeStructureServerProperties = """
     server-port=0
 """.trimIndent() + "\n"
 
-fun prepareDr30NativeStructureServerDirectory(relativePath: String) {
+fun prepareDr30NativeStructureServerDirectory(relativePath: String, stacked: Boolean = false) {
     val directory = layout.projectDirectory.dir(relativePath).asFile
     delete(directory)
     directory.mkdirs()
     directory.resolve("eula.txt").writeText("eula=true\n")
     directory.resolve("server.properties").writeText(dr30NativeStructureServerProperties)
+    if (stacked) {
+        val pack = directory.resolve("saves/acceptance/datapacks/dr30-stacked-probe")
+        pack.resolve("data/skyforge/worldgen/structure_set").mkdirs()
+        pack.resolve("data/minecraft/tags/worldgen/biome/has_structure").mkdirs()
+        pack.resolve("pack.mcmeta").writeText(
+            """{"pack":{"pack_format":48,"description":"Skyforge DR-30 stacked native-structure probe"}}"""
+        )
+        pack.resolve("data/skyforge/worldgen/structure_set/dr30_desert_pyramid.json").writeText(
+            """
+            {
+              "placement": {
+                "type": "minecraft:random_spread",
+                "salt": 493031,
+                "separation": 511,
+                "spacing": 512
+              },
+              "structures": [
+                {
+                  "structure": "minecraft:desert_pyramid",
+                  "weight": 1
+                }
+              ]
+            }
+            """.trimIndent() + "\n"
+        )
+        pack.resolve("data/minecraft/tags/worldgen/biome/has_structure/desert_pyramid.json").writeText(
+            """
+            {
+              "replace": false,
+              "values": [
+                "#c:is_overworld"
+              ]
+            }
+            """.trimIndent() + "\n"
+        )
+    }
 }
 
 fun requireDr30NativeStructurePass(name: String): Properties {
@@ -6375,7 +6411,7 @@ tasks.named("runDr30NativeStructureAcceptanceReload").configure {
 tasks.named("runDr30NativeStructureAcceptanceStacked").configure {
     notCompatibleWithConfigurationCache("DR-30 stacked qualification owns a disposable server world.")
     mustRunAfter("runDr30NativeStructureAcceptanceReload")
-    doFirst { prepareDr30NativeStructureServerDirectory("run-dr30-native-structure-stacked") }
+    doFirst { prepareDr30NativeStructureServerDirectory("run-dr30-native-structure-stacked", stacked = true) }
     doLast { requireDr30NativeStructurePass("stacked") }
 }
 

@@ -127,7 +127,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         java.util.Objects.requireNonNull(volumeId, "volumeId");
 
         SkyforgeGenerationDomainStage.requireExactIslandVolume(volumeId);
-        SkyforgeNeoForge1211SurfaceStage.requireExactlyOneCandidateVolume(volumeId, chunk);
+        SkyforgeNeoForge1211SurfaceStage.requireCandidateVolume(volumeId, chunk);
         if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(volumeId)) {
             throw new IllegalStateException(
                     "native structure lifecycle requires an admitted exact Skyforge volume");
@@ -167,7 +167,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         }
 
         SkyforgeGenerationDomainStage.requireExactIslandVolume(volumeId);
-        SkyforgeNeoForge1211SurfaceStage.requireExactlyOneCandidateVolume(volumeId, chunk);
+        SkyforgeNeoForge1211SurfaceStage.requireCandidateVolume(volumeId, chunk);
         if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(volumeId)) {
             throw new IllegalStateException(
                     "native structure placement requires an admitted exact Skyforge volume");
@@ -249,7 +249,11 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             ChunkPos chunkPos,
             SectionPos sectionPos) {
         var activeIslandVolumeId = SkyforgeGenerationDomainStage.activeIslandVolumeId();
+        Structure structure = structureSelectionEntry.structure().value();
         if (activeIslandVolumeId.isEmpty()) {
+            if (SkyforgeDr30NativeStructureAcceptance.suppressBaseWorldProbe(structure, chunkPos)) {
+                return false;
+            }
             return super.tryGenerateStructure(
                     structureSelectionEntry,
                     structureManager,
@@ -266,7 +270,9 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         }
 
         SkyIslandWorldVolumeId domainVolumeId = activeIslandVolumeId.orElseThrow();
-        Structure structure = structureSelectionEntry.structure().value();
+        if (!SkyforgeDr30NativeStructureAcceptance.allowsExactProbe(structure, chunkPos, domainVolumeId)) {
+            return false;
+        }
         boolean accommodationProofCandidate = isAccommodationProofCandidate(structure, chunkPos);
         boolean undersideContradictionProofCandidate =
                 SkyforgeNeoForge1211UndersideContradictionDevRuntime.isProofCandidate(structure, chunkPos);

@@ -19,6 +19,9 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.structure.Structure;
+import net.minecraft.world.level.levelgen.structure.structures.DesertPyramidStructure;
+import net.minecraft.world.level.levelgen.structure.structures.WoodlandMansionStructure;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -78,6 +81,34 @@ final class SkyforgeDr30NativeStructureAcceptance {
         admissionBinding = SkyforgePhysicalVolumeAdmissionStage.install(catalog);
     }
 
+    static boolean suppressBaseWorldProbe(Structure structure, ChunkPos chunkPos) {
+        if (!enabled() || MODE_RELOAD.equals(mode()) || !originProbeChunk(chunkPos)) {
+            return false;
+        }
+        return structure instanceof WoodlandMansionStructure
+                || (MODE_STACKED.equals(mode()) && structure instanceof DesertPyramidStructure);
+    }
+
+    static boolean allowsExactProbe(
+            Structure structure,
+            ChunkPos chunkPos,
+            SkyIslandWorldVolumeId volumeId) {
+        if (!enabled() || !originProbeChunk(chunkPos)) {
+            return true;
+        }
+        if (structure instanceof WoodlandMansionStructure) {
+            return volumeId.equals(lowerId());
+        }
+        if (structure instanceof DesertPyramidStructure) {
+            return MODE_STACKED.equals(mode()) && volumeId.equals(upperId());
+        }
+        return true;
+    }
+
+    private static boolean originProbeChunk(ChunkPos chunkPos) {
+        return chunkPos.x == 0 && chunkPos.z == 0;
+    }
+
     @SubscribeEvent
     static synchronized void onServerTick(ServerTickEvent.Post event) {
         if (!enabled() || complete || !SkyforgeAutomatedAcceptanceHarness.serverMode()) {
@@ -114,7 +145,7 @@ final class SkyforgeDr30NativeStructureAcceptance {
                     "awaiting-completed-start", snapshot, 0, identities.size(), completedStarts);
             return;
         }
-        BlockPos structureBlock = findMansionBlock(level, identity);
+        BlockPos structureBlock = findRepresentativeStructureBlock(level, identity);
         if (structureBlock == null) {
             logPlaceDiagnostic(
                     "awaiting-physical-block", snapshot, 0, identities.size(), completedStarts);
@@ -175,8 +206,8 @@ final class SkyforgeDr30NativeStructureAcceptance {
         if (lowerIdentity == null || upperIdentity == null) {
             return;
         }
-        BlockPos lowerBlock = findMansionBlock(level, lowerIdentity);
-        BlockPos upperBlock = findMansionBlock(level, upperIdentity);
+        BlockPos lowerBlock = findRepresentativeStructureBlock(level, lowerIdentity);
+        BlockPos upperBlock = findRepresentativeStructureBlock(level, upperIdentity);
         if (lowerBlock == null || upperBlock == null) {
             return;
         }
@@ -240,7 +271,7 @@ final class SkyforgeDr30NativeStructureAcceptance {
                 .orElse(null);
     }
 
-    private static BlockPos findMansionBlock(
+    private static BlockPos findRepresentativeStructureBlock(
             ServerLevel level,
             SkyforgeNativeStructurePlacementSavedData.PlacementIdentity identity) {
         int minX = Math.max(identity.minX(), 0);
@@ -257,7 +288,12 @@ final class SkyforgeDr30NativeStructureAcceptance {
                     if (state.is(Blocks.DARK_OAK_PLANKS)
                             || state.is(Blocks.DARK_OAK_LOG)
                             || state.is(Blocks.COBBLESTONE)
-                            || state.is(Blocks.GLASS_PANE)) {
+                            || state.is(Blocks.GLASS_PANE)
+                            || state.is(Blocks.SANDSTONE)
+                            || state.is(Blocks.CUT_SANDSTONE)
+                            || state.is(Blocks.CHISELED_SANDSTONE)
+                            || state.is(Blocks.ORANGE_TERRACOTTA)
+                            || state.is(Blocks.BLUE_TERRACOTTA)) {
                         return pos;
                     }
                 }
