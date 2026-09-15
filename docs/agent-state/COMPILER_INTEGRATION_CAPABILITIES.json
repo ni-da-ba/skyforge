@@ -83,6 +83,13 @@
           "commit": "41e8c49b030d9e2b4eede2a6056ee13d014fde62",
           "result": "FAIL_PHYSICS",
           "finding": "Synchronous observation captured a real newly allocated Sable UUID, but the body was removed by tick 1 before a stable physics handle was observed. Assembly registration is therefore proven for the reduced specimen; the remaining reduction target is immediate mass/physics validity."
+        },
+        {
+          "workflow_run": 34922213651,
+          "job": 104232940446,
+          "commit": "42aa858926f864ea47a76a77aa417470b12c65ed",
+          "result": "HARNESS_DIAGNOSTIC_FAILURE",
+          "finding": "A synchronous diagnostic call to MassTracker.isInvalid() attempted to load ClientLevel on DEDICATED_SERVER. The platform harness must derive the documented invalid-mass predicate from server-safe getMass() and getCenterOfMass() instead of invoking that helper reflectively."
         }
       ]
     }

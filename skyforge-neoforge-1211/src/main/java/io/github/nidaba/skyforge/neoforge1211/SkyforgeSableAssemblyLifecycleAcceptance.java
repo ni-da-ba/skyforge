@@ -472,8 +472,9 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         if (massTracker == null) {
             return true;
         }
-        Object invalid = publicMethod(massTracker, "isInvalid").invoke(massTracker);
-        return !(invalid instanceof Boolean validFlag) || validFlag;
+        Object massValue = publicMethod(massTracker, "getMass").invoke(massTracker);
+        Object centerOfMass = publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
+        return !(massValue instanceof Number number) || number.doubleValue() <= 0.0 || centerOfMass == null;
     }
 
     private static String bodyMassSummary(Object canonicalBody) throws ReflectiveOperationException {
@@ -483,7 +484,7 @@ final class SkyforgeSableAssemblyLifecycleAcceptance {
         }
         Object mass = publicMethod(massTracker, "getMass").invoke(massTracker);
         Object centerOfMass = publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
-        Object invalid = publicMethod(massTracker, "isInvalid").invoke(massTracker);
+        boolean invalid = !(mass instanceof Number number) || number.doubleValue() <= 0.0 || centerOfMass == null;
         return "mass=" + mass + " centerOfMass=" + centerOfMass + " massInvalid=" + invalid;
     }
 
