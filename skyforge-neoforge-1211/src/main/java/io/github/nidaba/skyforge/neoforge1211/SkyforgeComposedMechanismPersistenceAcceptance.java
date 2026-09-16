@@ -4,7 +4,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -50,16 +49,20 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static final ResourceLocation BEARING_ID = id("aeronautics:propeller_bearing");
     private static final ResourceLocation SAIL_ID = id("simulated:white_symmetric_sail");
 
-    private static final BlockPos BODY_MIN = new BlockPos(0, 200, 0);
-    private static final BlockPos BODY_MAX = new BlockPos(3, 201, 1);
-    private static final BlockPos MOTOR_SOURCE = new BlockPos(0, 201, 0);
-    private static final BlockPos SHAFT_SOURCE = new BlockPos(1, 201, 0);
-    private static final BlockPos ENDPOINT_SOURCE = new BlockPos(2, 201, 0);
-    private static final BlockPos BEARING_SOURCE = new BlockPos(3, 201, 0);
-    private static final BlockPos ASSEMBLER_SOURCE = new BlockPos(3, 202, 1);
-    private static final BlockPos CHILD_HUB_SOURCE = new BlockPos(4, 201, 0);
-    private static final BlockPos CHILD_SAIL_UP_SOURCE = new BlockPos(4, 202, 0);
-    private static final BlockPos CHILD_SAIL_DOWN_SOURCE = new BlockPos(4, 200, 0);
+    // Keep the entire bounded fixture, plus Sable's one-block physics-envelope expansion,
+    // inside the explicitly preloaded (0,0) chunk. Earlier boundary placement at x/z=0
+    // allowed the exact Sable ticket manager to observe unloaded negative-neighbor chunks
+    // and move a just-created body to holding while Simulated was still transferring blocks.
+    private static final BlockPos BODY_MIN = new BlockPos(5, 200, 5);
+    private static final BlockPos BODY_MAX = new BlockPos(8, 201, 6);
+    private static final BlockPos MOTOR_SOURCE = new BlockPos(5, 201, 5);
+    private static final BlockPos SHAFT_SOURCE = new BlockPos(6, 201, 5);
+    private static final BlockPos ENDPOINT_SOURCE = new BlockPos(7, 201, 5);
+    private static final BlockPos BEARING_SOURCE = new BlockPos(8, 201, 5);
+    private static final BlockPos ASSEMBLER_SOURCE = new BlockPos(8, 202, 6);
+    private static final BlockPos CHILD_HUB_SOURCE = new BlockPos(9, 201, 5);
+    private static final BlockPos CHILD_SAIL_UP_SOURCE = new BlockPos(9, 202, 5);
+    private static final BlockPos CHILD_SAIL_DOWN_SOURCE = new BlockPos(9, 200, 5);
     private static final BlockPos MAIN_GLUE_MIN = BODY_MIN;
     private static final BlockPos MAIN_GLUE_MAX = ASSEMBLER_SOURCE;
     private static final BlockPos CHILD_GLUE_MIN = CHILD_SAIL_DOWN_SOURCE;
@@ -81,7 +84,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static Object assembledBody;
     private static Object forceLoadTicketType;
     private static Object forceLoadTicketKey;
-    private static Object primaryAssemblyObserver;
     private static boolean forceLoadTicketAdded;
     private static Set<UUID> beforeIds = Set.of();
     private static Set<UUID> beforeHoldingIds = Set.of();
@@ -162,7 +164,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
 
             BlockEntity assembler = requireExpectedBlockEntity(ASSEMBLER_SOURCE, "PhysicsAssemblerBlockEntity");
             stage = Stage.ASSEMBLY;
-            installPrimaryAssemblyLivenessObserver();
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.ASSEMBLY,
                     "real Physics Assembler captures the bounded primary Sable/Create mechanism",
@@ -759,48 +760,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         return true;
     }
 
-    /**
-     * Exact Sable 2.0.5 calls SubLevelObserver.onSubLevelAdded synchronously from allocateSubLevel(),
-     * before Simulated's assembleBlocks() starts moving the parent-world blocks. Install a one-shot observer
-     * so the qualification liveness ticket exists before PhysicsChunkTicketManager can classify the new body
-     * against unloaded world chunks. The observer remains registered but is inert after the primary UUID is set.
-     */
-    private static void installPrimaryAssemblyLivenessObserver() throws ReflectiveOperationException {
-        Class<?> observerClass = Class.forName("dev.ryanhcode.sable.api.sublevel.SubLevelObserver");
-        primaryAssemblyObserver = Proxy.newProxyInstance(
-                observerClass.getClassLoader(),
-                new Class<?>[] {observerClass},
-                (proxy, method, args) -> {
-                    if (method.getDeclaringClass() == Object.class) {
-                        return switch (method.getName()) {
-                            case "toString" -> "SkyforgePlatform007PrimaryAssemblyObserver";
-                            case "hashCode" -> System.identityHashCode(proxy);
-                            case "equals" -> proxy == (args == null || args.length == 0 ? null : args[0]);
-                            default -> null;
-                        };
-                    }
-                    if ("onSubLevelAdded".equals(method.getName())
-                            && stage == Stage.ASSEMBLY
-                            && bodyId == null
-                            && args != null
-                            && args.length == 1
-                            && args[0] != null) {
-                        Object addedBody = args[0];
-                        UUID addedId = subLevelUniqueId(addedBody);
-                        if (!beforeIds.contains(addedId)) {
-                            bodyId = addedId;
-                            assembledBody = addedBody;
-                            addFixtureForceLoadTicket(addedBody);
-                            LOGGER.log(System.Logger.Level.INFO,
-                                    PREFIX + " PRIMARY_ALLOCATION_TICKET bodyId=" + bodyId
-                                            + " timing=onSubLevelAdded-before-block-transfer");
-                        }
-                    }
-                    return null;
-                });
-        publicMethod(container, "addObserver", observerClass).invoke(container, primaryAssemblyObserver);
-    }
-
     private static boolean allMovedChildBlocksPresent() {
         return BuiltInRegistries.BLOCK.getKey(level.getBlockState(movedHub).getBlock()).equals(SHAFT_ID)
                 && BuiltInRegistries.BLOCK.getKey(level.getBlockState(movedSailUp).getBlock()).equals(SAIL_ID)
@@ -831,9 +790,10 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
 
     private static void prepareFixture() {
         level.getChunk(0, 0);
-        for (int x = -2; x <= 5; x++) {
+        requireFixtureInsidePreloadedPhysicsChunk();
+        for (int x = 3; x <= 10; x++) {
             for (int y = 198; y <= 204; y++) {
-                for (int z = -2; z <= 3; z++) {
+                for (int z = 3; z <= 8; z++) {
                     level.setBlock(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), 3);
                 }
             }
@@ -857,6 +817,18 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                 || !level.setBlock(ENDPOINT_SOURCE, endpoint, 3)
                 || !level.setBlock(ASSEMBLER_SOURCE, assembler, 3)) {
             throw new IllegalStateException("failed to place accepted PLATFORM-003 primary persistence fixture");
+        }
+    }
+
+    private static void requireFixtureInsidePreloadedPhysicsChunk() {
+        int minX = Math.min(BODY_MIN.getX(), CHILD_HUB_SOURCE.getX()) - 1;
+        int maxX = Math.max(ASSEMBLER_SOURCE.getX(), CHILD_HUB_SOURCE.getX()) + 1;
+        int minZ = Math.min(BODY_MIN.getZ(), ASSEMBLER_SOURCE.getZ()) - 1;
+        int maxZ = Math.max(BODY_MAX.getZ(), ASSEMBLER_SOURCE.getZ()) + 1;
+        if ((minX >> 4) != 0 || (maxX >> 4) != 0 || (minZ >> 4) != 0 || (maxZ >> 4) != 0) {
+            throw new IllegalStateException(
+                    "PLATFORM-007 fixture plus Sable physics envelope crossed the preloaded chunk: "
+                            + "x=" + minX + ".." + maxX + " z=" + minZ + ".." + maxZ);
         }
     }
 

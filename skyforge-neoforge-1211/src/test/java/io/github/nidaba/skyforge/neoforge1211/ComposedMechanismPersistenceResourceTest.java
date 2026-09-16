@@ -41,10 +41,10 @@ final class ComposedMechanismPersistenceResourceTest {
         assertTrue(source.contains("platform-007-composed-persistence.identity"));
         assertTrue(source.contains("getHoldingSubLevel"));
         assertTrue(source.contains("snatchAndLoad"));
-        assertTrue(source.contains("SubLevelObserver"));
-        assertTrue(source.contains("onSubLevelAdded"));
-        assertTrue(source.contains("installPrimaryAssemblyLivenessObserver"));
-        assertTrue(source.contains("PRIMARY_ALLOCATION_TICKET"));
+        assertTrue(source.contains("requireFixtureInsidePreloadedPhysicsChunk"));
+        assertTrue(source.contains("BODY_MIN = new BlockPos(5, 200, 5)"));
+        assertTrue(source.contains("CHILD_HUB_SOURCE = new BlockPos(9, 201, 5)"));
+        assertTrue(source.contains("level.getChunk(0, 0)"));
         assertTrue(source.contains("samePersistentUuid=true"));
         assertTrue(source.contains("currentPhysicsHandleValid=true"));
         assertTrue(source.contains("staleChildDuplicate=false"));
