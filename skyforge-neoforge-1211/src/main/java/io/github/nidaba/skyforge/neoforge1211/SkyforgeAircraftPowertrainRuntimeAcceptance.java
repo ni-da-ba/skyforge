@@ -1430,6 +1430,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         int count = 0;
         for (BlockPos relative : mainExpected.keySet()) if (!level.getBlockState(source(relative)).isAir()) count++;
         for (BlockPos relative : childExpected.keySet()) if (!level.getBlockState(source(relative)).isAir()) count++;
+        for (BlockPos relative : rudderExpected.keySet()) if (!level.getBlockState(source(relative)).isAir()) count++;
         return count;
     }
 
