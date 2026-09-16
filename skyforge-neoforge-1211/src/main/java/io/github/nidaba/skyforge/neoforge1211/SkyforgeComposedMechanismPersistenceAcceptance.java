@@ -72,6 +72,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static final BlockPos CHILD_GLUE_MAX = CHILD_SAIL_UP_SOURCE;
 
     private static final long SOURCE_CHUNK_READINESS_DEADLINE_TICKS = 80L;
+    private static final long SOURCE_GLUE_VISIBILITY_DEADLINE_TICKS = 20L;
     private static final long ASSEMBLY_DEADLINE_TICKS = 80L;
     private static final long PHYSICS_INITIALIZATION_DEADLINE_TICKS = 40L;
     private static final long KINETIC_BUILD_DEADLINE_TICKS = 80L;
@@ -129,6 +130,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
 
     private enum Stage {
         SOURCE_CHUNK_READINESS,
+        SOURCE_GLUE_VISIBILITY,
         ASSEMBLY,
         PHYSICS_INITIALIZATION,
         KINETIC_BUILD,
@@ -201,6 +203,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         try {
             switch (stage) {
                 case SOURCE_CHUNK_READINESS -> pollSourceChunkReadiness(now);
+                case SOURCE_GLUE_VISIBILITY -> pollSourceGlueVisibility(now);
                 case ASSEMBLY -> pollAssembly(now, false);
                 case PHYSICS_INITIALIZATION -> pollPhysicsInitialization(now);
                 case KINETIC_BUILD -> pollKineticBuild(now);
@@ -220,7 +223,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static SkyforgeCompilerIntegrationFailure stageFailureCode() {
         if (stage == null) return SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE;
         return switch (stage) {
-            case SOURCE_CHUNK_READINESS, ASSEMBLY -> SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY;
+            case SOURCE_CHUNK_READINESS, SOURCE_GLUE_VISIBILITY, ASSEMBLY -> SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY;
             case PHYSICS_INITIALIZATION -> SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS;
             case KINETIC_BUILD, KINETIC_DISCONNECT, KINETIC_REBUILD ->
                     SkyforgeCompilerIntegrationFailure.FAIL_KINETIC_REBUILD;
@@ -232,7 +235,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static SkyforgeCompilerIntegrationPhase stagePhase() {
         if (stage == null) return SkyforgeCompilerIntegrationPhase.PERSISTENCE_RELOAD;
         return switch (stage) {
-            case SOURCE_CHUNK_READINESS, ASSEMBLY -> SkyforgeCompilerIntegrationPhase.ASSEMBLY;
+            case SOURCE_CHUNK_READINESS, SOURCE_GLUE_VISIBILITY, ASSEMBLY -> SkyforgeCompilerIntegrationPhase.ASSEMBLY;
             case PHYSICS_INITIALIZATION -> SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION;
             case KINETIC_BUILD, CHILD_REASSEMBLY, KINETIC_DISCONNECT, KINETIC_REBUILD ->
                     SkyforgeCompilerIntegrationPhase.MECHANISM_INITIALIZATION;
@@ -261,8 +264,27 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         }
         GlueFixture mainGlue = addGlue(MAIN_GLUE_MIN, MAIN_GLUE_MAX, "main");
         mainGlueId = mainGlue.id();
-        requireMainGlueVisibleToCreate(mainGlue);
+        stage = Stage.SOURCE_GLUE_VISIBILITY;
+        waitDiagnostic = diagnostic(
+                SkyforgeCompilerIntegrationPhase.ASSEMBLY,
+                "new main Super Glue reaches the same typed entity query used by Create before assembly",
+                now,
+                now + SOURCE_GLUE_VISIBILITY_DEADLINE_TICKS,
+                sourceIds(),
+                safeServerState(),
+                "sableChunkLoadedEnough=true mainGlueId=" + mainGlueId + " preAssemblySourceNonAir=17");
+    }
 
+    private static void pollSourceGlueVisibility(long now) throws ReflectiveOperationException {
+        if (!isMainGlueVisibleToCreate()) {
+            if (waitDiagnostic.expired(now)) {
+                fail(SkyforgeCompilerIntegrationFailure.FAIL_GLUE_REGISTRATION,
+                        waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
+                                "mainGlueId=" + mainGlueId + " visibleToTypedCreateQuery=false"),
+                        "main Super Glue did not become visible through Create's typed entity query before deadline");
+            }
+            return;
+        }
         BlockEntity assembler = requireExpectedBlockEntity(ASSEMBLER_SOURCE, "PhysicsAssemblerBlockEntity");
         stage = Stage.ASSEMBLY;
         waitDiagnostic = diagnostic(
@@ -982,7 +1004,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         return new GlueFixture(glue.getUUID(), box, glue);
     }
 
-    private static void requireMainGlueVisibleToCreate(GlueFixture main) throws ReflectiveOperationException {
+    private static boolean isMainGlueVisibleToCreate() throws ReflectiveOperationException {
         Class<?> glueClass = Class.forName(GLUE_CLASS_NAME);
         BlockPos seed = BODY_MAX;
         BlockPos neighbor = seed.west();
@@ -993,25 +1015,18 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         if (!(result instanceof List<?> visible)) {
             throw new IllegalStateException("typed Create Super Glue query returned unexpected value " + result);
         }
-        Entity exact = null;
         for (Object candidate : visible) {
-            if (candidate instanceof Entity entity && entity.getUUID().equals(main.id())) {
-                exact = entity;
-                break;
+            if (!(candidate instanceof Entity entity) || !entity.getUUID().equals(mainGlueId)) continue;
+            boolean containsSeed = Boolean.TRUE.equals(publicMethod(entity, "contains", BlockPos.class).invoke(entity, seed));
+            boolean containsNeighbor = Boolean.TRUE.equals(publicMethod(entity, "contains", BlockPos.class).invoke(entity, neighbor));
+            if (containsSeed && containsNeighbor) {
+                LOGGER.log(System.Logger.Level.INFO,
+                        PREFIX + " MAIN_GLUE_VISIBLE_TO_CREATE id=" + mainGlueId
+                                + " visibleCount=" + visible.size() + " seed=" + seed + " neighbor=" + neighbor);
+                return true;
             }
         }
-        boolean containsSeed = exact != null && Boolean.TRUE.equals(
-                publicMethod(exact, "contains", BlockPos.class).invoke(exact, seed));
-        boolean containsNeighbor = exact != null && Boolean.TRUE.equals(
-                publicMethod(exact, "contains", BlockPos.class).invoke(exact, neighbor));
-        if (exact == null || !containsSeed || !containsNeighbor) {
-            throw new IllegalStateException("main Super Glue not visible through exact typed Create query: id="
-                    + main.id() + " visibleCount=" + visible.size() + " seed=" + seed + " neighbor=" + neighbor
-                    + " containsSeed=" + containsSeed + " containsNeighbor=" + containsNeighbor);
-        }
-        LOGGER.log(System.Logger.Level.INFO,
-                PREFIX + " MAIN_GLUE_VISIBLE_TO_CREATE id=" + main.id()
-                        + " visibleCount=" + visible.size() + " seed=" + seed + " neighbor=" + neighbor);
+        return false;
     }
 
     private static void requireGlueBoundary(GlueFixture main, GlueFixture child) throws ReflectiveOperationException {

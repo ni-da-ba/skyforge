@@ -58,6 +58,8 @@ final class ComposedMechanismPersistenceResourceTest {
         assertTrue(source.contains("SOURCE_CHUNK_READINESS"));
         assertTrue(source.contains("PhysicsChunkTicketManager"));
         assertTrue(source.contains("isChunkLoadedEnough"));
+        assertTrue(source.contains("SOURCE_GLUE_VISIBILITY"));
+        assertTrue(source.contains("SOURCE_GLUE_VISIBILITY_DEADLINE_TICKS"));
         assertTrue(source.contains("MAIN_GLUE_VISIBLE_TO_CREATE"));
         assertTrue(source.contains("getEntitiesOfClass"));
         assertTrue(source.contains("synchronousSourceNonAir"));
