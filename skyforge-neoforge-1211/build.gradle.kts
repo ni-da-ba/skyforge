@@ -2095,6 +2095,17 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // PLATFORM-014: reuse the accepted Swivel child fixture to qualify generic Sable DRAG observation.
+        create("compilerPlatformAerodynamicForceObservationServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-aerodynamic-force-observation").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformSwivelControlChildLifecycle", "true")
+            systemProperty("skyforge.dev.compilerPlatformAerodynamicForceObservation", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // PLATFORM-007: fresh-process persistence of one composed Sable/Create/Aeronautics mechanism.
         create("compilerPlatformComposedMechanismPersistencePrepareServer") {
             server()
@@ -2882,6 +2893,19 @@ tasks.named("runCompilerPlatformSwivelControlChildLifecycleServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(compilerPlatformSwivelControlChildLifecycleServerProperties)
+    }
+}
+
+val compilerPlatformAerodynamicForceObservationServerProperties = compilerPlatformSwivelControlChildLifecycleServerProperties
+    .replace("level-name=compiler-platform-swivel-control-child-lifecycle", "level-name=compiler-platform-aerodynamic-force-observation")
+
+tasks.named("runCompilerPlatformAerodynamicForceObservationServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-aerodynamic-force-observation").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformAerodynamicForceObservationServerProperties)
     }
 }
 
