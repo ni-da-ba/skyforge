@@ -2118,6 +2118,47 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // PLATFORM-011: prepare a blank quick-play world, then exercise a real Create seat on Sable.
+        create("compilerPlatformSeatPassengerClientWorldPrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-seat-passenger-client").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("compiler-platform-seat-passenger-client")
+            systemProperty("skyforge.dev.compilerPlatformSeatPassengerClientWorldPrepare", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "compiler-platform-seat-passenger-client-world-prepare")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "120")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/compiler-platform-seat-passenger-client/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("compilerPlatformSeatPassengerClient") {
+            client()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-seat-passenger-client").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("compiler-platform-seat-passenger-client")
+            systemProperty("skyforge.dev.compilerPlatformSeatPassengerOnSableLifecycle", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "compiler-platform-seat-passenger-on-sable")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/compiler-platform-seat-passenger-client/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
 
         // C12 B0-A1/A2: exact 105-block MAIN_BODY through the real Physics Assembler, then
         // authoritative Sable mass/center-of-mass measurement.
@@ -2842,6 +2883,29 @@ tasks.named("runCompilerPlatformSteeringWheelClientWorldPrepareServer").configur
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(compilerPlatformSteeringWheelClientServerProperties)
+    }
+}
+
+val compilerPlatformSeatPassengerClientServerProperties = """
+    level-name=compiler-platform-seat-passenger-client
+    level-seed=669011
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformSeatPassengerClientWorldPrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-seat-passenger-client").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformSeatPassengerClientServerProperties)
     }
 }
 
