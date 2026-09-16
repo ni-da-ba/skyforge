@@ -558,17 +558,52 @@ final class SkyforgeSwivelControlChildLifecycleAcceptance {
         }
     }
 
-    private static void removePrimaryAssemblyGlue() {
-        Entity glue = level.getEntity(glueId);
-        if (glue == null) {
-            throw new IllegalStateException("primary assembly glue entity unavailable before Swivel realization: " + glueId);
+    private static void removePrimaryAssemblyGlue() throws ReflectiveOperationException {
+        Class<?> glueClass = Class.forName("com.simibubi.create.content.contraptions.glue.SuperGlueEntity");
+        AABB sourceBox = (AABB) glueClass.getMethod("span", BlockPos.class, BlockPos.class)
+                .invoke(null, GLUE_MIN, GLUE_MAX);
+        AABB expectedMovedBox = sourceBox.move(movedOffset.getX(), movedOffset.getY(), movedOffset.getZ());
+        Entity matched = null;
+        int matches = 0;
+        for (Entity entity : level.getEntitiesOfClass(Entity.class, expectedMovedBox.inflate(1.0))) {
+            if (glueClass.isInstance(entity) && sameBox(entity.getBoundingBox(), expectedMovedBox)) {
+                matched = entity;
+                matches++;
+            }
         }
-        glue.discard();
-        if (level.getEntity(glueId) != null) {
-            throw new IllegalStateException("fixture-only primary assembly glue remained after discard: " + glueId);
+        if (matches > 1) {
+            throw new IllegalStateException("duplicate moved primary assembly glue domains before Swivel realization: "
+                    + matches + " expected=" + expectedMovedBox);
         }
-        LOGGER.log(System.Logger.Level.INFO,
-                PREFIX + " PRIMARY_ASSEMBLY_GLUE_RELEASED bodyId=" + bodyId + " glueId=" + glueId);
+        if (matched != null) {
+            UUID movedGlueId = matched.getUUID();
+            matched.discard();
+            LOGGER.log(System.Logger.Level.INFO,
+                    PREFIX + " PRIMARY_ASSEMBLY_GLUE_RELEASED bodyId=" + bodyId
+                            + " sourceGlueId=" + glueId + " movedGlueId=" + movedGlueId
+                            + " resolution=current-moved-box");
+        } else {
+            LOGGER.log(System.Logger.Level.INFO,
+                    PREFIX + " PRIMARY_ASSEMBLY_GLUE_RELEASED bodyId=" + bodyId
+                            + " sourceGlueId=" + glueId + " movedGlueId=absent-already-consumed"
+                            + " resolution=current-moved-box");
+        }
+        for (Entity entity : level.getEntitiesOfClass(Entity.class, expectedMovedBox.inflate(1.0))) {
+            if (glueClass.isInstance(entity) && sameBox(entity.getBoundingBox(), expectedMovedBox)) {
+                throw new IllegalStateException("fixture-only moved primary assembly glue remained after discard: "
+                        + entity.getUUID());
+            }
+        }
+    }
+
+    private static boolean sameBox(AABB first, AABB second) {
+        double epsilon = 1.0e-6;
+        return Math.abs(first.minX - second.minX) < epsilon
+                && Math.abs(first.minY - second.minY) < epsilon
+                && Math.abs(first.minZ - second.minZ) < epsilon
+                && Math.abs(first.maxX - second.maxX) < epsilon
+                && Math.abs(first.maxY - second.maxY) < epsilon
+                && Math.abs(first.maxZ - second.maxZ) < epsilon;
     }
 
     private static void realizeSwivelAndChild(Object canonical, long now) throws ReflectiveOperationException {

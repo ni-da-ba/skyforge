@@ -538,7 +538,7 @@
       "owning_workflow": ".github/workflows/compiler-platform-swivel-control-child-lifecycle.yml",
       "latest_accepted_evidence": null,
       "assumptions_preconditions": [
-        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE and CREATE_KINETIC_ON_SABLE_LIFECYCLE as carrier authority; Swivel child and command network are realized only after the primary body is canonical.",
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE and CREATE_KINETIC_ON_SABLE_LIFECYCLE as carrier authority; Swivel child and command network are realized only after the primary body is canonical, and the pre-assembly Super Glue UUID is never retained as post-assembly authority.",
         "Exact Simulated source commit 50443d00afa06e0982b45f40cd686f7ecf978132 is evidence for Swivel hidden-extra-cog, target-angle, locking, and child-sublevel lifecycle semantics on the bundled exact stack.",
         "The fixture uses a real Create Creative Motor and cogwheel command path; motor ScrollValueBehaviour may change source RPM, but Swivel targetAngleDegrees is observation-only.",
         "The bounded child payload is four symmetric sails internally glued above an UP-facing Swivel, with no glue crossing the controller plane.",
@@ -567,7 +567,15 @@
         "B": false,
         "C": false
       },
-      "negative_evidence": []
+      "negative_evidence": [
+        {
+          "workflow_run": 35040217064,
+          "job": 104618631535,
+          "commit": "53a329fafbb49ae9fb5c3b26b33fce6d9038091d",
+          "result": "STALE_PRIMARY_GLUE_UUID_AUTHORITY",
+          "finding": "Primary Sable assembly and the accepted moving Create carrier succeeded, but the first PLATFORM-008 L2 failed before Swivel realization because the fixture required the source Super Glue entity UUID to remain resolvable after Sable transfer. That UUID is pre-assembly fixture identity, not canonical moved authority. The fixture now resolves the broad assembly-glue domain by its exact moved bounding box, tolerates it already being consumed, discards exactly one moved match when present, and fails only on duplicate/remaining broad glue authority before creating the Swivel child."
+        }
+      ]
     }
   }
 }
