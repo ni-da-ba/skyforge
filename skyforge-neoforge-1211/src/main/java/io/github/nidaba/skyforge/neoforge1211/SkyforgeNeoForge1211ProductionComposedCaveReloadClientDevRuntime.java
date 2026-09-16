@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.SectionPos;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -46,7 +47,14 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadClientDevRuntime {
         BlockPos mouth = BlockPos.of(expectation.mouthPosition());
         BlockPos outward = BlockPos.of(expectation.outwardPosition());
         BlockPos base = BlockPos.of(expectation.basePosition());
-        for (BlockPos position : java.util.List.of(nativeOnly, mouth, outward, base)) {
+        java.util.List<BlockPos> requiredPositions = new java.util.ArrayList<>(
+                java.util.List.of(nativeOnly, mouth, outward, base));
+        if (expectation.dr50() != null) {
+            requiredPositions.add(expectation.dr50().materialPosition());
+            requiredPositions.add(expectation.dr50().hydrologyPosition());
+            requiredPositions.add(expectation.dr50().structurePosition());
+        }
+        for (BlockPos position : requiredPositions) {
             if (!minecraft.level.getChunkSource().hasChunk(
                     SectionPos.blockToSectionCoord(position.getX()),
                     SectionPos.blockToSectionCoord(position.getZ()))) {
@@ -61,6 +69,21 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadClientDevRuntime {
                                 + biomeExpectation.position()
                                 + ": expected=" + biomeExpectation.biome().location()
                                 + ", actual=" + minecraft.level.getBiome(biomeExpectation.position()));
+            }
+        }
+
+        if (expectation.dr50() != null) {
+            var dr50 = expectation.dr50();
+            if (!minecraft.level.getBlockState(dr50.materialPosition()).is(net.minecraft.world.level.block.Blocks.IRON_ORE)
+                    || !minecraft.level.getBlockState(dr50.hydrologyPosition()).is(net.minecraft.world.level.block.Blocks.WATER)) {
+                throw new IllegalStateException("DR-50 ClientLevel lost persisted material or hydrology state");
+            }
+            var structureBlock = BuiltInRegistries.BLOCK.getKey(
+                    minecraft.level.getBlockState(dr50.structurePosition()).getBlock());
+            if (!structureBlock.equals(dr50.structureBlockId())) {
+                throw new IllegalStateException(
+                        "DR-50 ClientLevel changed representative structure block: expected="
+                                + dr50.structureBlockId() + ", actual=" + structureBlock);
             }
         }
 
@@ -93,6 +116,9 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadClientDevRuntime {
         clientEvidence.put("clientBaseState", baseState.toString());
         if (!expectation.dr40Biomes().isEmpty()) {
             clientEvidence.put("dr40ReloadClientBiomePass", true);
+        }
+        if (expectation.dr50() != null) {
+            clientEvidence.put("dr50ReloadClientPass", true);
         }
         SkyforgeAutomatedAcceptanceHarness.completeClientCase(clientEvidence);
         if (SkyforgeAutomatedAcceptanceHarness.clientMode()) {

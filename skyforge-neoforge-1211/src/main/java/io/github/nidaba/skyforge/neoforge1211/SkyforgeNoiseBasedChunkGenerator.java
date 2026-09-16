@@ -251,7 +251,8 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         var activeIslandVolumeId = SkyforgeGenerationDomainStage.activeIslandVolumeId();
         Structure structure = structureSelectionEntry.structure().value();
         if (activeIslandVolumeId.isEmpty()) {
-            if (SkyforgeDr30NativeStructureAcceptance.suppressBaseWorldProbe(structure, chunkPos)) {
+            if (SkyforgeDr30NativeStructureAcceptance.suppressBaseWorldProbe(structure, chunkPos)
+                    || SkyforgeDr50IntegratedRegionEvidence.suppressBaseWorldProbe(structure, chunkPos)) {
                 return false;
             }
             return super.tryGenerateStructure(
@@ -270,10 +271,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         }
 
         SkyIslandWorldVolumeId domainVolumeId = activeIslandVolumeId.orElseThrow();
-        if (!SkyforgeDr30NativeStructureAcceptance.allowsExactProbe(structure, chunkPos, domainVolumeId)) {
+        if (!SkyforgeDr30NativeStructureAcceptance.allowsExactProbe(structure, chunkPos, domainVolumeId)
+                || !SkyforgeDr50IntegratedRegionEvidence.allowsExactProbe(structure, chunkPos, domainVolumeId)) {
             return false;
         }
         boolean dr30ProbeCandidate = SkyforgeDr30NativeStructureAcceptance.isProbeCandidate(structure, chunkPos);
+        boolean dr50ProbeCandidate = SkyforgeDr50IntegratedRegionEvidence.isProbeCandidate(
+                structure, chunkPos, domainVolumeId);
         boolean accommodationProofCandidate = isAccommodationProofCandidate(structure, chunkPos);
         boolean undersideContradictionProofCandidate =
                 SkyforgeNeoForge1211UndersideContradictionDevRuntime.isProofCandidate(structure, chunkPos);
@@ -302,6 +306,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                         domainVolumeId,
                         "generated=" + generated + ", heightClaims=" + heightClaims.size());
             }
+            if (dr50ProbeCandidate) {
+                throw SkyforgeDr50IntegratedRegionEvidence.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "generated=" + generated + ", heightClaims=" + heightClaims.size());
+            }
             if (accommodationProofCandidate) {
                 throw new IllegalStateException(
                         "SF-IMP-0046 fixture invalid: forced origin mansion did not produce a Skyforge-height native start");
@@ -317,6 +328,10 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         if (start == null || !start.isValid()) {
             if (dr30ProbeCandidate) {
                 throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure, chunkPos, domainVolumeId, "native start missing or invalid");
+            }
+            if (dr50ProbeCandidate) {
+                throw SkyforgeDr50IntegratedRegionEvidence.exactProbeFailure(
                         structure, chunkPos, domainVolumeId, "native start missing or invalid");
             }
             if (accommodationProofCandidate) {
@@ -343,6 +358,14 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                         "start did not resolve at claimed surface; bounds=" + start.getBoundingBox()
                                 + ", claims=" + heightClaims);
             }
+            if (dr50ProbeCandidate) {
+                throw SkyforgeDr50IntegratedRegionEvidence.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "start did not resolve at claimed surface; bounds=" + start.getBoundingBox()
+                        + ", claims=" + heightClaims);
+            }
             if (accommodationProofCandidate) {
                 throw new IllegalStateException(
                         "SF-IMP-0046 fixture invalid: forced origin mansion did not resolve its start at the claimed "
@@ -361,6 +384,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         if (claimedVolumeIds.size() != 1 || !claimedVolumeIds.contains(domainVolumeId)) {
             if (dr30ProbeCandidate) {
                 throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "resolved claims referenced volumes=" + claimedVolumeIds);
+            }
+            if (dr50ProbeCandidate) {
+                throw SkyforgeDr50IntegratedRegionEvidence.exactProbeFailure(
                         structure,
                         chunkPos,
                         domainVolumeId,
@@ -386,6 +416,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         if (undersideContradiction.isPresent()) {
             if (dr30ProbeCandidate) {
                 throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "underside contradiction=" + undersideContradiction.orElseThrow());
+            }
+            if (dr50ProbeCandidate) {
+                throw SkyforgeDr50IntegratedRegionEvidence.exactProbeFailure(
                         structure,
                         chunkPos,
                         domainVolumeId,
@@ -433,6 +470,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         if (foundationAssessment.isEmpty() || !foundationAssessment.orElseThrow().accepted()) {
             if (dr30ProbeCandidate) {
                 throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "natural support rejected and bounded foundation accommodation was not accepted");
+            }
+            if (dr50ProbeCandidate) {
+                throw SkyforgeDr50IntegratedRegionEvidence.exactProbeFailure(
                         structure,
                         chunkPos,
                         domainVolumeId,

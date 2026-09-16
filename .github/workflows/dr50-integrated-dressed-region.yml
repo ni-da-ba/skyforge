@@ -1,0 +1,50 @@
+name: DR-50 Integrated Dressed Region Acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "skyforge-world/**"
+      - "skyforge-neoforge-1211/**"
+      - "docs/agent-state/DR50_INTEGRATED_REGION_EVIDENCE.json"
+      - ".github/workflows/dr50-integrated-dressed-region.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dr50-integrated-dressed-region-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Compile and unit-test DR-50 integration
+        timeout-minutes: 10
+        run: ./gradlew :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:test --stacktrace --no-configuration-cache
+      - name: Qualify canonical integrated region, reload, and stacked isolation
+        timeout-minutes: 65
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a ./gradlew :skyforge-neoforge-1211:dr50IntegratedRegionAcceptance --stacktrace --no-configuration-cache
+      - name: Publish DR-50 runtime evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dr50-integrated-region-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            skyforge-neoforge-1211/build/acceptance/dr-50/*.properties
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0068/stacked.properties
+            skyforge-neoforge-1211/build/acceptance/dr-30-native-structure/stacked.properties
+            skyforge-neoforge-1211/run-dr50-auto-*/logs/*.log
+            skyforge-neoforge-1211/run-dr50-auto-*/crash-reports/*.txt

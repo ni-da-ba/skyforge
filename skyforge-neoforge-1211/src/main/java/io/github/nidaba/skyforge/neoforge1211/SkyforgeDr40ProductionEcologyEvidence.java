@@ -137,7 +137,7 @@ final class SkyforgeDr40ProductionEcologyEvidence {
         return Map.copyOf(evidence);
     }
 
-    private static String populationOutcomeDigest(
+    static String populationOutcomeDigest(
             java.util.List<SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase> phases) {
         long digest = 0xcbf29ce484222325L;
         for (var phase : phases) {

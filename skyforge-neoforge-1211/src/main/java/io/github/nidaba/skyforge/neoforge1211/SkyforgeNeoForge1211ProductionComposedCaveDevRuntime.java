@@ -46,6 +46,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
     private static AutoCloseable persistentAdmissionBinding;
     private static AutoCloseable persistentPopulationBinding;
     private static AutoCloseable persistentComposedBinding;
+    private static AutoCloseable persistentInteriorBinding;
     private static SkyforgeComposedCaveStage.Snapshot initialSnapshot;
     private static int previousPending = Integer.MAX_VALUE;
     private static int progressObservationTicks;
@@ -62,13 +63,15 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                 || persistentTerrainBinding != null
                 || persistentAdmissionBinding != null
                 || persistentPopulationBinding != null
-                || persistentComposedBinding != null) {
+                || persistentComposedBinding != null
+                || persistentInteriorBinding != null) {
             return;
         }
         if (SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()
                 || SkyforgePhysicalVolumeAdmissionStage.active()
                 || SkyforgeNativeSurfacePopulationStage.hasActiveBinding()
-                || SkyforgeComposedCaveStage.active()) {
+                || SkyforgeComposedCaveStage.active()
+                || SkyforgeNativeInteriorPopulationStage.active()) {
             throw new IllegalStateException(
                     "SF-IMP-0068 production composed-cave proof requires isolated production bindings");
         }
@@ -76,7 +79,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         SkyIslandWorldVolume volume = FIXTURE.volume();
         SkyIslandWorldVolumeId volumeId = volume.id();
         SkyforgeProductionEcologyResolver productionEcology =
-                SkyforgeDr40ProductionEcologyEvidence.enabled()
+                (SkyforgeDr40ProductionEcologyEvidence.enabled() || SkyforgeDr50IntegratedRegionEvidence.enabled())
                         ? SkyforgeDr40ProductionEcologyEvidence.resolver(FIXTURE)
                         : null;
         var biomeResolver = productionEcology != null
@@ -109,6 +112,10 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         : List.of());
         persistentComposedBinding = SkyforgeComposedCaveStage.install(
                 List.of(new SkyforgeComposedCavePlan(volume, FIXTURE.field())));
+        if (SkyforgeDr50IntegratedRegionEvidence.enabled()) {
+            persistentInteriorBinding = SkyforgeNativeInteriorPopulationStage.install(
+                    List.of(SkyforgeNativeInteriorPopulationPlan.acceptedNativeInterior(volumeId, 0)));
+        }
 
         initialSnapshot = SkyforgeComposedCaveStage.snapshot();
         if (initialSnapshot.totalObligations() != plannedChunks.size()
@@ -170,8 +177,10 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         if (admission.state() != SkyforgePhysicalVolumeAdmissionState.ADMITTED
                 || !SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId).isEmpty()
                 || stage.pendingObligations() != 0
-                || (SkyforgeDr40ProductionEcologyEvidence.enabled()
-                        && !SkyforgePhysicalVolumeAdmissionStage.pendingBiomePresentationChunks(volumeId).isEmpty())) {
+                || ((SkyforgeDr40ProductionEcologyEvidence.enabled() || SkyforgeDr50IntegratedRegionEvidence.enabled())
+                        && !SkyforgePhysicalVolumeAdmissionStage.pendingBiomePresentationChunks(volumeId).isEmpty())
+                || (SkyforgeDr50IntegratedRegionEvidence.enabled()
+                        && SkyforgeNativeInteriorPopulationStage.snapshot(volumeId).pendingObligations() != 0)) {
             return;
         }
         if (stage.totalObligations() != admission.requiredChunks()
@@ -372,7 +381,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         java.util.Map.entry("monotonicPending", true),
                         java.util.Map.entry("noReplay", true),
                         java.util.Map.entry("productionStage", true)));
-        if (SkyforgeDr40ProductionEcologyEvidence.enabled()) {
+        if (SkyforgeDr40ProductionEcologyEvidence.enabled() || SkyforgeDr50IntegratedRegionEvidence.enabled()) {
             var terrainAdapter = new SkyforgeNeoForge1211ChunkAdapter(
                     FIXTURE.catalog(),
                     io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
@@ -385,6 +394,17 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                     terrainAdapter,
                     SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(volumeId)));
             acceptanceEvidence.put("nativeBiome", "authored-production-ecology");
+            if (SkyforgeDr50IntegratedRegionEvidence.enabled()) {
+                acceptanceEvidence.putAll(SkyforgeDr50IntegratedRegionEvidence.collect(
+                        level,
+                        FIXTURE,
+                        terrainAdapter,
+                        SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(volumeId),
+                        nativeTransformDigestText,
+                        nativeCarveDigestText,
+                        authoredChangedDigestText,
+                        authoredProvenanceDigestText));
+            }
         }
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(
                 level.getServer(),
