@@ -75,6 +75,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeCreateKineticOnSableLifecycleAcceptance.installFromSystemProperty();
         SkyforgeSuperGlueAssemblyDomainAcceptance.installFromSystemProperty();
         SkyforgeNestedPropellerBearingLifecycleAcceptance.installFromSystemProperty();
+        SkyforgeComposedMechanismPersistenceAcceptance.installFromSystemProperty();
         SkyforgeSteeringWheelClientWorldPrepareAcceptance.installFromSystemProperty();
         SkyforgeSteeringWheelClientOnSableLifecycleAcceptance.installFromSystemProperty();
         SkyforgeAircraftPowertrainRuntimeAcceptance.installFromSystemProperty();

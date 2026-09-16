@@ -365,6 +365,166 @@
           "finding": "Using ClientSubLevel.renderPose(partialTick) for convergence, player placement, and aim projection produced exact server/client wheel-center agreement, yet Simulated lookingAtWheel remained false. This isolates the remaining harness defect to the actual wheel-versus-mount voxel ray geometry and same-tick interpolated camera ray rather than Sable pose synchronization."
         }
       ]
+    },
+    "SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeComposedMechanismPersistenceAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "ComposedMechanismPersistenceResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-composed-mechanism-persistence.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 35034081917,
+        "job": 104599373896,
+        "commit": "b0262d2a5ec7ffa170b31a5b42984b6301c29c1c",
+        "result": "PASS",
+        "finding": "Exact-stack two-boot L2 proved composed persistence across a genuine fresh-process boundary: Boot A assembled one canonical Sable primary body, realized a live Create-driven Propeller Bearing child with one hub plus two symmetric sails, normalized the child back into plot blocks, saved successfully, and released the bounded COMMAND_FORCED ticket. Boot B recovered the same persistent primary UUID with a valid current physics handle, observed both exact Super Glue domains through bounded asynchronous rehydration, reassembled a fresh nested child with no stale pre-reload duplicate, retained one main glue authority without duplication, recovered bearing speed -16.0, then proved the reloaded Create network live by shaft sever/rebuild back to -16.0 and released the fresh bounded ticket before PASS."
+      },
+      "assumptions_preconditions": [
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE, SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE, CREATE_KINETIC_ON_SABLE_LIFECYCLE, and NESTED_PROPELLER_BEARING_LIFECYCLE without widening those prerequisites.",
+        "The fixture persists only durable identity (primary UUID, pre-reload child/glue UUIDs, and integer plot offset); all Java objects, block entities, entity handles, physics handles, and kinetic state are re-resolved in Boot B.",
+        "Boot A normalizes the entity-backed Propeller Bearing child back into the canonical Sable plot before save, then releases the bounded COMMAND_FORCED qualification ticket; Boot B recovers the UUID through Sable holding storage and applies a fresh bounded ticket only after canonical reload begins.",
+        "Boot B treats entity-backed Super Glue as asynchronously rehydrated state: after canonical Sable recovery it allows a bounded grace period, reuses exactly-one persisted domains when present, deterministically recreates only domains still absent after the grace window, and then reassembles a fresh nested Propeller Bearing child from normalized plot blocks; this lifecycle recovery is generic platform behavior, not an aircraft-specific persistence format.",
+        "A post-reload shaft sever/rebuild is required so serialized residue alone cannot satisfy persistence acceptance.",
+        "The production aircraft, Steering Wheel/client interaction, controls, player tracking, handling, and flight remain outside this capability."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_TARGET_LOWERING",
+        "FAIL_BOOT",
+        "FAIL_RUNTIME_EXIT",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_GLUE_REGISTRATION",
+        "FAIL_ASSEMBLY",
+        "FAIL_CHILD_ASSEMBLY",
+        "FAIL_KINETIC_REBUILD",
+        "FAIL_PHYSICS",
+        "FAIL_PERSISTENCE",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_KINETIC_BUILD",
+        "TIMEOUT_KINETIC_DISCONNECT",
+        "TIMEOUT_KINETIC_REBUILD",
+        "TIMEOUT_CHILD_ASSEMBLY",
+        "TIMEOUT_PERSISTENCE_RELOAD",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": true,
+        "C": true
+      },
+      "negative_evidence": [
+        {
+          "workflow_run": 35034563292,
+          "job": 104600913610,
+          "commit": "e8eaff0025473c8bfff37f4c57f02dd41ce3dd49",
+          "result": "EARLY_FORCELOAD_SOURCE_CLEANUP_STALL",
+          "finding": "The authority-bearing rerun created one valid live Sable UUID but the normal Simulated parent-world source cleanup remained at 15 non-air cells through the bounded deadline after COMMAND_FORCED was attached immediately on first registration. The previous behavioral PASS showed cleanup can complete naturally. Recovery is now conditional: normal live bodies are ticketed only after source cleanup reaches zero; if the already-known UUID enters Sable holding during that wait, the fixture snatches that same UUID and immediately tickets the recovered live body before continuing. This combines holding-race protection without force-loading an in-progress normal assembly transition."
+        },
+        {
+          "workflow_run": 35032336867,
+          "job": 104593871396,
+          "commit": "ee3e264566618ffaf137d73562061a388d82a7b2",
+          "result": "DUPLICATE_LIVENESS_TICKET_ADD",
+          "finding": "Boot A created one valid primary Sable UUID synchronously. The early liveness fix added COMMAND_FORCED successfully during the synchronous assembly poll, then pollAssembly revisited the same body on tick 1 while parent cleanup was still settling and attempted to add the identical ticket again. Exact Sable 2.0.5 addForceLoadTicket returns false when the same UUID/type/key ticket already exists. Ticket acquisition is now guarded by forceLoadTicketAdded so repeated assembly polling is idempotent."
+        },
+        {
+          "workflow_run": 35031835513,
+          "job": 104592227867,
+          "commit": "cb1c060316ec44bf936ea8f525afc244147f222b",
+          "result": "TICKET_AFTER_CLEANUP_LIVENESS_RACE",
+          "finding": "Boot A discovered a single primary UUID and later found that exact UUID in Sable holding storage, but could not keep it live. The harness delayed its bounded COMMAND_FORCED ticket until source-world cleanup reached zero; therefore a valid assembled body could enter holding storage while cleanup was still being polled. The ticket is now attached immediately after UUID/body/mass/COM validity is established, while source cleanup remains a mandatory bounded acceptance condition before proceeding."
+        },
+        {
+          "workflow_run": 35031073642,
+          "job": 104589832046,
+          "commit": "65d99ae2b4a8d3a570daa026635e4a51b0a6cce5",
+          "result": "PRIMARY_BODY_HOLDING_LIVENESS_RACE",
+          "finding": "Boot A used the accepted PLATFORM-003 primary geometry, the source Physics Assembler was consumed (assembler=null), yet no new UUID remained in getAllSubLevels() through the bounded deadline. With accepted PLATFORM-003 green on the same stack, this isolates a fixture liveness race in which the new body can enter Sable holding storage before the persistence harness claims it. The fixture now discovers only newly-created holding UUIDs as diagnostic instrumentation, immediately snatches the single UUID through Sable holding storage, reselects current live authority by UUID, and attaches the bounded COMMAND_FORCED ticket."
+        },
+        {
+          "workflow_run": 35030091364,
+          "job": 104586686559,
+          "commit": "246e30c9962d7802efe6a995aaa9cfa18e0a686a",
+          "result": "IDLE_BEARING_PRIMARY_CAPTURE_TIMEOUT",
+          "finding": "Removing the redundant slime/honey bridge still left Boot A with createdIds=[] through the 80-tick primary-assembly deadline, while accepted PLATFORM-005 remained green on the same current-main exact stack. PLATFORM-007 therefore stops presenting an idle Propeller Bearing to primary Sable capture: Boot A now reuses the exact accepted PLATFORM-003 4x2x2 creative-motor -> shaft -> gearbox primary specimen, then realizes the Propeller Bearing into a canonical moved plot cell before nested-child qualification and persistence."
+        },
+        {
+          "workflow_run": 35029386358,
+          "job": 104584445024,
+          "commit": "a21b91466177b93d3e32a2330db0d03ceeef2b2e",
+          "result": "PRE_PRIMARY_ASSEMBLY_VARIANCE_INVESTIGATION",
+          "finding": "After synchronization to current main, accepted NESTED_PROPELLER_BEARING_LIFECYCLE passed on the same exact stack while PLATFORM-007 twice timed out before creating its primary Sable body. The first reduction removed a redundant slime/honey Super Glue causality mutation already owned by SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE; a later exact-stack run showed that removal alone did not resolve the timeout, so the hypothesis was falsified rather than promoted as authority."
+        },
+        {
+          "workflow_run": 35028018439,
+          "job": 104580039620,
+          "commit": "366b1c646d71bd14c202097ee469024f7567015f",
+          "result": "POST_REACTIVATION_CHILD_GLUE_ASSERTION",
+          "finding": "Boot A passed. Boot B recovered the same canonical Sable UUID/current physics state and both exact persisted Super Glue domains after bounded rehydration (mode=persisted-both), then requested nested Propeller Bearing reassembly. The child glue correctly ceased to exist as a parent-plot SuperGlueEntity on the following tick because child assembly consumed/transferred that topology, but the harness still required it in the parent plot. The assertion was narrowed so child glue is required exactly once before reactivation and is not treated as parent authority after bearing assembly is requested."
+        },
+        {
+          "workflow_run": 35027165065,
+          "job": 104577322957,
+          "commit": "8d49579000f2676a28a17d23384de83850b542d8",
+          "result": "ASYNC_GLUE_ENTITY_REHYDRATION_RACE",
+          "finding": "Reduced Boot A passed cleanly. Boot B recovered the same canonical Sable UUID/current physics state and normalized plot blocks, but recreated a main Super Glue domain on the first canonical tick before the persisted entity finished rehydrating; one tick later two exact matching main glue entities were visible. Recovery was corrected to allow a bounded entity-rehydration grace period, reuse exactly-one persisted domains, create only still-missing domains after the grace window, and fail on duplicate authority."
+        },
+        {
+          "workflow_run": 35026037023,
+          "job": 104573714401,
+          "commit": "9e8b4f2d0fa66ff12d5a4c42944cb2bb60068bb2",
+          "result": "DUPLICATED_GROUND_CHILD_FLATTEN_EDGE_VARIANCE",
+          "finding": "Boot A again timed out creating the primary Sable body after a live fixed-world Propeller Bearing child had already been assembled. Exact Simulated source shows Physics Assembler internally disassembles controlled Create contraptions during primary assembly and does not expose a failed AssemblyResult; this duplicates the already accepted PLATFORM-005 flatten edge and introduced nondeterministic setup risk unrelated to persistence. PLATFORM-007 was reduced to primary Sable/Create assembly first, then moved-plot child topology realization and nested Propeller Bearing assembly before normalization/save."
+        },
+        {
+          "workflow_run": 35022295981,
+          "job": 104561148086,
+          "commit": "1be43eda85dd0af7102c22e39fb0e3c93468e7ec",
+          "result": "HARNESS_PRIMARY_ASSEMBLY_TRIGGER_VARIANCE",
+          "finding": "After entity-backed state normalization, one Boot A run assembled the fixed-world Propeller Bearing child but a single Physics Assembler trigger produced no Sable primary body before the bounded deadline. All prerequisite regressions and L1 passed. The harness now retries the same validated assembler transition at bounded four-tick intervals, at most three attempts, without changing fixture topology or acceptance semantics."
+        },
+        {
+          "workflow_run": 35012533701,
+          "job": 104528519283,
+          "commit": "93e41b4925c212154f1b499e3af000a5b44fd6f2",
+          "result": "HARNESS_RELOAD_POLL_ORDER_FAILURE",
+          "finding": "Boot A saved successfully. On Boot B, the terminal diagnostic showed the persisted primary UUID already present in Sable getAllSubLevels(), but the fixture had checked canonical state before snatchAndLoad and timed out without re-reading canonical state in the same tick. This is a harness poll-order race, not persistence negative evidence."
+        },
+        {
+          "workflow_run": 35013186566,
+          "job": 104530444132,
+          "commit": "992ea20c919335c6d52a0185cec0a32b0fba3ca1",
+          "result": "HARNESS_RELOAD_POSE_ASSERTION_FAILURE",
+          "finding": "Boot B successfully reselected the persisted Sable UUID after fresh-process holding-store recovery, but the harness incorrectly required centerOfMass - logicalPose.position to remain an exact integer after reload. That relation is the initial plot relocation derivation, not a persistence invariant once a saved physical pose is restored. The fixture now treats the persisted integer plot offset only as a locator and validates current canonical plot ownership plus recovered blocks/block entities instead."
+        },
+        {
+          "workflow_run": 35013732627,
+          "job": 104532274795,
+          "commit": "12d479d625e4cec94deba51e0b124341b0901b5f",
+          "result": "HARNESS_SYNCHRONOUS_SOURCE_CLEANUP_RACE",
+          "finding": "Boot A registered one valid Sable body with positive mass, but the synchronous first observation still saw one source fixture block before Simulated source cleanup completed. Earlier runs observed zero source blocks on the same tick. The fixture now treats source/ground-child cleanup as a bounded post-registration condition while retaining immediate failure for removed/invalid-mass bodies."
+        },
+        {
+          "workflow_run": 35014255759,
+          "job": 104534087732,
+          "commit": "458cc73dd38380f2c469072059fe459021f29d1c",
+          "result": "HARNESS_CHILD_TO_PRIMARY_ASSEMBLY_TIMING_FAILURE",
+          "finding": "Boot A occasionally failed to create a primary Sable body when Physics Assembler was invoked in the same ServerStarted callback immediately after the Propeller Bearing child was assembled. Exact stack and physics initialization were otherwise healthy. The fixture now revalidates the live ground child and fires the primary assembler on the next server tick, keeping the transition bounded while separating the two lifecycle edges."
+        },
+        {
+          "workflow_run": 35014874397,
+          "job": 104536134602,
+          "commit": "60c06b4d58ab69e934450fa58b328683f27eb0d7",
+          "result": "ENTITY_STATE_REQUIRES_LIFECYCLE_REACTIVATION",
+          "finding": "Boot A saved a live composed mechanism and Boot B recovered the same canonical Sable UUID, current physics state, and moved bearing block, but the moved Super Glue entity was absent after fresh-process reload. Exact Sable serializer authority persists the sublevel plot/pose and not arbitrary runtime entities. PLATFORM-007 therefore normalizes the entity-backed bearing child into plot blocks before save, then deterministically re-realizes the accepted disjoint glue topology and reassembles a fresh child after reload before live kinetic sever/rebuild proof."
+        }
+      ]
     }
   }
 }
