@@ -65,7 +65,7 @@ final class AircraftPowertrainPersistenceResourceTest {
         assertTrue(source.contains("PhysicsChunkTicketManager"));
         assertTrue(source.contains("isPositionEntityTicking"));
         assertTrue(source.contains("compilerGlueVisibleToCreate=true"));
-        assertTrue(source.contains("synchronous 127->0 production source transfer"));
+        assertTrue(source.contains("synchronous production source transfer completed"));
         assertTrue(source.contains("sourceChunkTickets=released"));
         assertTrue(source.contains("ENTITY_REHYDRATION_GRACE_TICKS = 10L"));
         assertTrue(source.contains("reassembled-from-normalized-plot"));
