@@ -33,6 +33,7 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.compilerPlatformWorldItemCutPressLifecycle";
     static final String CAPABILITY = "CREATE_WORLD_ITEM_CUT_PRESS_LIFECYCLE";
     private static final String PREFIX = "COMPILER_PLATFORM_WORLD_ITEM_CUT_PRESS_LIFECYCLE";
+    private static final String CREATE_SOURCE_AUTHORITY = "ac0c444d9828da3453ae8cc65338e8de063286fb";
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeWorldItemCutPressLifecycleAcceptance.class.getName());
 
@@ -221,6 +222,7 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
                 LOGGER.log(System.Logger.Level.INFO,
                         PREFIX + " PASS capability=" + CAPABILITY
                                 + " recipe=" + RECIPE_ID
+                                + " createSourceAuthority=" + CREATE_SOURCE_AUTHORITY
                                 + " inputUuid=" + initialInputId
                                 + " transitionAndOutputUuid=" + transitionalId
                                 + " sawSpeed=" + sawSpeed + " pressSpeed=" + pressSpeed

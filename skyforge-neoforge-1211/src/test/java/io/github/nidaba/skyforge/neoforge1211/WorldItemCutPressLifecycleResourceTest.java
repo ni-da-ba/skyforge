@@ -21,6 +21,7 @@ final class WorldItemCutPressLifecycleResourceTest {
         assertTrue(source.contains("belts=false depots=false funnels=false chutes=false arms=false"));
         assertTrue(source.contains("productRecipeQualified=false stochasticOutputQualified=false"));
         assertTrue(source.contains("Create 6.0.10"));
+        assertTrue(source.contains("ac0c444d9828da3453ae8cc65338e8de063286fb"));
     }
 
     @Test void developmentRecipeIsExactlyOneCutThenPressLoop() throws Exception {
