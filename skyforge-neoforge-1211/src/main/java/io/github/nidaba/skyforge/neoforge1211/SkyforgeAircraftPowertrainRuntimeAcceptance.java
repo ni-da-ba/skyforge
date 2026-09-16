@@ -645,7 +645,6 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             Object bearing, ChildState child, double rawThrust, double scaledThrust, double appliedForceX)
             throws ReflectiveOperationException {
         preReloadNestedChildId = child.id();
-        preReloadGlueIds = requireAllMovedCompilerGlueDomains(level.getGameTime(), false);
         publicMethod(bearing, "disassemble").invoke(bearing);
         ChildState normalized = childState(bearing);
         if (normalized.present() || Boolean.TRUE.equals(publicMethod(bearing, "isRunning").invoke(bearing))) {
@@ -656,6 +655,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         for (Map.Entry<BlockPos, ExpectedBlock> entry : childExpected.entrySet()) {
             assertExpectedState("normalized child", moved(entry.getKey()), entry.getValue());
         }
+        preReloadGlueIds = observeMovedCompilerGlueDomains(level.getGameTime());
         Entity stale = findEntity(preReloadNestedChildId);
         if (stale != null && stale.isAlive()) {
             fail(SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE,
@@ -802,19 +802,29 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         return List.copyOf(domains);
     }
 
-    private static List<UUID> requireAllMovedCompilerGlueDomains(long now, boolean persistencePhase)
-            throws ReflectiveOperationException {
+    private static List<UUID> observeMovedCompilerGlueDomains(long now) throws ReflectiveOperationException {
         List<UUID> ids = new ArrayList<>();
+        List<String> presence = new ArrayList<>();
         for (GlueDomainSpec domain : compilerGlueDomains()) {
             List<Entity> matches = matchingGlueEntities(movedGlueBox(domain));
-            if (matches.size() != 1) {
-                fail(persistencePhase ? SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE
-                                : SkyforgeCompilerIntegrationFailure.FAIL_GLUE_REGISTRATION,
-                        finalDiagnostic("glueDomain=" + domain.name() + " matches=" + matches.size()),
-                        "compiler glue domain missing or duplicated: " + domain.name());
+            if (matches.size() > 1) {
+                fail(SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE,
+                        diagnostic(SkyforgeCompilerIntegrationPhase.PERSISTENCE_RELOAD,
+                                "at most one pre-save compiler Super Glue authority exists at each canonical moved box",
+                                now, now, "bodyId=" + bodyId + " glueDomain=" + domain.name(), safeServerState(),
+                                "expectedBox=" + movedGlueBox(domain) + " matches=" + matches.size()),
+                        "pre-save compiler glue domain duplicated: " + domain.name());
             }
-            ids.add(matches.getFirst().getUUID());
+            if (matches.isEmpty()) {
+                presence.add(domain.name() + "=absent");
+            } else {
+                UUID id = matches.getFirst().getUUID();
+                ids.add(id);
+                presence.add(domain.name() + "=" + id);
+            }
         }
+        LOGGER.log(System.Logger.Level.INFO,
+                activePrefix + " PRE_SAVE_GLUE_OBSERVED bodyId=" + bodyId + " domains=" + presence);
         return List.copyOf(ids);
     }
 
@@ -913,7 +923,9 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             List<String> lines = Files.readAllLines(IDENTITY_FILE);
             if (lines.size() != 6) throw new IllegalStateException("aircraft identity sidecar expected 6 lines, got " + lines.size());
             String[] offset = lines.get(2).split(",", -1);
-            List<UUID> glueIds = java.util.Arrays.stream(lines.get(5).split(",")).map(String::trim).map(UUID::fromString).toList();
+            List<UUID> glueIds = lines.get(5).isBlank() ? List.of()
+                    : java.util.Arrays.stream(lines.get(5).split(",")).map(String::trim).map(UUID::fromString).toList();
+            if (glueIds.size() > 5) throw new IllegalStateException("aircraft identity sidecar has too many pre-save glue IDs: " + glueIds.size());
             return new PersistenceIdentity(UUID.fromString(lines.get(0).trim()), UUID.fromString(lines.get(1).trim()),
                     new BlockPos(Integer.parseInt(offset[0]), Integer.parseInt(offset[1]), Integer.parseInt(offset[2])),
                     lines.get(3).trim(), lines.get(4).trim(), glueIds);

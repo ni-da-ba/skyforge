@@ -48,6 +48,8 @@ final class AircraftPowertrainPersistenceResourceTest {
         assertTrue(source.contains("samePersistentUuid=true"));
         assertTrue(source.contains("currentPhysicsHandleValid=true"));
         assertTrue(source.contains("normalizedChildBlocksInPlot=true"));
+        assertTrue(source.contains("PRE_SAVE_GLUE_OBSERVED"));
+        assertTrue(source.contains("ENTITY_REHYDRATION_GRACE_TICKS = 10L"));
         assertTrue(source.contains("reassembled-from-normalized-plot"));
         assertTrue(source.contains("lifecycleReactivation=portable_engine_burn_plus_governor_target"));
         assertTrue(source.contains("persistenceQualified=true"));
