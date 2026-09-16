@@ -80,6 +80,32 @@ class RuntimeDependencySyncTests(unittest.TestCase):
 
             self.assertFalse(fingerprint.exists())
 
+    def test_legacy_project_toolchains_are_removed_without_running_pip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(pathlib.Path(tmp))
+            state = root / ".skyforge-orchestrator"
+            state.mkdir()
+            req = root / "scripts" / "orchestrator" / "requirements.txt"
+            (state / "requirements.sha256").write_text(
+                deps.requirements_fingerprint(req) + "\n"
+            )
+            legacy = state / "toolchains" / "temurin-25"
+            legacy.mkdir(parents=True)
+            (legacy / "java").write_text("legacy")
+
+            with mock.patch.object(deps.subprocess, "run") as run:
+                changed = deps.sync_runtime_dependencies(root)
+
+            self.assertTrue(changed)
+            run.assert_not_called()
+            self.assertFalse((state / "toolchains").exists())
+
+    def test_no_hosted_jdk_bootstrap_dependency_remains(self):
+        text = MODULE_PATH.read_text()
+        self.assertNotIn("hosted_jdk", text)
+        self.assertNotIn("ensure_hosted_jdk", text)
+        self.assertNotIn("with_hosted_jdk", text)
+
 
 if __name__ == "__main__":
     unittest.main()

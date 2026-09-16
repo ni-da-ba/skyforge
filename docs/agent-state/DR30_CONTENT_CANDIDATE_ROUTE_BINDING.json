@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "contract_id": "CONTENT-DR30-CANONICAL-FREIGHT-002",
+  "extends_contract_id": "CONTENT-DR30-ROLE-SITE-001",
+  "milestone": "DR-30",
+  "lane": "CONTENT",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "status": "CONSUMABLE_BY_IMPLEMENTATION",
+  "role": "FREIGHT_TRANSFER_EDGE",
+  "canonical_association": {
+    "authored_identity": {
+      "world_seed_unsigned": "6001989086914692933",
+      "province_key": 8,
+      "cluster_key": 81,
+      "island_key": 1471
+    },
+    "realized_volume_id": "6001989086914692933/sf-imp-0068-production-composed-cave/0/0/680068",
+    "authority": "DR00_SPECIMEN_LOCK.json"
+  },
+  "selection_policy": {
+    "implementation": "io.github.nidaba.skyforge.world.content.FreightTransferEdgeSitePolicy",
+    "candidate": "first AUTH-0096 physically supported anchor having at least one AUTH-0097 observed-open ray, in unchanged AUTH-0097 anchor order",
+    "route_direction": "first observed-open AUTH-0097 ray at the selected anchor, in unchanged AUTH-0097 canonical direction order",
+    "selected_provenance": "policy returns the exact authored-realization association, selected surface-access cell, watershed-cell index, and selected AUTH-0097 ray",
+    "no_candidate": "REPLAN_REQUIRED",
+    "ranking_scores": [],
+    "numeric_thresholds": []
+  },
+  "route_plan": {
+    "authority": "CONTENT_BOUND",
+    "meaning": "The selected observed-open AUTH-0097 ray is the semantic freight-connection direction for this representative edge.",
+    "does_not_authorize": [
+      "route geometry",
+      "route length",
+      "runway",
+      "dock",
+      "vehicle corridor",
+      "settlement layout",
+      "petroleum progression",
+      "structure architecture",
+      "aesthetic policy"
+    ]
+  },
+  "implementation_ownership": [
+    "exact structure geometry and orientation",
+    "route geometry",
+    "support and clearance",
+    "terrain accommodation",
+    "player-mutation preservation",
+    "persistence and reload",
+    "lifecycle",
+    "exact-volume and stacked-island isolation"
+  ],
+  "provenance": [
+    { "id": "DR-00", "reference": "DR00_SPECIMEN_LOCK.json", "role": "canonical association identity" },
+    { "id": "C24", "reference": "PR-373", "role": "FREIGHT_TRANSFER_EDGE eligibility semantics" },
+    { "id": "AUTH-0096", "reference": "PR-318", "role": "physical surface support" },
+    { "id": "AUTH-0097", "reference": "PR-328", "role": "canonical anchor/direction order and observed-open evidence" },
+    { "id": "CONTENT-DR30-ROLE-SITE-001", "reference": "PR-593", "role": "DR-30 role/site envelope" }
+  ],
+  "fail_closed_rule": "If the exact canonical AUTH-0097 profile produces no bound site/ray, return REPLAN_REQUIRED. Do not select by geology, C24 source order beyond canonical tie-breaking, evidence magnitude, or intuition."
+}

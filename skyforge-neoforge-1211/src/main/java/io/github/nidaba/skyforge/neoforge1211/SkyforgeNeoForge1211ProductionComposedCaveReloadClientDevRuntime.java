@@ -46,11 +46,35 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadClientDevRuntime {
         BlockPos mouth = BlockPos.of(expectation.mouthPosition());
         BlockPos outward = BlockPos.of(expectation.outwardPosition());
         BlockPos base = BlockPos.of(expectation.basePosition());
-        for (BlockPos position : java.util.List.of(nativeOnly, mouth, outward, base)) {
+        java.util.List<BlockPos> requiredPositions = new java.util.ArrayList<>(
+                java.util.List.of(nativeOnly, mouth, outward, base));
+        if (expectation.dr50() != null) {
+            requiredPositions.add(expectation.dr50().materialPosition());
+            requiredPositions.add(expectation.dr50().hydrologyPosition());
+        }
+        for (BlockPos position : requiredPositions) {
             if (!minecraft.level.getChunkSource().hasChunk(
                     SectionPos.blockToSectionCoord(position.getX()),
                     SectionPos.blockToSectionCoord(position.getZ()))) {
                 return;
+            }
+        }
+
+        for (var biomeExpectation : expectation.dr40Biomes()) {
+            if (!minecraft.level.getBiome(biomeExpectation.position()).is(biomeExpectation.biome())) {
+                throw new IllegalStateException(
+                        "DR-40 ClientLevel lost persisted ecology biome at "
+                                + biomeExpectation.position()
+                                + ": expected=" + biomeExpectation.biome().location()
+                                + ", actual=" + minecraft.level.getBiome(biomeExpectation.position()));
+            }
+        }
+
+        if (expectation.dr50() != null) {
+            var dr50 = expectation.dr50();
+            if (!minecraft.level.getBlockState(dr50.materialPosition()).is(net.minecraft.world.level.block.Blocks.IRON_ORE)
+                    || !minecraft.level.getBlockState(dr50.hydrologyPosition()).is(net.minecraft.world.level.block.Blocks.WATER)) {
+                throw new IllegalStateException("DR-50 ClientLevel lost persisted material or hydrology state");
             }
         }
 
@@ -74,14 +98,20 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadClientDevRuntime {
                 "SF-IMP-0068 RELOAD CLIENT PASS: nativeOnly=" + nativeOnly
                         + ", mouth=" + mouth + ", outward=" + outward + ", base=" + base + ".");
 
-        SkyforgeAutomatedAcceptanceHarness.completeClientCase(
-                java.util.Map.of(
-                        "reloadClientPass", true,
-                        "clientNativeOnlyPos", Long.toString(nativeOnly.asLong()),
-                        "clientNativeOnlyState", nativeOnlyState.toString(),
-                        "clientMouthState", mouthState.toString(),
-                        "clientOutwardState", outwardState.toString(),
-                        "clientBaseState", baseState.toString()));
+        java.util.Map<String, Object> clientEvidence = new java.util.LinkedHashMap<>();
+        clientEvidence.put("reloadClientPass", true);
+        clientEvidence.put("clientNativeOnlyPos", Long.toString(nativeOnly.asLong()));
+        clientEvidence.put("clientNativeOnlyState", nativeOnlyState.toString());
+        clientEvidence.put("clientMouthState", mouthState.toString());
+        clientEvidence.put("clientOutwardState", outwardState.toString());
+        clientEvidence.put("clientBaseState", baseState.toString());
+        if (!expectation.dr40Biomes().isEmpty()) {
+            clientEvidence.put("dr40ReloadClientBiomePass", true);
+        }
+        if (expectation.dr50() != null) {
+            clientEvidence.put("dr50ReloadClientPass", true);
+        }
+        SkyforgeAutomatedAcceptanceHarness.completeClientCase(clientEvidence);
         if (SkyforgeAutomatedAcceptanceHarness.clientMode()) {
             // The proof file is durably written before this point. Ordinarily Minecraft.stop()
             // shuts down the integrated server within a few seconds, but headless CI has

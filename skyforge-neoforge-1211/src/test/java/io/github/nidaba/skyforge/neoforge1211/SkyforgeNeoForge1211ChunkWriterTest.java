@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -86,6 +87,98 @@ final class SkyforgeNeoForge1211ChunkWriterTest {
                 Blocks.GOLD_BLOCK.defaultBlockState(),
                 chunk.getBlockState(backendOwnedAirSample),
                 "Skyforge AIR must preserve backend-native terrain in additive mode");
+    }
+
+    @Test
+    void deferredSolidOverlayPacketsCountAssignedSolidsNotVisitedAirAndResumeInYzxOrder() {
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+        int minimumY = 0;
+        ResourceLocation[] keys = new ResourceLocation[16 * 16 * 2];
+        Arrays.fill(keys, SkyforgeMinecraftBlockPalette.AIR);
+        int[] solidLinearIndices = {1, 5, 260, 300, 500};
+        for (int index : solidLinearIndices) {
+            keys[index] = SkyforgeMinecraftBlockPalette.STONE;
+        }
+        MinecraftChunkMaterialization materialization =
+                new MinecraftChunkMaterialization(chunkPos, minimumY, 2, keys, 1);
+        ProtoChunk packetized = MinecraftTestChunkFactory.protoChunk(chunkPos);
+        ProtoChunk monolithic = MinecraftTestChunkFactory.protoChunk(chunkPos);
+        SkyforgeNeoForge1211ChunkWriter writer =
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver());
+
+        var cursor = SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteCursor.start();
+        var first = writer.writeDeferredSolidOverlayPacket(packetized, materialization, cursor, 2, false);
+        assertEquals(2, first.assignedSolidWrites());
+        assertEquals(2, first.solidWrites());
+        assertEquals(6, first.cursor().nextLinearIndex());
+        assertEquals(2, first.cursor().cumulativeAssignedSolidWrites());
+        assertFalse(first.complete());
+        assertFalse(first.blocked());
+
+        var second = writer.writeDeferredSolidOverlayPacket(packetized, materialization, first.cursor(), 2, false);
+        assertEquals(2, second.assignedSolidWrites());
+        assertEquals(301, second.cursor().nextLinearIndex());
+        assertEquals(4, second.cursor().cumulativeAssignedSolidWrites());
+        assertFalse(second.complete());
+
+        var third = writer.writeDeferredSolidOverlayPacket(packetized, materialization, second.cursor(), 2, false);
+        assertEquals(1, third.assignedSolidWrites());
+        assertEquals(512, third.cursor().nextLinearIndex());
+        assertEquals(5, third.cursor().cumulativeAssignedSolidWrites());
+        assertEquals(5, third.cursor().cumulativeSolidWrites());
+        assertTrue(third.complete());
+        assertFalse(third.blocked());
+
+        MinecraftChunkWriteResult monolithicResult = writer.writeSolidOverlay(monolithic, materialization);
+        assertEquals(5, monolithicResult.assignedBlockCount());
+        for (int worldY = minimumY; worldY < minimumY + 2; worldY++) {
+            for (int localZ = 0; localZ < 16; localZ++) {
+                for (int localX = 0; localX < 16; localX++) {
+                    BlockPos pos = new BlockPos(localX, worldY, localZ);
+                    assertEquals(
+                            monolithic.getBlockState(pos),
+                            packetized.getBlockState(pos),
+                            "packetized write must exactly match monolithic final state at " + pos);
+                }
+            }
+        }
+    }
+
+    @Test
+    void deferredSolidOverlayPacketsRejectInvalidCursorAndBudget() {
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+        ResourceLocation[] keys = new ResourceLocation[16 * 16];
+        Arrays.fill(keys, SkyforgeMinecraftBlockPalette.AIR);
+        MinecraftChunkMaterialization materialization =
+                new MinecraftChunkMaterialization(chunkPos, 0, 1, keys, 0);
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+        SkyforgeNeoForge1211ChunkWriter writer =
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver());
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> writer.writeDeferredSolidOverlayPacket(
+                        chunk,
+                        materialization,
+                        SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteCursor.start(),
+                        0,
+                        false));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> writer.writeDeferredSolidOverlayPacket(
+                        chunk,
+                        materialization,
+                        new SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteCursor(257, 0, 0),
+                        1,
+                        false));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> writer.writeDeferredSolidOverlayPacket(
+                        chunk,
+                        materialization,
+                        new SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteCursor(0, 1, 2),
+                        1,
+                        false));
     }
 
     @Test

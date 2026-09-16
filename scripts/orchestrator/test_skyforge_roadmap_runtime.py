@@ -134,6 +134,73 @@ class RoadmapRuntimeTests(unittest.TestCase):
             self.assertEqual(state["active"]["node_id"], "task-a")
             self.assertEqual(state["claims_today"], 1)
 
+    def test_ordinary_pending_wake_does_not_block_roadmap_seed(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            manifest = self.manifest()
+            ordinary = core.EventDecision(
+                actionable=True,
+                reason="main advanced",
+                event="push",
+                head_sha="abc123",
+            )
+            with o._state_lock:
+                o.state.data["pending_events"] = [ordinary.to_state()]
+                o.state.save()
+
+            with (
+                mock.patch.object(runtime, "_roadmap_manifest", return_value=manifest),
+                mock.patch.object(runtime, "_roadmap_live_task_prs", return_value=[]),
+                mock.patch.object(runtime, "_roadmap_issue_open", return_value=True),
+            ):
+                seeded = runtime._roadmap_maybe_advance(o, trigger="ordinary-wake-test")
+
+            self.assertTrue(seeded)
+            o.enqueue.assert_called_once()
+            self.assertEqual(o.enqueue.call_args.args[0].pr_number, 284)
+            self.assertEqual(o.state.data["roadmap"]["active"]["node_id"], "task-a")
+
+    def test_protected_pending_task_still_blocks_parallel_roadmap_seed(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            manifest = self.manifest()
+            protected = core.EventDecision(
+                actionable=True,
+                reason="explicit task",
+                event="issue_comment",
+                action="audit_signal",
+                pr_number=999,
+                signal_kind="task",
+                signal_text="AUDIT — NEW IMPLEMENTATION TASK",
+            )
+            with o._state_lock:
+                o.state.data["pending_events"] = [protected.to_state()]
+                o.state.save()
+
+            with mock.patch.object(runtime, "_roadmap_manifest", return_value=manifest):
+                seeded = runtime._roadmap_maybe_advance(o, trigger="protected-task-test")
+
+            self.assertFalse(seeded)
+            o.enqueue.assert_not_called()
+
+    def test_unchanged_task_no_change_blocker_prevents_roadmap_redispatch(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            manifest = self.manifest()
+            o._task_no_change_blocker_unchanged = mock.Mock(return_value=True)
+            with (
+                mock.patch.object(runtime, "_roadmap_manifest", return_value=manifest),
+                mock.patch.object(runtime, "_roadmap_live_task_prs", return_value=[]),
+            ):
+                seeded = runtime._roadmap_maybe_advance(o, trigger="no-change-fence-test")
+
+            self.assertFalse(seeded)
+            o.enqueue.assert_not_called()
+            self.assertEqual(
+                o.state.data["roadmap"]["last_error"]["kind"],
+                "RoadmapNoChangeAuthorityUnchanged",
+            )
+
     def test_existing_open_task_owned_pr_prevents_parallel_seed(self):
         with tempfile.TemporaryDirectory() as td:
             o = self.make_orchestrator(pathlib.Path(td))
@@ -201,6 +268,7 @@ class RoadmapRuntimeTests(unittest.TestCase):
             with (
                 mock.patch.object(runtime, "_roadmap_manifest", return_value=manifest),
                 mock.patch.object(runtime, "_roadmap_live_task_prs", return_value=[]),
+                mock.patch.object(runtime, "_roadmap_issue_open", return_value=False),
                 mock.patch.object(
                     core,
                     "_json_cmd",
@@ -213,6 +281,125 @@ class RoadmapRuntimeTests(unittest.TestCase):
             self.assertEqual(o.state.data["roadmap"]["completed_runs"]["task-a"], 1)
             self.assertIsNone(o.state.data["roadmap"]["active"])
             o.enqueue.assert_not_called()
+
+
+    def test_merged_pr_with_open_issue_blocks_node_and_does_not_unlock_successor(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            manifest = self.manifest(
+                [
+                    task_node("first", issue=493, priority=100),
+                    task_node("second", issue=494, priority=90, prerequisites=["first"]),
+                ]
+            )
+            event = runtime._roadmap_event(manifest, manifest.nodes[0], run_number=1)
+            with o._state_lock:
+                state = runtime._roadmap_state_locked(o, manifest)
+                state["active"] = {
+                    "node_id": "first",
+                    "issue_number": 493,
+                    "lane": "Implementation",
+                    "run_number": 1,
+                    "seeded_at": core._utc_now(),
+                    "source_id": event.source_id,
+                    "event": event.to_state(),
+                    "pr_number": 582,
+                }
+                o.state.save()
+
+            with (
+                mock.patch.object(runtime, "_roadmap_manifest", return_value=manifest),
+                mock.patch.object(runtime, "_roadmap_live_task_prs", return_value=[]),
+                mock.patch.object(runtime, "_roadmap_issue_open", return_value=True),
+                mock.patch.object(
+                    core,
+                    "_json_cmd",
+                    return_value={"state": "MERGED", "mergedAt": "2026-09-14T22:54:00Z"},
+                ),
+            ):
+                seeded = runtime._roadmap_maybe_advance(o, trigger="test")
+
+            self.assertFalse(seeded)
+            roadmap = o.state.data["roadmap"]
+            self.assertNotIn("first", roadmap["completed_runs"])
+            self.assertIn("first", roadmap["blocked_nodes"])
+            self.assertIsNone(roadmap["active"])
+            o.enqueue.assert_not_called()
+
+    def test_stale_successor_authority_is_retired_after_roadmap_rollback(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            manifest = self.manifest(
+                [
+                    task_node("first", issue=493, priority=100),
+                    task_node("second", issue=494, priority=90, prerequisites=["first"]),
+                ]
+            )
+            stale = runtime._roadmap_event(manifest, manifest.nodes[1], run_number=1)
+            stale_key = core._event_key(stale)
+            with o._state_lock:
+                state = runtime._roadmap_state_locked(o, manifest)
+                state["completed_runs"] = {}
+                state["active"] = None
+                o.state.data["pending_events"] = [stale.to_state()]
+                o.state.save()
+
+            with (
+                mock.patch.object(runtime, "_roadmap_manifest", return_value=manifest),
+                mock.patch.object(runtime, "_roadmap_live_task_prs", return_value=[]),
+                mock.patch.object(runtime, "_roadmap_issue_open", return_value=True),
+            ):
+                seeded = runtime._roadmap_maybe_advance(o, trigger="rollback-test")
+
+            self.assertTrue(seeded)
+            o.enqueue.assert_called_once()
+            event = o.enqueue.call_args.args[0]
+            self.assertEqual(event.pr_number, 493)
+            self.assertIn(stale_key, o.state.data.get("retired_event_keys") or [])
+            self.assertEqual(o.state.data["roadmap"]["active"]["node_id"], "first")
+            self.assertEqual(
+                o.state.data["metrics"].get("stale_roadmap_authorities_retired"),
+                1,
+            )
+
+    def test_closed_blocked_task_is_completed_and_successor_seeds(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            manifest = self.manifest(
+                [
+                    task_node("first", issue=493, priority=100),
+                    task_node("second", issue=494, priority=90, prerequisites=["first"]),
+                ]
+            )
+            with o._state_lock:
+                state = runtime._roadmap_state_locked(o, manifest)
+                state["blocked_nodes"] = {
+                    "first": {"at": core._utc_now(), "reason": "manual producer completion pending"}
+                }
+                o.state.save()
+
+            def issue_open(_orchestrator, issue_number):
+                return False if issue_number == 493 else True
+
+            with (
+                mock.patch.object(runtime, "_roadmap_manifest", return_value=manifest),
+                mock.patch.object(runtime, "_roadmap_live_task_prs", return_value=[]),
+                mock.patch.object(runtime, "_roadmap_issue_open", side_effect=issue_open),
+            ):
+                seeded = runtime._roadmap_maybe_advance(o, trigger="closed-blocked-test")
+
+            self.assertTrue(seeded)
+            roadmap = o.state.data["roadmap"]
+            self.assertEqual(roadmap["completed_runs"]["first"], 1)
+            self.assertNotIn("first", roadmap["blocked_nodes"])
+            self.assertEqual(roadmap["active"]["node_id"], "second")
+            self.assertEqual(roadmap["last_closed_blocked_issue"]["issue_number"], 493)
+            self.assertEqual(
+                o.state.data["metrics"].get("roadmap_closed_blocked_tasks_retired"),
+                1,
+            )
+            o.enqueue.assert_called_once()
+            self.assertEqual(o.enqueue.call_args.args[0].pr_number, 494)
 
     def test_completed_authority_without_pr_blocks_node_instead_of_looping(self):
         with tempfile.TemporaryDirectory() as td:

@@ -22,6 +22,12 @@ final class SkyforgeStructureCandidateStage {
         return new Scope(trace);
     }
 
+    static void requireInactive() {
+        if (ACTIVE.get() != null) {
+            throw new IllegalStateException("native structure lifecycle cannot begin inside a candidate trace");
+        }
+    }
+
     static void record(MinecraftSkyforgeHeightClaim claim) {
         Objects.requireNonNull(claim, "claim");
         Trace trace = ACTIVE.get();

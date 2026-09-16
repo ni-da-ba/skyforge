@@ -13,6 +13,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicReference;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
@@ -23,6 +24,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 /** Runtime binding between compiled Skyforge terrain and the Minecraft 1.21.1 adapter. */
 public final class SkyforgeNeoForge1211SurfaceStage {
     private static final AtomicReference<RuntimeBinding> ACTIVE = new AtomicReference<>();
+    private static final int MAX_DEFERRED_MATERIALIZATION_COLUMNS_PER_QUANTUM = 32;
 
     private SkyforgeNeoForge1211SurfaceStage() {}
 
@@ -81,6 +83,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                     : adapter.adapt(chunk, materialization);
         }
         MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
+        SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
         SkyforgeNeoForge1211IsolationDevRuntime.verifyAfterSkyforge(chunk, isolationProof);
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize", performanceStart);
         return Optional.of(result);
@@ -147,15 +150,201 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     }
 
     /**
-     * Services at most one eligible exact-volume terrain record for one already-available chunk.
+     * Advances one bounded persisted deferred-terrain packet for the canonical obligation.
      *
      * <p>The eligible list is refreshed from the same admission-stage iteration used by
-     * {@link #serviceCatchup(ChunkAccess)}. Returning after the first successful realization makes
-     * one scheduler quantum correspond to one exact (volume, chunk) mutation instead of every
-     * vertically stacked volume in that chunk. Repeated calls therefore preserve the historical
-     * per-chunk iteration order while allowing the outer elapsed-time guard to yield between
-     * independent exact volumes.
+     * {@link #serviceCatchup(ChunkAccess)}. Repeated calls preserve exact-volume iteration order
+     * while allowing the outer elapsed-time guard to yield between preparation/write quanta.
      */
+    static DeferredCatchupPacketResult serviceOneCatchupPacket(
+            ServerLevel level,
+            ChunkAccess chunk,
+            int maximumAssignedSolidWrites) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(chunk, "chunk");
+        if (maximumAssignedSolidWrites <= 0) {
+            throw new IllegalArgumentException("maximumAssignedSolidWrites must be positive");
+        }
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return new DeferredCatchupPacketResult(false, false, 0, Optional.empty());
+        }
+        var progressData = SkyforgeDeferredTerrainWriteProgressData.get(level);
+        for (var pending : SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos())) {
+            return realizeDeferredPacket(binding, chunk, pending, progressData, maximumAssignedSolidWrites);
+        }
+        return new DeferredCatchupPacketResult(false, false, 0, Optional.empty());
+    }
+
+    private static DeferredCatchupPacketResult realizeDeferredPacket(
+            RuntimeBinding binding,
+            ChunkAccess chunk,
+            SkyforgePhysicalVolumeAdmissionStage.PendingRealization pending,
+            SkyforgeDeferredTerrainWriteProgressData progressData,
+            int maximumAssignedSolidWrites) {
+        long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
+        WorldBounds volumeBounds = binding.adapter().volumeBounds(pending.volumeId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "deferred realization requires exact bound volume " + pending.volumeId().path()));
+        VerticalRange range = boundedVerticalRange(chunk, volumeBounds);
+        if (range.height() <= 0) {
+            throw new IllegalStateException(
+                    "deferred exact-volume realization has no vertical overlap with target chunk");
+        }
+
+        var existing = progressData.find(pending.volumeId(), pending.chunkKey());
+        MinecraftChunkMaterialization materialization = progressData
+                .cachedMaterialization(pending.volumeId(), pending.chunkKey())
+                .orElse(null);
+        boolean rematerialized = materialization == null;
+        if (rematerialized) {
+            long materializeSliceStart = SkyforgeRuntimePerformanceMetrics.start();
+            var preparation = progressData.getOrCreatePreparation(
+                    pending.volumeId(),
+                    chunk.getPos(),
+                    range.minimumY(),
+                    range.height());
+            if (preparation.nextColumn() == 0) {
+                SkyforgeRuntimePerformanceMetrics.recordSample(
+                        "terrain.deferredVerticalSamples",
+                        range.height());
+            }
+
+            var preparationAdvance = preparation.advance(
+                    binding.adapter()::materializeExactColumns,
+                    MAX_DEFERRED_MATERIALIZATION_COLUMNS_PER_QUANTUM);
+            long materializeSliceNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(materializeSliceStart);
+            preparation.recordWorkNanos(materializeSliceNanos);
+            SkyforgeRuntimePerformanceMetrics.recordElapsed(
+                    "terrain.deferred.materializeSlice",
+                    materializeSliceNanos);
+            SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                    "terrain.deferred.materializeSliceWallNanos",
+                    materializeSliceNanos);
+            SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                    "terrain.deferred.materializeSliceColumns",
+                    preparationAdvance.preparedColumns());
+
+            if (!preparationAdvance.complete()) {
+                long quantumElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(performanceStart);
+                SkyforgeRuntimePerformanceMetrics.recordElapsed(
+                        "terrain.realizeDeferredPacket",
+                        quantumElapsedNanos);
+                SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                        "terrain.deferred.quantumWallNanos",
+                        quantumElapsedNanos);
+                return new DeferredCatchupPacketResult(true, false, 0, Optional.of(pending.volumeId()));
+            }
+
+            materialization = preparationAdvance.completedMaterialization().orElseThrow();
+            SkyforgeRuntimePerformanceMetrics.recordElapsed(
+                    "terrain.deferred.materialize",
+                    preparation.cumulativeWorkNanos());
+            progressData.discardCachedPreparation(pending.volumeId(), pending.chunkKey());
+
+            if (binding.nativeSurfaceTopAdapter().isPresent()) {
+                MinecraftNativeSurfaceSnapshot snapshot = pending.nativeSurfaceSnapshot()
+                        .orElseThrow(() -> new IllegalStateException(
+                                "native-surface-adapted deferred realization lost its pre-decoration snapshot"));
+                long adaptStart = SkyforgeRuntimePerformanceMetrics.start();
+                materialization = binding.nativeSurfaceTopAdapter().orElseThrow().adapt(snapshot, materialization);
+                SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.adaptSurface", adaptStart);
+            }
+            progressData.cacheMaterialization(pending.volumeId(), pending.chunkKey(), materialization);
+        }
+
+        int expectedSolidBlocks;
+        if (existing.isPresent()) {
+            expectedSolidBlocks = existing.orElseThrow().expectedSolidBlocks();
+            if (rematerialized) {
+                long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
+                int reproducedSolidBlocks = materialization.solidBlockCount();
+                SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.solidCount", solidCountStart);
+                if (reproducedSolidBlocks != expectedSolidBlocks) {
+                    throw new IllegalStateException(
+                            "deferred terrain materialization changed across persisted resume");
+                }
+            }
+        } else {
+            long solidCountStart = SkyforgeRuntimePerformanceMetrics.start();
+            expectedSolidBlocks = materialization.solidBlockCount();
+            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.solidCount", solidCountStart);
+            SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                    "terrain.deferred.expectedSolidBlocks", expectedSolidBlocks);
+        }
+        var progress = progressData.getOrCreate(pending.volumeId(), pending.chunkKey(), expectedSolidBlocks);
+        if (progress.terminal()) {
+            progressData.discardCachedPreparation(pending.volumeId(), pending.chunkKey());
+            progressData.discardCachedMaterialization(pending.volumeId(), pending.chunkKey());
+            SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+            SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
+            long quantumElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(performanceStart);
+            SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.realizeDeferredPacket", quantumElapsedNanos);
+            SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                    "terrain.deferred.quantumWallNanos", quantumElapsedNanos);
+            return new DeferredCatchupPacketResult(true, true, 0, Optional.of(pending.volumeId()));
+        }
+
+        boolean exactAdmissionFastPath = SkyforgePhysicalVolumeAdmissionStage.canUseExactDeferredWriteFastPath(
+                pending, chunk, range.minimumY(), range.height());
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.deferredExactAdmissionFastPath", exactAdmissionFastPath ? 1L : 0L);
+        long writeStart = SkyforgeRuntimePerformanceMetrics.start();
+        var advance = binding.writer().writeDeferredSolidOverlayPacket(
+                chunk,
+                materialization,
+                progress.cursor(),
+                maximumAssignedSolidWrites,
+                !exactAdmissionFastPath);
+        long writeElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(writeStart);
+        SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.deferred.writePacket", writeElapsedNanos);
+        SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                "terrain.deferred.packetWallNanos", writeElapsedNanos);
+        SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                "terrain.deferred.packetAssignedSolidWrites", advance.assignedSolidWrites());
+
+        if (advance.complete()
+                && advance.cursor().cumulativeAssignedSolidWrites() != expectedSolidBlocks) {
+            throw new IllegalStateException(
+                    "completed deferred terrain packet count differs from authoritative solid count");
+        }
+        boolean terminal = advance.complete();
+        progressData.store(progress.advance(advance, terminal));
+        if (terminal) {
+            long completeStart = SkyforgeRuntimePerformanceMetrics.start();
+            SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+            SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
+            progressData.discardCachedPreparation(pending.volumeId(), pending.chunkKey());
+            progressData.discardCachedMaterialization(pending.volumeId(), pending.chunkKey());
+            SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.completeCatchup", completeStart);
+        }
+        long quantumElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(performanceStart);
+        SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.realizeDeferredPacket", quantumElapsedNanos);
+        SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
+                "terrain.deferred.quantumWallNanos", quantumElapsedNanos);
+        boolean worked = terminal || advance.assignedSolidWrites() > 0;
+        return new DeferredCatchupPacketResult(worked, terminal, advance.assignedSolidWrites(), Optional.of(pending.volumeId()));
+    }
+
+    record DeferredCatchupPacketResult(
+            boolean worked,
+            boolean completed,
+            int assignedSolidWrites,
+            Optional<SkyIslandWorldVolumeId> servicedVolumeId) {
+        DeferredCatchupPacketResult {
+            Objects.requireNonNull(servicedVolumeId, "servicedVolumeId");
+            if (assignedSolidWrites < 0) {
+                throw new IllegalArgumentException("assignedSolidWrites must be nonnegative");
+            }
+            if (completed && !worked) {
+                throw new IllegalArgumentException("completed packet must count as worked");
+            }
+            if (worked != servicedVolumeId.isPresent()) {
+                throw new IllegalArgumentException("worked packet must identify exactly one serviced volume");
+            }
+        }
+    }
+
     static int serviceOneCatchup(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
         RuntimeBinding binding = ACTIVE.get();
@@ -239,6 +428,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         }
         long completeStart = SkyforgeRuntimePerformanceMetrics.start();
         SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
+        SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
         SkyforgeRuntimePerformanceMetrics.recordSince(
                 "terrain.deferred.completeCatchup",
                 completeStart);
@@ -473,6 +663,30 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                     performanceStart);
         }
         return candidate;
+    }
+
+    /**
+     * Requires the explicit runtime-bound volume to intersect the native target chunk.
+     *
+     * <p>Stacked X/Z candidates are valid because the caller already owns an exact generation-domain
+     * identity and structure placement is fenced to that same exact volume. This guard therefore
+     * validates membership only; it never infers an owner from horizontal position.
+     */
+    static void requireCandidateVolume(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkAccess chunk) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(chunk, "chunk");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            throw new IllegalStateException("native structure lifecycle requires an active Skyforge runtime binding");
+        }
+        boolean candidate = binding.adapter().candidateVolumes(chunk).stream()
+                .anyMatch(volume -> volume.id().equals(volumeId));
+        if (!candidate) {
+            throw new IllegalStateException(
+                    "native structure lifecycle requires its exact Skyforge volume to intersect the target chunk");
+        }
     }
 
     /**

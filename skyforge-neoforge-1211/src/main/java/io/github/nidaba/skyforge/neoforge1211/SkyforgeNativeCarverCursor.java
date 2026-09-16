@@ -16,9 +16,12 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.CarvingMask;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Aquifer;
+import net.minecraft.world.level.levelgen.Beardifier;
+import net.minecraft.world.level.levelgen.blending.Blender;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
+import net.minecraft.world.level.levelgen.NoiseChunk;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.level.levelgen.carver.CarvingContext;
 import net.minecraft.world.level.levelgen.carver.ConfiguredWorldCarver;
@@ -196,7 +199,7 @@ final class SkyforgeNativeCarverCursor {
                 generator,
                 level.registryAccess(),
                 targetChunk.getHeightAccessorForGeneration(),
-                null,
+                requireNoiseChunk(targetChunk),
                 level.getChunkSource().randomState(),
                 generator.generatorSettings().value().surfaceRule());
 
@@ -254,6 +257,22 @@ final class SkyforgeNativeCarverCursor {
         changedBlocks = Math.addExact(changedBlocks, writeSnapshot.changedBlocks());
         transformDigest = mix(transformDigest, verticalSnapshot.transformDigest());
         changedPositionDigest = mix(changedPositionDigest, writeSnapshot.changedPositionDigest());
+    }
+
+    private NoiseChunk requireNoiseChunk(LevelChunk targetChunk) {
+        var randomState = level.getChunkSource().randomState();
+        var settings = generator.generatorSettings().value();
+        int seaLevel = settings.seaLevel();
+        var lava = new Aquifer.FluidStatus(-54, Blocks.LAVA.defaultBlockState());
+        var defaultFluid = new Aquifer.FluidStatus(seaLevel, settings.defaultFluid());
+        Aquifer.FluidPicker fluidPicker = (x, y, z) -> y < Math.min(-54, seaLevel) ? lava : defaultFluid;
+        return targetChunk.getOrCreateNoiseChunk(chunk -> NoiseChunk.forChunk(
+                chunk,
+                randomState,
+                Beardifier.forStructuresInChunk(level.structureManager(), chunk.getPos()),
+                settings,
+                fluidPicker,
+                Blender.empty()));
     }
 
     private void advanceLoopPosition() {

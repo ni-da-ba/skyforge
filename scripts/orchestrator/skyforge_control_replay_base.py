@@ -26,7 +26,8 @@ import skyforge_quota_runtime as quota_runtime
 
 core = quota_runtime.core
 RUNTIME_PATH = "scripts/orchestrator/skyforge_control_replay_runtime.py"
-core.CONTROLLER_RUNTIME_PATHS.add(RUNTIME_PATH)
+BASE_RUNTIME_PATH = "scripts/orchestrator/skyforge_control_replay_base.py"
+core.CONTROLLER_RUNTIME_PATHS.update({RUNTIME_PATH, BASE_RUNTIME_PATH})
 
 _ORIGINAL_DISCARD_PENDING_WORKER = core.Orchestrator.discard_pending_worker
 _ORIGINAL_RESUME_OR_PREPARE_WORKER = core.Orchestrator._resume_or_prepare_worker
@@ -152,7 +153,7 @@ def _prepare_worker_branch(
         else ""
     )
     branch = f"codex/{lane_slug}{authority_slug}-{stamp}"
-    worktree = self._ensure_worker_worktree(branch, "origin/main")
+    start_ref = "origin/main"
 
     if source_pr:
         try:
@@ -160,15 +161,24 @@ def _prepare_worker_branch(
                 [
                     "gh", "pr", "view", str(source_pr),
                     "--repo", self.repo,
-                    "--json", "headRefName",
+                    "--json", "headRefName,headRefOid,state",
                 ],
                 cwd=self.root,
             )
-            old_branch = pr.get("headRefName")
-            if old_branch:
-                core._run(["git", "fetch", "origin", old_branch], cwd=self.root, timeout=120)
-        except Exception:
-            pass
+            source_branch = str(pr.get("headRefName") or "").strip()
+            source_head = str(pr.get("headRefOid") or "").strip()
+            if str(pr.get("state") or "").upper() == "OPEN" and source_branch and source_head:
+                core._run(["git", "fetch", "origin", source_branch], cwd=self.root, timeout=120)
+                core._run(["git", "cat-file", "-e", f"{source_head}^{{commit}}"], cwd=self.root, timeout=60)
+                start_ref = source_head
+        except Exception as exc:
+            print(
+                f"[orchestrator] could not resolve source PR #{source_pr} head; "
+                f"falling back to origin/main: {exc}",
+                flush=True,
+            )
+
+    worktree = self._ensure_worker_worktree(branch, start_ref)
     return branch, None, worktree
 
 

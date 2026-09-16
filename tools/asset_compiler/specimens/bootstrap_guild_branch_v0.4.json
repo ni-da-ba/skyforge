@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "0.4",
+  "assetId": "guild.branch.bootstrap.temperate.v0_4",
+  "assetType": "guild_branch",
+  "seed": 488001,
+  "coordinateSystem": {"east": "+X", "up": "+Y", "south": "+Z"},
+  "family": {
+    "institution": "skyfarers_guild",
+    "grammar": "guild_mercantile_functionalism",
+    "region": "temperate",
+    "scale": "small"
+  },
+  "structure": {
+    "bayCount": 3,
+    "bayWidth": 5,
+    "wallHeight": 6,
+    "mainDepth": 13,
+    "workingWingWidth": 8,
+    "publicCanopy": {"depth": 2},
+    "workingCanopy": {"depth": 2},
+    "roof": {
+      "mainType": "gable",
+      "workingWingType": "shallow_gable",
+      "mainRise": 4,
+      "workingWingRise": 2,
+      "overhang": 1
+    }
+  },
+  "interior": {
+    "enabled": true,
+    "publicWaiting": "compact",
+    "backOffice": "minimal",
+    "warehouseDensity": "light",
+    "repairDensity": "light",
+    "preserveCentralPublicAisle": true
+  },
+  "orientation": {
+    "publicAccess": "south",
+    "workingFace": "east",
+    "airfieldDirection": "east",
+    "freightAccess": "east"
+  },
+  "capabilities": {
+    "universalServiceCore": true,
+    "warehouse": true,
+    "lightRepair": true,
+    "heavyRepair": false,
+    "aircraftSales": false,
+    "bondedFreight": false
+  },
+  "materialRoles": {
+    "foundation": "minecraft:stone_bricks",
+    "structuralFrame": "minecraft:dark_oak_log",
+    "wallInfill": "minecraft:calcite",
+    "floor": "minecraft:spruce_planks",
+    "roof": "minecraft:deepslate_tiles",
+    "roofStair": "minecraft:deepslate_tile_stairs",
+    "roofSlab": "minecraft:deepslate_tile_slab",
+    "window": "minecraft:glass_pane",
+    "publicDoor": "minecraft:spruce_door",
+    "workingDoor": "minecraft:dark_oak_door",
+    "hardware": "minecraft:polished_andesite",
+    "lighting": "minecraft:lantern",
+    "institutionalAccent": "minecraft:blue_terracotta",
+    "brassAccent": "minecraft:yellow_terracotta",
+    "canopy": "minecraft:dark_oak_slab",
+    "seating": "minecraft:spruce_slab",
+    "recordsShelf": "minecraft:bookshelf",
+    "publicBoard": "minecraft:dark_oak_planks",
+    "freightContainer": "minecraft:barrel",
+    "repairBench": "minecraft:smithing_table",
+    "toolStorage": "minecraft:chest",
+    "desk": "minecraft:dark_oak_slab"
+  },
+  "requestedModules": [
+    {"id": "public_hall", "role": "public_service", "required": true},
+    {"id": "service_counter", "role": "universal_service_core", "required": true},
+    {"id": "warehouse", "role": "freight_storage", "required": true},
+    {"id": "light_repair", "role": "repair", "required": true},
+    {"id": "signal_mast", "role": "navigation_identity", "required": false}
+  ],
+  "requestedAnchors": [
+    "PUBLIC_ENTRANCE",
+    "SERVICE_COUNTER",
+    "CONTRACT_BOARD",
+    "ROUTE_INFO",
+    "NPC_WORK_POINT",
+    "BACK_OFFICE_WORK",
+    "FREIGHT_PICKUP",
+    "FREIGHT_DROPOFF",
+    "REPAIR_BAY",
+    "AIRFIELD_INTERFACE"
+  ],
+  "constraints": {
+    "singleConcentratedGuildDestination": true,
+    "publicAndWorkingFacesMustDiffer": true,
+    "allPublicServicesReachableFromPublicEntrance": true,
+    "freightOpeningMustReachWarehouse": true,
+    "repairOpeningMustReachRepairBay": true,
+    "preserveManualEditability": true,
+    "serviceCounterMustFacePublicSpace": true,
+    "staffWorkMustRemainBehindCounter": true,
+    "publicAisleMustRemainClear": true
+  }
+}

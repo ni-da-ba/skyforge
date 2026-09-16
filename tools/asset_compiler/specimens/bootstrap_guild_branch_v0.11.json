@@ -1,0 +1,213 @@
+{
+  "schemaVersion": "0.11",
+  "assetId": "guild.branch.bootstrap.temperate.v0_11",
+  "assetType": "guild_branch",
+  "seed": 488001,
+  "coordinateSystem": {"east": "+X", "up": "+Y", "south": "+Z"},
+  "family": {
+    "institution": "skyfarers_guild",
+    "grammar": "guild_mercantile_functionalism",
+    "region": "temperate",
+    "scale": "small"
+  },
+  "paletteReview": {
+    "status": "provisional",
+    "geometryPassLocksPalette": true,
+    "intent": {
+      "institutionalBlue": "deep navy institutional paint/textile accent",
+      "brassAccent": "aged warm brass-like hardware accent"
+    },
+    "current": {
+      "institutionalBlue": "minecraft:blue_wool",
+      "brassAccent": "minecraft:yellow_terracotta"
+    },
+    "nextGate": "dedicated in-game blue/brass palette swatch comparison"
+  },
+  "articulation": {
+    "stage": "architectural_articulation",
+    "referenceProfile": "guild_branch_temperate_small_working_reference_v0.1.json",
+    "depthPlanes": {"recessedClosure": -1, "wall": 0, "trim": 1, "canopy": 2},
+    "principles": [
+      "hierarchy_before_detail",
+      "depth_as_ordered_vocabulary",
+      "rhythm_with_semantic_interruption",
+      "detail_the_joints",
+      "structural_legibility",
+      "controlled_irregularity"
+    ]
+  },
+  "detailResolution": {
+    "stage": "minecraft_detail_resolution",
+    "secondaryElevation": {
+      "west": {
+        "enabled": true,
+        "recessExistingWindows": true,
+        "projectedPilasters": true,
+        "continuousPlinth": true,
+        "continuousEave": true
+      }
+    },
+    "workingPortal": {"integratedTransom": true, "separateDoorsAndGlassWithRail": true},
+    "lightingMounts": {"publicLanterns": "under_canopy", "preserveWallStructure": true},
+    "cornerSmoothing": {"enabled": true, "strategy": "bounded_stairs_at_exposed_terminations"}
+  },
+  "finishResolution": {
+    "stage": "architectural_finish_resolution",
+    "doorHeads": {
+      "enabled": true,
+      "public": "full_timber_header",
+      "working": "full_door_header_recessed_transom_lintel"
+    },
+    "rearElevation": {
+      "enabled": true,
+      "recessExistingWindows": true,
+      "projectedPilasters": true,
+      "continuousPlinth": true,
+      "continuousEave": true,
+      "serviceMarker": "restrained"
+    },
+    "stairAudit": {"enabled": true, "strategy": "replace_ambiguous_detail_stairs_with_slabs"},
+    "interior": {
+      "enabled": true,
+      "serviceCounter": "finished",
+      "ceilingBeams": true,
+      "supportedLighting": true,
+      "waitingArea": "finished",
+      "recordsAndBackOffice": "finished",
+      "workingZones": "finished",
+      "preserveCentralPublicAisle": true
+    }
+  },
+  "continuityResolution": {
+    "stage": "structure_space_roof_continuity",
+    "windowsAndWalls": {
+      "enabled": true,
+      "normalizeSouth": true,
+      "normalizeNorth": true,
+      "normalizeWest": true,
+      "protectGlazingFromInteriorFixtures": true,
+      "relocateInformationFixturesToStructuralPiers": true,
+      "relocateRecordsOffWindowPlanes": true
+    },
+    "structureAndSpace": {
+      "enabled": true,
+      "continuousBayPosts": true,
+      "continuousWallPlates": true,
+      "publicCirculationSpine": "full_double_door_width",
+      "directWorkingBayLanes": true
+    },
+    "roofDetail": {
+      "enabled": true,
+      "preserveSolidWeatherSkin": true,
+      "exteriorEaves": "single_stair_row",
+      "ridge": "slab_cap",
+      "interiorRafters": "bay_aligned",
+      "interiorTieBeams": "three_stations"
+    }
+  },
+  "history": {
+    "enabled": true,
+    "maxVisibleInterventions": 1,
+    "repairPatch": {"enabled": true, "face": "west", "span": 2, "yMin": 3, "yMax": 4, "materialRole": "foundation"}
+  },
+  "structure": {
+    "bayCount": 3,
+    "bayWidth": 5,
+    "wallHeight": 6,
+    "mainDepth": 13,
+    "workingWingWidth": 8,
+    "publicCanopy": {"depth": 2},
+    "workingCanopy": {"depth": 2},
+    "roof": {
+      "mainType": "gable",
+      "workingWingType": "shallow_gable",
+      "mainRise": 4,
+      "workingWingRise": 2,
+      "overhang": 1
+    }
+  },
+  "interior": {
+    "enabled": true,
+    "publicWaiting": "compact",
+    "backOffice": "minimal",
+    "warehouseDensity": "light",
+    "repairDensity": "light",
+    "preserveCentralPublicAisle": true
+  },
+  "orientation": {
+    "publicAccess": "south",
+    "workingFace": "east",
+    "airfieldDirection": "east",
+    "freightAccess": "east"
+  },
+  "capabilities": {
+    "universalServiceCore": true,
+    "warehouse": true,
+    "lightRepair": true,
+    "heavyRepair": false,
+    "aircraftSales": false,
+    "bondedFreight": false
+  },
+  "materialRoles": {
+    "foundation": "minecraft:stone_bricks",
+    "structuralFrame": "minecraft:dark_oak_log",
+    "wallInfill": "minecraft:calcite",
+    "floor": "minecraft:spruce_planks",
+    "roof": "minecraft:deepslate_tiles",
+    "roofStair": "minecraft:deepslate_tile_stairs",
+    "roofSlab": "minecraft:deepslate_tile_slab",
+    "window": "minecraft:glass_pane",
+    "publicDoor": "minecraft:spruce_door",
+    "workingDoor": "minecraft:dark_oak_door",
+    "hardware": "minecraft:polished_andesite",
+    "lighting": "minecraft:lantern",
+    "institutionalAccent": "minecraft:blue_wool",
+    "brassAccent": "minecraft:yellow_terracotta",
+    "canopy": "minecraft:dark_oak_slab",
+    "seating": "minecraft:spruce_slab",
+    "recordsShelf": "minecraft:bookshelf",
+    "publicBoard": "minecraft:dark_oak_planks",
+    "freightContainer": "minecraft:barrel",
+    "repairBench": "minecraft:smithing_table",
+    "toolStorage": "minecraft:chest",
+    "desk": "minecraft:dark_oak_slab",
+    "signalMast": "minecraft:chain",
+    "signalPost": "minecraft:polished_andesite_wall",
+    "signalBeacon": "minecraft:lantern",
+    "exteriorTrimSlab": "minecraft:dark_oak_slab",
+    "masonryTrimSlab": "minecraft:stone_brick_slab",
+    "exteriorTrimStair": "minecraft:dark_oak_stairs",
+    "masonryTrimStair": "minecraft:stone_brick_stairs",
+    "bayTransom": "minecraft:glass_pane"
+  },
+  "requestedModules": [
+    {"id": "public_hall", "role": "public_service", "required": true},
+    {"id": "service_counter", "role": "universal_service_core", "required": true},
+    {"id": "warehouse", "role": "freight_storage", "required": true},
+    {"id": "light_repair", "role": "repair", "required": true},
+    {"id": "signal_mast", "role": "navigation_identity", "required": true}
+  ],
+  "requestedAnchors": [
+    "PUBLIC_ENTRANCE",
+    "SERVICE_COUNTER",
+    "CONTRACT_BOARD",
+    "ROUTE_INFO",
+    "NPC_WORK_POINT",
+    "BACK_OFFICE_WORK",
+    "FREIGHT_PICKUP",
+    "FREIGHT_DROPOFF",
+    "REPAIR_BAY",
+    "AIRFIELD_INTERFACE"
+  ],
+  "constraints": {
+    "singleConcentratedGuildDestination": true,
+    "publicAndWorkingFacesMustDiffer": true,
+    "allPublicServicesReachableFromPublicEntrance": true,
+    "freightOpeningMustReachWarehouse": true,
+    "repairOpeningMustReachRepairBay": true,
+    "preserveManualEditability": true,
+    "serviceCounterMustFacePublicSpace": true,
+    "staffWorkMustRemainBehindCounter": true,
+    "publicAisleMustRemainClear": true
+  }
+}

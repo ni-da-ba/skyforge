@@ -510,21 +510,39 @@ exact pumpjack/source alignment and compatibility adapter, persistence, and life
 
 ## Atmosphere / mobility
 
-Aerodynamics4MC remains the single accepted atmosphere authority.
+Aerodynamics4MC remains the single accepted atmosphere authority. Issue #495 may consume the concrete
+Bootstrap binding in `BOOTSTRAP_ATMOSPHERE_RUNTIME_AUTHORITY.json`, pinned to A4MC 0.2.1 source commit
+`62a52a584e9c65246e50226b29a1f0449e43995e` and public `AeroWindApi.sampleGameplay(...)`.
 
-- aircraft consume retained Aeronautics compatibility;
+The accepted minimum shared truth is the A4MC gameplay sample itself: `physicalAggregate` wind,
+`updraft`, `downdraft`, bounded `turbulenceIntensity`, `shearMagnitude`, bounded `pressureProxy`, and
+source trust/freshness/provenance. Altitude is the actual query-position Y; Skyforge adds no separate
+altitude atmosphere or altitude-to-pressure curve. A4MC's gameplay policy owns stale/untrusted fallback.
+
+- aircraft may retain A4MC/Create Aeronautics compatibility against the same installed provider;
 - C6 proves retained Fowl Play hawk thermal SOAR behavior;
 - C7 proves Reliable Gliders consume trusted shared lift;
 - C8 closes Phantom-gated glider maintenance;
-- C13 removes Elytra rocket propulsion while preserving fall-flying and ordinary fireworks.
+- C13 removes Elytra rocket propulsion while preserving fall-flying and ordinary fireworks;
+- player glider and soaring-fauna adapters must read the same A4MC authority and may not persist or
+  synthesize per-consumer weather state.
 
-No lane may introduce a second wind/thermal authority without reopening this contract.
+For Bootstrap, thermal identity is the deterministic sampled A4MC field/provenance at a controlled
+authority state and query position; no persistent Skyforge thermal object is required. Skyforge stores
+no duplicate atmosphere truth across save/reload. Implementation still owns #495's bounded runtime,
+dedicated-server, same-source multi-consumer, and reload/reconstruction evidence.
+
+No lane may introduce a second wind/thermal authority, bespoke pressure curve, or custom
+turbulence/shear remapping without reopening this contract. No human product decision remains for the
+minimum #495 binding.
 
 ## Ecology / fauna
 
 Authorship/environment semantics determine niches/opportunity; Content maps retained species/population policy. Atmosphere may alter behavior but does not independently create population.
 
 AUTH-0088/0089/0090/0091/0092 are evidence inputs only. SF-IMP-0080 is the current visible Minecraft ecology seam. Do not conflate opportunity with spawn/carrying-capacity/resource policy.
+
+AUTH-0103 / PR #709 / merge `6d3a4873a45d62ee9bf18e080909d6d2ac465d07` is the accepted DR-40 consumer-driven bridge for exact AUTH-0046 associations whose runtime volumes are not AUTH-0058 publications. It preserves AUTH-0088 surface-projection semantics, AUTH-0090 area weighting, and AUTH-0092 raw isolation semantics without weakening AUTH-0087. The locked DR-00 singleton has no regional neighbor; that absence is diagnostic only and is not population-pressure authority.
 
 ## Nether / dimension routing
 

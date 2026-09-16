@@ -3264,13 +3264,24 @@ class Orchestrator:
             ["git", "log", "-12", "--pretty=format:%h %cI %s"],
             cwd=self.root,
         ).stdout.splitlines()
+
+        # Classifier truth must never include a controller-managed PR that is already terminal in
+        # GitHub. Reconcile each durable lane record through the same current-truth validator used
+        # by worker preparation before exposing ownership to the model. Visibility failures remain
+        # fail-closed by propagating rather than silently deleting uncertain ownership.
+        controller_managed: dict[str, dict[str, Any]] = {}
+        for lane in list((self.state.data.get("managed") or {}).keys()):
+            validated = self._validated_managed_branch(str(lane))
+            if validated is not None:
+                controller_managed[str(lane)] = dict(validated)
+
         return {
             "captured_at": _utc_now(),
             "main": _run(["git", "rev-parse", "HEAD"], cwd=self.root).stdout.strip(),
             "open_prs": prs,
             "recent_runs": runs,
             "recent_commits": log,
-            "controller_managed": self.state.data.get("managed", {}),
+            "controller_managed": controller_managed,
             "orchestrator_metrics": self.state.data.get("metrics", {}),
         }
 
@@ -3511,19 +3522,37 @@ class Orchestrator:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
         slug = re.sub(r"[^a-z0-9]+", "-", lane.lower()).strip("-") or "lane"
         branch = f"codex/{slug}-{stamp}"
-        worktree = self._ensure_worker_worktree(branch, "origin/main")
+        start_ref = "origin/main"
 
         if source_pr:
             try:
                 pr = _json_cmd(
-                    ["gh", "pr", "view", str(source_pr), "--repo", self.repo, "--json", "headRefName"],
+                    [
+                        "gh",
+                        "pr",
+                        "view",
+                        str(source_pr),
+                        "--repo",
+                        self.repo,
+                        "--json",
+                        "headRefName,headRefOid,state",
+                    ],
                     cwd=self.root,
                 )
-                old_branch = pr.get("headRefName")
-                if old_branch:
-                    _run(["git", "fetch", "origin", old_branch], cwd=self.root, timeout=120)
-            except Exception:
-                pass
+                source_branch = str(pr.get("headRefName") or "").strip()
+                source_head = str(pr.get("headRefOid") or "").strip()
+                if str(pr.get("state") or "").upper() == "OPEN" and source_branch and source_head:
+                    _run(["git", "fetch", "origin", source_branch], cwd=self.root, timeout=120)
+                    _run(["git", "cat-file", "-e", f"{source_head}^{{commit}}"], cwd=self.root, timeout=60)
+                    start_ref = source_head
+            except Exception as exc:
+                print(
+                    f"[orchestrator] could not resolve source PR #{source_pr} head; "
+                    f"falling back to origin/main: {exc}",
+                    flush=True,
+                )
+
+        worktree = self._ensure_worker_worktree(branch, start_ref)
         return branch, None, worktree
 
     def _resume_or_prepare_worker(
@@ -3780,6 +3809,228 @@ class Orchestrator:
         print(f"[orchestrator] handed off {lane} on {branch} / PR #{pr_number}", flush=True)
         return True
 
+    def _task_authority_fingerprint(self, issue_number: int) -> str:
+        """Hash durable task authority while excluding controller-authored no-change comments."""
+        issue = _json_cmd(
+            ["gh", "api", f"repos/{self.repo}/issues/{int(issue_number)}"],
+            cwd=self.root,
+            timeout=60,
+        )
+        comments = _json_cmd(
+            [
+                "gh",
+                "api",
+                f"repos/{self.repo}/issues/{int(issue_number)}/comments?per_page=100",
+            ],
+            cwd=self.root,
+            timeout=60,
+        )
+        trusted = {actor.lower() for actor in self.trusted_actors}
+        task_comments: list[dict[str, Any]] = []
+        if isinstance(comments, list):
+            for comment in comments:
+                if not isinstance(comment, dict):
+                    continue
+                body = str(comment.get("body") or "")
+                body_lower = body.lower()
+                login = str(((comment.get("user") or {}).get("login")) or "").lower()
+                if login not in trusted or SELF_COMMENT_MARKER in body_lower:
+                    continue
+                if _audit_signal_kind(body_lower) != "task":
+                    continue
+                task_comments.append(
+                    {
+                        "id": comment.get("id"),
+                        "body": body[:6000],
+                    }
+                )
+        payload = {
+            "number": int(issue_number),
+            "title": issue.get("title"),
+            "state": issue.get("state"),
+            "body": str(issue.get("body") or "")[:16000],
+            "task_comments": task_comments,
+        }
+        return hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+
+    @staticmethod
+    def _blocked_on_issue_markers(text: str) -> list[int]:
+        return sorted({
+            int(match.group(1))
+            for match in re.finditer(
+                r"(?mi)^\s*BLOCKED_ON_ISSUE\s*:\s*#(\d+)\s*$",
+                str(text or ""),
+            )
+        })
+
+    def _task_blocking_dependency_issues(self, issue_number: int) -> list[int]:
+        """Return explicit trusted issue dependencies that must close before redispatch.
+
+        A dependency marker is stronger than ordinary task-authority churn. While any marked issue
+        remains open, comments or unrelated main changes must not spend another worker turn on the
+        blocked task.
+        """
+        issue = _json_cmd(
+            ["gh", "api", f"repos/{self.repo}/issues/{int(issue_number)}"],
+            cwd=self.root,
+            timeout=60,
+        )
+        comments = _json_cmd(
+            [
+                "gh",
+                "api",
+                f"repos/{self.repo}/issues/{int(issue_number)}/comments?per_page=100",
+            ],
+            cwd=self.root,
+            timeout=60,
+        )
+        dependencies = set(self._blocked_on_issue_markers(str(issue.get("body") or "")))
+        trusted = {actor.lower() for actor in self.trusted_actors}
+        if isinstance(comments, list):
+            for comment in comments:
+                if not isinstance(comment, dict):
+                    continue
+                login = str(((comment.get("user") or {}).get("login")) or "").lower()
+                body = str(comment.get("body") or "")
+                if login not in trusted or SELF_COMMENT_MARKER in body.lower():
+                    continue
+                dependencies.update(self._blocked_on_issue_markers(body))
+        dependencies.discard(int(issue_number))
+        return sorted(dependencies)
+
+    def _task_dependency_issue_open(self, issue_number: int) -> bool | None:
+        try:
+            issue = _json_cmd(
+                [
+                    "gh", "issue", "view", str(int(issue_number)), "--repo", self.repo,
+                    "--json", "state,title",
+                ],
+                cwd=self.root,
+                timeout=60,
+            )
+        except Exception:
+            return None
+        return str(issue.get("state") or "").upper() == "OPEN"
+
+    def _record_task_no_change_blocker(
+        self,
+        issue_number: int,
+        worker_summary: str,
+    ) -> None:
+        try:
+            fingerprint = self._task_authority_fingerprint(issue_number)
+        except Exception as exc:
+            with self._state_lock:
+                self.state.data["last_task_no_change_fingerprint_error"] = {
+                    "at": _utc_now(),
+                    "issue_number": int(issue_number),
+                    "kind": type(exc).__name__,
+                    "summary": str(exc)[:500],
+                }
+                self.state.save()
+            self._metric("task_no_change_fingerprint_errors")
+            return
+        with self._state_lock:
+            blockers = self.state.data.setdefault("task_no_change_blockers", {})
+            blockers[str(int(issue_number))] = {
+                "authority_fingerprint": fingerprint,
+                "recorded_at": _utc_now(),
+                "summary": str(worker_summary or "")[:2000],
+            }
+            self.state.save()
+        self._metric("task_no_change_blockers_recorded")
+
+    def _task_no_change_blocker_unchanged(self, issue_number: int) -> bool:
+        key = str(int(issue_number))
+        with self._state_lock:
+            blockers = self.state.data.get("task_no_change_blockers") or {}
+            record = dict(blockers.get(key) or {}) if isinstance(blockers, dict) else {}
+        expected = str(record.get("authority_fingerprint") or "")
+        if not expected:
+            return False
+
+        try:
+            dependencies = self._task_blocking_dependency_issues(issue_number)
+        except Exception as exc:
+            with self._state_lock:
+                self.state.data["last_task_dependency_lookup_error"] = {
+                    "at": _utc_now(),
+                    "issue_number": int(issue_number),
+                    "kind": type(exc).__name__,
+                    "summary": str(exc)[:500],
+                }
+                self.state.save()
+            self._metric("task_dependency_lookup_errors")
+            # If a dependency was already observed, visibility loss must fail closed. Older blockers
+            # without an explicit dependency retain the pre-existing authority-fingerprint behavior.
+            stored_dependencies = record.get("blocked_on_issues")
+            if isinstance(stored_dependencies, list) and stored_dependencies:
+                return True
+            dependencies = []
+
+        if dependencies:
+            unresolved: list[int] = []
+            for dependency in dependencies:
+                state = self._task_dependency_issue_open(dependency)
+                if state is None:
+                    with self._state_lock:
+                        self.state.data["last_task_dependency_lookup_error"] = {
+                            "at": _utc_now(),
+                            "issue_number": int(issue_number),
+                            "dependency_issue": int(dependency),
+                            "kind": "DependencyIssueLookupError",
+                        }
+                        self.state.save()
+                    self._metric("task_dependency_lookup_errors")
+                    return True
+                if state:
+                    unresolved.append(int(dependency))
+            if unresolved:
+                with self._state_lock:
+                    blockers = self.state.data.get("task_no_change_blockers") or {}
+                    current_record = blockers.get(key) if isinstance(blockers, dict) else None
+                    if isinstance(current_record, dict):
+                        current_record["blocked_on_issues"] = unresolved
+                        current_record["dependency_checked_at"] = _utc_now()
+                        self.state.save()
+                self._metric("task_dependency_redispatch_suppressed")
+                return True
+
+            # Explicit dependency closure is the unblock condition. Do not require another task
+            # comment merely to perturb the authority fingerprint.
+            with self._state_lock:
+                blockers = self.state.data.get("task_no_change_blockers")
+                if isinstance(blockers, dict):
+                    blockers.pop(key, None)
+                self.state.save()
+            self._metric("task_no_change_blockers_invalidated_by_dependency")
+            return False
+
+        try:
+            current = self._task_authority_fingerprint(issue_number)
+        except Exception as exc:
+            with self._state_lock:
+                self.state.data["last_task_no_change_fingerprint_error"] = {
+                    "at": _utc_now(),
+                    "issue_number": int(issue_number),
+                    "kind": type(exc).__name__,
+                    "summary": str(exc)[:500],
+                }
+                self.state.save()
+            self._metric("task_no_change_fingerprint_errors")
+            return False
+        if current == expected:
+            return True
+        with self._state_lock:
+            blockers = self.state.data.get("task_no_change_blockers")
+            if isinstance(blockers, dict):
+                blockers.pop(key, None)
+            self.state.save()
+        self._metric("task_no_change_blockers_invalidated")
+        return False
+
     def _persist_task_no_change_handoff(
         self,
         events: list[EventDecision],
@@ -3806,6 +4057,7 @@ class Orchestrator:
             cwd=self.root,
             timeout=120,
         )
+        self._record_task_no_change_blocker(task_issue, worker_summary)
         self._metric("task_no_change_handoffs")
         return True
 
@@ -4063,6 +4315,40 @@ class Orchestrator:
             snap["task_issue_context"] = self._task_issue_context(events)
             events = self._normalize_captured_events_for_snapshot(events, snap)
             if not events:
+                return
+            task_issues = sorted(
+                {
+                    issue
+                    for event in events
+                    if (issue := _task_issue_number(event)) is not None
+                }
+            )
+            unchanged_blocker = next(
+                (issue for issue in task_issues if self._task_no_change_blocker_unchanged(issue)),
+                None,
+            )
+            if unchanged_blocker is not None:
+                self._metric("task_no_change_redispatch_suppressed")
+                decision = {
+                    "decision": "NOOP",
+                    "lane": None,
+                    "pr_number": None,
+                    "objective": None,
+                    "stop_boundary": None,
+                    "reusable_evidence": None,
+                    "reason": (
+                        f"task #{unchanged_blocker} previously returned TASK_NO_CHANGE and its "
+                        "durable task authority fingerprint is unchanged"
+                    ),
+                    "human_message": None,
+                }
+                self._cache_decision(decision, events, snap)
+                print(
+                    f"[orchestrator] suppressed unchanged TASK_NO_CHANGE redispatch for "
+                    f"issue #{unchanged_blocker}",
+                    flush=True,
+                )
+                self._clear_completed_decision()
                 return
             summaries = [e.summary() for e in events]
             with self._state_lock:

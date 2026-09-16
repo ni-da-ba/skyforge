@@ -10,9 +10,11 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -28,6 +30,9 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  */
 final class SkyforgePhysicalVolumeAdmissionStage {
     private static final AtomicReference<Binding> ACTIVE = new AtomicReference<>();
+    private static final Comparator<Long> CHUNK_KEY_ORDER = Comparator
+            .comparingInt((Long key) -> ChunkPos.getX(key))
+            .thenComparingInt(key -> ChunkPos.getZ(key));
 
     private SkyforgePhysicalVolumeAdmissionStage() {}
 
@@ -67,6 +72,7 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                 catalog,
                 ledger,
                 new HashMap<>(),
+                new TreeSet<>(CHUNK_KEY_ORDER),
                 new HashMap<>());
         if (!ACTIVE.compareAndSet(null, binding)) {
             throw new IllegalStateException("a physical Skyforge volume-admission stage is already installed");
@@ -146,6 +152,10 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                     binding.pendingBiomePresentationByVolume().remove(volumeId);
                 } else if (observation.state() == SkyforgePhysicalVolumeAdmissionState.ADMITTED
                         && observation.transitionedNow()) {
+                    Map<Long, PendingRealization> pendingByChunk = binding.pendingByVolume().get(volumeId);
+                    if (pendingByChunk != null) {
+                        binding.eligibleCatchupChunkKeys().addAll(pendingByChunk.keySet());
+                    }
                     Set<Long> previous = binding.pendingBiomePresentationByVolume().put(
                             volumeId,
                             new LinkedHashSet<>(binding.ledger().requiredChunkKeys(volumeId)));
@@ -321,6 +331,7 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         if (binding == null) {
             return List.of();
         }
+        long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
         long chunkKey = chunkPos.toLong();
         List<PendingRealization> eligible = new ArrayList<>();
         synchronized (binding) {
@@ -334,7 +345,14 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                 }
             }
         }
-        return List.copyOf(eligible);
+        List<PendingRealization> result = List.copyOf(eligible);
+        SkyforgeRuntimePerformanceMetrics.recordSince(
+                "catchup.terrainScheduler.eligiblePendingLookup",
+                performanceStart);
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "catchup.terrainScheduler.eligiblePendingCount",
+                result.size());
+        return result;
     }
 
     /** All chunk keys that currently have at least one ADMITTED deferred realization. */
@@ -343,15 +361,18 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         if (binding == null) {
             return Set.of();
         }
-        Set<Long> keys = new LinkedHashSet<>();
+        long performanceStart = SkyforgeRuntimePerformanceMetrics.start();
+        Set<Long> result;
         synchronized (binding) {
-            for (var entry : binding.pendingByVolume().entrySet()) {
-                if (binding.ledger().admitted(entry.getKey())) {
-                    keys.addAll(entry.getValue().keySet());
-                }
-            }
+            result = Collections.unmodifiableSet(new LinkedHashSet<>(binding.eligibleCatchupChunkKeys()));
         }
-        return orderedChunkKeys(keys);
+        SkyforgeRuntimePerformanceMetrics.recordSince(
+                "catchup.terrainScheduler.eligibleChunkSnapshot",
+                performanceStart);
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "catchup.terrainScheduler.eligibleChunkCount",
+                result.size());
+        return result;
     }
 
     /** All loaded-on-demand chunk keys that still owe persistent exact-volume biome presentation. */
@@ -385,9 +406,7 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         for (Long key : chunkKeys) {
             ordered.add(Objects.requireNonNull(key, "chunk key"));
         }
-        ordered.sort(Comparator
-                .comparingInt((Long key) -> ChunkPos.getX(key))
-                .thenComparingInt(key -> ChunkPos.getZ(key)));
+        ordered.sort(CHUNK_KEY_ORDER);
         return Collections.unmodifiableSet(new LinkedHashSet<>(ordered));
     }
 
@@ -471,7 +490,19 @@ final class SkyforgePhysicalVolumeAdmissionStage {
             if (byChunk.isEmpty()) {
                 binding.pendingByVolume().remove(pending.volumeId());
             }
+            if (!hasEligiblePendingForChunk(binding, pending.chunkKey())) {
+                binding.eligibleCatchupChunkKeys().remove(pending.chunkKey());
+            }
         }
+    }
+
+    private static boolean hasEligiblePendingForChunk(Binding binding, long chunkKey) {
+        for (var entry : binding.pendingByVolume().entrySet()) {
+            if (binding.ledger().admitted(entry.getKey()) && entry.getValue().containsKey(chunkKey)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Chunks skipped before later whole-volume admission; exposed for proof diagnostics. */
@@ -518,11 +549,13 @@ final class SkyforgePhysicalVolumeAdmissionStage {
             SkyIslandWorldCatalog catalog,
             SkyforgePhysicalVolumeAdmissionLedger ledger,
             Map<SkyIslandWorldVolumeId, Map<Long, PendingRealization>> pendingByVolume,
+            NavigableSet<Long> eligibleCatchupChunkKeys,
             Map<SkyIslandWorldVolumeId, Set<Long>> pendingBiomePresentationByVolume) {
         private Binding {
             Objects.requireNonNull(catalog, "catalog");
             Objects.requireNonNull(ledger, "ledger");
             Objects.requireNonNull(pendingByVolume, "pendingByVolume");
+            Objects.requireNonNull(eligibleCatchupChunkKeys, "eligibleCatchupChunkKeys");
             Objects.requireNonNull(pendingBiomePresentationByVolume, "pendingBiomePresentationByVolume");
         }
     }

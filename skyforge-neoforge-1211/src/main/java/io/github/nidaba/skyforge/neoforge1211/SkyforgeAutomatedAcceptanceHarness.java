@@ -18,6 +18,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -49,6 +50,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
     static final String RESULT_FILE_PROPERTY = "skyforge.dev.acceptanceResultFile";
     static final String RADIUS_PROPERTY = "skyforge.dev.acceptanceRadius";
     static final String TIMEOUT_SECONDS_PROPERTY = "skyforge.dev.acceptanceTimeoutSeconds";
+    static final String FREEZE_RANDOM_TICKS_PROPERTY = "skyforge.dev.acceptanceFreezeRandomTicks";
 
     private static final String MODE_SERVER = "server";
     private static final String MODE_CLIENT = "client";
@@ -66,6 +68,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
     private static boolean warmupComplete;
     private static boolean completionRequested;
     private static long firstServerTickNanos = Long.MIN_VALUE;
+    private static boolean deterministicGameRulesApplied;
 
     private SkyforgeAutomatedAcceptanceHarness() {}
 
@@ -83,6 +86,23 @@ final class SkyforgeAutomatedAcceptanceHarness {
 
     static String caseId() {
         return System.getProperty(CASE_PROPERTY, "unspecified");
+    }
+
+    @SubscribeEvent
+    static void onServerTick(ServerTickEvent.Pre event) {
+        if (!enabled()
+                || deterministicGameRulesApplied
+                || !Boolean.getBoolean(FREEZE_RANDOM_TICKS_PROPERTY)) {
+            return;
+        }
+        // Fresh-generation acceptance compares reconstruction, not arbitrary elapsed world
+        // simulation. Disable random block evolution before the first level tick so differences in
+        // server throughput cannot change the physical specimen while its bounded lifecycle runs.
+        event.getServer()
+                .getGameRules()
+                .getRule(GameRules.RULE_RANDOMTICKING)
+                .set(0, event.getServer());
+        deterministicGameRulesApplied = true;
     }
 
     @SubscribeEvent

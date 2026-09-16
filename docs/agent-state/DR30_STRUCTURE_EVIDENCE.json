@@ -1,0 +1,61 @@
+{
+  "schema_version": 3,
+  "milestone": "DR-30",
+  "state": "ACCEPTED",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "consumes": [
+    "DR00_SPECIMEN_LOCK.json",
+    "AUTH-0096",
+    "AUTH-0097",
+    "C24 / PR #373",
+    "DR30_CONTENT_ROLE_SITE_ENVELOPE.json / PR #593",
+    "DR30_CONTENT_CANDIDATE_ROUTE_BINDING.json / PR #603"
+  ],
+  "authority_resolution": {
+    "supersedes": "PR #582 BLOCKED_AUTHORITY / CONTENT_CANDIDATE_PROVENANCE_AND_ROUTE_PLAN_REQUIRED",
+    "role": "FREIGHT_TRANSFER_EDGE",
+    "role_site_contract": "CONTENT-DR30-ROLE-SITE-001",
+    "canonical_binding_contract": "CONTENT-DR30-CANONICAL-FREIGHT-002",
+    "canonical_association_authority": "DR00_SPECIMEN_LOCK.json",
+    "candidate_policy": "FreightTransferEdgeSitePolicy",
+    "route_plan_authority": "CONTENT_BOUND",
+    "status": "CONSUMABLE_BY_IMPLEMENTATION",
+    "meaning": "Content now supplies the exact canonical association, deterministic supported/open candidate selection, selected provenance, and semantic freight-connection direction required by DR-30. Final structure architecture and route geometry remain intentionally unauthorized and unnecessary for the generic/native machine probe."
+  },
+  "fixture_authority": {
+    "kind": "GENERIC_NATIVE_MACHINE_PROBE",
+    "source": "issue #493 explicit machine-fixture authority",
+    "meaning": "An existing generic/native representative structure on main may be reused solely to qualify the physical/runtime seam.",
+    "does_not_authorize": [
+      "final structure architecture",
+      "settlement layout",
+      "civilization meaning",
+      "route geometry",
+      "runway",
+      "dock",
+      "vehicle corridor",
+      "aesthetic policy"
+    ]
+  },
+  "verification": "DR-30 is ACCEPTED. GitHub Actions run 35027990441 succeeded on accepted head c8c0aaac130fd03da17bae7d8c30349bf7d9b166; PR #683 merged as 3d10d25075caa29528e057af98ab50827da412ff, and issue #493 is closed. DR-40 may consume this milestone subject to normal roadmap sequencing.",
+  "acceptance": {
+    "issue": 493,
+    "implementation_pr": 683,
+    "accepted_head": "c8c0aaac130fd03da17bae7d8c30349bf7d9b166",
+    "merge_commit": "3d10d25075caa29528e057af98ab50827da412ff",
+    "accepted_at": "2026-09-15T22:01:21Z",
+    "github_actions": {
+      "workflow": "DR-30 Native Structure Acceptance",
+      "run_id": 35027990441,
+      "conclusion": "success"
+    },
+    "machine_evidence": [
+      "native representative structure physically placed on the admitted DR-30 production-geography fixture",
+      "placement completion persisted across save/reload without replaying completed structure identity",
+      "player mutation persisted across reload after structure placement completion",
+      "stacked islands retained distinct exact-volume identities and distinct physical placements",
+      "full PR validation suite passed, including build, persistence, actual-client L2, L3 exact-stack, live assembly/cutoff, assembled-Sable, and recipe-surface regressions"
+    ],
+    "post_merge_audit": "Protected post-merge DR-30 audit returned NOOP; issue #493 was closed as objective acceptance at 2026-09-15T22:07:59Z."
+  }
+}

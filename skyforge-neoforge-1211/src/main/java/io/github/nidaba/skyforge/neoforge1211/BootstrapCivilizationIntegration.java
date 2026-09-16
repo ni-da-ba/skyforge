@@ -1,15 +1,16 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.content.BellancaOnboardingStateMachine;
 import io.github.nidaba.skyforge.world.content.BootstrapFreightOpportunity;
+import io.github.nidaba.skyforge.world.content.BootstrapGuildDestinationPolicy;
 import java.util.Objects;
 
 /**
- * Implementation binding for the one accepted Bootstrap freight opportunity.
+ * Implementation binding for the accepted Bootstrap civilization transactions.
  *
- * <p>This class deliberately consumes the Content-owned opportunity without selecting another
- * producer, consumer, commodity, route, payment, or service policy. It only maps the accepted
- * semantic settlement keys to persistent runtime identities and forwards the authoritative
- * custody transitions to the per-level state container.
+ * <p>This class deliberately consumes Content-owned semantics without selecting another producer,
+ * consumer, commodity, route, payment, Guild service, Bellanca outcome, or restitution value. It
+ * maps accepted semantic identities to persistent runtime authority and makes retries non-regressive.
  */
 final class BootstrapCivilizationIntegration {
     record SettlementIdentities(String producerSettlementId, String guildConsumerSettlementId) {
@@ -24,6 +25,7 @@ final class BootstrapCivilizationIntegration {
 
     private final BootstrapFreightOpportunity opportunity;
     private final SettlementIdentities settlements;
+    private final BellancaOnboardingStateMachine bellanca = new BellancaOnboardingStateMachine();
 
     BootstrapCivilizationIntegration() {
         this.opportunity = BootstrapFreightOpportunity.firstOpportunity();
@@ -84,6 +86,69 @@ final class BootstrapCivilizationIntegration {
     void guildCargoAnchorAvailabilityChanged(SkyforgeCivilizationRuntimeState state, String anchorId, boolean available) {
         Objects.requireNonNull(state, "state").anchorAvailabilityChanged(
                 settlements.guildConsumerSettlementId(), cargoTransferCapabilityId(), anchorId, available);
+    }
+
+    BellancaOnboardingStateMachine.Snapshot initializeBellancaOnboarding(
+            SkyforgeCivilizationRuntimeState state) {
+        state = Objects.requireNonNull(state, "state");
+        BellancaOnboardingStateMachine.Snapshot crash = bellanca.crash();
+        state.initializeBellancaOnboarding(crash);
+        return state.bellancaOnboarding();
+    }
+
+    BellancaOnboardingStateMachine.Snapshot recoverBellancaRecorder(
+            SkyforgeCivilizationRuntimeState state) {
+        state = Objects.requireNonNull(state, "state");
+        BellancaOnboardingStateMachine.Snapshot current = state.bellancaOnboarding();
+        if (current.recorderRecovered()) return current;
+        BellancaOnboardingStateMachine.Snapshot next = bellanca.recoverRecorder(current);
+        state.advanceBellancaOnboarding(current, next);
+        return next;
+    }
+
+    BellancaOnboardingStateMachine.Snapshot initiateBellancaClaim(
+            SkyforgeCivilizationRuntimeState state,
+            BootstrapGuildDestinationPolicy.Candidate hall) {
+        state = Objects.requireNonNull(state, "state");
+        hall = Objects.requireNonNull(hall, "hall");
+        if (!hall.resolvesBellancaClaim()) {
+            throw new IllegalArgumentException("Bellanca claim requires an eligible Guild Hall");
+        }
+        BellancaOnboardingStateMachine.Snapshot current = state.bellancaOnboarding();
+        if (current.state() != BellancaOnboardingStateMachine.State.CRASHED_BELLANCA) return current;
+        BellancaOnboardingStateMachine.Snapshot next = bellanca.initiateClaim(current, hall);
+        state.advanceBellancaOnboarding(current, next);
+        return next;
+    }
+
+    BellancaOnboardingStateMachine.Snapshot submitBellancaRecorderEvidence(
+            SkyforgeCivilizationRuntimeState state) {
+        state = Objects.requireNonNull(state, "state");
+        BellancaOnboardingStateMachine.Snapshot current = state.bellancaOnboarding();
+        if (current.state() == BellancaOnboardingStateMachine.State.GUILD_LIABILITY_ESTABLISHED
+                || current.state() == BellancaOnboardingStateMachine.State.TUTORIAL_COMPLETE) {
+            return current;
+        }
+        BellancaOnboardingStateMachine.Snapshot next = bellanca.submitRecorderEvidence(current);
+        state.advanceBellancaOnboarding(current, next);
+        return next;
+    }
+
+    BellancaOnboardingStateMachine.Snapshot chooseBellancaRestitution(
+            SkyforgeCivilizationRuntimeState state,
+            BellancaOnboardingStateMachine.Restitution restitution) {
+        state = Objects.requireNonNull(state, "state");
+        restitution = Objects.requireNonNull(restitution, "restitution");
+        BellancaOnboardingStateMachine.Snapshot current = state.bellancaOnboarding();
+        if (current.state() == BellancaOnboardingStateMachine.State.TUTORIAL_COMPLETE) {
+            if (current.restitution() != restitution) {
+                throw new IllegalArgumentException("Bellanca restitution retry changes authoritative outcome");
+            }
+            return current;
+        }
+        BellancaOnboardingStateMachine.Snapshot next = bellanca.chooseRestitution(current, restitution);
+        state.advanceBellancaOnboarding(current, next);
+        return next;
     }
 
     private String cargoTransferCapabilityId() {

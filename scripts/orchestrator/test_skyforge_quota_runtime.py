@@ -131,6 +131,87 @@ class SkyforgeQuotaRuntimeTests(unittest.TestCase):
                 {"ordinary_usage_allowed": True},
             )
 
+    def test_protected_task_authority_uses_larger_burst_margin(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            event = core.EventDecision(
+                True,
+                "explicit task",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=493,
+                signal_kind="task",
+                signal_text="AUDIT — NEW IMPLEMENTATION TASK",
+            )
+            o.state.data["pending_events"] = [event.to_state()]
+            o.state.save()
+
+            with mock.patch.dict(
+                quota_runtime.os.environ,
+                {
+                    "SKYFORGE_WEEKLY_BURST_MARGIN_PERCENT": "5",
+                    "SKYFORGE_PROTECTED_WEEKLY_BURST_MARGIN_PERCENT": "10",
+                },
+                clear=False,
+            ):
+                self.assertTrue(quota_runtime._protected_authority_attempt(o, "classifier"))
+                self.assertEqual(
+                    quota_runtime._governor_settings(protected_authority=True)[
+                        "weekly_burst_margin_percent"
+                    ],
+                    10.0,
+                )
+                self.assertEqual(
+                    quota_runtime._governor_settings(protected_authority=False)[
+                        "weekly_burst_margin_percent"
+                    ],
+                    5.0,
+                )
+
+    def test_runtime_refresh_invalidates_stale_quota_pacing_timer(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            o.state.data["blocked_kind"] = "quota_pacing"
+            o.state.data["blocked_until_epoch"] = 9999999999.0
+            o.state.data["blocked_reason"] = "old pacing policy"
+            o.state.save()
+            with mock.patch.object(quota_runtime, "_ORIGINAL_REFRESH_RUNTIME") as refresh:
+                quota_runtime.refresh_runtime(o, actor="operator")
+
+            refresh.assert_called_once_with(o, actor="operator")
+            self.assertIsNone(o.state.data["blocked_kind"])
+            self.assertEqual(o.state.data["blocked_until_epoch"], 0.0)
+            self.assertIsNone(o.state.data["blocked_reason"])
+
+    def test_fresh_provider_admission_clears_stale_quota_pacing_block(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            o.state.data["blocked_kind"] = "quota_pacing"
+            o.state.data["blocked_until_epoch"] = 9999999999.0
+            o.state.data["blocked_reason"] = "old policy"
+            o.state.save()
+            with mock.patch.object(
+                quota_runtime,
+                "_provider_decision",
+                return_value={"authoritative": True, "allowed": True},
+            ), mock.patch.object(quota_runtime, "_record_governed_attempt") as record:
+                quota_runtime._consume_budget(o, "classifier")
+
+            self.assertIsNone(o.state.data["blocked_kind"])
+            self.assertEqual(o.state.data["blocked_until_epoch"], 0.0)
+            self.assertIsNone(o.state.data["blocked_reason"])
+            record.assert_called_once_with(o, "classifier")
+
+    def test_task_owned_worker_is_protected_quota_attempt(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            o.state.data["pending_worker"] = {
+                "stage": "editing",
+                "authority_key": "task:493",
+            }
+            o.state.save()
+            self.assertTrue(quota_runtime._protected_authority_attempt(o, "worker"))
+
     def test_runtime_paths_include_quota_extension(self):
         self.assertIn(
             "scripts/orchestrator/codex_quota.py",

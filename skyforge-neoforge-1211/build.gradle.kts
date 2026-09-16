@@ -478,6 +478,66 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // DR-30 CI-only native-structure qualification. Placement and reload share one disposable
+        // world; stacked isolation uses a second world with vertically aligned exact volumes.
+        create("dr30NativeStructureAcceptancePlace") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr30-native-structure").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.dr30NativeStructureAcceptance", "true")
+            systemProperty("skyforge.dev.dr30NativeStructureMode", "single")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-30-native-structure-place")
+            systemProperty("skyforge.dev.acceptanceRadius", "8")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "300")
+            systemProperty("skyforge.dev.acceptanceResultFile", layout.buildDirectory.file("acceptance/dr-30-native-structure/place.properties").get().asFile.absolutePath)
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr30NativeStructureAcceptanceReload") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr30-native-structure").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.dr30NativeStructureAcceptance", "true")
+            systemProperty("skyforge.dev.dr30NativeStructureMode", "reload")
+            systemProperty("skyforge.dev.dr30NativeStructureExpectedResultFile", layout.buildDirectory.file("acceptance/dr-30-native-structure/place.properties").get().asFile.absolutePath)
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-30-native-structure-reload")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "120")
+            systemProperty("skyforge.dev.acceptanceResultFile", layout.buildDirectory.file("acceptance/dr-30-native-structure/reload.properties").get().asFile.absolutePath)
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr30NativeStructureAcceptanceStacked") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr30-native-structure-stacked").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.dr30NativeStructureAcceptance", "true")
+            systemProperty("skyforge.dev.dr30NativeStructureMode", "stacked")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-30-native-structure-stacked")
+            systemProperty("skyforge.dev.acceptanceRadius", "8")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "300")
+            systemProperty("skyforge.dev.acceptanceResultFile", layout.buildDirectory.file("acceptance/dr-30-native-structure/stacked.properties").get().asFile.absolutePath)
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // SF-IMP-0058 layers durable client-visible biome presentation onto the accepted 0056
         // admission specimen. The admitted upper island maps to taiga in Minecraft biome storage;
         // vertically unrelated native cells in the same X/Z column must remain unchanged.
@@ -1087,6 +1147,146 @@ neoForge {
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0068/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // DR-40 canonical production ecology reuses the SF-IMP-0068 production world and lifecycle,
+        // replacing only the fixed proof biome with AUTH-0103/AUTH-0096-backed adapter carriers.
+        create("dr40ProductionEcologyAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr40-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCave", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcology", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-40-production-ecology-a")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr-40/production-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr40ProductionEcologyAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr40-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCave", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcology", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-40-production-ecology-b")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr-40/production-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr40ProductionEcologyAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-dr40-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCaveReload", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcologyReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-40-production-ecology-reload")
+            systemProperty(
+                "skyforge.dev.productionComposedCaveExpectedResultFile",
+                layout.buildDirectory.file("acceptance/dr-40/production-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr-40/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // DR-50 canonical integrated dressed-region qualification. This is the DR-00 specimen,
+        // not a new world-authoring fixture: it composes SF-IMP-0068 terrain/caves, DR-20 authored
+        // hydrology, DR-30's already-authorized generic mansion probe, DR-40 ecology, accepted
+        // post-cave native interior population, and C20 starting-cluster Iron in one lifecycle.
+        create("dr50IntegratedRegionAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr50-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCave", "true")
+            systemProperty("skyforge.dev.dr50IntegratedRegion", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-50-integrated-region-a")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr-50/production-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr50IntegratedRegionAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr50-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCave", "true")
+            systemProperty("skyforge.dev.dr50IntegratedRegion", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-50-integrated-region-b")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr-50/production-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr50IntegratedRegionAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-dr50-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCaveReload", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcologyReload", "true")
+            systemProperty("skyforge.dev.dr50IntegratedRegionReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-50-integrated-region-reload")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
+            systemProperty(
+                "skyforge.dev.productionComposedCaveExpectedResultFile",
+                layout.buildDirectory.file("acceptance/dr-50/production-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr-50/reload.properties").get().asFile.absolutePath,
             )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -1886,6 +2086,340 @@ neoForge {
         }
 
 
+        // PLATFORM-001: minimal exact-stack Sable primary assembly/physics lifecycle fixture.
+        create("compilerPlatformSableAssemblyLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-sable-assembly-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformSableAssemblyLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // PLATFORM-002: minimal exact-stack fixed-world Create kinetic build/sever/rebuild fixture.
+        create("compilerPlatformCreateKineticNetworkLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-create-kinetic-network-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformCreateKineticNetworkLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // PLATFORM-015: beltless world-item Saw CUT -> explicit handoff -> Press WORLD lifecycle.
+        create("compilerPlatformWorldItemCutPressLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-world-item-cut-press-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformWorldItemCutPressLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // PLATFORM-009: real small-water-wheel environmental source active/disable/recovery lifecycle.
+        create("compilerPlatformWaterWheelSourceLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-water-wheel-source-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformWaterWheelSourceLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // MECH-001 human gate: exact C11 stack plus the compiler-emitted development structure.
+        create("mech001FunctionalMechanismClient") {
+            client()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-mech-001-functional-mechanism-client").asFile
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // MECH-002: compiled natural stationary workshop power lifecycle.
+        create("mech002NaturalPowerServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-mech-002-natural-power-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.mech002NaturalPower", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // MECH-002 human gate: exact C11 stack plus compiler-emitted development structure.
+        create("mech002NaturalPowerClient") {
+            client()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-mech-002-natural-power-client").asFile
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // PLATFORM-003: preassembled Create kinetic network transferred into one live Sable body.
+        create("compilerPlatformCreateKineticOnSableLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-create-kinetic-on-sable-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformCreateKineticOnSableLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // PLATFORM-004: causal one-domain Super Glue assembly fixture with an unglued control.
+        create("compilerPlatformSuperGlueAssemblyDomainServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-super-glue-assembly-domain").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformSuperGlueAssemblyDomain", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // PLATFORM-005: ground child -> Physics Assembler flatten -> nested Propeller Bearing reassembly.
+        create("compilerPlatformNestedPropellerBearingLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-nested-propeller-bearing-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformNestedPropellerBearingLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // PLATFORM-008: bounded Swivel child + real Create signed actuation/hold/inverse-neutral lifecycle.
+        create("compilerPlatformSwivelControlChildLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-swivel-control-child-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformSwivelControlChildLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // PLATFORM-014: reuse the accepted Swivel child fixture to qualify generic Sable DRAG observation.
+        create("compilerPlatformAerodynamicForceObservationServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-aerodynamic-force-observation").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformSwivelControlChildLifecycle", "true")
+            systemProperty("skyforge.dev.compilerPlatformAerodynamicForceObservation", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // PLATFORM-007: fresh-process persistence of one composed Sable/Create/Aeronautics mechanism.
+        create("compilerPlatformComposedMechanismPersistencePrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-composed-mechanism-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformComposedMechanismPersistence", "prepare")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("compilerPlatformComposedMechanismPersistenceVerifyServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-composed-mechanism-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformComposedMechanismPersistence", "verify")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // PLATFORM-010: off-origin production-footprint Sable primary-body persistence locator lifecycle.
+        create("compilerPlatformProductionScalePersistencePrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-production-scale-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformProductionScalePersistence", "prepare")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("compilerPlatformProductionScalePersistenceVerifyServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-production-scale-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformProductionScalePersistence", "verify")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // AIRCRAFT-RUNTIME-001: production v0.12 Guild utility powertrain, first accepted 128-RPM point only.
+        create("aircraftPowertrainRuntime128Server") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-aircraft-powertrain-runtime-128").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.aircraftPowertrainRuntime128", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // AIRCRAFT-RUNTIME-003: production corrected v0.13.1 rudder child + real kinetic actuation.
+        create("aircraftRudderActuationServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-aircraft-rudder-actuation").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.aircraftRudderActuation", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // AIRCRAFT-RUNTIME-004: corrected rudder physical lateral-force/yaw-moment authority.
+        create("aircraftRudderYawAuthorityServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-aircraft-rudder-yaw-authority").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.aircraftRudderYawAuthority", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // AIRCRAFT-RUNTIME-002: two-boot production v0.12 aircraft persistence consumer.
+        create("aircraftPowertrainPersistencePrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-aircraft-powertrain-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.aircraftPowertrainPersistence", "prepare")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("aircraftPowertrainPersistenceVerifyServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-aircraft-powertrain-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.aircraftPowertrainPersistence", "verify")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // PLATFORM-006: prepare a blank quick-play world, then exercise a real client Steering Wheel on Sable.
+        create("compilerPlatformSteeringWheelClientWorldPrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-steering-wheel-client").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("compiler-platform-steering-wheel-client")
+            systemProperty("skyforge.dev.compilerPlatformSteeringWheelClientWorldPrepare", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "compiler-platform-steering-wheel-client-world-prepare")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "120")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/compiler-platform-steering-wheel-client/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("compilerPlatformSteeringWheelClient") {
+            client()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-steering-wheel-client").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("compiler-platform-steering-wheel-client")
+            systemProperty("skyforge.dev.compilerPlatformSteeringWheelClientOnSableLifecycle", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "compiler-platform-steering-wheel-client-on-sable")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/compiler-platform-steering-wheel-client/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // PLATFORM-011: prepare a blank quick-play world, then exercise a real Create seat on Sable.
+        create("compilerPlatformSeatPassengerClientWorldPrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-seat-passenger-client").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("compiler-platform-seat-passenger-client")
+            systemProperty("skyforge.dev.compilerPlatformSeatPassengerClientWorldPrepare", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "compiler-platform-seat-passenger-client-world-prepare")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "120")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/compiler-platform-seat-passenger-client/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("compilerPlatformSeatPassengerClient") {
+            client()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-seat-passenger-client").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("compiler-platform-seat-passenger-client")
+            systemProperty("skyforge.dev.compilerPlatformSeatPassengerOnSableLifecycle", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "compiler-platform-seat-passenger-on-sable")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/compiler-platform-seat-passenger-client/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // PLATFORM-012: reuse the reduced real-seat setup, then qualify natural Sable player tracking and inherited translation.
+        create("compilerPlatformPlayerTrackingClientWorldPrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-player-tracking-client").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("compiler-platform-player-tracking-client")
+            systemProperty("skyforge.dev.compilerPlatformPlayerTrackingClientWorldPrepare", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "compiler-platform-player-tracking-client-world-prepare")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "120")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/compiler-platform-player-tracking-client/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("compilerPlatformPlayerTrackingClient") {
+            client()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-player-tracking-client").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("compiler-platform-player-tracking-client")
+            systemProperty("skyforge.dev.compilerPlatformPlayerTrackingOnSableLifecycle", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "compiler-platform-player-tracking-on-sable")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/compiler-platform-player-tracking-client/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         // C12 B0-A1/A2: exact 105-block MAIN_BODY through the real Physics Assembler, then
         // authoritative Sable mass/center-of-mass measurement.
         create("waveC12BellancaB0AssemblyServer") {
@@ -2333,6 +2867,450 @@ tasks.named("runPortableEngineCutoffSableAcceptanceServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(portableEngineCutoffSableServerProperties)
+    }
+}
+
+
+val compilerPlatformSableAssemblyLifecycleServerProperties = """
+    level-name=compiler-platform-sable-assembly-lifecycle
+    level-seed=613001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformSableAssemblyLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-sable-assembly-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformSableAssemblyLifecycleServerProperties)
+    }
+}
+
+
+val compilerPlatformCreateKineticNetworkLifecycleServerProperties = """
+    level-name=compiler-platform-create-kinetic-network-lifecycle
+    level-seed=629001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformCreateKineticNetworkLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-create-kinetic-network-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformCreateKineticNetworkLifecycleServerProperties)
+    }
+}
+
+
+val compilerPlatformWorldItemCutPressLifecycleServerProperties = """
+    level-name=compiler-platform-world-item-cut-press-lifecycle
+    level-seed=735015
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformWorldItemCutPressLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-world-item-cut-press-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformWorldItemCutPressLifecycleServerProperties)
+    }
+}
+
+
+val compilerPlatformWaterWheelSourceLifecycleServerProperties = """
+    level-name=compiler-platform-water-wheel-source-lifecycle
+    level-seed=697009
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformWaterWheelSourceLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-water-wheel-source-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformWaterWheelSourceLifecycleServerProperties)
+    }
+}
+
+val mech002NaturalPowerServerProperties = """
+    level-name=mech-002-natural-power
+    level-seed=679002
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runMech002NaturalPowerServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-mech-002-natural-power-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(mech002NaturalPowerServerProperties)
+    }
+}
+
+
+val compilerPlatformCreateKineticOnSableLifecycleServerProperties = """
+    level-name=compiler-platform-create-kinetic-on-sable-lifecycle
+    level-seed=635001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformCreateKineticOnSableLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-create-kinetic-on-sable-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformCreateKineticOnSableLifecycleServerProperties)
+    }
+}
+
+
+val compilerPlatformSuperGlueAssemblyDomainServerProperties = """
+    level-name=compiler-platform-super-glue-assembly-domain
+    level-seed=647001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformSuperGlueAssemblyDomainServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-super-glue-assembly-domain").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformSuperGlueAssemblyDomainServerProperties)
+    }
+}
+
+
+val compilerPlatformNestedPropellerBearingLifecycleServerProperties = """
+    level-name=compiler-platform-nested-propeller-bearing-lifecycle
+    level-seed=660001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformNestedPropellerBearingLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-nested-propeller-bearing-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformNestedPropellerBearingLifecycleServerProperties)
+    }
+}
+
+val compilerPlatformSwivelControlChildLifecycleServerProperties = """
+    level-name=compiler-platform-swivel-control-child-lifecycle
+    level-seed=694001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformSwivelControlChildLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-swivel-control-child-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformSwivelControlChildLifecycleServerProperties)
+    }
+}
+
+val compilerPlatformAerodynamicForceObservationServerProperties = compilerPlatformSwivelControlChildLifecycleServerProperties
+    .replace("level-name=compiler-platform-swivel-control-child-lifecycle", "level-name=compiler-platform-aerodynamic-force-observation")
+
+tasks.named("runCompilerPlatformAerodynamicForceObservationServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-aerodynamic-force-observation").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformAerodynamicForceObservationServerProperties)
+    }
+}
+
+val compilerPlatformComposedMechanismPersistenceServerProperties = """
+    level-name=compiler-platform-composed-mechanism-persistence
+    level-seed=676001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformComposedMechanismPersistencePrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-composed-mechanism-persistence").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformComposedMechanismPersistenceServerProperties)
+    }
+}
+
+tasks.named("runCompilerPlatformComposedMechanismPersistenceVerifyServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-composed-mechanism-persistence").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformComposedMechanismPersistenceServerProperties)
+    }
+}
+
+val compilerPlatformProductionScalePersistenceServerProperties = """
+    level-name=compiler-platform-production-scale-persistence
+    level-seed=703010
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformProductionScalePersistencePrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-production-scale-persistence").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformProductionScalePersistenceServerProperties)
+    }
+}
+
+tasks.named("runCompilerPlatformProductionScalePersistenceVerifyServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-production-scale-persistence").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformProductionScalePersistenceServerProperties)
+    }
+}
+
+val aircraftPowertrainRuntime128ServerProperties = """
+    level-name=aircraft-powertrain-runtime-128
+    level-seed=668001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runAircraftPowertrainRuntime128Server").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-aircraft-powertrain-runtime-128").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(aircraftPowertrainRuntime128ServerProperties)
+    }
+}
+
+val aircraftRudderActuationServerProperties = aircraftPowertrainRuntime128ServerProperties
+    .replace("level-name=aircraft-powertrain-runtime-128", "level-name=aircraft-rudder-actuation")
+    .replace("level-seed=668001", "level-seed=684001")
+
+tasks.named("runAircraftRudderActuationServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-aircraft-rudder-actuation").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(aircraftRudderActuationServerProperties)
+    }
+}
+
+val aircraftRudderYawAuthorityServerProperties = aircraftPowertrainRuntime128ServerProperties
+    .replace("level-name=aircraft-powertrain-runtime-128", "level-name=aircraft-rudder-yaw-authority")
+    .replace("level-seed=668001", "level-seed=686001")
+
+tasks.named("runAircraftRudderYawAuthorityServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-aircraft-rudder-yaw-authority").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(aircraftRudderYawAuthorityServerProperties)
+    }
+}
+
+
+val aircraftPowertrainPersistenceServerProperties = """
+    level-name=aircraft-powertrain-persistence
+    level-seed=674001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runAircraftPowertrainPersistencePrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-aircraft-powertrain-persistence").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(aircraftPowertrainPersistenceServerProperties)
+    }
+}
+
+tasks.named("runAircraftPowertrainPersistenceVerifyServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-aircraft-powertrain-persistence").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(aircraftPowertrainPersistenceServerProperties)
+    }
+}
+
+
+val compilerPlatformSteeringWheelClientServerProperties = """
+    level-name=compiler-platform-steering-wheel-client
+    level-seed=669001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformSteeringWheelClientWorldPrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-steering-wheel-client").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformSteeringWheelClientServerProperties)
+    }
+}
+
+val compilerPlatformSeatPassengerClientServerProperties = """
+    level-name=compiler-platform-seat-passenger-client
+    level-seed=669011
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformSeatPassengerClientWorldPrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-seat-passenger-client").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformSeatPassengerClientServerProperties)
+    }
+}
+
+
+val compilerPlatformPlayerTrackingClientServerProperties = """
+    level-name=compiler-platform-player-tracking-client
+    level-seed=669012
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformPlayerTrackingClientWorldPrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-player-tracking-client").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformPlayerTrackingClientServerProperties)
     }
 }
 
@@ -4268,6 +5246,271 @@ tasks.register("sfImp0068Acceptance") {
 }
 
 
+val dr40AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/dr-40")
+
+fun requireDr40AcceptancePass(resultName: String) {
+    val file = dr40AcceptanceResultDirectory.get().file("$resultName.properties").asFile
+    check(file.isFile) { "DR-40 acceptance result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS") {
+        val detail = properties.getProperty("failure") ?: "status=${properties.getProperty("status")}"
+        "DR-40 acceptance case $resultName did not PASS: $detail"
+    }
+}
+
+listOf(
+    Triple("runDr40ProductionEcologyAcceptanceA", "run-dr40-auto-a", "production-a"),
+    Triple("runDr40ProductionEcologyAcceptanceB", "run-dr40-auto-b", "production-b"),
+).forEach { (taskName, relativePath, resultName) ->
+    tasks.named(taskName).configure {
+        doFirst { prepareSfImp0068AcceptanceServerDirectory(relativePath) }
+        doLast { requireDr40AcceptancePass(resultName) }
+    }
+}
+
+tasks.named("runDr40ProductionEcologyAcceptanceA").configure {
+    doFirst { delete(dr40AcceptanceResultDirectory) }
+}
+tasks.named("runDr40ProductionEcologyAcceptanceB").configure {
+    mustRunAfter("runDr40ProductionEcologyAcceptanceA")
+}
+tasks.named("runDr40ProductionEcologyAcceptanceReloadClient").configure {
+    mustRunAfter("runDr40ProductionEcologyAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-dr40-auto-b").asFile
+        directory.resolve("options.txt").writeText("onboardAccessibility:false\nnarrator:0\n")
+    }
+    doLast { requireDr40AcceptancePass("reload") }
+}
+
+tasks.register("dr40ProductionEcologyAcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic DR-40 canonical production ecology evidence."
+    doLast {
+        fun load(name: String): Properties {
+            val file = dr40AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing DR-40 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+        val first = load("production-a")
+        val second = load("production-b")
+        val reload = load("reload")
+        for ((name, result) in listOf("production-a" to first, "production-b" to second, "reload" to reload)) {
+            check(result.getProperty("status") == "PASS") { "$name did not report PASS: $result" }
+        }
+        for (key in listOf(
+            "islandKey", "dr40NativeBiomeCount", "dr40NativeAttemptedFeatures",
+            "dr40NativeSuccessfulFeatures", "dr40SupportedPopulationChunks",
+            "dr40OmittedPhysicalEdgeChunks", "dr40LandAPos", "dr40LandABiome",
+            "dr40LandBPos", "dr40LandBBiome", "dr40WetPos", "dr40WetBiome",
+            "nativeTransformDigest", "nativeCarveDigest", "authoredChangedDigest",
+            "authoredProvenanceDigest", "dr40PopulationOutcomeDigest"
+        )) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "DR-40 deterministic evidence changed for $key: A=${first.getProperty(key)} B=${second.getProperty(key)}"
+            }
+        }
+        check(first.getProperty("islandKey") == "1471"
+                && first.getProperty("nativeBiome") == "authored-production-ecology"
+                && first.getProperty("dr40ProductionEcology") == "true"
+                && first.getProperty("dr40AuthorshipAuthority") == "AUTH-0046+AUTH-0103+AUTH-0096"
+                && first.getProperty("dr40NativeBiomeCount").toInt() >= 2
+                && first.getProperty("dr40NativeSuccessfulFeatures").toInt() > 0
+                && !first.getProperty("dr40PopulationOutcomeDigest").isNullOrBlank()
+                && first.getProperty("dr40SupportedPopulationChunks").toInt() > 0
+                && first.getProperty("dr40OmittedPhysicalEdgeChunks").toInt() > 0
+                && first.getProperty("dr40LandABiome") != first.getProperty("dr40LandBBiome")
+                && first.getProperty("dr40WetBiome") == "minecraft:swamp"
+                && first.getProperty("dr40PersistentBiomePresentation") == "true"
+                && first.getProperty("dr40PopulationReplayExecuted") == "false"
+                && first.getProperty("dr40StructureBeforePopulation") == "true"
+                && first.getProperty("dr40ForeignVolumeFailClosed") == "true"
+                && first.getProperty("noReplay") == "true") {
+            "DR-40 production ecology evidence incomplete: $first"
+        }
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("dr40ReloadServerBiomePass") == "true"
+                && reload.getProperty("dr40ReloadClientBiomePass") == "true") {
+            "DR-40 ecology save/reload persistence failed: $reload"
+        }
+        println("DR-40 AUTOMATED ACCEPTANCE PASS: biomes=${first.getProperty("dr40NativeBiomeCount")}, "
+                + "successfulFeatures=${first.getProperty("dr40NativeSuccessfulFeatures")}, "
+                + "wet=${first.getProperty("dr40WetBiome")}, reloadServerClient=true")
+    }
+}
+
+tasks.register("dr40ProductionEcologyAcceptance") {
+    group = "verification"
+    description = "Run complete deterministic DR-40 canonical production ecology acceptance."
+    dependsOn(
+        "runDr40ProductionEcologyAcceptanceA",
+        "runDr40ProductionEcologyAcceptanceB",
+        "runDr40ProductionEcologyAcceptanceReloadClient",
+    )
+    finalizedBy("dr40ProductionEcologyAcceptanceVerify")
+}
+
+val dr50AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/dr-50")
+val dr50AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=493030
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=7
+    simulation-distance=5
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareDr50AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(dr50AcceptanceServerProperties)
+}
+
+fun requireDr50AcceptancePass(resultName: String): Properties {
+    val file = dr50AcceptanceResultDirectory.get().file("$resultName.properties").asFile
+    check(file.isFile) { "DR-50 acceptance result missing: $file" }
+    return Properties().also { properties ->
+        file.inputStream().use(properties::load)
+        check(properties.getProperty("status") == "PASS") {
+            val detail = properties.getProperty("failure") ?: "status=${properties.getProperty("status")}"
+            "DR-50 acceptance case $resultName did not PASS: $detail"
+        }
+    }
+}
+
+listOf(
+    Triple("runDr50IntegratedRegionAcceptanceA", "run-dr50-auto-a", "production-a"),
+    Triple("runDr50IntegratedRegionAcceptanceB", "run-dr50-auto-b", "production-b"),
+).forEach { (taskName, relativePath, resultName) ->
+    tasks.named(taskName).configure {
+        doFirst { prepareDr50AcceptanceServerDirectory(relativePath) }
+        doLast { requireDr50AcceptancePass(resultName) }
+    }
+}
+
+tasks.named("runDr50IntegratedRegionAcceptanceA").configure {
+    doFirst { delete(dr50AcceptanceResultDirectory) }
+}
+tasks.named("runDr50IntegratedRegionAcceptanceB").configure {
+    mustRunAfter("runDr50IntegratedRegionAcceptanceA")
+}
+tasks.named("runDr50IntegratedRegionAcceptanceReloadClient").configure {
+    mustRunAfter("runDr50IntegratedRegionAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-dr50-auto-b").asFile
+        directory.resolve("options.txt").writeText("onboardAccessibility:false\nnarrator:0\n")
+    }
+    doLast { requireDr50AcceptancePass("reload") }
+}
+
+tasks.register("dr50IntegratedRegionAcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic DR-50 canonical dressed-region integration evidence."
+    doLast {
+        val first = requireDr50AcceptancePass("production-a")
+        val second = requireDr50AcceptancePass("production-b")
+        val reload = requireDr50AcceptancePass("reload")
+        for (key in listOf(
+            "islandKey", "nativeTransformDigest", "nativeCarveDigest", "authoredChangedDigest",
+            "authoredProvenanceDigest", "finalAuthoredAir", "authoredDownstreamOccupied",
+            "dr40PopulationOutcomeDigest", "dr50SpecimenId",
+            "dr50Volume", "dr50WorldSeedUnsigned", "dr50HydrologyPositions", "dr50HydrologyDigest",
+            "dr50HydrologyRepresentativePos", "dr50InteriorCompleted", "dr50InteriorNonEmpty",
+            "dr50InteriorSuccessfulFeatures", "dr50InteriorUnsupportedLakeFeatures",
+            "dr50InteriorTrackedFluids", "dr50InteriorFluidSchedulesOutsideOwner",
+            "dr50InteriorRejectedBoundaryWrites", "dr50InteriorDigest", "dr50Material",
+            "dr50MaterialPos", "dr50StructureLifecycleInvoked", "dr50CanonicalCompletedStructures",
+            "dr50CanonicalStructureDigest", "dr50StructureProofAuthority", "dr50StructurePersistenceAuthority",
+            "dr50PopulationOutcomeDigest", "dr50RegionDigest"
+        )) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "DR-50 deterministic evidence changed for $key: A=${first.getProperty(key)} B=${second.getProperty(key)}"
+            }
+        }
+        check(first.getProperty("dr50IntegratedRegion") == "true"
+                && first.getProperty("dr50SpecimenId") == "P2_DRESSED_REGION_A"
+                && first.getProperty("dr50Volume") == "6001989086914692933/sf-imp-0068-production-composed-cave/0/0/680068"
+                && first.getProperty("dr50HydrologyPositions").toInt() > 0
+                && first.getProperty("dr50InteriorCompleted") == first.getProperty("requiredChunks")
+                && first.getProperty("dr50InteriorNonEmpty").toInt() > 0
+                && first.getProperty("dr50InteriorSuccessfulFeatures").toInt() > 0
+                && first.getProperty("dr50InteriorUnsupportedLakeFeatures") == "0"
+                && first.getProperty("dr50InteriorFluidSchedulesOutsideOwner") == "0"
+                && first.getProperty("dr50InteriorRejectedBoundaryWrites") == "0"
+                && first.getProperty("dr50InteriorReplayWorked") == "false"
+                && first.getProperty("finalAuthoredAir").toInt() > 0
+                && first.getProperty("finalAuthoredAir").toInt() <= first.getProperty("authoredPositive").toInt()
+                && first.getProperty("authoredDownstreamOccupied").toInt()
+                    == first.getProperty("authoredPositive").toInt() - first.getProperty("finalAuthoredAir").toInt()
+                && first.getProperty("dr50Material") == "minecraft:iron_ore"
+                && first.getProperty("dr50MaterialReplayWritten") == "false"
+                && first.getProperty("dr50StructureLifecycleInvoked") == "true"
+                && first.getProperty("dr50StructureProofAuthority") == "DR-30_NATIVE_STRUCTURE_ACCEPTANCE"
+                && first.getProperty("dr50StructurePersistenceAuthority") == "DR-30_NATIVE_STRUCTURE_ACCEPTANCE"
+                && first.getProperty("dr50DiagnosticFinalRequiredChunkNonAirBlocks").toLong() > 0L
+                && first.getProperty("dr50ExactVolumeIsolation") == "true"
+                && first.getProperty("dr50NoHydrologyMaterialCollision") == "true"
+                && first.getProperty("dr50NoStructureMaterialCollision") == "true"
+                && first.getProperty("dr40ProductionEcology") == "true"
+                && first.getProperty("dr40WetBiome") == "minecraft:swamp"
+                && first.getProperty("noReplay") == "true") {
+            "DR-50 integrated region evidence incomplete: $first"
+        }
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("dr40ReloadServerBiomePass") == "true"
+                && reload.getProperty("dr40ReloadClientBiomePass") == "true"
+                && reload.getProperty("dr50ReloadServerPass") == "true"
+                && reload.getProperty("dr50ReloadClientPass") == "true") {
+            "DR-50 integrated save/reload or actual-client reopen failed: $reload"
+        }
+
+        val stackedCaves = Properties().also { properties ->
+            layout.buildDirectory.file("acceptance/sf-imp-0068/stacked.properties").get().asFile
+                .inputStream().use(properties::load)
+        }
+        val stackedStructures = Properties().also { properties ->
+            layout.buildDirectory.file("acceptance/dr-30-native-structure/stacked.properties").get().asFile
+                .inputStream().use(properties::load)
+        }
+        check(stackedCaves.getProperty("status") == "PASS"
+                && stackedCaves.getProperty("independentLedgers") == "true"
+                && stackedCaves.getProperty("foreignVolumePreserved") == "true"
+                && stackedStructures.getProperty("status") == "PASS"
+                && stackedStructures.getProperty("exactVolumeIdentitiesDistinct") == "true"
+                && stackedStructures.getProperty("physicalPlacementsDistinct") == "true") {
+            "DR-50 stacked-volume isolation support evidence failed"
+        }
+        println("DR-50 AUTOMATED ACCEPTANCE PASS: regionDigest=${first.getProperty("dr50RegionDigest")}, "
+                + "hydrology=${first.getProperty("dr50HydrologyPositions")}, "
+                + "interiorSuccessful=${first.getProperty("dr50InteriorSuccessfulFeatures")}, "
+                + "canonicalStructures=${first.getProperty("dr50CanonicalCompletedStructures")}, material=${first.getProperty("dr50Material")}, "
+                + "reloadServerClient=true, stackedIsolation=true")
+    }
+}
+
+tasks.register("dr50IntegratedRegionAcceptance") {
+    group = "verification"
+    description = "Run complete DR-50 canonical dressed-region integration acceptance."
+    dependsOn(
+        "runDr50IntegratedRegionAcceptanceA",
+        "runDr50IntegratedRegionAcceptanceB",
+        "runDr50IntegratedRegionAcceptanceReloadClient",
+        "runProductionComposedCaveAcceptanceStacked",
+        "runDr30NativeStructureAcceptanceStacked",
+    )
+    finalizedBy("dr50IntegratedRegionAcceptanceVerify")
+}
+
 tasks.register("waveC1ResolvePinnedMods") {
     group = "verification"
     description = "Resolve the exact optional-mod artifacts used by the Wave C1 development runs through ModDevGradle resolvable legacy classpaths."
@@ -5141,11 +6384,11 @@ tasks.register("sfImp0070PerformanceVerify") {
             "perf.terrain.realize.totalNanos",
             "perf.terrain.noCandidatePrefilter.totalNanos",
             "perf.terrain.plannedDirectProjectionSkipped.totalNanos",
-            "perf.terrain.realizeDeferred.totalNanos",
+            "perf.terrain.realizeDeferredPacket.totalNanos",
             "perf.terrain.deferred.materialize.totalNanos",
             "perf.terrain.deferred.adaptSurface.totalNanos",
             "perf.terrain.deferred.solidCount.totalNanos",
-            "perf.terrain.deferred.write.totalNanos",
+            "perf.terrain.deferred.writePacket.totalNanos",
             "perf.terrain.deferred.completeCatchup.totalNanos",
             "perf.surfacePopulation.coordinator.totalNanos",
             "perf.surfacePopulation.findSurface.totalNanos",
@@ -5214,24 +6457,61 @@ tasks.register("sfImp0070PerformanceVerify") {
                 "samples=$deferredVerticalSamples, total=$deferredVerticalTotal, max=$deferredVerticalMax"
         }
 
-        val deferredSubphases = listOf(
-            "materialize",
-            "adaptSurface",
-            "solidCount",
-            "write",
-            "completeCatchup",
-        )
-        for (subphase in deferredSubphases) {
-            val calls = properties.getProperty("perf.terrain.deferred.$subphase.calls").toLong()
-            check(calls == 390L) {
-                "SF-IMP-0077 deferred subphase call count changed: subphase=$subphase, calls=$calls"
-            }
-        }
+        val deferredOneTimeSubphases = listOf(
+    "materialize",
+    "adaptSurface",
+    "solidCount",
+    "completeCatchup",
+)
+for (subphase in deferredOneTimeSubphases) {
+    val calls = properties.getProperty("perf.terrain.deferred.$subphase.calls").toLong()
+    check(calls == 390L) {
+        "SF-IMP-0077 deferred one-time subphase call count changed: subphase=$subphase, calls=$calls"
+    }
+}
 
-        val deferredSubphaseSummary = deferredSubphases.joinToString(",") { subphase ->
-            val totalNanos = properties.getProperty("perf.terrain.deferred.$subphase.totalNanos").toLong()
-            "$subphase=" + (totalNanos / 1_000_000.0) + "ms"
-        }
+val deferredWritePacketCalls = properties.getProperty("perf.terrain.deferred.writePacket.calls").toLong()
+val deferredPacketCalls = properties.getProperty("perf.terrain.realizeDeferredPacket.calls").toLong()
+check(deferredWritePacketCalls > 390L && deferredPacketCalls == deferredWritePacketCalls) {
+    "SF-IMP-0071 packet call accounting changed: writePackets=$deferredWritePacketCalls, quanta=$deferredPacketCalls"
+}
+
+val packetWallSamples = properties.getProperty("perf.terrain.deferred.packetWallNanos.samples").toLong()
+val packetWallP50 = properties.getProperty("perf.terrain.deferred.packetWallNanos.p50").toLong()
+val packetWallP95 = properties.getProperty("perf.terrain.deferred.packetWallNanos.p95").toLong()
+val packetWallP99 = properties.getProperty("perf.terrain.deferred.packetWallNanos.p99").toLong()
+val packetWallMax = properties.getProperty("perf.terrain.deferred.packetWallNanos.max").toLong()
+val packetWallMaxTargetNanos = System.getenv("SKYFORGE_SF_IMP_0071_PACKET_MAX_NANOS")?.toLongOrNull() ?: if (Runtime.getRuntime().availableProcessors() >= 4) 16_000_000L else 50_000_000L
+check(packetWallMaxTargetNanos > 0L) { "SF-IMP-0071 packet wall-time target must be positive: target=$packetWallMaxTargetNanos" }
+check(packetWallSamples == deferredWritePacketCalls
+        && packetWallP50 > 0L
+        && packetWallP50 <= packetWallP95
+        && packetWallP95 <= packetWallP99
+        && packetWallP99 <= packetWallMax
+        && packetWallMax < packetWallMaxTargetNanos) {
+    "SF-IMP-0071 packet wall-time gate failed: samples=$packetWallSamples, p50=$packetWallP50, " +
+        "p95=$packetWallP95, p99=$packetWallP99, max=$packetWallMax, target=$packetWallMaxTargetNanos"
+}
+
+val packetAssignedSamples = properties.getProperty("perf.terrain.deferred.packetAssignedSolidWrites.samples").toLong()
+val packetAssignedTotal = properties.getProperty("perf.terrain.deferred.packetAssignedSolidWrites.total").toLong()
+val packetAssignedMax = properties.getProperty("perf.terrain.deferred.packetAssignedSolidWrites.max").toLong()
+val expectedSolidSamples = properties.getProperty("perf.terrain.deferred.expectedSolidBlocks.samples").toLong()
+val expectedSolidTotal = properties.getProperty("perf.terrain.deferred.expectedSolidBlocks.total").toLong()
+check(packetAssignedSamples == deferredWritePacketCalls
+        && packetAssignedMax <= 1024L
+        && expectedSolidSamples == 390L
+        && packetAssignedTotal == expectedSolidTotal) {
+    "SF-IMP-0071 packet block accounting failed: packetSamples=$packetAssignedSamples, " +
+        "packetTotal=$packetAssignedTotal, packetMax=$packetAssignedMax, " +
+        "expectedSamples=$expectedSolidSamples, expectedTotal=$expectedSolidTotal"
+}
+
+val deferredSubphases = deferredOneTimeSubphases + "writePacket"
+val deferredSubphaseSummary = deferredSubphases.joinToString(",") { subphase ->
+    val totalNanos = properties.getProperty("perf.terrain.deferred.$subphase.totalNanos").toLong()
+    "$subphase=" + (totalNanos / 1_000_000.0) + "ms"
+}
 
         val terrainRealizeCalls = properties.getProperty("perf.terrain.realize.calls").toLong()
         val plannedProjectionSkips =
@@ -5935,4 +7215,121 @@ tasks.register("productionMorphologyAtlasViewerVerify") {
     group = "verification"
     description = "Actual-client persistence verification for all four remaining morphology carriers."
     dependsOn(skyforgeProductionMorphologyAtlasViewerTasks)
+}
+
+// DR-30 production native-structure runtime qualification. This boots real NeoForge server
+// processes and persists/reopens a disposable world, so it stays outside ordinary unit CI.
+val dr30NativeStructureResultDirectory = layout.buildDirectory.dir("acceptance/dr-30-native-structure")
+val dr30NativeStructureServerProperties = """
+    level-name=acceptance
+    level-seed=493030
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=5
+    simulation-distance=5
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareDr30NativeStructureServerDirectory(relativePath: String, stacked: Boolean = false) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(dr30NativeStructureServerProperties)
+    if (stacked) {
+        val pack = directory.resolve("saves/acceptance/datapacks/dr30-stacked-probe")
+        pack.resolve("data/skyforge/worldgen/structure_set").mkdirs()
+        pack.resolve("data/minecraft/tags/worldgen/biome/has_structure").mkdirs()
+        pack.resolve("pack.mcmeta").writeText(
+            """{"pack":{"pack_format":48,"description":"Skyforge DR-30 stacked native-structure probe"}}"""
+        )
+        // With level-seed 493030, spacing 512 / separation 510 and salt 493082
+        // deterministically select random-spread offset (1,0) in placement region (0,0).
+        // The existing development mansion set retains the lower probe at (0,0).
+        pack.resolve("data/skyforge/worldgen/structure_set/dr30_upper_mansion.json").writeText(
+            """
+            {
+              "placement": {
+                "type": "minecraft:random_spread",
+                "salt": 493082,
+                "separation": 510,
+                "spacing": 512
+              },
+              "structures": [
+                {
+                  "structure": "minecraft:mansion",
+                  "weight": 1
+                }
+              ]
+            }
+            """.trimIndent() + "\n"
+        )
+    }
+}
+
+fun requireDr30NativeStructurePass(name: String): Properties {
+    val file = dr30NativeStructureResultDirectory.get().file("$name.properties").asFile
+    check(file.isFile) { "missing DR-30 native-structure acceptance result: $file" }
+    val properties = Properties().also { result -> file.inputStream().use(result::load) }
+    check(properties.getProperty("status") == "PASS") {
+        "DR-30 native-structure case $name did not PASS: $properties"
+    }
+    return properties
+}
+
+tasks.named("runDr30NativeStructureAcceptancePlace").configure {
+    notCompatibleWithConfigurationCache("DR-30 qualification owns a disposable persisted server world.")
+    doFirst {
+        delete(dr30NativeStructureResultDirectory)
+        prepareDr30NativeStructureServerDirectory("run-dr30-native-structure")
+    }
+    doLast { requireDr30NativeStructurePass("place") }
+}
+
+tasks.named("runDr30NativeStructureAcceptanceReload").configure {
+    notCompatibleWithConfigurationCache("DR-30 qualification reopens the prior server world.")
+    mustRunAfter("runDr30NativeStructureAcceptancePlace")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-dr30-native-structure").asFile
+        check(directory.resolve("saves/acceptance/level.dat").isFile) {
+            "DR-30 placement world is missing before reload"
+        }
+    }
+    doLast { requireDr30NativeStructurePass("reload") }
+}
+
+tasks.named("runDr30NativeStructureAcceptanceStacked").configure {
+    notCompatibleWithConfigurationCache("DR-30 stacked qualification owns a disposable server world.")
+    mustRunAfter("runDr30NativeStructureAcceptanceReload")
+    doFirst { prepareDr30NativeStructureServerDirectory("run-dr30-native-structure-stacked", stacked = true) }
+    doLast { requireDr30NativeStructurePass("stacked") }
+}
+
+tasks.register("dr30NativeStructureAcceptance") {
+    group = "verification"
+    description = "Qualify DR-30 native placement, reload mutation preservation, and stacked exact-volume identity."
+    dependsOn(
+        "runDr30NativeStructureAcceptancePlace",
+        "runDr30NativeStructureAcceptanceReload",
+        "runDr30NativeStructureAcceptanceStacked",
+    )
+    doLast {
+        val place = requireDr30NativeStructurePass("place")
+        val reload = requireDr30NativeStructurePass("reload")
+        val stacked = requireDr30NativeStructurePass("stacked")
+        check(place.getProperty("physicalStructureBlockObserved") == "true")
+        check(reload.getProperty("mutationPreserved") == "true")
+        check(reload.getProperty("secondProcessingDisposition") == "SKIP_COMPLETED_IDENTITY")
+        check(reload.getProperty("mutationX") == place.getProperty("mutationX"))
+        check(reload.getProperty("mutationY") == place.getProperty("mutationY"))
+        check(reload.getProperty("mutationZ") == place.getProperty("mutationZ"))
+        check(stacked.getProperty("exactVolumeIdentitiesDistinct") == "true")
+        check(stacked.getProperty("physicalPlacementsDistinct") == "true")
+        check(stacked.getProperty("lowerStructureMinY") != stacked.getProperty("upperStructureMinY"))
+        println("DR-30 NATIVE STRUCTURE ACCEPTANCE PASS: placement + reload mutation + stacked exact-volume identity")
+    }
 }

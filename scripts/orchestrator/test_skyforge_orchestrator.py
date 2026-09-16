@@ -1362,12 +1362,105 @@ class DurableStateTests(unittest.TestCase):
                     )
                 )
 
-            args = run.call_args.args[0]
-            self.assertEqual(args[:4], ["gh", "issue", "comment", "387"])
+            comment_calls = [
+                call.args[0]
+                for call in run.call_args_list
+                if call.args and call.args[0][:4] == ["gh", "issue", "comment", "387"]
+            ]
+            self.assertEqual(len(comment_calls), 1)
+            args = comment_calls[0]
             self.assertIn("TASK_NO_CHANGE", args[-1])
             self.assertIn("not task acceptance", args[-1])
             self.assertIn("exact compatible artifact is unavailable", args[-1])
             self.assertEqual(o.state.data["metrics"].get("task_no_change_handoffs"), 1)
+
+    def test_task_no_change_blocker_clears_only_after_authority_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            with (
+                mock.patch.object(
+                    o,
+                    "_task_authority_fingerprint",
+                    side_effect=["authority-a", "authority-a", "authority-b"],
+                ),
+                mock.patch.object(o, "_task_blocking_dependency_issues", return_value=[]),
+            ):
+                o._record_task_no_change_blocker(493, "Missing concrete authority.")
+                self.assertTrue(o._task_no_change_blocker_unchanged(493))
+                self.assertFalse(o._task_no_change_blocker_unchanged(493))
+
+            self.assertNotIn("493", o.state.data.get("task_no_change_blockers") or {})
+            self.assertEqual(
+                o.state.data["metrics"].get("task_no_change_blockers_recorded"),
+                1,
+            )
+            self.assertEqual(
+                o.state.data["metrics"].get("task_no_change_blockers_invalidated"),
+                1,
+            )
+
+    def test_task_no_change_dependency_stays_blocked_despite_authority_churn(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.state.data["task_no_change_blockers"] = {
+                "493": {"authority_fingerprint": "authority-a", "summary": "blocked"}
+            }
+            with (
+                mock.patch.object(o, "_task_blocking_dependency_issues", return_value=[650]),
+                mock.patch.object(o, "_task_dependency_issue_open", return_value=True),
+                mock.patch.object(o, "_task_authority_fingerprint", return_value="authority-b") as fp,
+            ):
+                self.assertTrue(o._task_no_change_blocker_unchanged(493))
+            fp.assert_not_called()
+            record = o.state.data["task_no_change_blockers"]["493"]
+            self.assertEqual(record["blocked_on_issues"], [650])
+            self.assertEqual(
+                o.state.data["metrics"].get("task_dependency_redispatch_suppressed"), 1
+            )
+
+    def test_task_no_change_dependency_closure_invalidates_without_comment_churn(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.state.data["task_no_change_blockers"] = {
+                "493": {"authority_fingerprint": "authority-a", "summary": "blocked"}
+            }
+            with (
+                mock.patch.object(o, "_task_blocking_dependency_issues", return_value=[650]),
+                mock.patch.object(o, "_task_dependency_issue_open", return_value=False),
+                mock.patch.object(o, "_task_authority_fingerprint", return_value="authority-a") as fp,
+            ):
+                self.assertFalse(o._task_no_change_blocker_unchanged(493))
+            fp.assert_not_called()
+            self.assertNotIn("493", o.state.data.get("task_no_change_blockers") or {})
+            self.assertEqual(
+                o.state.data["metrics"].get("task_no_change_blockers_invalidated_by_dependency"), 1
+            )
+
+    def test_task_no_change_dependency_lookup_failure_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            o.state.data["task_no_change_blockers"] = {
+                "493": {"authority_fingerprint": "authority-a", "summary": "blocked"}
+            }
+            with (
+                mock.patch.object(o, "_task_blocking_dependency_issues", return_value=[650]),
+                mock.patch.object(o, "_task_dependency_issue_open", return_value=None),
+            ):
+                self.assertTrue(o._task_no_change_blocker_unchanged(493))
+            self.assertIn("493", o.state.data.get("task_no_change_blockers") or {})
+            self.assertEqual(o.state.data["metrics"].get("task_dependency_lookup_errors"), 1)
+
+    def test_blocked_on_issue_marker_parser_is_exact(self):
+        self.assertEqual(
+            orch.Orchestrator._blocked_on_issue_markers(
+                "AUDIT — BLOCKED DEPENDENCY\nBLOCKED_ON_ISSUE: #650\nblocked_on_issue: #651"
+            ),
+            [650, 651],
+        )
+        self.assertEqual(
+            orch.Orchestrator._blocked_on_issue_markers("mentioned #650 but no marker"),
+            [],
+        )
 
     def test_non_task_no_change_does_not_post_task_handoff(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -3392,6 +3485,41 @@ class WorkerWorktreeIsolationTests(unittest.TestCase):
                 1,
             )
 
+    def test_snapshot_retires_closed_managed_pr_before_classifier_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_repository(pathlib.Path(tmp))
+            o = self.make_orchestrator(root)
+            o.state.data["managed"] = {
+                "Implementation": {
+                    "branch": "codex/implementation-task-493-old",
+                    "pr_number": 624,
+                    "authority_issue": 493,
+                    "authority_key": "task:493",
+                }
+            }
+            o.state.save()
+
+            with mock.patch.object(
+                orch,
+                "_json_cmd",
+                side_effect=[
+                    [],  # open PR snapshot
+                    [],  # workflow snapshot
+                    {
+                        "state": "CLOSED",
+                        "headRefName": "codex/implementation-task-493-old",
+                    },
+                ],
+            ):
+                snapshot = o.snapshot()
+
+            self.assertEqual(snapshot["controller_managed"], {})
+            self.assertNotIn("Implementation", o.state.data["managed"])
+            self.assertEqual(
+                o.state.data["metrics"].get("stale_managed_records_retired"),
+                1,
+            )
+
     def test_open_managed_pr_record_remains_reusable(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.make_repository(pathlib.Path(tmp))
@@ -3432,6 +3560,33 @@ class WorkerWorktreeIsolationTests(unittest.TestCase):
                 self.assertTrue(o._worktree_clean(worktree))
             finally:
                 o._retire_worker_worktree(worktree)
+
+    def test_prepare_worker_repair_starts_from_exact_source_pr_head(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_repository(pathlib.Path(tmp))
+            o = self.make_orchestrator(root)
+            worker = root / "repair-worker"
+            source_head = "a" * 40
+
+            with (
+                mock.patch.object(o, "_validated_managed_branch", return_value=None),
+                mock.patch.object(
+                    orch,
+                    "_json_cmd",
+                    return_value={
+                        "headRefName": "codex/source-pr",
+                        "headRefOid": source_head,
+                        "state": "OPEN",
+                    },
+                ),
+                mock.patch.object(orch, "_run", return_value=orch.subprocess.CompletedProcess([], 0, "", "")),
+                mock.patch.object(o, "_ensure_worker_worktree", return_value=worker) as ensure_worktree,
+            ):
+                branch, managed_pr, worktree = o._prepare_worker_branch("Implementation", 569)
+
+            self.assertIsNone(managed_pr)
+            self.assertEqual(worktree, worker)
+            ensure_worktree.assert_called_once_with(branch, source_head)
 
     def test_pending_worker_records_isolated_worktree_for_restart(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -1,0 +1,32 @@
+{
+  "target": "minecraft-java-1.21.1",
+  "dataVersion": 3955,
+  "blocks": [
+    {"name":"minecraft:stone_bricks","properties":{},"defaults":{}},
+    {"name":"minecraft:dark_oak_log","properties":{"axis":["x","y","z"]},"defaults":{"axis":"y"}},
+    {"name":"minecraft:calcite","properties":{},"defaults":{}},
+    {"name":"minecraft:spruce_planks","properties":{},"defaults":{}},
+    {"name":"minecraft:deepslate_tiles","properties":{},"defaults":{}},
+    {"name":"minecraft:deepslate_tile_stairs","properties":{"facing":["east","north","south","west"],"half":["bottom","top"],"shape":["inner_left","inner_right","outer_left","outer_right","straight"],"waterlogged":["false","true"]},"defaults":{"facing":"north","half":"bottom","shape":"straight","waterlogged":"false"}},
+    {"name":"minecraft:deepslate_tile_slab","properties":{"type":["bottom","double","top"],"waterlogged":["false","true"]},"defaults":{"type":"bottom","waterlogged":"false"}},
+    {"name":"minecraft:glass_pane","properties":{"east":["false","true"],"north":["false","true"],"south":["false","true"],"waterlogged":["false","true"],"west":["false","true"]},"defaults":{"east":"false","north":"false","south":"false","waterlogged":"false","west":"false"}},
+    {"name":"minecraft:spruce_door","properties":{"facing":["east","north","south","west"],"half":["lower","upper"],"hinge":["left","right"],"open":["false","true"],"powered":["false","true"]},"defaults":{"facing":"north","half":"lower","hinge":"left","open":"false","powered":"false"}},
+    {"name":"minecraft:dark_oak_door","properties":{"facing":["east","north","south","west"],"half":["lower","upper"],"hinge":["left","right"],"open":["false","true"],"powered":["false","true"]},"defaults":{"facing":"north","half":"lower","hinge":"left","open":"false","powered":"false"}},
+    {"name":"minecraft:polished_andesite","properties":{},"defaults":{}},
+    {"name":"minecraft:lantern","properties":{"hanging":["false","true"],"waterlogged":["false","true"]},"defaults":{"hanging":"false","waterlogged":"false"}},
+    {"name":"minecraft:blue_wool","properties":{},"defaults":{}},
+    {"name":"minecraft:yellow_terracotta","properties":{},"defaults":{}},
+    {"name":"minecraft:dark_oak_slab","properties":{"type":["bottom","double","top"],"waterlogged":["false","true"]},"defaults":{"type":"bottom","waterlogged":"false"}},
+    {"name":"minecraft:spruce_slab","properties":{"type":["bottom","double","top"],"waterlogged":["false","true"]},"defaults":{"type":"bottom","waterlogged":"false"}},
+    {"name":"minecraft:bookshelf","properties":{},"defaults":{}},
+    {"name":"minecraft:dark_oak_planks","properties":{},"defaults":{}},
+    {"name":"minecraft:barrel","properties":{"facing":["down","east","north","south","up","west"],"open":["false","true"]},"defaults":{"facing":"north","open":"false"}},
+    {"name":"minecraft:smithing_table","properties":{},"defaults":{}},
+    {"name":"minecraft:chest","properties":{"facing":["east","north","south","west"],"type":["left","right","single"],"waterlogged":["false","true"]},"defaults":{"facing":"north","type":"single","waterlogged":"false"}},
+    {"name":"minecraft:stone_brick_slab","properties":{"type":["bottom","double","top"],"waterlogged":["false","true"]},"defaults":{"type":"bottom","waterlogged":"false"}},
+    {"name":"minecraft:dark_oak_fence","properties":{"east":["false","true"],"north":["false","true"],"south":["false","true"],"waterlogged":["false","true"],"west":["false","true"]},"defaults":{"east":"false","north":"false","south":"false","waterlogged":"false","west":"false"}},
+    {"name":"minecraft:polished_diorite","properties":{},"defaults":{}},
+    {"name":"minecraft:blue_carpet","properties":{},"defaults":{}},
+    {"name":"minecraft:lightning_rod","properties":{"facing":["down","east","north","south","up","west"],"powered":["false","true"],"waterlogged":["false","true"]},"defaults":{"facing":"up","powered":"false","waterlogged":"false"}}
+  ]
+}

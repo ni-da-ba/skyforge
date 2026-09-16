@@ -9,8 +9,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import net.minecraft.core.Holder;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.core.SectionPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelHeightAccessor;
@@ -19,10 +22,15 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.RandomState;
+import net.minecraft.world.level.levelgen.RandomSupport;
+import net.minecraft.world.level.levelgen.WorldgenRandom;
+import net.minecraft.world.level.levelgen.XoroshiroRandomSource;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructurePiece;
@@ -90,6 +98,138 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
     }
 
     /**
+     * Invokes Minecraft's native structure-start lifecycle for one already-admitted exact volume.
+     *
+     * <p>This is deliberately a package-visible adapter instead of an override of
+     * {@link ChunkGenerator#createStructures}. BASE_WORLD therefore keeps Minecraft's ordinary
+     * lifecycle unchanged. The inherited lifecycle retains structure-set selection, weighted
+     * fallback, start construction, and its calls to this generator's
+     * {@link #tryGenerateStructure(StructureSet.StructureSelectionEntry, StructureManager,
+     * RegistryAccess, RandomState, StructureTemplateManager, long, ChunkAccess, ChunkPos,
+     * SectionPos)} admission/support/accommodation override.
+     *
+     * <p>Callers must invoke this after exact terrain realization and before downstream
+     * population. This seam intentionally records neither placement completion nor mutation
+     * policy; DR-30 remains responsible for those later lifecycle concerns.
+     */
+    void createStructuresForExactSkyforgeVolume(
+            RegistryAccess registryAccess,
+            ChunkGeneratorStructureState structureState,
+            StructureManager structureManager,
+            ChunkAccess chunk,
+            StructureTemplateManager structureTemplateManager,
+            SkyIslandWorldVolumeId volumeId) {
+        java.util.Objects.requireNonNull(registryAccess, "registryAccess");
+        java.util.Objects.requireNonNull(structureState, "structureState");
+        java.util.Objects.requireNonNull(structureManager, "structureManager");
+        java.util.Objects.requireNonNull(chunk, "chunk");
+        java.util.Objects.requireNonNull(structureTemplateManager, "structureTemplateManager");
+        java.util.Objects.requireNonNull(volumeId, "volumeId");
+
+        SkyforgeGenerationDomainStage.requireExactIslandVolume(volumeId);
+        SkyforgeNeoForge1211SurfaceStage.requireCandidateVolume(volumeId, chunk);
+        if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(volumeId)) {
+            throw new IllegalStateException(
+                    "native structure lifecycle requires an admitted exact Skyforge volume");
+        }
+        SkyforgeStructureCandidateStage.requireInactive();
+
+        super.createStructures(
+                registryAccess,
+                structureState,
+                structureManager,
+                chunk,
+                structureTemplateManager);
+    }
+
+    /**
+     * Places one already-created native start after exact Skyforge terrain realization.
+     *
+     * <p>This is the placement half of the bounded post-admission structure lifecycle. It does not
+     * replay biome decoration or rediscover/select starts. Minecraft retains piece placement through
+     * {@link StructureStart#placeInChunk}; Skyforge supplies only the exact-volume write fence, the
+     * same structure-step random seed vanilla decoration would use, and the target-chunk writable
+     * area. Completion/idempotence remains a caller-owned DR-30 concern.
+     */
+    void placeStructureStartForExactSkyforgeVolume(
+            WorldGenLevel level,
+            ChunkAccess chunk,
+            StructureManager structureManager,
+            StructureStart start,
+            SkyIslandWorldVolumeId volumeId) {
+        java.util.Objects.requireNonNull(level, "level");
+        java.util.Objects.requireNonNull(chunk, "chunk");
+        java.util.Objects.requireNonNull(structureManager, "structureManager");
+        java.util.Objects.requireNonNull(start, "start");
+        java.util.Objects.requireNonNull(volumeId, "volumeId");
+        if (!start.isValid()) {
+            throw new IllegalArgumentException("native structure placement requires a valid StructureStart");
+        }
+
+        SkyforgeGenerationDomainStage.requireExactIslandVolume(volumeId);
+        SkyforgeNeoForge1211SurfaceStage.requireCandidateVolume(volumeId, chunk);
+        if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(volumeId)) {
+            throw new IllegalStateException(
+                    "native structure placement requires an admitted exact Skyforge volume");
+        }
+        BoundingBox writableArea = writableArea(chunk);
+        if (!start.getBoundingBox().intersects(writableArea)) {
+            throw new IllegalArgumentException(
+                    "native structure start does not intersect its target chunk writable area");
+        }
+
+        var structureRegistry = level.registryAccess().registryOrThrow(Registries.STRUCTURE);
+        List<Structure> stepStructures = structureRegistry.stream()
+                .filter(structure -> structure.step() == start.getStructure().step())
+                .toList();
+        int structureIndex = stepStructures.indexOf(start.getStructure());
+        if (structureIndex < 0) {
+            throw new IllegalStateException("native structure start is not registered in its generation step");
+        }
+
+        SectionPos sectionPos = SectionPos.of(chunk.getPos(), level.getMinSection());
+        BlockPos origin = sectionPos.origin();
+        WorldgenRandom random = new WorldgenRandom(new XoroshiroRandomSource(RandomSupport.generateUniqueSeed()));
+        long decorationSeed = random.setDecorationSeed(level.getSeed(), origin.getX(), origin.getZ());
+        random.setFeatureSeed(decorationSeed, structureIndex, start.getStructure().step().ordinal());
+
+        SkyforgeDeferredPopulationPostProcessingBridge.Scope postProcessing = null;
+        if (level instanceof ServerLevel serverLevel && chunk instanceof LevelChunk levelChunk) {
+            if (levelChunk.getLevel() != serverLevel) {
+                throw new IllegalArgumentException("stable native structure target belongs to another level");
+            }
+            postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(serverLevel);
+        }
+        var placement = SkyforgeStructurePlacementExecutionStage.open(volumeId, start.getBoundingBox());
+        try {
+            level.setCurrentlyGenerating(() -> "Skyforge exact-volume structure "
+                    + structureRegistry.getKey(start.getStructure()));
+            start.placeInChunk(level, structureManager, this, random, writableArea, chunk.getPos());
+            SkyforgeDeferredPopulationPostProcessingBridge.flushIfActive();
+        } finally {
+            placement.close();
+            level.setCurrentlyGenerating(null);
+            if (postProcessing != null) {
+                postProcessing.close();
+            }
+        }
+    }
+
+    private static BoundingBox writableArea(ChunkAccess chunk) {
+        ChunkPos chunkPos = chunk.getPos();
+        int minX = chunkPos.getMinBlockX();
+        int minZ = chunkPos.getMinBlockZ();
+        LevelHeightAccessor height = chunk.getHeightAccessorForGeneration();
+        return new BoundingBox(
+                minX,
+                height.getMinBuildHeight() + 1,
+                minZ,
+                minX + 15,
+                height.getMaxBuildHeight() - 1,
+                minZ + 15);
+    }
+
+    /**
      * Wraps a native structure candidate only inside an explicit exact-island generation scope.
      *
      * <p>Ordinary base-world candidates delegate directly to vanilla and never see Skyforge height,
@@ -109,7 +249,11 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             ChunkPos chunkPos,
             SectionPos sectionPos) {
         var activeIslandVolumeId = SkyforgeGenerationDomainStage.activeIslandVolumeId();
+        Structure structure = structureSelectionEntry.structure().value();
         if (activeIslandVolumeId.isEmpty()) {
+            if (SkyforgeDr30NativeStructureAcceptance.suppressBaseWorldProbe(structure, chunkPos)) {
+                return false;
+            }
             return super.tryGenerateStructure(
                     structureSelectionEntry,
                     structureManager,
@@ -126,7 +270,10 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         }
 
         SkyIslandWorldVolumeId domainVolumeId = activeIslandVolumeId.orElseThrow();
-        Structure structure = structureSelectionEntry.structure().value();
+        if (!SkyforgeDr30NativeStructureAcceptance.allowsExactProbe(structure, chunkPos, domainVolumeId)) {
+            return false;
+        }
+        boolean dr30ProbeCandidate = SkyforgeDr30NativeStructureAcceptance.isProbeCandidate(structure, chunkPos);
         boolean accommodationProofCandidate = isAccommodationProofCandidate(structure, chunkPos);
         boolean undersideContradictionProofCandidate =
                 SkyforgeNeoForge1211UndersideContradictionDevRuntime.isProofCandidate(structure, chunkPos);
@@ -148,6 +295,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         }
 
         if (!generated || heightClaims.isEmpty()) {
+            if (dr30ProbeCandidate) {
+                throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "generated=" + generated + ", heightClaims=" + heightClaims.size());
+            }
             if (accommodationProofCandidate) {
                 throw new IllegalStateException(
                         "SF-IMP-0046 fixture invalid: forced origin mansion did not produce a Skyforge-height native start");
@@ -161,6 +315,10 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
 
         StructureStart start = chunk.getStartForStructure(structure);
         if (start == null || !start.isValid()) {
+            if (dr30ProbeCandidate) {
+                throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure, chunkPos, domainVolumeId, "native start missing or invalid");
+            }
             if (accommodationProofCandidate) {
                 throw new IllegalStateException(
                         "SF-IMP-0046 fixture invalid: forced origin mansion produced no valid StructureStart");
@@ -177,6 +335,14 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 .filter(claim -> claimResolvesSurfacePlane(start.getBoundingBox(), claim))
                 .toList();
         if (resolvedClaims.isEmpty()) {
+            if (dr30ProbeCandidate) {
+                throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "start did not resolve at claimed surface; bounds=" + start.getBoundingBox()
+                                + ", claims=" + heightClaims);
+            }
             if (accommodationProofCandidate) {
                 throw new IllegalStateException(
                         "SF-IMP-0046 fixture invalid: forced origin mansion did not resolve its start at the claimed "
@@ -193,6 +359,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         Set<SkyIslandWorldVolumeId> claimedVolumeIds = new LinkedHashSet<>();
         resolvedClaims.forEach(claim -> claimedVolumeIds.addAll(claim.volumeIds()));
         if (claimedVolumeIds.size() != 1 || !claimedVolumeIds.contains(domainVolumeId)) {
+            if (dr30ProbeCandidate) {
+                throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "resolved claims referenced volumes=" + claimedVolumeIds);
+            }
             chunk.setAllStarts(previousStarts);
             return false;
         }
@@ -211,6 +384,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 structureFloorY,
                 domainVolumeId);
         if (undersideContradiction.isPresent()) {
+            if (dr30ProbeCandidate) {
+                throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "underside contradiction=" + undersideContradiction.orElseThrow());
+            }
             if (undersideContradictionProofCandidate) {
                 SkyforgeNeoForge1211UndersideContradictionDevRuntime.recordRejected(
                         start.getBoundingBox(),
@@ -251,6 +431,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 .filter(assessment -> assessment.supportingVolumeId().equals(domainVolumeId))
                 .findFirst();
         if (foundationAssessment.isEmpty() || !foundationAssessment.orElseThrow().accepted()) {
+            if (dr30ProbeCandidate) {
+                throw SkyforgeDr30NativeStructureAcceptance.exactProbeFailure(
+                        structure,
+                        chunkPos,
+                        domainVolumeId,
+                        "natural support rejected and bounded foundation accommodation was not accepted");
+            }
             if (accommodationProofCandidate) {
                 SkyforgeNeoForge1211AccommodationDevRuntime.requireFoundationAcceptance(start.getBoundingBox());
             }

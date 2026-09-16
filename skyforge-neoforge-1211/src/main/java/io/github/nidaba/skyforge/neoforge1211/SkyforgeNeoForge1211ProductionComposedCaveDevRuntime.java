@@ -46,6 +46,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
     private static AutoCloseable persistentAdmissionBinding;
     private static AutoCloseable persistentPopulationBinding;
     private static AutoCloseable persistentComposedBinding;
+    private static AutoCloseable persistentInteriorBinding;
     private static SkyforgeComposedCaveStage.Snapshot initialSnapshot;
     private static int previousPending = Integer.MAX_VALUE;
     private static int progressObservationTicks;
@@ -62,32 +63,42 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                 || persistentTerrainBinding != null
                 || persistentAdmissionBinding != null
                 || persistentPopulationBinding != null
-                || persistentComposedBinding != null) {
+                || persistentComposedBinding != null
+                || persistentInteriorBinding != null) {
             return;
         }
         if (SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()
                 || SkyforgePhysicalVolumeAdmissionStage.active()
                 || SkyforgeNativeSurfacePopulationStage.hasActiveBinding()
-                || SkyforgeComposedCaveStage.active()) {
+                || SkyforgeComposedCaveStage.active()
+                || SkyforgeNativeInteriorPopulationStage.active()) {
             throw new IllegalStateException(
                     "SF-IMP-0068 production composed-cave proof requires isolated production bindings");
         }
 
         SkyIslandWorldVolume volume = FIXTURE.volume();
         SkyIslandWorldVolumeId volumeId = volume.id();
-        var biomeResolver = (SkyforgeExactVolumeBiomeResolver) (candidateId, x, y, z) -> {
-            if (!candidateId.equals(volumeId)) {
-                throw new IllegalArgumentException(
-                        "SF-IMP-0068 resolved unexpected volume " + candidateId.path());
-            }
-            return Biomes.TAIGA;
-        };
+        SkyforgeProductionEcologyResolver productionEcology =
+                (SkyforgeDr40ProductionEcologyEvidence.enabled() || SkyforgeDr50IntegratedRegionEvidence.enabled())
+                        ? SkyforgeDr40ProductionEcologyEvidence.resolver(FIXTURE)
+                        : null;
+        var biomeResolver = productionEcology != null
+                ? productionEcology
+                : (SkyforgeExactVolumeBiomeResolver) (candidateId, x, y, z) -> {
+                    if (!candidateId.equals(volumeId)) {
+                        throw new IllegalArgumentException(
+                                "SF-IMP-0068 resolved unexpected volume " + candidateId.path());
+                    }
+                    return Biomes.TAIGA;
+                };
 
+        var terrainAdapter = new SkyforgeNeoForge1211ChunkAdapter(
+                FIXTURE.catalog(),
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette(),
+                java.util.Map.of(FIXTURE.volume().id(), FIXTURE.descriptor()));
         persistentTerrainBinding = SkyforgeNeoForge1211SurfaceStage.installNativeSurfaceAdapted(
-                new SkyforgeNeoForge1211ChunkAdapter(
-                        FIXTURE.catalog(),
-                        io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
-                        new SkyforgeMinecraftBlockPalette()),
+                terrainAdapter,
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
         persistentAdmissionBinding = SkyforgePhysicalVolumeAdmissionStage.install(FIXTURE.catalog());
 
@@ -101,6 +112,10 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         : List.of());
         persistentComposedBinding = SkyforgeComposedCaveStage.install(
                 List.of(new SkyforgeComposedCavePlan(volume, FIXTURE.field())));
+        if (SkyforgeDr50IntegratedRegionEvidence.enabled()) {
+            persistentInteriorBinding = SkyforgeNativeInteriorPopulationStage.install(
+                    List.of(SkyforgeNativeInteriorPopulationPlan.acceptedNativeInterior(volumeId, 0)));
+        }
 
         initialSnapshot = SkyforgeComposedCaveStage.snapshot();
         if (initialSnapshot.totalObligations() != plannedChunks.size()
@@ -161,7 +176,11 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         var admission = SkyforgePhysicalVolumeAdmissionStage.snapshot(volumeId);
         if (admission.state() != SkyforgePhysicalVolumeAdmissionState.ADMITTED
                 || !SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId).isEmpty()
-                || stage.pendingObligations() != 0) {
+                || stage.pendingObligations() != 0
+                || ((SkyforgeDr40ProductionEcologyEvidence.enabled() || SkyforgeDr50IntegratedRegionEvidence.enabled())
+                        && !SkyforgePhysicalVolumeAdmissionStage.pendingBiomePresentationChunks(volumeId).isEmpty())
+                || (SkyforgeDr50IntegratedRegionEvidence.enabled()
+                        && SkyforgeNativeInteriorPopulationStage.snapshot(volumeId).pendingObligations() != 0)) {
             return;
         }
         if (stage.totalObligations() != admission.requiredChunks()
@@ -243,6 +262,12 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         }
 
         FinalEvidence finalEvidence = verifyFinalUnion(level, volume, chunks);
+        int authoredDownstreamOccupied = Math.subtractExact(authoredPositive, finalEvidence.finalAuthoredAir());
+        boolean finalAuthoredTopologyValid = SkyforgeDr50IntegratedRegionEvidence.enabled()
+                ? finalEvidence.finalAuthoredAir() > 0
+                        && finalEvidence.finalAuthoredAir() <= authoredPositive
+                        && authoredDownstreamOccupied >= 0
+                : finalEvidence.finalAuthoredAir() == authoredPositive;
         if (resultChunks <= 0
                 || nativeChangedBlocks <= 0
                 || nativeSuccessfulCalls <= 0
@@ -253,7 +278,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                 || authoredExposurePositive <= 0
                 || authoredUnsafe != 0
                 || finalEvidence.authoredPositive() != authoredPositive
-                || finalEvidence.finalAuthoredAir() != authoredPositive
+                || !finalAuthoredTopologyValid
                 || finalEvidence.nativeOnlyAir() <= 0
                 || finalEvidence.nativeOnlySample() == null
                 || finalEvidence.baseCaveSample() == null
@@ -325,8 +350,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         + ", noReplay=true, monotonicPending=true"
                         + ", composedDigest=" + composedDigestText + ".");
 
-        SkyforgeAutomatedAcceptanceHarness.completeServerCase(
-                level.getServer(),
+        java.util.Map<String, Object> acceptanceEvidence = new java.util.LinkedHashMap<>(
                 java.util.Map.ofEntries(
                         java.util.Map.entry("islandKey", FIXTURE.islandKey()),
                         java.util.Map.entry("nativeBiome", "minecraft:taiga"),
@@ -353,6 +377,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         java.util.Map.entry("authoredChangedDigest", authoredChangedDigestText),
                         java.util.Map.entry("authoredProvenanceDigest", authoredProvenanceDigestText),
                         java.util.Map.entry("finalAuthoredAir", finalEvidence.finalAuthoredAir()),
+                        java.util.Map.entry("authoredDownstreamOccupied", authoredDownstreamOccupied),
                         java.util.Map.entry("nativeOnlyPos", Long.toString(finalEvidence.nativeOnlySample().asLong())),
                         java.util.Map.entry("mouthPos", Long.toString(mouth.asLong())),
                         java.util.Map.entry("outwardPos", Long.toString(outward.asLong())),
@@ -363,6 +388,34 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         java.util.Map.entry("monotonicPending", true),
                         java.util.Map.entry("noReplay", true),
                         java.util.Map.entry("productionStage", true)));
+        if (SkyforgeDr40ProductionEcologyEvidence.enabled() || SkyforgeDr50IntegratedRegionEvidence.enabled()) {
+            var terrainAdapter = new SkyforgeNeoForge1211ChunkAdapter(
+                    FIXTURE.catalog(),
+                    io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                    new SkyforgeMinecraftBlockPalette(),
+                    java.util.Map.of(FIXTURE.volume().id(), FIXTURE.descriptor()));
+            acceptanceEvidence.putAll(SkyforgeDr40ProductionEcologyEvidence.collect(
+                    level,
+                    FIXTURE,
+                    SkyforgeDr40ProductionEcologyEvidence.resolver(FIXTURE),
+                    terrainAdapter,
+                    SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(volumeId)));
+            acceptanceEvidence.put("nativeBiome", "authored-production-ecology");
+            if (SkyforgeDr50IntegratedRegionEvidence.enabled()) {
+                acceptanceEvidence.putAll(SkyforgeDr50IntegratedRegionEvidence.collect(
+                        level,
+                        FIXTURE,
+                        terrainAdapter,
+                        SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(volumeId),
+                        nativeTransformDigestText,
+                        nativeCarveDigestText,
+                        authoredChangedDigestText,
+                        authoredProvenanceDigestText));
+            }
+        }
+        SkyforgeAutomatedAcceptanceHarness.completeServerCase(
+                level.getServer(),
+                acceptanceEvidence);
     }
 
     private static List<LevelChunk> loadedChunks(

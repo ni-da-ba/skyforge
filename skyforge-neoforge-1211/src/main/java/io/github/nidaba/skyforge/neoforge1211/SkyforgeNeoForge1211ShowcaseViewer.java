@@ -138,7 +138,9 @@ final class SkyforgeNeoForge1211ShowcaseViewer {
 
     @SubscribeEvent
     static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-        if (!enabled() || !(event.getEntity() instanceof ServerPlayer player)) {
+        if (!enabled()
+                || SkyforgeClientExplorationBenchmark.enabled()
+                || !(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
         move(player, PANORAMA);
@@ -178,6 +180,7 @@ final class SkyforgeNeoForge1211ShowcaseViewer {
     @SubscribeEvent
     static void onServerTick(ServerTickEvent.Post event) {
         if (!enabled()
+                || SkyforgeClientExplorationBenchmark.enabled()
                 || !SkyforgeAutomatedAcceptanceHarness.clientMode()
                 || acceptanceServerProofComplete) {
             return;

@@ -57,6 +57,19 @@ final class SkyforgeNativeInteriorPlacementPolicyTest {
     }
 
     @Test
+    void surfaceEcologyPreservesExistingVisibleWaterBlockAuthority() {
+        var vegetation = operation(GenerationStep.Decoration.VEGETAL_DECORATION);
+        var ores = operation(GenerationStep.Decoration.UNDERGROUND_ORES);
+
+        assertFalse(SkyforgeNativeInteriorPlacementPolicy.allowsExistingVisibleWaterReplacement(
+                vegetation, Blocks.WATER.defaultBlockState(), Blocks.OAK_LEAVES.defaultBlockState()));
+        assertTrue(SkyforgeNativeInteriorPlacementPolicy.allowsExistingVisibleWaterReplacement(
+                vegetation, Blocks.STONE.defaultBlockState(), Blocks.OAK_LEAVES.defaultBlockState()));
+        assertTrue(SkyforgeNativeInteriorPlacementPolicy.allowsExistingVisibleWaterReplacement(
+                ores, Blocks.WATER.defaultBlockState(), Blocks.IRON_ORE.defaultBlockState()));
+    }
+
+    @Test
     void interiorOwnerCellRequiresAllSixCardinalNeighbors() {
         Predicate<BlockPos> solidCube = cubeOwner(0, 2);
 

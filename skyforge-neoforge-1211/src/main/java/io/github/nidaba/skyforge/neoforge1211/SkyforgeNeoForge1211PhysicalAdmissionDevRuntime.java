@@ -256,20 +256,30 @@ final class SkyforgeNeoForge1211PhysicalAdmissionDevRuntime {
         return new SkyIslandWorldCatalog(ROOT_SEED, List.of(lower, upper));
     }
 
-    private static CompiledSkyIslandVolume compileTableland(
+    static CompiledSkyIslandVolume compileTableland(
             long seed,
             double centerX,
             double centerZ,
             double elevation) {
+        return compileTableland(seed, centerX, centerZ, elevation, 32.0, 28.0);
+    }
+
+    static CompiledSkyIslandVolume compileTableland(
+            long seed,
+            double centerX,
+            double centerZ,
+            double elevation,
+            double radiusX,
+            double radiusZ) {
         var descriptor = new SkyIslandVolumeDescriptor(
                 SkyIslandVolumeDescriptor.SCHEMA_VERSION_1,
                 seed,
                 centerX,
                 centerZ,
                 elevation,
-                32.0,
+                radiusX,
                 12.0,
-                28.0,
+                radiusZ,
                 10.0,
                 0.0,
                 0.15,

@@ -155,6 +155,9 @@ final class SkyforgeNativeBiomePopulationRunner {
                 throw new IllegalStateException(
                         "biome generation settings contain a PlacedFeature absent from the final registry");
             }
+            if (!SkyforgeCreateUndergroundResourceAuthority.admits(featureKey, generationStep)) {
+                continue;
+            }
 
             var operation = SkyforgePopulationOperation.create(
                     volumeId,

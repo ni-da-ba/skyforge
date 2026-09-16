@@ -1,7 +1,6 @@
 package io.github.nidaba.skyforge.world;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandEcologyRegime;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -9,17 +8,13 @@ import java.util.Objects;
 /**
  * AUTH-0090 deterministic regional aggregation of exact AUTH-0089 island opportunity profiles.
  *
- * <p>The regional boundary is the accepted AUTH-0058 publication carried by the AUTH-0087 binding.
- * Values remain authored ecological planning evidence rather than backend population/resource policy.
+ * <p>The publication boundary remains mandatory. Area-weighted ecology math is shared with the
+ * AUTH-0103 explicit-association profile so publication and runtime-fixture consumers cannot drift.
  */
 public final class SkyIslandRegionalEcologicalOpportunityProfile {
     private final SkyIslandPublishedAuthoredRealizationBinding binding;
     private final List<SkyIslandRegionalEcologicalOpportunityEntry> islands;
-    private final double totalHorizontalOwnedAreaEstimate;
-    private final double meanVegetationPotential;
-    private final double meanSaturationPotential;
-    private final double meanThermalSuitability;
-    private final Map<SkyIslandEcologyRegime, Double> regimeFractions;
+    private final SkyIslandEcologicalOpportunityAggregation.Result aggregate;
 
     SkyIslandRegionalEcologicalOpportunityProfile(
             SkyIslandPublishedAuthoredRealizationBinding binding,
@@ -41,55 +36,7 @@ public final class SkyIslandRegionalEcologicalOpportunityProfile {
                         "regional ecology entries must preserve canonical AUTH-0087 association order");
             }
         }
-
-        double area = 0.0;
-        double vegetationArea = 0.0;
-        double saturationArea = 0.0;
-        double thermalArea = 0.0;
-        EnumMap<SkyIslandEcologyRegime, Double> regimeAreas =
-                new EnumMap<>(SkyIslandEcologyRegime.class);
-        for (SkyIslandEcologyRegime regime : SkyIslandEcologyRegime.values()) {
-            regimeAreas.put(regime, 0.0);
-        }
-
-        for (SkyIslandRegionalEcologicalOpportunityEntry entry : this.islands) {
-            SkyIslandEcologicalOpportunityProfile profile = entry.islandProfile();
-            double islandArea = profile.horizontalOwnedAreaEstimate();
-            area += islandArea;
-            vegetationArea += islandArea * profile.meanVegetationPotential();
-            saturationArea += islandArea * profile.meanSaturationPotential();
-            thermalArea += islandArea * profile.meanThermalSuitability();
-            for (SkyIslandEcologyRegime regime : SkyIslandEcologyRegime.values()) {
-                regimeAreas.put(
-                        regime,
-                        regimeAreas.get(regime)
-                                + islandArea * profile.regimeFraction(regime));
-            }
-        }
-
-        if (!Double.isFinite(area) || area <= 0.0) {
-            throw new IllegalArgumentException(
-                    "regional ecology profile requires positive finite authored habitat area");
-        }
-
-        this.totalHorizontalOwnedAreaEstimate = area;
-        this.meanVegetationPotential = clampUnit(vegetationArea / area);
-        this.meanSaturationPotential = clampUnit(saturationArea / area);
-        this.meanThermalSuitability = clampUnit(thermalArea / area);
-
-        EnumMap<SkyIslandEcologyRegime, Double> fractions =
-                new EnumMap<>(SkyIslandEcologyRegime.class);
-        double fractionSum = 0.0;
-        for (SkyIslandEcologyRegime regime : SkyIslandEcologyRegime.values()) {
-            double fraction = clampUnit(regimeAreas.get(regime) / area);
-            fractions.put(regime, fraction);
-            fractionSum += fraction;
-        }
-        if (Math.abs(fractionSum - 1.0) > 1.0e-12) {
-            throw new IllegalStateException(
-                    "area-weighted regional AUTH-0003 regime fractions must sum to one");
-        }
-        this.regimeFractions = Map.copyOf(fractions);
+        this.aggregate = SkyIslandEcologicalOpportunityAggregation.aggregate(this.islands);
     }
 
     public SkyIslandPublishedAuthoredRealizationBinding binding() {
@@ -114,34 +61,27 @@ public final class SkyIslandRegionalEcologicalOpportunityProfile {
     }
 
     public double totalHorizontalOwnedAreaEstimate() {
-        return totalHorizontalOwnedAreaEstimate;
+        return aggregate.totalHorizontalOwnedAreaEstimate();
     }
 
     public double meanVegetationPotential() {
-        return meanVegetationPotential;
+        return aggregate.meanVegetationPotential();
     }
 
     public double meanSaturationPotential() {
-        return meanSaturationPotential;
+        return aggregate.meanSaturationPotential();
     }
 
     public double meanThermalSuitability() {
-        return meanThermalSuitability;
+        return aggregate.meanThermalSuitability();
     }
 
     public Map<SkyIslandEcologyRegime, Double> regimeFractions() {
-        return regimeFractions;
+        return aggregate.regimeFractions();
     }
 
     public double regimeFraction(SkyIslandEcologyRegime regime) {
         Objects.requireNonNull(regime, "regime");
-        return regimeFractions.get(regime);
-    }
-
-    private static double clampUnit(double value) {
-        if (!Double.isFinite(value) || value < -1.0e-12 || value > 1.0 + 1.0e-12) {
-            throw new IllegalArgumentException("regional ecological aggregate escaped [0,1]");
-        }
-        return Math.max(0.0, Math.min(1.0, value));
+        return aggregate.regimeFractions().get(regime);
     }
 }
