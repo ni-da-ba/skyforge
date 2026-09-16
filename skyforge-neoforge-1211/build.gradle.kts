@@ -5345,7 +5345,8 @@ tasks.register("dr50IntegratedRegionAcceptanceVerify") {
             "dr50InteriorRejectedBoundaryWrites", "dr50InteriorDigest", "dr50Material",
             "dr50MaterialPos", "dr50StructureLifecycleInvoked", "dr50CanonicalCompletedStructures",
             "dr50CanonicalStructureDigest", "dr50StructureProofAuthority", "dr50StructurePersistenceAuthority",
-            "dr50PopulationOutcomeDigest", "dr50RegionDigest"
+            "dr50PopulationOutcomeDigest", "dr50FinalRequiredChunkNonAirBlocks",
+            "dr50FinalRequiredChunkBlockDigest", "dr50RegionDigest"
         )) {
             check(first.getProperty(key) == second.getProperty(key)) {
                 "DR-50 deterministic evidence changed for $key: A=${first.getProperty(key)} B=${second.getProperty(key)}"
@@ -5371,6 +5372,7 @@ tasks.register("dr50IntegratedRegionAcceptanceVerify") {
                 && first.getProperty("dr50StructureLifecycleInvoked") == "true"
                 && first.getProperty("dr50StructureProofAuthority") == "DR-30_NATIVE_STRUCTURE_ACCEPTANCE"
                 && first.getProperty("dr50StructurePersistenceAuthority") == "DR-30_NATIVE_STRUCTURE_ACCEPTANCE"
+                && first.getProperty("dr50FinalRequiredChunkNonAirBlocks").toLong() > 0L
                 && first.getProperty("dr50ExactVolumeIsolation") == "true"
                 && first.getProperty("dr50NoHydrologyMaterialCollision") == "true"
                 && first.getProperty("dr50NoStructureMaterialCollision") == "true"

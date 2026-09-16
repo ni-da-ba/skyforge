@@ -134,7 +134,34 @@ final class SkyforgeDr40ProductionEcologyEvidence {
         evidence.put("dr40PopulationReplayExecuted", false);
         evidence.put("dr40StructureBeforePopulation", true);
         evidence.put("dr40ForeignVolumeFailClosed", true);
+        if (SkyforgeDr50IntegratedRegionEvidence.enabled()) {
+            appendDr50PopulationDiagnostics(evidence, nativePhases);
+        }
         return Map.copyOf(evidence);
+    }
+
+    private static void appendDr50PopulationDiagnostics(
+            Map<String, Object> evidence,
+            java.util.List<SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase> phases) {
+        int phaseIndex = 0;
+        for (var phase : phases) {
+            var result = phase.nativeResult();
+            String prefix = "dr50DiagnosticSurfacePhase." + String.format("%03d", phaseIndex++);
+            evidence.put(prefix + ".chunk", Long.toString(phase.chunkKey()));
+            evidence.put(prefix + ".phase", phase.phase().name());
+            evidence.put(prefix + ".biome", result.biomeKey().location().toString());
+            evidence.put(prefix + ".attempted", result.attemptedFeatures());
+            evidence.put(prefix + ".successful", result.successfulFeatures());
+            evidence.put(prefix + ".attachments", result.attachmentWrites());
+            for (int featureIndex = 0; featureIndex < result.featureResults().size(); featureIndex++) {
+                var feature = result.featureResults().get(featureIndex);
+                evidence.put(
+                        prefix + ".feature." + String.format("%03d", featureIndex),
+                        feature.featureKey()
+                                + "|placed=" + feature.placed()
+                                + "|attachments=" + feature.attachmentWrites());
+            }
+        }
     }
 
     static String populationOutcomeDigest(

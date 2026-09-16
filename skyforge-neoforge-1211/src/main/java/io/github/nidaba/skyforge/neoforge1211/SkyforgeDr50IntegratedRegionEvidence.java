@@ -67,6 +67,7 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         MaterialEvidence material = placeAndVerifyIron(level, fixture, terrain, structures, hydrology.positions());
         String populationDigest = SkyforgeDr40ProductionEcologyEvidence.populationOutcomeDigest(
                 SkyforgeNativeSurfacePopulationStage.completedNativePhases(volumeId));
+        FinalBlockEvidence finalBlocks = finalBlockEvidence(level, plannedChunks);
 
         long regionDigest = FNV_OFFSET_BASIS;
         regionDigest = mixText(regionDigest, volumeId.path());
@@ -81,6 +82,7 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         regionDigest = mixText(regionDigest, material.blockId().toString());
         regionDigest = mix(regionDigest, structures.completedStructures());
         regionDigest = mixText(regionDigest, structures.digest());
+        regionDigest = mixText(regionDigest, finalBlocks.digest());
 
         Map<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("dr50IntegratedRegion", true);
@@ -108,6 +110,8 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         evidence.put("dr50StructureProofAuthority", "DR-30_NATIVE_STRUCTURE_ACCEPTANCE");
         evidence.put("dr50StructurePersistenceAuthority", "DR-30_NATIVE_STRUCTURE_ACCEPTANCE");
         evidence.put("dr50PopulationOutcomeDigest", populationDigest);
+        evidence.put("dr50FinalRequiredChunkNonAirBlocks", finalBlocks.nonAirBlocks());
+        evidence.put("dr50FinalRequiredChunkBlockDigest", finalBlocks.digest());
         evidence.put("dr50ExactVolumeIsolation", true);
         evidence.put("dr50NoHydrologyMaterialCollision", true);
         evidence.put("dr50NoStructureMaterialCollision", true);
@@ -258,6 +262,43 @@ final class SkyforgeDr50IntegratedRegionEvidence {
                 Long.toUnsignedString(digest, 16));
     }
 
+    private static FinalBlockEvidence finalBlockEvidence(
+            ServerLevel level,
+            Set<Long> plannedChunks) {
+        List<Long> ordered = new ArrayList<>(plannedChunks);
+        ordered.sort(Comparator
+                .comparingInt((Long key) -> ChunkPos.getX(key))
+                .thenComparingInt(key -> ChunkPos.getZ(key)));
+        long digest = FNV_OFFSET_BASIS;
+        long nonAirBlocks = 0L;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (long chunkKey : ordered) {
+            int chunkX = ChunkPos.getX(chunkKey);
+            int chunkZ = ChunkPos.getZ(chunkKey);
+            LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
+            if (chunk == null) {
+                throw new IllegalStateException(
+                        "DR-50 final block evidence requires every canonical chunk to remain loaded");
+            }
+            digest = mix(digest, chunkKey);
+            for (int y = chunk.getMinBuildHeight(); y < chunk.getMaxBuildHeight(); y++) {
+                for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
+                    for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
+                        cursor.set(x, y, z);
+                        BlockState state = chunk.getBlockState(cursor);
+                        if (state.isAir()) {
+                            continue;
+                        }
+                        nonAirBlocks++;
+                        digest = mix(digest, cursor.asLong());
+                        digest = mixText(digest, state.toString());
+                    }
+                }
+            }
+        }
+        return new FinalBlockEvidence(nonAirBlocks, Long.toUnsignedString(digest, 16));
+    }
+
     private static MaterialEvidence placeAndVerifyIron(
             ServerLevel level,
             SkyforgeNeoForge1211ProductionComposedCaveFixture.Single fixture,
@@ -349,6 +390,7 @@ final class SkyforgeDr50IntegratedRegionEvidence {
             String digest,
             List<SkyforgeNativeStructurePlacementSavedData.PlacementIdentity> identities) {}
     private record MaterialEvidence(BlockPos position, ResourceLocation blockId) {}
+    private record FinalBlockEvidence(long nonAirBlocks, String digest) {}
     private record InteriorEvidence(
             int completedObligations,
             int nonEmptyObligations,
