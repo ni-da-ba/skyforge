@@ -30,6 +30,8 @@ final class SkyforgeAircraftAssemblyFixturePlannerTest {
                 () -> assertEquals(new AircraftBlockspaceIR.LatticePoint(0, 1, 0), first.physicsAssemblerPlacement().point()),
                 () -> assertEquals("simulated:physics_assembler", first.physicsAssemblerPlacement().resourceId()),
                 () -> assertEquals("ceiling", first.physicsAssemblerPlacement().blockState().get("face")),
+                () -> assertEquals(List.of("face", "facing"), List.copyOf(first.physicsAssemblerPlacement().blockState().keySet())),
+                () -> assertTrue(first.physicsAssemblerPlacement().toString().contains("blockState={face=ceiling, facing=north}")),
                 () -> assertEquals(6, first.metrics().manifestPlacementCount()),
                 () -> assertEquals(7, first.metrics().fixturePlacementCount()),
                 () -> assertEquals(4, first.metrics().mainBodyManifestPlacementCount()),

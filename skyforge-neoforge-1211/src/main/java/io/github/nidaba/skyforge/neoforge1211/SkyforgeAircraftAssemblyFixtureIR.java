@@ -5,11 +5,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 
 /** Static Physics Assembler fixture topology. No live Sable capture is implied. */
 public record SkyforgeAircraftAssemblyFixtureIR(
@@ -81,7 +83,7 @@ public record SkyforgeAircraftAssemblyFixtureIR(
         public PhysicsAssemblerPlacement {
             point = Objects.requireNonNull(point, "point");
             resourceId = requireText("resourceId", resourceId);
-            blockState = Map.copyOf(Objects.requireNonNull(blockState, "blockState"));
+            blockState = Collections.unmodifiableMap(new TreeMap<>(Objects.requireNonNull(blockState, "blockState")));
             seedLattice = Objects.requireNonNull(seedLattice, "seedLattice");
             movingBodyMembership = requireText("movingBodyMembership", movingBodyMembership);
             sourceContract = requireText("sourceContract", sourceContract);
