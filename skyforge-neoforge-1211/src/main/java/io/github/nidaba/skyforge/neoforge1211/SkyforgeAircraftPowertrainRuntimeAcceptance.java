@@ -709,10 +709,19 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             Object bearingNetwork = publicMethod(bearing, "getOrCreateNetwork").invoke(bearing);
             float capacity = ((Number) publicMethod(bearingNetwork, "calculateCapacity").invoke(bearingNetwork)).floatValue();
             float stress = ((Number) publicMethod(bearingNetwork, "calculateStress").invoke(bearingNetwork)).floatValue();
-            if (!Float.isFinite(capacity) || !Float.isFinite(stress) || capacity <= 0.0f || stress < 0.0f || capacity - stress <= STRESS_TOLERANCE) {
-                fail(SkyforgeCompilerIntegrationFailure.FAIL_NETWORK,
-                        finalDiagnostic("capacity=" + capacity + " stress=" + stress + " bearing=" + bearingState),
-                        "128-RPM kinetic network lacks finite positive stress margin");
+            boolean stressAccountingReady = Float.isFinite(capacity)
+                    && Float.isFinite(stress)
+                    && capacity > 0.0f
+                    && stress >= 0.0f
+                    && capacity - stress > STRESS_TOLERANCE;
+            if (!stressAccountingReady) {
+                if (waitDiagnostic.expired(now)) {
+                    fail(SkyforgeCompilerIntegrationFailure.FAIL_NETWORK,
+                            waitDiagnostic.withFinalState(movedIds(), safeServerState(), "headless",
+                                    "capacity=" + capacity + " stress=" + stress + " bearing=" + bearingState),
+                            "128-RPM kinetic network stress accounting did not converge to a finite positive margin");
+                }
+                return;
             }
             observedBearingRpm = bearingState.speed();
             observedCapacity = capacity;

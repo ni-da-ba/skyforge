@@ -70,6 +70,8 @@ final class AircraftPowertrainPersistenceResourceTest {
         assertTrue(source.contains("ENTITY_REHYDRATION_GRACE_TICKS = 10L"));
         assertTrue(source.contains("reassembled-from-normalized-plot"));
         assertTrue(source.contains("lifecycleReactivation=portable_engine_burn_plus_governor_target"));
+        assertTrue(source.contains("stress accounting did not converge to a finite positive margin"));
+        assertTrue(source.contains("waitDiagnostic.expired(now)"));
         assertTrue(source.contains("persistenceQualified=true"));
         assertTrue(source.contains("controlAxisQualified=false"));
         assertTrue(source.contains("higherGovernorPointsQualified=false"));
