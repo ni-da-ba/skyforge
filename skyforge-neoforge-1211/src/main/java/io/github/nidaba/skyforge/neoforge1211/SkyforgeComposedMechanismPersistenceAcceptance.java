@@ -72,7 +72,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static final BlockPos CHILD_GLUE_MAX = CHILD_SAIL_UP_SOURCE;
 
     private static final long SOURCE_CHUNK_READINESS_DEADLINE_TICKS = 80L;
-    private static final long SOURCE_GLUE_VISIBILITY_DEADLINE_TICKS = 20L;
     private static final long ASSEMBLY_DEADLINE_TICKS = 80L;
     private static final long PHYSICS_INITIALIZATION_DEADLINE_TICKS = 40L;
     private static final long KINETIC_BUILD_DEADLINE_TICKS = 80L;
@@ -130,7 +129,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
 
     private enum Stage {
         SOURCE_CHUNK_READINESS,
-        SOURCE_GLUE_VISIBILITY,
         ASSEMBLY,
         PHYSICS_INITIALIZATION,
         KINETIC_BUILD,
@@ -174,7 +172,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             stage = Stage.SOURCE_CHUNK_READINESS;
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.ASSEMBLY,
-                    "source chunk reaches exact Sable block-ticking readiness before fixture/glue creation",
+                    "source chunk reaches exact Sable readiness and Minecraft entity-section TICKING before fixture/glue creation",
                     now,
                     now + SOURCE_CHUNK_READINESS_DEADLINE_TICKS,
                     sourceIds(),
@@ -203,7 +201,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         try {
             switch (stage) {
                 case SOURCE_CHUNK_READINESS -> pollSourceChunkReadiness(now);
-                case SOURCE_GLUE_VISIBILITY -> pollSourceGlueVisibility(now);
                 case ASSEMBLY -> pollAssembly(now, false);
                 case PHYSICS_INITIALIZATION -> pollPhysicsInitialization(now);
                 case KINETIC_BUILD -> pollKineticBuild(now);
@@ -223,7 +220,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static SkyforgeCompilerIntegrationFailure stageFailureCode() {
         if (stage == null) return SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE;
         return switch (stage) {
-            case SOURCE_CHUNK_READINESS, SOURCE_GLUE_VISIBILITY, ASSEMBLY -> SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY;
+            case SOURCE_CHUNK_READINESS, ASSEMBLY -> SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY;
             case PHYSICS_INITIALIZATION -> SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS;
             case KINETIC_BUILD, KINETIC_DISCONNECT, KINETIC_REBUILD ->
                     SkyforgeCompilerIntegrationFailure.FAIL_KINETIC_REBUILD;
@@ -235,7 +232,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static SkyforgeCompilerIntegrationPhase stagePhase() {
         if (stage == null) return SkyforgeCompilerIntegrationPhase.PERSISTENCE_RELOAD;
         return switch (stage) {
-            case SOURCE_CHUNK_READINESS, SOURCE_GLUE_VISIBILITY, ASSEMBLY -> SkyforgeCompilerIntegrationPhase.ASSEMBLY;
+            case SOURCE_CHUNK_READINESS, ASSEMBLY -> SkyforgeCompilerIntegrationPhase.ASSEMBLY;
             case PHYSICS_INITIALIZATION -> SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION;
             case KINETIC_BUILD, CHILD_REASSEMBLY, KINETIC_DISCONNECT, KINETIC_REBUILD ->
                     SkyforgeCompilerIntegrationPhase.MECHANISM_INITIALIZATION;
@@ -244,12 +241,16 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     }
 
     private static void pollSourceChunkReadiness(long now) throws ReflectiveOperationException {
-        if (!isFixtureChunkLoadedEnough()) {
+        boolean sableLoadedEnough = isFixtureChunkLoadedEnough();
+        boolean entitySectionTicking = level.isPositionEntityTicking(BODY_MIN);
+        if (!sableLoadedEnough || !entitySectionTicking) {
             if (waitDiagnostic.expired(now)) {
                 fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_ASSEMBLY_REGISTRATION,
                         waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
-                                "fixtureChunk=" + FIXTURE_CHUNK + " sableChunkLoadedEnough=false"),
-                        "source chunk did not reach Sable block-ticking readiness before deadline");
+                                "fixtureChunk=" + FIXTURE_CHUNK
+                                        + " sableChunkLoadedEnough=" + sableLoadedEnough
+                                        + " entitySectionTicking=" + entitySectionTicking),
+                        "source chunk did not reach both Sable and Minecraft entity-section ticking readiness before deadline");
             }
             return;
         }
@@ -264,26 +265,13 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         }
         GlueFixture mainGlue = addGlue(MAIN_GLUE_MIN, MAIN_GLUE_MAX, "main");
         mainGlueId = mainGlue.id();
-        stage = Stage.SOURCE_GLUE_VISIBILITY;
-        waitDiagnostic = diagnostic(
-                SkyforgeCompilerIntegrationPhase.ASSEMBLY,
-                "new main Super Glue reaches the same typed entity query used by Create before assembly",
-                now,
-                now + SOURCE_GLUE_VISIBILITY_DEADLINE_TICKS,
-                sourceIds(),
-                safeServerState(),
-                "sableChunkLoadedEnough=true mainGlueId=" + mainGlueId + " preAssemblySourceNonAir=17");
-    }
-
-    private static void pollSourceGlueVisibility(long now) throws ReflectiveOperationException {
         if (!isMainGlueVisibleToCreate()) {
-            if (waitDiagnostic.expired(now)) {
-                fail(SkyforgeCompilerIntegrationFailure.FAIL_GLUE_REGISTRATION,
-                        waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
-                                "mainGlueId=" + mainGlueId + " visibleToTypedCreateQuery=false"),
-                        "main Super Glue did not become visible through Create's typed entity query before deadline");
-            }
-            return;
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_GLUE_REGISTRATION,
+                    waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
+                            "mainGlueId=" + mainGlueId
+                                    + " sableChunkLoadedEnough=true entitySectionTicking=true"
+                                    + " visibleToTypedCreateQuery=false"),
+                    "main Super Glue was not synchronously visible after insertion into a TICKING entity section");
         }
         BlockEntity assembler = requireExpectedBlockEntity(ASSEMBLER_SOURCE, "PhysicsAssemblerBlockEntity");
         stage = Stage.ASSEMBLY;
@@ -294,7 +282,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                 now + ASSEMBLY_DEADLINE_TICKS,
                 sourceIds(),
                 safeServerState(),
-                "sableChunkLoadedEnough=true mainGlueVisibleToCreate=true preAssemblySourceNonAir=17"
+                "sableChunkLoadedEnough=true entitySectionTicking=true mainGlueVisibleToCreate=true preAssemblySourceNonAir=17"
                         + " beforeSubLevelIds=" + beforeIds + " beforeHoldingIds=" + beforeHoldingIds);
         publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
         primaryAssemblyTriggered = true;
