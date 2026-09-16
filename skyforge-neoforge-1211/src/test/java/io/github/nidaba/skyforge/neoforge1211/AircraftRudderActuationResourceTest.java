@@ -56,7 +56,8 @@ final class AircraftRudderActuationResourceTest {
         assertTrue(consumer.contains("getExtraKinetics"));
         assertTrue(consumer.contains("directTargetMutation=false"));
         assertTrue(consumer.contains("passiveSelfCenteringQualified=false"));
-        assertTrue(consumer.contains("yawForceQualified=false"));
+        assertTrue(consumer.contains("yawForceQualified=\" + qualifyYawAuthority"));
+        assertTrue(harness.contains("yawForceQualified=\" + yawForceMode"));
         assertFalse(consumer.contains("setTargetAngle"));
         assertFalse(consumer.contains("targetAngleDegrees.set"));
         assertTrue(build.contains("aircraftRudderActuationServer"));

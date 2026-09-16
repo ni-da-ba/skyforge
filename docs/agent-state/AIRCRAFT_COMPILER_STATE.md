@@ -374,12 +374,43 @@ return to neutral only. It does **not** qualify passive self-centering, aerodyna
 moment, Steering Wheel/cockpit routing, actual-client control, pitch, roll, multi-axis control, handling,
 stable powered flight, or human flight/feel.
 
+## AIRCRAFT-RUNTIME-004 acceptance boundary
+
+On acceptance of issue #686, the production corrected v0.13.1 Guild utility aircraft consumes accepted
+`SABLE_AERODYNAMIC_FORCE_OBSERVATION_LIFECYCLE` authority and qualifies **physical rudder yaw authority at
+one declared controlled-flow condition** without fitting the analytical aircraft model to target runtime data:
+
+- the probe uses the production coordinate convention `+x` nose-to-tail (forward local `-x`), `+y` up,
+  `+z` starboard, one declared 10.0 m/s forward-flow condition, 80 physics-settle ticks, minimum physical
+  rudder deflection 5 degrees, and independent `1e-4` numerical floors for lateral force and yaw moment;
+- the accepted #684 real 16-RPM Create/Swivel command path remains the actuator authority. #686 samples that
+  same path after the 10-tick network warmup plus three bounded command ticks, keeping the yaw-sign probe
+  below the 90-degree surface-normal reversal while #684 retains its separate full 10-command-tick gate;
+- exact-stack run `35157354210`, job `105000314590`, observed target `-62.4000025` degrees and physical rudder
+  yaw `-61.7417068` degrees with one recorded real Sable `ForceGroups.DRAG` point force;
+- under that current parent/child pose the aircraft-local aggregate lateral force is
+  `-0.5648170237` and the aircraft-local yaw moment about the current parent center of mass is
+  `+5.3224699306`, both finite/nonzero and well above the numerical floor; the yaw moment therefore has the
+  first-principles opposite sign to the sub-90-degree physical rudder yaw under the production axis contract;
+- the force observation records current parent/child identity, current parent COM, world/local controlled-flow
+  vector, recorded point force(s), aggregate force, and aggregate moment; individual force tracking is bounded
+  to the measurement window and the reusable Platform observer remains separately green;
+- analytical aircraft geometry/aerodynamics remain independent authority. No runtime force magnitude is fed
+  back into analytical lift/drag/yaw coefficients or used as a handling/stability calibration target;
+- exact-head regressions are green on candidate `7a41992e74122bee2ef651b88524b09b846b887f`:
+  #684 rudder actuation run `35157354200`, 128-RPM run `35157354244`, persistence run `35157354251`,
+  Platform aerodynamic-force observation run `35157354219`, and ordinary CI run `35157354166`.
+
+This gate qualifies only nonzero, correctly signed physical yaw authority at the declared controlled-flow
+point. It does **not** qualify cockpit routing, actual-client control, passive self-centering, pitch/roll,
+atmosphere envelopes, static/dynamic stability, handling, stable powered flight, or human flight/feel.
+
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-RUNTIME-003 is accepted on `main`, the next bounded Agent-B gate is
-AIRCRAFT-RUNTIME-004 / issue #686: qualify aircraft-specific physical rudder yaw authority from observed
-Aeronautics/Sable force and moment evidence. Cockpit routing and all later control/flight gates remain
-separate downstream work.
+After AIRCRAFT-RUNTIME-004 is accepted on `main`, the next bounded Agent-B gate is AIRCRAFT-PROD-013 /
+issue #691: productionize the exact Simulated Steering Wheel yaw-source contract at the accepted temporary
+source coordinate while keeping cockpit routing and pilot interaction explicitly unresolved. AIRCRAFT-PROD-014
+/ #692 and the later runtime/client/pilot gates remain downstream.
 
 ## Prepared by AIRCRAFT-DESIGN-001
 
