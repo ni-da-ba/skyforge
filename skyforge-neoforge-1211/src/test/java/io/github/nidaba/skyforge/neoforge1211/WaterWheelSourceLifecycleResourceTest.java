@@ -38,11 +38,11 @@ final class WaterWheelSourceLifecycleResourceTest {
         String source = fixtureSource();
 
         assertTrue(source.contains("Blocks.WATER.defaultBlockState()"));
-        assertTrue(source.contains("scheduleTick(WATER_SOURCE, Fluids.WATER, 1)"));
         assertTrue(source.contains("fluid.getFlow(level, pos)"));
         assertTrue(source.contains("hasActiveWaterFlow"));
-        assertTrue(source.contains("sourceRemoved=true"));
-        assertTrue(source.contains("sourceRestored=true"));
+        assertTrue(source.contains("flowingWaterCellRemoved=true"));
+        assertTrue(source.contains("flowingWaterCellRestored=true"));
+        assertTrue(source.contains("withProperty(Blocks.WATER.defaultBlockState(), \"level\", \"8\")"));
         assertTrue(source.contains("environmentalDisableObserved=true environmentalRecoveryObserved=true"));
         assertTrue(source.contains("getSpeed"));
         assertTrue(source.contains("hasSource"));
