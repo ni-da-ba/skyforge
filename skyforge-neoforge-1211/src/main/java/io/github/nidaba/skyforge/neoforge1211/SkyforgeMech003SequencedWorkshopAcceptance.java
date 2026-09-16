@@ -85,6 +85,7 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
     // before the next scan/start plus ~60 ticks to the processing midpoint. Keep this bounded but
     // large enough to cover that real residual-cycle timing without resetting Create internals.
     private static final long PRESS_DEADLINE_TICKS = 260L;
+    private static final long PRESS_RETRACTION_DEADLINE_TICKS = 140L;
 
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeMech003SequencedWorkshopAcceptance.class.getName());
@@ -117,7 +118,7 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
     private static String terminalPoolSummary = "<unresolved>";
     private static float liveEngineChance;
 
-    private enum Stage { CHUNK_READY, KINETIC_READY, SAW_PROCESS, PRESS_PROCESS }
+    private enum Stage { CHUNK_READY, KINETIC_READY, SAW_PROCESS, PRESS_PROCESS, PRESS_RETRACTION }
 
     private SkyforgeMech003SequencedWorkshopAcceptance() {}
 
@@ -163,6 +164,7 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
                 case KINETIC_READY -> pollKineticReady(now);
                 case SAW_PROCESS -> pollSawProcess(now);
                 case PRESS_PROCESS -> pollPressProcess(now);
+                case PRESS_RETRACTION -> pollPressRetraction(now);
             }
         } catch (ReflectiveOperationException exception) {
             failReflection(SkyforgeCompilerIntegrationFailure.FAIL_NETWORK, exception);
@@ -341,7 +343,11 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
                                 + " uuid=" + currentItemId + " item=" + item
                                 + " recipe=" + sequence.id() + " progress=" + sequence.progress()
                                 + " groundedObserved=true tick=" + now);
-                beginSawStep(itemEntity, now, true);
+                stage = Stage.PRESS_RETRACTION;
+                waitDiagnostic = diagnostic(
+                        "Mechanical Press fully retracts before the next manual handoff after step " + completedSteps,
+                        now, now + PRESS_RETRACTION_DEADLINE_TICKS, fixtureIds(), safeServerState(),
+                        "processedUuid=" + currentItemId + " completedSteps=" + completedSteps);
                 return;
             }
 
@@ -385,6 +391,45 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
                                     + " pressBehaviour=" + pressBehaviourDump(requireExpectedBlockEntity(pressStationPos, "MechanicalPressBlockEntity", now))
                                     + " worldItems=" + itemDump(pressSearch())),
                     "compiled Press did not produce the expected live Portable Engine transition/result before deadline");
+        }
+    }
+
+    private static void pollPressRetraction(long now) throws ReflectiveOperationException {
+        Object press = requireExpectedBlockEntity(pressStationPos, "MechanicalPressBlockEntity", now);
+        requirePowered(pressStationPos, "MechanicalPressBlockEntity", now);
+        Entity resolved = level.getEntity(currentItemId);
+        if (!(resolved instanceof ItemEntity itemEntity) || !itemEntity.isAlive()) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_NETWORK,
+                    finalDiagnostic("processedItemMissingDuringRetraction=" + entityDiagnostic(resolved)),
+                    "processed transitional item disappeared before manual handoff");
+            return;
+        }
+        SequenceState sequence = sequenceState(itemEntity.getItem());
+        if (!TRANSITION_ID.equals(itemId(itemEntity.getItem())) || sequence == null
+                || !RECIPE_ID.equals(sequence.id()) || sequence.step() != completedSteps
+                || !progressMatches(sequence.progress(), completedSteps)) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_NETWORK,
+                    finalDiagnostic("processedItemChangedDuringRetraction=" + itemDump(pressSearch())),
+                    "processed transitional item changed while waiting for Press retraction");
+            return;
+        }
+
+        Object behaviour = press.getClass().getField("pressingBehaviour").get(press);
+        if (behaviour == null) throw new IllegalStateException("Mechanical Press pressingBehaviour is missing");
+        boolean running = behaviour.getClass().getField("running").getBoolean(behaviour);
+        if (!running) {
+            LOGGER.log(System.Logger.Level.INFO,
+                    PREFIX + " PRESS_RETRACTED afterStep=" + completedSteps
+                            + " uuid=" + currentItemId + " tick=" + now);
+            beginSawStep(itemEntity, now, true);
+            return;
+        }
+        if (waitDiagnostic.expired(now)) {
+            fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_FIXTURE_TERMINAL_STATE,
+                    waitDiagnostic.withFinalState(fixtureIds(), safeServerState(), "headless",
+                            "pressBehaviour=" + pressBehaviourDump(press)
+                                    + " current=" + entityDiagnostic(itemEntity)),
+                    "Mechanical Press did not finish retracting before the bounded manual handoff deadline");
         }
     }
 

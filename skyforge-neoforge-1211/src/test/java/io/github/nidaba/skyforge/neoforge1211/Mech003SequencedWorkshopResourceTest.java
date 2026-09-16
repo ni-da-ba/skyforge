@@ -56,6 +56,9 @@ final class Mech003SequencedWorkshopResourceTest {
         assertTrue(source.contains("resultPool"));
         assertTrue(source.contains("engineAssemblyChance="));
         assertTrue(source.contains("singleAttemptEngineSuccessRequired=false"));
+        assertTrue(source.contains("PRESS_RETRACTION"));
+        assertTrue(source.contains("PRESS_RETRACTED"));
+        assertTrue(source.contains("PRESS_RETRACTION_DEADLINE_TICKS"));
         assertTrue(source.contains("resultBelongsToLivePool=true"));
         assertTrue(source.contains("CUT_PASS step="));
         assertTrue(source.contains("PRESS_PASS step="));
