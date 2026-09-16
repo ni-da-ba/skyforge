@@ -1,0 +1,16 @@
+{
+  "assetId": "guild.utility.waterwheel_airflow_bench.mech_002",
+  "mechanism": {
+    "endpointRole": "airflow",
+    "frontClearance": 3,
+    "mountingRole": "masonry_pad",
+    "orientation": "east",
+    "sourceEnvironmentRole": "bounded_falling_water",
+    "sourceRole": "renewable_stationary_source",
+    "transmissionLength": 1
+  },
+  "requiredPlatformCapability": "CREATE_WATER_WHEEL_SOURCE_LIFECYCLE",
+  "schemaVersion": "mech-0.1",
+  "seed": 679002,
+  "targetStackAuthority": "C11_FLIGHT_EXACT_2026-09-05"
+}

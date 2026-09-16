@@ -23,15 +23,23 @@ from model import SpecError
 class FunctionalMechanismCompilerTest(unittest.TestCase):
     def setUp(self) -> None:
         self.spec_path = ASSET_COMPILER / "specimens" / "mech_001_airflow_bench.json"
+        self.mech002_spec_path = ASSET_COMPILER / "specimens" / "mech_002_waterwheel_airflow_bench.json"
         self.ledger_path = ROOT / "docs" / "agent-state" / "COMPILER_INTEGRATION_CAPABILITIES.json"
         self.spec = json.loads(self.spec_path.read_text(encoding="utf-8"))
+        self.mech002_spec = json.loads(self.mech002_spec_path.read_text(encoding="utf-8"))
         self.ledger = json.loads(self.ledger_path.read_text(encoding="utf-8"))
 
     def compile(self) -> dict:
         return compile_functional_mechanism(self.spec, self.ledger)
 
+    def compile_mech002(self) -> dict:
+        return compile_functional_mechanism(self.mech002_spec, self.ledger)
+
     def test_semantic_spec_contains_no_concrete_create_resource_ids(self) -> None:
         self.assertNotIn("create:", self.spec_path.read_text(encoding="utf-8"))
+        mech002_text = self.mech002_spec_path.read_text(encoding="utf-8")
+        self.assertNotIn("create:", mech002_text)
+        self.assertNotIn("minecraft:water", mech002_text)
 
     def test_compiler_emits_deterministic_bounded_plan(self) -> None:
         first = self.compile()
@@ -82,6 +90,71 @@ class FunctionalMechanismCompilerTest(unittest.TestCase):
         self.assertIn(b"create:shaft", raw)
         self.assertIn(b"create:encased_fan", raw)
         self.assertIn(b"minecraft:stone_bricks", raw)
+
+
+    def test_mech002_compiles_qualified_environmental_source_exactly(self) -> None:
+        first = self.compile_mech002()
+        second = self.compile_mech002()
+        self.assertEqual(first, second)
+        self.assertEqual(
+            first["digestSha256"],
+            "5e78c14a2632d75255e18c06da261b8365a9ffe5623c0c371b7b54184cdc697d",
+        )
+        self.assertEqual(first["compilerVersion"], "mech-0.2-fixed-world")
+        self.assertEqual(first["envelope"]["size"], [7, 4, 5])
+        self.assertEqual(len(first["placements"]), 29)
+        self.assertEqual(first["requiredPlatformCapability"], "CREATE_WATER_WHEEL_SOURCE_LIFECYCLE")
+        self.assertEqual(first["sourcePolicy"], "qualified_environmental_source_candidate_not_geography_canon")
+        by_id = {placement["id"]: placement for placement in first["placements"]}
+        self.assertEqual(
+            by_id["source"]["blockState"],
+            {"name": "create:water_wheel", "properties": {"facing": "east"}},
+        )
+        self.assertEqual(
+            by_id["source_flow_0"]["blockState"],
+            {"name": "minecraft:water", "properties": {"level": "8"}},
+        )
+        self.assertEqual(first["environmentalEnvelope"]["disableCell"], "source_flow_0")
+        cell = first["environmentalEnvelope"]["requiredCells"][0]
+        self.assertEqual(cell["offsetFromSource"], [0, 0, -1])
+        self.assertEqual(cell["expectedFlowVector"], [0.0, -1.0, 0.0])
+        self.assertEqual(first["runtimeExpectations"]["active"]["endpointSpeed"], -8.0)
+
+    def test_mech002_structure_export_is_deterministic(self) -> None:
+        encoded = encode_mechanism_structure_nbt(self.compile_mech002())
+        self.assertEqual(
+            hashlib.sha256(encoded).hexdigest(),
+            "834322cc5fcdc40ba1c7e9a6d51bf6091a66e34edb4187f8cf9f7242eef864a2",
+        )
+        raw = gzip.decompress(encoded)
+        self.assertIn(b"create:water_wheel", raw)
+        self.assertIn(b"minecraft:water", raw)
+        self.assertIn(b"create:shaft", raw)
+        self.assertIn(b"create:encased_fan", raw)
+
+    def test_mech002_platform_authority_and_environment_fail_closed(self) -> None:
+        ledger = copy.deepcopy(self.ledger)
+        capability = ledger["capabilities"]["CREATE_WATER_WHEEL_SOURCE_LIFECYCLE"]
+        capability["production_authority_for_agents"]["C"] = False
+        with self.assertRaisesRegex(SpecError, "Agent C lacks platform authority"):
+            compile_functional_mechanism(self.mech002_spec, ledger)
+
+        spec = copy.deepcopy(self.mech002_spec)
+        spec["mechanism"]["sourceEnvironmentRole"] = "generic_water"
+        with self.assertRaisesRegex(SpecError, "bounded_falling_water"):
+            compile_functional_mechanism(spec, self.ledger)
+
+    def test_mech002_environmental_envelope_rejects_tampering(self) -> None:
+        plan = self.compile_mech002()
+        bad_offset = copy.deepcopy(plan)
+        bad_offset["environmentalEnvelope"]["requiredCells"][0]["offsetFromSource"] = [0, 0, 1]
+        with self.assertRaisesRegex(SpecError, "offsetFromSource does not match"):
+            compiled_asset_for_mechanism_structure(bad_offset)
+
+        bad_control = copy.deepcopy(plan)
+        bad_control["environmentalEnvelope"]["disableCell"] = "relay_0"
+        with self.assertRaisesRegex(SpecError, "disableCell must reference a required cell"):
+            compiled_asset_for_mechanism_structure(bad_control)
 
     def test_cli_derives_structure_name_from_spec_filename(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

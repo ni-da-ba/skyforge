@@ -10,12 +10,15 @@ from model import SpecError
 SCHEMA_VERSION = "mech-0.1"
 PLAN_SCHEMA = "skyforge.functional-mechanism-plan.v1"
 COMPILER_VERSION = "mech-0.1-fixed-world"
+MECH_002_COMPILER_VERSION = "mech-0.2-fixed-world"
 EXPECTED_TARGET_STACK = "C11_FLIGHT_EXACT_2026-09-05"
-EXPECTED_CAPABILITY = "CREATE_KINETIC_NETWORK_LIFECYCLE"
+MECH_001_CAPABILITY = "CREATE_KINETIC_NETWORK_LIFECYCLE"
+MECH_002_CAPABILITY = "CREATE_WATER_WHEEL_SOURCE_LIFECYCLE"
 
 _ALLOWED_MECHANISM_KEYS = {
     "orientation",
     "sourceRole",
+    "sourceEnvironmentRole",
     "transmissionLength",
     "endpointRole",
     "mountingRole",
@@ -43,11 +46,7 @@ def _block_state(name: str, **properties: str) -> dict[str, Any]:
 
 
 def _validate_common_spec(spec: dict[str, Any]) -> dict[str, Any]:
-    """Validate the bounded semantic envelope shared by fixed-world mechanism specimens.
-
-    This validates only already-accepted schema fields. It does not select a concrete Create source
-    or introduce new mechanism vocabulary.
-    """
+    """Validate the bounded semantic envelope shared by fixed-world mechanism specimens."""
     _require(spec.get("schemaVersion") == SCHEMA_VERSION, f"expected schemaVersion {SCHEMA_VERSION}")
     _require(isinstance(spec.get("assetId"), str) and spec["assetId"], "assetId is required")
     _require(
@@ -94,21 +93,27 @@ def _require_accepted_agent_c_capability(
     return capability, evidence
 
 
-def _lower_mech_001_airflow_bench(mechanism: dict[str, Any]) -> dict[str, Any]:
-    """Lower only the already-accepted MECH-001 semantic specimen to exact target state."""
-    _require(mechanism.get("orientation") == "east", "MECH-001 v0.1 supports only east orientation")
-    _require(
-        mechanism.get("sourceRole") == "qualified_kinetic_source",
-        "MECH-001 sourceRole must remain qualified_kinetic_source",
-    )
-    _require(mechanism.get("transmissionLength") == 1, "MECH-001 requires exactly one relay")
-    _require(mechanism.get("endpointRole") == "airflow", "MECH-001 endpointRole must be airflow")
-    _require(mechanism.get("mountingRole") == "masonry_pad", "MECH-001 mountingRole must be masonry_pad")
+def _front_clearance(mechanism: dict[str, Any]) -> int:
     front_clearance = mechanism.get("frontClearance")
     _require(
         isinstance(front_clearance, int) and not isinstance(front_clearance, bool) and 1 <= front_clearance <= 6,
         "frontClearance must be an integer in [1, 6]",
     )
+    return front_clearance
+
+
+def _lower_mech_001_airflow_bench(mechanism: dict[str, Any]) -> dict[str, Any]:
+    """Lower only the accepted MECH-001 qualification-source specimen."""
+    _require(mechanism.get("orientation") == "east", "MECH-001 v0.1 supports only east orientation")
+    _require(
+        mechanism.get("sourceRole") == "qualified_kinetic_source",
+        "MECH-001 sourceRole must remain qualified_kinetic_source",
+    )
+    _require("sourceEnvironmentRole" not in mechanism, "MECH-001 does not accept a source environment role")
+    _require(mechanism.get("transmissionLength") == 1, "MECH-001 requires exactly one relay")
+    _require(mechanism.get("endpointRole") == "airflow", "MECH-001 endpointRole must be airflow")
+    _require(mechanism.get("mountingRole") == "masonry_pad", "MECH-001 mountingRole must be masonry_pad")
+    front_clearance = _front_clearance(mechanism)
 
     placements: list[dict[str, Any]] = []
     for x in range(3):
@@ -143,23 +148,13 @@ def _lower_mech_001_airflow_bench(mechanism: dict[str, Any]) -> dict[str, Any]:
 
     occupied = {tuple(p["pos"]) for p in placements}
     _require(len(occupied) == len(placements), "compiled mechanism has overlapping placements")
-
     clearance_cells = [[x, 1, 1] for x in range(3, 3 + front_clearance)]
-    _require(
-        not occupied.intersection(map(tuple, clearance_cells)),
-        "fan discharge clearance overlaps a placement",
-    )
-
+    _require(not occupied.intersection(map(tuple, clearance_cells)), "fan discharge clearance overlaps a placement")
     support_requirements = [
         {"placementId": "source", "supportBelow": [0, 0, 1]},
         {"placementId": "relay_0", "supportBelow": [1, 0, 1]},
         {"placementId": "endpoint", "supportBelow": [2, 0, 1]},
     ]
-    by_id = {p["id"]: p for p in placements}
-    for requirement in support_requirements:
-        _require(requirement["placementId"] in by_id, "support requirement references unknown placement")
-        _require(tuple(requirement["supportBelow"]) in occupied, "machinery support is missing")
-
     return {
         "frontClearance": front_clearance,
         "placements": placements,
@@ -168,35 +163,132 @@ def _lower_mech_001_airflow_bench(mechanism: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def compile_functional_mechanism(
-    spec: dict[str, Any],
-    capability_ledger: dict[str, Any],
-) -> dict[str, Any]:
-    """Compile the accepted MECH-001 fixed-world airflow utility mechanism.
-
-    The phases are deliberately separated so later mechanisms can reuse validation without acquiring
-    MECH-001's target lowering. This function still accepts only the existing MECH-001 vocabulary.
-    """
-    mechanism = _validate_common_spec(spec)
+def _lower_mech_002_waterwheel_airflow_bench(mechanism: dict[str, Any]) -> dict[str, Any]:
+    """Lower the bounded PLATFORM-009 environmental source contract into one workshop mechanism."""
+    _require(mechanism.get("orientation") == "east", "MECH-002 v0.2 supports only east orientation")
     _require(
-        spec.get("requiredPlatformCapability") == EXPECTED_CAPABILITY,
-        f"requiredPlatformCapability must be {EXPECTED_CAPABILITY}",
+        mechanism.get("sourceRole") == "renewable_stationary_source",
+        "MECH-002 sourceRole must be renewable_stationary_source",
     )
-    capability, evidence = _require_accepted_agent_c_capability(
-        capability_ledger,
-        EXPECTED_CAPABILITY,
-        EXPECTED_TARGET_STACK,
+    _require(
+        mechanism.get("sourceEnvironmentRole") == "bounded_falling_water",
+        "MECH-002 sourceEnvironmentRole must be bounded_falling_water",
     )
+    _require(mechanism.get("transmissionLength") == 1, "MECH-002 requires exactly one relay")
+    _require(mechanism.get("endpointRole") == "airflow", "MECH-002 endpointRole must be airflow")
+    _require(mechanism.get("mountingRole") == "masonry_pad", "MECH-002 mountingRole must be masonry_pad")
+    front_clearance = _front_clearance(mechanism)
+
+    placements: list[dict[str, Any]] = []
+    for x in range(4):
+        for z in range(5):
+            placements.append({
+                "id": f"pad_{x}_{z}",
+                "pos": [x, 0, z],
+                "mechanicalRole": "mounting_support",
+                "blockState": _block_state("minecraft:stone_bricks"),
+            })
+
+    placements.extend([
+        {
+            "id": "flow_support",
+            "pos": [1, 1, 1],
+            "mechanicalRole": "environmental_support",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "axle_pier_lower",
+            "pos": [0, 1, 2],
+            "mechanicalRole": "axle_mount_support",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "axle_pier_upper",
+            "pos": [0, 2, 2],
+            "mechanicalRole": "axle_mount_support",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "relay_support",
+            "pos": [2, 1, 2],
+            "mechanicalRole": "mounting_support",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "endpoint_support",
+            "pos": [3, 1, 2],
+            "mechanicalRole": "mounting_support",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "source",
+            "pos": [1, 2, 2],
+            "mechanicalRole": "kinetic_source",
+            "blockState": _block_state("create:water_wheel", facing="east"),
+        },
+        {
+            "id": "relay_0",
+            "pos": [2, 2, 2],
+            "mechanicalRole": "required_relay",
+            "blockState": _block_state("create:shaft", axis="x"),
+        },
+        {
+            "id": "endpoint",
+            "pos": [3, 2, 2],
+            "mechanicalRole": "airflow_endpoint",
+            "blockState": _block_state("create:encased_fan", facing="east"),
+        },
+        {
+            "id": "source_flow_0",
+            "pos": [1, 2, 1],
+            "mechanicalRole": "environmental_source_precondition",
+            "blockState": _block_state("minecraft:water", level="8"),
+        },
+    ])
+
+    occupied = {tuple(p["pos"]) for p in placements}
+    _require(len(occupied) == len(placements), "compiled MECH-002 mechanism has overlapping placements")
+    wheel_clearance = [[1, 1, 2], [1, 3, 2], [1, 2, 3]]
+    discharge_clearance = [[x, 2, 2] for x in range(4, 4 + front_clearance)]
+    clearance_cells = wheel_clearance + discharge_clearance
+    _require(not occupied.intersection(map(tuple, clearance_cells)), "MECH-002 moving clearance overlaps a placement")
+    support_requirements = [
+        {"placementId": "source_flow_0", "supportBelow": [1, 1, 1]},
+        {"placementId": "axle_pier_upper", "supportBelow": [0, 1, 2]},
+        {"placementId": "relay_0", "supportBelow": [2, 1, 2]},
+        {"placementId": "endpoint", "supportBelow": [3, 1, 2]},
+    ]
+    return {
+        "frontClearance": front_clearance,
+        "placements": placements,
+        "clearanceCells": clearance_cells,
+        "supportRequirements": support_requirements,
+    }
+
+
+def _platform_evidence(capability: dict[str, Any], evidence: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": capability["status"],
+        "verificationLevel": capability["verification_level"],
+        "workflowRun": evidence["workflow_run"],
+        "commit": evidence["commit"],
+        "result": evidence["result"],
+        "agentCAuthorized": True,
+    }
+
+
+def _compile_mech_001(
+    spec: dict[str, Any], mechanism: dict[str, Any], capability: dict[str, Any], evidence: dict[str, Any]
+) -> dict[str, Any]:
     lowered = _lower_mech_001_airflow_bench(mechanism)
     front_clearance = lowered["frontClearance"]
-
     plan: dict[str, Any] = {
         "schema": PLAN_SCHEMA,
         "assetId": spec["assetId"],
         "compilerVersion": COMPILER_VERSION,
         "seed": spec["seed"],
         "targetStackAuthority": EXPECTED_TARGET_STACK,
-        "requiredPlatformCapability": EXPECTED_CAPABILITY,
+        "requiredPlatformCapability": MECH_001_CAPABILITY,
         "sourcePolicy": "qualified_test_source_not_gameplay_canon",
         "semanticInput": {
             "orientation": "east",
@@ -206,11 +298,7 @@ def compile_functional_mechanism(
             "mountingRole": "masonry_pad",
             "frontClearance": front_clearance,
         },
-        "envelope": {
-            "min": [0, 0, 0],
-            "max": [2 + front_clearance, 1, 2],
-            "size": [3 + front_clearance, 2, 3],
-        },
+        "envelope": {"min": [0, 0, 0], "max": [2 + front_clearance, 1, 2], "size": [3 + front_clearance, 2, 3]},
         "mountingRegion": {"min": [0, 0, 0], "max": [2, 0, 2]},
         "placements": lowered["placements"],
         "connectivity": {
@@ -225,15 +313,99 @@ def compile_functional_mechanism(
             "severed": {"endpointSpeed": 0, "hasSource": False},
             "rebuilt": {"endpointSpeed": "nonzero", "hasSource": True, "hasNetwork": True},
         },
-        "platformEvidence": {
-            "status": capability["status"],
-            "verificationLevel": capability["verification_level"],
-            "workflowRun": evidence["workflow_run"],
-            "commit": evidence["commit"],
-            "result": evidence["result"],
-            "agentCAuthorized": True,
-        },
+        "platformEvidence": _platform_evidence(capability, evidence),
         "validation": {"passed": True, "issues": []},
     }
     plan["digestSha256"] = _canonical_digest(plan)
     return plan
+
+
+def _compile_mech_002(
+    spec: dict[str, Any], mechanism: dict[str, Any], capability: dict[str, Any], evidence: dict[str, Any]
+) -> dict[str, Any]:
+    lowered = _lower_mech_002_waterwheel_airflow_bench(mechanism)
+    front_clearance = lowered["frontClearance"]
+    water_state = _block_state("minecraft:water", level="8")
+    plan: dict[str, Any] = {
+        "schema": PLAN_SCHEMA,
+        "assetId": spec["assetId"],
+        "compilerVersion": MECH_002_COMPILER_VERSION,
+        "seed": spec["seed"],
+        "targetStackAuthority": EXPECTED_TARGET_STACK,
+        "requiredPlatformCapability": MECH_002_CAPABILITY,
+        "sourcePolicy": "qualified_environmental_source_candidate_not_geography_canon",
+        "semanticInput": {
+            "orientation": "east",
+            "sourceRole": "renewable_stationary_source",
+            "sourceEnvironmentRole": "bounded_falling_water",
+            "transmissionLength": 1,
+            "endpointRole": "airflow",
+            "mountingRole": "masonry_pad",
+            "frontClearance": front_clearance,
+        },
+        "envelope": {"min": [0, 0, 0], "max": [3 + front_clearance, 3, 4], "size": [4 + front_clearance, 4, 5]},
+        "mountingRegion": {"min": [0, 0, 0], "max": [3, 0, 4]},
+        "placements": lowered["placements"],
+        "connectivity": {
+            "nodes": ["source", "relay_0", "endpoint"],
+            "edges": [["source", "relay_0"], ["relay_0", "endpoint"]],
+            "severNode": "relay_0",
+        },
+        "environmentalEnvelope": {
+            "sourcePlacementId": "source",
+            "disableCell": "source_flow_0",
+            "requiredCells": [
+                {
+                    "placementId": "source_flow_0",
+                    "offsetFromSource": [0, 0, -1],
+                    "role": "falling_water_drive",
+                    "expectedFlowVector": [0.0, -1.0, 0.0],
+                    "disableState": _block_state("minecraft:air"),
+                    "restoreState": water_state,
+                }
+            ],
+        },
+        "supportRequirements": lowered["supportRequirements"],
+        "clearanceCells": lowered["clearanceCells"],
+        "runtimeExpectations": {
+            "active": {"sourceSpeed": -8.0, "endpointSpeed": -8.0, "hasSource": True, "hasNetwork": True},
+            "environmentDisabled": {"sourceSpeed": 0.0, "endpointSpeed": 0.0, "hasSource": False},
+            "environmentRecovered": {"sourceSpeed": -8.0, "endpointSpeed": -8.0, "hasSource": True, "hasNetwork": True},
+        },
+        "platformEvidence": _platform_evidence(capability, evidence),
+        "validation": {"passed": True, "issues": []},
+    }
+    plan["digestSha256"] = _canonical_digest(plan)
+    return plan
+
+
+def compile_functional_mechanism(
+    spec: dict[str, Any],
+    capability_ledger: dict[str, Any],
+) -> dict[str, Any]:
+    """Compile one bounded accepted fixed-world functional mechanism specimen."""
+    mechanism = _validate_common_spec(spec)
+    source_role = mechanism.get("sourceRole")
+    capability_id = spec.get("requiredPlatformCapability")
+
+    if source_role == "qualified_kinetic_source":
+        _require(
+            capability_id == MECH_001_CAPABILITY,
+            f"requiredPlatformCapability must be {MECH_001_CAPABILITY}",
+        )
+        capability, evidence = _require_accepted_agent_c_capability(
+            capability_ledger, MECH_001_CAPABILITY, EXPECTED_TARGET_STACK
+        )
+        return _compile_mech_001(spec, mechanism, capability, evidence)
+
+    if source_role == "renewable_stationary_source":
+        _require(
+            capability_id == MECH_002_CAPABILITY,
+            f"requiredPlatformCapability must be {MECH_002_CAPABILITY}",
+        )
+        capability, evidence = _require_accepted_agent_c_capability(
+            capability_ledger, MECH_002_CAPABILITY, EXPECTED_TARGET_STACK
+        )
+        return _compile_mech_002(spec, mechanism, capability, evidence)
+
+    raise SpecError(f"unsupported sourceRole: {source_role}")
