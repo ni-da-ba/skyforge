@@ -57,6 +57,9 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(client.contains("minecraft.gameMode.useItemOn"));
         assertTrue(client.contains("minecraft.options.keyShift.setDown(true)"));
         assertTrue(client.contains("publishMountDiagnostic"));
+        assertTrue(client.contains("gate=client-tick-entry"));
+        assertTrue(client.contains("gate=client-top-readiness"));
+        assertTrue(client.contains("gate=server-player-positioned"));
         assertTrue(client.contains("gate=sublevel-ready"));
         assertTrue(client.contains("gate=seat-block"));
         assertTrue(client.contains("gate=pose-convergence"));

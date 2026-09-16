@@ -54,15 +54,22 @@ final class SkyforgePlayerTrackingOnSableClientAcceptance {
 
     @SubscribeEvent
     static void onClientTick(ClientTickEvent.Post event) {
-        if (!Boolean.getBoolean(SkyforgePlayerTrackingOnSableLifecycleAcceptance.ENABLE_PROPERTY)
-                || !SkyforgeAutomatedAcceptanceHarness.clientMode()
-                || clientComplete) {
+        boolean enabled = Boolean.getBoolean(SkyforgePlayerTrackingOnSableLifecycleAcceptance.ENABLE_PROPERTY);
+        boolean clientMode = SkyforgeAutomatedAcceptanceHarness.clientMode();
+        publishMountDiagnostic("gate=client-tick-entry enabled=" + enabled
+                + " clientMode=" + clientMode + " clientComplete=" + clientComplete);
+        if (!enabled || !clientMode || clientComplete) {
             return;
         }
 
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         SkyforgePlayerTrackingOnSableBridge.Snapshot snapshot = SkyforgePlayerTrackingOnSableBridge.snapshot();
+        publishMountDiagnostic("gate=client-top-readiness level=" + (minecraft.level != null)
+                + " player=" + (player != null)
+                + " gameMode=" + (minecraft.gameMode != null)
+                + " bridge=" + (snapshot != null)
+                + " serverPlayerPositioned=" + SkyforgePlayerTrackingOnSableLifecycleAcceptance.playerPositioned());
         long now = System.nanoTime();
         if (firstClientTickNanos == Long.MIN_VALUE) {
             firstClientTickNanos = now;
@@ -85,6 +92,7 @@ final class SkyforgePlayerTrackingOnSableClientAcceptance {
             return;
         }
         if (!SkyforgePlayerTrackingOnSableLifecycleAcceptance.playerPositioned()) {
+            publishMountDiagnostic("gate=server-player-positioned value=false");
             return;
         }
 
