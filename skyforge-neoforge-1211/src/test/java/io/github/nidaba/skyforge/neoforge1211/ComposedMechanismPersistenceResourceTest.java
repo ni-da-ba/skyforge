@@ -48,6 +48,7 @@ final class ComposedMechanismPersistenceResourceTest {
         assertTrue(source.contains("TicketType.create"));
         assertTrue(source.contains("skyforge_platform_007"));
         assertTrue(source.contains("addRegionTicket"));
+        assertTrue(source.contains("forceTicks=true"));
         assertTrue(source.contains("removeRegionTicket"));
         assertTrue(source.contains("samePersistentUuid=true"));
         assertTrue(source.contains("currentPhysicsHandleValid=true"));
@@ -55,6 +56,15 @@ final class ComposedMechanismPersistenceResourceTest {
         assertTrue(source.contains("glueDuplicate=false"));
         assertTrue(source.contains("normalizedChildBlocksInPlot=true"));
         assertTrue(source.contains("ENTITY_REHYDRATION_GRACE_TICKS"));
+        assertTrue(source.contains("SOURCE_CHUNK_READINESS"));
+        assertTrue(source.contains("PhysicsChunkTicketManager"));
+        assertTrue(source.contains("isChunkLoadedEnough"));
+        assertTrue(source.contains("isPositionEntityTicking"));
+        assertTrue(source.contains("entitySectionTicking"));
+        assertTrue(source.contains("MAIN_GLUE_VISIBLE_TO_CREATE"));
+        assertTrue(source.contains("getEntitiesOfClass"));
+        assertTrue(source.contains("synchronousSourceNonAir"));
+        assertTrue(source.contains("sourceFixtureNonAirPositions"));
         assertTrue(source.contains("persisted-both"));
         assertTrue(source.contains("mixed-persisted-reactivated"));
         assertTrue(source.contains("recreated-both"));
