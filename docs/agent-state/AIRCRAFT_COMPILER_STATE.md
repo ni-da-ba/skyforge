@@ -307,13 +307,48 @@ This gate qualifies completed-aircraft persistence/recovery only for the product
 128 RPM. It does **not** qualify 160/192/224/256 RPM, rudder/yaw, cockpit routing, pitch, roll, multi-axis
 control, atmosphere-envelope behavior, handling, stable powered flight, or human flight/feel.
 
+## AIRCRAFT-PROD-012 acceptance boundary
+
+On acceptance of issue #682, the production Java compiler extends the accepted v0.12 Guild utility chain
+to the corrected **static-only** v0.13.1 yaw-control topology:
+
+- profile lineage is `skyforge.yaw_control.simulated.guild_utility.v0_13_1` and binds the exact current
+  manifest, assembly-fixture, glue-encoding, and powertrain SHA-256 identities rather than accepting
+  schema/version labels alone;
+- the superseded v0.13 digest
+  `59f451bb7bb71433016af249f5ded7a87aed47b69b2a26215b4f573322f2d951` and exact-stack run
+  `34764106343` remain falsification evidence: the spruce hinge/separator topology is rejected because
+  relative cell `[16,4,0]` remained at the source; the failed Python predecessor is **not** revived as
+  production code;
+- seven fixed `create:white_sail[facing=south]` fin cells remain at x=15..16, all four x=17 cells
+  `[17,4..7,0]` are a true air gap, and one parent `simulated:swivel_bearing` is added at `[18,3,0]`
+  with `facing=up,assembled=false,powered=false`;
+- the UP-facing bearing seed is exactly `[18,4,0]`; the declared rudder child is exactly four connected,
+  parent/propeller-disjoint `simulated:white_symmetric_sail[axis=z]` cells at `[18,4..7,0]`;
+- the old `vertical_tail` glue domain is replaced by parent `vertical_tail_fixed` and
+  `yaw_bearing_mount` plus child `rudder_child`; together with retained fuselage/wing/horizontal-tail
+  glue and the v0.12 powerplant domain this yields exactly seven bounded domains. Parent glue contains
+  no rudder cell, no domain contains an x=17 gap cell, and child glue excludes the bearing;
+- current-production reconciliation is fail-closed at 118 corrected parent-main members including the
+  Physics Assembler, nine independent propeller-child members, and four rudder-child members: 130
+  resulting manifest placements and 131 primary transfer members before the Swivel child separates;
+- source resource/state mismatch, occupied bearing coordinates, reintroduced gap geometry, propeller
+  overlap, glue-boundary drift, count drift, or upstream provenance mismatch reject lowering;
+- static readiness emits the five still-unverified runtime obligations for primary Sable recapture, exact
+  Swivel child capture, neutral initial constraint, real kinetic actuation/commanded neutral return, and
+  aircraft-specific rudder yaw-force authority.
+
+This tranche does **not** qualify live Swivel assembly/actuation, rudder physical pose, yaw force/moment,
+Steering Wheel/cockpit routing, player interaction, pitch, roll, multi-axis control, higher governed RPM,
+handling, stable flight, or human feel.
+
 ## Next bounded aircraft tranche
 
-With AIRCRAFT-RUNTIME-002 accepted, the next bounded production tranche is AIRCRAFT-PROD-012 / issue #682:
-productionize the corrected static v0.13.1 yaw-control topology from current `main`, preserving the failed
-v0.13 hinge/separator predecessor as falsification evidence and making no live Swivel/yaw-authority claim.
-Runtime rudder actuation, physical yaw authority, cockpit routing, actual-client control, and pilot tracking
-remain separate downstream gates.
+After AIRCRAFT-PROD-012 is accepted on `main`, the next bounded Agent-B runtime gate is
+AIRCRAFT-RUNTIME-003 / issue #684: consume the accepted Platform Swivel-control-child lifecycle on the
+production corrected rudder and qualify exact child capture plus real kinetic signed deflection, hold, and
+**commanded** inverse return to neutral. Physical yaw-force authority remains the separate downstream #686
+gate and must not be folded into #684.
 
 ## Prepared by AIRCRAFT-DESIGN-001
 

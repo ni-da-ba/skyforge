@@ -68,6 +68,18 @@ final class SkyforgeAircraftRetainedGuildUtilityFixture {
         return new Fixture(design, blockspace, assembly, target, propulsion, surface, tail, pilot, manifest, fixture, glue, powertrain);
     }
 
+    static YawFixture compileV0131() {
+        Fixture v012 = compileV012();
+        SkyforgeAircraftYawControlIR yawControl = new SkyforgeAircraftYawControlLowerer().lower(
+                v012.manifest(),
+                v012.assemblyFixture(),
+                v012.glue(),
+                v012.powertrain(),
+                "skyforge.aircraft.guild_utility_monoplane.yaw_control.v1",
+                SkyforgeAircraftYawControlProfile.retainedC11());
+        return new YawFixture(v012, yawControl);
+    }
+
     private static AircraftDesignSpec designSpec() {
         return new AircraftDesignSpec(
                 AircraftDesignSpec.SCHEMA_VERSION,
@@ -141,4 +153,6 @@ final class SkyforgeAircraftRetainedGuildUtilityFixture {
             SkyforgeAircraftAssemblyFixtureIR assemblyFixture,
             SkyforgeAircraftGlueEncodingIR glue,
             SkyforgeAircraftPowertrainIR powertrain) {}
+
+    record YawFixture(Fixture v012, SkyforgeAircraftYawControlIR yawControl) {}
 }
