@@ -41,6 +41,10 @@ final class ComposedMechanismPersistenceResourceTest {
         assertTrue(source.contains("platform-007-composed-persistence.identity"));
         assertTrue(source.contains("getHoldingSubLevel"));
         assertTrue(source.contains("snatchAndLoad"));
+        assertTrue(source.contains("loadedHoldingChunks"));
+        assertTrue(source.contains("loadUnsavedHoldingSubLevel"));
+        assertTrue(source.contains("loadHoldingSubLevel"));
+        assertTrue(source.contains("HOLDING_UNSAVED_LOAD_REQUEST"));
         assertTrue(source.contains("samePersistentUuid=true"));
         assertTrue(source.contains("currentPhysicsHandleValid=true"));
         assertTrue(source.contains("staleChildDuplicate=false"));

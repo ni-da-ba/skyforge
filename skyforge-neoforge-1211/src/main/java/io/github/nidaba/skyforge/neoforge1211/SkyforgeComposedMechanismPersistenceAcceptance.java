@@ -745,6 +745,11 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         if (holding == null) return false;
         Object pointer = publicMethod(holding, "pointer").invoke(holding);
         if (pointer == null) {
+            if (loadUnsavedHoldingSubLevel(holdingMap)) {
+                LOGGER.log(System.Logger.Level.INFO,
+                        PREFIX + " HOLDING_UNSAVED_LOAD_REQUEST bodyId=" + bodyId);
+                return true;
+            }
             LOGGER.log(System.Logger.Level.INFO,
                     PREFIX + " HOLDING_POINTER_PENDING bodyId=" + bodyId + " holding=" + holding);
             return false;
@@ -754,6 +759,47 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         LOGGER.log(System.Logger.Level.INFO,
                 PREFIX + " HOLDING_SNATCH_REQUEST bodyId=" + bodyId + " pointer=" + pointer);
         return true;
+    }
+
+    /**
+     * Sable may move a just-created body into an in-memory holding chunk before its first serialization
+     * pointer exists. Waiting for pointer creation is not bounded by this fixture: Sable assigns that pointer
+     * during a later save. Reproduce snatchAndLoad's in-memory half of the exact 2.0.5 implementation by
+     * removing the UUID plus dependency chain from the already-loaded holding chunk, then pass every snatched
+     * HoldingSubLevel through Sable's own public loadHoldingSubLevel deserialization path.
+     */
+    private static boolean loadUnsavedHoldingSubLevel(Object holdingMap) throws ReflectiveOperationException {
+        Field loadedChunksField = holdingMap.getClass().getDeclaredField("loadedHoldingChunks");
+        loadedChunksField.setAccessible(true);
+        Object loadedChunksValue = loadedChunksField.get(holdingMap);
+        if (!(loadedChunksValue instanceof Map<?, ?> loadedChunks)) {
+            throw new IllegalStateException("Sable loadedHoldingChunks is not Map-like: " + loadedChunksValue);
+        }
+
+        for (Object holdingChunk : loadedChunks.values()) {
+            Method snatch = holdingChunk.getClass().getDeclaredMethod("snatch", UUID.class);
+            snatch.setAccessible(true);
+            Object snatchedValue = snatch.invoke(holdingChunk, bodyId);
+            if (snatchedValue == null) {
+                continue;
+            }
+            if (!(snatchedValue instanceof Iterable<?> snatched)) {
+                throw new IllegalStateException("Sable holding snatch result is not iterable: " + snatchedValue);
+            }
+
+            Method loadHoldingSubLevel = holdingMap.getClass().getMethod(
+                    "loadHoldingSubLevel", Class.forName("dev.ryanhcode.sable.sublevel.storage.HoldingSubLevel"));
+            boolean loadedAny = false;
+            for (Object heldSubLevel : snatched) {
+                loadHoldingSubLevel.invoke(holdingMap, heldSubLevel);
+                loadedAny = true;
+            }
+            if (!loadedAny) {
+                throw new IllegalStateException("Sable snatched an empty holding dependency chain for " + bodyId);
+            }
+            return true;
+        }
+        return false;
     }
 
     private static boolean allMovedChildBlocksPresent() {
