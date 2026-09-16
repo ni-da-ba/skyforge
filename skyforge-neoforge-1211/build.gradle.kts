@@ -2034,6 +2034,16 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // PLATFORM-015: beltless world-item Saw CUT -> explicit handoff -> Press WORLD lifecycle.
+        create("compilerPlatformWorldItemCutPressLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-world-item-cut-press-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformWorldItemCutPressLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // PLATFORM-009: real small-water-wheel environmental source active/disable/recovery lifecycle.
         create("compilerPlatformWaterWheelSourceLifecycleServer") {
             server()
@@ -2812,6 +2822,30 @@ tasks.named("runCompilerPlatformCreateKineticNetworkLifecycleServer").configure 
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(compilerPlatformCreateKineticNetworkLifecycleServerProperties)
+    }
+}
+
+
+val compilerPlatformWorldItemCutPressLifecycleServerProperties = """
+    level-name=compiler-platform-world-item-cut-press-lifecycle
+    level-seed=735015
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformWorldItemCutPressLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-world-item-cut-press-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformWorldItemCutPressLifecycleServerProperties)
     }
 }
 
