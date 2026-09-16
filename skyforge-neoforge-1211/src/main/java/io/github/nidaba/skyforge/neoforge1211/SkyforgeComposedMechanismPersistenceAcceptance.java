@@ -281,18 +281,18 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
 
         if (candidateId != null) {
             bodyId = candidateId;
-            Object listedBody = findListedBody(bodyId);
             Set<UUID> holdingIds = currentHoldingSubLevelIds();
-            // Sable can transiently expose the same UUID through the live collection while it has already
-            // moved that body into holding. Recover that split authority immediately; waiting until the live
-            // lookup disappears leaves Simulated parent-world cleanup permanently stalled.
             if (holdingIds.contains(bodyId)) {
                 primaryRecoveredFromHolding = true;
-                requestHoldingLoadIfAvailable();
-                listedBody = findListedBody(bodyId);
+                if (requestHoldingLoadIfAvailable()) {
+                    LOGGER.log(System.Logger.Level.INFO,
+                            PREFIX + " PRIMARY_HOLDING_RECOVERY bodyId=" + bodyId
+                                    + " holdingIds=" + holdingIds + " tick=" + now);
+                }
             }
+            Object listedBody = findListedBody(bodyId);
             if (listedBody == null) {
-                holdingIds = currentHoldingSubLevelIds();
+                Set<UUID> holdingIds = currentHoldingSubLevelIds();
                 if (primaryRecoveredFromHolding || holdingIds.contains(bodyId)) {
                     primaryRecoveredFromHolding = true;
                     requestHoldingLoadIfAvailable();
