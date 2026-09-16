@@ -47,7 +47,7 @@ final class SwivelControlChildLifecycleResourceTest {
     }
 
     @Test
-    void workflowAndLedgerRemainFailClosedUntilL2Acceptance() throws IOException {
+    void workflowAndLedgerPublishAcceptedL2Authority() throws IOException {
         String workflow = Files.readString(PROJECT_DIRECTORY.resolve(
                 "../.github/workflows/compiler-platform-swivel-control-child-lifecycle.yml").normalize());
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
@@ -59,9 +59,13 @@ final class SwivelControlChildLifecycleResourceTest {
         int start = ledger.indexOf("\"SWIVEL_CONTROL_CHILD_ON_SABLE_LIFECYCLE\"");
         assertTrue(start >= 0);
         String entry = ledger.substring(start);
-        assertTrue(entry.contains("\"status\": \"qualification_pending\""));
-        assertTrue(entry.contains("\"B\": false"));
-        assertTrue(entry.contains("\"C\": false"));
+        assertTrue(entry.contains("\"status\": \"accepted\""));
+        assertTrue(entry.contains("\"workflow_run\": 35040964372"));
+        assertTrue(entry.contains("\"job\": 104620922398"));
+        assertTrue(entry.contains("88e0df10ba9a5c8cba716c6eee8a0e36c5397621"));
+        assertTrue(entry.contains("\"result\": \"PASS\""));
+        assertTrue(entry.contains("\"B\": true"));
+        assertTrue(entry.contains("\"C\": true"));
     }
 
     private static String fixtureSource() throws IOException {

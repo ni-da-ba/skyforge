@@ -527,7 +527,7 @@
       ]
     },
     "SWIVEL_CONTROL_CHILD_ON_SABLE_LIFECYCLE": {
-      "status": "qualification_pending",
+      "status": "accepted",
       "verification_level": "L2",
       "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
       "minimal_fixture": "SkyforgeSwivelControlChildLifecycleAcceptance",
@@ -536,12 +536,19 @@
         "SwivelControlChildLifecycleResourceTest"
       ],
       "owning_workflow": ".github/workflows/compiler-platform-swivel-control-child-lifecycle.yml",
-      "latest_accepted_evidence": null,
+      "latest_accepted_evidence": {
+        "workflow_run": 35040964372,
+        "job": 104620922398,
+        "commit": "88e0df10ba9a5c8cba716c6eee8a0e36c5397621",
+        "result": "PASS",
+        "finding": "Exact-stack L2 proved one canonical live Sable parent and a fresh Swivel control child driven only through real Create kinetics: carrier speed 16.0, hidden extra-cog command speed -16.0 for 10 ticks, neutral target 0.0 to deflected target -48.0000019 degrees with physical yaw -41.7807331 degrees, zero-source locked hold retaining the target, then inverse command returning target to 0.0 and physical yaw to -1.4192537 degrees. Current primary/child authority was re-resolved per phase, targetAngleDegrees remained observation-only, and the bounded COMMAND_FORCED ticket was released before PASS."
+      },
       "assumptions_preconditions": [
         "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE and CREATE_KINETIC_ON_SABLE_LIFECYCLE as carrier authority; Swivel child and command network are realized only after the primary body is canonical, and the pre-assembly Super Glue UUID is never retained as post-assembly authority.",
         "Exact Simulated source commit 50443d00afa06e0982b45f40cd686f7ecf978132 is evidence for Swivel hidden-extra-cog, target-angle, locking, and child-sublevel lifecycle semantics on the bundled exact stack.",
-        "The fixture uses a real Create Creative Motor and cogwheel command path; motor ScrollValueBehaviour may change source RPM, but Swivel targetAngleDegrees is observation-only.",
-        "The bounded child payload is four symmetric sails internally glued above an UP-facing Swivel, with no glue crossing the controller plane.",
+        "The fixture uses a real Create Creative Motor and cogwheel command path at the bounded 16-RPM probe point; Swivel targetAngleDegrees is observation-only and is never directly mutated.",
+        "The bounded child payload is four simulated:white_symmetric_sail cells internally glued above an UP-facing Swivel, with no glue crossing the controller plane.",
+        "Source-off behavior is qualified only as bounded locked hold; return to neutral is an inverse commanded kinetic return, not passive self-centering.",
         "Production aircraft geometry, yaw-force authority, Steering Wheel interaction, cockpit routing, persistence, player tracking, pitch/roll, and flight remain outside this capability."
       ],
       "failure_taxonomy": [
@@ -564,8 +571,8 @@
         "TIMEOUT_FIXTURE_TERMINAL_STATE"
       ],
       "production_authority_for_agents": {
-        "B": false,
-        "C": false
+        "B": true,
+        "C": true
       },
       "negative_evidence": [
         {
