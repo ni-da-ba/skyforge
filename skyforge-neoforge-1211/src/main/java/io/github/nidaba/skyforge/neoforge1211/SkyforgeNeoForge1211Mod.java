@@ -78,6 +78,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNestedPropellerBearingLifecycleAcceptance.installFromSystemProperty();
         SkyforgeSwivelControlChildLifecycleAcceptance.installFromSystemProperty();
         SkyforgeComposedMechanismPersistenceAcceptance.installFromSystemProperty();
+        SkyforgeProductionScalePersistenceAcceptance.installFromSystemProperty();
         SkyforgeSteeringWheelClientWorldPrepareAcceptance.installFromSystemProperty();
         SkyforgeSteeringWheelClientOnSableLifecycleAcceptance.installFromSystemProperty();
         SkyforgeAircraftPowertrainRuntimeAcceptance.installFromSystemProperty();

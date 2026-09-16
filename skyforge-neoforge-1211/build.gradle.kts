@@ -2047,6 +2047,25 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // PLATFORM-010: off-origin production-footprint Sable primary-body persistence locator lifecycle.
+        create("compilerPlatformProductionScalePersistencePrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-production-scale-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformProductionScalePersistence", "prepare")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("compilerPlatformProductionScalePersistenceVerifyServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-production-scale-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformProductionScalePersistence", "verify")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // AIRCRAFT-RUNTIME-001: production v0.12 Guild utility powertrain, first accepted 128-RPM point only.
         create("aircraftPowertrainRuntime128Server") {
             server()
@@ -2745,6 +2764,37 @@ tasks.named("runCompilerPlatformComposedMechanismPersistenceVerifyServer").confi
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(compilerPlatformComposedMechanismPersistenceServerProperties)
+    }
+}
+
+val compilerPlatformProductionScalePersistenceServerProperties = """
+    level-name=compiler-platform-production-scale-persistence
+    level-seed=703010
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformProductionScalePersistencePrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-production-scale-persistence").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformProductionScalePersistenceServerProperties)
+    }
+}
+
+tasks.named("runCompilerPlatformProductionScalePersistenceVerifyServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-production-scale-persistence").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformProductionScalePersistenceServerProperties)
     }
 }
 
