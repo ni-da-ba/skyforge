@@ -410,6 +410,21 @@ A finding such as “this Massif is too lumpy for the starting role” does **no
 
 ## IN PROGRESS
 
+### AUTH-0103 — explicit authored-realization ecology bridge — CANDIDATE
+
+Issue #707 is the narrow consumer-driven bridge exposed by DR-40 / #494. The accepted DR-00
+SF-IMP-0068 schema-2 runtime volume has an explicit AUTH-0046 association but is not an AUTH-0058
+publication, so AUTH-0087 must not be fabricated around it. AUTH-0103 adds publication-independent
+explicit-association surface ecology, exact AUTH-0089 catalog aggregation using shared AUTH-0090
+math, and raw isolation using shared AUTH-0092 semantics. AUTH-0091 remains directly descriptor-owned.
+
+No ecology formula, regime, threshold, species, biome identity, population policy, resource policy, or
+publication provenance is added. Raw isolation remains diagnostic evidence only. Published-world
+AUTH-0087/0088/0090/0092 contracts remain intact. Canonical DR-40 consumption authority is recorded
+in `DR40_ECOLOGY_AUTHORITY.json`. Acceptance remains GitHub Actions + merge/issue close.
+
+Reference: `docs/authorship/AUTH-0103-explicit-association-ecology-bridge.md`.
+
 ### AUTH-0102 — Tableland/Lobed reviewed recipe refinement
 
 Issue #442 is executing the post-review bounded Authorship successor authorized by trusted evidence

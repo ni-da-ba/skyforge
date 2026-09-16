@@ -62,6 +62,27 @@ final class SkyIslandRegionalEcologicalOpportunityProfilerTest {
     }
 
     @Test
+    void explicitAssociationCatalogMatchesPublishedRegionalAggregateExactly() {
+        Fixture fixture = fixture(90011L);
+        SkyIslandRegionalEcologicalOpportunityProfile published =
+                new SkyIslandRegionalEcologicalOpportunityProfiler().profile(fixture.binding());
+        SkyIslandAuthoredRealizationEcologicalOpportunityProfile explicit =
+                new SkyIslandAuthoredRealizationEcologicalOpportunityProfiler()
+                        .profile(fixture.binding().associationCatalog());
+
+        assertEquals(published.authoredWorldSeed(), explicit.authoredWorldSeed());
+        assertEquals(published.islands(), explicit.islands());
+        assertEquals(
+                published.totalHorizontalOwnedAreaEstimate(),
+                explicit.totalHorizontalOwnedAreaEstimate(),
+                0.0);
+        assertEquals(published.meanVegetationPotential(), explicit.meanVegetationPotential(), 0.0);
+        assertEquals(published.meanSaturationPotential(), explicit.meanSaturationPotential(), 0.0);
+        assertEquals(published.meanThermalSuitability(), explicit.meanThermalSuitability(), 0.0);
+        assertEquals(published.regimeFractions(), explicit.regimeFractions());
+    }
+
+    @Test
     void aggregateIsExactlyAreaWeightedFromAcceptedIslandProfiles() {
         SkyIslandRegionalEcologicalOpportunityProfile regional =
                 new SkyIslandRegionalEcologicalOpportunityProfiler()

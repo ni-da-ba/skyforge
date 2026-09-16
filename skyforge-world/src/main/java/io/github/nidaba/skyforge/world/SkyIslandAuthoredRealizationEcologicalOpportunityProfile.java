@@ -6,56 +6,48 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * AUTH-0090 deterministic regional aggregation of exact AUTH-0089 island opportunity profiles.
+ * AUTH-0103 catalog-level aggregation of exact AUTH-0089 island opportunity profiles.
  *
- * <p>The publication boundary remains mandatory. Area-weighted ecology math is shared with the
- * AUTH-0103 explicit-association profile so publication and runtime-fixture consumers cannot drift.
+ * <p>This carries explicit AUTH-0046 association provenance only. It makes no AUTH-0058 publication
+ * claim and introduces no species, population, resource, or backend policy.
  */
-public final class SkyIslandRegionalEcologicalOpportunityProfile {
-    private final SkyIslandPublishedAuthoredRealizationBinding binding;
+public final class SkyIslandAuthoredRealizationEcologicalOpportunityProfile {
+    private final SkyIslandAuthoredRealizationCatalog catalog;
     private final List<SkyIslandRegionalEcologicalOpportunityEntry> islands;
     private final SkyIslandEcologicalOpportunityAggregation.Result aggregate;
 
-    SkyIslandRegionalEcologicalOpportunityProfile(
-            SkyIslandPublishedAuthoredRealizationBinding binding,
+    SkyIslandAuthoredRealizationEcologicalOpportunityProfile(
+            SkyIslandAuthoredRealizationCatalog catalog,
             List<SkyIslandRegionalEcologicalOpportunityEntry> islands) {
-        this.binding = Objects.requireNonNull(binding, "binding");
+        this.catalog = Objects.requireNonNull(catalog, "catalog");
         Objects.requireNonNull(islands, "islands");
         this.islands = List.copyOf(islands);
-
-        List<SkyIslandAuthoredRealizationAssociation> expected =
-                binding.associationCatalog().associations();
+        List<SkyIslandAuthoredRealizationAssociation> expected = catalog.associations();
         if (this.islands.size() != expected.size()) {
             throw new IllegalArgumentException(
-                    "regional ecology profile requires exact AUTH-0087 association coverage");
+                    "catalog ecology profile requires exact AUTH-0046 association coverage");
         }
         for (int index = 0; index < expected.size(); index++) {
-            SkyIslandRegionalEcologicalOpportunityEntry entry = this.islands.get(index);
-            if (!entry.association().equals(expected.get(index))) {
+            if (!this.islands.get(index).association().equals(expected.get(index))) {
                 throw new IllegalArgumentException(
-                        "regional ecology entries must preserve canonical AUTH-0087 association order");
+                        "catalog ecology entries must preserve canonical AUTH-0046 association order");
             }
         }
         this.aggregate = SkyIslandEcologicalOpportunityAggregation.aggregate(this.islands);
     }
 
-    public SkyIslandPublishedAuthoredRealizationBinding binding() {
-        return binding;
-    }
-
-    public SkyIslandCompiledWorldPublicationId publicationId() {
-        return binding.publication().id();
+    public SkyIslandAuthoredRealizationCatalog catalog() {
+        return catalog;
     }
 
     public long authoredWorldSeed() {
-        return binding.authoredWorldSeed();
+        return catalog.authoredWorldSeed();
     }
 
     public int islandCount() {
         return islands.size();
     }
 
-    /** Canonical AUTH-0087 association order. */
     public List<SkyIslandRegionalEcologicalOpportunityEntry> islands() {
         return islands;
     }

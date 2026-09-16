@@ -5,39 +5,33 @@ import java.util.Objects;
 import java.util.OptionalDouble;
 
 /**
- * AUTH-0092 deterministic raw regional isolation evidence over one exact AUTH-0087 binding.
+ * AUTH-0103 raw association-catalog isolation evidence using exact AUTH-0092 distance semantics.
  *
- * <p>The publication gate remains mandatory. Distance and tie semantics are shared with AUTH-0103's
- * explicit-association catalog profile so published and runtime-fixture evidence cannot diverge.
+ * <p>No ecological-isolation class, species suitability, carrying capacity, or population pressure
+ * is derived. A singleton catalog legitimately has no nearest-neighbor evidence.
  */
-public final class SkyIslandRegionalIsolationProfile {
-    private final SkyIslandPublishedAuthoredRealizationBinding binding;
+public final class SkyIslandAuthoredRealizationIsolationProfile {
+    private final SkyIslandAuthoredRealizationCatalog catalog;
     private final SkyIslandIsolationEvidenceAggregation.Result aggregate;
 
-    SkyIslandRegionalIsolationProfile(
-            SkyIslandPublishedAuthoredRealizationBinding binding) {
-        this.binding = Objects.requireNonNull(binding, "binding");
-        this.aggregate = SkyIslandIsolationEvidenceAggregation.aggregate(
-                binding.associationCatalog().associations());
+    SkyIslandAuthoredRealizationIsolationProfile(
+            SkyIslandAuthoredRealizationCatalog catalog) {
+        this.catalog = Objects.requireNonNull(catalog, "catalog");
+        this.aggregate = SkyIslandIsolationEvidenceAggregation.aggregate(catalog.associations());
     }
 
-    public SkyIslandPublishedAuthoredRealizationBinding binding() {
-        return binding;
-    }
-
-    public SkyIslandCompiledWorldPublicationId publicationId() {
-        return binding.publication().id();
+    public SkyIslandAuthoredRealizationCatalog catalog() {
+        return catalog;
     }
 
     public long authoredWorldSeed() {
-        return binding.authoredWorldSeed();
+        return catalog.authoredWorldSeed();
     }
 
     public int islandCount() {
         return aggregate.islands().size();
     }
 
-    /** Canonical AUTH-0046 association order. */
     public List<SkyIslandRegionalIsolationEntry> islands() {
         return aggregate.islands();
     }

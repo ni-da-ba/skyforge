@@ -56,6 +56,28 @@ final class SkyIslandPublishedSurfaceEcologyResolverTest {
     }
 
     @Test
+    void explicitAssociationResolverMatchesPublishedProjectionExactly() {
+        Fixture fixture = fixture(88011L, 4411L);
+        SkyIslandLocalPosition local = firstSupportedAuthoredPosition(fixture.association());
+        Coordinate2 world = toWorld(fixture.association(), local);
+
+        SkyIslandPublishedSurfaceEcologySample published =
+                new SkyIslandPublishedSurfaceEcologyResolver(fixture.binding())
+                        .sample(fixture.association().realizedVolumeId(), world);
+        SkyIslandAuthoredRealizationSurfaceEcologySample explicit =
+                new SkyIslandAuthoredRealizationSurfaceEcologyResolver(
+                                fixture.binding().associationCatalog())
+                        .sample(fixture.association().realizedVolumeId(), world);
+
+        assertEquals(published.association(), explicit.association());
+        assertEquals(published.worldPosition(), explicit.worldPosition());
+        assertEquals(published.localPosition(), explicit.localPosition());
+        assertEquals(published.physicalColumnPresent(), explicit.physicalColumnPresent());
+        assertEquals(published.authoredInteriority(), explicit.authoredInteriority(), 0.0);
+        assertEquals(published.ecologySample(), explicit.ecologySample());
+    }
+
+    @Test
     void unknownPublishedVolumeIsRejectedRatherThanSpatiallyInferred() {
         Fixture fixture = fixture(88002L, 653L);
         SkyIslandPublishedSurfaceEcologyResolver resolver =
