@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.common.NeoForge;
@@ -178,6 +179,7 @@ final class SkyforgeWaterWheelSourceLifecycleAcceptance {
             if (!level.setBlock(WATER_SOURCE, Blocks.WATER.defaultBlockState(), 3)) {
                 throw new IllegalStateException("failed to restore upstream water source at " + WATER_SOURCE);
             }
+            level.scheduleTick(WATER_SOURCE, Fluids.WATER, 1);
             stage = Stage.RECOVERED;
             waitDiagnostic = diagnostic(
                     "restoring the same water source re-establishes real flow and nonzero generation",
@@ -292,6 +294,7 @@ final class SkyforgeWaterWheelSourceLifecycleAcceptance {
                 || !level.setBlock(WATER_SOURCE, Blocks.WATER.defaultBlockState(), 3)) {
             throw new IllegalStateException("failed to place complete water-wheel source fixture");
         }
+        level.scheduleTick(WATER_SOURCE, Fluids.WATER, 1);
     }
 
     private static Object requireExpectedBlockEntity(BlockPos pos, String suffix, long now) {

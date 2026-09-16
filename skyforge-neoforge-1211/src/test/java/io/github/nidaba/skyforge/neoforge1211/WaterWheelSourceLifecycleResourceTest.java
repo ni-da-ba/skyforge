@@ -38,6 +38,7 @@ final class WaterWheelSourceLifecycleResourceTest {
         String source = fixtureSource();
 
         assertTrue(source.contains("Blocks.WATER.defaultBlockState()"));
+        assertTrue(source.contains("scheduleTick(WATER_SOURCE, Fluids.WATER, 1)"));
         assertTrue(source.contains("fluid.getFlow(level, pos)"));
         assertTrue(source.contains("hasActiveWaterFlow"));
         assertTrue(source.contains("sourceRemoved=true"));
