@@ -18,6 +18,8 @@ final class AircraftSteeringYawSourceResourceTest {
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftSteeringYawSourceProfile.java"));
         String lowerer = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftSteeringYawSourceLowerer.java"));
+        String ir = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftSteeringYawSourceIR.java"));
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
                 "../docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json").normalize());
         int start = ledger.indexOf("\"STEERING_WHEEL_CLIENT_ON_SABLE_LIFECYCLE\"");
@@ -32,8 +34,10 @@ final class AircraftSteeringYawSourceResourceTest {
         assertTrue(profile.contains("50443d00afa06e0982b45f40cd686f7ecf978132"));
         assertTrue(profile.contains("hasShaftTowards"));
         assertTrue(profile.contains("RPM=16"));
-        assertTrue(lowerer.contains("sourceRudderActuationAuthorityDigestSha256"));
-        assertTrue(lowerer.contains("sourceRudderNeutralReturnAuthorityDigestSha256"));
+        assertTrue(ir.contains("sourceRudderActuationAuthorityDigestSha256"));
+        assertTrue(ir.contains("sourceRudderNeutralReturnAuthorityDigestSha256"));
+        assertTrue(lowerer.contains("actuationDigestSha256()"));
+        assertTrue(lowerer.contains("neutralReturnDigestSha256()"));
         assertFalse(lowerer.contains("MultiPlayerGameMode"));
         assertFalse(lowerer.contains("SteeringWheelPacket"));
         assertFalse(lowerer.contains("updateTargetAngle("));
