@@ -2182,6 +2182,16 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // AIRCRAFT-RUNTIME-004: corrected rudder physical lateral-force/yaw-moment authority.
+        create("aircraftRudderYawAuthorityServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-aircraft-rudder-yaw-authority").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.aircraftRudderYawAuthority", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
 
         // AIRCRAFT-RUNTIME-002: two-boot production v0.12 aircraft persistence consumer.
         create("aircraftPowertrainPersistencePrepareServer") {
@@ -3076,6 +3086,20 @@ tasks.named("runAircraftRudderActuationServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(aircraftRudderActuationServerProperties)
+    }
+}
+
+val aircraftRudderYawAuthorityServerProperties = aircraftPowertrainRuntime128ServerProperties
+    .replace("level-name=aircraft-powertrain-runtime-128", "level-name=aircraft-rudder-yaw-authority")
+    .replace("level-seed=668001", "level-seed=686001")
+
+tasks.named("runAircraftRudderYawAuthorityServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-aircraft-rudder-yaw-authority").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(aircraftRudderYawAuthorityServerProperties)
     }
 }
 

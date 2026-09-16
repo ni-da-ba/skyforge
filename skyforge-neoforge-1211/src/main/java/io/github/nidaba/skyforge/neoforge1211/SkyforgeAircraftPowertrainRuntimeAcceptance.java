@@ -43,13 +43,16 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.aircraftPowertrainRuntime128";
     static final String PERSISTENCE_PROPERTY = "skyforge.dev.aircraftPowertrainPersistence";
     static final String RUDDER_PROPERTY = "skyforge.dev.aircraftRudderActuation";
+    static final String YAW_FORCE_PROPERTY = "skyforge.dev.aircraftRudderYawAuthority";
     static final String CAPABILITY = "AIRCRAFT_V012_POWERTRAIN_128_RUNTIME";
     static final String PERSISTENCE_CAPABILITY = "AIRCRAFT_V012_PERSISTENCE_RUNTIME";
     static final String RUDDER_CAPABILITY = "AIRCRAFT_V0131_RUDDER_ACTUATION_RUNTIME";
+    static final String YAW_FORCE_CAPABILITY = "AIRCRAFT_V0131_RUDDER_YAW_AUTHORITY_RUNTIME";
     private static final System.Logger LOGGER = System.getLogger(SkyforgeAircraftPowertrainRuntimeAcceptance.class.getName());
     private static final String PREFIX = "AIRCRAFT_V012_POWERTRAIN_128_RUNTIME";
     private static final String PERSISTENCE_PREFIX = "AIRCRAFT_V012_PERSISTENCE_RUNTIME";
     private static final String RUDDER_PREFIX = "AIRCRAFT_V0131_RUDDER_ACTUATION_RUNTIME";
+    private static final String YAW_FORCE_PREFIX = "AIRCRAFT_V0131_RUDDER_YAW_AUTHORITY_RUNTIME";
     private static final Path IDENTITY_FILE = Path.of("aircraft-runtime-002.identity");
     private static final long RELOAD_DEADLINE_TICKS = 180L;
     private static final long ENTITY_REHYDRATION_GRACE_TICKS = 10L;
@@ -98,6 +101,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     private static SkyforgeAircraftRetainedGuildUtilityFixture.YawFixture yawFixture;
     private static SkyforgeAircraftYawControlIR yawControl;
     private static boolean rudderMode;
+    private static boolean yawForceMode;
     private static BlockPos movedSwivel;
     private static List<BlockPos> movedRudder = List.of();
     private static Stage stage;
@@ -138,6 +142,11 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             };
             activeCapability = PERSISTENCE_CAPABILITY;
             activePrefix = PERSISTENCE_PREFIX;
+        } else if (Boolean.getBoolean(YAW_FORCE_PROPERTY)) {
+            rudderMode = true;
+            yawForceMode = true;
+            activeCapability = YAW_FORCE_CAPABILITY;
+            activePrefix = YAW_FORCE_PREFIX;
         } else if (Boolean.getBoolean(RUDDER_PROPERTY)) {
             rudderMode = true;
             activeCapability = RUDDER_CAPABILITY;
@@ -850,7 +859,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             SkyforgeAircraftRudderActuationRuntimeAcceptance.verify(
                     level, canonical, movedSwivel, movedRudder,
                     mainExpected.keySet().stream().map(SkyforgeAircraftPowertrainRuntimeAcceptance::moved).toList(),
-                    16, 10, 10, 0.1, 2.0, 5.0);
+                    16, 10, 10, 0.1, 2.0, 5.0, yawForceMode);
         }
         restorePhysicsPause();
         removeFixtureForceLoadTicket();
@@ -867,7 +876,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                         + " childBlocks=9 sailBlocks=8 sailPower=8"
                         + " rawThrust=" + rawThrust + " scaledThrust=" + scaledThrust + " appliedForceX=" + appliedForceX
                         + " analyticalAuthorityIndependent=true higherGovernorPointsQualified=false"
-                        + (rudderMode ? " persistenceQualified=false controlAxisQualified=true yawForceQualified=false flightQualified=false" : " persistenceQualified=false controlAxisQualified=false flightQualified=false")
+                        + (rudderMode ? " persistenceQualified=false controlAxisQualified=true yawForceQualified=" + yawForceMode + " flightQualified=false" : " persistenceQualified=false controlAxisQualified=false flightQualified=false")
                         + " consumedPlatformAuthorities=SABLE_PRIMARY_ASSEMBLY_LIFECYCLE,SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE,CREATE_KINETIC_ON_SABLE_LIFECYCLE,NESTED_PROPELLER_BEARING_LIFECYCLE"
                         + (rudderMode ? ",SWIVEL_CONTROL_CHILD_ON_SABLE_LIFECYCLE" : "")
                         + " canonicalBodyResolutionPerPhase=true blockEntityResolutionPerPoll=true"

@@ -13,9 +13,30 @@ final class SkyforgeAerodynamicForceObservationAcceptance {
     private static final System.Logger LOGGER = System.getLogger(SkyforgeAerodynamicForceObservationAcceptance.class.getName());
     private static final String PREFIX = "COMPILER_PLATFORM_SABLE_AERODYNAMIC_FORCE_OBSERVATION_LIFECYCLE";
 
+    record PointForceObservation(Vector3d pointWorld, Vector3d forceWorld) {}
+    record Observation(
+            Vector3d flowVelocityWorld,
+            Vector3d referenceWorld,
+            Vector3d totalForceWorld,
+            Vector3d totalMomentWorld,
+            List<PointForceObservation> pointForces) {}
+
     private SkyforgeAerodynamicForceObservationAcceptance() {}
 
     static void verify(ServerLevel level, Object parentSubLevel, Object childSubLevel, double forwardSpeedMps)
+            throws ReflectiveOperationException {
+        Observation observation = observe(level, parentSubLevel, childSubLevel, forwardSpeedMps);
+        require(finite(observation.totalForceWorld()) && observation.totalForceWorld().lengthSquared() > 0.0,
+                "FAIL_PHYSICS aggregate DRAG force is zero/non-finite");
+        require(finite(observation.totalMomentWorld()), "FAIL_PHYSICS aggregate DRAG moment is non-finite");
+        require(observation.totalMomentWorld().lengthSquared() > 0.0, "FAIL_PHYSICS aggregate DRAG moment is zero");
+        LOGGER.log(System.Logger.Level.INFO, PREFIX + " PASS forwardSpeedMps=" + forwardSpeedMps
+                + " pointCount=" + observation.pointForces().size() + " referenceWorld=" + observation.referenceWorld()
+                + " totalForceWorld=" + observation.totalForceWorld() + " totalMomentWorld=" + observation.totalMomentWorld()
+                + " forceTrackingReleased=true aircraftSignConventionQualified=false points=" + observation.pointForces());
+    }
+
+    static Observation observe(ServerLevel level, Object parentSubLevel, Object childSubLevel, double forwardSpeedMps)
             throws ReflectiveOperationException {
         Object container = requireContainer(level);
         Object physicsSystem = publicMethod(container, "physicsSystem").invoke(container);
@@ -51,22 +72,19 @@ final class SkyforgeAerodynamicForceObservationAcceptance {
         Vector3d referenceWorld = transformPosition(parentPose, new Vector3d(comLocal));
         Vector3d totalForce = new Vector3d();
         Vector3d totalMoment = new Vector3d();
-        List<String> points = new ArrayList<>();
+        List<PointForceObservation> points = new ArrayList<>();
         for (Object pointForce : recorded) {
             Vector3d point = transformPosition(childPose, new Vector3d(vector(publicMethod(pointForce, "point").invoke(pointForce))));
             Vector3d force = transformNormal(childPose, new Vector3d(vector(publicMethod(pointForce, "force").invoke(pointForce))));
             require(finite(point) && finite(force), "FAIL_PHYSICS non-finite DRAG point force");
             totalForce.add(force);
             totalMoment.add(new Vector3d(point).sub(referenceWorld).cross(force, new Vector3d()));
-            points.add("p=" + point + ",f=" + force);
+            points.add(new PointForceObservation(new Vector3d(point), new Vector3d(force)));
         }
-        require(finite(totalForce) && totalForce.lengthSquared() > 0.0, "FAIL_PHYSICS aggregate DRAG force is zero/non-finite");
+        require(finite(totalForce), "FAIL_PHYSICS aggregate DRAG force is non-finite");
         require(finite(totalMoment), "FAIL_PHYSICS aggregate DRAG moment is non-finite");
-        require(totalMoment.lengthSquared() > 0.0, "FAIL_PHYSICS aggregate DRAG moment is zero");
-        LOGGER.log(System.Logger.Level.INFO, PREFIX + " PASS forwardSpeedMps=" + forwardSpeedMps
-                + " pointCount=" + recorded.size() + " referenceWorld=" + referenceWorld
-                + " totalForceWorld=" + totalForce + " totalMomentWorld=" + totalMoment
-                + " forceTrackingReleased=true aircraftSignConventionQualified=false points=" + points);
+        return new Observation(
+                new Vector3d(flowVelocity), new Vector3d(referenceWorld), new Vector3d(totalForce), new Vector3d(totalMoment), List.copyOf(points));
     }
 
     private static Object requireContainer(ServerLevel level) throws ReflectiveOperationException {

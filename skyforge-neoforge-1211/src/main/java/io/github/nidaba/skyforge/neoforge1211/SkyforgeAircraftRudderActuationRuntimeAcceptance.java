@@ -40,7 +40,8 @@ final class SkyforgeAircraftRudderActuationRuntimeAcceptance {
             int holdTicks,
             double targetNeutralToleranceDegrees,
             double physicalNeutralToleranceDegrees,
-            double minimumPhysicalDeflectionDegrees)
+            double minimumPhysicalDeflectionDegrees,
+            boolean qualifyYawAuthority)
             throws ReflectiveOperationException {
         if (movedRudder.size() != 4 || new LinkedHashSet<>(movedRudder).size() != 4) fail("expected exactly four unique rudder cells");
         Set<BlockPos> parent = new LinkedHashSet<>(movedParentMain);
@@ -68,7 +69,7 @@ final class SkyforgeAircraftRudderActuationRuntimeAcceptance {
         publicMethod(bearing, "assemble").invoke(bearing);
         if (!Boolean.TRUE.equals(publicMethod(bearing, "isAssembled").invoke(bearing))) fail("Swivel did not assemble rudder child");
         for (BlockPos pos : movedRudder) if (!level.getBlockState(pos).isAir()) fail("rudder source cell not consumed: " + pos);
-        Object child = attachedChild(bearing);
+        Object child = currentChild(bearing);
         double neutralPhysical = relativeYawDegrees(parentSubLevel, child);
         if (!Double.isFinite(neutralPhysical) || Math.abs(normalizeDegrees(neutralPhysical)) > physicalNeutralToleranceDegrees) {
             fail("rudder child did not begin physically neutral: " + neutralPhysical);
@@ -102,9 +103,14 @@ final class SkyforgeAircraftRudderActuationRuntimeAcceptance {
             fail("real kinetic command did not produce signed target deflection: delta=" + targetDelta + " extraRpm=" + extraRpm);
         }
         settlePhysics(level, 10);
-        double physicalDeflected = relativeYawDegrees(parentSubLevel, attachedChild(bearing));
+        double physicalDeflected = relativeYawDegrees(parentSubLevel, currentChild(bearing));
         if (!Double.isFinite(physicalDeflected) || Math.abs(normalizeDegrees(physicalDeflected)) < minimumPhysicalDeflectionDegrees) {
             fail("rudder child did not physically deflect: " + physicalDeflected);
+        }
+        SkyforgeAircraftRudderYawAuthorityRuntimeAcceptance.Result yawAuthority = null;
+        if (qualifyYawAuthority) {
+            yawAuthority = SkyforgeAircraftRudderYawAuthorityRuntimeAcceptance.verify(level, parentSubLevel, bearing);
+            physicalDeflected = yawAuthority.physicalYawDegrees();
         }
 
         setMotorSpeed(motor, 0);
@@ -139,7 +145,7 @@ final class SkyforgeAircraftRudderActuationRuntimeAcceptance {
         level.setBlock(motorPos, Blocks.AIR.defaultBlockState(), 3);
         level.setBlock(driveCogPos, Blocks.AIR.defaultBlockState(), 3);
         settlePhysics(level, 10);
-        double physicalReturned = relativeYawDegrees(parentSubLevel, attachedChild(bearing));
+        double physicalReturned = relativeYawDegrees(parentSubLevel, currentChild(bearing));
         if (!Double.isFinite(physicalReturned) || Math.abs(normalizeDegrees(physicalReturned)) > physicalNeutralToleranceDegrees) {
             fail("physical rudder did not return neutral: " + physicalReturned);
         }
@@ -151,7 +157,8 @@ final class SkyforgeAircraftRudderActuationRuntimeAcceptance {
                         + " targetDeflected=" + targetDeflected + " physicalDeflected=" + physicalDeflected
                         + " heldTarget=" + heldEnd + " targetReturned=" + targetReturned + " physicalReturned=" + physicalReturned
                         + " commandTicks=" + commandTicks + " holdTicks=" + holdTicks
-                        + " directTargetMutation=false passiveSelfCenteringQualified=false yawForceQualified=false");
+                        + " directTargetMutation=false passiveSelfCenteringQualified=false yawForceQualified=" + qualifyYawAuthority
+                        + (yawAuthority == null ? "" : " yawAuthority=" + yawAuthority));
     }
 
     private static void placeCommandNetwork(ServerLevel level, BlockPos cogPos, BlockPos motorPos) {
@@ -168,7 +175,7 @@ final class SkyforgeAircraftRudderActuationRuntimeAcceptance {
         return state.setValue(BlockStateProperties.FACING, Direction.UP);
     }
 
-    private static Object attachedChild(BlockEntity bearing) throws ReflectiveOperationException {
+    static Object currentChild(BlockEntity bearing) throws ReflectiveOperationException {
         Object raw = publicMethod(bearing, "sable$getConnectionDependencies").invoke(bearing);
         if (!(raw instanceof Iterable<?>)) fail("Swivel dependencies unavailable");
         Iterable<?> dependencies = (Iterable<?>) raw;
@@ -179,7 +186,7 @@ final class SkyforgeAircraftRudderActuationRuntimeAcceptance {
         return child;
     }
 
-    private static double relativeYawDegrees(Object parent, Object child) throws ReflectiveOperationException {
+    static double relativeYawDegrees(Object parent, Object child) throws ReflectiveOperationException {
         Object parentPose = publicMethod(parent, "logicalPose").invoke(parent);
         Object childPose = publicMethod(child, "logicalPose").invoke(child);
         Quaterniondc parentQ = quaternion(publicMethod(parentPose, "orientation").invoke(parentPose));
