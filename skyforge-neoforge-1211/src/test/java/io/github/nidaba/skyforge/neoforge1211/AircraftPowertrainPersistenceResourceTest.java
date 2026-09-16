@@ -61,6 +61,12 @@ final class AircraftPowertrainPersistenceResourceTest {
         assertTrue(source.contains("currentPhysicsHandleValid=true"));
         assertTrue(source.contains("normalizedChildBlocksInPlot=true"));
         assertTrue(source.contains("PRE_SAVE_GLUE_OBSERVED"));
+        assertTrue(source.contains("SOURCE_CHUNK_READINESS"));
+        assertTrue(source.contains("PhysicsChunkTicketManager"));
+        assertTrue(source.contains("isPositionEntityTicking"));
+        assertTrue(source.contains("compilerGlueVisibleToCreate=true"));
+        assertTrue(source.contains("synchronous 127->0 production source transfer"));
+        assertTrue(source.contains("sourceChunkTickets=released"));
         assertTrue(source.contains("ENTITY_REHYDRATION_GRACE_TICKS = 10L"));
         assertTrue(source.contains("reassembled-from-normalized-plot"));
         assertTrue(source.contains("lifecycleReactivation=portable_engine_burn_plus_governor_target"));

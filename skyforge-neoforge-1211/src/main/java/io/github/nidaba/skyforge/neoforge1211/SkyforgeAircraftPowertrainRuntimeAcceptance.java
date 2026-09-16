@@ -51,8 +51,12 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     private static final long RELOAD_DEADLINE_TICKS = 180L;
     private static final long ENTITY_REHYDRATION_GRACE_TICKS = 10L;
     private static final int LOCATOR_TICKET_DISTANCE = 3;
+    private static final int SOURCE_CHUNK_TICKET_DISTANCE = 3;
+    private static final long SOURCE_CHUNK_READINESS_DEADLINE_TICKS = 100L;
     private static final TicketType<ChunkPos> LOCATOR_CHUNK_TICKET = TicketType.create(
             "skyforge_aircraft_runtime_002_locator", Comparator.comparingLong(ChunkPos::toLong));
+    private static final TicketType<ChunkPos> SOURCE_CHUNK_TICKET = TicketType.create(
+            "skyforge_aircraft_runtime_002_source", Comparator.comparingLong(ChunkPos::toLong));
     private static final BlockPos BASE = new BlockPos(128, 220, 0);
     private static final int ENGINE_BURN_TICKS = 1200;
     private static final int TARGET_RPM = 128;
@@ -107,9 +111,11 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     private static PointerState persistedPointer;
     private static boolean reloadLoadRequested;
     private static final Set<ChunkPos> activeLocatorChunkTickets = new LinkedHashSet<>();
+    private static final Map<ChunkPos, BlockPos> sourceChunkRepresentatives = new LinkedHashMap<>();
+    private static final Set<ChunkPos> activeSourceChunkTickets = new LinkedHashSet<>();
 
     private enum RunMode { LEGACY, PREPARE, VERIFY }
-    private enum Stage { ASSEMBLY, PHYSICS_INITIALIZATION, KINETIC_128, CHILD_REASSEMBLY, THRUST_SETTLE, RELOAD_RECOVERY }
+    private enum Stage { SOURCE_CHUNK_READINESS, ASSEMBLY, PHYSICS_INITIALIZATION, KINETIC_128, CHILD_REASSEMBLY, THRUST_SETTLE, RELOAD_RECOVERY }
 
     private SkyforgeAircraftPowertrainRuntimeAcceptance() {}
 
@@ -144,17 +150,14 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                 beginReloadVerification(now);
             } else {
                 beforeIds = currentSubLevelIds();
-                prepareFixture();
-                addCompilerGlue();
-                BlockEntity assembler = requireExpectedBlockEntity(source(compilerFixture.assemblyFixture().physicsAssemblerPlacement().point()), "PhysicsAssemblerBlockEntity");
-                stage = Stage.ASSEMBLY;
+                initializeSourceChunkReadiness();
+                stage = Stage.SOURCE_CHUNK_READINESS;
                 waitDiagnostic = diagnostic(
                         SkyforgeCompilerIntegrationPhase.ASSEMBLY,
-                        "compiler-emitted v0.12 specimen transfers into exactly one canonical Sable body",
-                        now, now + ASSEMBLY_DEADLINE_TICKS, sourceIds(), safeServerState(),
-                        "manifest=" + compilerFixture.manifest().sha256() + " powertrain=" + compilerFixture.powertrain().sha256());
-                publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
-                pollAssembly(now, true);
+                        "every compiler-emitted source chunk reaches exact Sable readiness and Minecraft entity-ticking before production fixture/glue creation",
+                        now, now + SOURCE_CHUNK_READINESS_DEADLINE_TICKS, sourceIds(), safeServerState(),
+                        "sourceChunks=" + sourceChunkRepresentatives + " manifest=" + compilerFixture.manifest().sha256()
+                                + " powertrain=" + compilerFixture.powertrain().sha256());
             }
         } catch (ReflectiveOperationException exception) {
             failReflection(stage == null ? SkyforgeCompilerIntegrationFailure.FAIL_PLACEMENT : SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY, exception);
@@ -162,7 +165,8 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             if (!complete) {
                 SkyforgeCompilerIntegrationFailure code = stage == null
                         ? SkyforgeCompilerIntegrationFailure.FAIL_TARGET_LOWERING
-                        : stage == Stage.ASSEMBLY ? SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY
+                        : stage == Stage.SOURCE_CHUNK_READINESS || stage == Stage.ASSEMBLY
+                                ? SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY
                         : stage == Stage.RELOAD_RECOVERY ? SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE
                         : SkyforgeCompilerIntegrationFailure.FAIL_NETWORK;
                 fail(code, diagnostic(
@@ -182,6 +186,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         long now = level.getGameTime();
         try {
             switch (stage) {
+                case SOURCE_CHUNK_READINESS -> pollSourceChunkReadiness(now);
                 case ASSEMBLY -> pollAssembly(now, false);
                 case PHYSICS_INITIALIZATION -> pollPhysicsInitialization(now);
                 case KINETIC_128 -> pollKinetic128(now);
@@ -191,7 +196,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             }
         } catch (ReflectiveOperationException exception) {
             SkyforgeCompilerIntegrationFailure code = switch (stage) {
-                case ASSEMBLY -> SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY;
+                case SOURCE_CHUNK_READINESS, ASSEMBLY -> SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY;
                 case PHYSICS_INITIALIZATION -> SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS;
                 case KINETIC_128 -> SkyforgeCompilerIntegrationFailure.FAIL_NETWORK;
                 case CHILD_REASSEMBLY -> SkyforgeCompilerIntegrationFailure.FAIL_CHILD_ASSEMBLY;
@@ -200,8 +205,10 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             };
             failReflection(code, exception);
         } catch (RuntimeException exception) {
-            SkyforgeCompilerIntegrationFailure code = stage == Stage.CHILD_REASSEMBLY
-                    ? SkyforgeCompilerIntegrationFailure.FAIL_CHILD_ASSEMBLY
+            SkyforgeCompilerIntegrationFailure code = stage == Stage.SOURCE_CHUNK_READINESS || stage == Stage.ASSEMBLY
+                    ? SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY
+                    : stage == Stage.CHILD_REASSEMBLY
+                            ? SkyforgeCompilerIntegrationFailure.FAIL_CHILD_ASSEMBLY
                     : stage == Stage.RELOAD_RECOVERY
                             ? SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE
                             : stage == Stage.PHYSICS_INITIALIZATION || stage == Stage.THRUST_SETTLE
@@ -317,6 +324,101 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         }
     }
 
+    private static void initializeSourceChunkReadiness() {
+        sourceChunkRepresentatives.clear();
+        activeSourceChunkTickets.clear();
+        for (BlockPos relative : mainExpected.keySet()) registerSourceChunk(source(relative));
+        for (BlockPos relative : childExpected.keySet()) registerSourceChunk(source(relative));
+        if (sourceChunkRepresentatives.isEmpty()) {
+            throw new IllegalStateException("compiled aircraft source footprint has no chunks");
+        }
+        for (ChunkPos chunk : sourceChunkRepresentatives.keySet()) {
+            level.getChunkSource().addRegionTicket(
+                    SOURCE_CHUNK_TICKET, chunk, SOURCE_CHUNK_TICKET_DISTANCE, chunk, true);
+            level.getChunk(chunk.x, chunk.z);
+            activeSourceChunkTickets.add(chunk);
+        }
+        LOGGER.log(System.Logger.Level.INFO, activePrefix + " SOURCE_CHUNK_TICKETS_ADD chunks="
+                + sourceChunkRepresentatives.keySet() + " distance=" + SOURCE_CHUNK_TICKET_DISTANCE
+                + " forceTicks=true");
+    }
+
+    private static void registerSourceChunk(BlockPos pos) {
+        ChunkPos chunk = new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4);
+        sourceChunkRepresentatives.putIfAbsent(chunk, pos);
+    }
+
+    private static void pollSourceChunkReadiness(long now) throws ReflectiveOperationException {
+        List<String> pending = new ArrayList<>();
+        for (Map.Entry<ChunkPos, BlockPos> entry : sourceChunkRepresentatives.entrySet()) {
+            ChunkPos chunk = entry.getKey();
+            boolean sableLoadedEnough = isSourceChunkLoadedEnough(chunk);
+            boolean entityTicking = level.isPositionEntityTicking(entry.getValue());
+            if (!sableLoadedEnough || !entityTicking) {
+                pending.add(chunk + ":sable=" + sableLoadedEnough + ":entityTicking=" + entityTicking);
+            }
+        }
+        if (!pending.isEmpty()) {
+            if (waitDiagnostic.expired(now)) {
+                fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_ASSEMBLY_REGISTRATION,
+                        waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
+                                "pendingSourceChunks=" + pending),
+                        "compiled aircraft source footprint did not reach Platform-qualified source readiness");
+            }
+            return;
+        }
+
+        prepareFixture();
+        int expectedTransfer = compilerFixture.powertrain().metrics().expectedPrimarySableTransferCount();
+        int preAssemblyNonAir = countSourceNonAir();
+        if (preAssemblyNonAir != expectedTransfer) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
+                    waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
+                            "preAssemblySourceNonAir=" + preAssemblyNonAir + " expected=" + expectedTransfer
+                                    + " residual=" + sourceNonAirPositions()),
+                    "compiled production source fixture did not materialize at the exact transfer count");
+        }
+        addCompilerGlue(now);
+        BlockEntity assembler = requireExpectedBlockEntity(
+                source(compilerFixture.assemblyFixture().physicsAssemblerPlacement().point()),
+                "PhysicsAssemblerBlockEntity");
+        stage = Stage.ASSEMBLY;
+        waitDiagnostic = diagnostic(
+                SkyforgeCompilerIntegrationPhase.ASSEMBLY,
+                "compiler-emitted v0.12 specimen synchronously transfers all 127 source cells into exactly one canonical Sable body",
+                now, now + ASSEMBLY_DEADLINE_TICKS, sourceIds(), safeServerState(),
+                "sourceReadinessQualified=true sourceChunks=" + sourceChunkRepresentatives.keySet()
+                        + " compilerGlueVisibleToCreate=true manifest=" + compilerFixture.manifest().sha256()
+                        + " powertrain=" + compilerFixture.powertrain().sha256());
+        publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
+        int synchronousSourceNonAir = countSourceNonAir();
+        if (synchronousSourceNonAir != 0) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
+                    waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
+                            "synchronousSourceNonAir=" + synchronousSourceNonAir
+                                    + " residual=" + sourceNonAirPositions()),
+                    "Physics Assembler returned before exact synchronous 127->0 production source transfer completed");
+        }
+        pollAssembly(now, true);
+    }
+
+    private static boolean isSourceChunkLoadedEnough(ChunkPos chunk) throws ReflectiveOperationException {
+        Class<?> manager = Class.forName("dev.ryanhcode.sable.sublevel.system.ticket.PhysicsChunkTicketManager");
+        return Boolean.TRUE.equals(manager.getMethod(
+                        "isChunkLoadedEnough", ServerLevel.class, int.class, int.class)
+                .invoke(null, level, chunk.x, chunk.z));
+    }
+
+    private static void removeAllSourceChunkTickets() {
+        if (level == null) return;
+        for (ChunkPos chunk : List.copyOf(activeSourceChunkTickets)) {
+            level.getChunkSource().removeRegionTicket(
+                    SOURCE_CHUNK_TICKET, chunk, SOURCE_CHUNK_TICKET_DISTANCE, chunk, true);
+            activeSourceChunkTickets.remove(chunk);
+            LOGGER.log(System.Logger.Level.INFO, activePrefix + " SOURCE_CHUNK_TICKET_REMOVE chunk=" + chunk);
+        }
+    }
+
     private static void prepareFixture() {
         Set<BlockPos> all = new LinkedHashSet<>();
         mainExpected.keySet().forEach(p -> all.add(source(p)));
@@ -347,7 +449,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         for (Map.Entry<BlockPos, ExpectedBlock> entry : childExpected.entrySet()) assertExpectedState("source child", source(entry.getKey()), entry.getValue());
     }
 
-    private static void addCompilerGlue() throws ReflectiveOperationException {
+    private static void addCompilerGlue(long now) throws ReflectiveOperationException {
         glueIds.clear();
         List<Entity> insertedGlue = new ArrayList<>();
         for (SkyforgeAircraftGlueEncodingIR.GlueDomain domain : compilerFixture.glue().glueDomains()) {
@@ -357,6 +459,17 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         insertedGlue.add(addGlue(source(powerplant.from()), source(powerplant.to()), powerplant.name()));
         insertedGlue.forEach(glue -> glueIds.add(glue.getUUID()));
         if (insertedGlue.size() != 5) throw new IllegalStateException("v0.12 requires four accepted airframe glue domains plus one powerplant domain");
+        for (Entity glue : insertedGlue) {
+            if (!isGlueVisibleToCreate(glue)) {
+                fail(SkyforgeCompilerIntegrationFailure.FAIL_GLUE_REGISTRATION,
+                        diagnostic(SkyforgeCompilerIntegrationPhase.ASSEMBLY,
+                                "every compiler-emitted Super Glue domain is synchronously visible through Create's typed entity query after Platform-qualified source readiness",
+                                now, now, "glueId=" + glue.getUUID(), safeServerState(),
+                                "sourceChunks=" + sourceChunkRepresentatives.keySet()
+                                        + " glueBox=" + glue.getBoundingBox()),
+                        "compiler-emitted Super Glue was not visible through Create's typed query");
+            }
+        }
         BlockPos bearing = source(findManifestKind("propeller_bearing"));
         BlockPos hub = source(findManifestKind("propeller_hub"));
         for (Entity glue : insertedGlue) {
@@ -378,6 +491,19 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         Entity glue = (Entity) constructor.newInstance(level, box);
         if (!level.addFreshEntity(glue)) throw new IllegalStateException("failed to register compiler glue domain " + label);
         return glue;
+    }
+
+    private static boolean isGlueVisibleToCreate(Entity glue) throws ReflectiveOperationException {
+        Class<?> glueClass = Class.forName("com.simibubi.create.content.contraptions.glue.SuperGlueEntity");
+        Object result = publicMethod(level, "getEntitiesOfClass", Class.class, AABB.class)
+                .invoke(level, glueClass, glue.getBoundingBox().inflate(16.0));
+        if (!(result instanceof List<?> visible)) {
+            throw new IllegalStateException("typed Create Super Glue query returned unexpected value " + result);
+        }
+        for (Object candidate : visible) {
+            if (candidate instanceof Entity entity && entity.getUUID().equals(glue.getUUID())) return true;
+        }
+        return false;
     }
 
     private static void pollAssembly(long now, boolean synchronousObservation) throws ReflectiveOperationException {
@@ -413,6 +539,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             for (Map.Entry<BlockPos, ExpectedBlock> entry : mainExpected.entrySet()) assertExpectedState("moved main", moved(entry.getKey()), entry.getValue());
             for (Map.Entry<BlockPos, ExpectedBlock> entry : childExpected.entrySet()) assertExpectedState("moved child payload", moved(entry.getKey()), entry.getValue());
             addFixtureForceLoadTicket(body);
+            removeAllSourceChunkTickets();
             stage = Stage.PHYSICS_INITIALIZATION;
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,
@@ -649,7 +776,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                         + " persistenceQualified=false controlAxisQualified=false flightQualified=false"
                         + " consumedPlatformAuthorities=SABLE_PRIMARY_ASSEMBLY_LIFECYCLE,SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE,CREATE_KINETIC_ON_SABLE_LIFECYCLE,NESTED_PROPELLER_BEARING_LIFECYCLE"
                         + " canonicalBodyResolutionPerPhase=true blockEntityResolutionPerPoll=true"
-                        + " fixtureLivenessTicket=sable:command_forced(released) clientState=headless");
+                        + " fixtureLivenessTicket=sable:command_forced(released) sourceChunkTickets=released clientState=headless");
     }
 
     private static void normalizeAndSaveAircraft(
@@ -707,7 +834,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                         + " appliedForceX=" + appliedForceX
                         + " normalizedChildBlocksInPlot=true saveSuccess=true"
                         + " lifecycleAuthorities=SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE,SABLE_PRODUCTION_SCALE_PERSISTENCE_LIFECYCLE"
-                        + " fixtureLivenessTicket=sable:command_forced(released) clientState=headless");
+                        + " fixtureLivenessTicket=sable:command_forced(released) sourceChunkTickets=released clientState=headless");
     }
 
     private static void beginReloadVerification(long now) throws ReflectiveOperationException {
@@ -996,7 +1123,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                         + " rawThrust=" + rawThrust + " scaledThrust=" + scaledThrust + " appliedForceX=" + appliedForceX
                         + " persistenceQualified=true controlAxisQualified=false higherGovernorPointsQualified=false flightQualified=false"
                         + " consumedPlatformAuthorities=SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE,SABLE_PRODUCTION_SCALE_PERSISTENCE_LIFECYCLE"
-                        + " fixtureLivenessTicket=sable:command_forced(released) locatorChunkTicket=released clientState=headless");
+                        + " fixtureLivenessTicket=sable:command_forced(released) sourceChunkTickets=released locatorChunkTicket=released clientState=headless");
     }
 
     private static void writeIdentityFile(PersistenceIdentity identity) {
@@ -1220,6 +1347,19 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         return count;
     }
 
+    private static List<BlockPos> sourceNonAirPositions() {
+        List<BlockPos> positions = new ArrayList<>();
+        for (BlockPos relative : mainExpected.keySet()) {
+            BlockPos pos = source(relative);
+            if (!level.getBlockState(pos).isAir()) positions.add(pos);
+        }
+        for (BlockPos relative : childExpected.keySet()) {
+            BlockPos pos = source(relative);
+            if (!level.getBlockState(pos).isAir()) positions.add(pos);
+        }
+        return List.copyOf(positions);
+    }
+
     private static Entity findEntity(UUID uuid) throws ReflectiveOperationException {
         if (uuid == null) return null;
         Object value = publicMethod(level, "getEntity", UUID.class).invoke(level, uuid);
@@ -1321,6 +1461,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         try { ids = container == null ? "container=null" : String.valueOf(currentSubLevelIds()); }
         catch (ReflectiveOperationException exception) { ids = "<reflection-failed:" + exception.getClass().getSimpleName() + ">"; }
         return "gameTime=" + level.getGameTime() + " stage=" + stage + " subLevelIds=" + ids
+                + " activeSourceChunkTickets=" + activeSourceChunkTickets
                 + " activeLocatorChunkTickets=" + activeLocatorChunkTickets
                 + " persistedPointer=" + persistedPointer + " loadRequested=" + reloadLoadRequested
                 + " sourceBearing=" + (compilerFixture == null ? "n/a" : level.getBlockState(source(findManifestKind("propeller_bearing"))))
@@ -1330,6 +1471,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     private static void cleanupQuietly() {
         try { restorePhysicsPause(); } catch (ReflectiveOperationException | RuntimeException ignored) {}
         try { removeFixtureForceLoadTicket(); } catch (ReflectiveOperationException | RuntimeException ignored) {}
+        try { removeAllSourceChunkTickets(); } catch (RuntimeException ignored) {}
         try { removeAllLocatorChunkTickets(); } catch (RuntimeException ignored) {}
     }
 

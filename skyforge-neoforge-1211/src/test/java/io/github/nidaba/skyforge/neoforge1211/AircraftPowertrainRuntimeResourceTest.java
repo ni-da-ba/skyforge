@@ -59,6 +59,10 @@ final class AircraftPowertrainRuntimeResourceTest {
         assertTrue(source.contains("persistenceQualified=false"));
         assertTrue(source.contains("controlAxisQualified=false"));
         assertTrue(source.contains("analyticalAuthorityIndependent=true"));
+        assertTrue(source.contains("SOURCE_CHUNK_READINESS"));
+        assertTrue(source.contains("PhysicsChunkTicketManager"));
+        assertTrue(source.contains("isPositionEntityTicking"));
+        assertTrue(source.contains("sourceChunkTickets=released"));
         assertTrue(source.contains("compiler-emitted propeller child did not re-form without hidden child glue"));
         assertTrue(source.contains("RunMode.LEGACY"));
         assertTrue(source.contains("System.getProperty(PERSISTENCE_PROPERTY"));
