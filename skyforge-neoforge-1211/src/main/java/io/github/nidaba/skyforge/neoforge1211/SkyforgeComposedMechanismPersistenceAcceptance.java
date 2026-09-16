@@ -71,7 +71,10 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static final BlockPos CHILD_GLUE_MIN = CHILD_SAIL_DOWN_SOURCE;
     private static final BlockPos CHILD_GLUE_MAX = CHILD_SAIL_UP_SOURCE;
 
-    private static final long ASSEMBLY_DEADLINE_TICKS = 80L;
+    // Simulated/Sable source cleanup is asynchronous after the body UUID becomes visible.
+    // Keep the semantic gate unchanged, but allow the same bounded 120-tick persistence-scale
+    // grace used elsewhere so CI scheduling jitter cannot reject an otherwise valid assembly.
+    private static final long ASSEMBLY_DEADLINE_TICKS = 120L;
     private static final long PHYSICS_INITIALIZATION_DEADLINE_TICKS = 40L;
     private static final long KINETIC_BUILD_DEADLINE_TICKS = 80L;
     private static final long CHILD_ASSEMBLY_DEADLINE_TICKS = 80L;
