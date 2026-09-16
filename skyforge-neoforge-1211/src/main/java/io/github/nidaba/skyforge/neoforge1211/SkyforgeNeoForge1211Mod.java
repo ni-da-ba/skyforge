@@ -71,6 +71,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgePortableEngineCutoffSableAcceptance.installFromSystemProperty();
         SkyforgeSableAssemblyLifecycleAcceptance.installFromSystemProperty();
         SkyforgeCreateKineticNetworkLifecycleAcceptance.installFromSystemProperty();
+        SkyforgeWorldItemCutPressLifecycleAcceptance.installFromSystemProperty();
         SkyforgeWaterWheelSourceLifecycleAcceptance.installFromSystemProperty();
         SkyforgeMech001FunctionalMechanismAcceptance.installFromSystemProperty();
         SkyforgeMech002NaturalPowerAcceptance.installFromSystemProperty();

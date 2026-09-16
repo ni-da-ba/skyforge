@@ -852,6 +852,61 @@
         "B": true,
         "C": false
       }
+    },
+    "CREATE_WORLD_ITEM_CUT_PRESS_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeWorldItemCutPressLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "WorldItemCutPressLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-world-item-cut-press-lifecycle.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 35153305780,
+        "job": 104987307653,
+        "commit": "215c1e34caf202689052c3eda8d73977420c7590",
+        "result": "PASS",
+        "finding": "Exact-stack L2 proved a beltless fixed-world world-item sequenced-processing primitive. Two accepted Create creative-motor/shaft networks drove an upward Mechanical Saw and WORLD-mode Mechanical Press at 16.0 RPM. A real falling minecraft:iron_ingot ItemEntity entered the Saw path, advanced the development-only skyforge:sequenced_assembly/platform_015_cut_press recipe to step 1/progress 0.5, and yielded the minecraft:iron_nugget transitional item. The harness explicitly restaged that same logical transitional world-item entity into the Press acquisition surface; WORLD-mode pressing was observed grounded, terminal processing produced minecraft:gold_nugget, and the sequenced component cleared. The fixture contained no belt, depot, funnel, chute, mechanical arm, or other qualified automated transport surface."
+      },
+      "assumptions_preconditions": [
+        "The exact retained Create artifact is Create 6.0.10 for Minecraft 1.21.1 at upstream commit ac0c444d9828da3453ae8cc65338e8de063286fb; source/API/resource drift must fail closed.",
+        "The minimal fixture uses deterministic create:creative_motor -> create:shaft source chains only as qualification power. This does not prescribe a production workshop power source; Agent C may consume accepted stationary power authority separately.",
+        "The Saw is upward-facing and the Press uses Create WORLD-mode ordinary ItemEntity acquisition. The explicit Saw-to-Press handoff is harness/manual world-item repositioning, not belt, funnel, chute, depot, arm, or automated transport authority.",
+        "The development-only one-loop recipe exists only to prove the reusable CUT -> PRESS primitive independently of Simulated product recipe semantics.",
+        "This capability does not qualify the full eight-loop simulated:engine_assembly workflow, terminal weighted-result probability, product BOM/retry economics, automated throughput, Sable/mobile machinery, aircraft, production geography, workshop usability, or any human gate."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_NETWORK",
+        "FAIL_RUNTIME_EXIT",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_KINETIC_BUILD",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": false,
+        "C": true
+      },
+      "negative_evidence": [
+        {
+          "workflow_run": 35145707233,
+          "job": 104961825603,
+          "commit": "a7f57be16a37a7e81fe75a4b0752e5533549fa39",
+          "result": "TIMEOUT_KINETIC_BUILD",
+          "finding": "The first L2 candidate placed the Saw source across an unloaded negative-X chunk and neither processing station acquired kinetic speed. This isolated fixture readiness/topology before any processing claim."
+        },
+        {
+          "workflow_run": 35149842962,
+          "job": 104976086506,
+          "commit": "6eb00cc45a087f06103b180065f05ce8ee55a75b",
+          "result": "TIMEOUT_FIXTURE_TERMINAL_STATE",
+          "finding": "After kinetic readiness was corrected, the fixture reached 16 RPM at both stations but did not yet prove Saw world-item acquisition/transition ejection. Follow-up instrumentation and bounded drop-surface handling reduced the remaining acquisition/processing seam without adding transport authority."
+        }
+      ]
     }
   }
 }
