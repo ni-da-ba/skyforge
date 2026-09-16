@@ -841,18 +841,18 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static void addFixtureChunkTicket() {
         if (fixtureChunkTicketAdded) return;
         level.getChunkSource().addRegionTicket(
-                FIXTURE_CHUNK_TICKET, FIXTURE_CHUNK, FIXTURE_CHUNK_TICKET_DISTANCE, FIXTURE_CHUNK);
+                FIXTURE_CHUNK_TICKET, FIXTURE_CHUNK, FIXTURE_CHUNK_TICKET_DISTANCE, FIXTURE_CHUNK, true);
         level.getChunk(FIXTURE_CHUNK.x, FIXTURE_CHUNK.z);
         fixtureChunkTicketAdded = true;
         LOGGER.log(System.Logger.Level.INFO,
                 PREFIX + " FIXTURE_CHUNK_TICKET_ADD chunk=" + FIXTURE_CHUNK
-                        + " distance=" + FIXTURE_CHUNK_TICKET_DISTANCE);
+                        + " distance=" + FIXTURE_CHUNK_TICKET_DISTANCE + " forceTicks=true");
     }
 
     private static void removeFixtureChunkTicket() {
         if (!fixtureChunkTicketAdded || level == null) return;
         level.getChunkSource().removeRegionTicket(
-                FIXTURE_CHUNK_TICKET, FIXTURE_CHUNK, FIXTURE_CHUNK_TICKET_DISTANCE, FIXTURE_CHUNK);
+                FIXTURE_CHUNK_TICKET, FIXTURE_CHUNK, FIXTURE_CHUNK_TICKET_DISTANCE, FIXTURE_CHUNK, true);
         fixtureChunkTicketAdded = false;
         LOGGER.log(System.Logger.Level.INFO,
                 PREFIX + " FIXTURE_CHUNK_TICKET_REMOVE chunk=" + FIXTURE_CHUNK);

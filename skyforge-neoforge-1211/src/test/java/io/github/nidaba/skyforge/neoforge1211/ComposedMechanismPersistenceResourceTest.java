@@ -48,6 +48,7 @@ final class ComposedMechanismPersistenceResourceTest {
         assertTrue(source.contains("TicketType.create"));
         assertTrue(source.contains("skyforge_platform_007"));
         assertTrue(source.contains("addRegionTicket"));
+        assertTrue(source.contains("forceTicks=true"));
         assertTrue(source.contains("removeRegionTicket"));
         assertTrue(source.contains("samePersistentUuid=true"));
         assertTrue(source.contains("currentPhysicsHandleValid=true"));
