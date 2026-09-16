@@ -26,16 +26,20 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(pins.contains("minecraft.version=1.21.1"));
         assertTrue(pins.contains("neoforge.version=21.1.249"));
         assertTrue(server.contains("create:brown_seat"));
-        assertTrue(server.contains("simulated:physics_assembler"));
         assertTrue(server.contains("6966d2928340de7631abcecf8549904b877df0a8"));
+        assertTrue(server.contains("dev.ryanhcode.sable.api.SubLevelAssemblyHelper"));
+        assertTrue(server.contains("assembleBlocks"));
+        assertTrue(server.contains("qualificationSetup=sable:SubLevelAssemblyHelper.assembleBlocks"));
+        assertTrue(server.contains("EXPLICIT_FIXTURE_CELLS = 9"));
+        assertFalse(server.contains("simulated:physics_assembler"));
+        assertFalse(server.contains("SuperGlueEntity"));
+        assertFalse(server.contains("SimAssemblyHelper"));
         assertTrue(server.contains("getTrackingSubLevel"));
         String trackingMixinClass = "Class.forName(\"dev.ryanhcode.sable.mixinterface.entity.entity_sublevel_collision.EntityMovementExtension\")";
         int trackingMixinResolution = server.indexOf(trackingMixinClass);
         assertTrue(trackingMixinResolution > server.indexOf("private static UUID trackingSubLevelId"));
         assertTrue(trackingMixinResolution == server.lastIndexOf(trackingMixinClass));
         assertTrue(server.contains("client_sublevel_collision_then_movement_packet"));
-        assertTrue(server.contains("GLUE_VISIBILITY_DIAGNOSTIC glueId="));
-        assertTrue(server.contains("acceptanceGating=false"));
         assertFalse(server.contains("addRegionTicket("));
         assertFalse(server.contains("skyforge_platform_012"));
         assertTrue(server.contains("level.getChunk(0, 0);"));
@@ -77,9 +81,9 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(server.contains("bodyId.equals(serverTrackingId)"));
         assertTrue(server.contains("playerSableTrackingQualified=true inheritedParentTranslationQualified=true"));
         assertTrue(server.contains("fixtureLivenessTicket=sable:command_forced(released)"));
-        assertTrue(server.contains("primary seat assembly source cleanup did not settle before deadline"));
-        assertTrue(server.contains("if (sourceNonAir != 0)"));
-        assertFalse(server.contains("valid synchronous post-assembly state"));
+        assertTrue(server.contains("explicit Sable qualification assembly did not synchronously transfer all fixture cells"));
+        assertTrue(server.contains("sourceNonAir != 0"));
+        assertTrue(server.contains("explicitFixtureCells="));
     }
 
     @Test

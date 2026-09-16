@@ -1,6 +1,5 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.LinkedHashSet;
@@ -14,10 +13,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.AABB;
@@ -40,17 +37,14 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
             System.getLogger(SkyforgePlayerTrackingOnSableLifecycleAcceptance.class.getName());
     private static final String PREFIX = "COMPILER_PLATFORM_PLAYER_TRACKING_ON_SABLE_LIFECYCLE";
 
-    private static final ResourceLocation PHYSICS_ASSEMBLER = id("simulated:physics_assembler");
     private static final ResourceLocation SEAT_ID = id("create:brown_seat");
     // Keep the body plus Sable's one-block physics envelope inside explicitly loaded chunk (0,0).
     private static final BlockPos BODY_MIN = new BlockPos(5, 200, 5);
     private static final BlockPos BODY_MAX = new BlockPos(6, 201, 6);
     private static final BlockPos SEAT_SOURCE = new BlockPos(5, 202, 5);
-    private static final BlockPos ASSEMBLER_SOURCE = new BlockPos(6, 202, 6);
-    private static final BlockPos GLUE_MIN = BODY_MIN;
-    private static final BlockPos GLUE_MAX = ASSEMBLER_SOURCE;
+    private static final BlockPos FIXTURE_MAX = new BlockPos(6, 202, 6);
+    private static final int EXPLICIT_FIXTURE_CELLS = 9;
 
-    private static final long ASSEMBLY_DEADLINE_TICKS = 80L;
     private static final long PHYSICS_INITIALIZATION_DEADLINE_TICKS = 40L;
     private static final long SEAT_MOUNT_DEADLINE_TICKS = 240L;
     private static final long SEAT_DISMOUNT_DEADLINE_TICKS = 160L;
@@ -70,7 +64,6 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
     private static boolean forceLoadTicketAdded;
     private static Set<UUID> beforeIds = Set.of();
     private static UUID bodyId;
-    private static UUID glueId;
     private static BlockPos movedOffset;
     private static BlockPos movedSeat;
     private static boolean physicsWasPaused;
@@ -136,27 +129,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
             container = requireServerSubLevelContainer(level);
             beforeIds = currentSubLevelIds();
             prepareFixture();
-            glueId = addFixtureGlue();
-            logSynchronousGlueVisibility();
-            BlockEntity assembler = level.getBlockEntity(ASSEMBLER_SOURCE);
-            if (assembler == null || !assembler.getClass().getName().endsWith("PhysicsAssemblerBlockEntity")) {
-                fail(
-                        SkyforgeCompilerIntegrationFailure.FAIL_BLOCK_ENTITY_INIT,
-                        diagnostic(
-                                SkyforgeCompilerIntegrationPhase.FIXTURE_PLACEMENT,
-                                "real Physics Assembler block entity exists before primary assembly",
-                                now, now, sourceIds(), safeServerState(),
-                                "assemblerBlockEntity=" + (assembler == null ? "null" : assembler.getClass().getName())),
-                        "Physics Assembler block entity missing or wrong type");
-            }
-            stage = Stage.ASSEMBLY;
-            waitDiagnostic = diagnostic(
-                    SkyforgeCompilerIntegrationPhase.ASSEMBLY,
-                    "exactly one new Sable UUID registers with valid mass and all source cells transfer within the bounded assembly window",
-                    now, now + ASSEMBLY_DEADLINE_TICKS, sourceIds(), safeServerState(),
-                    "glueId=" + glueId + " beforeSubLevelIds=" + beforeIds);
-            publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
-            pollAssembly(now, true);
+            assembleExplicitFixture(now);
         } catch (ReflectiveOperationException exception) {
             failReflection(SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY, exception);
         } catch (RuntimeException exception) {
@@ -184,7 +157,10 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
         long now = level.getGameTime();
         try {
             switch (stage) {
-                case ASSEMBLY -> pollAssembly(now, false);
+                case ASSEMBLY -> fail(
+                        SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
+                        finalDiagnostic("qualificationSetup=sable:SubLevelAssemblyHelper.assembleBlocks stageStillPending=true"),
+                        "synchronous Sable qualification assembly unexpectedly remained pending");
                 case PHYSICS_INITIALIZATION -> pollPhysicsInitialization(now);
                 case CLIENT_MOUNT, CLIENT_DISMOUNT, CLIENT_CLEANUP -> pollClientLifecycle(event, now);
                 case TRACKING_ACQUISITION, PARENT_TRANSLATION -> pollTrackingLifecycle(now);
@@ -208,78 +184,85 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
         }
     }
 
-    private static void pollAssembly(long now, boolean synchronousObservation) throws ReflectiveOperationException {
+    private static void assembleExplicitFixture(long now) throws ReflectiveOperationException {
+        stage = Stage.ASSEMBLY;
+        waitDiagnostic = diagnostic(
+                SkyforgeCompilerIntegrationPhase.ASSEMBLY,
+                "exactly nine explicit fixture cells synchronously transfer into one new canonical Sable body",
+                now, now, sourceIds(), safeServerState(),
+                "qualificationSetup=sable:SubLevelAssemblyHelper.assembleBlocks explicitFixtureCells="
+                        + EXPLICIT_FIXTURE_CELLS + " beforeSubLevelIds=" + beforeIds);
+
+        List<BlockPos> blocks = sourceFixtureBlocks();
+        if (blocks.size() != EXPLICIT_FIXTURE_CELLS) {
+            throw new IllegalStateException("explicit fixture cell count mismatch: " + blocks.size());
+        }
+        Class<?> boundsClass = Class.forName("dev.ryanhcode.sable.companion.math.BoundingBox3i");
+        Class<?> boundsInterface = Class.forName("dev.ryanhcode.sable.companion.math.BoundingBox3ic");
+        Object bounds = boundsClass
+                .getConstructor(int.class, int.class, int.class, int.class, int.class, int.class)
+                .newInstance(
+                        BODY_MIN.getX(), BODY_MIN.getY(), BODY_MIN.getZ(),
+                        FIXTURE_MAX.getX(), FIXTURE_MAX.getY(), FIXTURE_MAX.getZ());
+        Class<?> helperClass = Class.forName("dev.ryanhcode.sable.api.SubLevelAssemblyHelper");
+        Method assembleBlocks = helperClass.getMethod(
+                "assembleBlocks", ServerLevel.class, BlockPos.class, Iterable.class, boundsInterface);
+        Object returnedBody = assembleBlocks.invoke(null, level, BODY_MIN, blocks, bounds);
+        if (returnedBody == null) {
+            fail(
+                    SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
+                    finalDiagnostic("returnedBody=null"),
+                    "Sable explicit qualification assembly returned no body");
+        }
+
         Set<UUID> currentIds = currentSubLevelIds();
         Set<UUID> created = new LinkedHashSet<>(currentIds);
         created.removeAll(beforeIds);
-        if (created.size() > 1) {
+        UUID returnedId = subLevelUniqueId(returnedBody);
+        if (created.size() != 1 || !created.contains(returnedId)) {
             fail(
                     SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
-                    waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "actual-client", "createdIds=" + created),
-                    "minimal seat fixture created multiple Sable bodies");
+                    finalDiagnostic("returnedId=" + returnedId + " createdIds=" + created),
+                    "explicit qualification assembly did not create exactly one canonical Sable UUID");
         }
-        if (created.size() == 1) {
-            bodyId = created.iterator().next();
-            Object listedBody = findListedBody(bodyId);
-            if (listedBody == null) {
-                fail(
-                        SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
-                        waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "actual-client",
-                                "bodyId=" + bodyId + " listedBody=null"),
-                        "created Sable UUID could not be reselected");
-            }
-            int sourceNonAir = countSourceFixtureNonAir();
-            Object massTracker = publicMethod(listedBody, "getMassTracker").invoke(listedBody);
-            double mass = number(publicMethod(massTracker, "getMass").invoke(massTracker));
-            Object centerOfMass = publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
-            boolean removed = Boolean.TRUE.equals(publicMethod(listedBody, "isRemoved").invoke(listedBody));
-            if (removed || !(mass > 0.0) || centerOfMass == null) {
-                fail(
-                        SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
-                        waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "actual-client",
-                                "bodyId=" + bodyId + " sourceNonAirAfterAssembly=" + sourceNonAir
-                                        + " mass=" + mass + " centerOfMass=" + centerOfMass + " removed=" + removed),
-                        "primary seat assembly registered an invalid Sable body");
-            }
-            // Simulated may register the live positive-mass Sable body before its parent-world source
-            // cleanup becomes observable. PLATFORM-007 established that this cleanup edge is bounded
-            // post-registration state, not a same-tick invariant. Preserve the exact final requirement
-            // (all source cells transferred), but poll it through the existing assembly deadline.
-            if (sourceNonAir != 0) {
-                if (waitDiagnostic.expired(now)) {
-                    fail(
-                            SkyforgeCompilerIntegrationFailure.TIMEOUT_ASSEMBLY_REGISTRATION,
-                            waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "actual-client",
-                                    "bodyId=" + bodyId + " sourceNonAirAfterAssembly=" + sourceNonAir
-                                            + " mass=" + mass + " centerOfMass=" + centerOfMass
-                                            + " removed=" + removed),
-                            "primary seat assembly source cleanup did not settle before deadline");
-                }
-                return;
-            }
-            assembledBody = listedBody;
-            movedOffset = movedOffset(listedBody, centerOfMass);
-            movedSeat = SEAT_SOURCE.offset(movedOffset);
-            requireMovedSeatBlock();
-            addFixtureForceLoadTicket(listedBody);
-            stage = Stage.PHYSICS_INITIALIZATION;
-            waitDiagnostic = diagnostic(
-                    SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,
-                    "persistent Sable UUID resolves to current body and valid current physics handle",
-                    now, now + PHYSICS_INITIALIZATION_DEADLINE_TICKS, movedIds(), safeServerState(),
-                    "assemblyRegistrationObservedSynchronously=" + synchronousObservation
-                            + " fixtureLivenessTicket=sable:command_forced");
-            LOGGER.log(System.Logger.Level.INFO,
-                    PREFIX + " ASSEMBLED bodyId=" + bodyId + " movedOffset=" + movedOffset
-                            + " movedSeat=" + movedSeat + " mass=" + mass);
-            return;
-        }
-        if (waitDiagnostic.expired(now)) {
+        bodyId = returnedId;
+        Object listedBody = findListedBody(bodyId);
+        if (listedBody == null) {
             fail(
-                    SkyforgeCompilerIntegrationFailure.TIMEOUT_ASSEMBLY_REGISTRATION,
-                    waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "actual-client", "createdIds=" + created),
-                    "Sable body registration deadline expired");
+                    SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
+                    finalDiagnostic("bodyId=" + bodyId + " listedBody=null"),
+                    "explicitly assembled Sable UUID could not be reselected");
         }
+        int sourceNonAir = countSourceFixtureNonAir();
+        Object massTracker = publicMethod(listedBody, "getMassTracker").invoke(listedBody);
+        double mass = number(publicMethod(massTracker, "getMass").invoke(massTracker));
+        Object centerOfMass = publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
+        boolean removed = Boolean.TRUE.equals(publicMethod(listedBody, "isRemoved").invoke(listedBody));
+        if (sourceNonAir != 0 || removed || !(mass > 0.0) || centerOfMass == null) {
+            fail(
+                    SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
+                    finalDiagnostic("bodyId=" + bodyId + " sourceNonAirAfterAssembly=" + sourceNonAir
+                            + " mass=" + mass + " centerOfMass=" + centerOfMass + " removed=" + removed),
+                    "explicit Sable qualification assembly did not synchronously transfer all fixture cells");
+        }
+
+        assembledBody = listedBody;
+        movedOffset = movedOffset(listedBody, centerOfMass);
+        movedSeat = SEAT_SOURCE.offset(movedOffset);
+        requireMovedSeatBlock();
+        addFixtureForceLoadTicket(listedBody);
+        stage = Stage.PHYSICS_INITIALIZATION;
+        waitDiagnostic = diagnostic(
+                SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION,
+                "persistent Sable UUID resolves to current body and valid current physics handle",
+                now, now + PHYSICS_INITIALIZATION_DEADLINE_TICKS, movedIds(), safeServerState(),
+                "qualificationSetup=sable:SubLevelAssemblyHelper.assembleBlocks explicitFixtureCells="
+                        + EXPLICIT_FIXTURE_CELLS + "; fixtureLivenessTicket=sable:command_forced");
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " ASSEMBLED bodyId=" + bodyId + " movedOffset=" + movedOffset
+                        + " movedSeat=" + movedSeat + " mass=" + mass
+                        + " qualificationSetup=sable:SubLevelAssemblyHelper.assembleBlocks"
+                        + " explicitFixtureCells=" + EXPLICIT_FIXTURE_CELLS);
     }
 
     private static void pollPhysicsInitialization(long now) throws ReflectiveOperationException {
@@ -719,7 +702,6 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
                     "required exact-stack Create mod not loaded");
         }
         try {
-            Block assembler = requireBlock(PHYSICS_ASSEMBLER);
             Block seat = requireBlock(SEAT_ID);
             if (!seat.getClass().getName().endsWith("SeatBlock")) {
                 throw new IllegalStateException("create:brown_seat runtime type=" + seat.getClass().getName());
@@ -728,11 +710,10 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
                     .getBlock().getClass().getName().endsWith("SeatBlock")) {
                 throw new IllegalStateException("Create seat waterlogged=false state unavailable");
             }
-            if (assembler == null) {
-                throw new IllegalStateException("Physics Assembler resource unavailable");
-            }
             Class.forName("dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer");
-            Class.forName("dev.simulated_team.simulated.util.SimAssemblyHelper");
+            Class.forName("dev.ryanhcode.sable.api.SubLevelAssemblyHelper");
+            Class.forName("dev.ryanhcode.sable.companion.math.BoundingBox3i");
+            Class.forName("dev.ryanhcode.sable.companion.math.BoundingBox3ic");
             Class.forName("com.simibubi.create.content.contraptions.actors.seat.SeatBlock");
             Class.forName("com.simibubi.create.content.contraptions.actors.seat.SeatEntity");
         } catch (ClassNotFoundException | IllegalStateException exception) {
@@ -740,10 +721,11 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
                     SkyforgeCompilerIntegrationFailure.FAIL_DEPENDENCY_RESOLUTION,
                     diagnostic(
                             SkyforgeCompilerIntegrationPhase.SERVER_BOOT,
-                            "exact C11 Sable/Simulated/Create SeatBlock/SeatEntity resources resolve",
+                            "exact C11 Sable explicit-assembly/Create SeatBlock/SeatEntity resources resolve",
                             now, now, "targetStack=C11_FLIGHT_EXACT_2026-09-05", safeServerState(),
-                            "createSourceCommit=" + CREATE_SOURCE_COMMIT + " " + exception),
-                    "required exact-stack seat runtime resource unavailable: " + exception);
+                            "createSourceCommit=" + CREATE_SOURCE_COMMIT + " sableSourceCommit=" + SABLE_SOURCE_COMMIT
+                                    + " " + exception),
+                    "required exact-stack seat/tracking runtime resource unavailable: " + exception);
         }
     }
 
@@ -766,42 +748,22 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
             }
         }
         BlockState seatState = withProperty(requireBlock(SEAT_ID).defaultBlockState(), "waterlogged", "false");
-        BlockState assemblerState = withProperty(requireBlock(PHYSICS_ASSEMBLER).defaultBlockState(), "face", "floor");
-        if (!level.setBlock(SEAT_SOURCE, seatState, 3)
-                || !level.setBlock(ASSEMBLER_SOURCE, assemblerState, 3)) {
-            throw new IllegalStateException("failed to place complete moving Create seat fixture");
+        if (!level.setBlock(SEAT_SOURCE, seatState, 3)) {
+            throw new IllegalStateException("failed to place Create seat qualification fixture");
+        }
+        if (countSourceFixtureNonAir() != EXPLICIT_FIXTURE_CELLS) {
+            throw new IllegalStateException("explicit seat-platform fixture did not place exactly "
+                    + EXPLICIT_FIXTURE_CELLS + " source cells");
         }
     }
 
-    private static void logSynchronousGlueVisibility() throws ReflectiveOperationException {
-        Entity glue = level.getEntity(glueId);
-        int intendedCellsContained = 0;
-        if (glue != null && glue.getClass().getName().equals(
-                "com.simibubi.create.content.contraptions.glue.SuperGlueEntity")) {
-            Method contains = publicMethod(glue, "contains", BlockPos.class);
-            for (BlockPos pos : BlockPos.betweenClosed(BODY_MIN, BODY_MAX)) {
-                if (Boolean.TRUE.equals(contains.invoke(glue, pos))) intendedCellsContained++;
-            }
-            if (Boolean.TRUE.equals(contains.invoke(glue, SEAT_SOURCE))) intendedCellsContained++;
-            if (Boolean.TRUE.equals(contains.invoke(glue, ASSEMBLER_SOURCE))) intendedCellsContained++;
+    private static List<BlockPos> sourceFixtureBlocks() {
+        java.util.ArrayList<BlockPos> blocks = new java.util.ArrayList<>(EXPLICIT_FIXTURE_CELLS);
+        for (BlockPos pos : BlockPos.betweenClosed(BODY_MIN, BODY_MAX)) {
+            blocks.add(pos.immutable());
         }
-        LOGGER.log(System.Logger.Level.INFO,
-                PREFIX + " GLUE_VISIBILITY_DIAGNOSTIC glueId=" + glueId
-                        + " directEntity=" + entitySummary(glue)
-                        + " intendedCellsContained=" + intendedCellsContained
-                        + " acceptanceGating=false");
-    }
-
-    private static UUID addFixtureGlue() throws ReflectiveOperationException {
-        Class<?> glueClass = Class.forName("com.simibubi.create.content.contraptions.glue.SuperGlueEntity");
-        AABB box = (AABB) glueClass.getMethod("span", BlockPos.class, BlockPos.class)
-                .invoke(null, GLUE_MIN, GLUE_MAX);
-        Constructor<?> constructor = glueClass.getConstructor(Level.class, AABB.class);
-        Entity glue = (Entity) constructor.newInstance(level, box);
-        if (!level.addFreshEntity(glue)) {
-            throw new IllegalStateException("failed to register bounded seat-platform Super Glue fixture");
-        }
-        return glue.getUUID();
+        blocks.add(SEAT_SOURCE);
+        return List.copyOf(blocks);
     }
 
     private static List<Entity> seatEntitiesAtMovedSeat() {
@@ -953,14 +915,9 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
     }
 
     private static int countSourceFixtureNonAir() {
-        int count = level.getBlockState(ASSEMBLER_SOURCE).isAir() ? 0 : 1;
-        count += level.getBlockState(SEAT_SOURCE).isAir() ? 0 : 1;
-        for (int x = BODY_MIN.getX(); x <= BODY_MAX.getX(); x++) {
-            for (int y = BODY_MIN.getY(); y <= BODY_MAX.getY(); y++) {
-                for (int z = BODY_MIN.getZ(); z <= BODY_MAX.getZ(); z++) {
-                    if (!level.getBlockState(new BlockPos(x, y, z)).isAir()) count++;
-                }
-            }
+        int count = 0;
+        for (BlockPos pos : sourceFixtureBlocks()) {
+            if (!level.getBlockState(pos).isAir()) count++;
         }
         return count;
     }
@@ -1105,7 +1062,8 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
     }
 
     private static String sourceIds() {
-        return "assembler=" + ASSEMBLER_SOURCE + " seat=" + SEAT_SOURCE + " glueId=" + glueId;
+        return "fixtureBounds=" + BODY_MIN + ".." + FIXTURE_MAX + " seat=" + SEAT_SOURCE
+                + " explicitFixtureCells=" + EXPLICIT_FIXTURE_CELLS;
     }
 
     private static String movedIds() {
