@@ -123,7 +123,7 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(entry.contains("\"workflow_run\": 35116518760"));
         assertTrue(entry.contains("\"job\": 104864132429"));
         assertTrue(entry.contains("\"commit\": \"f742d7a4dbd73a7a2bc1c7a2316207de891961cd\""));
-        assertTrue(entry.contains("client_sublevel_collision_then_movement_packet"));
+        assertTrue(entry.contains("collision/tracking plus ordinary movement packets"));
         assertTrue(entry.contains("harnessPlayerMutationDuringMeasurement"));
         assertTrue(entry.contains("\"B\": true"));
         assertTrue(entry.contains("\"C\": false"));
