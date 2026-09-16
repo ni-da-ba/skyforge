@@ -42,11 +42,14 @@ import org.joml.Vector3dc;
 final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.aircraftPowertrainRuntime128";
     static final String PERSISTENCE_PROPERTY = "skyforge.dev.aircraftPowertrainPersistence";
+    static final String RUDDER_PROPERTY = "skyforge.dev.aircraftRudderActuation";
     static final String CAPABILITY = "AIRCRAFT_V012_POWERTRAIN_128_RUNTIME";
     static final String PERSISTENCE_CAPABILITY = "AIRCRAFT_V012_PERSISTENCE_RUNTIME";
+    static final String RUDDER_CAPABILITY = "AIRCRAFT_V0131_RUDDER_ACTUATION_RUNTIME";
     private static final System.Logger LOGGER = System.getLogger(SkyforgeAircraftPowertrainRuntimeAcceptance.class.getName());
     private static final String PREFIX = "AIRCRAFT_V012_POWERTRAIN_128_RUNTIME";
     private static final String PERSISTENCE_PREFIX = "AIRCRAFT_V012_PERSISTENCE_RUNTIME";
+    private static final String RUDDER_PREFIX = "AIRCRAFT_V0131_RUDDER_ACTUATION_RUNTIME";
     private static final Path IDENTITY_FILE = Path.of("aircraft-runtime-002.identity");
     private static final long RELOAD_DEADLINE_TICKS = 180L;
     private static final long ENTITY_REHYDRATION_GRACE_TICKS = 10L;
@@ -89,8 +92,14 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     private static final Map<String, BlockPos> movedRoles = new LinkedHashMap<>();
     private static final Map<BlockPos, ExpectedBlock> mainExpected = new LinkedHashMap<>();
     private static final Map<BlockPos, ExpectedBlock> childExpected = new LinkedHashMap<>();
+    private static final Map<BlockPos, ExpectedBlock> rudderExpected = new LinkedHashMap<>();
     private static final List<UUID> glueIds = new ArrayList<>();
     private static SkyforgeAircraftRetainedGuildUtilityFixture.Fixture compilerFixture;
+    private static SkyforgeAircraftRetainedGuildUtilityFixture.YawFixture yawFixture;
+    private static SkyforgeAircraftYawControlIR yawControl;
+    private static boolean rudderMode;
+    private static BlockPos movedSwivel;
+    private static List<BlockPos> movedRudder = List.of();
     private static Stage stage;
     private static SkyforgeCompilerIntegrationDiagnostic waitDiagnostic;
     private static long thrustSettleNotBefore;
@@ -129,6 +138,10 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             };
             activeCapability = PERSISTENCE_CAPABILITY;
             activePrefix = PERSISTENCE_PREFIX;
+        } else if (Boolean.getBoolean(RUDDER_PROPERTY)) {
+            rudderMode = true;
+            activeCapability = RUDDER_CAPABILITY;
+            activePrefix = RUDDER_PREFIX;
         } else if (!Boolean.getBoolean(ENABLE_PROPERTY)) {
             return;
         }
@@ -141,7 +154,13 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         long now = level.getGameTime();
         LOGGER.log(System.Logger.Level.INFO, activePrefix + " START capability=" + activeCapability + " mode=" + runMode + " startTick=" + now + " clientState=headless");
         try {
-            compilerFixture = SkyforgeAircraftRetainedGuildUtilityFixture.compileV012();
+            if (rudderMode) {
+                yawFixture = SkyforgeAircraftRetainedGuildUtilityFixture.compileV0131();
+                compilerFixture = yawFixture.v012();
+                yawControl = yawFixture.yawControl();
+            } else {
+                compilerFixture = SkyforgeAircraftRetainedGuildUtilityFixture.compileV012();
+            }
             requireCompilerBoundary();
             buildExpectedMaps();
             requireRuntimePreconditions();
@@ -248,11 +267,23 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                 || f.powertrain().metrics().expectedPrimarySableTransferCount() != 127) {
             throw new IllegalStateException("retained v0.12 placement-count authority drifted");
         }
+        if (rudderMode) {
+            if (yawControl == null || !yawControl.validation().passed()
+                    || !yawControl.readiness().yawControlStaticTopologyPassed()
+                    || yawControl.readiness().runtimeQualificationReady()
+                    || yawControl.metrics().v0131MovingParentMainBodyPlacementCount() != 118
+                    || yawControl.metrics().nestedPropellerChildPlacementCount() != 9
+                    || yawControl.metrics().yawControlChildPlacementCount() != 4
+                    || yawControl.metrics().expectedPrimarySableTransferCount() != 131) {
+                throw new IllegalStateException("production v0.13.1 yaw compiler boundary drifted");
+            }
+        }
     }
 
     private static void buildExpectedMaps() {
         mainExpected.clear();
         childExpected.clear();
+        rudderExpected.clear();
         movedRoles.clear();
         SkyforgeAircraftProbeManifestIR manifest = compilerFixture.manifest();
         SkyforgeAircraftAssemblyFixtureIR assemblyFixture = compilerFixture.assemblyFixture();
@@ -278,6 +309,27 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                 mainCoordinates.add(placement.point());
             }
         }
+        Set<AircraftBlockspaceIR.LatticePoint> rudderCoordinates = new LinkedHashSet<>();
+        if (rudderMode) {
+            for (SkyforgeAircraftYawControlIR.Placement placement : yawControl.placements()) {
+                switch (placement.mode()) {
+                    case ADD_MAIN -> {
+                        if (effective.putIfAbsent(placement.point(), new EffectivePlacement(placement.kind(), placement.resourceId(), placement.blockState())) != null)
+                            throw new IllegalStateException("yaw parent addition collision " + placement.point());
+                        mainCoordinates.add(placement.point());
+                    }
+                    case REMOVE_MAIN -> {
+                        if (effective.remove(placement.point()) == null || !mainCoordinates.remove(placement.point()))
+                            throw new IllegalStateException("yaw parent removal source missing " + placement.point());
+                    }
+                    case ADD_CONTROL_CHILD -> {
+                        if (effective.putIfAbsent(placement.point(), new EffectivePlacement(placement.kind(), placement.resourceId(), placement.blockState())) != null)
+                            throw new IllegalStateException("yaw child addition collision " + placement.point());
+                        rudderCoordinates.add(placement.point());
+                    }
+                }
+            }
+        }
         for (Map.Entry<AircraftBlockspaceIR.LatticePoint, EffectivePlacement> entry : effective.entrySet()) {
             BlockPos point = blockPos(entry.getKey());
             ExpectedBlock expected = new ExpectedBlock(id(entry.getValue().resourceId()), entry.getValue().blockState());
@@ -285,6 +337,8 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                 mainExpected.put(point, expected);
             } else if (childCoordinates.contains(entry.getKey())) {
                 childExpected.put(point, expected);
+            } else if (rudderCoordinates.contains(entry.getKey())) {
+                rudderExpected.put(point, expected);
             } else {
                 throw new IllegalStateException("effective compiler placement is unclassified: " + entry.getKey());
             }
@@ -296,10 +350,13 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         if (collision != null && !collision.equals(assemblerExpected)) {
             throw new IllegalStateException("Physics Assembler collides with compiled main body");
         }
+        int expectedTransfer = rudderMode ? yawControl.metrics().expectedPrimarySableTransferCount() : powertrain.metrics().expectedPrimarySableTransferCount();
+        int expectedRudder = rudderMode ? yawControl.metrics().yawControlChildPlacementCount() : 0;
         if (mainExpected.size() != powertrain.metrics().resultingMovingMainBodyPlacementCount()
                 || childExpected.size() != powertrain.metrics().nestedPropellerChildPlacementCount()
-                || mainExpected.size() + childExpected.size() != powertrain.metrics().expectedPrimarySableTransferCount()) {
-            throw new IllegalStateException("runtime effective-map counts disagree with v0.12 metrics");
+                || rudderExpected.size() != expectedRudder
+                || mainExpected.size() + childExpected.size() + rudderExpected.size() != expectedTransfer) {
+            throw new IllegalStateException("runtime effective-map counts disagree with compiler metrics");
         }
     }
 
@@ -309,6 +366,8 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             if (!ModList.get().isLoaded("create")) throw new IllegalStateException("required exact-stack Create mod not loaded");
             for (ExpectedBlock expected : mainExpected.values()) requireBlock(expected.id());
             for (ExpectedBlock expected : childExpected.values()) requireBlock(expected.id());
+            for (ExpectedBlock expected : rudderExpected.values()) requireBlock(expected.id());
+            if (rudderMode) Class.forName("dev.simulated_team.simulated.content.blocks.swivel_bearing.SwivelBearingBlockEntity");
             Class.forName("dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer");
             Class.forName("dev.eriksonn.aeronautics.content.blocks.propeller.bearing.propeller_bearing.PropellerBearingBlockEntity");
             Class.forName("dev.eriksonn.aeronautics.content.blocks.propeller.bearing.contraption.PropellerBearingContraptionEntity");
@@ -329,6 +388,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         activeSourceChunkTickets.clear();
         for (BlockPos relative : mainExpected.keySet()) registerSourceChunk(source(relative));
         for (BlockPos relative : childExpected.keySet()) registerSourceChunk(source(relative));
+        for (BlockPos relative : rudderExpected.keySet()) registerSourceChunk(source(relative));
         if (sourceChunkRepresentatives.isEmpty()) {
             throw new IllegalStateException("compiled aircraft source footprint has no chunks");
         }
@@ -369,7 +429,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         }
 
         prepareFixture();
-        int expectedTransfer = compilerFixture.powertrain().metrics().expectedPrimarySableTransferCount();
+        int expectedTransfer = rudderMode ? yawControl.metrics().expectedPrimarySableTransferCount() : compilerFixture.powertrain().metrics().expectedPrimarySableTransferCount();
         int preAssemblyNonAir = countSourceNonAir();
         if (preAssemblyNonAir != expectedTransfer) {
             fail(SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
@@ -385,7 +445,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         stage = Stage.ASSEMBLY;
         waitDiagnostic = diagnostic(
                 SkyforgeCompilerIntegrationPhase.ASSEMBLY,
-                "compiler-emitted v0.12 specimen synchronously transfers all 127 source cells into exactly one canonical Sable body",
+                rudderMode ? "compiler-emitted v0.13.1 specimen synchronously transfers all 131 source cells into exactly one canonical Sable body" : "compiler-emitted v0.12 specimen synchronously transfers all 127 source cells into exactly one canonical Sable body",
                 now, now + ASSEMBLY_DEADLINE_TICKS, sourceIds(), safeServerState(),
                 "sourceReadinessQualified=true sourceChunks=" + sourceChunkRepresentatives.keySet()
                         + " compilerGlueVisibleToCreate=true manifest=" + compilerFixture.manifest().sha256()
@@ -397,7 +457,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                     waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
                             "synchronousSourceNonAir=" + synchronousSourceNonAir
                                     + " residual=" + sourceNonAirPositions()),
-                    "Physics Assembler returned before exact synchronous 127->0 production source transfer completed");
+                    "Physics Assembler returned before exact synchronous production source transfer completed");
         }
         pollAssembly(now, true);
     }
@@ -423,6 +483,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         Set<BlockPos> all = new LinkedHashSet<>();
         mainExpected.keySet().forEach(p -> all.add(source(p)));
         childExpected.keySet().forEach(p -> all.add(source(p)));
+        rudderExpected.keySet().forEach(p -> all.add(source(p)));
         int minX = all.stream().mapToInt(BlockPos::getX).min().orElseThrow() - 2;
         int maxX = all.stream().mapToInt(BlockPos::getX).max().orElseThrow() + 2;
         int minY = all.stream().mapToInt(BlockPos::getY).min().orElseThrow() - 2;
@@ -445,20 +506,33 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                 throw new IllegalStateException("failed to place compiled propeller child block " + entry.getKey());
             }
         }
+        for (Map.Entry<BlockPos, ExpectedBlock> entry : rudderExpected.entrySet()) {
+            if (!level.setBlock(source(entry.getKey()), materialize(entry.getValue()), 3)) {
+                throw new IllegalStateException("failed to place compiled rudder child block " + entry.getKey());
+            }
+        }
         for (Map.Entry<BlockPos, ExpectedBlock> entry : mainExpected.entrySet()) assertExpectedState("source main", source(entry.getKey()), entry.getValue());
         for (Map.Entry<BlockPos, ExpectedBlock> entry : childExpected.entrySet()) assertExpectedState("source child", source(entry.getKey()), entry.getValue());
+        for (Map.Entry<BlockPos, ExpectedBlock> entry : rudderExpected.entrySet()) assertExpectedState("source rudder", source(entry.getKey()), entry.getValue());
     }
 
     private static void addCompilerGlue(long now) throws ReflectiveOperationException {
         glueIds.clear();
         List<Entity> insertedGlue = new ArrayList<>();
-        for (SkyforgeAircraftGlueEncodingIR.GlueDomain domain : compilerFixture.glue().glueDomains()) {
-            insertedGlue.add(addGlue(source(domain.from()), source(domain.to()), domain.name()));
+        if (rudderMode) {
+            for (SkyforgeAircraftYawControlIR.GlueDomain domain : yawControl.runtimeGlueDomains()) {
+                insertedGlue.add(addGlue(source(domain.from()), source(domain.to()), domain.name()));
+            }
+        } else {
+            for (SkyforgeAircraftGlueEncodingIR.GlueDomain domain : compilerFixture.glue().glueDomains()) {
+                insertedGlue.add(addGlue(source(domain.from()), source(domain.to()), domain.name()));
+            }
+            SkyforgeAircraftPowertrainIR.GlueDomain powerplant = compilerFixture.powertrain().powerplantGlueDomain();
+            insertedGlue.add(addGlue(source(powerplant.from()), source(powerplant.to()), powerplant.name()));
         }
-        SkyforgeAircraftPowertrainIR.GlueDomain powerplant = compilerFixture.powertrain().powerplantGlueDomain();
-        insertedGlue.add(addGlue(source(powerplant.from()), source(powerplant.to()), powerplant.name()));
         insertedGlue.forEach(glue -> glueIds.add(glue.getUUID()));
-        if (insertedGlue.size() != 5) throw new IllegalStateException("v0.12 requires four accepted airframe glue domains plus one powerplant domain");
+        int expectedGlueDomains = rudderMode ? 7 : 5;
+        if (insertedGlue.size() != expectedGlueDomains) throw new IllegalStateException("compiler runtime glue-domain count drifted: " + insertedGlue.size());
         for (Entity glue : insertedGlue) {
             if (!isGlueVisibleToCreate(glue)) {
                 fail(SkyforgeCompilerIntegrationFailure.FAIL_GLUE_REGISTRATION,
@@ -533,11 +607,16 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             movedOffset = movedOffset(body, centerOfMass);
             movedBearing = moved(findManifestKind("propeller_bearing"));
             movedChild = childExpected.keySet().stream().map(SkyforgeAircraftPowertrainRuntimeAcceptance::moved).toList();
+            if (rudderMode) {
+                movedSwivel = moved(blockPos(yawControl.swivelBearingCoordinate()));
+                movedRudder = rudderExpected.keySet().stream().map(SkyforgeAircraftPowertrainRuntimeAcceptance::moved).toList();
+            }
             for (SkyforgeAircraftPowertrainIR.Placement placement : compilerFixture.powertrain().placements()) {
                 movedRoles.put(placement.role(), moved(blockPos(placement.point())));
             }
             for (Map.Entry<BlockPos, ExpectedBlock> entry : mainExpected.entrySet()) assertExpectedState("moved main", moved(entry.getKey()), entry.getValue());
             for (Map.Entry<BlockPos, ExpectedBlock> entry : childExpected.entrySet()) assertExpectedState("moved child payload", moved(entry.getKey()), entry.getValue());
+            for (Map.Entry<BlockPos, ExpectedBlock> entry : rudderExpected.entrySet()) assertExpectedState("moved rudder payload", moved(entry.getKey()), entry.getValue());
             addFixtureForceLoadTicket(body);
             removeAllSourceChunkTickets();
             stage = Stage.PHYSICS_INITIALIZATION;
@@ -758,6 +837,12 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             completePersistenceVerification(child, rawThrust, scaledThrust, appliedForceX);
             return;
         }
+        if (rudderMode) {
+            SkyforgeAircraftRudderActuationRuntimeAcceptance.verify(
+                    level, canonical, movedSwivel, movedRudder,
+                    mainExpected.keySet().stream().map(SkyforgeAircraftPowertrainRuntimeAcceptance::moved).toList(),
+                    16, 10, 10, 0.25, 3.0, 5.0);
+        }
         restorePhysicsPause();
         removeFixtureForceLoadTicket();
         removeAllLocatorChunkTickets();
@@ -766,15 +851,16 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                 activePrefix + " PASS capability=" + activeCapability
                         + " bodyId=" + bodyId + " movedOffset=" + movedOffset + " nestedChildId=" + nestedChildId
                         + " mainBodyBlocks=" + mainExpected.size() + " nestedPayloadBlocks=" + childExpected.size()
-                        + " glueDomains=" + glueIds.size() + " enginePortRpm=32 engineStarboardRpm=32"
+                        + " rudderPayloadBlocks=" + rudderExpected.size() + " glueDomains=" + glueIds.size() + " enginePortRpm=32 engineStarboardRpm=32"
                         + " governorTargetRpm=128 bearingRpm=" + observedBearingRpm
                         + " kineticCapacity=" + observedCapacity + " kineticStress=" + observedStress
                         + " kineticStressMargin=" + observedStressMargin
                         + " childBlocks=9 sailBlocks=8 sailPower=8"
                         + " rawThrust=" + rawThrust + " scaledThrust=" + scaledThrust + " appliedForceX=" + appliedForceX
                         + " analyticalAuthorityIndependent=true higherGovernorPointsQualified=false"
-                        + " persistenceQualified=false controlAxisQualified=false flightQualified=false"
+                        + (rudderMode ? " persistenceQualified=false controlAxisQualified=true yawForceQualified=false flightQualified=false" : " persistenceQualified=false controlAxisQualified=false flightQualified=false")
                         + " consumedPlatformAuthorities=SABLE_PRIMARY_ASSEMBLY_LIFECYCLE,SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE,CREATE_KINETIC_ON_SABLE_LIFECYCLE,NESTED_PROPELLER_BEARING_LIFECYCLE"
+                        + (rudderMode ? ",SWIVEL_CONTROL_CHILD_ON_SABLE_LIFECYCLE" : "")
                         + " canonicalBodyResolutionPerPhase=true blockEntityResolutionPerPoll=true"
                         + " fixtureLivenessTicket=sable:command_forced(released) sourceChunkTickets=released clientState=headless");
     }
@@ -1447,12 +1533,12 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     }
 
     private static String sourceIds() {
-        return "base=" + BASE + " main=" + mainExpected.size() + " child=" + childExpected.size() + " glueIds=" + glueIds;
+        return "base=" + BASE + " main=" + mainExpected.size() + " child=" + childExpected.size() + " rudder=" + rudderExpected.size() + " glueIds=" + glueIds;
     }
 
     private static String movedIds() {
         return "bodyId=" + bodyId + " movedOffset=" + movedOffset + " movedBearing=" + movedBearing
-                + " movedRoles=" + movedRoles + " nestedChildId=" + nestedChildId;
+                + " movedRoles=" + movedRoles + " movedSwivel=" + movedSwivel + " movedRudder=" + movedRudder + " nestedChildId=" + nestedChildId;
     }
 
     private static String safeServerState() {
