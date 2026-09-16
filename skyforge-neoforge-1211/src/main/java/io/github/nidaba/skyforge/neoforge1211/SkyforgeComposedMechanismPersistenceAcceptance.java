@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +18,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -76,6 +79,10 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static final long ENTITY_REHYDRATION_GRACE_TICKS = 10L;
     private static final long KINETIC_DISCONNECT_DEADLINE_TICKS = 80L;
     private static final long KINETIC_REBUILD_DEADLINE_TICKS = 80L;
+    private static final int FIXTURE_CHUNK_TICKET_DISTANCE = 3;
+    private static final ChunkPos FIXTURE_CHUNK = new ChunkPos(0, 0);
+    private static final TicketType<ChunkPos> FIXTURE_CHUNK_TICKET = TicketType.create(
+            "skyforge_platform_007", Comparator.comparingLong(ChunkPos::toLong));
 
     private static String persistencePhase;
     private static ServerLevel level;
@@ -85,6 +92,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static Object forceLoadTicketType;
     private static Object forceLoadTicketKey;
     private static boolean forceLoadTicketAdded;
+    private static boolean fixtureChunkTicketAdded;
     private static Set<UUID> beforeIds = Set.of();
     private static Set<UUID> beforeHoldingIds = Set.of();
     private static UUID bodyId;
@@ -151,6 +159,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         try {
             requireRuntimePreconditions();
             container = requireServerSubLevelContainer(level);
+            addFixtureChunkTicket();
             if (persistencePhase.equals("verify")) {
                 beginReloadVerification(now);
                 return;
@@ -506,6 +515,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                         "server did not report a successful PLATFORM-007 prepare save");
             }
             writeIdentityFile(new PersistenceIdentity(bodyId, nestedChildId, movedGlue.id(), movedOffset));
+            removeFixtureChunkTicket();
             complete = true;
             LOGGER.log(System.Logger.Level.INFO,
                     PREFIX + " PREPARE PASS capability=" + CAPABILITY
@@ -516,7 +526,8 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                             + " childBlocks=3 sailBlocks=2 runningObserved=true childRunningAtSave=false"
                             + " normalizedChildBlocksInPlot=true entityBackedRuntimeNormalized=true saveSuccess=true"
                             + " canonicalBodyResolutionPerPhase=true"
-                            + " fixtureLivenessTicket=sable:command_forced(released) clientState=headless");
+                            + " fixtureLivenessTicket=sable:command_forced(released)"
+                            + " fixtureChunkTicket=skyforge_platform_007(released) clientState=headless");
             return;
         }
         if (waitDiagnostic.expired(now)) {
@@ -716,6 +727,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             requireExactChild(child, "nested", now);
             restorePhysicsPause();
             removeFixtureForceLoadTicket();
+            removeFixtureChunkTicket();
             complete = true;
             LOGGER.log(System.Logger.Level.INFO,
                     PREFIX + " VERIFY PASS capability=" + CAPABILITY
@@ -731,7 +743,8 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                             + " samePersistentUuid=true currentPhysicsHandleValid=true"
                             + " staleChildDuplicate=false glueDuplicate=false"
                             + " severedObserved=true rebuiltObserved=true"
-                            + " fixtureLivenessTicket=sable:command_forced(released) clientState=headless");
+                            + " fixtureLivenessTicket=sable:command_forced(released)"
+                            + " fixtureChunkTicket=skyforge_platform_007(released) clientState=headless");
             return;
         }
         if (waitDiagnostic.expired(now)) {
@@ -741,6 +754,26 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                                     + " glue=" + glue + " postReloadChildGlueId=" + postReloadChildGlueId),
                     "reloaded Create network did not rebuild before deadline");
         }
+    }
+
+    private static void addFixtureChunkTicket() {
+        if (fixtureChunkTicketAdded) return;
+        level.getChunkSource().addRegionTicket(
+                FIXTURE_CHUNK_TICKET, FIXTURE_CHUNK, FIXTURE_CHUNK_TICKET_DISTANCE, FIXTURE_CHUNK);
+        level.getChunk(FIXTURE_CHUNK.x, FIXTURE_CHUNK.z);
+        fixtureChunkTicketAdded = true;
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " FIXTURE_CHUNK_TICKET_ADD chunk=" + FIXTURE_CHUNK
+                        + " distance=" + FIXTURE_CHUNK_TICKET_DISTANCE);
+    }
+
+    private static void removeFixtureChunkTicket() {
+        if (!fixtureChunkTicketAdded || level == null) return;
+        level.getChunkSource().removeRegionTicket(
+                FIXTURE_CHUNK_TICKET, FIXTURE_CHUNK, FIXTURE_CHUNK_TICKET_DISTANCE, FIXTURE_CHUNK);
+        fixtureChunkTicketAdded = false;
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " FIXTURE_CHUNK_TICKET_REMOVE chunk=" + FIXTURE_CHUNK);
     }
 
     private static boolean requestHoldingLoadIfAvailable() throws ReflectiveOperationException {
@@ -1166,6 +1199,10 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         try {
             removeFixtureForceLoadTicket();
         } catch (ReflectiveOperationException | RuntimeException ignored) {
+        }
+        try {
+            removeFixtureChunkTicket();
+        } catch (RuntimeException ignored) {
         }
     }
 
