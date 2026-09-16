@@ -31,7 +31,7 @@ def main() -> int:
     args.out.mkdir(parents=True, exist_ok=True)
     resolved = args.out / "resolved.json"
     resolved.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    structure = args.out / "mech_001_airflow_bench.nbt"
+    structure = args.out / f"{args.spec.stem}.nbt"
     structure.write_bytes(encode_mechanism_structure_nbt(plan))
     print(json.dumps({
         "assetId": plan["assetId"],
