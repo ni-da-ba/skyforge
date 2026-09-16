@@ -30,6 +30,13 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(server.contains("6966d2928340de7631abcecf8549904b877df0a8"));
         assertTrue(server.contains("getTrackingSubLevel"));
         assertTrue(server.contains("client_sublevel_collision_then_movement_packet"));
+        assertTrue(server.contains("GLUE_REGISTRATION_DEADLINE_TICKS = 40L"));
+        assertTrue(server.contains("case GLUE_REGISTRATION -> pollGlueRegistration(now)"));
+        assertTrue(server.contains("GLUE_REGISTERED glueId="));
+        assertTrue(server.contains("assemblyDeferredAcrossServerTick=true"));
+        assertTrue(server.contains("intendedCellsContained != 10"));
+        assertTrue(server.contains("TIMEOUT_GLUE_REGISTRATION"));
+        assertTrue(server.indexOf("stage = Stage.GLUE_REGISTRATION;") < server.indexOf("private static void beginAssembly"));
         assertTrue(server.contains("FIXTURE_CHUNK_TICKET_DISTANCE = 3"));
         assertTrue(server.contains("skyforge_platform_012"));
         assertTrue(server.indexOf("addFixtureChunkTicket();") < server.indexOf("beforeIds = currentSubLevelIds();"));

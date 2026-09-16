@@ -53,6 +53,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
     private static final BlockPos GLUE_MIN = BODY_MIN;
     private static final BlockPos GLUE_MAX = ASSEMBLER_SOURCE;
 
+    private static final long GLUE_REGISTRATION_DEADLINE_TICKS = 40L;
     private static final long ASSEMBLY_DEADLINE_TICKS = 80L;
     private static final long PHYSICS_INITIALIZATION_DEADLINE_TICKS = 40L;
     private static final long SEAT_MOUNT_DEADLINE_TICKS = 240L;
@@ -113,6 +114,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
     private static SkyforgeCompilerIntegrationDiagnostic waitDiagnostic;
 
     private enum Stage {
+        GLUE_REGISTRATION,
         ASSEMBLY,
         PHYSICS_INITIALIZATION,
         CLIENT_MOUNT,
@@ -157,14 +159,13 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
                                 "assemblerBlockEntity=" + (assembler == null ? "null" : assembler.getClass().getName())),
                         "Physics Assembler block entity missing or wrong type");
             }
-            stage = Stage.ASSEMBLY;
+            stage = Stage.GLUE_REGISTRATION;
             waitDiagnostic = diagnostic(
-                    SkyforgeCompilerIntegrationPhase.ASSEMBLY,
-                    "exactly one new Sable UUID registers with valid mass and all source cells transfer within the bounded assembly window",
-                    now, now + ASSEMBLY_DEADLINE_TICKS, sourceIds(), safeServerState(),
-                    "glueId=" + glueId + " beforeSubLevelIds=" + beforeIds);
-            publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
-            pollAssembly(now, true);
+                    SkyforgeCompilerIntegrationPhase.FIXTURE_PLACEMENT,
+                    "the exact Super Glue UUID becomes queryable and contains every intended fixture cell before assembly",
+                    now, now + GLUE_REGISTRATION_DEADLINE_TICKS, sourceIds(), safeServerState(),
+                    "glueId=" + glueId + " beforeSubLevelIds=" + beforeIds
+                            + "; assemblyDeferredUntilPost-startServerTick=true");
         } catch (ReflectiveOperationException exception) {
             failReflection(SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY, exception);
         } catch (RuntimeException exception) {
@@ -172,7 +173,9 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
                 fail(
                         stage == Stage.ASSEMBLY
                                 ? SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY
-                                : SkyforgeCompilerIntegrationFailure.FAIL_PLACEMENT,
+                                : stage == Stage.GLUE_REGISTRATION
+                                        ? SkyforgeCompilerIntegrationFailure.FAIL_GLUE_REGISTRATION
+                                        : SkyforgeCompilerIntegrationFailure.FAIL_PLACEMENT,
                         diagnostic(
                                 stage == Stage.ASSEMBLY
                                         ? SkyforgeCompilerIntegrationPhase.ASSEMBLY
@@ -192,6 +195,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
         long now = level.getGameTime();
         try {
             switch (stage) {
+                case GLUE_REGISTRATION -> pollGlueRegistration(now);
                 case ASSEMBLY -> pollAssembly(now, false);
                 case PHYSICS_INITIALIZATION -> pollPhysicsInitialization(now);
                 case CLIENT_MOUNT, CLIENT_DISMOUNT, CLIENT_CLEANUP -> pollClientLifecycle(event, now);
@@ -199,6 +203,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
             }
         } catch (ReflectiveOperationException exception) {
             SkyforgeCompilerIntegrationFailure code = switch (stage) {
+                case GLUE_REGISTRATION -> SkyforgeCompilerIntegrationFailure.FAIL_GLUE_REGISTRATION;
                 case ASSEMBLY -> SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY;
                 case PHYSICS_INITIALIZATION -> SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS;
                 default -> SkyforgeCompilerIntegrationFailure.FAIL_CLIENT_INTERACTION;
@@ -206,6 +211,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
             failReflection(code, exception);
         } catch (RuntimeException exception) {
             SkyforgeCompilerIntegrationFailure code = switch (stage) {
+                case GLUE_REGISTRATION -> SkyforgeCompilerIntegrationFailure.FAIL_GLUE_REGISTRATION;
                 case ASSEMBLY -> SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY;
                 case PHYSICS_INITIALIZATION -> SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS;
                 case CLIENT_MOUNT -> SkyforgeCompilerIntegrationFailure.FAIL_CLIENT_INTERACTION;
@@ -214,6 +220,74 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
             };
             fail(code, finalDiagnostic(exception.toString()), "Create seat client lifecycle failed: " + exception);
         }
+    }
+
+    private static void pollGlueRegistration(long now) throws ReflectiveOperationException {
+        AABB search = new AABB(3.0, 198.0, 3.0, 9.0, 205.0, 9.0);
+        List<Entity> visible = level.getEntitiesOfClass(
+                Entity.class, search,
+                entity -> entity.getClass().getName().equals("com.simibubi.create.content.contraptions.glue.SuperGlueEntity")
+                        && glueId.equals(entity.getUUID()));
+        if (visible.size() == 1) {
+            Entity glue = visible.getFirst();
+            Method contains = publicMethod(glue, "contains", BlockPos.class);
+            int intendedCellsContained = 0;
+            for (int x = BODY_MIN.getX(); x <= BODY_MAX.getX(); x++) {
+                for (int y = BODY_MIN.getY(); y <= BODY_MAX.getY(); y++) {
+                    for (int z = BODY_MIN.getZ(); z <= BODY_MAX.getZ(); z++) {
+                        if (Boolean.TRUE.equals(contains.invoke(glue, new BlockPos(x, y, z)))) intendedCellsContained++;
+                    }
+                }
+            }
+            if (Boolean.TRUE.equals(contains.invoke(glue, SEAT_SOURCE))) intendedCellsContained++;
+            if (Boolean.TRUE.equals(contains.invoke(glue, ASSEMBLER_SOURCE))) intendedCellsContained++;
+            if (intendedCellsContained != 10) {
+                fail(
+                        SkyforgeCompilerIntegrationFailure.FAIL_GLUE_REGISTRATION,
+                        waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "actual-client",
+                                "glueId=" + glueId + " visibleGlueCount=1 intendedCellsContained=" + intendedCellsContained),
+                        "visible Super Glue domain does not contain all ten intended fixture cells");
+            }
+            LOGGER.log(System.Logger.Level.INFO,
+                    PREFIX + " GLUE_REGISTERED glueId=" + glueId
+                            + " intendedCellsContained=" + intendedCellsContained
+                            + " tick=" + now + " assemblyDeferredAcrossServerTick=true");
+            beginAssembly(now);
+            return;
+        }
+        if (visible.size() > 1) {
+            fail(
+                    SkyforgeCompilerIntegrationFailure.FAIL_GLUE_REGISTRATION,
+                    waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "actual-client",
+                            "glueId=" + glueId + " visibleGlueCount=" + visible.size()),
+                    "source world exposes duplicate copies of the intended Super Glue UUID");
+        }
+        if (waitDiagnostic.expired(now)) {
+            fail(
+                    SkyforgeCompilerIntegrationFailure.TIMEOUT_GLUE_REGISTRATION,
+                    waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "actual-client",
+                            "glueId=" + glueId + " visibleGlueCount=0"),
+                    "Super Glue entity did not become queryable before assembly deadline");
+        }
+    }
+
+    private static void beginAssembly(long now) throws ReflectiveOperationException {
+        BlockEntity assembler = level.getBlockEntity(ASSEMBLER_SOURCE);
+        if (assembler == null || !assembler.getClass().getName().endsWith("PhysicsAssemblerBlockEntity")) {
+            fail(
+                    SkyforgeCompilerIntegrationFailure.FAIL_BLOCK_ENTITY_INIT,
+                    finalDiagnostic("assemblerBlockEntity=" + (assembler == null ? "null" : assembler.getClass().getName())),
+                    "Physics Assembler disappeared before glue-qualified assembly");
+        }
+        stage = Stage.ASSEMBLY;
+        waitDiagnostic = diagnostic(
+                SkyforgeCompilerIntegrationPhase.ASSEMBLY,
+                "exactly one new Sable UUID registers with valid mass and all source cells transfer within the bounded assembly window",
+                now, now + ASSEMBLY_DEADLINE_TICKS, sourceIds(), safeServerState(),
+                "glueId=" + glueId + " beforeSubLevelIds=" + beforeIds
+                        + "; glueRegistrationQualified=true");
+        publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
+        pollAssembly(now, true);
     }
 
     private static void pollAssembly(long now, boolean synchronousObservation) throws ReflectiveOperationException {
