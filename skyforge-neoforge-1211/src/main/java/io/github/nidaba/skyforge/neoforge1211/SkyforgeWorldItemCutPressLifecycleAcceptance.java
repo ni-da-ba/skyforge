@@ -45,8 +45,8 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
     private static final ResourceLocation TRANSITION_ID = id("minecraft:iron_nugget");
     private static final ResourceLocation OUTPUT_ID = id("minecraft:gold_nugget");
 
-    private static final BlockPos SAW_MOTOR = new BlockPos(-1, 200, 0);
-    private static final BlockPos SAW = new BlockPos(0, 200, 0);
+    private static final BlockPos SAW_MOTOR = new BlockPos(1, 200, 0);
+    private static final BlockPos SAW = new BlockPos(2, 200, 0);
     private static final BlockPos PRESS_MOTOR = new BlockPos(5, 202, 0);
     private static final BlockPos PRESS = new BlockPos(6, 202, 0);
     private static final BlockPos PRESS_FLOOR = new BlockPos(6, 200, 0);
@@ -122,9 +122,13 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
     }
 
     private static void pollKineticReady(long now) throws ReflectiveOperationException {
+        Object sawMotor = requireExpectedBlockEntity(SAW_MOTOR, "CreativeMotorBlockEntity", now);
         Object saw = requireExpectedBlockEntity(SAW, "SawBlockEntity", now);
+        Object pressMotor = requireExpectedBlockEntity(PRESS_MOTOR, "CreativeMotorBlockEntity", now);
         Object press = requireExpectedBlockEntity(PRESS, "MechanicalPressBlockEntity", now);
+        KineticState sawMotorState = kineticState(sawMotor);
         KineticState sawState = kineticState(saw);
+        KineticState pressMotorState = kineticState(pressMotor);
         KineticState pressState = kineticState(press);
         if (Math.abs(sawState.speed()) > 0.0f && Math.abs(pressState.speed()) > 0.0f
                 && sawState.hasSource() && pressState.hasSource()) {
@@ -153,7 +157,7 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
         if (waitDiagnostic.expired(now)) {
             fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_KINETIC_BUILD,
                     waitDiagnostic.withFinalState(fixtureIds(), safeServerState(), "headless",
-                            "saw=" + sawState + " press=" + pressState),
+                            "sawMotor=" + sawMotorState + " saw=" + sawState + " pressMotor=" + pressMotorState + " press=" + pressState),
                     "Saw/Press fixture did not reach powered kinetic state before deadline");
         }
     }
@@ -243,7 +247,7 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
         }
     }
 
-    private static final AABB SAW_SEARCH = new AABB(-2, 199, -2, 3, 205, 3);
+    private static final AABB SAW_SEARCH = new AABB(0, 199, -2, 5, 205, 3);
     private static final AABB PRESS_SEARCH = new AABB(4, 199, -2, 9, 205, 3);
 
     private static void requireRuntimePreconditions() throws ReflectiveOperationException {
@@ -281,7 +285,7 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
 
     private static void prepareFixture() {
         level.getChunk(0, 0);
-        for (int x = -3; x <= 9; x++) for (int y = 198; y <= 205; y++) for (int z = -3; z <= 3; z++)
+        for (int x = 0; x <= 9; x++) for (int y = 198; y <= 205; y++) for (int z = 0; z <= 3; z++)
             level.setBlock(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), 3);
 
         BlockState sawMotor = withProperty(requireBlock(MOTOR_ID).defaultBlockState(), "facing", "east");
@@ -300,7 +304,7 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
     }
 
     private static void requireNoForbiddenTransport() {
-        for (int x = -3; x <= 9; x++) for (int y = 198; y <= 205; y++) for (int z = -3; z <= 3; z++) {
+        for (int x = 0; x <= 9; x++) for (int y = 198; y <= 205; y++) for (int z = 0; z <= 3; z++) {
             ResourceLocation id = BuiltInRegistries.BLOCK.getKey(level.getBlockState(new BlockPos(x, y, z)).getBlock());
             if (FORBIDDEN_TRANSPORT.contains(id)) throw new IllegalStateException("forbidden transport block present: " + id);
         }
@@ -393,7 +397,8 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
     private static String safeServerState() {
         if (level == null) return "overworld=null";
         return "gameTime=" + level.getGameTime() + " stage=" + stage
-                + " saw=" + level.getBlockState(SAW) + " press=" + level.getBlockState(PRESS)
+                + " sawMotor=" + level.getBlockState(SAW_MOTOR) + " saw=" + level.getBlockState(SAW)
+                + " pressMotor=" + level.getBlockState(PRESS_MOTOR) + " press=" + level.getBlockState(PRESS)
                 + " sawItems=" + itemDump(SAW_SEARCH) + " pressItems=" + itemDump(PRESS_SEARCH);
     }
     private static void failReflection(SkyforgeCompilerIntegrationFailure code, ReflectiveOperationException exception) {
