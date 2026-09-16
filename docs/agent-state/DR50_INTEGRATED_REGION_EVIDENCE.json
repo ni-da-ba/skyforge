@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "milestone": "DR-50",
+  "issue": 496,
+  "state": "CANDIDATE",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "canonical_volume_id": "6001989086914692933/sf-imp-0068-production-composed-cave/0/0/680068",
+  "authored_identity": {
+    "world_seed": 6001989086914692933,
+    "province_key": 8,
+    "cluster_key": 81,
+    "island_key": 1471
+  },
+  "acceptance_config": {
+    "minecraft_level_seed": 493030,
+    "world_type": "skyforge:development",
+    "runtime": "SkyforgeNeoForge1211ProductionComposedCaveDevRuntime + SkyforgeDr50IntegratedRegionEvidence",
+    "gradle_task": ":skyforge-neoforge-1211:dr50IntegratedRegionAcceptance"
+  },
+  "consumed_authority": [
+    "DR-00 canonical production specimen",
+    "DR-10 C20 starting-cluster Iron realization",
+    "DR-20 authored visible hydrology",
+    "SF-IMP-0068 composed cave lifecycle",
+    "SF-IMP-0069 post-cave native interior lifecycle",
+    "DR-30 generic native structure realization",
+    "DR-40 production ecology composition"
+  ],
+  "machine_rejection": [
+    "disconnected_or_malformed_terrain",
+    "escaped_generated_fluid",
+    "overwritten_authored_hydrology",
+    "overwritten_structure_support",
+    "impossible_deposit_placement",
+    "material_hydrology_collision",
+    "material_structure_collision",
+    "native_population_replay",
+    "interior_population_replay",
+    "foreign_volume_write_or_identity",
+    "save_reload_or_actual_client_drift"
+  ],
+  "required_invariants": {
+    "fresh_a_equals_fresh_b": true,
+    "server_and_actual_client_reload": true,
+    "exact_volume_isolation": true,
+    "stacked_volume_isolation": true,
+    "authored_hydrology_survives_final_composition": true,
+    "starting_cluster_iron_persists": true,
+    "generic_structure_persists": true,
+    "production_ecology_persists": true,
+    "post_cave_interior_population_completes": true,
+    "aesthetic_tuning_authorized": false
+  },
+  "completion_boundary": "Promote only after exact-head GitHub Actions proves the integrated candidate. Human visual/product judgment remains DR-60 / Phase-2 dressed-region review authority."
+}

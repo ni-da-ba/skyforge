@@ -7,8 +7,10 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Properties;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -62,6 +64,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadDevRuntime {
 
         Properties expected = loadExpected();
         var dr40Biomes = SkyforgeDr40ProductionEcologyEvidence.reloadExpectations(expected);
+        var dr50 = SkyforgeDr50IntegratedRegionEvidence.reloadExpectation(expected);
         for (var expectation : dr40Biomes) {
             if (!level.getBiome(expectation.position()).is(expectation.biome())) {
                 throw new IllegalStateException(
@@ -70,6 +73,29 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadDevRuntime {
                                 + ", actual=" + level.getBiome(expectation.position()));
             }
         }
+        if (dr50 != null) {
+            if (!level.getBlockState(dr50.materialPosition()).is(Blocks.IRON_ORE)) {
+                throw new IllegalStateException("DR-50 reload lost starting-cluster Iron at " + dr50.materialPosition());
+            }
+            if (!level.getBlockState(dr50.hydrologyPosition()).is(Blocks.WATER)) {
+                throw new IllegalStateException("DR-50 reload lost authored hydrology at " + dr50.hydrologyPosition());
+            }
+            var structureBlock = BuiltInRegistries.BLOCK.getKey(level.getBlockState(dr50.structurePosition()).getBlock());
+            if (!structureBlock.equals(dr50.structureBlockId())) {
+                throw new IllegalStateException(
+                        "DR-50 reload changed representative structure block at " + dr50.structurePosition()
+                                + ": expected=" + dr50.structureBlockId() + ", actual=" + structureBlock);
+            }
+            var saved = SkyforgeNativeStructurePlacementSavedData.forLevel(level);
+            boolean completed = saved.ownedFor(
+                            SkyforgeNeoForge1211ProductionComposedCaveFixture.single().volume().id(),
+                            dr50.structureTargetChunk()).stream()
+                    .anyMatch(identity -> identity.structureId().equals(dr50.structureId()) && saved.completed(identity));
+            if (!completed) {
+                throw new IllegalStateException("DR-50 reload lost durable completed native structure identity");
+            }
+        }
+
         BlockPos nativeOnly = pos(expected, "nativeOnlyPos");
         BlockPos mouth = pos(expected, "mouthPos");
         BlockPos outward = pos(expected, "outwardPos");
@@ -100,7 +126,8 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadDevRuntime {
                 outwardState,
                 base.asLong(),
                 baseState,
-                dr40Biomes);
+                dr40Biomes,
+                dr50);
 
         if (SkyforgeAutomatedAcceptanceHarness.clientMode()) {
             level.players().getFirst().teleportTo(
@@ -127,6 +154,9 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadDevRuntime {
         reloadEvidence.put("persistedBaseState", baseState.toString());
         if (!dr40Biomes.isEmpty()) {
             reloadEvidence.put("dr40ReloadServerBiomePass", true);
+        }
+        if (dr50 != null) {
+            reloadEvidence.put("dr50ReloadServerPass", true);
         }
         SkyforgeAutomatedAcceptanceHarness.record(reloadEvidence);
     }
@@ -173,7 +203,8 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadDevRuntime {
             BlockState outwardState,
             long basePosition,
             BlockState baseState,
-            java.util.List<SkyforgeDr40ProductionEcologyEvidence.ReloadBiomeExpectation> dr40Biomes) {
+            java.util.List<SkyforgeDr40ProductionEcologyEvidence.ReloadBiomeExpectation> dr40Biomes,
+            SkyforgeDr50IntegratedRegionEvidence.ReloadExpectation dr50) {
         ClientExpectation {
             Objects.requireNonNull(nativeOnlyState, "nativeOnlyState");
             Objects.requireNonNull(mouthState, "mouthState");
