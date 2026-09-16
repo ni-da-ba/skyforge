@@ -5336,7 +5336,8 @@ tasks.register("dr50IntegratedRegionAcceptanceVerify") {
         val reload = requireDr50AcceptancePass("reload")
         for (key in listOf(
             "islandKey", "nativeTransformDigest", "nativeCarveDigest", "authoredChangedDigest",
-            "authoredProvenanceDigest", "dr40PopulationOutcomeDigest", "dr50SpecimenId",
+            "authoredProvenanceDigest", "finalAuthoredAir", "authoredDownstreamOccupied",
+            "dr40PopulationOutcomeDigest", "dr50SpecimenId",
             "dr50Volume", "dr50WorldSeedUnsigned", "dr50HydrologyPositions", "dr50HydrologyDigest",
             "dr50HydrologyRepresentativePos", "dr50InteriorCompleted", "dr50InteriorNonEmpty",
             "dr50InteriorSuccessfulFeatures", "dr50InteriorUnsupportedLakeFeatures",
@@ -5361,6 +5362,10 @@ tasks.register("dr50IntegratedRegionAcceptanceVerify") {
                 && first.getProperty("dr50InteriorFluidSchedulesOutsideOwner") == "0"
                 && first.getProperty("dr50InteriorRejectedBoundaryWrites") == "0"
                 && first.getProperty("dr50InteriorReplayWorked") == "false"
+                && first.getProperty("finalAuthoredAir").toInt() > 0
+                && first.getProperty("finalAuthoredAir").toInt() <= first.getProperty("authoredPositive").toInt()
+                && first.getProperty("authoredDownstreamOccupied").toInt()
+                    == first.getProperty("authoredPositive").toInt() - first.getProperty("finalAuthoredAir").toInt()
                 && first.getProperty("dr50Material") == "minecraft:iron_ore"
                 && first.getProperty("dr50MaterialReplayWritten") == "false"
                 && first.getProperty("dr50StructureLifecycleInvoked") == "true"

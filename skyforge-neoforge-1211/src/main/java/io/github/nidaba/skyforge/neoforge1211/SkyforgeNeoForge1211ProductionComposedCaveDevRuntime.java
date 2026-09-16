@@ -262,6 +262,12 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         }
 
         FinalEvidence finalEvidence = verifyFinalUnion(level, volume, chunks);
+        int authoredDownstreamOccupied = Math.subtractExact(authoredPositive, finalEvidence.finalAuthoredAir());
+        boolean finalAuthoredTopologyValid = SkyforgeDr50IntegratedRegionEvidence.enabled()
+                ? finalEvidence.finalAuthoredAir() > 0
+                        && finalEvidence.finalAuthoredAir() <= authoredPositive
+                        && authoredDownstreamOccupied >= 0
+                : finalEvidence.finalAuthoredAir() == authoredPositive;
         if (resultChunks <= 0
                 || nativeChangedBlocks <= 0
                 || nativeSuccessfulCalls <= 0
@@ -272,7 +278,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                 || authoredExposurePositive <= 0
                 || authoredUnsafe != 0
                 || finalEvidence.authoredPositive() != authoredPositive
-                || finalEvidence.finalAuthoredAir() != authoredPositive
+                || !finalAuthoredTopologyValid
                 || finalEvidence.nativeOnlyAir() <= 0
                 || finalEvidence.nativeOnlySample() == null
                 || finalEvidence.baseCaveSample() == null
@@ -371,6 +377,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         java.util.Map.entry("authoredChangedDigest", authoredChangedDigestText),
                         java.util.Map.entry("authoredProvenanceDigest", authoredProvenanceDigestText),
                         java.util.Map.entry("finalAuthoredAir", finalEvidence.finalAuthoredAir()),
+                        java.util.Map.entry("authoredDownstreamOccupied", authoredDownstreamOccupied),
                         java.util.Map.entry("nativeOnlyPos", Long.toString(finalEvidence.nativeOnlySample().asLong())),
                         java.util.Map.entry("mouthPos", Long.toString(mouth.asLong())),
                         java.util.Map.entry("outwardPos", Long.toString(outward.asLong())),
