@@ -29,6 +29,10 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(server.contains("simulated:physics_assembler"));
         assertTrue(server.contains("6966d2928340de7631abcecf8549904b877df0a8"));
         assertTrue(server.contains("getTrackingSubLevel"));
+        String trackingMixinClass = "Class.forName(\"dev.ryanhcode.sable.mixinterface.entity.entity_sublevel_collision.EntityMovementExtension\")";
+        int trackingMixinResolution = server.indexOf(trackingMixinClass);
+        assertTrue(trackingMixinResolution > server.indexOf("private static UUID trackingSubLevelId"));
+        assertEquals(trackingMixinResolution, server.lastIndexOf(trackingMixinClass));
         assertTrue(server.contains("client_sublevel_collision_then_movement_packet"));
         assertTrue(server.contains("GLUE_VISIBILITY_DIAGNOSTIC glueId="));
         assertTrue(server.contains("acceptanceGating=false"));

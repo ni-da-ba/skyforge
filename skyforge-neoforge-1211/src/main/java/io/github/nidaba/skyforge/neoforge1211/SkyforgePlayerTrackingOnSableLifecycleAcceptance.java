@@ -732,7 +732,6 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
                 throw new IllegalStateException("Physics Assembler resource unavailable");
             }
             Class.forName("dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer");
-            Class.forName("dev.ryanhcode.sable.mixinterface.entity.entity_sublevel_collision.EntityMovementExtension");
             Class.forName("dev.simulated_team.simulated.util.SimAssemblyHelper");
             Class.forName("com.simibubi.create.content.contraptions.actors.seat.SeatBlock");
             Class.forName("com.simibubi.create.content.contraptions.actors.seat.SeatEntity");
@@ -827,7 +826,6 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
         }
         Object value = holderClass.getDeclaredMethod("sable$getPlotContainer").invoke(serverLevel);
         Class<?> containerClass = Class.forName("dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer");
-            Class.forName("dev.ryanhcode.sable.mixinterface.entity.entity_sublevel_collision.EntityMovementExtension");
         if (value == null || !containerClass.isInstance(value)) {
             throw new IllegalStateException("Sable ServerSubLevelContainer unavailable");
         }
@@ -887,6 +885,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
     }
 
     private static UUID trackingSubLevelId(ServerPlayer player) throws ReflectiveOperationException {
+        Class.forName("dev.ryanhcode.sable.mixinterface.entity.entity_sublevel_collision.EntityMovementExtension");
         Class<?> sableClass = Class.forName("dev.ryanhcode.sable.Sable");
         Object helper = sableClass.getField("HELPER").get(null);
         Method method = helper.getClass().getMethod("getTrackingSubLevel", Entity.class);
