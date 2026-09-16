@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -12,8 +13,10 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -60,6 +63,10 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
     private static final double TRANSLATION_VELOCITY_METERS_PER_SECOND = 2.0;
     private static final double MINIMUM_PARENT_TRANSLATION_BLOCKS = 0.15;
     private static final double PLAYER_DELTA_TOLERANCE_BLOCKS = 0.08;
+    private static final int FIXTURE_CHUNK_TICKET_DISTANCE = 3;
+    private static final ChunkPos FIXTURE_CHUNK = new ChunkPos(0, 0);
+    private static final TicketType<ChunkPos> FIXTURE_CHUNK_TICKET = TicketType.create(
+            "skyforge_platform_012", Comparator.comparingLong(ChunkPos::toLong));
 
     private static ServerLevel level;
     private static Object container;
@@ -68,6 +75,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
     private static Object forceLoadTicketType;
     private static Object forceLoadTicketKey;
     private static boolean forceLoadTicketAdded;
+    private static boolean fixtureChunkTicketAdded;
     private static Set<UUID> beforeIds = Set.of();
     private static UUID bodyId;
     private static UUID glueId;
@@ -134,6 +142,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
         try {
             requireRuntimePreconditions();
             container = requireServerSubLevelContainer(level);
+            addFixtureChunkTicket();
             beforeIds = currentSubLevelIds();
             prepareFixture();
             glueId = addFixtureGlue();
@@ -613,6 +622,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
         restorePlayerInvulnerability();
         restorePhysicsPause();
         removeFixtureForceLoadTicket();
+        removeFixtureChunkTicket();
         trackingLifecycleQualified = true;
         complete = true;
         LOGGER.log(System.Logger.Level.INFO,
@@ -630,6 +640,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
                         + " samePersistentSableUuid=true currentPhysicsHandleValid=true"
                         + " harnessTrackingSetterInvoked=false harnessPlayerMutationDuringMeasurement=false"
                         + " fixtureLivenessTicket=sable:command_forced(released)"
+                        + " fixtureChunkTicket=skyforge_platform_012(released)"
                         + " playerSableTrackingQualified=true inheritedParentTranslationQualified=true"
                         + " flightQualified=false");
     }
@@ -967,6 +978,26 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
         }
     }
 
+    private static void addFixtureChunkTicket() {
+        if (fixtureChunkTicketAdded) return;
+        level.getChunkSource().addRegionTicket(
+                FIXTURE_CHUNK_TICKET, FIXTURE_CHUNK, FIXTURE_CHUNK_TICKET_DISTANCE, FIXTURE_CHUNK);
+        level.getChunk(FIXTURE_CHUNK.x, FIXTURE_CHUNK.z);
+        fixtureChunkTicketAdded = true;
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " FIXTURE_CHUNK_TICKET_ADD chunk=" + FIXTURE_CHUNK
+                        + " distance=" + FIXTURE_CHUNK_TICKET_DISTANCE);
+    }
+
+    private static void removeFixtureChunkTicket() {
+        if (!fixtureChunkTicketAdded || level == null) return;
+        level.getChunkSource().removeRegionTicket(
+                FIXTURE_CHUNK_TICKET, FIXTURE_CHUNK, FIXTURE_CHUNK_TICKET_DISTANCE, FIXTURE_CHUNK);
+        fixtureChunkTicketAdded = false;
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " FIXTURE_CHUNK_TICKET_REMOVE chunk=" + FIXTURE_CHUNK);
+    }
+
     private static void addFixtureForceLoadTicket(Object body) throws ReflectiveOperationException {
         Class<?> ticketTypeClass = Class.forName("dev.ryanhcode.sable.api.sublevel.ticket.SubLevelLoadingTicketType");
         forceLoadTicketType = ticketTypeClass.getField("COMMAND_FORCED").get(null);
@@ -1010,6 +1041,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
         try { restorePlayerInvulnerability(); } catch (RuntimeException ignored) {}
         try { restorePhysicsPause(); } catch (ReflectiveOperationException | RuntimeException ignored) {}
         try { removeFixtureForceLoadTicket(); } catch (ReflectiveOperationException | RuntimeException ignored) {}
+        try { removeFixtureChunkTicket(); } catch (RuntimeException ignored) {}
     }
 
     private static Block requireBlock(ResourceLocation blockId) {

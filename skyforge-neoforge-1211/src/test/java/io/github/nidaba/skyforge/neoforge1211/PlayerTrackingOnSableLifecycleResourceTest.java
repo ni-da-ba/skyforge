@@ -30,6 +30,9 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(server.contains("6966d2928340de7631abcecf8549904b877df0a8"));
         assertTrue(server.contains("getTrackingSubLevel"));
         assertTrue(server.contains("client_sublevel_collision_then_movement_packet"));
+        assertTrue(server.contains("FIXTURE_CHUNK_TICKET_DISTANCE = 3"));
+        assertTrue(server.contains("skyforge_platform_012"));
+        assertTrue(server.indexOf("addFixtureChunkTicket();") < server.indexOf("beforeIds = currentSubLevelIds();"));
     }
 
     @Test
@@ -68,6 +71,7 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(server.contains("bodyId.equals(serverTrackingId)"));
         assertTrue(server.contains("playerSableTrackingQualified=true inheritedParentTranslationQualified=true"));
         assertTrue(server.contains("fixtureLivenessTicket=sable:command_forced(released)"));
+        assertTrue(server.contains("fixtureChunkTicket=skyforge_platform_012(released)"));
         assertTrue(server.contains("primary seat assembly source cleanup did not settle before deadline"));
         assertTrue(server.contains("if (sourceNonAir != 0)"));
         assertFalse(server.contains("valid synchronous post-assembly state"));
