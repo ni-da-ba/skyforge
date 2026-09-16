@@ -434,14 +434,15 @@
       ],
       "owning_workflow": ".github/workflows/compiler-platform-composed-mechanism-persistence.yml",
       "latest_accepted_evidence": {
-        "workflow_run": 35034081917,
-        "job": 104599373896,
-        "commit": "b0262d2a5ec7ffa170b31a5b42984b6301c29c1c",
+        "workflow_run": 35139819608,
+        "job": 104941813384,
+        "commit": "6a672a989b66c9d2467bc354bc002bc2db5e18cf",
         "result": "PASS",
-        "finding": "Exact-stack two-boot L2 proved composed persistence across a genuine fresh-process boundary: Boot A assembled one canonical Sable primary body, realized a live Create-driven Propeller Bearing child with one hub plus two symmetric sails, normalized the child back into plot blocks, saved successfully, and released the bounded COMMAND_FORCED ticket. Boot B recovered the same persistent primary UUID with a valid current physics handle, observed both exact Super Glue domains through bounded asynchronous rehydration, reassembled a fresh nested child with no stale pre-reload duplicate, retained one main glue authority without duplication, recovered bearing speed -16.0, then proved the reloaded Create network live by shaft sever/rebuild back to -16.0 and released the fresh bounded ticket before PASS."
+        "finding": "Exact-stack two-boot L2 passed after causal startup hardening: before fixture/glue creation, Boot A required both Sable PhysicsChunkTicketManager readiness and Minecraft entity-section TICKING visibility via ServerLevel.isPositionEntityTicking; the exact main Super Glue UUID/domain was then synchronously visible through the typed Create query, one Physics Assembler call completed the exact 17->0 parent-world transfer immediately on return, and all downstream composed persistence semantics remained green. Boot A saved one canonical primary UUID with normalized nested-child blocks and -16.0 RPM; Boot B recovered the same UUID/current physics, exact glue authority without duplication, a freshly reassembled nested child, -16.0 RPM, and shaft sever/rebuild recovery. Same-head repeat L2 job 104942799450 also passed, and all bounded fixture tickets were released before PASS."
       },
       "assumptions_preconditions": [
         "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE, SUPER_GLUE_ASSEMBLY_DOMAIN_LIFECYCLE, CREATE_KINETIC_ON_SABLE_LIFECYCLE, and NESTED_PROPELLER_BEARING_LIFECYCLE without widening those prerequisites.",
+        "The reduced Boot-A source fixture may be created only after both Sable source-chunk readiness and Minecraft entity-section TICKING visibility are true; successful region-ticket insertion or block access alone is not sufficient authority for Create entity queries.",
         "The fixture persists only durable identity (primary UUID, pre-reload child/glue UUIDs, and integer plot offset); all Java objects, block entities, entity handles, physics handles, and kinetic state are re-resolved in Boot B.",
         "Boot A normalizes the entity-backed Propeller Bearing child back into the canonical Sable plot before save, then releases the bounded COMMAND_FORCED qualification ticket; Boot B recovers the UUID through Sable holding storage and applies a fresh bounded ticket only after canonical reload begins.",
         "Boot B treats entity-backed Super Glue as asynchronously rehydrated state: after canonical Sable recovery it allows a bounded grace period, reuses exactly-one persisted domains when present, deterministically recreates only domains still absent after the grace window, and then reassembles a fresh nested Propeller Bearing child from normalized plot blocks; this lifecycle recovery is generic platform behavior, not an aircraft-specific persistence format.",
@@ -476,6 +477,20 @@
         "C": true
       },
       "negative_evidence": [
+        {
+          "workflow_run": 35137542329,
+          "job": 104933947519,
+          "commit": "4497c6435c5e133ea03cccf7d86e5ab6f07607ed",
+          "result": "FAIL_GLUE_REGISTRATION",
+          "finding": "Waiting up to 20 ticks after successful Super Glue insertion did not make the exact glue UUID visible through the same typed Create query; Sable chunk readiness alone was therefore insufficient, ruling out a simple one-tick publication delay."
+        },
+        {
+          "workflow_run": 35138290287,
+          "job": 104936554177,
+          "commit": "02f4f380e614a08fdb1b7c44ecbc59fc5e0ca00e",
+          "result": "FAIL_GLUE_REGISTRATION",
+          "finding": "A force-ticking region ticket still left the exact main-glue UUID invisible to Create through the bounded deadline. Exact Minecraft source showed the ticket already requested entity-ticking strength; the missing predicate was PersistentEntitySectionManager visibility promotion, not ticket strength."
+        },
         {
           "workflow_run": 35041461818,
           "job": 104622371453,
@@ -647,6 +662,44 @@
           "finding": "Primary Sable assembly and the accepted moving Create carrier succeeded, but the first PLATFORM-008 L2 failed before Swivel realization because the fixture required the source Super Glue entity UUID to remain resolvable after Sable transfer. That UUID is pre-assembly fixture identity, not canonical moved authority. The fixture now resolves the broad assembly-glue domain by its exact moved bounding box, tolerates it already being consumed, discards exactly one moved match when present, and fails only on duplicate/remaining broad glue authority before creating the Swivel child."
         }
       ]
+    },
+    "SABLE_AERODYNAMIC_FORCE_OBSERVATION_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeAerodynamicForceObservationAcceptance",
+      "owning_tests": [
+        "AerodynamicForceObservationResourceTest",
+        "SwivelControlChildLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-aerodynamic-force-observation.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 35121317584,
+        "job": 104880160249,
+        "commit": "d274eeac6f960d9dd69a3b24ca189a1340305c5c",
+        "result": "PASS",
+        "finding": "Exact-stack L2 reused the accepted live Swivel child lifecycle and, at real signed physical deflection, applied a bounded 10.0 m/s controlled parent/child velocity, enabled individual force tracking only for the measurement window, resolved the real Sable ForceGroups.DRAG queue, and recorded real point forces. Each point/force was transformed through the current child pose; aggregate force and moment about the current parent center of mass were finite and nonzero. Individual force tracking was disabled before PASS, and the fixture explicitly left aircraft sign-convention qualification false while the enclosing Swivel lifecycle continued through source-off hold and inverse-command neutral return."
+      },
+      "assumptions_preconditions": [
+        "Consumes accepted SWIVEL_CONTROL_CHILD_ON_SABLE_LIFECYCLE for canonical current parent/child identity and a real physically deflected Simulated Swivel child; it does not replace or widen the Swivel-control contract.",
+        "The exact retained Sable stack exposes dev.ryanhcode.sable.api.physics.force.ForceGroups.DRAG, queued-force individual tracking, and recorded point-force observation. API/source drift must fail closed rather than silently substitute another force path.",
+        "The bounded observation condition uses 10.0 m/s local -X velocity transformed through the current parent pose and applied to both current parent and child physics handles before one measurement tick.",
+        "Recorded local point/force values are transformed through the current child logical pose, and moment is computed about the current parent center of mass transformed through the current parent pose.",
+        "Individual queued-force tracking is qualification instrumentation only and must be disabled before the enclosing lifecycle can PASS.",
+        "Production rudder geometry, aircraft coordinate/sign convention, analytical coefficient fitting, cockpit routing, player control, atmosphere envelopes, handling, and flight remain outside this capability."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_PHYSICS",
+        "FAIL_RUNTIME_EXIT",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": true,
+        "C": false
+      },
+      "negative_evidence": []
     },
     "SABLE_PRODUCTION_SCALE_PERSISTENCE_LIFECYCLE": {
       "status": "accepted",
