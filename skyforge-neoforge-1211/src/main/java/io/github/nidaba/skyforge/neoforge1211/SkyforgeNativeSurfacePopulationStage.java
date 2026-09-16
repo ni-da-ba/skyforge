@@ -173,6 +173,15 @@ final class SkyforgeNativeSurfacePopulationStage {
                 : binding.coordinator().completedNativeResults(volumeId);
     }
 
+    static List<SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase> completedNativePhases(
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? List.of()
+                : binding.coordinator().completedNativePhases(volumeId);
+    }
+
     @FunctionalInterface
     interface PlanResolver {
         List<SkyforgeNativeSurfacePopulationPlan> resolve(

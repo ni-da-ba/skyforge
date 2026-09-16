@@ -43,6 +43,7 @@ final class SkyforgeSurfacePopulationPlanTest {
         assertEquals(List.of(GenerationStep.Decoration.VEGETAL_DECORATION), plan.phases());
         assertEquals(24, plan.maximumAttachmentDepth());
         assertEquals(Biomes.FOREST, plan.biomeResolver().resolve(VOLUME_ID, 4, 120, 9));
+        assertTrue(plan.biomeResolver().supportsSurface(VOLUME_ID, 4, 120, 9));
     }
 
     @Test

@@ -20,4 +20,17 @@ interface SkyforgeExactVolumeBiomeResolver {
             int worldX,
             int worldY,
             int worldZ);
+
+    /**
+     * Whether this exact surface column is authorized to consume/persist this resolver's biome as
+     * surface ecology. Native cave/interior context may still resolve a technical biome when false.
+     * Fixed/native resolvers default to true; authored production ecology overrides this fail-closed.
+     */
+    default boolean supportsSurface(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        return true;
+    }
 }

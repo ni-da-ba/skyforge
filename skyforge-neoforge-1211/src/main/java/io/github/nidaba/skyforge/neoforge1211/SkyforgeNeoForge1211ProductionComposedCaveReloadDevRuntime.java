@@ -61,6 +61,15 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadDevRuntime {
         }
 
         Properties expected = loadExpected();
+        var dr40Biomes = SkyforgeDr40ProductionEcologyEvidence.reloadExpectations(expected);
+        for (var expectation : dr40Biomes) {
+            if (!level.getBiome(expectation.position()).is(expectation.biome())) {
+                throw new IllegalStateException(
+                        "DR-40 reload lost persisted ecology biome at " + expectation.position()
+                                + ": expected=" + expectation.biome().location()
+                                + ", actual=" + level.getBiome(expectation.position()));
+            }
+        }
         BlockPos nativeOnly = pos(expected, "nativeOnlyPos");
         BlockPos mouth = pos(expected, "mouthPos");
         BlockPos outward = pos(expected, "outwardPos");
@@ -90,7 +99,8 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadDevRuntime {
                 outward.asLong(),
                 outwardState,
                 base.asLong(),
-                baseState);
+                baseState,
+                dr40Biomes);
 
         if (SkyforgeAutomatedAcceptanceHarness.clientMode()) {
             level.players().getFirst().teleportTo(
@@ -106,16 +116,19 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadDevRuntime {
                         + ", mouth=" + mouth + ", outward=" + outward + ", base=" + base
                         + ". The production cave union survived full stop/reload with no mutation binding.");
 
-        SkyforgeAutomatedAcceptanceHarness.record(
-                java.util.Map.of(
-                        "reloadServerPass", true,
-                        "mutationBindingsAbsent", true,
-                        "persistedNativeOnlyPos", Long.toString(nativeOnly.asLong()),
-                        "persistedNativeOnlyState", nativeOnlyState.toString(),
-                        "persistedMouthPos", Long.toString(mouth.asLong()),
-                        "persistedMouthState", mouthState.toString(),
-                        "persistedOutwardState", outwardState.toString(),
-                        "persistedBaseState", baseState.toString()));
+        java.util.Map<String, Object> reloadEvidence = new java.util.LinkedHashMap<>();
+        reloadEvidence.put("reloadServerPass", true);
+        reloadEvidence.put("mutationBindingsAbsent", true);
+        reloadEvidence.put("persistedNativeOnlyPos", Long.toString(nativeOnly.asLong()));
+        reloadEvidence.put("persistedNativeOnlyState", nativeOnlyState.toString());
+        reloadEvidence.put("persistedMouthPos", Long.toString(mouth.asLong()));
+        reloadEvidence.put("persistedMouthState", mouthState.toString());
+        reloadEvidence.put("persistedOutwardState", outwardState.toString());
+        reloadEvidence.put("persistedBaseState", baseState.toString());
+        if (!dr40Biomes.isEmpty()) {
+            reloadEvidence.put("dr40ReloadServerBiomePass", true);
+        }
+        SkyforgeAutomatedAcceptanceHarness.record(reloadEvidence);
     }
 
     static ClientExpectation clientExpectation() {
@@ -159,12 +172,14 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadDevRuntime {
             long outwardPosition,
             BlockState outwardState,
             long basePosition,
-            BlockState baseState) {
+            BlockState baseState,
+            java.util.List<SkyforgeDr40ProductionEcologyEvidence.ReloadBiomeExpectation> dr40Biomes) {
         ClientExpectation {
             Objects.requireNonNull(nativeOnlyState, "nativeOnlyState");
             Objects.requireNonNull(mouthState, "mouthState");
             Objects.requireNonNull(outwardState, "outwardState");
             Objects.requireNonNull(baseState, "baseState");
+            dr40Biomes = java.util.List.copyOf(dr40Biomes);
         }
     }
 }

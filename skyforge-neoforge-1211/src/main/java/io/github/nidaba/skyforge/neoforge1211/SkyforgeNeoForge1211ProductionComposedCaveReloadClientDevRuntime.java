@@ -54,6 +54,16 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadClientDevRuntime {
             }
         }
 
+        for (var biomeExpectation : expectation.dr40Biomes()) {
+            if (!minecraft.level.getBiome(biomeExpectation.position()).is(biomeExpectation.biome())) {
+                throw new IllegalStateException(
+                        "DR-40 ClientLevel lost persisted ecology biome at "
+                                + biomeExpectation.position()
+                                + ": expected=" + biomeExpectation.biome().location()
+                                + ", actual=" + minecraft.level.getBiome(biomeExpectation.position()));
+            }
+        }
+
         var nativeOnlyState = minecraft.level.getBlockState(nativeOnly);
         var mouthState = minecraft.level.getBlockState(mouth);
         var outwardState = minecraft.level.getBlockState(outward);
@@ -74,14 +84,17 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadClientDevRuntime {
                 "SF-IMP-0068 RELOAD CLIENT PASS: nativeOnly=" + nativeOnly
                         + ", mouth=" + mouth + ", outward=" + outward + ", base=" + base + ".");
 
-        SkyforgeAutomatedAcceptanceHarness.completeClientCase(
-                java.util.Map.of(
-                        "reloadClientPass", true,
-                        "clientNativeOnlyPos", Long.toString(nativeOnly.asLong()),
-                        "clientNativeOnlyState", nativeOnlyState.toString(),
-                        "clientMouthState", mouthState.toString(),
-                        "clientOutwardState", outwardState.toString(),
-                        "clientBaseState", baseState.toString()));
+        java.util.Map<String, Object> clientEvidence = new java.util.LinkedHashMap<>();
+        clientEvidence.put("reloadClientPass", true);
+        clientEvidence.put("clientNativeOnlyPos", Long.toString(nativeOnly.asLong()));
+        clientEvidence.put("clientNativeOnlyState", nativeOnlyState.toString());
+        clientEvidence.put("clientMouthState", mouthState.toString());
+        clientEvidence.put("clientOutwardState", outwardState.toString());
+        clientEvidence.put("clientBaseState", baseState.toString());
+        if (!expectation.dr40Biomes().isEmpty()) {
+            clientEvidence.put("dr40ReloadClientBiomePass", true);
+        }
+        SkyforgeAutomatedAcceptanceHarness.completeClientCase(clientEvidence);
         if (SkyforgeAutomatedAcceptanceHarness.clientMode()) {
             // The proof file is durably written before this point. Ordinarily Minecraft.stop()
             // shuts down the integrated server within a few seconds, but headless CI has
