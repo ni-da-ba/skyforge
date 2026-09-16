@@ -4,7 +4,7 @@
 **Accepted compact-Hall tranche:** PR #612 / merge `0eca2194ddf4a7e3be401e5715a32e60525f315e`  
 **Accepted sibling/ROI tranche:** PR #623 / merge `20c3b9e37e16800eb258d1613714b90d1ec9c048`  
 **Accepted functional-asset authority:** issue #628 (`MECH-001`) / PR #640 / merge `c7c23e0d2f3abbb88db09e9b1feaf0d9d005209c`
-**Next functional-asset authority:** issue #679 (`MECH-002`) — reserved, blocked on active PLATFORM-009 / #697 water-wheel source qualification
+**Accepted natural-power authority:** issue #679 (`MECH-002`) / PR #706 / merge `c82f9efcf05716880b32b68dc81dc7ce55c91541`
 **Shared runtime qualification authority:** issue #613 / `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`
 
 This ledger records current production capability for Compiler Program Agent C. Historical
@@ -135,11 +135,11 @@ propagation, deterministic sever/inactivity, and rebuild/recovery on the exact r
 `SABLE_PRIMARY_ASSEMBLY_LIFECYCLE` is separately accepted, but is not required for fixed-world MECH-001.
 Moving-body Create kinetics remain a separate platform capability and are not implied here.
 
-The next required fixed-world source seam is provisionally `CREATE_WATER_WHEEL_SOURCE_LIFECYCLE`. Current
-accepted authority does **not** qualify water-wheel environmental generation, fluid-driven source
-activation, belt/item transport, or hand-crank interaction. Agent C requested the bounded water-wheel
-qualification from Agent A on #613 and must not begin MECH-002 exact target lowering or L3 runtime work
-until the shared ledger accepts that capability with Agent C production authority.
+`CREATE_WATER_WHEEL_SOURCE_LIFECYCLE` is accepted at L2 with Agent C production authority through
+PLATFORM-009 / #697 / PR #702. Its bounded contract qualifies the fixed-world small Create water wheel,
+the accepted north falling-water drive position, signed 8 RPM generation, environmental disable, and
+recovery on the retained C11 stack. It does not authorize belts/item transport, Sable/mobile machinery,
+aircraft, production geography, or general hydrology policy.
 
 ## Accepted functional tranche: MECH-001 / issue #628
 
@@ -211,38 +211,54 @@ Across these maintenance tranches, the accepted MECH-001 plan digest remained
 SHA256 remained `dee1563daa925034f13a9481744bbf2da9b0bb36937ae8cb6a7192a1b45e9b84`. No human gate was required
 because the emitted canonical plan and structure remained byte-identical.
 
-## Next functional tranche: MECH-002 / issue #679
+## Accepted functional tranche: MECH-002 / issue #679
 
-MECH-002 is reserved as the smallest production-relevant successor to MECH-001. It will test whether
-the qualification-only Creative Motor can be replaced with a real stationary in-world Create power
-source suitable for an early workshop, while reusing the already accepted shaft -> encased-fan path.
-
-Preferred semantic topology:
+PR #706 accepted one bounded natural stationary workshop-power specimen:
 
 `renewable_stationary_source -> required axial relay -> airflow endpoint`
 
-Preferred target after platform qualification is a bounded Create water wheel + explicit fluid
-environment -> shaft -> encased fan. The compiler must own the source environmental envelope and
-structure-template artifact; authored semantic input must remain free of guessed concrete Create IDs.
+Exact target realization is a contained source-fed falling-water chute driving
+`create:water_wheel[facing=east] -> create:shaft[axis=x] -> create:encased_fan[facing=east]`. The
+semantic specimen remains target-neutral; exact Create/vanilla states are introduced only by compiler
+lowering under accepted PLATFORM-009 authority.
 
-This tranche intentionally does **not** decide sequenced-assembly handling or activate belts/item
-transport. Skyforge design authority still keeps `WORKSHOP_POWER_PATH` and
-`SEQUENCED_ASSEMBLY_HANDLING` distinct until playable proofs exist. A successful water-wheel proof is
-evidence that water power is a credible workshop option, not authority to require water-wheel geography
-for every workshop or settlement.
+Canonical MECH-002 identity:
 
-MECH-002 runtime implementation is currently blocked on Agent A's exact-stack water-wheel source
-qualification. Agent A has materialized that dependency as PLATFORM-009 / #697 on
-`platform/697-water-wheel-source-lifecycle`. No MECH-002 implementation branch should be started until
-`CREATE_WATER_WHEEL_SOURCE_LIFECYCLE` is accepted on `main` with Agent C production authority.
+- compiler version `mech-0.2-fixed-world`;
+- plan digest `6a8834d2c2d18cd0914fc488807d8e4042eb4a12f8fe11258a94d931c400f293`;
+- 37 placements;
+- envelope `[7, 4, 5]`;
+- deterministic Minecraft structure SHA256 `180d02ed902704f6cd31b88843c7047cc075a15d94d77c9c5e7c5b30471f20cd`;
+- structure resource `skyforge:mech_002_waterwheel_airflow_bench`.
+
+The first human gate exposed a real authored-geometry defect: the compiler emitted a standalone
+`minecraft:water[level=8]` falling-water cell. Create consumed it correctly, but normal vanilla fluid
+ticking removed the un-fed transient cell. This did **not** invalidate PLATFORM-009. Agent C corrected
+the asset by adding a contained persistent source-water feeder above the accepted drive cell. The
+unnecessary follow-up PLATFORM-010 / #730 was closed not-planned.
+
+The corrected L3 proof never directly repairs the falling drive cell. It requires the source-fed
+mechanism to remain continuously active for 100 ordinary ticks, removes only the feeder source, observes
+natural drain plus source/fan stop, restores only the feeder, and observes natural falling-water
+reformation plus recovery. Exact-stack run `35138536017`, L3 job `104939179844` passed with initial and
+recovered source/fan speed `-8.0`, flow vector `(0.0, -1.0, 0.0)`, live source/network state, and clear
+compiled moving/discharge cells. Full repository CI and all triggered retained runtime/client regressions
+passed on exact head `65503466684463486ed1a462105d2ec6ad256249`.
+
+Local Minecraft review of that exact corrected head gave **FULL PASS**: water persisted under ordinary
+ticks; removing only the feeder naturally stopped the mechanism; restoring only the feeder naturally
+reformed the falling drive and restarted the mechanism; mounting/containment/readability were accepted.
+PR #706 merged as `c82f9efcf05716880b32b68dc81dc7ce55c91541`; issue #679 closed completed.
+
+This proves water-wheel power is a credible stationary workshop option. It does **not** require
+water-wheel geography for every workshop and does not activate belts, item transport, or sequenced
+assembly. Those remain separate capability/design decisions.
 
 ## Current stop state
 
-Structure proof: **ACCEPTED / COMPLETE**.  
-Issue #488: **CLOSED COMPLETED**.  
-MECH-001 / #628: **ACCEPTED / COMPLETE**.
-PR #640: **MERGED**.
-MECH-002 / #679: **OPEN, RESERVED, BLOCKED ON `CREATE_WATER_WHEEL_SOURCE_LIFECYCLE`**.
-Agent A dependency request: #613 comment `5686734740`; active platform tranche: PLATFORM-009 / #697.
-No human action is required at this boundary.
+Structure proof / #488: **ACCEPTED / COMPLETE**.
+MECH-001 / #628 / PR #640: **ACCEPTED / MERGED**.
+MECH-002 / #679 / PR #706: **ACCEPTED / MERGED**.
+PLATFORM-009 / #697 / PR #702: **ACCEPTED** with Agent C water-wheel source authority.
+No human action is pending. Belt/item transport and sequenced assembly remain unactivated separate seams.
 No production-geography authority is changed and #493 remains untouched.
