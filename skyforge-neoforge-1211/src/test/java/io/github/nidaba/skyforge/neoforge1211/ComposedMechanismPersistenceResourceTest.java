@@ -100,9 +100,9 @@ final class ComposedMechanismPersistenceResourceTest {
         String entry = ledger.substring(start);
 
         assertTrue(entry.contains("\"status\": \"accepted\""));
-        assertTrue(entry.contains("\"workflow_run\": 35034081917"));
-        assertTrue(entry.contains("\"job\": 104599373896"));
-        assertTrue(entry.contains("\"commit\": \"b0262d2a5ec7ffa170b31a5b42984b6301c29c1c\""));
+        assertTrue(entry.contains("\"workflow_run\": 35139819608"));
+        assertTrue(entry.contains("\"job\": 104941813384"));
+        assertTrue(entry.contains("\"commit\": \"6a672a989b66c9d2467bc354bc002bc2db5e18cf\""));
         assertTrue(entry.contains("\"result\": \"PASS\""));
         assertTrue(entry.contains("\"B\": true"));
         assertTrue(entry.contains("\"C\": true"));
