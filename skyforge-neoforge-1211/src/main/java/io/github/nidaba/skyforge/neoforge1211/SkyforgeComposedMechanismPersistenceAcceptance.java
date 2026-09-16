@@ -4,6 +4,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -80,6 +81,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static Object assembledBody;
     private static Object forceLoadTicketType;
     private static Object forceLoadTicketKey;
+    private static Object primaryAssemblyObserver;
     private static boolean forceLoadTicketAdded;
     private static Set<UUID> beforeIds = Set.of();
     private static Set<UUID> beforeHoldingIds = Set.of();
@@ -160,6 +162,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
 
             BlockEntity assembler = requireExpectedBlockEntity(ASSEMBLER_SOURCE, "PhysicsAssemblerBlockEntity");
             stage = Stage.ASSEMBLY;
+            installPrimaryAssemblyLivenessObserver();
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.ASSEMBLY,
                     "real Physics Assembler captures the bounded primary Sable/Create mechanism",
@@ -302,9 +305,9 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                                         + " staleGroundChild=" + staleGroundChild),
                         "primary assembly registered an invalid Sable body");
             }
-            // A normally live body must be allowed to finish Simulated parent-world cleanup before force-loading.
-            // If the known UUID already fell into Sable holding during that window, recover it and ticket that
-            // recovered live authority immediately so it cannot cycle back into holding.
+            // The primary body is normally ticketed synchronously by the allocation observer before Simulated
+            // transfers any parent-world blocks. Retain the historical holding recovery as a fail-safe and ticket
+            // any recovered live authority immediately so it cannot cycle back into holding again.
             if (primaryRecoveredFromHolding && !forceLoadTicketAdded) {
                 addFixtureForceLoadTicket(listedBody);
             }
@@ -745,11 +748,6 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         if (holding == null) return false;
         Object pointer = publicMethod(holding, "pointer").invoke(holding);
         if (pointer == null) {
-            if (loadUnsavedHoldingSubLevel(holdingMap)) {
-                LOGGER.log(System.Logger.Level.INFO,
-                        PREFIX + " HOLDING_UNSAVED_LOAD_REQUEST bodyId=" + bodyId);
-                return true;
-            }
             LOGGER.log(System.Logger.Level.INFO,
                     PREFIX + " HOLDING_POINTER_PENDING bodyId=" + bodyId + " holding=" + holding);
             return false;
@@ -762,44 +760,45 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     }
 
     /**
-     * Sable may move a just-created body into an in-memory holding chunk before its first serialization
-     * pointer exists. Waiting for pointer creation is not bounded by this fixture: Sable assigns that pointer
-     * during a later save. Reproduce snatchAndLoad's in-memory half of the exact 2.0.5 implementation by
-     * removing the UUID plus dependency chain from the already-loaded holding chunk, then pass every snatched
-     * HoldingSubLevel through Sable's own public loadHoldingSubLevel deserialization path.
+     * Exact Sable 2.0.5 calls SubLevelObserver.onSubLevelAdded synchronously from allocateSubLevel(),
+     * before Simulated's assembleBlocks() starts moving the parent-world blocks. Install a one-shot observer
+     * so the qualification liveness ticket exists before PhysicsChunkTicketManager can classify the new body
+     * against unloaded world chunks. The observer remains registered but is inert after the primary UUID is set.
      */
-    private static boolean loadUnsavedHoldingSubLevel(Object holdingMap) throws ReflectiveOperationException {
-        Field loadedChunksField = holdingMap.getClass().getDeclaredField("loadedHoldingChunks");
-        loadedChunksField.setAccessible(true);
-        Object loadedChunksValue = loadedChunksField.get(holdingMap);
-        if (!(loadedChunksValue instanceof Map<?, ?> loadedChunks)) {
-            throw new IllegalStateException("Sable loadedHoldingChunks is not Map-like: " + loadedChunksValue);
-        }
-
-        for (Object holdingChunk : loadedChunks.values()) {
-            Method snatch = holdingChunk.getClass().getDeclaredMethod("snatch", UUID.class);
-            snatch.setAccessible(true);
-            Object snatchedValue = snatch.invoke(holdingChunk, bodyId);
-            if (snatchedValue == null) {
-                continue;
-            }
-            if (!(snatchedValue instanceof Iterable<?> snatched)) {
-                throw new IllegalStateException("Sable holding snatch result is not iterable: " + snatchedValue);
-            }
-
-            Method loadHoldingSubLevel = holdingMap.getClass().getMethod(
-                    "loadHoldingSubLevel", Class.forName("dev.ryanhcode.sable.sublevel.storage.HoldingSubLevel"));
-            boolean loadedAny = false;
-            for (Object heldSubLevel : snatched) {
-                loadHoldingSubLevel.invoke(holdingMap, heldSubLevel);
-                loadedAny = true;
-            }
-            if (!loadedAny) {
-                throw new IllegalStateException("Sable snatched an empty holding dependency chain for " + bodyId);
-            }
-            return true;
-        }
-        return false;
+    private static void installPrimaryAssemblyLivenessObserver() throws ReflectiveOperationException {
+        Class<?> observerClass = Class.forName("dev.ryanhcode.sable.api.sublevel.SubLevelObserver");
+        primaryAssemblyObserver = Proxy.newProxyInstance(
+                observerClass.getClassLoader(),
+                new Class<?>[] {observerClass},
+                (proxy, method, args) -> {
+                    if (method.getDeclaringClass() == Object.class) {
+                        return switch (method.getName()) {
+                            case "toString" -> "SkyforgePlatform007PrimaryAssemblyObserver";
+                            case "hashCode" -> System.identityHashCode(proxy);
+                            case "equals" -> proxy == (args == null || args.length == 0 ? null : args[0]);
+                            default -> null;
+                        };
+                    }
+                    if ("onSubLevelAdded".equals(method.getName())
+                            && stage == Stage.ASSEMBLY
+                            && bodyId == null
+                            && args != null
+                            && args.length == 1
+                            && args[0] != null) {
+                        Object addedBody = args[0];
+                        UUID addedId = subLevelUniqueId(addedBody);
+                        if (!beforeIds.contains(addedId)) {
+                            bodyId = addedId;
+                            assembledBody = addedBody;
+                            addFixtureForceLoadTicket(addedBody);
+                            LOGGER.log(System.Logger.Level.INFO,
+                                    PREFIX + " PRIMARY_ALLOCATION_TICKET bodyId=" + bodyId
+                                            + " timing=onSubLevelAdded-before-block-transfer");
+                        }
+                    }
+                    return null;
+                });
+        publicMethod(container, "addObserver", observerClass).invoke(container, primaryAssemblyObserver);
     }
 
     private static boolean allMovedChildBlocksPresent() {
