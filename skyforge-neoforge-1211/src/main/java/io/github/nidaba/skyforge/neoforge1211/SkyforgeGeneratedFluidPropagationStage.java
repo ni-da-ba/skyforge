@@ -93,7 +93,7 @@ public final class SkyforgeGeneratedFluidPropagationStage {
      * <p>A stale provenance record is removed if the current fluid no longer matches the recorded
      * registry identity.
      */
-    public static void beginFluidTick(
+    public static boolean beginFluidTick(
             Level level,
             BlockPos position,
             FluidState state) {
@@ -101,7 +101,7 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         Objects.requireNonNull(position, "position");
         Objects.requireNonNull(state, "state");
         if (!(level instanceof ServerLevel serverLevel)) {
-            return;
+            return true;
         }
         Context active = ACTIVE.get();
         if (active != null) {
@@ -112,29 +112,36 @@ public final class SkyforgeGeneratedFluidPropagationStage {
                 // not replace it with a second propagation scope. Balance this nesting in
                 // endFluidTick().
                 CAPTURE_FLUID_TICK_DEPTH.set(Math.addExact(CAPTURE_FLUID_TICK_DEPTH.get(), 1));
-                return;
+                return true;
             }
             throw new IllegalStateException("nested Skyforge generated-fluid tick scopes are not supported");
         }
         GeneratedFluidData data = dataIfPresent(serverLevel);
         if (data == null) {
-            return;
+            return true;
         }
         Provenance provenance = data.provenance(position.asLong());
         if (provenance == null) {
-            return;
+            return true;
         }
         ResourceLocation actualFluidKey = BuiltInRegistries.FLUID.getKey(state.getType());
         if (actualFluidKey == null || !actualFluidKey.equals(provenance.fluidKey())) {
             data.remove(position.asLong());
-            return;
+            return true;
+        }
+        // Provenance must never fall back to unrestricted vanilla flow merely because startup or
+        // a persistence-only verifier has not installed compiled terrain ownership yet. Freeze the
+        // scheduled tick in place; its provenance remains durable and a later tick can resume once
+        // the exact-volume binding is available.
+        if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
+            return false;
         }
         if (!allows(
                 provenance.boundaryPolicy(),
                 provenance.volumeId(),
                 position)) {
             data.remove(position.asLong());
-            return;
+            return true;
         }
         counters(serverLevel, provenance.volumeId()).propagationTicks++;
         ACTIVE.set(new Context(
@@ -142,6 +149,7 @@ public final class SkyforgeGeneratedFluidPropagationStage {
                 provenance.volumeId(),
                 Mode.PROPAGATION,
                 provenance.boundaryPolicy()));
+        return true;
     }
 
     /** Closes the propagation scope opened at the start of one generated FlowingFluid tick. */

@@ -16,13 +16,16 @@ abstract class SkyforgeFlowingFluidDomainMixin {
     @Inject(
             method = "tick(Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;"
                     + "Lnet/minecraft/world/level/material/FluidState;)V",
-            at = @At("HEAD"))
+            at = @At("HEAD"),
+            cancellable = true)
     private void skyforge$openGeneratedFluidDomain(
             Level level,
             BlockPos position,
             FluidState state,
             CallbackInfo callback) {
-        SkyforgeGeneratedFluidPropagationStage.beginFluidTick(level, position, state);
+        if (!SkyforgeGeneratedFluidPropagationStage.beginFluidTick(level, position, state)) {
+            callback.cancel();
+        }
     }
 
     @Inject(
