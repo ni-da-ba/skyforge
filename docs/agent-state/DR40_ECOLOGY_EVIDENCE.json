@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "milestone": "DR-40",
+  "state": "CANDIDATE",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "authority": [
+    "AUTH-0046 explicit authored-realization association",
+    "AUTH-0103 explicit-association surface ecology",
+    "AUTH-0096 exact watershed-anchor physical/hydrologic evidence",
+    "SF-IMP-0080 native land-ecology carrier",
+    "SF-IMP-0068 production admitted-volume lifecycle"
+  ],
+  "implementation": {
+    "resolver": "SkyforgeProductionEcologyResolver",
+    "hydrology_rasterizer": "SkyforgeAuthoredSurfaceCellRasterizer",
+    "population_stage": "SkyforgeNativeSurfacePopulationStage",
+    "persistent_presentation": "SkyforgePersistentBiomePresentationStage"
+  },
+  "acceptance": {
+    "status": "PENDING_GITHUB_ACTIONS",
+    "required_task": ":skyforge-neoforge-1211:dr40ProductionEcologyAcceptance",
+    "workflow": "DR-40 Production Ecology Acceptance"
+  },
+  "stop_boundary": "Proof carriers only. No final biome aesthetics, population density, carrying capacity, predator pressure, population rhythm, new hydrology threshold, or AUTH-0087 publication claim."
+}

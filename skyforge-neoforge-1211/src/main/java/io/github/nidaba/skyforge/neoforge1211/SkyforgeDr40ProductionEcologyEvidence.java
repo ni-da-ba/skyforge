@@ -5,9 +5,12 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
@@ -16,6 +19,7 @@ import net.minecraft.world.level.biome.Biomes;
 /** Machine evidence layered onto the accepted SF-IMP-0068 canonical production lifecycle for DR-40. */
 final class SkyforgeDr40ProductionEcologyEvidence {
     static final String ENABLE_PROPERTY = "skyforge.dev.dr40ProductionEcology";
+    static final String RELOAD_PROPERTY = "skyforge.dev.dr40ProductionEcologyReload";
 
     private SkyforgeDr40ProductionEcologyEvidence() {}
 
@@ -178,6 +182,39 @@ final class SkyforgeDr40ProductionEcologyEvidence {
             }
         }
         return new PersistedSamples(landA, landBiomeA, landB, landBiomeB, wet, wetBiome);
+    }
+
+    static java.util.List<ReloadBiomeExpectation> reloadExpectations(Properties properties) {
+        Objects.requireNonNull(properties, "properties");
+        if (!Boolean.getBoolean(RELOAD_PROPERTY)) {
+            return java.util.List.of();
+        }
+        return java.util.List.of(
+                reloadExpectation(properties, "dr40LandAPos", "dr40LandABiome"),
+                reloadExpectation(properties, "dr40LandBPos", "dr40LandBBiome"),
+                reloadExpectation(properties, "dr40WetPos", "dr40WetBiome"));
+    }
+
+    private static ReloadBiomeExpectation reloadExpectation(
+            Properties properties,
+            String positionKey,
+            String biomeKey) {
+        String position = Objects.requireNonNull(
+                properties.getProperty(positionKey),
+                () -> "DR-40 expected result missing " + positionKey);
+        String biome = Objects.requireNonNull(
+                properties.getProperty(biomeKey),
+                () -> "DR-40 expected result missing " + biomeKey);
+        return new ReloadBiomeExpectation(
+                BlockPos.of(Long.parseLong(position)),
+                ResourceKey.create(Registries.BIOME, ResourceLocation.parse(biome)));
+    }
+
+    record ReloadBiomeExpectation(BlockPos position, ResourceKey<Biome> biome) {
+        ReloadBiomeExpectation {
+            Objects.requireNonNull(position, "position");
+            Objects.requireNonNull(biome, "biome");
+        }
     }
 
     record PersistedSamples(

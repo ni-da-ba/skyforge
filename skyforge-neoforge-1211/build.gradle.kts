@@ -1151,6 +1151,73 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // DR-40 canonical production ecology reuses the SF-IMP-0068 production world and lifecycle,
+        // replacing only the fixed proof biome with AUTH-0103/AUTH-0096-backed adapter carriers.
+        create("dr40ProductionEcologyAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr40-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCave", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcology", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-40-production-ecology-a")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr-40/production-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr40ProductionEcologyAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr40-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCave", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcology", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-40-production-ecology-b")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr-40/production-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr40ProductionEcologyAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-dr40-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCaveReload", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcologyReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-40-production-ecology-reload")
+            systemProperty(
+                "skyforge.dev.productionComposedCaveExpectedResultFile",
+                layout.buildDirectory.file("acceptance/dr-40/production-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr-40/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         create("productionComposedCaveAcceptanceStacked") {
             server()
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0068-auto-stacked").asFile
@@ -4840,6 +4907,110 @@ tasks.register("sfImp0068Acceptance") {
     finalizedBy("sfImp0068AcceptanceVerify")
 }
 
+
+val dr40AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/dr-40")
+
+fun requireDr40AcceptancePass(resultName: String) {
+    val file = dr40AcceptanceResultDirectory.get().file("$resultName.properties").asFile
+    check(file.isFile) { "DR-40 acceptance result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS") {
+        val detail = properties.getProperty("failure") ?: "status=${properties.getProperty("status")}"
+        "DR-40 acceptance case $resultName did not PASS: $detail"
+    }
+}
+
+listOf(
+    Triple("runDr40ProductionEcologyAcceptanceA", "run-dr40-auto-a", "production-a"),
+    Triple("runDr40ProductionEcologyAcceptanceB", "run-dr40-auto-b", "production-b"),
+).forEach { (taskName, relativePath, resultName) ->
+    tasks.named(taskName).configure {
+        doFirst { prepareSfImp0068AcceptanceServerDirectory(relativePath) }
+        doLast { requireDr40AcceptancePass(resultName) }
+    }
+}
+
+tasks.named("runDr40ProductionEcologyAcceptanceA").configure {
+    doFirst { delete(dr40AcceptanceResultDirectory) }
+}
+tasks.named("runDr40ProductionEcologyAcceptanceB").configure {
+    mustRunAfter("runDr40ProductionEcologyAcceptanceA")
+}
+tasks.named("runDr40ProductionEcologyAcceptanceReloadClient").configure {
+    mustRunAfter("runDr40ProductionEcologyAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-dr40-auto-b").asFile
+        directory.resolve("options.txt").writeText("onboardAccessibility:false\nnarrator:0\n")
+    }
+    doLast { requireDr40AcceptancePass("reload") }
+}
+
+tasks.register("dr40ProductionEcologyAcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic DR-40 canonical production ecology evidence."
+    doLast {
+        fun load(name: String): Properties {
+            val file = dr40AcceptanceResultDirectory.get().file("$name.properties").asFile
+            check(file.isFile) { "missing DR-40 acceptance result: $file" }
+            return Properties().also { properties -> file.inputStream().use(properties::load) }
+        }
+        val first = load("production-a")
+        val second = load("production-b")
+        val reload = load("reload")
+        for ((name, result) in listOf("production-a" to first, "production-b" to second, "reload" to reload)) {
+            check(result.getProperty("status") == "PASS") { "$name did not report PASS: $result" }
+        }
+        for (key in listOf(
+            "islandKey", "dr40NativeBiomeCount", "dr40NativeAttemptedFeatures",
+            "dr40NativeSuccessfulFeatures", "dr40SupportedPopulationChunks",
+            "dr40OmittedPhysicalEdgeChunks", "dr40LandAPos", "dr40LandABiome",
+            "dr40LandBPos", "dr40LandBBiome", "dr40WetPos", "dr40WetBiome",
+            "composedDigest"
+        )) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "DR-40 deterministic evidence changed for $key: A=${first.getProperty(key)} B=${second.getProperty(key)}"
+            }
+        }
+        check(first.getProperty("islandKey") == "1471"
+                && first.getProperty("nativeBiome") == "authored-production-ecology"
+                && first.getProperty("dr40ProductionEcology") == "true"
+                && first.getProperty("dr40AuthorshipAuthority") == "AUTH-0046+AUTH-0103+AUTH-0096"
+                && first.getProperty("dr40NativeBiomeCount").toInt() >= 2
+                && first.getProperty("dr40NativeSuccessfulFeatures").toInt() > 0
+                && first.getProperty("dr40SupportedPopulationChunks").toInt() > 0
+                && first.getProperty("dr40OmittedPhysicalEdgeChunks").toInt() > 0
+                && first.getProperty("dr40LandABiome") != first.getProperty("dr40LandBBiome")
+                && first.getProperty("dr40WetBiome") == "minecraft:swamp"
+                && first.getProperty("dr40PersistentBiomePresentation") == "true"
+                && first.getProperty("dr40PopulationReplayExecuted") == "false"
+                && first.getProperty("dr40StructureBeforePopulation") == "true"
+                && first.getProperty("dr40ForeignVolumeFailClosed") == "true"
+                && first.getProperty("noReplay") == "true") {
+            "DR-40 production ecology evidence incomplete: $first"
+        }
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("dr40ReloadServerBiomePass") == "true"
+                && reload.getProperty("dr40ReloadClientBiomePass") == "true") {
+            "DR-40 ecology save/reload persistence failed: $reload"
+        }
+        println("DR-40 AUTOMATED ACCEPTANCE PASS: biomes=${first.getProperty("dr40NativeBiomeCount")}, "
+                + "successfulFeatures=${first.getProperty("dr40NativeSuccessfulFeatures")}, "
+                + "wet=${first.getProperty("dr40WetBiome")}, reloadServerClient=true")
+    }
+}
+
+tasks.register("dr40ProductionEcologyAcceptance") {
+    group = "verification"
+    description = "Run complete deterministic DR-40 canonical production ecology acceptance."
+    dependsOn(
+        "runDr40ProductionEcologyAcceptanceA",
+        "runDr40ProductionEcologyAcceptanceB",
+        "runDr40ProductionEcologyAcceptanceReloadClient",
+    )
+    finalizedBy("dr40ProductionEcologyAcceptanceVerify")
+}
 
 tasks.register("waveC1ResolvePinnedMods") {
     group = "verification"
