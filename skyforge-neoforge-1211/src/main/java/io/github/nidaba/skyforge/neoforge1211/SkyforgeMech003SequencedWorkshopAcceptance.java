@@ -80,7 +80,11 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
     private static final long CHUNK_READINESS_DEADLINE_TICKS = 80L;
     private static final long KINETIC_DEADLINE_TICKS = 100L;
     private static final long SAW_DEADLINE_TICKS = 180L;
-    private static final long PRESS_DEADLINE_TICKS = 140L;
+    // Create 6.0.10 WORLD-mode Press uses a 240-unit cycle; at the accepted 16 RPM fixture
+    // its running tick speed is 2, so a restaged item may wait for the previous cycle to retract
+    // before the next scan/start plus ~60 ticks to the processing midpoint. Keep this bounded but
+    // large enough to cover that real residual-cycle timing without resetting Create internals.
+    private static final long PRESS_DEADLINE_TICKS = 260L;
 
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeMech003SequencedWorkshopAcceptance.class.getName());
@@ -378,6 +382,7 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
                     waitDiagnostic.withFinalState(fixtureIds(), safeServerState(), "headless",
                             "pressGroundedObserved=" + pressGroundedObserved
                                     + " current=" + entityDiagnostic(resolved)
+                                    + " pressBehaviour=" + pressBehaviourDump(requireExpectedBlockEntity(pressStationPos, "MechanicalPressBlockEntity", now))
                                     + " worldItems=" + itemDump(pressSearch())),
                     "compiled Press did not produce the expected live Portable Engine transition/result before deadline");
         }
@@ -640,6 +645,18 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
                     finalDiagnostic("pos=" + pos + " kinetic=" + state),
                     "processing station lost required kinetic authority");
         }
+    }
+
+    private static String pressBehaviourDump(Object press) throws ReflectiveOperationException {
+        Object behaviour = press.getClass().getField("pressingBehaviour").get(press);
+        if (behaviour == null) return "null";
+        Class<?> type = behaviour.getClass();
+        boolean running = type.getField("running").getBoolean(behaviour);
+        int runningTicks = type.getField("runningTicks").getInt(behaviour);
+        boolean finished = type.getField("finished").getBoolean(behaviour);
+        Object mode = type.getField("mode").get(behaviour);
+        return "running=" + running + " runningTicks=" + runningTicks
+                + " finished=" + finished + " mode=" + mode;
     }
 
     private static KineticState kineticState(Object blockEntity) throws ReflectiveOperationException {
