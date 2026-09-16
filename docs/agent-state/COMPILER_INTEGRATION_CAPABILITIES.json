@@ -148,6 +148,63 @@
       },
       "negative_evidence": []
     },
+    "CREATE_WATER_WHEEL_SOURCE_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeWaterWheelSourceLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "WaterWheelSourceLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-water-wheel-source-lifecycle.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 35046596671,
+        "job": 104637964903,
+        "commit": "d1aeb2a013a596290b2de5ac5daf738a199c4b25",
+        "result": "PASS",
+        "finding": "Exact-stack L2 proved one stationary Create small water wheel as a real environmental kinetic source: one vanilla falling-water cell in the source-inspected north SMALL_OFFSETS position produced flowVector=(0.0,-1.0,0.0), wheel speed -8.0 and shaft speed -8.0 with live source/network state; removing only that fluid precondition reached zero/inactive state; restoring the exact same fluid state recovered -8.0 wheel/shaft speed and source/network state before PASS."
+      },
+      "assumptions_preconditions": [
+        "The exact retained Create artifact is Create 6.0.10 for Minecraft 1.21.1, upstream commit ac0c444d9828da3453ae8cc65338e8de063286fb.",
+        "The fixture uses create:water_wheel facing east (X axis) with one create:shaft axial downstream observer.",
+        "Exact Create source inspection shows a small water wheel evaluates the four perpendicular SMALL_OFFSETS and derives flowScore from the actual FluidState flow vector; generated speed is clamp(flowScore,-1,1) * 8 RPM for the small wheel.",
+        "The qualified environmental precondition is one real vanilla falling-water block state (minecraft:water level=8) north of the X-axis wheel, where its downward flow vector is tangential to wheel rotation. This is a bounded source qualification fixture, not production geography or hydrology policy.",
+        "Qualification covers fixed-world environmental source generation, fluid-precondition removal, and exact-precondition recovery only; belts, item transport, Sable/mobile machinery, aircraft, and workshop compiler lowering remain outside this capability."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_NETWORK",
+        "FAIL_RUNTIME_EXIT",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_KINETIC_BUILD",
+        "TIMEOUT_KINETIC_DISCONNECT",
+        "TIMEOUT_KINETIC_REBUILD",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": false,
+        "C": true
+      },
+      "negative_evidence": [
+        {
+          "workflow_run": 35045833100,
+          "job": 104635608315,
+          "commit": "bde1c0a32577652907803ae9e27f55a56534b9a3",
+          "result": "TIMEOUT_KINETIC_BUILD",
+          "finding": "The first exact-stack fixture placed a same-level upstream vanilla water source but did not schedule a vanilla fluid tick; the intended wheel-adjacent cell remained air through tick 101, so no Create flow or kinetic source formed. This isolated a harness fluid-propagation precondition rather than a water-wheel runtime failure."
+        },
+        {
+          "workflow_run": 35046147043,
+          "job": 104636549202,
+          "commit": "c4cfd40900ba981f0ab055228c5ba90d6933e041",
+          "result": "TIMEOUT_KINETIC_BUILD",
+          "finding": "Scheduling the upstream vanilla source fluid tick still left the intended same-level horizontal flow cell empty through tick 101. PLATFORM-009 therefore narrowed the reusable causal seam to the exact real fluid cell Create reads instead of making acceptance depend on unrelated bucket-like horizontal propagation behavior in the harness."
+        }
+      ]
+    },
     "CREATE_KINETIC_ON_SABLE_LIFECYCLE": {
       "status": "accepted",
       "verification_level": "L2",

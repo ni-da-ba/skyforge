@@ -1967,6 +1967,16 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // PLATFORM-009: real small-water-wheel environmental source active/disable/recovery lifecycle.
+        create("compilerPlatformWaterWheelSourceLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-water-wheel-source-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformWaterWheelSourceLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // MECH-001 human gate: exact C11 stack plus the compiler-emitted development structure.
         create("mech001FunctionalMechanismClient") {
             client()
@@ -2585,6 +2595,30 @@ tasks.named("runCompilerPlatformCreateKineticNetworkLifecycleServer").configure 
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(compilerPlatformCreateKineticNetworkLifecycleServerProperties)
+    }
+}
+
+
+val compilerPlatformWaterWheelSourceLifecycleServerProperties = """
+    level-name=compiler-platform-water-wheel-source-lifecycle
+    level-seed=697009
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformWaterWheelSourceLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-water-wheel-source-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformWaterWheelSourceLifecycleServerProperties)
     }
 }
 
