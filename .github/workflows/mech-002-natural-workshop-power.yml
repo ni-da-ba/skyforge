@@ -1,0 +1,102 @@
+name: MECH-002 Natural Workshop Power
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/mech-002-natural-workshop-power.yml"
+      - "docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json"
+      - "docs/agent-state/STRUCTURE_COMPILER_STATE.md"
+      - "scripts/compiler-integration/run-exact-stack-fixture.sh"
+      - "tools/asset_compiler/functional_mechanism.py"
+      - "tools/asset_compiler/functional_mechanism_structure.py"
+      - "tools/asset_compiler/compile_mechanism.py"
+      - "tools/asset_compiler/specimens/mech_002_waterwheel_airflow_bench.json"
+      - "tools/asset_compiler/tests/test_functional_mechanism.py"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeMech002NaturalPowerAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/main/resources/data/skyforge/mechanisms/mech_002_waterwheel_airflow_bench.json"
+      - "skyforge-neoforge-1211/src/development/resources/data/skyforge/structure/mech_002_waterwheel_airflow_bench.nbt"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/Mech002NaturalPowerResourceTest.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mech-002-natural-power-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  l1-static-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify deterministic mechanism compiler
+        run: >-
+          PYTHONPATH=tools/asset_compiler
+          python3 -m unittest discover
+          -s tools/asset_compiler/tests
+          -p 'test_functional_mechanism.py'
+      - name: Compile canonical MECH-002 plan
+        run: >-
+          python3 tools/asset_compiler/compile_mechanism.py
+          tools/asset_compiler/specimens/mech_002_waterwheel_airflow_bench.json
+          --out build/mech-002
+      - name: Verify runtime consumes exact compiler plan
+        run: >-
+          cmp build/mech-002/resolved.json
+          skyforge-neoforge-1211/src/main/resources/data/skyforge/mechanisms/mech_002_waterwheel_airflow_bench.json
+      - name: Verify human-gate structure is exact compiler output
+        run: >-
+          cmp build/mech-002/mech_002_waterwheel_airflow_bench.nbt
+          skyforge-neoforge-1211/src/development/resources/data/skyforge/structure/mech_002_waterwheel_airflow_bench.nbt
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Verify runtime resource contract
+        run: >-
+          ./gradlew :skyforge-neoforge-1211:test
+          --tests '*Mech002NaturalPowerResourceTest'
+          --no-configuration-cache
+
+  l3-exact-stack:
+    needs: l1-static-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Recompile exact MECH-002 plan
+        run: >-
+          python3 tools/asset_compiler/compile_mechanism.py
+          tools/asset_compiler/specimens/mech_002_waterwheel_airflow_bench.json
+          --out build/mech-002
+      - name: Verify exact plan identity
+        run: >-
+          cmp build/mech-002/resolved.json
+          skyforge-neoforge-1211/src/main/resources/data/skyforge/mechanisms/mech_002_waterwheel_airflow_bench.json
+      - name: Verify exact structure identity
+        run: >-
+          cmp build/mech-002/mech_002_waterwheel_airflow_bench.nbt
+          skyforge-neoforge-1211/src/development/resources/data/skyforge/structure/mech_002_waterwheel_airflow_bench.nbt
+      - name: Resolve exact accepted Create stack
+        run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
+      - name: Prove compiled natural stationary workshop power lifecycle
+        run: >-
+          scripts/compiler-integration/run-exact-stack-fixture.sh
+          :skyforge-neoforge-1211:runMech002NaturalPowerServer
+          mech-002-natural-workshop-power.log
+          'MECH_002_NATURAL_WORKSHOP_POWER START'
+          'MECH_002_NATURAL_WORKSHOP_POWER PASS'
+          'MECH_002_NATURAL_WORKSHOP_POWER FAIL'
+          120
+          180

@@ -296,3 +296,20 @@ Until the dedicated exact-stack workflow passes on an authority-bearing head, ai
 Issue #687 records target-neutral pitch/roll semantic direction and a discrete feasibility study against the accepted Guild utility blockspace plus corrected-yaw occupancy. It defines nose-up/down and port/starboard-down moment signs in the production coordinate frame, demonstrates collision-aware split-elevator and mirrored outboard-aileron candidate partitions, and quantifies their target-realization centroid shifts without feeding those shifts back into the analytical design.
 
 This is design evidence only. Pitch, roll, multi-axis control, stability, handling, and flight remain unqualified. No target mechanism, actuator sign, lowering IR, or runtime authority is introduced by #687.
+
+## Prepared by AIRCRAFT-DESIGN-002
+
+Issue #727 defines the analytical evidence boundary for future atmosphere-envelope, stability, trim,
+dynamic-mode, handling, and stable-flight qualification. Current v0.1 authority remains one declared
+sea-level-density / 45 m/s cruise design point with algebraic dynamic pressure, lift-at-declared-CL,
+induced-drag proxy, one-dimensional CG, and tail-volume metrics only.
+
+The design audit explicitly records that equal dynamic pressure is not general aerodynamic equivalence,
+that current CG/tail-volume outputs are not static-stability derivatives, and that the compiler still
+lacks atmosphere-property modeling beyond direct density input, lift-curve/stall authority, static and
+control derivatives, full mass/inertia properties, damping derivatives, trim solutions, and dynamic-mode
+criteria. Runtime Create/Sable/Aeronautics force observations remain target-realization evidence and may
+not be fitted back into the analytical model.
+
+This is design evidence only. Aircraft-level atmosphere envelope, static stability, dynamic stability,
+trim, handling, stable powered flight, and human flight/feel remain unqualified.

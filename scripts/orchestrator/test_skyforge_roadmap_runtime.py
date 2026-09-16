@@ -362,6 +362,45 @@ class RoadmapRuntimeTests(unittest.TestCase):
                 1,
             )
 
+    def test_closed_blocked_task_is_completed_and_successor_seeds(self):
+        with tempfile.TemporaryDirectory() as td:
+            o = self.make_orchestrator(pathlib.Path(td))
+            manifest = self.manifest(
+                [
+                    task_node("first", issue=493, priority=100),
+                    task_node("second", issue=494, priority=90, prerequisites=["first"]),
+                ]
+            )
+            with o._state_lock:
+                state = runtime._roadmap_state_locked(o, manifest)
+                state["blocked_nodes"] = {
+                    "first": {"at": core._utc_now(), "reason": "manual producer completion pending"}
+                }
+                o.state.save()
+
+            def issue_open(_orchestrator, issue_number):
+                return False if issue_number == 493 else True
+
+            with (
+                mock.patch.object(runtime, "_roadmap_manifest", return_value=manifest),
+                mock.patch.object(runtime, "_roadmap_live_task_prs", return_value=[]),
+                mock.patch.object(runtime, "_roadmap_issue_open", side_effect=issue_open),
+            ):
+                seeded = runtime._roadmap_maybe_advance(o, trigger="closed-blocked-test")
+
+            self.assertTrue(seeded)
+            roadmap = o.state.data["roadmap"]
+            self.assertEqual(roadmap["completed_runs"]["first"], 1)
+            self.assertNotIn("first", roadmap["blocked_nodes"])
+            self.assertEqual(roadmap["active"]["node_id"], "second")
+            self.assertEqual(roadmap["last_closed_blocked_issue"]["issue_number"], 493)
+            self.assertEqual(
+                o.state.data["metrics"].get("roadmap_closed_blocked_tasks_retired"),
+                1,
+            )
+            o.enqueue.assert_called_once()
+            self.assertEqual(o.enqueue.call_args.args[0].pr_number, 494)
+
     def test_completed_authority_without_pr_blocks_node_instead_of_looping(self):
         with tempfile.TemporaryDirectory() as td:
             o = self.make_orchestrator(pathlib.Path(td))

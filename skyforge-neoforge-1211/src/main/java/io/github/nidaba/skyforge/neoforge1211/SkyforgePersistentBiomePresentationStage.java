@@ -117,6 +117,13 @@ final class SkyforgePersistentBiomePresentationStage {
                         }
 
                         BlockPos position = sample.orElseThrow();
+                        if (!plan.biomeResolver().supportsSurface(
+                                volumeId,
+                                position.getX(),
+                                position.getY(),
+                                position.getZ())) {
+                            continue;
+                        }
                         ResourceKey<Biome> biomeKey = Objects.requireNonNull(
                                 plan.biomeResolver().resolve(
                                         volumeId,

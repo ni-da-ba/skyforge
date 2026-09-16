@@ -748,6 +748,57 @@
         "B": true,
         "C": false
       }
+    },
+    "PLAYER_TRACKING_ON_SABLE_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgePlayerTrackingOnSableLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "PlayerTrackingOnSableLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-player-tracking-on-sable.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 35116518760,
+        "job": 104864132429,
+        "commit": "f742d7a4dbd73a7a2bc1c7a2316207de891961cd",
+        "result": "PASS",
+        "finding": "Exact-stack actual-client L2 proved natural Sable player tracking and one inherited parent translation after ordinary Create seat mount/dismount on a live Sable primary body. Client and server naturally acquired the same persistent Sable UUID through client sublevel collision followed by movement packets with no harness tracking setter; after tracking acquisition, a +X parent translation measured parentDeltaX=0.19931602478027344, serverPlayerDeltaX=0.19931602478027344, and clientPlayerDeltaX=0.15174814590095576 within the 0.08-block tolerance. No harness player mutation occurred during measurement, the current physics handle remained valid, and the bounded COMMAND_FORCED liveness ticket was released before PASS."
+      },
+      "assumptions_preconditions": [
+        "The exact retained stack is C11_FLIGHT_EXACT_2026-09-05 with Create 6.0.10, Sable 2.0.5+mc1.21.1, and Create Aeronautics 1.3.2; exact Sable source commit 6966d2928340de7631abcecf8549904b877df0a8 is authority for the qualified player-tracking semantics.",
+        "Consumes accepted CREATE_SEAT_PASSENGER_ON_SABLE_LIFECYCLE only to establish an ordinary Create seat mount/dismount precondition before natural tracking acquisition; this capability does not reclassify synthetic passenger mutation as accepted behavior.",
+        "Persistent Sable UUID is parent-body identity. Client tracking UUID, server tracking UUID, and the canonical body UUID must agree while the current physics handle remains valid.",
+        "Natural tracking authority requires Sable collision/tracking plus ordinary movement packets. Direct sable$setTrackingSubLevel or equivalent harness tracking mutation is prohibited and was not invoked.",
+        "Bounded client positioning is qualification setup only before seat interaction. Once natural tracking measurement begins, the harness may not set player position, teleport the player, or set player delta movement; harnessPlayerMutationDuringMeasurement must remain false.",
+        "Inherited translation authority is limited to one bounded parent +X translation while the player remains naturally tracked after dismount. The measured server/client player displacement must remain coherent with parent displacement within the accepted 0.08-block tolerance.",
+        "COMMAND_FORCED and temporary physics stabilization used by the qualification fixture are bounded test controls and are released/restored before PASS; this capability does not prescribe production force-loading or flight policy.",
+        "This capability qualifies player tracking and inherited parent translation only. It does not qualify aircraft cockpit geometry, Steering Wheel control integration, handling, persistence, or flight."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_ASSEMBLY",
+        "FAIL_CLIENT_INTERACTION",
+        "FAIL_PASSENGER_TRACKING",
+        "FAIL_PHYSICS",
+        "FAIL_PLAYER_TRACKING",
+        "FAIL_PARENT_TRANSLATION",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_SEAT_MOUNT",
+        "TIMEOUT_SEAT_DISMOUNT",
+        "TIMEOUT_SEAT_ENTITY_CLEANUP",
+        "TIMEOUT_TRACKING",
+        "TIMEOUT_PARENT_TRANSLATION",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": true,
+        "C": false
+      }
     }
   }
 }

@@ -1,0 +1,68 @@
+{
+  "schema_version": 2,
+  "milestone": "DR-40",
+  "state": "ACCEPTED",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "authority": [
+    "AUTH-0046 explicit authored-realization association",
+    "AUTH-0103 explicit-association surface ecology",
+    "AUTH-0096 exact watershed-anchor physical/hydrologic evidence",
+    "SF-IMP-0080 native land-ecology carrier",
+    "SF-IMP-0068 production admitted-volume lifecycle"
+  ],
+  "implementation": {
+    "resolver": "SkyforgeProductionEcologyResolver",
+    "hydrology_rasterizer": "SkyforgeAuthoredSurfaceCellRasterizer",
+    "population_stage": "SkyforgeNativeSurfacePopulationStage",
+    "persistent_presentation": "SkyforgePersistentBiomePresentationStage"
+  },
+  "acceptance": {
+    "status": "ACCEPTED",
+    "issue": 494,
+    "implementation_pr": 716,
+    "accepted_head": "71e3a79d000be439dc1665e1638d538ecb3288e7",
+    "merge_commit": "8028586fd917bfd5b1fe24b41add32ac31bfbf24",
+    "accepted_at": "2026-09-16T15:53:58Z",
+    "workflows": {
+      "dr40_production_ecology": {
+        "run_id": 35117210672,
+        "conclusion": "success"
+      },
+      "ci": {
+        "run_id": 35117210900,
+        "conclusion": "success"
+      },
+      "dr30_native_structure_regression": {
+        "run_id": 35117210433,
+        "conclusion": "success"
+      },
+      "platform007_composed_mechanism_regression": {
+        "run_id": 35117210373,
+        "conclusion": "success"
+      }
+    },
+    "machine_evidence": {
+      "native_biome_carriers": 5,
+      "native_attempted_features": 884,
+      "native_successful_features": 9,
+      "supported_population_chunks": 98,
+      "omitted_physical_edge_chunks": 98,
+      "land_carriers": [
+        "minecraft:savanna",
+        "minecraft:plains"
+      ],
+      "wet_riparian_carrier": "minecraft:swamp",
+      "population_outcome_digest": "c61b945e0450800",
+      "population_outcome_digest_ab_equal": true,
+      "cave_component_digests_ab_equal": true,
+      "population_replay_executed": false,
+      "structure_before_population": true,
+      "foreign_volume_fail_closed": true,
+      "persistent_biome_presentation": true,
+      "reload_server_biomes": true,
+      "reload_actual_client_biomes": true
+    },
+    "determinism_note": "DR-40 compares authored/native cave component digests plus the per-chunk/per-phase/per-feature population outcome digest. SF-IMP-0068 composedDigest remains recorded but is not a DR-40 ecology determinism oracle because it includes a live post-integration nativeOnlyAir count; exact-head A/B showed a one-block nativeOnlyAir variation while all cave component digests, ecology outcomes, persistent biome identities, and reload evidence were identical."
+  },
+  "stop_boundary": "Proof carriers only. No final biome aesthetics, population density, carrying capacity, predator pressure, population rhythm, new hydrology threshold, or AUTH-0087 publication claim."
+}

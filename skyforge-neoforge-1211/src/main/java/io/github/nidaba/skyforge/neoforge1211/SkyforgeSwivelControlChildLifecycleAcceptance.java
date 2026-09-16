@@ -438,6 +438,9 @@ final class SkyforgeSwivelControlChildLifecycleAcceptance {
             }
             deflectedTarget = target;
             deflectedPhysicalYaw = physical;
+            if (Boolean.getBoolean("skyforge.dev.compilerPlatformAerodynamicForceObservation")) {
+                SkyforgeAerodynamicForceObservationAcceptance.verify(level, canonical, child, 10.0);
+            }
             setMotorSpeed(movedCommandMotor, 0);
             holdTicksObserved = 0;
             stage = Stage.COMMAND_HOLD;

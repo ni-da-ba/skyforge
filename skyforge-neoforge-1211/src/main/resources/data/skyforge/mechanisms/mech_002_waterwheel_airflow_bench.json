@@ -1,0 +1,674 @@
+{
+  "assetId": "guild.utility.waterwheel_airflow_bench.mech_002",
+  "clearanceCells": [
+    [
+      1,
+      1,
+      2
+    ],
+    [
+      1,
+      2,
+      3
+    ],
+    [
+      4,
+      2,
+      2
+    ],
+    [
+      5,
+      2,
+      2
+    ],
+    [
+      6,
+      2,
+      2
+    ]
+  ],
+  "compilerVersion": "mech-0.2-fixed-world",
+  "connectivity": {
+    "edges": [
+      [
+        "source",
+        "relay_0"
+      ],
+      [
+        "relay_0",
+        "endpoint"
+      ]
+    ],
+    "nodes": [
+      "source",
+      "relay_0",
+      "endpoint"
+    ],
+    "severNode": "relay_0"
+  },
+  "digestSha256": "6a8834d2c2d18cd0914fc488807d8e4042eb4a12f8fe11258a94d931c400f293",
+  "envelope": {
+    "max": [
+      6,
+      3,
+      4
+    ],
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "size": [
+      7,
+      4,
+      5
+    ]
+  },
+  "environmentalEnvelope": {
+    "disableCell": "source_feeder",
+    "requiredCells": [
+      {
+        "disableState": {
+          "name": "minecraft:air"
+        },
+        "expectedFlowVector": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "offsetFromSource": [
+          0,
+          1,
+          -1
+        ],
+        "placementId": "source_feeder",
+        "restoreState": {
+          "name": "minecraft:water",
+          "properties": {
+            "level": "0"
+          }
+        },
+        "role": "persistent_water_feeder"
+      },
+      {
+        "disableState": {
+          "name": "minecraft:air"
+        },
+        "expectedFlowVector": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "offsetFromSource": [
+          0,
+          0,
+          -1
+        ],
+        "placementId": "source_flow_0",
+        "restoreState": {
+          "name": "minecraft:water",
+          "properties": {
+            "level": "8"
+          }
+        },
+        "role": "falling_water_drive"
+      }
+    ],
+    "sourcePlacementId": "source"
+  },
+  "mountingRegion": {
+    "max": [
+      3,
+      0,
+      4
+    ],
+    "min": [
+      0,
+      0,
+      0
+    ]
+  },
+  "placements": [
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_0_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_0_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_0_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_0_3",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        0,
+        0,
+        3
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_0_4",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        0,
+        0,
+        4
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_1_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_1_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        1,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_1_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        1,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_1_3",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        1,
+        0,
+        3
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_1_4",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        1,
+        0,
+        4
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_2_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_2_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_2_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_2_3",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        0,
+        3
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_2_4",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        0,
+        4
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_3_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        3,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_3_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        3,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_3_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        3,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_3_3",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        3,
+        0,
+        3
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_3_4",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        3,
+        0,
+        4
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "flow_support",
+      "mechanicalRole": "environmental_support",
+      "pos": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "axle_pier_lower",
+      "mechanicalRole": "axle_mount_support",
+      "pos": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "axle_pier_upper",
+      "mechanicalRole": "axle_mount_support",
+      "pos": [
+        0,
+        2,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "relay_support",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        1,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "endpoint_support",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        3,
+        1,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "create:water_wheel",
+        "properties": {
+          "facing": "east"
+        }
+      },
+      "id": "source",
+      "mechanicalRole": "kinetic_source",
+      "pos": [
+        1,
+        2,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "create:shaft",
+        "properties": {
+          "axis": "x"
+        }
+      },
+      "id": "relay_0",
+      "mechanicalRole": "required_relay",
+      "pos": [
+        2,
+        2,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "create:encased_fan",
+        "properties": {
+          "facing": "east"
+        }
+      },
+      "id": "endpoint",
+      "mechanicalRole": "airflow_endpoint",
+      "pos": [
+        3,
+        2,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:water",
+        "properties": {
+          "level": "8"
+        }
+      },
+      "id": "source_flow_0",
+      "mechanicalRole": "environmental_source_precondition",
+      "pos": [
+        1,
+        2,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:water",
+        "properties": {
+          "level": "0"
+        }
+      },
+      "id": "source_feeder",
+      "mechanicalRole": "environmental_source_feeder",
+      "pos": [
+        1,
+        3,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_west_lower",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        0,
+        2,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_east_lower",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        2,
+        2,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_north_lower",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_west_upper",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        0,
+        3,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_east_upper",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        2,
+        3,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_north_upper",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        1,
+        3,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_south_upper",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        1,
+        3,
+        2
+      ]
+    }
+  ],
+  "platformEvidence": {
+    "agentCAuthorized": true,
+    "commit": "d1aeb2a013a596290b2de5ac5daf738a199c4b25",
+    "result": "PASS",
+    "status": "accepted",
+    "verificationLevel": "L2",
+    "workflowRun": 35046596671
+  },
+  "requiredPlatformCapability": "CREATE_WATER_WHEEL_SOURCE_LIFECYCLE",
+  "runtimeExpectations": {
+    "active": {
+      "endpointSpeed": -8.0,
+      "hasNetwork": true,
+      "hasSource": true,
+      "sourceSpeed": -8.0,
+      "stableTicks": 100
+    },
+    "environmentDisabled": {
+      "endpointSpeed": 0.0,
+      "feederPresent": false,
+      "hasSource": false,
+      "sourceSpeed": 0.0
+    },
+    "environmentRecovered": {
+      "endpointSpeed": -8.0,
+      "feederPresent": true,
+      "hasNetwork": true,
+      "hasSource": true,
+      "sourceSpeed": -8.0
+    }
+  },
+  "schema": "skyforge.functional-mechanism-plan.v1",
+  "seed": 679002,
+  "semanticInput": {
+    "endpointRole": "airflow",
+    "frontClearance": 3,
+    "mountingRole": "masonry_pad",
+    "orientation": "east",
+    "sourceEnvironmentRole": "bounded_falling_water",
+    "sourceRole": "renewable_stationary_source",
+    "transmissionLength": 1
+  },
+  "sourcePolicy": "qualified_environmental_source_candidate_not_geography_canon",
+  "supportRequirements": [
+    {
+      "placementId": "source_flow_0",
+      "supportBelow": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "placementId": "axle_pier_upper",
+      "supportBelow": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "placementId": "relay_0",
+      "supportBelow": [
+        2,
+        1,
+        2
+      ]
+    },
+    {
+      "placementId": "endpoint",
+      "supportBelow": [
+        3,
+        1,
+        2
+      ]
+    }
+  ],
+  "targetStackAuthority": "C11_FLIGHT_EXACT_2026-09-05",
+  "validation": {
+    "issues": [],
+    "passed": true
+  }
+}
