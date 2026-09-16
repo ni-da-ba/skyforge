@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,7 +21,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -47,6 +50,9 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     private static final Path IDENTITY_FILE = Path.of("aircraft-runtime-002.identity");
     private static final long RELOAD_DEADLINE_TICKS = 180L;
     private static final long ENTITY_REHYDRATION_GRACE_TICKS = 10L;
+    private static final int LOCATOR_TICKET_DISTANCE = 3;
+    private static final TicketType<ChunkPos> LOCATOR_CHUNK_TICKET = TicketType.create(
+            "skyforge_aircraft_runtime_002_locator", Comparator.comparingLong(ChunkPos::toLong));
     private static final BlockPos BASE = new BlockPos(128, 220, 0);
     private static final int ENGINE_BURN_TICKS = 1200;
     private static final int TARGET_RPM = 128;
@@ -98,6 +104,9 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     private static String glueRecoveryMode = "not-applicable";
     private static String childRecoveryMode = "not-applicable";
     private static boolean reloadChildAssemblyRequested;
+    private static PointerState persistedPointer;
+    private static boolean reloadLoadRequested;
+    private static final Set<ChunkPos> activeLocatorChunkTickets = new LinkedHashSet<>();
 
     private enum RunMode { LEGACY, PREPARE, VERIFY }
     private enum Stage { ASSEMBLY, PHYSICS_INITIALIZATION, KINETIC_128, CHILD_REASSEMBLY, THRUST_SETTLE, RELOAD_RECOVERY }
@@ -298,6 +307,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             Class.forName("dev.eriksonn.aeronautics.content.blocks.propeller.bearing.contraption.PropellerBearingContraptionEntity");
             Class.forName("com.simibubi.create.content.kinetics.base.KineticBlockEntity");
             Class.forName("com.simibubi.create.content.contraptions.glue.SuperGlueEntity");
+            Class.forName("dev.ryanhcode.sable.sublevel.storage.holding.GlobalSavedSubLevelPointer");
         } catch (ClassNotFoundException | IllegalStateException exception) {
             fail(SkyforgeCompilerIntegrationFailure.FAIL_DEPENDENCY_RESOLUTION,
                     diagnostic(SkyforgeCompilerIntegrationPhase.SERVER_BOOT,
@@ -623,6 +633,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         }
         restorePhysicsPause();
         removeFixtureForceLoadTicket();
+        removeAllLocatorChunkTickets();
         complete = true;
         LOGGER.log(System.Logger.Level.INFO,
                 activePrefix + " PASS capability=" + activeCapability
@@ -662,6 +673,8 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                     finalDiagnostic("preReloadNestedChildId=" + preReloadNestedChildId),
                     "normalized production save boundary retained the nested child entity");
         }
+        Object canonical = requireCanonicalBody();
+        Object pointerBeforeSave = publicMethod(canonical, "getLastSerializationPointer").invoke(canonical);
         restorePhysicsPause();
         removeFixtureForceLoadTicket();
         if (!level.getServer().saveEverything(false, true, true)) {
@@ -669,8 +682,15 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                     finalDiagnostic("saveEverything=false"),
                     "server did not report a successful aircraft persistence prepare save");
         }
+        Object pointer = publicMethod(canonical, "getLastSerializationPointer").invoke(canonical);
+        if (pointer == null) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE,
+                    finalDiagnostic("pointerBeforeSave=" + pointerBeforeSave + " pointerAfterSave=null"),
+                    "production aircraft save completed without assigning a Sable serialization pointer");
+        }
+        persistedPointer = pointerState(pointer);
         writeIdentityFile(new PersistenceIdentity(bodyId, preReloadNestedChildId, movedOffset,
-                compilerFixture.manifest().sha256(), compilerFixture.powertrain().sha256(), preReloadGlueIds));
+                compilerFixture.manifest().sha256(), compilerFixture.powertrain().sha256(), persistedPointer, preReloadGlueIds));
         complete = true;
         LOGGER.log(System.Logger.Level.INFO,
                 activePrefix + " PREPARE PASS capability=" + activeCapability
@@ -679,13 +699,14 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                         + " powertrainSha256=" + compilerFixture.powertrain().sha256()
                         + " preReloadNestedChildId=" + preReloadNestedChildId
                         + " preReloadGlueIds=" + preReloadGlueIds
+                        + " savedPointer=" + persistedPointer
                         + " bearingRpm=" + observedBearingRpm
                         + " kineticCapacity=" + observedCapacity + " kineticStress=" + observedStress
                         + " kineticStressMargin=" + observedStressMargin
                         + " rawThrust=" + rawThrust + " scaledThrust=" + scaledThrust
                         + " appliedForceX=" + appliedForceX
                         + " normalizedChildBlocksInPlot=true saveSuccess=true"
-                        + " lifecycleAuthority=SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE"
+                        + " lifecycleAuthorities=SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE,SABLE_PRODUCTION_SCALE_PERSISTENCE_LIFECYCLE"
                         + " fixtureLivenessTicket=sable:command_forced(released) clientState=headless");
     }
 
@@ -708,15 +729,20 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         preReloadNestedChildId = identity.nestedChildId();
         preReloadGlueIds = identity.glueIds();
         movedOffset = identity.movedOffset();
+        persistedPointer = identity.pointer();
         initializeMovedCoordinatesFromOffset();
-        level.getChunk(0, 0);
+        ChunkPos locatorChunk = new ChunkPos(persistedPointer.chunkX(), persistedPointer.chunkZ());
+        addLocatorChunkTicket(locatorChunk);
         requestHoldingLoadIfAvailable();
         stage = Stage.RELOAD_RECOVERY;
         waitDiagnostic = diagnostic(SkyforgeCompilerIntegrationPhase.PERSISTENCE_RELOAD,
-                "fresh server process re-resolves persisted production Sable UUID, exact blocks, glue topology, and current physics",
+                "fresh server process loads the persisted Sable locator, re-resolves the production UUID, then recovers exact blocks, glue topology, and current physics",
                 now, now + RELOAD_DEADLINE_TICKS, movedIds(), safeServerState(),
                 "manifest=" + identity.manifestSha256() + " powertrain=" + identity.powertrainSha256()
-                        + " preReloadNestedChildId=" + preReloadNestedChildId + " preReloadGlueIds=" + preReloadGlueIds);
+                        + " preReloadNestedChildId=" + preReloadNestedChildId + " preReloadGlueIds=" + preReloadGlueIds
+                        + " persistedPointer=" + persistedPointer + " locatorChunk=" + locatorChunk);
+        LOGGER.log(System.Logger.Level.INFO, activePrefix + " RELOAD_LOCATOR bodyId=" + bodyId
+                + " persistedPointer=" + persistedPointer + " locatorChunk=" + locatorChunk);
         pollReloadRecovery(now);
     }
 
@@ -727,9 +753,23 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             canonical = findCanonicalBody(bodyId);
             if (canonical == null) {
                 if (waitDiagnostic.expired(now)) {
-                    fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_PERSISTENCE_RELOAD,
-                            waitDiagnostic.withFinalState(movedIds(), safeServerState(), "headless", "canonicalBody=null"),
-                            "persisted aircraft Sable UUID did not reload from holding storage");
+                    Object holding = holdingSubLevel(bodyId);
+                    Object pointer = holding == null ? null : publicMethod(holding, "pointer").invoke(holding);
+                    SkyforgeCompilerIntegrationFailure code = reloadLoadRequested
+                            ? SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE_LOAD_CANONICALIZATION
+                            : holding == null
+                                    ? SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE_NOT_PERSISTED
+                                    : SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE_HOLDING_POINTER;
+                    fail(code,
+                            waitDiagnostic.withFinalState(movedIds(), safeServerState(), "headless",
+                                    "canonicalBody=null holding=" + holdingSnapshot(holding)
+                                            + " persistedPointer=" + persistedPointer
+                                            + " loadRequested=" + reloadLoadRequested),
+                            reloadLoadRequested
+                                    ? "persisted aircraft UUID load was requested but never became canonical"
+                                    : holding == null
+                                            ? "persisted aircraft UUID was not discoverable after loading its saved locator chunk"
+                                            : "persisted aircraft holding UUID never exposed the saved pointer");
                 }
                 return;
             }
@@ -741,9 +781,11 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         Object handle = findCurrentPhysicsHandle(canonical);
         if (handle == null) {
             if (waitDiagnostic.expired(now)) {
-                fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_PERSISTENCE_RELOAD,
-                        waitDiagnostic.withFinalState(movedIds(), safeServerState(), "headless", "physicsHandle=null"),
-                        "reloaded aircraft body did not acquire a current physics handle");
+                fail(SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE_PHYSICS_REHYDRATION,
+                        waitDiagnostic.withFinalState(movedIds(), safeServerState(), "headless",
+                                "physicsHandle=null persistedPointer=" + persistedPointer
+                                        + " loadRequested=" + reloadLoadRequested),
+                        "canonical reloaded aircraft body did not acquire a current physics handle");
             }
             return;
         }
@@ -782,14 +824,60 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     }
 
     private static boolean requestHoldingLoadIfAvailable() throws ReflectiveOperationException {
+        if (findCanonicalBody(bodyId) != null) return false;
         Object holdingMap = publicMethod(container, "getHoldingChunkMap").invoke(container);
         Object holding = publicMethod(holdingMap, "getHoldingSubLevel", UUID.class).invoke(holdingMap, bodyId);
         if (holding == null) return false;
         Object pointer = publicMethod(holding, "pointer").invoke(holding);
         if (pointer == null) return false;
+        PointerState actual = pointerState(pointer);
+        if (!actual.equals(persistedPointer)) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE_HOLDING_POINTER,
+                    finalDiagnostic("persistedPointer=" + persistedPointer + " actualPointer=" + actual),
+                    "aircraft holding pointer changed across the fresh-process boundary");
+        }
         Method snatch = holdingMap.getClass().getMethod("snatchAndLoad", pointer.getClass(), UUID.class);
         snatch.invoke(holdingMap, pointer, bodyId);
+        reloadLoadRequested = true;
+        LOGGER.log(System.Logger.Level.INFO, activePrefix + " HOLDING_LOAD_REQUEST bodyId=" + bodyId
+                + " pointer=" + actual);
         return true;
+    }
+
+    private static Object holdingSubLevel(UUID uuid) throws ReflectiveOperationException {
+        Object holdingMap = publicMethod(container, "getHoldingChunkMap").invoke(container);
+        return publicMethod(holdingMap, "getHoldingSubLevel", UUID.class).invoke(holdingMap, uuid);
+    }
+
+    private static String holdingSnapshot(Object holding) throws ReflectiveOperationException {
+        if (holding == null) return "missing";
+        Object pointer = publicMethod(holding, "pointer").invoke(holding);
+        return "present:pointer=" + (pointer == null ? "null" : pointerState(pointer));
+    }
+
+    private static PointerState pointerState(Object pointer) throws ReflectiveOperationException {
+        Object chunkValue = publicMethod(pointer, "chunkPos").invoke(pointer);
+        if (!(chunkValue instanceof ChunkPos chunk)) throw new IllegalStateException("Sable pointer chunkPos is not ChunkPos");
+        short storage = ((Number) publicMethod(pointer, "storageIndex").invoke(pointer)).shortValue();
+        short subLevel = ((Number) publicMethod(pointer, "subLevelIndex").invoke(pointer)).shortValue();
+        return new PointerState(chunk.x, chunk.z, storage, subLevel);
+    }
+
+    private static void addLocatorChunkTicket(ChunkPos chunk) {
+        if (!activeLocatorChunkTickets.add(chunk)) return;
+        level.getChunkSource().addRegionTicket(LOCATOR_CHUNK_TICKET, chunk, LOCATOR_TICKET_DISTANCE, chunk);
+        level.getChunk(chunk.x, chunk.z);
+        LOGGER.log(System.Logger.Level.INFO, activePrefix + " LOCATOR_CHUNK_TICKET_ADD chunk=" + chunk
+                + " distance=" + LOCATOR_TICKET_DISTANCE);
+    }
+
+    private static void removeAllLocatorChunkTickets() {
+        if (level == null) return;
+        for (ChunkPos chunk : List.copyOf(activeLocatorChunkTickets)) {
+            level.getChunkSource().removeRegionTicket(LOCATOR_CHUNK_TICKET, chunk, LOCATOR_TICKET_DISTANCE, chunk);
+            activeLocatorChunkTickets.remove(chunk);
+            LOGGER.log(System.Logger.Level.INFO, activePrefix + " LOCATOR_CHUNK_TICKET_REMOVE chunk=" + chunk);
+        }
     }
 
     private static List<GlueDomainSpec> compilerGlueDomains() {
@@ -887,6 +975,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             throws ReflectiveOperationException {
         restorePhysicsPause();
         removeFixtureForceLoadTicket();
+        removeAllLocatorChunkTickets();
         complete = true;
         LOGGER.log(System.Logger.Level.INFO,
                 activePrefix + " VERIFY PASS capability=" + activeCapability
@@ -898,6 +987,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                         + " preReloadGlueIds=" + preReloadGlueIds + " postReloadGlueIds=" + postReloadGlueIds
                         + " glueRecoveryMode=" + glueRecoveryMode + " glueDuplicate=false"
                         + " samePersistentUuid=true currentPhysicsHandleValid=true staleChildDuplicate=false"
+                        + " persistedPointer=" + persistedPointer + " loadRequested=" + reloadLoadRequested
                         + " lifecycleReactivation=portable_engine_burn_plus_governor_target"
                         + " enginePortRpm=32 engineStarboardRpm=32 governorTargetRpm=128 bearingRpm=" + observedBearingRpm
                         + " kineticCapacity=" + observedCapacity + " kineticStress=" + observedStress
@@ -905,15 +995,18 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
                         + " childBlocks=9 sailBlocks=8 sailPower=8"
                         + " rawThrust=" + rawThrust + " scaledThrust=" + scaledThrust + " appliedForceX=" + appliedForceX
                         + " persistenceQualified=true controlAxisQualified=false higherGovernorPointsQualified=false flightQualified=false"
-                        + " consumedPlatformAuthority=SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE"
-                        + " fixtureLivenessTicket=sable:command_forced(released) clientState=headless");
+                        + " consumedPlatformAuthorities=SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE,SABLE_PRODUCTION_SCALE_PERSISTENCE_LIFECYCLE"
+                        + " fixtureLivenessTicket=sable:command_forced(released) locatorChunkTicket=released clientState=headless");
     }
 
     private static void writeIdentityFile(PersistenceIdentity identity) {
         String glue = identity.glueIds().stream().map(UUID::toString).collect(java.util.stream.Collectors.joining(","));
         String value = identity.bodyId() + "\n" + identity.nestedChildId() + "\n"
                 + identity.movedOffset().getX() + "," + identity.movedOffset().getY() + "," + identity.movedOffset().getZ() + "\n"
-                + identity.manifestSha256() + "\n" + identity.powertrainSha256() + "\n" + glue + "\n";
+                + identity.manifestSha256() + "\n" + identity.powertrainSha256() + "\n"
+                + identity.pointer().chunkX() + "," + identity.pointer().chunkZ() + ","
+                + identity.pointer().storageIndex() + "," + identity.pointer().subLevelIndex() + "\n"
+                + glue + "\n";
         try { Files.writeString(IDENTITY_FILE, value); }
         catch (IOException exception) { throw new IllegalStateException("failed to persist aircraft runtime identity sidecar", exception); }
     }
@@ -921,14 +1014,18 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     private static PersistenceIdentity readIdentityFile() {
         try {
             List<String> lines = Files.readAllLines(IDENTITY_FILE);
-            if (lines.size() != 6) throw new IllegalStateException("aircraft identity sidecar expected 6 lines, got " + lines.size());
+            if (lines.size() != 7) throw new IllegalStateException("aircraft identity sidecar expected 7 lines, got " + lines.size());
             String[] offset = lines.get(2).split(",", -1);
-            List<UUID> glueIds = lines.get(5).isBlank() ? List.of()
-                    : java.util.Arrays.stream(lines.get(5).split(",")).map(String::trim).map(UUID::fromString).toList();
+            String[] pointer = lines.get(5).split(",", -1);
+            if (offset.length != 3 || pointer.length != 4) throw new IllegalStateException("invalid aircraft identity sidecar geometry/locator");
+            List<UUID> glueIds = lines.get(6).isBlank() ? List.of()
+                    : java.util.Arrays.stream(lines.get(6).split(",")).map(String::trim).map(UUID::fromString).toList();
             if (glueIds.size() > 5) throw new IllegalStateException("aircraft identity sidecar has too many pre-save glue IDs: " + glueIds.size());
             return new PersistenceIdentity(UUID.fromString(lines.get(0).trim()), UUID.fromString(lines.get(1).trim()),
                     new BlockPos(Integer.parseInt(offset[0]), Integer.parseInt(offset[1]), Integer.parseInt(offset[2])),
-                    lines.get(3).trim(), lines.get(4).trim(), glueIds);
+                    lines.get(3).trim(), lines.get(4).trim(),
+                    new PointerState(Integer.parseInt(pointer[0]), Integer.parseInt(pointer[1]),
+                            Short.parseShort(pointer[2]), Short.parseShort(pointer[3])), glueIds);
         } catch (IOException | IllegalArgumentException exception) {
             throw new IllegalStateException("failed to read aircraft runtime identity sidecar", exception);
         }
@@ -1224,6 +1321,8 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
         try { ids = container == null ? "container=null" : String.valueOf(currentSubLevelIds()); }
         catch (ReflectiveOperationException exception) { ids = "<reflection-failed:" + exception.getClass().getSimpleName() + ">"; }
         return "gameTime=" + level.getGameTime() + " stage=" + stage + " subLevelIds=" + ids
+                + " activeLocatorChunkTickets=" + activeLocatorChunkTickets
+                + " persistedPointer=" + persistedPointer + " loadRequested=" + reloadLoadRequested
                 + " sourceBearing=" + (compilerFixture == null ? "n/a" : level.getBlockState(source(findManifestKind("propeller_bearing"))))
                 + " movedBearing=" + (movedBearing == null ? "n/a" : level.getBlockState(movedBearing));
     }
@@ -1231,6 +1330,7 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     private static void cleanupQuietly() {
         try { restorePhysicsPause(); } catch (ReflectiveOperationException | RuntimeException ignored) {}
         try { removeFixtureForceLoadTicket(); } catch (ReflectiveOperationException | RuntimeException ignored) {}
+        try { removeAllLocatorChunkTickets(); } catch (RuntimeException ignored) {}
     }
 
     private static void failReflection(SkyforgeCompilerIntegrationFailure code, ReflectiveOperationException exception) {
@@ -1261,7 +1361,8 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
     private static BlockPos blockPos(AircraftBlockspaceIR.LatticePoint point) { return new BlockPos(point.x(), point.y(), point.z()); }
 
     private record GlueDomainSpec(String name, BlockPos from, BlockPos to) {}
-    private record PersistenceIdentity(UUID bodyId, UUID nestedChildId, BlockPos movedOffset, String manifestSha256, String powertrainSha256, List<UUID> glueIds) { PersistenceIdentity { glueIds = List.copyOf(glueIds); } }
+    private record PointerState(int chunkX, int chunkZ, short storageIndex, short subLevelIndex) {}
+    private record PersistenceIdentity(UUID bodyId, UUID nestedChildId, BlockPos movedOffset, String manifestSha256, String powertrainSha256, PointerState pointer, List<UUID> glueIds) { PersistenceIdentity { glueIds = List.copyOf(glueIds); } }
     private record EffectivePlacement(String kind, String resourceId, Map<String, String> blockState) {}
     private record ExpectedBlock(ResourceLocation id, Map<String, String> properties) { ExpectedBlock { properties = Map.copyOf(properties); } }
     private record KineticState(float speed, float theoreticalSpeed, boolean hasSource, boolean hasNetwork, String runtimeType) {

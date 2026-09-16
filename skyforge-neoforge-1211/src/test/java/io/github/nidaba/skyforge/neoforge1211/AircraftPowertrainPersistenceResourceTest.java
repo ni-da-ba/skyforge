@@ -16,12 +16,16 @@ final class AircraftPowertrainPersistenceResourceTest {
     void consumerRequiresAcceptedPlatformPersistenceAuthority() throws IOException {
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
                 "../docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json").normalize());
-        int start = ledger.indexOf("\"SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE\"");
-        assertTrue(start >= 0);
-        String entry = ledger.substring(start, Math.min(ledger.length(), start + 12000));
-        assertTrue(entry.contains("\"status\": \"accepted\""));
-        assertTrue(entry.contains("\"verification_level\": \"L2\""));
-        assertTrue(entry.contains("\"B\": true"));
+        for (String capability : new String[] {
+                "SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE",
+                "SABLE_PRODUCTION_SCALE_PERSISTENCE_LIFECYCLE"}) {
+            int start = ledger.indexOf("\"" + capability + "\"");
+            assertTrue(start >= 0, "missing platform capability " + capability);
+            String entry = ledger.substring(start, Math.min(ledger.length(), start + 12000));
+            assertTrue(entry.contains("\"status\": \"accepted\""), capability + " is not accepted");
+            assertTrue(entry.contains("\"verification_level\": \"L2\""), capability + " is not L2");
+            assertTrue(entry.contains("\"B\": true"), capability + " does not grant Agent B authority");
+        }
     }
 
     @Test
@@ -45,6 +49,14 @@ final class AircraftPowertrainPersistenceResourceTest {
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftPowertrainRuntimeAcceptance.java"));
         assertTrue(source.contains("aircraft-runtime-002.identity"));
         assertTrue(source.contains("SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE"));
+        assertTrue(source.contains("SABLE_PRODUCTION_SCALE_PERSISTENCE_LIFECYCLE"));
+        assertTrue(source.contains("getLastSerializationPointer"));
+        assertTrue(source.contains("LOCATOR_CHUNK_TICKET"));
+        assertTrue(source.contains("persistedPointer="));
+        assertTrue(source.contains("FAIL_PERSISTENCE_NOT_PERSISTED"));
+        assertTrue(source.contains("FAIL_PERSISTENCE_HOLDING_POINTER"));
+        assertTrue(source.contains("FAIL_PERSISTENCE_LOAD_CANONICALIZATION"));
+        assertTrue(source.contains("FAIL_PERSISTENCE_PHYSICS_REHYDRATION"));
         assertTrue(source.contains("samePersistentUuid=true"));
         assertTrue(source.contains("currentPhysicsHandleValid=true"));
         assertTrue(source.contains("normalizedChildBlocksInPlot=true"));
