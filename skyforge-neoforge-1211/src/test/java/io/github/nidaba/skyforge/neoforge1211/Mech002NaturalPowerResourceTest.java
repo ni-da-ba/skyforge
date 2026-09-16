@@ -29,10 +29,13 @@ final class Mech002NaturalPowerResourceTest {
         assertTrue(plan.contains("\"sourcePolicy\": \"qualified_environmental_source_candidate_not_geography_canon\""));
         assertTrue(plan.contains("\"name\": \"create:water_wheel\""));
         assertTrue(plan.contains("\"name\": \"minecraft:water\""));
+        assertTrue(plan.contains("\"source_feeder\""));
+        assertTrue(plan.contains("\"persistent_water_feeder\""));
+        assertTrue(plan.contains("\"stableTicks\": 100"));
         assertTrue(plan.contains("\"level\": \"8\""));
         assertTrue(plan.contains("\"name\": \"create:shaft\""));
         assertTrue(plan.contains("\"name\": \"create:encased_fan\""));
-        assertTrue(plan.contains("5e78c14a2632d75255e18c06da261b8365a9ffe5623c0c371b7b54184cdc697d"));
+        assertTrue(plan.contains("6a8834d2c2d18cd0914fc488807d8e4042eb4a12f8fe11258a94d931c400f293"));
         Path structure = PROJECT_DIRECTORY.resolve(
                 "src/development/resources/data/skyforge/structure/mech_002_waterwheel_airflow_bench.nbt");
         assertTrue(Files.exists(structure));
@@ -52,9 +55,12 @@ final class Mech002NaturalPowerResourceTest {
         assertTrue(source.contains("hasNetwork"));
         assertTrue(source.contains("flowVector"));
         assertTrue(source.contains("environmentalControlRemoved=true"));
+        assertTrue(source.contains("STABILITY_TICKS"));
+        assertTrue(source.contains("feederPresent=true"));
         assertTrue(source.contains("environmentalControlRestored=true"));
-        assertTrue(source.contains("level.setBlock(flowPos, Blocks.AIR.defaultBlockState(), 3)"));
-        assertTrue(source.contains("level.setBlock(flowPos, flowRestoreState, 3)"));
+        assertTrue(source.contains("level.setBlock(feederPos, Blocks.AIR.defaultBlockState(), 3)"));
+        assertTrue(source.contains("level.setBlock(feederPos, feederRestoreState, 3)"));
+        assertFalse(source.contains("level.setBlock(flowPos,"));
         assertTrue(source.contains("place template "));
         assertTrue(source.contains("skyforge:mech_002_waterwheel_airflow_bench"));
         assertTrue(source.contains("structure-template placement mismatch"));

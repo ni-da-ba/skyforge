@@ -244,11 +244,59 @@ def _lower_mech_002_waterwheel_airflow_bench(mechanism: dict[str, Any]) -> dict[
             "mechanicalRole": "environmental_source_precondition",
             "blockState": _block_state("minecraft:water", level="8"),
         },
+        {
+            "id": "source_feeder",
+            "pos": [1, 3, 1],
+            "mechanicalRole": "environmental_source_feeder",
+            "blockState": _block_state("minecraft:water", level="0"),
+        },
+        {
+            "id": "chute_west_lower",
+            "pos": [0, 2, 1],
+            "mechanicalRole": "environmental_containment",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "chute_east_lower",
+            "pos": [2, 2, 1],
+            "mechanicalRole": "environmental_containment",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "chute_north_lower",
+            "pos": [1, 2, 0],
+            "mechanicalRole": "environmental_containment",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "chute_west_upper",
+            "pos": [0, 3, 1],
+            "mechanicalRole": "environmental_containment",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "chute_east_upper",
+            "pos": [2, 3, 1],
+            "mechanicalRole": "environmental_containment",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "chute_north_upper",
+            "pos": [1, 3, 0],
+            "mechanicalRole": "environmental_containment",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "chute_south_upper",
+            "pos": [1, 3, 2],
+            "mechanicalRole": "environmental_containment",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
     ])
 
     occupied = {tuple(p["pos"]) for p in placements}
     _require(len(occupied) == len(placements), "compiled MECH-002 mechanism has overlapping placements")
-    wheel_clearance = [[1, 1, 2], [1, 3, 2], [1, 2, 3]]
+    wheel_clearance = [[1, 1, 2], [1, 2, 3]]
     discharge_clearance = [[x, 2, 2] for x in range(4, 4 + front_clearance)]
     clearance_cells = wheel_clearance + discharge_clearance
     _require(not occupied.intersection(map(tuple, clearance_cells)), "MECH-002 moving clearance overlaps a placement")
@@ -326,6 +374,7 @@ def _compile_mech_002(
     lowered = _lower_mech_002_waterwheel_airflow_bench(mechanism)
     front_clearance = lowered["frontClearance"]
     water_state = _block_state("minecraft:water", level="8")
+    feeder_state = _block_state("minecraft:water", level="0")
     plan: dict[str, Any] = {
         "schema": PLAN_SCHEMA,
         "assetId": spec["assetId"],
@@ -353,8 +402,16 @@ def _compile_mech_002(
         },
         "environmentalEnvelope": {
             "sourcePlacementId": "source",
-            "disableCell": "source_flow_0",
+            "disableCell": "source_feeder",
             "requiredCells": [
+                {
+                    "placementId": "source_feeder",
+                    "offsetFromSource": [0, 1, -1],
+                    "role": "persistent_water_feeder",
+                    "expectedFlowVector": [0.0, 0.0, 0.0],
+                    "disableState": _block_state("minecraft:air"),
+                    "restoreState": feeder_state,
+                },
                 {
                     "placementId": "source_flow_0",
                     "offsetFromSource": [0, 0, -1],
@@ -362,15 +419,15 @@ def _compile_mech_002(
                     "expectedFlowVector": [0.0, -1.0, 0.0],
                     "disableState": _block_state("minecraft:air"),
                     "restoreState": water_state,
-                }
+                },
             ],
         },
         "supportRequirements": lowered["supportRequirements"],
         "clearanceCells": lowered["clearanceCells"],
         "runtimeExpectations": {
-            "active": {"sourceSpeed": -8.0, "endpointSpeed": -8.0, "hasSource": True, "hasNetwork": True},
-            "environmentDisabled": {"sourceSpeed": 0.0, "endpointSpeed": 0.0, "hasSource": False},
-            "environmentRecovered": {"sourceSpeed": -8.0, "endpointSpeed": -8.0, "hasSource": True, "hasNetwork": True},
+            "active": {"sourceSpeed": -8.0, "endpointSpeed": -8.0, "hasSource": True, "hasNetwork": True, "stableTicks": 100},
+            "environmentDisabled": {"sourceSpeed": 0.0, "endpointSpeed": 0.0, "hasSource": False, "feederPresent": False},
+            "environmentRecovered": {"sourceSpeed": -8.0, "endpointSpeed": -8.0, "hasSource": True, "hasNetwork": True, "feederPresent": True},
         },
         "platformEvidence": _platform_evidence(capability, evidence),
         "validation": {"passed": True, "issues": []},

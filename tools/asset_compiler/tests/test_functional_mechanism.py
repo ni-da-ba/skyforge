@@ -98,11 +98,11 @@ class FunctionalMechanismCompilerTest(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(
             first["digestSha256"],
-            "5e78c14a2632d75255e18c06da261b8365a9ffe5623c0c371b7b54184cdc697d",
+            "6a8834d2c2d18cd0914fc488807d8e4042eb4a12f8fe11258a94d931c400f293",
         )
         self.assertEqual(first["compilerVersion"], "mech-0.2-fixed-world")
         self.assertEqual(first["envelope"]["size"], [7, 4, 5])
-        self.assertEqual(len(first["placements"]), 29)
+        self.assertEqual(len(first["placements"]), 37)
         self.assertEqual(first["requiredPlatformCapability"], "CREATE_WATER_WHEEL_SOURCE_LIFECYCLE")
         self.assertEqual(first["sourcePolicy"], "qualified_environmental_source_candidate_not_geography_canon")
         by_id = {placement["id"]: placement for placement in first["placements"]}
@@ -114,17 +114,24 @@ class FunctionalMechanismCompilerTest(unittest.TestCase):
             by_id["source_flow_0"]["blockState"],
             {"name": "minecraft:water", "properties": {"level": "8"}},
         )
-        self.assertEqual(first["environmentalEnvelope"]["disableCell"], "source_flow_0")
-        cell = first["environmentalEnvelope"]["requiredCells"][0]
-        self.assertEqual(cell["offsetFromSource"], [0, 0, -1])
-        self.assertEqual(cell["expectedFlowVector"], [0.0, -1.0, 0.0])
+        self.assertEqual(
+            by_id["source_feeder"]["blockState"],
+            {"name": "minecraft:water", "properties": {"level": "0"}},
+        )
+        self.assertEqual(first["environmentalEnvelope"]["disableCell"], "source_feeder")
+        feeder, flow = first["environmentalEnvelope"]["requiredCells"]
+        self.assertEqual(feeder["offsetFromSource"], [0, 1, -1])
+        self.assertEqual(feeder["role"], "persistent_water_feeder")
+        self.assertEqual(flow["offsetFromSource"], [0, 0, -1])
+        self.assertEqual(flow["expectedFlowVector"], [0.0, -1.0, 0.0])
+        self.assertEqual(first["runtimeExpectations"]["active"]["stableTicks"], 100)
         self.assertEqual(first["runtimeExpectations"]["active"]["endpointSpeed"], -8.0)
 
     def test_mech002_structure_export_is_deterministic(self) -> None:
         encoded = encode_mechanism_structure_nbt(self.compile_mech002())
         self.assertEqual(
             hashlib.sha256(encoded).hexdigest(),
-            "834322cc5fcdc40ba1c7e9a6d51bf6091a66e34edb4187f8cf9f7242eef864a2",
+            "180d02ed902704f6cd31b88843c7047cc075a15d94d77c9c5e7c5b30471f20cd",
         )
         raw = gzip.decompress(encoded)
         self.assertIn(b"create:water_wheel", raw)

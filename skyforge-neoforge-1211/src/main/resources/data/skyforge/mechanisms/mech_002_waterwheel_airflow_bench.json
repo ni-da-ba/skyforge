@@ -8,11 +8,6 @@
     ],
     [
       1,
-      3,
-      2
-    ],
-    [
-      1,
       2,
       3
     ],
@@ -51,7 +46,7 @@
     ],
     "severNode": "relay_0"
   },
-  "digestSha256": "5e78c14a2632d75255e18c06da261b8365a9ffe5623c0c371b7b54184cdc697d",
+  "digestSha256": "6a8834d2c2d18cd0914fc488807d8e4042eb4a12f8fe11258a94d931c400f293",
   "envelope": {
     "max": [
       6,
@@ -70,8 +65,31 @@
     ]
   },
   "environmentalEnvelope": {
-    "disableCell": "source_flow_0",
+    "disableCell": "source_feeder",
     "requiredCells": [
+      {
+        "disableState": {
+          "name": "minecraft:air"
+        },
+        "expectedFlowVector": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "offsetFromSource": [
+          0,
+          1,
+          -1
+        ],
+        "placementId": "source_feeder",
+        "restoreState": {
+          "name": "minecraft:water",
+          "properties": {
+            "level": "0"
+          }
+        },
+        "role": "persistent_water_feeder"
+      },
       {
         "disableState": {
           "name": "minecraft:air"
@@ -470,6 +488,105 @@
         2,
         1
       ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:water",
+        "properties": {
+          "level": "0"
+        }
+      },
+      "id": "source_feeder",
+      "mechanicalRole": "environmental_source_feeder",
+      "pos": [
+        1,
+        3,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_west_lower",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        0,
+        2,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_east_lower",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        2,
+        2,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_north_lower",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_west_upper",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        0,
+        3,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_east_upper",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        2,
+        3,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_north_upper",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        1,
+        3,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "chute_south_upper",
+      "mechanicalRole": "environmental_containment",
+      "pos": [
+        1,
+        3,
+        2
+      ]
     }
   ],
   "platformEvidence": {
@@ -486,15 +603,18 @@
       "endpointSpeed": -8.0,
       "hasNetwork": true,
       "hasSource": true,
-      "sourceSpeed": -8.0
+      "sourceSpeed": -8.0,
+      "stableTicks": 100
     },
     "environmentDisabled": {
       "endpointSpeed": 0.0,
+      "feederPresent": false,
       "hasSource": false,
       "sourceSpeed": 0.0
     },
     "environmentRecovered": {
       "endpointSpeed": -8.0,
+      "feederPresent": true,
       "hasNetwork": true,
       "hasSource": true,
       "sourceSpeed": -8.0

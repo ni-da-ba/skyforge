@@ -36,7 +36,7 @@ final class SkyforgeMech002NaturalPowerAcceptance {
     private static final String REQUIRED_CAPABILITY = "CREATE_WATER_WHEEL_SOURCE_LIFECYCLE";
     private static final String TARGET_STACK = "C11_FLIGHT_EXACT_2026-09-05";
     private static final String EXPECTED_DIGEST =
-            "5e78c14a2632d75255e18c06da261b8365a9ffe5623c0c371b7b54184cdc697d";
+            "6a8834d2c2d18cd0914fc488807d8e4042eb4a12f8fe11258a94d931c400f293";
     private static final String PLAN_RESOURCE =
             "/data/skyforge/mechanisms/mech_002_waterwheel_airflow_bench.json";
     private static final String STRUCTURE_ID = "skyforge:mech_002_waterwheel_airflow_bench";
@@ -46,7 +46,8 @@ final class SkyforgeMech002NaturalPowerAcceptance {
             System.getLogger(SkyforgeMech002NaturalPowerAcceptance.class.getName());
 
     private static final BlockPos BASE = new BlockPos(40, 200, 0);
-    private static final long ACTIVE_DEADLINE_TICKS = 100L;
+    private static final long ACTIVE_DEADLINE_TICKS = 180L;
+    private static final long STABILITY_TICKS = 100L;
     private static final long DISABLED_DEADLINE_TICKS = 140L;
     private static final long RECOVERY_DEADLINE_TICKS = 140L;
 
@@ -56,13 +57,15 @@ final class SkyforgeMech002NaturalPowerAcceptance {
     private static BlockPos relayPos;
     private static BlockPos endpointPos;
     private static BlockPos flowPos;
-    private static BlockState flowRestoreState;
+    private static BlockPos feederPos;
+    private static BlockState feederRestoreState;
     private static List<BlockPos> clearancePositions = List.of();
     private static SkyforgeCompilerIntegrationDiagnostic waitDiagnostic;
     private static Stage stage;
     private static boolean complete;
     private static float initialSourceSpeed;
     private static float initialEndpointSpeed;
+    private static long stableStartTick = -1L;
 
     private enum Stage {
         ACTIVE,
@@ -147,42 +150,63 @@ final class SkyforgeMech002NaturalPowerAcceptance {
         KineticState sourceState = kineticState(source);
         KineticState endpointState = kineticState(endpoint);
         Vec3 flow = flowVector(flowPos);
-
-        if (hasActiveWaterFlow(flow)
+        boolean feederPresent = level.getFluidState(feederPos).isSource();
+        boolean active = feederPresent
+                && hasActiveWaterFlow(flow)
                 && speedMatches(sourceState.speed(), EXPECTED_SPEED)
                 && speedMatches(endpointState.speed(), EXPECTED_SPEED)
                 && endpointState.hasSource()
-                && endpointState.hasNetwork()) {
+                && endpointState.hasNetwork();
+
+        if (active) {
             requireClearance();
-            initialSourceSpeed = sourceState.speed();
-            initialEndpointSpeed = endpointState.speed();
-            LOGGER.log(System.Logger.Level.INFO,
-                    PREFIX + " ACTIVE sourceSpeed=" + sourceState.speed()
-                            + " endpointSpeed=" + endpointState.speed()
-                            + " flowCell=" + level.getFluidState(flowPos)
-                            + " flowVector=" + flow
-                            + " endpointHasSource=true endpointHasNetwork=true tick=" + now);
-            if (!level.setBlock(flowPos, Blocks.AIR.defaultBlockState(), 3)) {
-                throw new IllegalStateException("failed to remove compiled environmental control cell at " + flowPos);
+            if (stableStartTick < 0L) {
+                stableStartTick = now;
+                initialSourceSpeed = sourceState.speed();
+                initialEndpointSpeed = endpointState.speed();
+                LOGGER.log(System.Logger.Level.INFO,
+                        PREFIX + " ACTIVE sourceSpeed=" + sourceState.speed()
+                                + " endpointSpeed=" + endpointState.speed()
+                                + " feederPresent=true flowCell=" + level.getFluidState(flowPos)
+                                + " flowVector=" + flow
+                                + " endpointHasSource=true endpointHasNetwork=true tick=" + now);
             }
-            stage = Stage.DISABLED;
-            waitDiagnostic = diagnostic(
-                    "removing only the compiled falling-water precondition stops source and endpoint",
-                    now,
-                    now + DISABLED_DEADLINE_TICKS,
-                    fixtureIds(),
-                    safeServerState(),
-                    "environmentalControlRemoved=true initialSourceSpeed=" + initialSourceSpeed
-                            + " initialEndpointSpeed=" + initialEndpointSpeed);
+            if (now - stableStartTick >= STABILITY_TICKS) {
+                LOGGER.log(System.Logger.Level.INFO,
+                        PREFIX + " STABLE stableTicks=" + (now - stableStartTick)
+                                + " feederPresent=true sourceSpeed=" + sourceState.speed()
+                                + " endpointSpeed=" + endpointState.speed() + " tick=" + now);
+                if (!level.setBlock(feederPos, Blocks.AIR.defaultBlockState(), 3)) {
+                    throw new IllegalStateException("failed to remove compiled environmental feeder at " + feederPos);
+                }
+                stage = Stage.DISABLED;
+                waitDiagnostic = diagnostic(
+                        "removing only the compiled feeder naturally drains the drive cell and stops source and endpoint",
+                        now,
+                        now + DISABLED_DEADLINE_TICKS,
+                        fixtureIds(),
+                        safeServerState(),
+                        "environmentalControlRemoved=true stableTicks=" + (now - stableStartTick)
+                                + " initialSourceSpeed=" + initialSourceSpeed
+                                + " initialEndpointSpeed=" + initialEndpointSpeed);
+            }
             return;
         }
 
+        if (stableStartTick >= 0L) {
+            fail(
+                    SkyforgeCompilerIntegrationFailure.FAIL_NETWORK,
+                    finalDiagnostic("lostPersistentFeed=true feederPresent=" + feederPresent
+                            + " source=" + sourceState + " endpoint=" + endpointState + " flowVector=" + flow),
+                    "compiled source-fed mechanism lost power during the required stability interval");
+        }
         if (waitDiagnostic.expired(now)) {
             fail(
                     SkyforgeCompilerIntegrationFailure.TIMEOUT_KINETIC_BUILD,
                     waitDiagnostic.withFinalState(
                             fixtureIds(), safeServerState(), "headless",
-                            "source=" + sourceState + " endpoint=" + endpointState + " flowVector=" + flow),
+                            "feederPresent=" + feederPresent + " source=" + sourceState
+                                    + " endpoint=" + endpointState + " flowVector=" + flow),
                     "compiled natural-power mechanism did not become active before deadline");
         }
     }
@@ -192,22 +216,24 @@ final class SkyforgeMech002NaturalPowerAcceptance {
         Object endpoint = requireExpectedBlockEntity(endpointPos, "EncasedFanBlockEntity", now);
         KineticState sourceState = kineticState(source);
         KineticState endpointState = kineticState(endpoint);
+        FluidState feederState = level.getFluidState(feederPos);
         FluidState flowState = level.getFluidState(flowPos);
 
-        if (flowState.isEmpty()
+        if (feederState.isEmpty()
+                && flowState.isEmpty()
                 && speedMatches(sourceState.speed(), 0.0f)
                 && speedMatches(endpointState.speed(), 0.0f)
                 && !endpointState.hasSource()) {
             LOGGER.log(System.Logger.Level.INFO,
                     PREFIX + " DISABLED sourceSpeed=0.0 endpointSpeed=0.0"
-                            + " flowCellEmpty=true endpointHasSource=false endpointHasNetwork="
+                            + " feederPresent=false flowCellEmpty=true endpointHasSource=false endpointHasNetwork="
                             + endpointState.hasNetwork() + " tick=" + now);
-            if (!level.setBlock(flowPos, flowRestoreState, 3)) {
-                throw new IllegalStateException("failed to restore compiled falling-water precondition at " + flowPos);
+            if (!level.setBlock(feederPos, feederRestoreState, 3)) {
+                throw new IllegalStateException("failed to restore compiled water feeder at " + feederPos);
             }
             stage = Stage.RECOVERED;
             waitDiagnostic = diagnostic(
-                    "restoring the exact compiled falling-water precondition recovers source and endpoint",
+                    "restoring only the compiled feeder naturally reforms the falling drive and recovers source and endpoint",
                     now,
                     now + RECOVERY_DEADLINE_TICKS,
                     fixtureIds(),
@@ -221,8 +247,9 @@ final class SkyforgeMech002NaturalPowerAcceptance {
                     SkyforgeCompilerIntegrationFailure.TIMEOUT_KINETIC_DISCONNECT,
                     waitDiagnostic.withFinalState(
                             fixtureIds(), safeServerState(), "headless",
-                            "source=" + sourceState + " endpoint=" + endpointState + " flow=" + flowState),
-                    "compiled mechanism did not stop after environmental precondition removal");
+                            "feeder=" + feederState + " flow=" + flowState
+                                    + " source=" + sourceState + " endpoint=" + endpointState),
+                    "compiled mechanism did not naturally drain and stop after feeder removal");
         }
     }
 
@@ -232,8 +259,10 @@ final class SkyforgeMech002NaturalPowerAcceptance {
         KineticState sourceState = kineticState(source);
         KineticState endpointState = kineticState(endpoint);
         Vec3 flow = flowVector(flowPos);
+        boolean feederPresent = level.getFluidState(feederPos).isSource();
 
-        if (hasActiveWaterFlow(flow)
+        if (feederPresent
+                && hasActiveWaterFlow(flow)
                 && speedMatches(sourceState.speed(), EXPECTED_SPEED)
                 && speedMatches(endpointState.speed(), EXPECTED_SPEED)
                 && endpointState.hasSource()
@@ -249,6 +278,7 @@ final class SkyforgeMech002NaturalPowerAcceptance {
                             + " recoveredSourceSpeed=" + sourceState.speed()
                             + " recoveredEndpointSpeed=" + endpointState.speed()
                             + " flowVector=" + flow
+                            + " feederPresent=true stableTicks=" + STABILITY_TICKS
                             + " environmentalDisableObserved=true environmentalRecoveryObserved=true"
                             + " endpointHasSource=true endpointHasNetwork=true"
                             + " clearanceCells=" + clearancePositions.size()
@@ -304,19 +334,25 @@ final class SkyforgeMech002NaturalPowerAcceptance {
 
         JsonObject environment = loaded.getAsJsonObject("environmentalEnvelope");
         requireString(environment, "sourcePlacementId", "source");
-        requireString(environment, "disableCell", "source_flow_0");
+        requireString(environment, "disableCell", "source_feeder");
         JsonArray requiredCells = environment.getAsJsonArray("requiredCells");
-        if (requiredCells == null || requiredCells.size() != 1) {
-            throw new IllegalStateException("MECH-002 requires exactly one compiled environmental control cell");
+        if (requiredCells == null || requiredCells.size() != 2) {
+            throw new IllegalStateException("MECH-002 requires feeder and falling-drive environmental cells");
         }
-        JsonObject cell = requiredCells.get(0).getAsJsonObject();
-        requireString(cell, "placementId", "source_flow_0");
-        requireTriple(cell.getAsJsonArray("offsetFromSource"), 0, 0, -1, "environmental offset");
-        requireDoubleTriple(cell.getAsJsonArray("expectedFlowVector"), 0.0, -1.0, 0.0, "expected flow vector");
+        JsonObject feeder = requiredCells.get(0).getAsJsonObject();
+        requireString(feeder, "placementId", "source_feeder");
+        requireString(feeder, "role", "persistent_water_feeder");
+        requireTriple(feeder.getAsJsonArray("offsetFromSource"), 0, 1, -1, "feeder offset");
+        JsonObject flow = requiredCells.get(1).getAsJsonObject();
+        requireString(flow, "placementId", "source_flow_0");
+        requireString(flow, "role", "falling_water_drive");
+        requireTriple(flow.getAsJsonArray("offsetFromSource"), 0, 0, -1, "flow offset");
+        requireDoubleTriple(flow.getAsJsonArray("expectedFlowVector"), 0.0, -1.0, 0.0, "expected flow vector");
 
         JsonObject active = loaded.getAsJsonObject("runtimeExpectations").getAsJsonObject("active");
         requireNumber(active, "sourceSpeed", EXPECTED_SPEED);
         requireNumber(active, "endpointSpeed", EXPECTED_SPEED);
+        requireNumber(active, "stableTicks", STABILITY_TICKS);
     }
 
     private static void requireRuntimePreconditions(JsonObject loaded) {
@@ -364,12 +400,16 @@ final class SkyforgeMech002NaturalPowerAcceptance {
             } else if ("airflow_endpoint".equals(role)) {
                 endpointPos = worldPos;
             }
-            if (disableCell.equals(id)) {
+            if ("source_flow_0".equals(id)) {
                 flowPos = worldPos;
-                flowRestoreState = state;
+            }
+            if (disableCell.equals(id)) {
+                feederPos = worldPos;
+                feederRestoreState = state;
             }
         }
-        if (sourcePos == null || relayPos == null || endpointPos == null || flowPos == null || flowRestoreState == null) {
+        if (sourcePos == null || relayPos == null || endpointPos == null
+                || flowPos == null || feederPos == null || feederRestoreState == null) {
             throw new IllegalStateException("compiled mechanism is missing source/relay/endpoint/environment roles");
         }
 
@@ -572,6 +612,7 @@ final class SkyforgeMech002NaturalPowerAcceptance {
                 + " relay=" + relayPos
                 + " endpoint=" + endpointPos
                 + " flow=" + flowPos
+                + " feeder=" + feederPos
                 + " digest=" + EXPECTED_DIGEST;
     }
 
@@ -584,6 +625,7 @@ final class SkyforgeMech002NaturalPowerAcceptance {
                 + " relay=" + stateAt(relayPos)
                 + " endpoint=" + stateAt(endpointPos)
                 + " flow=" + stateAt(flowPos)
+                + " feeder=" + stateAt(feederPos)
                 + " stage=" + stage;
     }
 
