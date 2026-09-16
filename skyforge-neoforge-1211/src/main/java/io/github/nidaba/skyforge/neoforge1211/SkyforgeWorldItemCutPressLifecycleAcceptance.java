@@ -76,6 +76,7 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
     private static UUID initialInputId;
     private static UUID transitionalId;
     private static boolean pressGroundedObserved;
+    private static boolean sawInventoryObserved;
     private static float sawSpeed;
     private static float pressSpeed;
     private static boolean fixtureChunkTicketAdded;
@@ -200,10 +201,24 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
     }
 
     private static void pollSawProcess(long now) throws ReflectiveOperationException {
+        Object saw = requireExpectedBlockEntity(SAW, "SawBlockEntity", now);
         requirePowered(SAW, "SawBlockEntity", now);
+        String inventoryDump = sawInventoryDump(saw);
+        if (!sawInventoryObserved && !inventoryDump.contains("items=[]")) {
+            sawInventoryObserved = true;
+            LOGGER.log(System.Logger.Level.INFO,
+                    PREFIX + " SAW_ACQUIRED inputUuid=" + initialInputId + " " + inventoryDump + " tick=" + now);
+        }
         for (ItemEntity entity : itemEntities(SAW_SEARCH)) {
             SequenceState sequence = sequenceState(entity.getItem());
             ResourceLocation itemId = itemId(entity.getItem());
+            if (sawInventoryObserved && INPUT_ID.equals(itemId) && sequence == null
+                    && !entity.getUUID().equals(initialInputId)) {
+                fail(SkyforgeCompilerIntegrationFailure.FAIL_NETWORK,
+                        waitDiagnostic.withFinalState(fixtureIds(), safeServerState(), "headless",
+                                "unchangedEjectedUuid=" + entity.getUUID() + " sawInventory=" + inventoryDump),
+                        "Saw acquired the world item but ejected the unchanged input; sequenced CUT recipe did not resolve");
+            }
             if (!TRANSITION_ID.equals(itemId) || sequence == null) continue;
             if (!RECIPE_ID.equals(sequence.id()) || sequence.step() != 1 || Math.abs(sequence.progress() - 0.5f) > 1.0e-5f) {
                 fail(SkyforgeCompilerIntegrationFailure.FAIL_NETWORK,
@@ -236,8 +251,13 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
             return;
         }
         if (waitDiagnostic.expired(now)) {
+            Entity original = level.getEntity(initialInputId);
             fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_FIXTURE_TERMINAL_STATE,
-                    waitDiagnostic.withFinalState(fixtureIds(), safeServerState(), "headless", itemDump(SAW_SEARCH)),
+                    waitDiagnostic.withFinalState(fixtureIds(), safeServerState(), "headless",
+                            "sawInventoryObserved=" + sawInventoryObserved
+                                    + " sawInventory=" + inventoryDump
+                                    + " original=" + entityDiagnostic(original)
+                                    + " worldItems=" + itemDump(SAW_SEARCH)),
                     "Saw did not expose the expected sequenced transitional world item before deadline");
         }
     }
@@ -410,6 +430,29 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
         int step = ((Number) value.getClass().getMethod("step").invoke(value)).intValue();
         float progress = ((Number) value.getClass().getMethod("progress").invoke(value)).floatValue();
         return new SequenceState(id, step, progress);
+    }
+
+    private static String sawInventoryDump(Object saw) throws ReflectiveOperationException {
+        Object inventory = saw.getClass().getField("inventory").get(saw);
+        Method getSlots = inventory.getClass().getMethod("getSlots");
+        Method getStack = inventory.getClass().getMethod("getStackInSlot", int.class);
+        int slots = ((Number) getSlots.invoke(inventory)).intValue();
+        java.util.ArrayList<String> items = new java.util.ArrayList<>();
+        for (int i = 0; i < slots; i++) {
+            Object raw = getStack.invoke(inventory, i);
+            if (raw instanceof ItemStack stack && !stack.isEmpty()) {
+                items.add(i + ":" + itemId(stack) + "x" + stack.getCount() + ":seq=" + sequenceState(stack));
+            }
+        }
+        float remaining = ((Number) inventory.getClass().getField("remainingTime").get(inventory)).floatValue();
+        float duration = ((Number) inventory.getClass().getField("recipeDuration").get(inventory)).floatValue();
+        boolean applied = inventory.getClass().getField("appliedRecipe").getBoolean(inventory);
+        return "items=" + items + " remainingTime=" + remaining + " recipeDuration=" + duration + " appliedRecipe=" + applied;
+    }
+
+    private static String entityDiagnostic(Entity entity) {
+        if (entity == null) return "null";
+        return "uuid=" + entity.getUUID() + " alive=" + entity.isAlive() + " pos=" + entity.position();
     }
 
     private static List<ItemEntity> itemEntities(AABB box) { return level.getEntitiesOfClass(ItemEntity.class, box); }

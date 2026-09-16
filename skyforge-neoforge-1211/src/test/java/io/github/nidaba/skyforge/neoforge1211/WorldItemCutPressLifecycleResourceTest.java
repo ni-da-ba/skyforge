@@ -18,6 +18,8 @@ final class WorldItemCutPressLifecycleResourceTest {
         assertTrue(source.contains("FIXTURE_CHUNK_TICKET_ADD"));
         assertTrue(source.contains("FIXTURE_CHUNK_TICKET_REMOVE"));
         assertTrue(source.contains("SAW_WORLD_INPUT"));
+        assertTrue(source.contains("SAW_ACQUIRED"));
+        assertTrue(source.contains("sawInventoryObserved"));
         assertTrue(source.contains("SAW_SHAFT"));
         assertTrue(source.contains("PRESS_SHAFT"));
         assertTrue(source.contains("create:shaft"));
