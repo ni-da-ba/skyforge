@@ -660,6 +660,10 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
         return measuredParentDeltaX;
     }
 
+    static double translationToleranceBlocks() {
+        return PLAYER_DELTA_TOLERANCE_BLOCKS;
+    }
+
     static double measuredServerPlayerDeltaX() {
         return measuredServerPlayerDeltaX;
     }

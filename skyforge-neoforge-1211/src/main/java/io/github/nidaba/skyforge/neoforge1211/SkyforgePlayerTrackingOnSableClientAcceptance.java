@@ -317,9 +317,15 @@ final class SkyforgePlayerTrackingOnSableClientAcceptance {
 
         if (SkyforgePlayerTrackingOnSableLifecycleAcceptance.translationServerQualified()
                 && !clientTranslationResultSubmitted) {
-            clientTranslationEndX = player.getX();
-            SkyforgePlayerTrackingOnSableLifecycleAcceptance.submitClientTranslationResult(clientTranslationEndX);
-            clientTranslationResultSubmitted = true;
+            double parentDeltaX = SkyforgePlayerTrackingOnSableLifecycleAcceptance.measuredParentDeltaX();
+            double clientDeltaX = player.getX() - clientTranslationStartX;
+            double clientError = Math.abs(clientDeltaX - parentDeltaX);
+            double tolerance = SkyforgePlayerTrackingOnSableLifecycleAcceptance.translationToleranceBlocks();
+            if (Math.signum(clientDeltaX) == Math.signum(parentDeltaX) && clientError <= tolerance) {
+                clientTranslationEndX = player.getX();
+                SkyforgePlayerTrackingOnSableLifecycleAcceptance.submitClientTranslationResult(clientTranslationEndX);
+                clientTranslationResultSubmitted = true;
+            }
             return;
         }
         if (SkyforgePlayerTrackingOnSableLifecycleAcceptance.trackingLifecycleQualified()) {
