@@ -1,6 +1,6 @@
 {
   "schema": "skyforge.compiler-integration-capabilities.v1",
-  "updated_at": "2026-09-15",
+  "updated_at": "2026-09-16",
   "target_stack_authorities": {
     "C11_FLIGHT_EXACT_2026-09-05": {
       "minecraft": "1.21.1",
@@ -703,6 +703,51 @@
           "finding": "AIRCRAFT-RUNTIME-002 Boot A saved the full production v0.12 aircraft successfully, but Boot B loaded only parent chunk (0,0) before UUID holding lookup while the aircraft fixture was based around x=128; subLevelIds remained empty and canonicalBody stayed null. PLATFORM-010 reduced this to Sable holding-storage locator availability rather than adding an aircraft-specific workaround."
         }
       ]
+    },
+    "CREATE_SEAT_PASSENGER_ON_SABLE_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeSeatPassengerOnSableLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "SeatPassengerOnSableLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-seat-passenger-on-sable.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 35054474890,
+        "job": 104661898706,
+        "commit": "17a80b21ae148e8457ee65f255e6b4a5bfd52746",
+        "result": "PASS",
+        "finding": "Exact-stack actual-client L2 proved ordinary Create seat mount and dismount on one live Sable primary body. The client used MultiPlayerGameMode.useItemOn with an empty hand; the integrated server created one real Create SeatEntity, and the client synchronized the same SeatEntity UUID 9713fd5d-f000-4405-b900-faa0bd510cd3. Ordinary client crouch input then produced client/server dismount agreement, the empty SeatEntity was discarded, the same persistent Sable UUID retained a valid current physics handle throughout, and the bounded COMMAND_FORCED ticket was released before PASS."
+      },
+      "assumptions_preconditions": [
+        "The exact retained stack is C11_FLIGHT_EXACT_2026-09-05; exact Create 6.0.10 source commit ac0c444d9828da3453ae8cc65338e8de063286fb is authority for SeatBlock useItemOn and SeatEntity lifecycle semantics.",
+        "The qualified seat resource is create:brown_seat with waterlogged=false. The fixture proves Create seat behavior, not a universal seat abstraction or cockpit placement policy.",
+        "Persistent Sable UUID is parent-body identity. The fixture re-resolves current canonical body and current physics authority rather than retaining pre-assembly handles.",
+        "Client render-pose projection, bounded player setup positioning, temporary invulnerability, physics pause, and COMMAND_FORCED liveness are qualification-only controls; they are not production player-tracking or force-load policy.",
+        "Acceptance authority requires ordinary client useItemOn for mount and ordinary crouch input for dismount. Direct startRiding, stopRiding, passenger-list mutation, or synthetic server mount/dismount is not acceptance authority.",
+        "Natural Sable player tracking and inherited parent translation remain explicitly unqualified and are reserved for the successor PLAYER_TRACKING_ON_SABLE_LIFECYCLE seam."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_ASSEMBLY",
+        "FAIL_CLIENT_INTERACTION",
+        "FAIL_PASSENGER_TRACKING",
+        "FAIL_PHYSICS",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_SEAT_MOUNT",
+        "TIMEOUT_SEAT_DISMOUNT",
+        "TIMEOUT_SEAT_ENTITY_CLEANUP",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": true,
+        "C": false
+      }
     }
   }
 }

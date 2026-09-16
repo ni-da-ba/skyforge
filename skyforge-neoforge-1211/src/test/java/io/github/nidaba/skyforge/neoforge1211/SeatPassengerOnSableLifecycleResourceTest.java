@@ -69,7 +69,7 @@ final class SeatPassengerOnSableLifecycleResourceTest {
     }
 
     @Test
-    void workflowRunsActualClientAndCapabilityRemainsUnpublishedBeforeL2Acceptance() throws IOException {
+    void workflowRunsActualClientAndLedgerPublishesAcceptedAgentBAuthority() throws IOException {
         String workflow = Files.readString(PROJECT_DIRECTORY.resolve(
                 "../.github/workflows/compiler-platform-seat-passenger-on-sable.yml").normalize());
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
@@ -82,7 +82,17 @@ final class SeatPassengerOnSableLifecycleResourceTest {
         assertTrue(workflow.contains("seatMountClientServerAgreement=true"));
         assertTrue(workflow.contains("seatDismountClientServerAgreement=true"));
         assertTrue(workflow.contains("seatEntityCleanupObserved=true"));
-        assertFalse(ledger.contains("\"CREATE_SEAT_PASSENGER_ON_SABLE_LIFECYCLE\""));
+
+        int start = ledger.indexOf("\"CREATE_SEAT_PASSENGER_ON_SABLE_LIFECYCLE\"");
+        assertTrue(start >= 0);
+        String entry = ledger.substring(start);
+        assertTrue(entry.contains("\"status\": \"accepted\""));
+        assertTrue(entry.contains("\"workflow_run\": 35054474890"));
+        assertTrue(entry.contains("\"job\": 104661898706"));
+        assertTrue(entry.contains("\"commit\": \"17a80b21ae148e8457ee65f255e6b4a5bfd52746\""));
+        assertTrue(entry.contains("MultiPlayerGameMode.useItemOn"));
+        assertTrue(entry.contains("\"B\": true"));
+        assertTrue(entry.contains("\"C\": false"));
     }
 
     private static String serverSource() throws IOException {
