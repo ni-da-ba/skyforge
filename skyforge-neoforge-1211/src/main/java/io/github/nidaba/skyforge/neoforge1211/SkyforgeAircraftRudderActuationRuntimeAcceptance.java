@@ -162,10 +162,11 @@ final class SkyforgeAircraftRudderActuationRuntimeAcceptance {
 
     private static Object attachedChild(BlockEntity bearing) throws ReflectiveOperationException {
         Object raw = publicMethod(bearing, "sable$getConnectionDependencies").invoke(bearing);
-        if (!(raw instanceof Iterable<?> deps)) fail("Swivel dependencies unavailable");
+        if (!(raw instanceof Iterable<?>)) fail("Swivel dependencies unavailable");
+        Iterable<?> dependencies = (Iterable<?>) raw;
         Object child = null;
         int count = 0;
-        for (Object dep : deps) if (dep != null) { child = dep; count++; }
+        for (Object dep : dependencies) if (dep != null) { child = dep; count++; }
         if (count != 1 || child == null) fail("expected exactly one rudder child, got " + count);
         return child;
     }
