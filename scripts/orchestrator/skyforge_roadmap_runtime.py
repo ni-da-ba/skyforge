@@ -412,6 +412,51 @@ def _roadmap_pending_authority_exists_locked(self: core.Orchestrator) -> bool:
     return False
 
 
+def _roadmap_reconcile_closed_blocked_tasks(
+    self: core.Orchestrator,
+    manifest: roadmap_policy.RoadmapManifest,
+    state: dict[str, Any],
+) -> int:
+    """Retire blocked task nodes whose authoritative issue has since closed.
+
+    A roadmap task can be blocked after a no-change/out-of-band handoff even though a manual
+    producer later completes the same governing issue. Issue closure is authoritative completion;
+    leaving that node in ``blocked_nodes`` would permanently hide it from selection and keep every
+    prerequisite-dependent successor ineligible. Human gate nodes have no issue authority and are
+    deliberately unaffected.
+    """
+    with self._state_lock:
+        blocked_ids = list((state.get("blocked_nodes") or {}).keys())
+    by_id = {node.node_id: node for node in manifest.nodes}
+    retired = 0
+    for node_id in blocked_ids:
+        node = by_id.get(str(node_id))
+        if node is None or node.kind != "task" or node.issue_number is None:
+            continue
+        issue_open = _roadmap_issue_open(self, int(node.issue_number))
+        if issue_open is not False:
+            continue
+        with self._state_lock:
+            blocked = state.setdefault("blocked_nodes", {})
+            if node.node_id not in blocked:
+                continue
+            completed = state.setdefault("completed_runs", {})
+            completed[node.node_id] = max(int(completed.get(node.node_id) or 0), node.max_runs)
+            blocked.pop(node.node_id, None)
+            state["last_completed_at"] = core._utc_now()
+            state["last_error"] = None
+            state["last_closed_blocked_issue"] = {
+                "at": core._utc_now(),
+                "node_id": node.node_id,
+                "issue_number": int(node.issue_number),
+                "reason": "authoritative issue closed after roadmap node was blocked",
+            }
+            self.state.save()
+        self._metric("roadmap_closed_blocked_tasks_retired")
+        retired += 1
+    return retired
+
+
 def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
     """Seed one roadmap task even when only ordinary wake/reconcile noise is pending."""
     if not _roadmap_enabled() or self.is_paused():
@@ -458,6 +503,7 @@ def _roadmap_maybe_advance(self: core.Orchestrator, *, trigger: str) -> bool:
         # handoff/auto-merge race while still preventing unrelated parallel task work.
         if _roadmap_resolve_active(self, manifest, state):
             return False
+        _roadmap_reconcile_closed_blocked_tasks(self, manifest, state)
         if _roadmap_live_task_prs(self):
             return False
 
