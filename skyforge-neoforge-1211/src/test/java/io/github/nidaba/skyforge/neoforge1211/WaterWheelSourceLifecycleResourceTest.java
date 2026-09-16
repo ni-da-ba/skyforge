@@ -79,10 +79,16 @@ final class WaterWheelSourceLifecycleResourceTest {
     }
 
     @Test
-    void capabilityIsNotPublishedAcceptedBeforeExactL2Evidence() throws IOException {
+    void capabilityPublishesAcceptedExactL2EvidenceForAgentCOnly() throws IOException {
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
                 "../docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json").normalize());
-        assertFalse(ledger.contains("CREATE_WATER_WHEEL_SOURCE_LIFECYCLE"));
+        assertTrue(ledger.contains("\"CREATE_WATER_WHEEL_SOURCE_LIFECYCLE\""));
+        assertTrue(ledger.contains("\"workflow_run\": 35046596671"));
+        assertTrue(ledger.contains("\"job\": 104637964903"));
+        assertTrue(ledger.contains("\"commit\": \"d1aeb2a013a596290b2de5ac5daf738a199c4b25\""));
+        assertTrue(ledger.contains("flowVector=(0.0,-1.0,0.0)"));
+        assertTrue(ledger.contains("\"B\": false"));
+        assertTrue(ledger.contains("\"C\": true"));
     }
 
     private static String fixtureSource() throws IOException {
