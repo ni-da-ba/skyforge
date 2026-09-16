@@ -1,6 +1,5 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -108,27 +107,36 @@ final class SkyforgeAircraftRudderActuationRuntimeAcceptance {
             fail("rudder child did not physically deflect: " + physicalDeflected);
         }
 
-        level.setBlock(motorPos, Blocks.AIR.defaultBlockState(), 3);
-        for (int i = 0; i < 10; i++) tick(driveCog, bearing);
+        setMotorSpeed(motor, 0);
+        for (int i = 0; i < 10; i++) tick(motor, driveCog, bearing);
         double stoppedRpm = number(publicMethod(extraCog, "getSpeed").invoke(extraCog));
         if (Math.abs(stoppedRpm) > RPM_TOLERANCE) fail("extra cog did not stop: " + stoppedRpm);
         double heldStart = number(publicMethod(bearing, "getTargetAngleDegrees").invoke(bearing));
-        for (int i = 0; i < holdTicks; i++) tick(driveCog, bearing);
+        for (int i = 0; i < holdTicks; i++) tick(motor, driveCog, bearing);
         double heldEnd = number(publicMethod(bearing, "getTargetAngleDegrees").invoke(bearing));
         if (Math.abs(normalizeDegrees(heldEnd - heldStart)) > targetNeutralToleranceDegrees) fail("source-off target did not hold");
 
-        level.setBlock(motorPos, motorState(), 3);
-        motor = requireBlockEntity(level, motorPos, "CreativeMotorBlockEntity");
-        Field generatedSpeedField = motor.getClass().getField("generatedSpeed");
-        Object generatedSpeed = generatedSpeedField.get(motor);
-        publicMethod(generatedSpeed, "setValue", int.class).invoke(generatedSpeed, -commandRpm);
+        setMotorSpeed(motor, -commandRpm);
+        for (int i = 0; i < 10; i++) tick(motor, driveCog, bearing);
+        double reverseMotorRpm = number(publicMethod(motor, "getGeneratedSpeed").invoke(motor));
+        double reverseDriveRpm = number(publicMethod(driveCog, "getSpeed").invoke(driveCog));
+        double reverseExtraRpm = number(publicMethod(extraCog, "getSpeed").invoke(extraCog));
+        assertNear("reverse motor RPM", -commandRpm, reverseMotorRpm);
+        assertAbsNear("reverse drive RPM", commandRpm, reverseDriveRpm);
+        assertAbsNear("reverse extra-cog RPM", commandRpm, reverseExtraRpm);
+        if (Math.signum(reverseExtraRpm) != -Math.signum(extraRpm)) {
+            fail("inverse command did not reverse hidden extra-cog sign: initial=" + extraRpm + " reverse=" + reverseExtraRpm);
+        }
         for (int i = 0; i < commandTicks; i++) tick(motor, driveCog, bearing);
         double targetReturned = number(publicMethod(bearing, "getTargetAngleDegrees").invoke(bearing));
         if (Math.abs(normalizeDegrees(targetReturned)) > targetNeutralToleranceDegrees) {
-            fail("inverse real kinetic command did not return target neutral: " + targetReturned);
+            fail("inverse real kinetic command did not return target neutral: " + targetReturned
+                    + " reverseMotorRpm=" + reverseMotorRpm + " reverseDriveRpm=" + reverseDriveRpm
+                    + " reverseExtraRpm=" + reverseExtraRpm);
         }
+        setMotorSpeed(motor, 0);
+        for (int i = 0; i < 10; i++) tick(motor, driveCog, bearing);
         level.setBlock(motorPos, Blocks.AIR.defaultBlockState(), 3);
-        for (int i = 0; i < 10; i++) tick(driveCog, bearing);
         level.setBlock(driveCogPos, Blocks.AIR.defaultBlockState(), 3);
         settlePhysics(level, 10);
         double physicalReturned = relativeYawDegrees(parentSubLevel, attachedChild(bearing));
@@ -193,6 +201,11 @@ final class SkyforgeAircraftRudderActuationRuntimeAcceptance {
         for (Object value : values) publicMethod(value, "tick").invoke(value);
     }
 
+    private static void setMotorSpeed(BlockEntity motor, int rpm) throws ReflectiveOperationException {
+        Object generatedSpeed = motor.getClass().getField("generatedSpeed").get(motor);
+        publicMethod(generatedSpeed, "setValue", int.class).invoke(generatedSpeed, rpm);
+    }
+
     private static BlockEntity requireBlockEntity(ServerLevel level, BlockPos pos, String suffix) {
         BlockEntity be = level.getBlockEntity(pos);
         if (be == null || (suffix != null && !be.getClass().getName().endsWith(suffix))) fail("wrong/missing block entity at " + pos);
@@ -233,6 +246,10 @@ final class SkyforgeAircraftRudderActuationRuntimeAcceptance {
 
     private static void assertAbsNear(String label, int expected, double actual) {
         if (!Double.isFinite(actual) || Math.abs(Math.abs(actual) - expected) > RPM_TOLERANCE) fail(label + " mismatch: " + actual);
+    }
+
+    private static void assertNear(String label, double expected, double actual) {
+        if (!Double.isFinite(actual) || Math.abs(actual - expected) > RPM_TOLERANCE) fail(label + " mismatch: " + actual);
     }
 
     private static double normalizeDegrees(double value) {
