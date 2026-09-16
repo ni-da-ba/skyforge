@@ -14,7 +14,9 @@ final class WorldItemCutPressLifecycleResourceTest {
         assertTrue(source.contains("CREATE_WORLD_ITEM_CUT_PRESS_LIFECYCLE"));
         assertTrue(source.contains("updateEntityAfterFallOn") == false); // authority is runtime path, not direct invocation
         assertTrue(source.contains("SAW_WORLD_INPUT"));
-        assertTrue(source.contains("new BlockPos(1, 200, 0)"));
+        assertTrue(source.contains("SAW_SHAFT"));
+        assertTrue(source.contains("PRESS_SHAFT"));
+        assertTrue(source.contains("create:shaft"));
         assertTrue(source.contains("new BlockPos(2, 200, 0)"));
         assertTrue(source.contains("sawMotorState"));
         assertTrue(source.contains("pressMotorState"));

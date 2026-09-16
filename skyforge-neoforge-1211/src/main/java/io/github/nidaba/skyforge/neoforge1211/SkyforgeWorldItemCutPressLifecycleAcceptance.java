@@ -38,6 +38,7 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
             System.getLogger(SkyforgeWorldItemCutPressLifecycleAcceptance.class.getName());
 
     private static final ResourceLocation MOTOR_ID = id("create:creative_motor");
+    private static final ResourceLocation SHAFT_ID = id("create:shaft");
     private static final ResourceLocation SAW_ID = id("create:mechanical_saw");
     private static final ResourceLocation PRESS_ID = id("create:mechanical_press");
     private static final ResourceLocation RECIPE_ID = id("skyforge:sequenced_assembly/platform_015_cut_press");
@@ -45,9 +46,11 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
     private static final ResourceLocation TRANSITION_ID = id("minecraft:iron_nugget");
     private static final ResourceLocation OUTPUT_ID = id("minecraft:gold_nugget");
 
-    private static final BlockPos SAW_MOTOR = new BlockPos(1, 200, 0);
+    private static final BlockPos SAW_MOTOR = new BlockPos(0, 200, 0);
+    private static final BlockPos SAW_SHAFT = new BlockPos(1, 200, 0);
     private static final BlockPos SAW = new BlockPos(2, 200, 0);
-    private static final BlockPos PRESS_MOTOR = new BlockPos(5, 202, 0);
+    private static final BlockPos PRESS_MOTOR = new BlockPos(4, 202, 0);
+    private static final BlockPos PRESS_SHAFT = new BlockPos(5, 202, 0);
     private static final BlockPos PRESS = new BlockPos(6, 202, 0);
     private static final BlockPos PRESS_FLOOR = new BlockPos(6, 200, 0);
     private static final long KINETIC_DEADLINE_TICKS = 80L;
@@ -259,7 +262,7 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
         if (!createVersion.startsWith("6.0.10")) {
             throw new IllegalStateException("expected Create 6.0.10 exact stack, got " + createVersion);
         }
-        requireBlock(MOTOR_ID); requireBlock(SAW_ID); requireBlock(PRESS_ID);
+        requireBlock(MOTOR_ID); requireBlock(SHAFT_ID); requireBlock(SAW_ID); requireBlock(PRESS_ID);
         requireItem(INPUT_ID); requireItem(TRANSITION_ID); requireItem(OUTPUT_ID);
         Class.forName("com.simibubi.create.content.kinetics.saw.SawBlock");
         Class.forName("com.simibubi.create.content.kinetics.saw.SawBlockEntity");
@@ -289,13 +292,16 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
             level.setBlock(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), 3);
 
         BlockState sawMotor = withProperty(requireBlock(MOTOR_ID).defaultBlockState(), "facing", "east");
+        BlockState shaft = withProperty(requireBlock(SHAFT_ID).defaultBlockState(), "axis", "x");
         BlockState saw = withProperty(withProperty(withProperty(requireBlock(SAW_ID).defaultBlockState(),
                 "facing", "up"), "axis_along_first", "true"), "flipped", "false");
         BlockState pressMotor = withProperty(requireBlock(MOTOR_ID).defaultBlockState(), "facing", "east");
         BlockState press = withProperty(requireBlock(PRESS_ID).defaultBlockState(), "facing", "east");
         if (!level.setBlock(SAW_MOTOR, sawMotor, 3)
+                || !level.setBlock(SAW_SHAFT, shaft, 3)
                 || !level.setBlock(SAW, saw, 3)
                 || !level.setBlock(PRESS_MOTOR, pressMotor, 3)
+                || !level.setBlock(PRESS_SHAFT, shaft, 3)
                 || !level.setBlock(PRESS, press, 3)
                 || !level.setBlock(PRESS_FLOOR, Blocks.STONE.defaultBlockState(), 3)) {
             throw new IllegalStateException("failed to place complete beltless Saw/Press fixture");
@@ -391,14 +397,15 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
                 : waitDiagnostic.withFinalState(fixtureIds(), safeServerState(), "headless", dump);
     }
     private static String fixtureIds() {
-        return "sawMotor=" + SAW_MOTOR + " saw=" + SAW + " pressMotor=" + PRESS_MOTOR + " press=" + PRESS
+        return "sawMotor=" + SAW_MOTOR + " sawShaft=" + SAW_SHAFT + " saw=" + SAW
+                + " pressMotor=" + PRESS_MOTOR + " pressShaft=" + PRESS_SHAFT + " press=" + PRESS
                 + " pressFloor=" + PRESS_FLOOR + " inputUuid=" + initialInputId + " transitionUuid=" + transitionalId;
     }
     private static String safeServerState() {
         if (level == null) return "overworld=null";
         return "gameTime=" + level.getGameTime() + " stage=" + stage
-                + " sawMotor=" + level.getBlockState(SAW_MOTOR) + " saw=" + level.getBlockState(SAW)
-                + " pressMotor=" + level.getBlockState(PRESS_MOTOR) + " press=" + level.getBlockState(PRESS)
+                + " sawMotor=" + level.getBlockState(SAW_MOTOR) + " sawShaft=" + level.getBlockState(SAW_SHAFT) + " saw=" + level.getBlockState(SAW)
+                + " pressMotor=" + level.getBlockState(PRESS_MOTOR) + " pressShaft=" + level.getBlockState(PRESS_SHAFT) + " press=" + level.getBlockState(PRESS)
                 + " sawItems=" + itemDump(SAW_SEARCH) + " pressItems=" + itemDump(PRESS_SEARCH);
     }
     private static void failReflection(SkyforgeCompilerIntegrationFailure code, ReflectiveOperationException exception) {
