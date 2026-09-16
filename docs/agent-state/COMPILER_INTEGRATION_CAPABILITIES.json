@@ -420,6 +420,13 @@
       },
       "negative_evidence": [
         {
+          "workflow_run": 35041461818,
+          "job": 104622371453,
+          "commit": "c6cf4478063341c71a6c4c5e3be936833858a250",
+          "result": "TRANSIENT_HOLDING_POINTER_NOT_READY",
+          "finding": "A retained-regression run on the PLATFORM-008 authority head reached a transient Sable holding state during PLATFORM-007 Boot A where getHoldingSubLevel(UUID) returned a holding object but holding.pointer() was still null. The accepted recovery helper incorrectly dereferenced pointer.getClass() and classified the resulting NPE as FAIL_ASSEMBLY. Recovery now treats a present holding with a null pointer as a bounded not-ready state, logs HOLDING_POINTER_PENDING, and retries on subsequent lifecycle polls; both Boot-A holding recovery and fresh-process Boot-B reload use the same guarded helper."
+        },
+        {
           "workflow_run": 35034563292,
           "job": 104600913610,
           "commit": "e8eaff0025473c8bfff37f4c57f02dd41ce3dd49",
