@@ -525,6 +525,49 @@
           "finding": "Boot A saved a live composed mechanism and Boot B recovered the same canonical Sable UUID, current physics state, and moved bearing block, but the moved Super Glue entity was absent after fresh-process reload. Exact Sable serializer authority persists the sublevel plot/pose and not arbitrary runtime entities. PLATFORM-007 therefore normalizes the entity-backed bearing child into plot blocks before save, then deterministically re-realizes the accepted disjoint glue topology and reassembles a fresh child after reload before live kinetic sever/rebuild proof."
         }
       ]
+    },
+    "SWIVEL_CONTROL_CHILD_ON_SABLE_LIFECYCLE": {
+      "status": "qualification_pending",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeSwivelControlChildLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "SwivelControlChildLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-swivel-control-child-lifecycle.yml",
+      "latest_accepted_evidence": null,
+      "assumptions_preconditions": [
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE and CREATE_KINETIC_ON_SABLE_LIFECYCLE as carrier authority; Swivel child and command network are realized only after the primary body is canonical.",
+        "Exact Simulated source commit 50443d00afa06e0982b45f40cd686f7ecf978132 is evidence for Swivel hidden-extra-cog, target-angle, locking, and child-sublevel lifecycle semantics on the bundled exact stack.",
+        "The fixture uses a real Create Creative Motor and cogwheel command path; motor ScrollValueBehaviour may change source RPM, but Swivel targetAngleDegrees is observation-only.",
+        "The bounded child payload is four symmetric sails internally glued above an UP-facing Swivel, with no glue crossing the controller plane.",
+        "Production aircraft geometry, yaw-force authority, Steering Wheel interaction, cockpit routing, persistence, player tracking, pitch/roll, and flight remain outside this capability."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_GLUE_REGISTRATION",
+        "FAIL_ASSEMBLY",
+        "FAIL_CHILD_ASSEMBLY",
+        "FAIL_KINETIC_REBUILD",
+        "FAIL_NETWORK",
+        "FAIL_PHYSICS",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_KINETIC_BUILD",
+        "TIMEOUT_KINETIC_DISCONNECT",
+        "TIMEOUT_KINETIC_REBUILD",
+        "TIMEOUT_CHILD_ASSEMBLY",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": false,
+        "C": false
+      },
+      "negative_evidence": []
     }
   }
 }
