@@ -292,8 +292,8 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             }
             Object listedBody = findListedBody(bodyId);
             if (listedBody == null) {
-                Set<UUID> holdingIds = currentHoldingSubLevelIds();
-                if (primaryRecoveredFromHolding || holdingIds.contains(bodyId)) {
+                Set<UUID> holdingIdsAfterRecovery = currentHoldingSubLevelIds();
+                if (primaryRecoveredFromHolding || holdingIdsAfterRecovery.contains(bodyId)) {
                     primaryRecoveredFromHolding = true;
                     requestHoldingLoadIfAvailable();
                     listedBody = findListedBody(bodyId);
