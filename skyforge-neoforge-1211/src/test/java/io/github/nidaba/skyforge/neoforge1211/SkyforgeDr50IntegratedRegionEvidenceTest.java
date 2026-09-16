@@ -49,4 +49,22 @@ final class SkyforgeDr50IntegratedRegionEvidenceTest {
         assertTrue(packet.contains("\"overwritten_structure_support\""));
         assertTrue(packet.contains("\"escaped_generated_fluid\""));
     }
+    @Test
+    void canonicalIntegrationDoesNotForceDr30ProofContent() throws Exception {
+        Path project = Path.of(System.getProperty("skyforge.test.projectDirectory", "."))
+                .toAbsolutePath().normalize();
+        String generator = Files.readString(project.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNoiseBasedChunkGenerator.java"));
+        String evidence = Files.readString(project.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDr50IntegratedRegionEvidence.java"));
+        String build = Files.readString(project.resolve("build.gradle.kts"));
+
+        assertFalse(generator.contains("SkyforgeDr50IntegratedRegionEvidence.isProbeCandidate"));
+        assertFalse(generator.contains("SkyforgeDr50IntegratedRegionEvidence.suppressBaseWorldProbe"));
+        assertFalse(evidence.contains("WoodlandMansionStructure"));
+        assertTrue(evidence.contains("dr50StructureLifecycleInvoked"));
+        assertTrue(evidence.contains("DR-30_NATIVE_STRUCTURE_ACCEPTANCE"));
+        assertTrue(build.contains("runDr30NativeStructureAcceptanceStacked"));
+    }
+
 }

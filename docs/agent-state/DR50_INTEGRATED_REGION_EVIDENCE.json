@@ -46,7 +46,8 @@
     "stacked_volume_isolation": true,
     "authored_hydrology_survives_final_composition": true,
     "starting_cluster_iron_persists": true,
-    "generic_structure_persists": true,
+    "generic_structure_runtime_composes_without_forcing_content": true,
+    "generic_structure_realization_and_persistence_reuse_dr30_exact_head_gate": true,
     "production_ecology_persists": true,
     "post_cave_interior_population_completes": true,
     "aesthetic_tuning_authorized": false

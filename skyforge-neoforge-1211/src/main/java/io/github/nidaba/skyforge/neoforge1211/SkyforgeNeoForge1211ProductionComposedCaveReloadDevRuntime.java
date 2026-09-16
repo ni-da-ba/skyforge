@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Properties;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
@@ -79,20 +78,6 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadDevRuntime {
             }
             if (!level.getBlockState(dr50.hydrologyPosition()).is(Blocks.WATER)) {
                 throw new IllegalStateException("DR-50 reload lost authored hydrology at " + dr50.hydrologyPosition());
-            }
-            var structureBlock = BuiltInRegistries.BLOCK.getKey(level.getBlockState(dr50.structurePosition()).getBlock());
-            if (!structureBlock.equals(dr50.structureBlockId())) {
-                throw new IllegalStateException(
-                        "DR-50 reload changed representative structure block at " + dr50.structurePosition()
-                                + ": expected=" + dr50.structureBlockId() + ", actual=" + structureBlock);
-            }
-            var saved = SkyforgeNativeStructurePlacementSavedData.forLevel(level);
-            boolean completed = saved.ownedFor(
-                            SkyforgeNeoForge1211ProductionComposedCaveFixture.single().volume().id(),
-                            dr50.structureTargetChunk()).stream()
-                    .anyMatch(identity -> identity.structureId().equals(dr50.structureId()) && saved.completed(identity));
-            if (!completed) {
-                throw new IllegalStateException("DR-50 reload lost durable completed native structure identity");
             }
         }
 

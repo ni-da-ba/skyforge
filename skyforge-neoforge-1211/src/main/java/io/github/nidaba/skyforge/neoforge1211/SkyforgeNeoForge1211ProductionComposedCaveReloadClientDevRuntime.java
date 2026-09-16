@@ -2,7 +2,6 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.SectionPos;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -52,7 +51,6 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadClientDevRuntime {
         if (expectation.dr50() != null) {
             requiredPositions.add(expectation.dr50().materialPosition());
             requiredPositions.add(expectation.dr50().hydrologyPosition());
-            requiredPositions.add(expectation.dr50().structurePosition());
         }
         for (BlockPos position : requiredPositions) {
             if (!minecraft.level.getChunkSource().hasChunk(
@@ -77,13 +75,6 @@ final class SkyforgeNeoForge1211ProductionComposedCaveReloadClientDevRuntime {
             if (!minecraft.level.getBlockState(dr50.materialPosition()).is(net.minecraft.world.level.block.Blocks.IRON_ORE)
                     || !minecraft.level.getBlockState(dr50.hydrologyPosition()).is(net.minecraft.world.level.block.Blocks.WATER)) {
                 throw new IllegalStateException("DR-50 ClientLevel lost persisted material or hydrology state");
-            }
-            var structureBlock = BuiltInRegistries.BLOCK.getKey(
-                    minecraft.level.getBlockState(dr50.structurePosition()).getBlock());
-            if (!structureBlock.equals(dr50.structureBlockId())) {
-                throw new IllegalStateException(
-                        "DR-50 ClientLevel changed representative structure block: expected="
-                                + dr50.structureBlockId() + ", actual=" + structureBlock);
             }
         }
 

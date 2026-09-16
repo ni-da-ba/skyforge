@@ -13,23 +13,17 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.levelgen.structure.Structure;
-import net.minecraft.world.level.levelgen.structure.structures.WoodlandMansionStructure;
 
 /** DR-50 machine evidence that composes the accepted dressed-region systems on the DR-00 specimen. */
 final class SkyforgeDr50IntegratedRegionEvidence {
     static final String ENABLE_PROPERTY = "skyforge.dev.dr50IntegratedRegion";
     static final String RELOAD_PROPERTY = "skyforge.dev.dr50IntegratedRegionReload";
-    private static final int PROBE_CHUNK_X = 0;
-    private static final int PROBE_CHUNK_Z = 0;
-    private static final ResourceLocation MANSION = ResourceLocation.withDefaultNamespace("mansion");
     private static final long FNV_OFFSET_BASIS = 0xcbf29ce484222325L;
     private static final long FNV_PRIME = 0x100000001b3L;
 
@@ -37,47 +31,6 @@ final class SkyforgeDr50IntegratedRegionEvidence {
 
     static boolean enabled() {
         return Boolean.getBoolean(ENABLE_PROPERTY);
-    }
-
-    static boolean suppressBaseWorldProbe(Structure structure, ChunkPos chunkPos) {
-        return enabled() && structure instanceof WoodlandMansionStructure && probeChunk(chunkPos);
-    }
-
-    static boolean isProbeCandidate(
-            Structure structure,
-            ChunkPos chunkPos,
-            SkyIslandWorldVolumeId volumeId) {
-        return enabled()
-                && structure instanceof WoodlandMansionStructure
-                && probeChunk(chunkPos)
-                && canonicalVolumeId().equals(volumeId);
-    }
-
-    static boolean allowsExactProbe(
-            Structure structure,
-            ChunkPos chunkPos,
-            SkyIslandWorldVolumeId volumeId) {
-        if (!enabled() || !(structure instanceof WoodlandMansionStructure) || !probeChunk(chunkPos)) {
-            return true;
-        }
-        return canonicalVolumeId().equals(volumeId);
-    }
-
-    static IllegalStateException exactProbeFailure(
-            Structure structure,
-            ChunkPos chunkPos,
-            SkyIslandWorldVolumeId volumeId,
-            String reason) {
-        return new IllegalStateException(
-                "DR-50 canonical native structure probe failed: structure="
-                        + structure.getClass().getSimpleName()
-                        + ", chunk=" + chunkPos
-                        + ", volume=" + volumeId.path()
-                        + ", reason=" + reason);
-    }
-
-    private static boolean probeChunk(ChunkPos chunkPos) {
-        return chunkPos.x == PROBE_CHUNK_X && chunkPos.z == PROBE_CHUNK_Z;
     }
 
     private static SkyIslandWorldVolumeId canonicalVolumeId() {
@@ -109,9 +62,9 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         }
 
         HydrologyEvidence hydrology = verifyHydrology(level, fixture, terrain);
-        StructureEvidence structure = verifyStructure(level, volumeId, plannedChunks);
+        StructureLifecycleEvidence structures = verifyStructureLifecycle(level, volumeId, plannedChunks);
         InteriorEvidence interior = verifyInteriorPopulation(level, volumeId, plannedChunks.size());
-        MaterialEvidence material = placeAndVerifyIron(level, fixture, terrain, structure, hydrology.positions());
+        MaterialEvidence material = placeAndVerifyIron(level, fixture, terrain, structures, hydrology.positions());
         String populationDigest = SkyforgeDr40ProductionEcologyEvidence.populationOutcomeDigest(
                 SkyforgeNativeSurfacePopulationStage.completedNativePhases(volumeId));
 
@@ -126,10 +79,8 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         regionDigest = mixText(regionDigest, interior.digest());
         regionDigest = mix(regionDigest, material.position().asLong());
         regionDigest = mixText(regionDigest, material.blockId().toString());
-        regionDigest = mixText(regionDigest, structure.identity().structureId().toString());
-        regionDigest = mix(regionDigest, structure.identity().targetChunkKey());
-        regionDigest = mix(regionDigest, structure.representativePosition().asLong());
-        regionDigest = mixText(regionDigest, structure.representativeBlockId().toString());
+        regionDigest = mix(regionDigest, structures.completedStructures());
+        regionDigest = mixText(regionDigest, structures.digest());
 
         Map<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("dr50IntegratedRegion", true);
@@ -151,17 +102,11 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         evidence.put("dr50Material", material.blockId().toString());
         evidence.put("dr50MaterialPos", Long.toString(material.position().asLong()));
         evidence.put("dr50MaterialReplayWritten", false);
-        evidence.put("dr50Structure", structure.identity().structureId().toString());
-        evidence.put("dr50StructureTargetChunk", Long.toString(structure.identity().targetChunkKey()));
-        evidence.put("dr50StructureMinX", structure.identity().minX());
-        evidence.put("dr50StructureMinY", structure.identity().minY());
-        evidence.put("dr50StructureMinZ", structure.identity().minZ());
-        evidence.put("dr50StructureMaxX", structure.identity().maxX());
-        evidence.put("dr50StructureMaxY", structure.identity().maxY());
-        evidence.put("dr50StructureMaxZ", structure.identity().maxZ());
-        evidence.put("dr50StructureRepresentativePos", Long.toString(structure.representativePosition().asLong()));
-        evidence.put("dr50StructureRepresentativeBlock", structure.representativeBlockId().toString());
-        evidence.put("dr50StructureCompletionPersistable", true);
+        evidence.put("dr50StructureLifecycleInvoked", true);
+        evidence.put("dr50CanonicalCompletedStructures", structures.completedStructures());
+        evidence.put("dr50CanonicalStructureDigest", structures.digest());
+        evidence.put("dr50StructureProofAuthority", "DR-30_NATIVE_STRUCTURE_ACCEPTANCE");
+        evidence.put("dr50StructurePersistenceAuthority", "DR-30_NATIVE_STRUCTURE_ACCEPTANCE");
         evidence.put("dr50PopulationOutcomeDigest", populationDigest);
         evidence.put("dr50ExactVolumeIsolation", true);
         evidence.put("dr50NoHydrologyMaterialCollision", true);
@@ -203,34 +148,37 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         return new HydrologyEvidence(List.copyOf(positions), Long.toUnsignedString(digest, 16), positions.getFirst());
     }
 
-    private static StructureEvidence verifyStructure(
+    private static StructureLifecycleEvidence verifyStructureLifecycle(
             ServerLevel level,
             SkyIslandWorldVolumeId volumeId,
             Set<Long> plannedChunks) {
         var saved = SkyforgeNativeStructurePlacementSavedData.forLevel(level);
-        List<SkyforgeNativeStructurePlacementSavedData.PlacementIdentity> candidates = new ArrayList<>();
+        List<SkyforgeNativeStructurePlacementSavedData.PlacementIdentity> completed = new ArrayList<>();
         for (long chunkKey : plannedChunks) {
             for (var identity : saved.ownedFor(volumeId, chunkKey)) {
-                if (identity.structureId().equals(MANSION) && saved.completed(identity)) {
-                    candidates.add(identity);
+                if (!saved.completed(identity)) {
+                    throw new IllegalStateException(
+                            "DR-50 canonical structure lifecycle retained an incomplete identity: " + identity);
                 }
+                completed.add(identity);
             }
         }
-        candidates.sort(Comparator.naturalOrder());
-        if (candidates.size() != 1) {
-            throw new IllegalStateException(
-                    "DR-50 requires exactly one completed canonical generic structure probe; found " + candidates.size());
+        completed.sort(Comparator.naturalOrder());
+        long digest = FNV_OFFSET_BASIS;
+        for (var identity : completed) {
+            digest = mixText(digest, identity.structureId().toString());
+            digest = mix(digest, identity.targetChunkKey());
+            digest = mix(digest, identity.minX());
+            digest = mix(digest, identity.minY());
+            digest = mix(digest, identity.minZ());
+            digest = mix(digest, identity.maxX());
+            digest = mix(digest, identity.maxY());
+            digest = mix(digest, identity.maxZ());
         }
-        var identity = candidates.getFirst();
-        if (identity.targetChunkKey() != ChunkPos.asLong(PROBE_CHUNK_X, PROBE_CHUNK_Z)) {
-            throw new IllegalStateException("DR-50 generic structure probe resolved outside the canonical target chunk");
-        }
-        BlockPos representative = findRepresentativeStructureBlock(level, identity);
-        if (representative == null) {
-            throw new IllegalStateException("DR-50 structure completion has no surviving representative physical block");
-        }
-        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(level.getBlockState(representative).getBlock());
-        return new StructureEvidence(identity, representative, blockId);
+        return new StructureLifecycleEvidence(
+                completed.size(),
+                Long.toUnsignedString(digest, 16),
+                List.copyOf(completed));
     }
 
     private static InteriorEvidence verifyInteriorPopulation(
@@ -314,7 +262,7 @@ final class SkyforgeDr50IntegratedRegionEvidence {
             ServerLevel level,
             SkyforgeNeoForge1211ProductionComposedCaveFixture.Single fixture,
             SkyforgeNeoForge1211ChunkAdapter terrain,
-            StructureEvidence structure,
+            StructureLifecycleEvidence structures,
             List<BlockPos> hydrologyPositions) {
         var profile = new SkyIslandBaseMetalOpportunityProfiler().profile(fixture.descriptor());
         var deployment = SkyforgeIronDepositAdapter.plan(
@@ -327,8 +275,8 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         if (hydrologyPositions.contains(position)) {
             throw new IllegalStateException("DR-50 Iron deployment collides with authored hydrology at " + position);
         }
-        if (inside(structure.identity(), position)) {
-            throw new IllegalStateException("DR-50 Iron deployment collides with native structure bounds at " + position);
+        if (structures.identities().stream().anyMatch(identity -> inside(identity, position))) {
+            throw new IllegalStateException("DR-50 Iron deployment collides with a naturally completed native structure at " + position);
         }
         if (!terrain.isSolidOwnedBy(deployment.volumeId(), position.getX(), position.getY(), position.getZ())
                 || terrain.isSolidOwnedByOtherVolume(deployment.volumeId(), position.getX(), position.getY(), position.getZ())) {
@@ -359,33 +307,6 @@ final class SkyforgeDr50IntegratedRegionEvidence {
                 && position.getZ() >= identity.minZ() && position.getZ() <= identity.maxZ();
     }
 
-    private static BlockPos findRepresentativeStructureBlock(
-            ServerLevel level,
-            SkyforgeNativeStructurePlacementSavedData.PlacementIdentity identity) {
-        int chunkMinX = ChunkPos.getX(identity.targetChunkKey()) * 16;
-        int chunkMinZ = ChunkPos.getZ(identity.targetChunkKey()) * 16;
-        int minX = Math.max(identity.minX(), chunkMinX);
-        int maxX = Math.min(identity.maxX(), chunkMinX + 15);
-        int minZ = Math.max(identity.minZ(), chunkMinZ);
-        int maxZ = Math.min(identity.maxZ(), chunkMinZ + 15);
-        for (int y = Math.max(identity.minY(), level.getMinBuildHeight());
-                y <= Math.min(identity.maxY(), level.getMaxBuildHeight() - 1); y++) {
-            for (int z = minZ; z <= maxZ; z++) {
-                for (int x = minX; x <= maxX; x++) {
-                    BlockPos pos = new BlockPos(x, y, z);
-                    BlockState state = level.getBlockState(pos);
-                    if (state.is(Blocks.DARK_OAK_PLANKS)
-                            || state.is(Blocks.DARK_OAK_LOG)
-                            || state.is(Blocks.COBBLESTONE)
-                            || state.is(Blocks.GLASS_PANE)) {
-                        return pos.immutable();
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
     static ReloadExpectation reloadExpectation(Properties properties) {
         Objects.requireNonNull(properties, "properties");
         if (!Boolean.getBoolean(RELOAD_PROPERTY)) {
@@ -393,11 +314,7 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         }
         return new ReloadExpectation(
                 BlockPos.of(Long.parseLong(required(properties, "dr50MaterialPos"))),
-                BlockPos.of(Long.parseLong(required(properties, "dr50HydrologyRepresentativePos"))),
-                BlockPos.of(Long.parseLong(required(properties, "dr50StructureRepresentativePos"))),
-                ResourceLocation.parse(required(properties, "dr50StructureRepresentativeBlock")),
-                ResourceLocation.parse(required(properties, "dr50Structure")),
-                Long.parseLong(required(properties, "dr50StructureTargetChunk")));
+                BlockPos.of(Long.parseLong(required(properties, "dr50HydrologyRepresentativePos"))));
     }
 
     private static String required(Properties properties, String key) {
@@ -424,17 +341,13 @@ final class SkyforgeDr50IntegratedRegionEvidence {
 
     record ReloadExpectation(
             BlockPos materialPosition,
-            BlockPos hydrologyPosition,
-            BlockPos structurePosition,
-            ResourceLocation structureBlockId,
-            ResourceLocation structureId,
-            long structureTargetChunk) {}
+            BlockPos hydrologyPosition) {}
 
     private record HydrologyEvidence(List<BlockPos> positions, String digest, BlockPos representativePosition) {}
-    private record StructureEvidence(
-            SkyforgeNativeStructurePlacementSavedData.PlacementIdentity identity,
-            BlockPos representativePosition,
-            ResourceLocation representativeBlockId) {}
+    private record StructureLifecycleEvidence(
+            int completedStructures,
+            String digest,
+            List<SkyforgeNativeStructurePlacementSavedData.PlacementIdentity> identities) {}
     private record MaterialEvidence(BlockPos position, ResourceLocation blockId) {}
     private record InteriorEvidence(
             int completedObligations,

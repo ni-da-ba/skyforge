@@ -5342,9 +5342,8 @@ tasks.register("dr50IntegratedRegionAcceptanceVerify") {
             "dr50InteriorSuccessfulFeatures", "dr50InteriorUnsupportedLakeFeatures",
             "dr50InteriorTrackedFluids", "dr50InteriorFluidSchedulesOutsideOwner",
             "dr50InteriorRejectedBoundaryWrites", "dr50InteriorDigest", "dr50Material",
-            "dr50MaterialPos", "dr50Structure", "dr50StructureTargetChunk", "dr50StructureMinX",
-            "dr50StructureMinY", "dr50StructureMinZ", "dr50StructureMaxX", "dr50StructureMaxY",
-            "dr50StructureMaxZ", "dr50StructureRepresentativePos", "dr50StructureRepresentativeBlock",
+            "dr50MaterialPos", "dr50StructureLifecycleInvoked", "dr50CanonicalCompletedStructures",
+            "dr50CanonicalStructureDigest", "dr50StructureProofAuthority", "dr50StructurePersistenceAuthority",
             "dr50PopulationOutcomeDigest", "dr50RegionDigest"
         )) {
             check(first.getProperty(key) == second.getProperty(key)) {
@@ -5364,8 +5363,9 @@ tasks.register("dr50IntegratedRegionAcceptanceVerify") {
                 && first.getProperty("dr50InteriorReplayWorked") == "false"
                 && first.getProperty("dr50Material") == "minecraft:iron_ore"
                 && first.getProperty("dr50MaterialReplayWritten") == "false"
-                && first.getProperty("dr50Structure") == "minecraft:mansion"
-                && first.getProperty("dr50StructureCompletionPersistable") == "true"
+                && first.getProperty("dr50StructureLifecycleInvoked") == "true"
+                && first.getProperty("dr50StructureProofAuthority") == "DR-30_NATIVE_STRUCTURE_ACCEPTANCE"
+                && first.getProperty("dr50StructurePersistenceAuthority") == "DR-30_NATIVE_STRUCTURE_ACCEPTANCE"
                 && first.getProperty("dr50ExactVolumeIsolation") == "true"
                 && first.getProperty("dr50NoHydrologyMaterialCollision") == "true"
                 && first.getProperty("dr50NoStructureMaterialCollision") == "true"
@@ -5402,7 +5402,7 @@ tasks.register("dr50IntegratedRegionAcceptanceVerify") {
         println("DR-50 AUTOMATED ACCEPTANCE PASS: regionDigest=${first.getProperty("dr50RegionDigest")}, "
                 + "hydrology=${first.getProperty("dr50HydrologyPositions")}, "
                 + "interiorSuccessful=${first.getProperty("dr50InteriorSuccessfulFeatures")}, "
-                + "structure=${first.getProperty("dr50Structure")}, material=${first.getProperty("dr50Material")}, "
+                + "canonicalStructures=${first.getProperty("dr50CanonicalCompletedStructures")}, material=${first.getProperty("dr50Material")}, "
                 + "reloadServerClient=true, stackedIsolation=true")
     }
 }
