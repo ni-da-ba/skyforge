@@ -72,7 +72,7 @@ final class AircraftPowertrainRuntimeResourceTest {
         assertTrue(source.contains("RUDDER_PROPERTY"));
         assertTrue(source.contains("else if (Boolean.getBoolean(RUDDER_PROPERTY))"));
         assertTrue(source.contains("rudderMode = true"));
-        assertTrue(source.contains("controlAxisQualified=" + rudderMode));
+        assertTrue(source.contains("controlAxisQualified=\" + rudderMode"));
         assertTrue(build.contains("aircraftPowertrainRuntime128Server"));
         assertTrue(workflow.contains("l1-contract"));
         assertTrue(workflow.contains("l2-exact-stack"));
