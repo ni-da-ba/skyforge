@@ -174,8 +174,14 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
             pressSpeed = pressState.speed();
             requireNoForbiddenTransport();
             requireGenericRecipe();
-            ItemEntity input = new ItemEntity(level, SAW.getX() + 0.5, SAW.getY() + 2.25, SAW.getZ() + 0.5,
+            // Keep the world-item handoff ordinary but bounded: place the item just above the
+            // upright Saw's 12px collision top and let vanilla gravity/fall-on handling perform
+            // acquisition. A multi-block free fall can drift off the small Saw collision surface
+            // before updateEntityAfterFallOn() is reached, which is staging noise rather than a
+            // property of the Create world-item processing seam.
+            ItemEntity input = new ItemEntity(level, SAW.getX() + 0.5, SAW.getY() + 0.90, SAW.getZ() + 0.5,
                     new ItemStack(requireItem(INPUT_ID)));
+            input.setDeltaMovement(0.0, -0.08, 0.0);
             input.setDefaultPickUpDelay();
             if (!level.addFreshEntity(input)) {
                 fail(SkyforgeCompilerIntegrationFailure.FAIL_NETWORK, finalDiagnostic("addFreshEntity=false"),
