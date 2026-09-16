@@ -17,6 +17,7 @@
     "SkyforgeLevelTicksFluidProvenanceMixin",
     "SkyforgeWorldGenTickAccessFluidProvenanceMixin",
     "SkyforgeLakeFeatureAdmissionMixin",
+    "SkyforgeCocoaDecoratorDomainMixin",
     "SkyforgePortableEngineBlockEntityMixin",
     "SkyforgePortableEngineBlockMixin",
     "SkyforgeDieselPumpjackOilAuthorityMixin",

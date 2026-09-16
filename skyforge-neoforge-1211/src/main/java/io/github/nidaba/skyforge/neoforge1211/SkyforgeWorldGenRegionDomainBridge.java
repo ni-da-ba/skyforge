@@ -18,6 +18,11 @@ public final class SkyforgeWorldGenRegionDomainBridge {
                 || SkyforgeStructurePlacementExecutionStage.active();
     }
 
+    /** True only while one exact-volume native population feature is executing. */
+    public static boolean populationActive() {
+        return SkyforgePopulationExecutionStage.activeExecution().isPresent();
+    }
+
     public static boolean isVisible(BlockPos position) {
         Objects.requireNonNull(position, "position");
         if (!SkyforgeStructurePlacementExecutionStage.isVisible(position)) {
