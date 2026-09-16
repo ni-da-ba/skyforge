@@ -2182,6 +2182,16 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // AIRCRAFT-RUNTIME-003: production corrected v0.13.1 rudder child + real kinetic actuation.
+        create("aircraftRudderActuationServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-aircraft-rudder-actuation").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.aircraftRudderActuation", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
 
         // AIRCRAFT-RUNTIME-002: two-boot production v0.12 aircraft persistence consumer.
         create("aircraftPowertrainPersistencePrepareServer") {
@@ -3086,6 +3096,20 @@ tasks.named("runAircraftPowertrainRuntime128Server").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(aircraftPowertrainRuntime128ServerProperties)
+    }
+}
+
+val aircraftRudderActuationServerProperties = aircraftPowertrainRuntime128ServerProperties
+    .replace("level-name=aircraft-powertrain-runtime-128", "level-name=aircraft-rudder-actuation")
+    .replace("level-seed=668001", "level-seed=684001")
+
+tasks.named("runAircraftRudderActuationServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-aircraft-rudder-actuation").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(aircraftRudderActuationServerProperties)
     }
 }
 
