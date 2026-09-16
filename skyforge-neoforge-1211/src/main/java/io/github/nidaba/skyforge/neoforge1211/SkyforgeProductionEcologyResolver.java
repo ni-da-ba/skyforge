@@ -9,6 +9,7 @@ import io.github.nidaba.skyforge.world.SkyIslandSurfaceSiteCapabilityProfiler;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
@@ -43,15 +44,31 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
                     "DR-40 ecology resolver references a foreign exact volume: "
                             + candidateVolumeId.path());
         }
+        return resolveAuthoredSurface(candidateVolumeId, worldX, worldZ)
+                .orElseThrow(() -> new IllegalStateException(
+                        "DR-40 native population sampled physical terrain without authored surface ecology at "
+                                + worldX + "," + worldZ));
+    }
+
+    Optional<ResourceKey<Biome>> resolveAuthoredSurface(
+            SkyIslandWorldVolumeId candidateVolumeId,
+            int worldX,
+            int worldZ) {
+        if (!volumeId.equals(Objects.requireNonNull(candidateVolumeId, "candidateVolumeId"))) {
+            throw new IllegalArgumentException(
+                    "DR-40 ecology resolver references a foreign exact volume: "
+                            + candidateVolumeId.path());
+        }
         var surface = ecology.sample(volumeId, new Coordinate2(worldX, worldZ));
-        var authored = surface.ecologySample().orElseThrow(() -> new IllegalStateException(
-                "DR-40 native population sampled physical terrain without authored surface ecology at "
-                        + worldX + "," + worldZ));
+        var authored = surface.ecologySample();
+        if (authored.isEmpty()) {
+            return Optional.empty();
+        }
         var cell = hydrology.cellForWorldColumn(volumeId, worldX, worldZ);
         if (cell.isPresent() && hydrology.hasAuthoredFreshwaterOrRiparianContext(cell.orElseThrow())) {
-            return Biomes.SWAMP;
+            return Optional.of(Biomes.SWAMP);
         }
-        return carrier(authored.regime());
+        return Optional.of(carrier(authored.orElseThrow().regime()));
     }
 
     boolean supportsCoordinatorSurface(
