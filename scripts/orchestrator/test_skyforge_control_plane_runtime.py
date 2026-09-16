@@ -14,6 +14,16 @@ runtime = importlib.import_module("skyforge_control_plane_runtime")
 
 
 class LightweightHostedEditingRuntimeTests(unittest.TestCase):
+    def test_hosted_entrypoint_installs_closed_active_issue_recovery(self):
+        recovery = runtime.roadmap_closed_issue_recovery_runtime
+        self.assertTrue(
+            getattr(runtime.roadmap_runtime, "_skyforge_closed_active_issue_recovery_installed", False)
+        )
+        self.assertIs(
+            runtime.roadmap_runtime._roadmap_resolve_active,
+            recovery._resolve_active_closed_issue,
+        )
+
     def test_worker_instructions_are_edit_only(self):
         instructions = runtime.core.WORKER_INSTRUCTIONS
         self.assertIn("HOSTED EXECUTION BOUNDARY — EDITING ONLY", instructions)
