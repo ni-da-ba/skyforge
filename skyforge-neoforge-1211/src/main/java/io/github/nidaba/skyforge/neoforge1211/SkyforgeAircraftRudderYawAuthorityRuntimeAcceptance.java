@@ -15,6 +15,7 @@ final class SkyforgeAircraftRudderYawAuthorityRuntimeAcceptance {
     static final double FORWARD_SPEED_MPS = 10.0;
     static final int PHYSICAL_SETTLE_TICKS = 80;
     static final double MINIMUM_PHYSICAL_DEFLECTION_DEGREES = 5.0;
+    static final double SIGN_PROBE_ORTHOGONAL_LIMIT_DEGREES = 90.0;
     static final double MINIMUM_LATERAL_FORCE_MAGNITUDE = 1.0e-4;
     static final double MINIMUM_YAW_MOMENT_MAGNITUDE = 1.0e-4;
 
@@ -35,6 +36,8 @@ final class SkyforgeAircraftRudderYawAuthorityRuntimeAcceptance {
         require(Double.isFinite(physicalYawDegrees), "FAIL_PHYSICS physical rudder yaw is non-finite");
         require(Math.abs(physicalYawDegrees) >= MINIMUM_PHYSICAL_DEFLECTION_DEGREES,
                 "FAIL_PHYSICS physical rudder deflection below meaningful floor: " + physicalYawDegrees);
+        require(Math.abs(physicalYawDegrees) < SIGN_PROBE_ORTHOGONAL_LIMIT_DEGREES,
+                "FAIL_PHYSICS yaw-sign probe crossed the 90-degree surface-normal reversal: " + physicalYawDegrees);
 
         SkyforgeAerodynamicForceObservationAcceptance.Observation observation =
                 SkyforgeAerodynamicForceObservationAcceptance.observe(level, parentSubLevel, currentChild, FORWARD_SPEED_MPS);
@@ -70,7 +73,7 @@ final class SkyforgeAircraftRudderYawAuthorityRuntimeAcceptance {
                 + " totalForceAircraft=" + forceAircraft + " totalMomentAircraft=" + momentAircraft
                 + " lateralForceZ=" + lateralForceZ + " yawMomentY=" + yawMomentY
                 + " lateralFloor=" + MINIMUM_LATERAL_FORCE_MAGNITUDE + " yawMomentFloor=" + MINIMUM_YAW_MOMENT_MAGNITUDE
-                + " signRule=yawMomentY_opposes_physicalYaw"
+                + " signRule=sub90_yawMomentY_opposes_physicalYaw"
                 + " aerodynamicModelFitted=false analyticalAuthorityIndependent=true"
                 + " atmosphereSweepQualified=false handlingQualified=false flightQualified=false");
         return new Result(targetDegrees, physicalYawDegrees, lateralForceZ, yawMomentY, childId);

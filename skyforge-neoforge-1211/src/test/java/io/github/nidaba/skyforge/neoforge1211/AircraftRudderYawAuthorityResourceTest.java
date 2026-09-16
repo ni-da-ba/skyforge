@@ -41,11 +41,13 @@ final class AircraftRudderYawAuthorityResourceTest {
         assertTrue(yaw.contains("FORWARD_SPEED_MPS = 10.0"));
         assertTrue(yaw.contains("PHYSICAL_SETTLE_TICKS = 80"));
         assertTrue(yaw.contains("MINIMUM_LATERAL_FORCE_MAGNITUDE = 1.0e-4"));
+        assertTrue(yaw.contains("SIGN_PROBE_ORTHOGONAL_LIMIT_DEGREES = 90.0"));
         assertTrue(yaw.contains("MINIMUM_YAW_MOMENT_MAGNITUDE = 1.0e-4"));
         assertTrue(yaw.contains("Math.signum(yawMomentY) == -Math.signum(physicalYawDegrees)"));
         assertTrue(yaw.contains("aerodynamicModelFitted=false analyticalAuthorityIndependent=true"));
         assertFalse(yaw.contains("setTargetAngle"));
         assertTrue(harness.contains("skyforge.dev.aircraftRudderYawAuthority"));
+        assertTrue(harness.contains("yawForceMode ? 3 : 10"));
         assertTrue(harness.contains("yawForceQualified=\" + yawForceMode"));
         assertTrue(build.contains("aircraftRudderYawAuthorityServer"));
         assertTrue(workflow.contains("l1-contract"));

@@ -856,10 +856,11 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             return;
         }
         if (rudderMode) {
+            int rudderCommandTicks = yawForceMode ? 3 : 10;
             SkyforgeAircraftRudderActuationRuntimeAcceptance.verify(
                     level, canonical, movedSwivel, movedRudder,
                     mainExpected.keySet().stream().map(SkyforgeAircraftPowertrainRuntimeAcceptance::moved).toList(),
-                    16, 10, 10, 0.1, 2.0, 5.0, yawForceMode);
+                    16, rudderCommandTicks, 10, 0.1, 2.0, 5.0, yawForceMode);
         }
         restorePhysicsPause();
         removeFixtureForceLoadTicket();
