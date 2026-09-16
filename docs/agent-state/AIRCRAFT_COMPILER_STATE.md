@@ -1,7 +1,7 @@
 # Skyforge Aircraft Compiler state
 
 **Program authority:** issue #545  
-**Productionization boundary:** AIRCRAFT-RUNTIME-001 / issue #668
+**Productionization boundary:** AIRCRAFT-RUNTIME-002 / issue #674
 **Frozen evidence only:** `aircraft-compiler-proof@0651bcee7dc879ab43db2f0b224f77e5026222bd`  
 **Frozen implementation beneath checkpoint:** `cc020c872b9c53198cebbb0ae9094097f23c9c45`
 
@@ -249,7 +249,7 @@ The frozen branch contains accepted evidence for later compiler/runtime stages, 
 not current-`main` production authority for:
 
 - live registry/blockstate validation beyond the bounded 128-RPM specimen;
-- aircraft-specific save/reload/disassembly-reassembly behavior, higher governed RPM points, and live behavior beyond the bounded 128-RPM powertrain gate;
+- higher governed RPM points and live behavior beyond the bounded 128-RPM powertrain/persistence gates;
 - yaw mechanism, cockpit routing, player interaction, and moving-body tracking.
 
 Those capabilities must be extracted through their own bounded production issues from current
@@ -260,7 +260,7 @@ contracts.
 
 The following remain unqualified as aircraft capabilities:
 
-- completed-control persistence/save-reload;
+- completed-control mechanism persistence/save-reload;
 - pitch;
 - roll;
 - multi-axis control;
@@ -276,14 +276,44 @@ only when `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json` on accepted 
 grants Agent B production authority for that capability. Until then, Aircraft must not reproduce or
 work around the Platform fixture inside a complete aircraft.
 
+## Qualified by AIRCRAFT-RUNTIME-002
+
+On acceptance of issue #674, the production v0.12 Guild utility specimen is qualified across a genuine
+fresh-process save/stop/reload boundary at the already accepted 128-RPM operating point:
+
+- both boots compile the same production chain and require identical manifest and powertrain SHA-256
+  identities before runtime evidence is accepted;
+- Boot A reaches 128 RPM with finite positive stress margin and the accepted WEST/-X nonzero thrust sign,
+  normalizes the nine-block Propeller Bearing child before save, and persists the canonical primary Sable
+  UUID plus the real `GlobalSavedSubLevelPointer` locator needed by the accepted production-scale seam;
+- Boot B makes the saved locator chunk available, re-resolves the **same** persistent primary UUID to fresh
+  canonical/current physics authority, and never treats a pre-reload Java object, block entity, entity,
+  physics handle, child, or kinetic-network reference as authoritative;
+- exactly five compiler-emitted Super Glue domains recover through the accepted bounded rehydration path
+  without duplicate glue authority;
+- the normalized propeller payload reassembles as a fresh child with exactly one hub plus eight symmetric
+  sails and realized sail power 8, with no stale pre-reload child retained;
+- the two Portable Engines and governor are lifecycle-reactivated only where the accepted Platform contract
+  requires it, return the production network to 128 RPM, and reproduce finite positive stress margin plus
+  the accepted thrust observation;
+- production setup consumes PLATFORM-013 source readiness at aircraft scale: all compiler-emitted source
+  chunks must be Sable-ready and Minecraft entity-ticking-ready, all five glue domains must be Create-visible,
+  the real Physics Assembler must synchronously transfer the exact 127 source members to zero, and temporary
+  source-chunk tickets are released after canonical-body capture;
+- locator/liveness qualification tickets are released before PASS. These tickets and readiness gates are
+  qualification sequencing only and are not production force-load policy.
+
+This gate qualifies completed-aircraft persistence/recovery only for the production v0.12 specimen at
+128 RPM. It does **not** qualify 160/192/224/256 RPM, rudder/yaw, cockpit routing, pitch, roll, multi-axis
+control, atmosphere-envelope behavior, handling, stable powered flight, or human flight/feel.
+
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-RUNTIME-001 is accepted on `main`, the next required aircraft gate is completed-aircraft
-save/reload persistence before new control-axis production work. Current Platform lifecycle grants do
-**not** qualify persistence; Agent B must consume a reusable accepted save/reload seam when one exists
-and must not invent an aircraft-specific persistence workaround. Until that dependency is available,
-static frozen yaw-control evidence may remain reference material but must not be promoted as a
-production-ready new axis.
+With AIRCRAFT-RUNTIME-002 accepted, the next bounded production tranche is AIRCRAFT-PROD-012 / issue #682:
+productionize the corrected static v0.13.1 yaw-control topology from current `main`, preserving the failed
+v0.13 hinge/separator predecessor as falsification evidence and making no live Swivel/yaw-authority claim.
+Runtime rudder actuation, physical yaw authority, cockpit routing, actual-client control, and pilot tracking
+remain separate downstream gates.
 
 ## Prepared by AIRCRAFT-DESIGN-001
 

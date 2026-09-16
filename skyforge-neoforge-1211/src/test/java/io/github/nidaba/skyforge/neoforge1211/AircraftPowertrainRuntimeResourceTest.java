@@ -47,7 +47,7 @@ final class AircraftPowertrainRuntimeResourceTest {
     }
 
     @Test
-    void runtimeGateIsBoundedTo128RpmAndExcludesPersistenceAndNewAxes() throws IOException {
+    void legacyRuntimeGateRemainsBoundedTo128RpmWithPersistenceModeIsolated() throws IOException {
         String source = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraftPowertrainRuntimeAcceptance.java"));
         String build = Files.readString(PROJECT_DIRECTORY.resolve("build.gradle.kts"));
@@ -59,13 +59,22 @@ final class AircraftPowertrainRuntimeResourceTest {
         assertTrue(source.contains("persistenceQualified=false"));
         assertTrue(source.contains("controlAxisQualified=false"));
         assertTrue(source.contains("analyticalAuthorityIndependent=true"));
+        assertTrue(source.contains("SOURCE_CHUNK_READINESS"));
+        assertTrue(source.contains("PhysicsChunkTicketManager"));
+        assertTrue(source.contains("isPositionEntityTicking"));
+        assertTrue(source.contains("sourceChunkTickets=released"));
         assertTrue(source.contains("compiler-emitted propeller child did not re-form without hidden child glue"));
-        assertFalse(source.contains("PERSISTENCE_RELOAD"));
+        assertTrue(source.contains("RunMode.LEGACY"));
+        assertTrue(source.contains("System.getProperty(PERSISTENCE_PROPERTY"));
+        assertTrue(source.contains("runMode == RunMode.PREPARE"));
+        assertTrue(source.contains("runMode == RunMode.VERIFY"));
         assertFalse(source.contains("steering_wheel"));
         assertFalse(source.contains("swivel_bearing"));
         assertTrue(build.contains("aircraftPowertrainRuntime128Server"));
         assertTrue(workflow.contains("l1-contract"));
         assertTrue(workflow.contains("l2-exact-stack"));
         assertTrue(workflow.contains("waveC11ResolvePinnedMods"));
+        assertTrue(workflow.contains("runAircraftPowertrainRuntime128Server"));
+        assertFalse(workflow.contains("runAircraftPowertrainPersistence"));
     }
 }
