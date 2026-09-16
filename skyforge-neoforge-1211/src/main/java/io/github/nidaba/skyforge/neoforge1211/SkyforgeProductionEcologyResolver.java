@@ -9,6 +9,7 @@ import io.github.nidaba.skyforge.world.SkyIslandSurfaceSiteCapabilityProfiler;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.List;
 import java.util.Objects;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
@@ -51,6 +52,22 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
             return Biomes.SWAMP;
         }
         return carrier(authored.regime());
+    }
+
+    boolean supportsCoordinatorSurface(
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            ChunkPos chunkPos) {
+        Objects.requireNonNull(terrain, "terrain");
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        for (var probe : SkyforgeNativeSurfacePopulationCoordinator.surfaceProbeOrder()) {
+            int worldX = chunkPos.getMinBlockX() + probe.localX();
+            int worldZ = chunkPos.getMinBlockZ() + probe.localZ();
+            if (terrain.integerSolidRange(volumeId, worldX, worldZ).isEmpty()) {
+                continue;
+            }
+            return ecology.sample(volumeId, new Coordinate2(worldX, worldZ)).authoredSurfacePresent();
+        }
+        return false;
     }
 
     static ResourceKey<Biome> carrier(SkyIslandEcologyRegime regime) {

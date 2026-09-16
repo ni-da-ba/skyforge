@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 
 final class SkyforgeProductionEcologyResolverTest {
     @Test
-    void canonicalCoordinatorSurfaceSamplesResolveMultipleAuthoredCarriers() {
+    void canonicalCoordinatorSurfaceSamplesPopulateOnlyExactAuthoredSurfaceAndStillDifferentiate() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var association = SkyIslandAuthoredRealizationAssociation.of(fixture.descriptor(), fixture.volume());
         var resolver = new SkyforgeProductionEcologyResolver(association);
@@ -24,9 +24,14 @@ final class SkyforgeProductionEcologyResolverTest {
                 java.util.Map.of(fixture.volume().id(), fixture.descriptor()));
 
         var carriers = new HashSet<net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome>>();
-        int sampledChunks = 0;
+        int supportedChunks = 0;
+        int omittedEdgeChunks = 0;
         for (long chunkKey : requiredChunkKeys(fixture.volume().bounds())) {
             ChunkPos chunk = new ChunkPos(chunkKey);
+            if (!resolver.supportsCoordinatorSurface(terrain, chunk)) {
+                omittedEdgeChunks++;
+                continue;
+            }
             for (var probe : SkyforgeNativeSurfacePopulationCoordinator.surfaceProbeOrder()) {
                 int x = chunk.getMinBlockX() + probe.localX();
                 int z = chunk.getMinBlockZ() + probe.localZ();
@@ -36,12 +41,13 @@ final class SkyforgeProductionEcologyResolverTest {
                 }
                 carriers.add(resolver.resolve(
                         fixture.volume().id(), x, range.orElseThrow().maximumY() + 1, z));
-                sampledChunks++;
+                supportedChunks++;
                 break;
             }
         }
-        assertTrue(sampledChunks > 0);
-        assertTrue(carriers.size() >= 2, "canonical production surface must expose authored ecology differentiation");
+        assertTrue(supportedChunks > 0);
+        assertTrue(omittedEdgeChunks > 0, "physical-only edge chunks must remain ecology-unclaimed");
+        assertTrue(carriers.size() >= 2, "canonical authored surface must expose ecology differentiation");
     }
 
     @Test
