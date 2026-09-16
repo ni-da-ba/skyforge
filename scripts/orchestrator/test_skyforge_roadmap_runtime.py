@@ -378,7 +378,7 @@ class RoadmapRuntimeTests(unittest.TestCase):
                 }
                 o.state.save()
 
-            def issue_open(issue_number):
+            def issue_open(_orchestrator, issue_number):
                 return False if issue_number == 493 else True
 
             with (
