@@ -65,6 +65,9 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(client.contains("gate=pose-convergence"));
         assertTrue(client.contains("gate=seat-use-attempt"));
         assertTrue(server.contains("clientMountDiagnostic={"));
+        assertTrue(server.contains("SkyforgePlayerTrackingOnSableBridge.publish"));
+        assertTrue(server.contains("SkyforgePlayerTrackingOnSableBridge.snapshot"));
+        assertFalse(server.contains("SkyforgeSeatPassengerOnSableBridge"));
         assertTrue(bridge.contains("mountDiagnostic"));
         assertTrue(measurement.contains("clientTrackingSubLevel"));
         assertTrue(measurement.contains("submitClientTranslationBaseline"));

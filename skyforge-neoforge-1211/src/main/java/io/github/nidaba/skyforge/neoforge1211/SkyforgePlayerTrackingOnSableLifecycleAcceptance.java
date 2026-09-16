@@ -299,7 +299,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
         requireMovedSeatBlock();
         Vec3 standPlot = new Vec3(movedSeat.getX() + 0.5, movedSeat.getY() + 1.0, movedSeat.getZ() + 0.5);
         Vec3 expectedGlobalSeatCenter = projectThroughCanonicalBody(canonical, Vec3.atCenterOf(movedSeat));
-        SkyforgeSeatPassengerOnSableBridge.publish(bodyId, movedSeat, standPlot, expectedGlobalSeatCenter);
+        SkyforgePlayerTrackingOnSableBridge.publish(bodyId, movedSeat, standPlot, expectedGlobalSeatCenter);
         stage = Stage.CLIENT_MOUNT;
         waitDiagnostic = diagnostic(
                 SkyforgeCompilerIntegrationPhase.CLIENT_INTERACTION,
@@ -343,7 +343,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
             positionedPlayer.setInvulnerable(true);
             positionedPlayer.setItemInHand(InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY);
             Vec3 globalStand = projectThroughCanonicalBody(
-                    canonical, SkyforgeSeatPassengerOnSableBridge.snapshot().standPlotPosition());
+                    canonical, SkyforgePlayerTrackingOnSableBridge.snapshot().standPlotPosition());
             positionedPlayer.teleportTo(globalStand.x, globalStand.y, globalStand.z);
             positionedPlayer.setDeltaMovement(Vec3.ZERO);
             playerPositioned = true;
