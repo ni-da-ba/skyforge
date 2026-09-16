@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "milestone": "DR-10",
-  "state": "READY",
+  "state": "ACCEPTED",
   "specimen_id": "P2_DRESSED_REGION_A",
   "consumes": {
     "dr00_specimen_lock": "docs/agent-state/DR00_SPECIMEN_LOCK.json",
@@ -34,5 +34,19 @@
   "verification": {
     "entry_point": "python3 scripts/orchestrator/with_hosted_jdk.py -- ./gradlew :skyforge-neoforge-1211:test --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeDr10MaterialsEvidenceTest --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeDr00SpecimenLockTest --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeIronDepositAdapterTest --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeCopperDepositAdapterTest --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeZincDepositAdapterTest",
     "fail_closed": "If the DR-00 identity changes, C20 no longer assigns Iron to STARTING_CLUSTER, or the canonical descriptor has zero Iron opportunity, the evidence guard fails and no substitute specimen or injected deposit is selected."
+  },
+  "acceptance": {
+    "implementation_issue": 491,
+    "content_closure_issue": 534,
+    "content_pr": 543,
+    "accepted_head": "0c6ba1aa48a2a266b4ddc5caefb9b141721930a7",
+    "merge_commit": "c152b38c5cbf018dd6a29b96331f11eb30cb3717",
+    "merged_at": "2026-09-13T03:38:02Z",
+    "github_actions": {
+      "workflow": "CI",
+      "run_id": 34735658185,
+      "conclusion": "success"
+    },
+    "objective_acceptance": "Issue #534 closed at 2026-09-13T18:12:11Z and issue #491 closed at 2026-09-13T18:12:42Z after the starting-cluster Iron scope proof joined the already accepted Iron/Copper/Zinc production realization."
   }
 }
