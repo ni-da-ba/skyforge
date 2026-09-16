@@ -4966,7 +4966,8 @@ tasks.register("dr40ProductionEcologyAcceptanceVerify") {
             "dr40NativeSuccessfulFeatures", "dr40SupportedPopulationChunks",
             "dr40OmittedPhysicalEdgeChunks", "dr40LandAPos", "dr40LandABiome",
             "dr40LandBPos", "dr40LandBBiome", "dr40WetPos", "dr40WetBiome",
-            "composedDigest"
+            "nativeTransformDigest", "nativeCarveDigest", "authoredChangedDigest",
+            "authoredProvenanceDigest", "dr40PopulationOutcomeDigest"
         )) {
             check(first.getProperty(key) == second.getProperty(key)) {
                 "DR-40 deterministic evidence changed for $key: A=${first.getProperty(key)} B=${second.getProperty(key)}"
@@ -4978,6 +4979,7 @@ tasks.register("dr40ProductionEcologyAcceptanceVerify") {
                 && first.getProperty("dr40AuthorshipAuthority") == "AUTH-0046+AUTH-0103+AUTH-0096"
                 && first.getProperty("dr40NativeBiomeCount").toInt() >= 2
                 && first.getProperty("dr40NativeSuccessfulFeatures").toInt() > 0
+                && !first.getProperty("dr40PopulationOutcomeDigest").isNullOrBlank()
                 && first.getProperty("dr40SupportedPopulationChunks").toInt() > 0
                 && first.getProperty("dr40OmittedPhysicalEdgeChunks").toInt() > 0
                 && first.getProperty("dr40LandABiome") != first.getProperty("dr40LandBBiome")

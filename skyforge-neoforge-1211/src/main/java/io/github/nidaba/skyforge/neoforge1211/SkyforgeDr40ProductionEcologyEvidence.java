@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandAuthoredRealizationAssociation;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -50,7 +51,11 @@ final class SkyforgeDr40ProductionEcologyEvidence {
             throw new IllegalStateException("DR-40 evidence collected before durable biome presentation completed");
         }
 
-        var nativeResults = SkyforgeNativeSurfacePopulationStage.completedNativeResults(volumeId);
+        var nativePhases = SkyforgeNativeSurfacePopulationStage.completedNativePhases(volumeId);
+        var nativeResults = nativePhases.stream()
+                .map(SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase::nativeResult)
+                .toList();
+        String populationOutcomeDigest = populationOutcomeDigest(nativePhases);
         Set<ResourceKey<Biome>> nativeBiomes = new LinkedHashSet<>();
         int successfulFeatures = 0;
         int attemptedFeatures = 0;
@@ -116,6 +121,7 @@ final class SkyforgeDr40ProductionEcologyEvidence {
         evidence.put("dr40NativeBiomeCount", nativeBiomes.size());
         evidence.put("dr40NativeAttemptedFeatures", attemptedFeatures);
         evidence.put("dr40NativeSuccessfulFeatures", successfulFeatures);
+        evidence.put("dr40PopulationOutcomeDigest", populationOutcomeDigest);
         evidence.put("dr40SupportedPopulationChunks", supportedPopulationChunks);
         evidence.put("dr40OmittedPhysicalEdgeChunks", omittedPhysicalEdgeChunks);
         evidence.put("dr40LandAPos", Long.toString(persisted.landPosA().asLong()));
@@ -129,6 +135,44 @@ final class SkyforgeDr40ProductionEcologyEvidence {
         evidence.put("dr40StructureBeforePopulation", true);
         evidence.put("dr40ForeignVolumeFailClosed", true);
         return Map.copyOf(evidence);
+    }
+
+    private static String populationOutcomeDigest(
+            java.util.List<SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase> phases) {
+        long digest = 0xcbf29ce484222325L;
+        for (var phase : phases) {
+            digest = mix(digest, phase.chunkKey());
+            digest = mix(digest, phase.phase().ordinal());
+            var result = phase.nativeResult();
+            digest = mixText(digest, result.biomeKey().location().toString());
+            digest = mix(digest, result.attemptedFeatures());
+            digest = mix(digest, result.successfulFeatures());
+            digest = mix(digest, result.attachmentWrites());
+            for (var feature : result.featureResults()) {
+                digest = mixText(digest, feature.featureKey().toString());
+                digest = mix(digest, feature.placed() ? 1L : 0L);
+                digest = mix(digest, feature.attachmentWrites());
+            }
+        }
+        return Long.toUnsignedString(digest, 16);
+    }
+
+    private static long mixText(long digest, String value) {
+        long mixed = digest;
+        for (byte element : value.getBytes(StandardCharsets.UTF_8)) {
+            mixed ^= element & 0xffL;
+            mixed *= 0x100000001b3L;
+        }
+        return mixed;
+    }
+
+    private static long mix(long digest, long value) {
+        long mixed = digest;
+        for (int shift = 0; shift < Long.SIZE; shift += Byte.SIZE) {
+            mixed ^= (value >>> shift) & 0xffL;
+            mixed *= 0x100000001b3L;
+        }
+        return mixed;
     }
 
     private static PersistedSamples persistedSamples(

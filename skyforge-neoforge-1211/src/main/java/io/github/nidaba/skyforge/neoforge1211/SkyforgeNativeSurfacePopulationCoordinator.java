@@ -117,6 +117,23 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
                 .toList();
     }
 
+    synchronized List<CompletedNativePhase> completedNativePhases(
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return completed.entrySet().stream()
+                .filter(entry -> entry.getKey().volumeId().equals(volumeId))
+                .sorted(Comparator
+                        .comparingInt((Map.Entry<PopulationKey, CachedPhase> entry) ->
+                                ChunkPos.getX(entry.getKey().chunkPos()))
+                        .thenComparingInt(entry -> ChunkPos.getZ(entry.getKey().chunkPos()))
+                        .thenComparingInt(entry -> entry.getKey().phase().ordinal()))
+                .map(entry -> new CompletedNativePhase(
+                        entry.getKey().chunkPos(),
+                        entry.getKey().phase(),
+                        entry.getValue().result()))
+                .toList();
+    }
+
     static Optional<SurfaceSample> findSurface(
             WorldGenLevel level,
             SkyIslandWorldVolumeId volumeId,
@@ -256,6 +273,19 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
     }
 
     record ColumnProbe(int localX, int localZ, int distance) {}
+
+    record CompletedNativePhase(
+            long chunkKey,
+            GenerationStep.Decoration phase,
+            SkyforgeNativeBiomePopulationRunner.Result nativeResult) {
+        CompletedNativePhase {
+            Objects.requireNonNull(phase, "phase");
+            Objects.requireNonNull(nativeResult, "nativeResult");
+            if (nativeResult.generationStep() != phase) {
+                throw new IllegalArgumentException("completed native phase/result generation step mismatch");
+            }
+        }
+    }
 
     record SurfaceSample(int x, int z, int firstFreeY) {}
 
