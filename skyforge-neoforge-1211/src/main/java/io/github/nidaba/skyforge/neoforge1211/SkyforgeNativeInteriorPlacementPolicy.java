@@ -44,6 +44,10 @@ final class SkyforgeNativeInteriorPlacementPolicy {
         if (!canWrite(operation, position, ownerSolid)) {
             return false;
         }
+        if (!allowsExistingVisibleWaterReplacement(
+                operation, level.getBlockState(position), state)) {
+            return false;
+        }
 
         if (state.is(Blocks.GLOW_LICHEN)) {
             // Glow lichen remains native cave decoration, but the outer compiled shell is not a
@@ -65,6 +69,24 @@ final class SkyforgeNativeInteriorPlacementPolicy {
             }
         }
         return true;
+    }
+
+    /**
+     * Surface ecology must not replace an already-realized visible-water cell. Authored hydrology
+     * is realized before native vegetation, so allowing a waterloggable tree block here would keep
+     * only fluid state while erasing the authored block-space water expression. Other population
+     * phases retain their existing write policy.
+     */
+    static boolean allowsExistingVisibleWaterReplacement(
+            SkyforgePopulationOperation operation,
+            BlockState existingState,
+            BlockState replacementState) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(existingState, "existingState");
+        Objects.requireNonNull(replacementState, "replacementState");
+        return operation.generationStep() != GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()
+                || !existingState.is(Blocks.WATER)
+                || replacementState.is(Blocks.WATER);
     }
 
     static boolean isInteriorOwnerCell(
