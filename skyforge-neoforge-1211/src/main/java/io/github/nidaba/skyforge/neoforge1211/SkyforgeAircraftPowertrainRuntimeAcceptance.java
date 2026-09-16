@@ -1444,6 +1444,10 @@ final class SkyforgeAircraftPowertrainRuntimeAcceptance {
             BlockPos pos = source(relative);
             if (!level.getBlockState(pos).isAir()) positions.add(pos);
         }
+        for (BlockPos relative : rudderExpected.keySet()) {
+            BlockPos pos = source(relative);
+            if (!level.getBlockState(pos).isAir()) positions.add(pos);
+        }
         return List.copyOf(positions);
     }
 
