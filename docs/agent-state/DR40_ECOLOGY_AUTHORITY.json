@@ -22,7 +22,8 @@
     "catalog_opportunity": "SkyIslandAuthoredRealizationEcologicalOpportunityProfiler",
     "freshwater_habitat": "AUTH-0091 / SkyIslandFreshwaterHabitatOpportunityProfiler",
     "raw_isolation": "SkyIslandAuthoredRealizationIsolationProfiler",
-    "visible_carrier": "SF-IMP-0080"
+    "visible_carrier": "SF-IMP-0080",
+    "riparian_corridors": "AUTH-0011 / SkyIslandRiparianCorridorPlanner"
   },
   "canonical_isolation": {
     "catalog_kind": "SINGLETON",
@@ -44,5 +45,5 @@
     "AUTH-0058 publication provenance for the canonical SF-IMP-0068 volume"
   ],
   "published_world_rule": "AUTH-0087 remains mandatory for consumers that claim AUTH-0058 publication provenance. AUTH-0103 does not weaken or replace AUTH-0087/0088/0090/0092.",
-  "dr40_worker_handoff": "Construct the exact AUTH-0046 association from DR-00 identity plus the locked production volume. Consume AUTH-0103 explicit-association surface/catalog evidence, AUTH-0089, AUTH-0091, and the accepted SF-IMP-0080 carrier. Treat raw singleton isolation as diagnostic only. Do not fabricate a publication binding or invent population policy."
+  "dr40_worker_handoff": "Construct the exact AUTH-0046 association from DR-00 identity plus the locked production volume. Consume AUTH-0103 explicit-association surface/catalog evidence, AUTH-0089, AUTH-0091, AUTH-0011 riparian corridors, and the accepted SF-IMP-0080 carrier. Minecraft biome/carrier mapping remains adapter-owned under AUTH-0088/SF-IMP-0080; use authored ecology rather than a second biome RNG. Treat raw singleton isolation as diagnostic only. Do not fabricate a publication binding or invent population policy."
 }

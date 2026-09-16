@@ -18,7 +18,7 @@ siblings for:
 - exact AUTH-0089 catalog aggregation using AUTH-0090's area-weighted math;
 - raw nearest-neighbor isolation using AUTH-0092's distance/tie semantics.
 
-AUTH-0091 remains directly consumable from each exact associated authored descriptor.
+AUTH-0091 remains directly consumable from each exact associated authored descriptor. AUTH-0011 remains the accepted riparian-corridor source for flowing-water response; AUTH-0103 does not re-plan hydrology.
 
 The existing published APIs remain publication-gated. AUTH-0088 still requires an AUTH-0087 binding,
 and AUTH-0090/AUTH-0092 still expose AUTH-0058 publication identity. Shared projection/aggregation
@@ -56,7 +56,7 @@ AUTH-0092-style isolation is evidence only. No accepted Content policy maps raw 
 density, carrying capacity, predator pressure, or population rhythm. The canonical singleton's
 absence of a peer is therefore diagnostic provenance, not permission to invent population policy.
 
-SF-IMP-0080 remains the accepted visible Minecraft ecology carrier seam. Backend biome choice,
+SF-IMP-0080 remains the accepted visible Minecraft ecology carrier seam. AUTH-0088 already leaves ecological-regime-to-registered-biome mapping to the adapter, so DR-40 needs no new Content biome taxonomy before machine composition. AUTH-0011 may supply exact riparian dry-land response where the canonical hydrology contains it. Backend biome choice,
 population scheduling, persistent mutation, exact-volume lifecycle, and diagnostic counts remain
 Implementation-owned under #494.
 
