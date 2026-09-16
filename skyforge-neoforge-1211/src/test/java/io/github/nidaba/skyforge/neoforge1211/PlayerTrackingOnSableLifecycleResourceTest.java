@@ -30,13 +30,8 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(server.contains("6966d2928340de7631abcecf8549904b877df0a8"));
         assertTrue(server.contains("getTrackingSubLevel"));
         assertTrue(server.contains("client_sublevel_collision_then_movement_packet"));
-        assertTrue(server.contains("requireSynchronousSimulatedTraversal();"));
-        assertTrue(server.contains("SimAssemblyHelper.assembleFromSingleBlock(..., includeStart=true, includeEncasingGlue=true)"));
-        assertTrue(server.contains("getMethod(\"searchMovedStructure\", Level.class, BlockPos.class)"));
-        assertTrue(server.contains("getBlocks"));
-        assertTrue(server.contains("getGlues"));
-        assertTrue(server.contains("SIMULATED_TRAVERSAL_READY glueId="));
-        assertTrue(server.contains("synchronousPreAssemblyProbe=true"));
+        assertTrue(server.contains("GLUE_VISIBILITY_DIAGNOSTIC glueId="));
+        assertTrue(server.contains("acceptanceGating=false"));
         assertFalse(server.contains("addRegionTicket("));
         assertFalse(server.contains("skyforge_platform_012"));
         assertTrue(server.contains("level.getChunk(0, 0);"));
