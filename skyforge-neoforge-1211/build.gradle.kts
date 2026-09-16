@@ -2052,6 +2052,24 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // MECH-002: compiled natural stationary workshop power lifecycle.
+        create("mech002NaturalPowerServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-mech-002-natural-power-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.mech002NaturalPower", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // MECH-002 human gate: exact C11 stack plus compiler-emitted development structure.
+        create("mech002NaturalPowerClient") {
+            client()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-mech-002-natural-power-client").asFile
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
 
         // PLATFORM-003: preassembled Create kinetic network transferred into one live Sable body.
         create("compilerPlatformCreateKineticOnSableLifecycleServer") {
@@ -2798,6 +2816,29 @@ tasks.named("runCompilerPlatformWaterWheelSourceLifecycleServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(compilerPlatformWaterWheelSourceLifecycleServerProperties)
+    }
+}
+
+val mech002NaturalPowerServerProperties = """
+    level-name=mech-002-natural-power
+    level-seed=679002
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runMech002NaturalPowerServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-mech-002-natural-power-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(mech002NaturalPowerServerProperties)
     }
 }
 

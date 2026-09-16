@@ -43,6 +43,7 @@ def _inside(pos: tuple[int, int, int], minimum: list[int], maximum: list[int]) -
 def _validate_plan_references(
     plan: dict[str, Any],
     placement_ids: set[str],
+    placement_positions: dict[str, tuple[int, int, int]],
     occupied: set[tuple[int, int, int]],
     minimum: list[int],
     maximum: list[int],
@@ -99,6 +100,47 @@ def _validate_plan_references(
             raise SpecError("mechanism clearanceCells contains duplicates")
         clearance.add(position)
 
+    environment = plan.get("environmentalEnvelope")
+    if environment is None:
+        return
+    if not isinstance(environment, dict):
+        raise SpecError("mechanism environmentalEnvelope must be an object")
+    source_id = environment.get("sourcePlacementId")
+    disable_id = environment.get("disableCell")
+    if source_id not in placement_ids:
+        raise SpecError("environmental sourcePlacementId references unknown placement")
+    required_cells = environment.get("requiredCells")
+    if not isinstance(required_cells, list) or not required_cells:
+        raise SpecError("environmental requiredCells must be a non-empty list")
+    required_ids: set[str] = set()
+    for required in required_cells:
+        if not isinstance(required, dict):
+            raise SpecError("environmental required cell must be an object")
+        placement_id = required.get("placementId")
+        if placement_id not in placement_ids:
+            raise SpecError("environmental required cell references unknown placement")
+        if placement_id in required_ids:
+            raise SpecError("environmental requiredCells contains duplicate placement IDs")
+        required_ids.add(placement_id)
+        offset = _int_triple(required.get("offsetFromSource"), "environmental offsetFromSource")
+        source_pos = placement_positions[source_id]
+        cell_pos = placement_positions[placement_id]
+        actual_offset = tuple(cell_pos[i] - source_pos[i] for i in range(3))
+        if offset != actual_offset:
+            raise SpecError("environmental offsetFromSource does not match placement geometry")
+        flow = required.get("expectedFlowVector")
+        if (
+            not isinstance(flow, list)
+            or len(flow) != 3
+            or not all(isinstance(value, (int, float)) and not isinstance(value, bool) for value in flow)
+        ):
+            raise SpecError("environmental expectedFlowVector must be a numeric triple")
+        for key in ("disableState", "restoreState"):
+            state = required.get(key)
+            if not isinstance(state, dict) or not isinstance(state.get("name"), str) or not state["name"]:
+                raise SpecError(f"environmental {key} must provide blockState.name")
+    if disable_id not in required_ids:
+        raise SpecError("environmental disableCell must reference a required cell")
 
 
 
@@ -127,6 +169,7 @@ def compiled_asset_for_mechanism_structure(plan: dict[str, Any]) -> CompiledAsse
 
     model = VoxelModel()
     placement_ids: set[str] = set()
+    placement_positions: dict[str, tuple[int, int, int]] = {}
     occupied: set[tuple[int, int, int]] = set()
     validated: list[tuple[dict[str, Any], tuple[int, int, int], BlockState]] = []
     for placement in placements:
@@ -145,6 +188,7 @@ def compiled_asset_for_mechanism_structure(plan: dict[str, Any]) -> CompiledAsse
         if pos in occupied:
             raise SpecError("mechanism plan contains overlapping placements")
         occupied.add(pos)
+        placement_positions[placement_id] = pos
 
         state_data = placement.get("blockState")
         if (
@@ -162,7 +206,7 @@ def compiled_asset_for_mechanism_structure(plan: dict[str, Any]) -> CompiledAsse
         state = BlockState.of(state_data["name"], **properties)
         validated.append((placement, pos, state))
 
-    _validate_plan_references(plan, placement_ids, occupied, minimum, maximum)
+    _validate_plan_references(plan, placement_ids, placement_positions, occupied, minimum, maximum)
     _verify_plan_digest(plan)
 
     for placement, pos, state in validated:
