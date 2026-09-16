@@ -2,9 +2,9 @@
 
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
-**Updated:** 2026-09-10 (America/Chicago)
-**Main snapshot at latest Authorship acceptance:** `28393616a8be298ffb1692c294db6c6cddc9d069`  
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0101**
+**Updated:** 2026-09-15 (America/Chicago)
+**Main snapshot carrying latest accepted Authorship implementation:** `6d3a4873a45d62ee9bf18e080909d6d2ac465d07`
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0103**
 
 Read first:
 
@@ -24,6 +24,23 @@ AUTH-0001 through AUTH-0081 establish the accepted deterministic authorship, geo
 material, publication, and provenance substrate. AUTH-0082 / PR #220 was **closed unmerged**; preserve
 the numbering gap. Do not restart generic publication/provenance recursion without a concrete
 production consumer.
+
+### AUTH-0103 — explicit authored-realization ecology bridge
+
+PR #709 / merge `6d3a4873a45d62ee9bf18e080909d6d2ac465d07`. Accepted head
+`e694c3c685d39b9e23880aa26b3a5d84d21da316`; CI run `35053440891` PASS; DR-30 native-structure
+regression run `35053441227` PASS.
+
+DR-40 / #494 demonstrated that the accepted DR-00 SF-IMP-0068 schema-2 runtime volume has an
+explicit AUTH-0046 association but is not an AUTH-0058 publication. AUTH-0103 therefore adds the
+narrow publication-independent explicit-association ecology seam rather than fabricating AUTH-0087.
+It preserves exact AUTH-0088 surface projection, AUTH-0089/0090 opportunity aggregation, AUTH-0091
+freshwater reuse, and AUTH-0092 raw isolation semantics. No ecology formula, biome identity, species,
+density, carrying capacity, predator pressure, resource policy, or aesthetic threshold is added.
+The canonical singleton has no regional neighbor; that is diagnostic provenance only.
+
+Canonical DR-40 consumption authority: `docs/agent-state/DR40_ECOLOGY_AUTHORITY.json`.
+Reference: `docs/authorship/AUTH-0103-explicit-association-ecology-bridge.md`.
 
 ### AUTH-0083 / AUTH-0084 — production morphology review machinery
 
@@ -409,21 +426,6 @@ Authorship owns semantic control axes/recipes, descriptive control-response evid
 A finding such as “this Massif is too lumpy for the starting role” does **not** by itself authorize removing lumpiness from the family or shrinking generator capacity. First classify whether the defect is an Authorship control/intended-shape problem, a Content recipe-selection problem, or an Implementation realization problem.
 
 ## IN PROGRESS
-
-### AUTH-0103 — explicit authored-realization ecology bridge — CANDIDATE
-
-Issue #707 is the narrow consumer-driven bridge exposed by DR-40 / #494. The accepted DR-00
-SF-IMP-0068 schema-2 runtime volume has an explicit AUTH-0046 association but is not an AUTH-0058
-publication, so AUTH-0087 must not be fabricated around it. AUTH-0103 adds publication-independent
-explicit-association surface ecology, exact AUTH-0089 catalog aggregation using shared AUTH-0090
-math, and raw isolation using shared AUTH-0092 semantics. AUTH-0091 remains directly descriptor-owned.
-
-No ecology formula, regime, threshold, species, biome identity, population policy, resource policy, or
-publication provenance is added. Raw isolation remains diagnostic evidence only. Published-world
-AUTH-0087/0088/0090/0092 contracts remain intact. Canonical DR-40 consumption authority is recorded
-in `DR40_ECOLOGY_AUTHORITY.json`. Acceptance remains GitHub Actions + merge/issue close.
-
-Reference: `docs/authorship/AUTH-0103-explicit-association-ecology-bridge.md`.
 
 ### AUTH-0102 — Tableland/Lobed reviewed recipe refinement
 
