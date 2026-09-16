@@ -647,6 +647,62 @@
           "finding": "Primary Sable assembly and the accepted moving Create carrier succeeded, but the first PLATFORM-008 L2 failed before Swivel realization because the fixture required the source Super Glue entity UUID to remain resolvable after Sable transfer. That UUID is pre-assembly fixture identity, not canonical moved authority. The fixture now resolves the broad assembly-glue domain by its exact moved bounding box, tolerates it already being consumed, discards exactly one moved match when present, and fails only on duplicate/remaining broad glue authority before creating the Swivel child."
         }
       ]
+    },
+    "SABLE_PRODUCTION_SCALE_PERSISTENCE_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeProductionScalePersistenceAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "ProductionScalePersistenceResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-production-scale-persistence.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 35052216482,
+        "job": 104655222515,
+        "commit": "cc812b7818e292c48d2f2dc86297e2a503744906",
+        "result": "PASS",
+        "finding": "Exact-stack two-boot L2 proved off-origin production-footprint Sable persistence with 118 transferred cells across source chunks [7,0], [7,1], [8,0], and [8,1]. Boot A released bounded Sable liveness, saved successfully, and obtained GlobalSavedSubLevelPointer chunk (8,1). Fresh-process Boot B loaded that persisted locator chunk and the same UUID became canonical automatically before an explicit snatchAndLoad was required; a valid current physics handle was acquired, all 118 transferred cells were recovered, and all fixture liveness/chunk tickets were released before PASS."
+      },
+      "assumptions_preconditions": [
+        "The exact retained stack is C11_FLIGHT_EXACT_2026-09-05 with Sable 2.0.5+mc1.21.1 and the accepted Simulated distribution.",
+        "Persistent Sable UUID remains body identity. GlobalSavedSubLevelPointer is a storage locator only and must not replace UUID identity authority.",
+        "Exact Sable source stores live sublevels into the holding chunk containing their logical position and getHoldingSubLevel(UUID) only exposes currently loaded holding sublevels; therefore fresh-process recovery must make the persisted pointer chunk available before treating UUID absence from the holding map as persistence loss.",
+        "The reduced fixture intentionally uses 118 transferred cells over a multi-chunk off-origin footprint approximating the production aircraft primary-body scale, but contains no aircraft semantics. This scale passed; body size itself was not shown to cause the triggering failure.",
+        "If loading the persisted locator chunk auto-canonicalizes the UUID, no explicit snatchAndLoad is required. If the UUID remains held with a valid pointer, snatchAndLoad is an accepted bounded recovery action before canonical-body re-resolution.",
+        "Region tickets and COMMAND_FORCED used by the qualification fixture are bounded test liveness controls and are released before PASS; this capability does not prescribe permanent production force-loading policy.",
+        "PLATFORM-007 remains authority for composed Sable/Create/Super-Glue/nested-bearing persistence. PLATFORM-010 adds only the off-origin persisted-storage-locator boundary needed before a UUID can be recovered in a fresh process."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_ASSEMBLY",
+        "FAIL_PHYSICS",
+        "FAIL_PERSISTENCE",
+        "FAIL_PERSISTENCE_NOT_PERSISTED",
+        "FAIL_PERSISTENCE_HOLDING_POINTER",
+        "FAIL_PERSISTENCE_LOAD_CANONICALIZATION",
+        "FAIL_PERSISTENCE_PHYSICS_REHYDRATION",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_PERSISTENCE_RELOAD",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": true,
+        "C": false
+      },
+      "negative_evidence": [
+        {
+          "workflow_run": 35045132467,
+          "job": 104633497372,
+          "commit": "bc7c9f55aaa09b0778c7437844c4b2f3edd0bf8d",
+          "result": "TIMEOUT_PERSISTENCE_RELOAD",
+          "finding": "AIRCRAFT-RUNTIME-002 Boot A saved the full production v0.12 aircraft successfully, but Boot B loaded only parent chunk (0,0) before UUID holding lookup while the aircraft fixture was based around x=128; subLevelIds remained empty and canonicalBody stayed null. PLATFORM-010 reduced this to Sable holding-storage locator availability rather than adding an aircraft-specific workaround."
+        }
+      ]
     }
   }
 }

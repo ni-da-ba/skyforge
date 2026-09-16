@@ -72,10 +72,19 @@ final class ProductionScalePersistenceResourceTest {
     }
 
     @Test
-    void capabilityRemainsUnpublishedUntilExactL2Passes() throws IOException {
+    void capabilityPublishesAcceptedLocatorEvidenceForAgentBOnly() throws IOException {
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
                 "../docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json").normalize());
-        assertFalse(ledger.contains("\"SABLE_PRODUCTION_SCALE_PERSISTENCE_LIFECYCLE\""));
+        int start = ledger.indexOf("\"SABLE_PRODUCTION_SCALE_PERSISTENCE_LIFECYCLE\"");
+        assertTrue(start >= 0);
+        String entry = ledger.substring(start);
+        assertTrue(entry.contains("\"status\": \"accepted\""));
+        assertTrue(entry.contains("\"workflow_run\": 35052216482"));
+        assertTrue(entry.contains("\"job\": 104655222515"));
+        assertTrue(entry.contains("\"commit\": \"cc812b7818e292c48d2f2dc86297e2a503744906\""));
+        assertTrue(entry.contains("GlobalSavedSubLevelPointer chunk (8,1)"));
+        assertTrue(entry.contains("\"B\": true"));
+        assertTrue(entry.contains("\"C\": false"));
     }
 
     private static String fixtureSource() throws IOException {
