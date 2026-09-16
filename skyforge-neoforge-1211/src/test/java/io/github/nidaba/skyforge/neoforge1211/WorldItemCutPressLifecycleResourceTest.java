@@ -13,6 +13,10 @@ final class WorldItemCutPressLifecycleResourceTest {
         String source = Files.readString(PROJECT.resolve("src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWorldItemCutPressLifecycleAcceptance.java"));
         assertTrue(source.contains("CREATE_WORLD_ITEM_CUT_PRESS_LIFECYCLE"));
         assertTrue(source.contains("updateEntityAfterFallOn") == false); // authority is runtime path, not direct invocation
+        assertTrue(source.contains("CHUNK_READY"));
+        assertTrue(source.contains("isPositionEntityTicking"));
+        assertTrue(source.contains("FIXTURE_CHUNK_TICKET_ADD"));
+        assertTrue(source.contains("FIXTURE_CHUNK_TICKET_REMOVE"));
         assertTrue(source.contains("SAW_WORLD_INPUT"));
         assertTrue(source.contains("SAW_SHAFT"));
         assertTrue(source.contains("PRESS_SHAFT"));

@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -11,11 +12,13 @@ import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -53,7 +56,12 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
     private static final BlockPos PRESS_SHAFT = new BlockPos(5, 202, 0);
     private static final BlockPos PRESS = new BlockPos(6, 202, 0);
     private static final BlockPos PRESS_FLOOR = new BlockPos(6, 200, 0);
+    private static final long CHUNK_READINESS_DEADLINE_TICKS = 80L;
     private static final long KINETIC_DEADLINE_TICKS = 80L;
+    private static final int FIXTURE_CHUNK_TICKET_DISTANCE = 3;
+    private static final ChunkPos FIXTURE_CHUNK = new ChunkPos(0, 0);
+    private static final TicketType<ChunkPos> FIXTURE_CHUNK_TICKET = TicketType.create(
+            "skyforge_platform_015", Comparator.comparingLong(ChunkPos::toLong));
     private static final long SAW_DEADLINE_TICKS = 180L;
     private static final long PRESS_DEADLINE_TICKS = 120L;
 
@@ -70,8 +78,9 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
     private static boolean pressGroundedObserved;
     private static float sawSpeed;
     private static float pressSpeed;
+    private static boolean fixtureChunkTicketAdded;
 
-    private enum Stage { KINETIC_READY, SAW_PROCESS, PRESS_PROCESS }
+    private enum Stage { CHUNK_READY, KINETIC_READY, SAW_PROCESS, PRESS_PROCESS }
 
     private SkyforgeWorldItemCutPressLifecycleAcceptance() {}
 
@@ -88,12 +97,12 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
                 PREFIX + " START capability=" + CAPABILITY + " startTick=" + now + " clientState=headless");
         try {
             requireRuntimePreconditions();
-            prepareFixture();
-            stage = Stage.KINETIC_READY;
+            addFixtureChunkTicket();
+            stage = Stage.CHUNK_READY;
             waitDiagnostic = diagnostic(
-                    "powered upward Saw and WORLD-mode Mechanical Press acquire nonzero Create kinetic speed",
-                    now, now + KINETIC_DEADLINE_TICKS, fixtureIds(), safeServerState(),
-                    "recipe=" + RECIPE_ID + " forbiddenTransportCount=0");
+                    "fixture chunk reaches Minecraft entity/block-entity ticking readiness before Create placement",
+                    now, now + CHUNK_READINESS_DEADLINE_TICKS, fixtureIds(), safeServerState(),
+                    "fixtureChunk=" + FIXTURE_CHUNK + " forceTicks=true recipe=" + RECIPE_ID);
         } catch (ReflectiveOperationException exception) {
             failReflection(SkyforgeCompilerIntegrationFailure.FAIL_DEPENDENCY_RESOLUTION, exception);
         } catch (RuntimeException exception) {
@@ -109,6 +118,7 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
         long now = level.getGameTime();
         try {
             switch (stage) {
+                case CHUNK_READY -> pollChunkReady(now);
                 case KINETIC_READY -> pollKineticReady(now);
                 case SAW_PROCESS -> pollSawProcess(now);
                 case PRESS_PROCESS -> pollPressProcess(now);
@@ -122,6 +132,30 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
                         "world-item CUT/PRESS lifecycle failed: " + exception);
             }
         }
+    }
+
+
+    private static void pollChunkReady(long now) {
+        boolean entitySectionTicking = level.isPositionEntityTicking(SAW_MOTOR);
+        if (!entitySectionTicking) {
+            if (waitDiagnostic.expired(now)) {
+                fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_KINETIC_BUILD,
+                        waitDiagnostic.withFinalState(fixtureIds(), safeServerState(), "headless",
+                                "fixtureChunk=" + FIXTURE_CHUNK + " entitySectionTicking=false"),
+                        "fixture chunk did not reach Minecraft entity/block-entity ticking readiness before deadline");
+            }
+            return;
+        }
+
+        prepareFixture();
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " FIXTURE_CHUNK_READY chunk=" + FIXTURE_CHUNK
+                        + " entitySectionTicking=true tick=" + now);
+        stage = Stage.KINETIC_READY;
+        waitDiagnostic = diagnostic(
+                "powered upward Saw and WORLD-mode Mechanical Press acquire nonzero Create kinetic speed",
+                now, now + KINETIC_DEADLINE_TICKS, fixtureIds(), safeServerState(),
+                "recipe=" + RECIPE_ID + " forbiddenTransportCount=0 entitySectionTicking=true");
     }
 
     private static void pollKineticReady(long now) throws ReflectiveOperationException {
@@ -225,6 +259,7 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
                             "Press output appeared without observing the world-item grounded acquisition precondition");
                 }
                 requireNoForbiddenTransport();
+                removeFixtureChunkTicket();
                 complete = true;
                 LOGGER.log(System.Logger.Level.INFO,
                         PREFIX + " PASS capability=" + CAPABILITY
@@ -284,6 +319,25 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
         if (loops != 1 || !(sequence instanceof List<?> steps) || steps.size() != 2) {
             throw new IllegalStateException("development recipe must be exactly one CUT/PRESS loop; loops=" + loops + " sequence=" + sequence);
         }
+    }
+
+    private static void addFixtureChunkTicket() {
+        if (fixtureChunkTicketAdded) return;
+        level.getChunkSource().addRegionTicket(
+                FIXTURE_CHUNK_TICKET, FIXTURE_CHUNK, FIXTURE_CHUNK_TICKET_DISTANCE, FIXTURE_CHUNK, true);
+        level.getChunk(FIXTURE_CHUNK.x, FIXTURE_CHUNK.z);
+        fixtureChunkTicketAdded = true;
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " FIXTURE_CHUNK_TICKET_ADD chunk=" + FIXTURE_CHUNK
+                        + " distance=" + FIXTURE_CHUNK_TICKET_DISTANCE + " forceTicks=true");
+    }
+
+    private static void removeFixtureChunkTicket() {
+        if (!fixtureChunkTicketAdded || level == null) return;
+        level.getChunkSource().removeRegionTicket(
+                FIXTURE_CHUNK_TICKET, FIXTURE_CHUNK, FIXTURE_CHUNK_TICKET_DISTANCE, FIXTURE_CHUNK, true);
+        fixtureChunkTicketAdded = false;
+        LOGGER.log(System.Logger.Level.INFO, PREFIX + " FIXTURE_CHUNK_TICKET_REMOVE chunk=" + FIXTURE_CHUNK);
     }
 
     private static void prepareFixture() {
@@ -414,6 +468,7 @@ final class SkyforgeWorldItemCutPressLifecycleAcceptance {
     }
     private static void fail(SkyforgeCompilerIntegrationFailure code, SkyforgeCompilerIntegrationDiagnostic diagnostic, String reason) {
         if (!complete) {
+            removeFixtureChunkTicket();
             complete = true;
             LOGGER.log(System.Logger.Level.ERROR, PREFIX + " FAIL code=" + code + " " + diagnostic.render() + " reason=\"" + reason + "\"");
         }
