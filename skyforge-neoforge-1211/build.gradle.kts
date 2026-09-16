@@ -1967,6 +1967,16 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // PLATFORM-009: real small-water-wheel environmental source active/disable/recovery lifecycle.
+        create("compilerPlatformWaterWheelSourceLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-water-wheel-source-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformWaterWheelSourceLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // MECH-001 human gate: exact C11 stack plus the compiler-emitted development structure.
         create("mech001FunctionalMechanismClient") {
             client()
@@ -2034,6 +2044,25 @@ neoForge {
             gameDirectory = layout.projectDirectory.dir("run-compiler-platform-composed-mechanism-persistence").asFile
             programArgument("--nogui")
             systemProperty("skyforge.dev.compilerPlatformComposedMechanismPersistence", "verify")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // PLATFORM-010: off-origin production-footprint Sable primary-body persistence locator lifecycle.
+        create("compilerPlatformProductionScalePersistencePrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-production-scale-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformProductionScalePersistence", "prepare")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("compilerPlatformProductionScalePersistenceVerifyServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-production-scale-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformProductionScalePersistence", "verify")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -2105,6 +2134,47 @@ neoForge {
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/compiler-platform-steering-wheel-client/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // PLATFORM-011: prepare a blank quick-play world, then exercise a real Create seat on Sable.
+        create("compilerPlatformSeatPassengerClientWorldPrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-seat-passenger-client").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("compiler-platform-seat-passenger-client")
+            systemProperty("skyforge.dev.compilerPlatformSeatPassengerClientWorldPrepare", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "compiler-platform-seat-passenger-client-world-prepare")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "120")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/compiler-platform-seat-passenger-client/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("compilerPlatformSeatPassengerClient") {
+            client()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-seat-passenger-client").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("compiler-platform-seat-passenger-client")
+            systemProperty("skyforge.dev.compilerPlatformSeatPassengerOnSableLifecycle", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "compiler-platform-seat-passenger-on-sable")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/compiler-platform-seat-passenger-client/client.properties").get().asFile.absolutePath,
             )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -2609,6 +2679,30 @@ tasks.named("runCompilerPlatformCreateKineticNetworkLifecycleServer").configure 
 }
 
 
+val compilerPlatformWaterWheelSourceLifecycleServerProperties = """
+    level-name=compiler-platform-water-wheel-source-lifecycle
+    level-seed=697009
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformWaterWheelSourceLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-water-wheel-source-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformWaterWheelSourceLifecycleServerProperties)
+    }
+}
+
+
 val compilerPlatformCreateKineticOnSableLifecycleServerProperties = """
     level-name=compiler-platform-create-kinetic-on-sable-lifecycle
     level-seed=635001
@@ -2734,6 +2828,37 @@ tasks.named("runCompilerPlatformComposedMechanismPersistenceVerifyServer").confi
     }
 }
 
+val compilerPlatformProductionScalePersistenceServerProperties = """
+    level-name=compiler-platform-production-scale-persistence
+    level-seed=703010
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformProductionScalePersistencePrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-production-scale-persistence").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformProductionScalePersistenceServerProperties)
+    }
+}
+
+tasks.named("runCompilerPlatformProductionScalePersistenceVerifyServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-production-scale-persistence").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformProductionScalePersistenceServerProperties)
+    }
+}
+
 val aircraftPowertrainRuntime128ServerProperties = """
     level-name=aircraft-powertrain-runtime-128
     level-seed=668001
@@ -2811,6 +2936,29 @@ tasks.named("runCompilerPlatformSteeringWheelClientWorldPrepareServer").configur
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(compilerPlatformSteeringWheelClientServerProperties)
+    }
+}
+
+val compilerPlatformSeatPassengerClientServerProperties = """
+    level-name=compiler-platform-seat-passenger-client
+    level-seed=669011
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformSeatPassengerClientWorldPrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-seat-passenger-client").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformSeatPassengerClientServerProperties)
     }
 }
 

@@ -71,14 +71,18 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgePortableEngineCutoffSableAcceptance.installFromSystemProperty();
         SkyforgeSableAssemblyLifecycleAcceptance.installFromSystemProperty();
         SkyforgeCreateKineticNetworkLifecycleAcceptance.installFromSystemProperty();
+        SkyforgeWaterWheelSourceLifecycleAcceptance.installFromSystemProperty();
         SkyforgeMech001FunctionalMechanismAcceptance.installFromSystemProperty();
         SkyforgeCreateKineticOnSableLifecycleAcceptance.installFromSystemProperty();
         SkyforgeSuperGlueAssemblyDomainAcceptance.installFromSystemProperty();
         SkyforgeNestedPropellerBearingLifecycleAcceptance.installFromSystemProperty();
         SkyforgeSwivelControlChildLifecycleAcceptance.installFromSystemProperty();
         SkyforgeComposedMechanismPersistenceAcceptance.installFromSystemProperty();
+        SkyforgeProductionScalePersistenceAcceptance.installFromSystemProperty();
         SkyforgeSteeringWheelClientWorldPrepareAcceptance.installFromSystemProperty();
         SkyforgeSteeringWheelClientOnSableLifecycleAcceptance.installFromSystemProperty();
+        SkyforgeSeatPassengerClientWorldPrepareAcceptance.installFromSystemProperty();
+        SkyforgeSeatPassengerOnSableLifecycleAcceptance.installFromSystemProperty();
         SkyforgeAircraftPowertrainRuntimeAcceptance.installFromSystemProperty();
         SkyforgeWaveC12BellancaB0AssemblyAcceptance.installFromSystemProperty();
         SkyforgeWaveC13ElytraBypassAcceptance.installFromSystemProperty();

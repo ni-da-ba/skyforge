@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +18,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -49,16 +52,20 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static final ResourceLocation BEARING_ID = id("aeronautics:propeller_bearing");
     private static final ResourceLocation SAIL_ID = id("simulated:white_symmetric_sail");
 
-    private static final BlockPos BODY_MIN = new BlockPos(0, 200, 0);
-    private static final BlockPos BODY_MAX = new BlockPos(3, 201, 1);
-    private static final BlockPos MOTOR_SOURCE = new BlockPos(0, 201, 0);
-    private static final BlockPos SHAFT_SOURCE = new BlockPos(1, 201, 0);
-    private static final BlockPos ENDPOINT_SOURCE = new BlockPos(2, 201, 0);
-    private static final BlockPos BEARING_SOURCE = new BlockPos(3, 201, 0);
-    private static final BlockPos ASSEMBLER_SOURCE = new BlockPos(3, 202, 1);
-    private static final BlockPos CHILD_HUB_SOURCE = new BlockPos(4, 201, 0);
-    private static final BlockPos CHILD_SAIL_UP_SOURCE = new BlockPos(4, 202, 0);
-    private static final BlockPos CHILD_SAIL_DOWN_SOURCE = new BlockPos(4, 200, 0);
+    // Keep the entire bounded fixture, plus Sable's one-block physics-envelope expansion,
+    // inside the explicitly preloaded (0,0) chunk. Earlier boundary placement at x/z=0
+    // allowed the exact Sable ticket manager to observe unloaded negative-neighbor chunks
+    // and move a just-created body to holding while Simulated was still transferring blocks.
+    private static final BlockPos BODY_MIN = new BlockPos(5, 200, 5);
+    private static final BlockPos BODY_MAX = new BlockPos(8, 201, 6);
+    private static final BlockPos MOTOR_SOURCE = new BlockPos(5, 201, 5);
+    private static final BlockPos SHAFT_SOURCE = new BlockPos(6, 201, 5);
+    private static final BlockPos ENDPOINT_SOURCE = new BlockPos(7, 201, 5);
+    private static final BlockPos BEARING_SOURCE = new BlockPos(8, 201, 5);
+    private static final BlockPos ASSEMBLER_SOURCE = new BlockPos(8, 202, 6);
+    private static final BlockPos CHILD_HUB_SOURCE = new BlockPos(9, 201, 5);
+    private static final BlockPos CHILD_SAIL_UP_SOURCE = new BlockPos(9, 202, 5);
+    private static final BlockPos CHILD_SAIL_DOWN_SOURCE = new BlockPos(9, 200, 5);
     private static final BlockPos MAIN_GLUE_MIN = BODY_MIN;
     private static final BlockPos MAIN_GLUE_MAX = ASSEMBLER_SOURCE;
     private static final BlockPos CHILD_GLUE_MIN = CHILD_SAIL_DOWN_SOURCE;
@@ -72,6 +79,10 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static final long ENTITY_REHYDRATION_GRACE_TICKS = 10L;
     private static final long KINETIC_DISCONNECT_DEADLINE_TICKS = 80L;
     private static final long KINETIC_REBUILD_DEADLINE_TICKS = 80L;
+    private static final int FIXTURE_CHUNK_TICKET_DISTANCE = 3;
+    private static final ChunkPos FIXTURE_CHUNK = new ChunkPos(0, 0);
+    private static final TicketType<ChunkPos> FIXTURE_CHUNK_TICKET = TicketType.create(
+            "skyforge_platform_007", Comparator.comparingLong(ChunkPos::toLong));
 
     private static String persistencePhase;
     private static ServerLevel level;
@@ -81,6 +92,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static Object forceLoadTicketType;
     private static Object forceLoadTicketKey;
     private static boolean forceLoadTicketAdded;
+    private static boolean fixtureChunkTicketAdded;
     private static Set<UUID> beforeIds = Set.of();
     private static Set<UUID> beforeHoldingIds = Set.of();
     private static UUID bodyId;
@@ -147,6 +159,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         try {
             requireRuntimePreconditions();
             container = requireServerSubLevelContainer(level);
+            addFixtureChunkTicket();
             if (persistencePhase.equals("verify")) {
                 beginReloadVerification(now);
                 return;
@@ -302,9 +315,9 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                                         + " staleGroundChild=" + staleGroundChild),
                         "primary assembly registered an invalid Sable body");
             }
-            // A normally live body must be allowed to finish Simulated parent-world cleanup before force-loading.
-            // If the known UUID already fell into Sable holding during that window, recover it and ticket that
-            // recovered live authority immediately so it cannot cycle back into holding.
+            // The primary body is normally ticketed synchronously by the allocation observer before Simulated
+            // transfers any parent-world blocks. Retain the historical holding recovery as a fail-safe and ticket
+            // any recovered live authority immediately so it cannot cycle back into holding again.
             if (primaryRecoveredFromHolding && !forceLoadTicketAdded) {
                 addFixtureForceLoadTicket(listedBody);
             }
@@ -502,6 +515,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                         "server did not report a successful PLATFORM-007 prepare save");
             }
             writeIdentityFile(new PersistenceIdentity(bodyId, nestedChildId, movedGlue.id(), movedOffset));
+            removeFixtureChunkTicket();
             complete = true;
             LOGGER.log(System.Logger.Level.INFO,
                     PREFIX + " PREPARE PASS capability=" + CAPABILITY
@@ -512,7 +526,8 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                             + " childBlocks=3 sailBlocks=2 runningObserved=true childRunningAtSave=false"
                             + " normalizedChildBlocksInPlot=true entityBackedRuntimeNormalized=true saveSuccess=true"
                             + " canonicalBodyResolutionPerPhase=true"
-                            + " fixtureLivenessTicket=sable:command_forced(released) clientState=headless");
+                            + " fixtureLivenessTicket=sable:command_forced(released)"
+                            + " fixtureChunkTicket=skyforge_platform_007(released) clientState=headless");
             return;
         }
         if (waitDiagnostic.expired(now)) {
@@ -712,6 +727,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             requireExactChild(child, "nested", now);
             restorePhysicsPause();
             removeFixtureForceLoadTicket();
+            removeFixtureChunkTicket();
             complete = true;
             LOGGER.log(System.Logger.Level.INFO,
                     PREFIX + " VERIFY PASS capability=" + CAPABILITY
@@ -727,7 +743,8 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                             + " samePersistentUuid=true currentPhysicsHandleValid=true"
                             + " staleChildDuplicate=false glueDuplicate=false"
                             + " severedObserved=true rebuiltObserved=true"
-                            + " fixtureLivenessTicket=sable:command_forced(released) clientState=headless");
+                            + " fixtureLivenessTicket=sable:command_forced(released)"
+                            + " fixtureChunkTicket=skyforge_platform_007(released) clientState=headless");
             return;
         }
         if (waitDiagnostic.expired(now)) {
@@ -737,6 +754,26 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                                     + " glue=" + glue + " postReloadChildGlueId=" + postReloadChildGlueId),
                     "reloaded Create network did not rebuild before deadline");
         }
+    }
+
+    private static void addFixtureChunkTicket() {
+        if (fixtureChunkTicketAdded) return;
+        level.getChunkSource().addRegionTicket(
+                FIXTURE_CHUNK_TICKET, FIXTURE_CHUNK, FIXTURE_CHUNK_TICKET_DISTANCE, FIXTURE_CHUNK);
+        level.getChunk(FIXTURE_CHUNK.x, FIXTURE_CHUNK.z);
+        fixtureChunkTicketAdded = true;
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " FIXTURE_CHUNK_TICKET_ADD chunk=" + FIXTURE_CHUNK
+                        + " distance=" + FIXTURE_CHUNK_TICKET_DISTANCE);
+    }
+
+    private static void removeFixtureChunkTicket() {
+        if (!fixtureChunkTicketAdded || level == null) return;
+        level.getChunkSource().removeRegionTicket(
+                FIXTURE_CHUNK_TICKET, FIXTURE_CHUNK, FIXTURE_CHUNK_TICKET_DISTANCE, FIXTURE_CHUNK);
+        fixtureChunkTicketAdded = false;
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " FIXTURE_CHUNK_TICKET_REMOVE chunk=" + FIXTURE_CHUNK);
     }
 
     private static boolean requestHoldingLoadIfAvailable() throws ReflectiveOperationException {
@@ -786,9 +823,10 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
 
     private static void prepareFixture() {
         level.getChunk(0, 0);
-        for (int x = -2; x <= 5; x++) {
+        requireFixtureInsidePreloadedPhysicsChunk();
+        for (int x = 3; x <= 10; x++) {
             for (int y = 198; y <= 204; y++) {
-                for (int z = -2; z <= 3; z++) {
+                for (int z = 3; z <= 8; z++) {
                     level.setBlock(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), 3);
                 }
             }
@@ -812,6 +850,18 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
                 || !level.setBlock(ENDPOINT_SOURCE, endpoint, 3)
                 || !level.setBlock(ASSEMBLER_SOURCE, assembler, 3)) {
             throw new IllegalStateException("failed to place accepted PLATFORM-003 primary persistence fixture");
+        }
+    }
+
+    private static void requireFixtureInsidePreloadedPhysicsChunk() {
+        int minX = Math.min(BODY_MIN.getX(), CHILD_HUB_SOURCE.getX()) - 1;
+        int maxX = Math.max(ASSEMBLER_SOURCE.getX(), CHILD_HUB_SOURCE.getX()) + 1;
+        int minZ = Math.min(BODY_MIN.getZ(), ASSEMBLER_SOURCE.getZ()) - 1;
+        int maxZ = Math.max(BODY_MAX.getZ(), ASSEMBLER_SOURCE.getZ()) + 1;
+        if ((minX >> 4) != 0 || (maxX >> 4) != 0 || (minZ >> 4) != 0 || (maxZ >> 4) != 0) {
+            throw new IllegalStateException(
+                    "PLATFORM-007 fixture plus Sable physics envelope crossed the preloaded chunk: "
+                            + "x=" + minX + ".." + maxX + " z=" + minZ + ".." + maxZ);
         }
     }
 
@@ -1149,6 +1199,10 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         try {
             removeFixtureForceLoadTicket();
         } catch (ReflectiveOperationException | RuntimeException ignored) {
+        }
+        try {
+            removeFixtureChunkTicket();
+        } catch (RuntimeException ignored) {
         }
     }
 

@@ -80,6 +80,43 @@ final class SkyIslandRegionalIsolationProfilerTest {
     }
 
     @Test
+    void explicitAssociationCatalogMatchesPublishedIsolationEvidenceExactly() {
+        Fixture fixture = fixture(92011L, 3, 0.0, 0.0, 1.0);
+        SkyIslandRegionalIsolationProfile published =
+                new SkyIslandRegionalIsolationProfiler().profile(fixture.binding());
+        SkyIslandAuthoredRealizationIsolationProfile explicit =
+                new SkyIslandAuthoredRealizationIsolationProfiler()
+                        .profile(fixture.binding().associationCatalog());
+
+        assertEquals(published.authoredWorldSeed(), explicit.authoredWorldSeed());
+        assertEquals(published.islands(), explicit.islands());
+        assertOptionalEquals(
+                published.minimumNearestCenterDistance(),
+                explicit.minimumNearestCenterDistance(),
+                0.0);
+        assertOptionalEquals(
+                published.meanNearestCenterDistance(),
+                explicit.meanNearestCenterDistance(),
+                0.0);
+        assertOptionalEquals(
+                published.maximumNearestCenterDistance(),
+                explicit.maximumNearestCenterDistance(),
+                0.0);
+        assertOptionalEquals(
+                published.minimumNearestNominalRadialGap(),
+                explicit.minimumNearestNominalRadialGap(),
+                0.0);
+        assertOptionalEquals(
+                published.meanNearestNominalRadialGap(),
+                explicit.meanNearestNominalRadialGap(),
+                0.0);
+        assertOptionalEquals(
+                published.maximumNearestNominalRadialGap(),
+                explicit.maximumNearestNominalRadialGap(),
+                0.0);
+    }
+
+    @Test
     void nearestNeighborUsesNominalGapThenCenterDistanceThenCanonicalOrder() {
         SkyIslandRegionalIsolationProfile profile =
                 new SkyIslandRegionalIsolationProfiler()

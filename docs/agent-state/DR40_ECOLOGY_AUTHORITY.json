@@ -1,0 +1,70 @@
+{
+  "schema_version": 2,
+  "milestone": "DR-40",
+  "state": "ACCEPTED_AUTHORITY",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "demonstrated_gap": {
+    "issue": 494,
+    "reason": "The canonical SF-IMP-0068 schema-2 runtime volume has an explicit AUTH-0046 authored-realization association but is not an AUTH-0058 publication, so fabricating AUTH-0087 publication provenance would violate accepted identity contracts."
+  },
+  "canonical_association": {
+    "authored_world_seed_unsigned": "6001989086914692933",
+    "province_key": 8,
+    "cluster_key": 81,
+    "island_key": 1471,
+    "realized_volume_id": "6001989086914692933/sf-imp-0068-production-composed-cave/0/0/680068",
+    "authority": "AUTH-0046_EXPLICIT_ASSOCIATION",
+    "publication_claim": "NONE"
+  },
+  "authorized_ecology_inputs": {
+    "surface_projection": "SkyIslandAuthoredRealizationSurfaceEcologyResolver",
+    "island_opportunity": "AUTH-0089 / SkyIslandEcologicalOpportunityProfiler",
+    "catalog_opportunity": "SkyIslandAuthoredRealizationEcologicalOpportunityProfiler",
+    "freshwater_habitat": "AUTH-0091 / SkyIslandFreshwaterHabitatOpportunityProfiler",
+    "raw_isolation": "SkyIslandAuthoredRealizationIsolationProfiler",
+    "visible_carrier": "SF-IMP-0080",
+    "riparian_corridors": "AUTH-0011 / SkyIslandRiparianCorridorPlanner"
+  },
+  "canonical_isolation": {
+    "catalog_kind": "SINGLETON",
+    "nearest_neighbor": "ABSENT",
+    "meaning": "No regional peer is present in the locked canonical association catalog. This is raw diagnostic provenance only and does not authorize a population, density, carrying-capacity, predator-pressure, or species rule."
+  },
+  "altitude_and_moisture": {
+    "meaning": "AUTH-0003 already derives local ecology from authored temperature, moisture, elevation tendency, exposure, interiority, ecological potential, and hydrological potential. DR-40 must not add a second altitude or moisture ecology formula."
+  },
+  "non_authority": [
+    "Minecraft biome selection policy",
+    "species or entity selection",
+    "spawn counts or density",
+    "carrying capacity",
+    "predator pressure",
+    "population rhythm",
+    "resource eligibility",
+    "aesthetic distribution thresholds",
+    "AUTH-0058 publication provenance for the canonical SF-IMP-0068 volume"
+  ],
+  "published_world_rule": "AUTH-0087 remains mandatory for consumers that claim AUTH-0058 publication provenance. AUTH-0103 does not weaken or replace AUTH-0087/0088/0090/0092.",
+  "dr40_worker_handoff": "Construct the exact AUTH-0046 association from DR-00 identity plus the locked production volume. Consume AUTH-0103 explicit-association surface/catalog evidence, AUTH-0089, AUTH-0091, AUTH-0011 riparian corridors, and the accepted SF-IMP-0080 carrier. Minecraft biome/carrier mapping remains adapter-owned under AUTH-0088/SF-IMP-0080; use authored ecology rather than a second biome RNG. Treat raw singleton isolation as diagnostic only. Do not fabricate a publication binding or invent population policy.",
+  "acceptance": {
+    "authorship_milestone": "AUTH-0103",
+    "issue": 707,
+    "pr": 709,
+    "accepted_head": "e694c3c685d39b9e23880aa26b3a5d84d21da316",
+    "merge_commit": "6d3a4873a45d62ee9bf18e080909d6d2ac465d07",
+    "merged_at": "2026-09-16T04:02:19Z",
+    "github_actions": [
+      {
+        "workflow": "CI",
+        "run_id": 35053440891,
+        "conclusion": "success"
+      },
+      {
+        "workflow": "DR-30 Native Structure Acceptance",
+        "run_id": 35053441227,
+        "conclusion": "success"
+      }
+    ],
+    "meaning": "AUTH-0103 is merged machine authority for DR-40 explicit-association ecology consumption; it adds no aesthetic or population-policy acceptance."
+  }
+}

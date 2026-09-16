@@ -41,6 +41,14 @@ final class ComposedMechanismPersistenceResourceTest {
         assertTrue(source.contains("platform-007-composed-persistence.identity"));
         assertTrue(source.contains("getHoldingSubLevel"));
         assertTrue(source.contains("snatchAndLoad"));
+        assertTrue(source.contains("requireFixtureInsidePreloadedPhysicsChunk"));
+        assertTrue(source.contains("BODY_MIN = new BlockPos(5, 200, 5)"));
+        assertTrue(source.contains("CHILD_HUB_SOURCE = new BlockPos(9, 201, 5)"));
+        assertTrue(source.contains("level.getChunk(0, 0)"));
+        assertTrue(source.contains("TicketType.create"));
+        assertTrue(source.contains("skyforge_platform_007"));
+        assertTrue(source.contains("addRegionTicket"));
+        assertTrue(source.contains("removeRegionTicket"));
         assertTrue(source.contains("samePersistentUuid=true"));
         assertTrue(source.contains("currentPhysicsHandleValid=true"));
         assertTrue(source.contains("staleChildDuplicate=false"));

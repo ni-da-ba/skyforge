@@ -4,7 +4,7 @@
 **Accepted compact-Hall tranche:** PR #612 / merge `0eca2194ddf4a7e3be401e5715a32e60525f315e`  
 **Accepted sibling/ROI tranche:** PR #623 / merge `20c3b9e37e16800eb258d1613714b90d1ec9c048`  
 **Accepted functional-asset authority:** issue #628 (`MECH-001`) / PR #640 / merge `c7c23e0d2f3abbb88db09e9b1feaf0d9d005209c`
-**Next functional-asset authority:** issue #679 (`MECH-002`) — reserved, blocked on water-wheel source qualification
+**Next functional-asset authority:** issue #679 (`MECH-002`) — reserved, blocked on active PLATFORM-009 / #697 water-wheel source qualification
 **Shared runtime qualification authority:** issue #613 / `docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json`
 
 This ledger records current production capability for Compiler Program Agent C. Historical
@@ -197,6 +197,20 @@ Final acceptance evidence:
 - local Minecraft structure-native human gate: **PASS** for readability, support/clearance, visible operation, sever/restore behavior, and practical editability;
 - PR #640 merged as `c7c23e0d2f3abbb88db09e9b1feaf0d9d005209c`.
 
+## Compiler maintenance completed while MECH-002 was blocked
+
+Three bounded common-hardening tranches were completed without changing the accepted MECH-001 plan
+identity, Minecraft structure bytes, runtime behavior, or mechanism vocabulary:
+
+- MECH-COMMON-001 / #681 / PR #685 / merge `da369dc35106aaff59f2897bf101cf879244e5e9` separated common semantic validation, Agent C platform-authority validation, and MECH-001 target lowering; it also hardened structure export against malformed geometry, graph, support, and clearance references.
+- MECH-COMMON-002 / #689 / PR #690 / merge `c7be546e6b20163841f9ee270d8e261926655064` added fail-closed scalar/resource/role checks and requires plan digest integrity before structure export, preventing post-compile plan mutation from silently becoming different NBT.
+- MECH-COMMON-003 / #693 / PR #696 / merge `6928524c1710d9b067ab21fd27f5962d860dd42e` derives structure output as `<spec-stem>.nbt` instead of hard-coding the MECH-001 filename; the canonical specimen still emits `mech_001_airflow_bench.nbt`.
+
+Across these maintenance tranches, the accepted MECH-001 plan digest remained
+`da905478f5f3e42e197bd0ef1a38baba848c8ce65c2a911d7153743597098ce1` and the accepted structure
+SHA256 remained `dee1563daa925034f13a9481744bbf2da9b0bb36937ae8cb6a7192a1b45e9b84`. No human gate was required
+because the emitted canonical plan and structure remained byte-identical.
+
 ## Next functional tranche: MECH-002 / issue #679
 
 MECH-002 is reserved as the smallest production-relevant successor to MECH-001. It will test whether
@@ -218,7 +232,9 @@ evidence that water power is a credible workshop option, not authority to requir
 for every workshop or settlement.
 
 MECH-002 runtime implementation is currently blocked on Agent A's exact-stack water-wheel source
-qualification. No MECH-002 implementation branch should be started while that dependency remains open.
+qualification. Agent A has materialized that dependency as PLATFORM-009 / #697 on
+`platform/697-water-wheel-source-lifecycle`. No MECH-002 implementation branch should be started until
+`CREATE_WATER_WHEEL_SOURCE_LIFECYCLE` is accepted on `main` with Agent C production authority.
 
 ## Current stop state
 
@@ -227,6 +243,6 @@ Issue #488: **CLOSED COMPLETED**.
 MECH-001 / #628: **ACCEPTED / COMPLETE**.
 PR #640: **MERGED**.
 MECH-002 / #679: **OPEN, RESERVED, BLOCKED ON `CREATE_WATER_WHEEL_SOURCE_LIFECYCLE`**.
-Agent A dependency request: #613 comment `5686734740`.
+Agent A dependency request: #613 comment `5686734740`; active platform tranche: PLATFORM-009 / #697.
 No human action is required at this boundary.
 No production-geography authority is changed and #493 remains untouched.

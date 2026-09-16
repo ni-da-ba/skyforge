@@ -4,7 +4,9 @@ import copy
 import gzip
 import hashlib
 import json
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -80,6 +82,33 @@ class FunctionalMechanismCompilerTest(unittest.TestCase):
         self.assertIn(b"create:shaft", raw)
         self.assertIn(b"create:encased_fan", raw)
         self.assertIn(b"minecraft:stone_bricks", raw)
+
+    def test_cli_derives_structure_name_from_spec_filename(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            renamed_spec = temp / "bounded_fixture_name.json"
+            renamed_spec.write_text(self.spec_path.read_text(encoding="utf-8"), encoding="utf-8")
+            output_dir = temp / "out"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(ASSET_COMPILER / "compile_mechanism.py"),
+                    str(renamed_spec),
+                    "--capability-ledger",
+                    str(self.ledger_path),
+                    "--out",
+                    str(output_dir),
+                ],
+                cwd=ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            summary = json.loads(completed.stdout)
+            expected_structure = output_dir / "bounded_fixture_name.nbt"
+            self.assertEqual(Path(summary["minecraftStructure"]), expected_structure)
+            self.assertTrue(expected_structure.is_file())
+            self.assertFalse((output_dir / "mech_001_airflow_bench.nbt").exists())
 
     def test_platform_authority_is_required_fail_closed(self) -> None:
         ledger = copy.deepcopy(self.ledger)

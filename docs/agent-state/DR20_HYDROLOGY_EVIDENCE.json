@@ -1,10 +1,26 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "milestone": "DR-20",
-  "state": "READY",
+  "state": "ACCEPTED",
   "specimen_id": "P2_DRESSED_REGION_A",
-  "consumes": ["DR00_SPECIMEN_LOCK.json", "AUTH-0086"],
+  "consumes": [
+    "DR00_SPECIMEN_LOCK.json",
+    "AUTH-0086"
+  ],
   "realization": "The locked canonical specimen realizes only AUTH-0086 intents it actually authors. Bounded deterministic accepted-corpus fixtures cover channel, retained water, cascade/waterfall, and edge-discharge implementation risks without synthesizing missing canonical hydrology. Static authored water remains separate from native FLUID_SPRINGS provenance.",
-  "verification": "GitHub Actions: :skyforge-neoforge-1211:test --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest",
-  "fail_closed": "Missing authored intent is omitted rather than synthesized. Any accepted intent that cannot map to exact-owner physical terrain aborts planning; the adapter creates no substitute watershed, spring, biome, or chunk request."
+  "verification": "DR-20 is ACCEPTED. GitHub Actions CI run 34882296796 succeeded on accepted head d2ac6532c43caa03d301f6aec37c942d3ba37277; PR #569 merged as fc48f7c6b8eceb3b96e1cca5ce3adcafcb89a426 and issue #492 is closed.",
+  "fail_closed": "Missing authored intent is omitted rather than synthesized. Any accepted intent that cannot map to exact-owner physical terrain aborts planning; the adapter creates no substitute watershed, spring, biome, or chunk request.",
+  "acceptance": {
+    "issue": 492,
+    "implementation_pr": 569,
+    "accepted_head": "d2ac6532c43caa03d301f6aec37c942d3ba37277",
+    "merge_commit": "fc48f7c6b8eceb3b96e1cca5ce3adcafcb89a426",
+    "merged_at": "2026-09-14T18:51:45Z",
+    "github_actions": {
+      "workflow": "CI",
+      "run_id": 34882296796,
+      "conclusion": "success"
+    },
+    "objective_acceptance": "Issue #492 closed at 2026-09-14T19:05:36Z after merged machine acceptance established deterministic persistent authored visible hydrology ready for structure/ecology composition."
+  }
 }

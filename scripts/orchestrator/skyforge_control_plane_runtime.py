@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 import skyforge_roadmap_runtime as roadmap_runtime
+import skyforge_roadmap_closed_issue_recovery_runtime as roadmap_closed_issue_recovery_runtime
 
 
 core = roadmap_runtime.core
