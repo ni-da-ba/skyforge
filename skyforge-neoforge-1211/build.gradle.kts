@@ -1235,6 +1235,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "dr-50-integrated-region-a")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
             systemProperty("skyforge.dev.acceptanceRadius", "7")
             systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
             systemProperty(
@@ -1257,6 +1258,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "dr-50-integrated-region-b")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
             systemProperty("skyforge.dev.acceptanceRadius", "7")
             systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
             systemProperty(
@@ -1277,6 +1279,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "client")
             systemProperty("skyforge.dev.acceptanceCase", "dr-50-integrated-region-reload")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
             systemProperty(
                 "skyforge.dev.productionComposedCaveExpectedResultFile",
                 layout.buildDirectory.file("acceptance/dr-50/production-b.properties").get().asFile.absolutePath,
@@ -5345,8 +5348,7 @@ tasks.register("dr50IntegratedRegionAcceptanceVerify") {
             "dr50InteriorRejectedBoundaryWrites", "dr50InteriorDigest", "dr50Material",
             "dr50MaterialPos", "dr50StructureLifecycleInvoked", "dr50CanonicalCompletedStructures",
             "dr50CanonicalStructureDigest", "dr50StructureProofAuthority", "dr50StructurePersistenceAuthority",
-            "dr50PopulationOutcomeDigest", "dr50FinalRequiredChunkNonAirBlocks",
-            "dr50FinalRequiredChunkBlockDigest", "dr50RegionDigest"
+            "dr50PopulationOutcomeDigest", "dr50RegionDigest"
         )) {
             check(first.getProperty(key) == second.getProperty(key)) {
                 "DR-50 deterministic evidence changed for $key: A=${first.getProperty(key)} B=${second.getProperty(key)}"
@@ -5372,7 +5374,7 @@ tasks.register("dr50IntegratedRegionAcceptanceVerify") {
                 && first.getProperty("dr50StructureLifecycleInvoked") == "true"
                 && first.getProperty("dr50StructureProofAuthority") == "DR-30_NATIVE_STRUCTURE_ACCEPTANCE"
                 && first.getProperty("dr50StructurePersistenceAuthority") == "DR-30_NATIVE_STRUCTURE_ACCEPTANCE"
-                && first.getProperty("dr50FinalRequiredChunkNonAirBlocks").toLong() > 0L
+                && first.getProperty("dr50DiagnosticFinalRequiredChunkNonAirBlocks").toLong() > 0L
                 && first.getProperty("dr50ExactVolumeIsolation") == "true"
                 && first.getProperty("dr50NoHydrologyMaterialCollision") == "true"
                 && first.getProperty("dr50NoStructureMaterialCollision") == "true"

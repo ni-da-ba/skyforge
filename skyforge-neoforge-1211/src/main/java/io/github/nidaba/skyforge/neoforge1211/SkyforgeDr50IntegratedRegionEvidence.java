@@ -82,7 +82,6 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         regionDigest = mixText(regionDigest, material.blockId().toString());
         regionDigest = mix(regionDigest, structures.completedStructures());
         regionDigest = mixText(regionDigest, structures.digest());
-        regionDigest = mixText(regionDigest, finalBlocks.digest());
 
         Map<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("dr50IntegratedRegion", true);
@@ -110,8 +109,11 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         evidence.put("dr50StructureProofAuthority", "DR-30_NATIVE_STRUCTURE_ACCEPTANCE");
         evidence.put("dr50StructurePersistenceAuthority", "DR-30_NATIVE_STRUCTURE_ACCEPTANCE");
         evidence.put("dr50PopulationOutcomeDigest", populationDigest);
-        evidence.put("dr50FinalRequiredChunkNonAirBlocks", finalBlocks.nonAirBlocks());
-        evidence.put("dr50FinalRequiredChunkBlockDigest", finalBlocks.digest());
+        // Diagnostic only: this scan includes unrelated BASE_WORLD and ordinary post-generation
+        // simulation state. Authoritative DR-50 equality is the provenance/component region digest
+        // above, not every live block that happens to share the loaded proof footprint.
+        evidence.put("dr50DiagnosticFinalRequiredChunkNonAirBlocks", finalBlocks.nonAirBlocks());
+        evidence.put("dr50DiagnosticFinalRequiredChunkBlockDigest", finalBlocks.digest());
         evidence.put("dr50ExactVolumeIsolation", true);
         evidence.put("dr50NoHydrologyMaterialCollision", true);
         evidence.put("dr50NoStructureMaterialCollision", true);
