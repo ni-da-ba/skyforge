@@ -342,13 +342,44 @@ This tranche does **not** qualify live Swivel assembly/actuation, rudder physica
 Steering Wheel/cockpit routing, player interaction, pitch, roll, multi-axis control, higher governed RPM,
 handling, stable flight, or human feel.
 
+## AIRCRAFT-RUNTIME-003 acceptance boundary
+
+On acceptance of issue #684, the production corrected v0.13.1 Guild utility aircraft consumes accepted
+`SWIVEL_CONTROL_CHILD_ON_SABLE_LIFECYCLE` authority and qualifies the rudder mechanism through commanded
+neutral return on the exact retained stack:
+
+- the production runtime fixture materializes the exact corrected partition of 118 parent-main members,
+  nine independent propeller-child members, and four symmetric-sail rudder-child members, with all seven
+  compiler-emitted Super Glue domains visible before the primary Sable transfer;
+- the moved parent keeps one UP-facing `simulated:swivel_bearing`; assembling it captures exactly the four
+  declared `simulated:white_symmetric_sail[axis=z]` cells as one fresh current child while the 118 parent
+  members and nine-cell propeller child remain independent;
+- the rudder begins at target `0.0` degrees and a physically neutral pose, and the bounded command fixture
+  drives the Swivel hidden extra cog only through a real Create Creative Motor/cogwheel network at 16 RPM;
+- exact-stack run `35153062672`, job `104986575772`, observed motor/drive/hidden-cog speeds
+  `+16/+16/-16` RPM, target deflection `-96.0000038` degrees, and physical rudder deflection
+  `-95.3417122` degrees; no direct target-angle mutation is used;
+- commanding the same live motor to zero yields zero hidden-cog drive and a locked target hold; commanding
+  the same live network in reverse returns the target to `0.0` degrees and the physical rudder to
+  approximately `-0.0000018` degrees before the command network is stopped;
+- the retained production tolerances remain target-neutral `0.1` degrees, physical-neutral `2.0` degrees,
+  and minimum meaningful physical deflection `5.0` degrees; the observed exact-stack margins are well
+  inside those bounds;
+- the surrounding accepted v0.12 powertrain remains at 128 RPM with finite positive stress margin and the
+  accepted WEST/-X propeller-thrust sign, and fixture-only Sable liveness/source-chunk tickets are released
+  before PASS.
+
+This gate qualifies exact rudder child capture, real kinetic signed actuation, locked hold, and **commanded**
+return to neutral only. It does **not** qualify passive self-centering, aerodynamic rudder side force or yaw
+moment, Steering Wheel/cockpit routing, actual-client control, pitch, roll, multi-axis control, handling,
+stable powered flight, or human flight/feel.
+
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-PROD-012 is accepted on `main`, the next bounded Agent-B runtime gate is
-AIRCRAFT-RUNTIME-003 / issue #684: consume the accepted Platform Swivel-control-child lifecycle on the
-production corrected rudder and qualify exact child capture plus real kinetic signed deflection, hold, and
-**commanded** inverse return to neutral. Physical yaw-force authority remains the separate downstream #686
-gate and must not be folded into #684.
+After AIRCRAFT-RUNTIME-003 is accepted on `main`, the next bounded Agent-B gate is
+AIRCRAFT-RUNTIME-004 / issue #686: qualify aircraft-specific physical rudder yaw authority from observed
+Aeronautics/Sable force and moment evidence. Cockpit routing and all later control/flight gates remain
+separate downstream work.
 
 ## Prepared by AIRCRAFT-DESIGN-001
 
