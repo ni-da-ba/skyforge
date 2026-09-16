@@ -1,0 +1,77 @@
+name: Compiler Platform Production Scale Persistence
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/compiler-platform-production-scale-persistence.yml"
+      - "docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json"
+      - "scripts/compiler-integration/run-exact-stack-fixture.sh"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCompilerIntegrationDiagnostic.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCompilerIntegrationFailure.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCompilerIntegrationPhase.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeProductionScalePersistenceAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/CompilerIntegrationDiagnosticTest.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/ProductionScalePersistenceResourceTest.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-platform-production-scale-persistence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  l1-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Verify bounded production-scale persistence contracts
+        run: >-
+          ./gradlew :skyforge-neoforge-1211:test
+          --tests '*CompilerIntegrationDiagnosticTest'
+          --tests '*ProductionScalePersistenceResourceTest'
+          --no-configuration-cache
+
+  l2-exact-stack:
+    needs: l1-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Resolve exact accepted Create/Sable/Aeronautics stack
+        run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
+      - name: Boot A — create off-origin body, release liveness, and save locator
+        run: >-
+          scripts/compiler-integration/run-exact-stack-fixture.sh
+          :skyforge-neoforge-1211:runCompilerPlatformProductionScalePersistencePrepareServer
+          compiler-platform-production-scale-persistence-prepare.log
+          'COMPILER_PLATFORM_PRODUCTION_SCALE_PERSISTENCE START'
+          'COMPILER_PLATFORM_PRODUCTION_SCALE_PERSISTENCE PREPARE PASS'
+          'COMPILER_PLATFORM_PRODUCTION_SCALE_PERSISTENCE FAIL'
+          120
+          180
+      - name: Boot B — load persisted holding chunk and recover same UUID
+        run: >-
+          scripts/compiler-integration/run-exact-stack-fixture.sh
+          :skyforge-neoforge-1211:runCompilerPlatformProductionScalePersistenceVerifyServer
+          compiler-platform-production-scale-persistence-verify.log
+          'COMPILER_PLATFORM_PRODUCTION_SCALE_PERSISTENCE START'
+          'COMPILER_PLATFORM_PRODUCTION_SCALE_PERSISTENCE VERIFY PASS'
+          'COMPILER_PLATFORM_PRODUCTION_SCALE_PERSISTENCE FAIL'
+          120
+          180
