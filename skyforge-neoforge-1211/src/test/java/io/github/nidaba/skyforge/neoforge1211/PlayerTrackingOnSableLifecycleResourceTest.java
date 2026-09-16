@@ -37,9 +37,9 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(server.contains("getGlues"));
         assertTrue(server.contains("SIMULATED_TRAVERSAL_READY glueId="));
         assertTrue(server.contains("synchronousPreAssemblyProbe=true"));
-        assertTrue(server.contains("FIXTURE_CHUNK_TICKET_DISTANCE = 3"));
-        assertTrue(server.contains("skyforge_platform_012"));
-        assertTrue(server.indexOf("addFixtureChunkTicket();") < server.indexOf("beforeIds = currentSubLevelIds();"));
+        assertFalse(server.contains("addRegionTicket("));
+        assertFalse(server.contains("skyforge_platform_012"));
+        assertTrue(server.contains("level.getChunk(0, 0);"));
     }
 
     @Test
@@ -78,7 +78,6 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(server.contains("bodyId.equals(serverTrackingId)"));
         assertTrue(server.contains("playerSableTrackingQualified=true inheritedParentTranslationQualified=true"));
         assertTrue(server.contains("fixtureLivenessTicket=sable:command_forced(released)"));
-        assertTrue(server.contains("fixtureChunkTicket=skyforge_platform_012(released)"));
         assertTrue(server.contains("primary seat assembly source cleanup did not settle before deadline"));
         assertTrue(server.contains("if (sourceNonAir != 0)"));
         assertFalse(server.contains("valid synchronous post-assembly state"));
