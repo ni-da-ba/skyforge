@@ -44,6 +44,7 @@ def _validate_plan_references(
     plan: dict[str, Any],
     placement_ids: set[str],
     placement_positions: dict[str, tuple[int, int, int]],
+    placement_block_names: dict[str, str],
     occupied: set[tuple[int, int, int]],
     minimum: list[int],
     maximum: list[int],
@@ -99,6 +100,61 @@ def _validate_plan_references(
         if position in clearance:
             raise SpecError("mechanism clearanceCells contains duplicates")
         clearance.add(position)
+
+    processing = plan.get("processingEnvelope")
+    if processing is not None:
+        if not isinstance(processing, dict):
+            raise SpecError("mechanism processingEnvelope must be an object")
+        stations = processing.get("stations")
+        if not isinstance(stations, list) or not stations:
+            raise SpecError("processing stations must be a non-empty list")
+        station_ids: set[str] = set()
+        for station in stations:
+            if not isinstance(station, dict):
+                raise SpecError("processing station must be an object")
+            placement_id = station.get("placementId")
+            if placement_id not in placement_ids:
+                raise SpecError("processing station references unknown placement")
+            if placement_id in station_ids:
+                raise SpecError("processing stations contain duplicate placement IDs")
+            station_ids.add(placement_id)
+            if station.get("role") not in {"cut", "press"}:
+                raise SpecError("processing station role must be cut or press")
+            if station.get("acquisitionMode") not in {"fall_on_top", "grounded_world_item"}:
+                raise SpecError("processing station acquisitionMode is unsupported")
+
+        surface_id = processing.get("pressWorldSurfacePlacementId")
+        if surface_id not in placement_ids:
+            raise SpecError("pressWorldSurfacePlacementId references unknown placement")
+
+        handoff = processing.get("manualHandoff")
+        if not isinstance(handoff, dict):
+            raise SpecError("processing manualHandoff must be an object")
+        if handoff.get("fromPlacementId") not in station_ids or handoff.get("toPlacementId") not in station_ids:
+            raise SpecError("manual handoff must reference processing stations")
+        if handoff.get("mode") != "world_item_restage":
+            raise SpecError("manual handoff mode must be world_item_restage")
+        handoff_cells = handoff.get("clearanceCells")
+        if not isinstance(handoff_cells, list) or not handoff_cells:
+            raise SpecError("manual handoff clearanceCells must be non-empty")
+        overall_clearance = {tuple(_int_triple(cell, "clearance cell")) for cell in clearance_cells}
+        seen_handoff: set[tuple[int, int, int]] = set()
+        for cell in handoff_cells:
+            position = _int_triple(cell, "manual handoff clearance cell")
+            if position not in overall_clearance:
+                raise SpecError("manual handoff clearance must be included in mechanism clearanceCells")
+            if position in seen_handoff:
+                raise SpecError("manual handoff clearance contains duplicates")
+            seen_handoff.add(position)
+
+        forbidden = processing.get("forbiddenTransportBlocks")
+        if not isinstance(forbidden, list) or not forbidden or not all(isinstance(v, str) and v for v in forbidden):
+            raise SpecError("forbiddenTransportBlocks must be a non-empty resource list")
+        if len(set(forbidden)) != len(forbidden):
+            raise SpecError("forbiddenTransportBlocks contains duplicates")
+        present_forbidden = sorted(set(placement_block_names.values()).intersection(forbidden))
+        if present_forbidden:
+            raise SpecError(f"mechanism contains forbidden transport blocks: {present_forbidden}")
 
     environment = plan.get("environmentalEnvelope")
     if environment is None:
@@ -170,6 +226,7 @@ def compiled_asset_for_mechanism_structure(plan: dict[str, Any]) -> CompiledAsse
     model = VoxelModel()
     placement_ids: set[str] = set()
     placement_positions: dict[str, tuple[int, int, int]] = {}
+    placement_block_names: dict[str, str] = {}
     occupied: set[tuple[int, int, int]] = set()
     validated: list[tuple[dict[str, Any], tuple[int, int, int], BlockState]] = []
     for placement in placements:
@@ -203,10 +260,13 @@ def compiled_asset_for_mechanism_structure(plan: dict[str, Any]) -> CompiledAsse
         role = placement.get("mechanicalRole", "mechanism")
         if not isinstance(role, str) or not role:
             raise SpecError("mechanism placement mechanicalRole must be a non-empty string")
+        placement_block_names[placement_id] = state_data["name"]
         state = BlockState.of(state_data["name"], **properties)
         validated.append((placement, pos, state))
 
-    _validate_plan_references(plan, placement_ids, placement_positions, occupied, minimum, maximum)
+    _validate_plan_references(
+        plan, placement_ids, placement_positions, placement_block_names, occupied, minimum, maximum
+    )
     _verify_plan_digest(plan)
 
     for placement, pos, state in validated:
