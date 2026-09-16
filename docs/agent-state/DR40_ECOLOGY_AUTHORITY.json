@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "milestone": "DR-40",
+  "state": "CANDIDATE_AUTHORITY",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "demonstrated_gap": {
+    "issue": 494,
+    "reason": "The canonical SF-IMP-0068 schema-2 runtime volume has an explicit AUTH-0046 authored-realization association but is not an AUTH-0058 publication, so fabricating AUTH-0087 publication provenance would violate accepted identity contracts."
+  },
+  "canonical_association": {
+    "authored_world_seed_unsigned": "6001989086914692933",
+    "province_key": 8,
+    "cluster_key": 81,
+    "island_key": 1471,
+    "realized_volume_id": "6001989086914692933/sf-imp-0068-production-composed-cave/0/0/680068",
+    "authority": "AUTH-0046_EXPLICIT_ASSOCIATION",
+    "publication_claim": "NONE"
+  },
+  "authorized_ecology_inputs": {
+    "surface_projection": "SkyIslandAuthoredRealizationSurfaceEcologyResolver",
+    "island_opportunity": "AUTH-0089 / SkyIslandEcologicalOpportunityProfiler",
+    "catalog_opportunity": "SkyIslandAuthoredRealizationEcologicalOpportunityProfiler",
+    "freshwater_habitat": "AUTH-0091 / SkyIslandFreshwaterHabitatOpportunityProfiler",
+    "raw_isolation": "SkyIslandAuthoredRealizationIsolationProfiler",
+    "visible_carrier": "SF-IMP-0080"
+  },
+  "canonical_isolation": {
+    "catalog_kind": "SINGLETON",
+    "nearest_neighbor": "ABSENT",
+    "meaning": "No regional peer is present in the locked canonical association catalog. This is raw diagnostic provenance only and does not authorize a population, density, carrying-capacity, predator-pressure, or species rule."
+  },
+  "altitude_and_moisture": {
+    "meaning": "AUTH-0003 already derives local ecology from authored temperature, moisture, elevation tendency, exposure, interiority, ecological potential, and hydrological potential. DR-40 must not add a second altitude or moisture ecology formula."
+  },
+  "non_authority": [
+    "Minecraft biome selection policy",
+    "species or entity selection",
+    "spawn counts or density",
+    "carrying capacity",
+    "predator pressure",
+    "population rhythm",
+    "resource eligibility",
+    "aesthetic distribution thresholds",
+    "AUTH-0058 publication provenance for the canonical SF-IMP-0068 volume"
+  ],
+  "published_world_rule": "AUTH-0087 remains mandatory for consumers that claim AUTH-0058 publication provenance. AUTH-0103 does not weaken or replace AUTH-0087/0088/0090/0092.",
+  "dr40_worker_handoff": "Construct the exact AUTH-0046 association from DR-00 identity plus the locked production volume. Consume AUTH-0103 explicit-association surface/catalog evidence, AUTH-0089, AUTH-0091, and the accepted SF-IMP-0080 carrier. Treat raw singleton isolation as diagnostic only. Do not fabricate a publication binding or invent population policy."
+}
