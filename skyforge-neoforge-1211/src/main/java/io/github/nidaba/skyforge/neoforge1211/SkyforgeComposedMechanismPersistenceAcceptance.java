@@ -71,6 +71,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static final BlockPos CHILD_GLUE_MIN = CHILD_SAIL_DOWN_SOURCE;
     private static final BlockPos CHILD_GLUE_MAX = CHILD_SAIL_UP_SOURCE;
 
+    private static final long SOURCE_CHUNK_READINESS_DEADLINE_TICKS = 80L;
     private static final long ASSEMBLY_DEADLINE_TICKS = 80L;
     private static final long PHYSICS_INITIALIZATION_DEADLINE_TICKS = 40L;
     private static final long KINETIC_BUILD_DEADLINE_TICKS = 80L;
@@ -127,6 +128,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static SkyforgeCompilerIntegrationDiagnostic waitDiagnostic;
 
     private enum Stage {
+        SOURCE_CHUNK_READINESS,
         ASSEMBLY,
         PHYSICS_INITIALIZATION,
         KINETIC_BUILD,
@@ -167,24 +169,16 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
 
             beforeIds = currentSubLevelIds();
             beforeHoldingIds = currentHoldingSubLevelIds();
-            prepareFixture();
-            GlueFixture mainGlue = addGlue(MAIN_GLUE_MIN, MAIN_GLUE_MAX, "main");
-            mainGlueId = mainGlue.id();
-
-            BlockEntity assembler = requireExpectedBlockEntity(ASSEMBLER_SOURCE, "PhysicsAssemblerBlockEntity");
-            stage = Stage.ASSEMBLY;
+            stage = Stage.SOURCE_CHUNK_READINESS;
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.ASSEMBLY,
-                    "real Physics Assembler captures the bounded primary Sable/Create mechanism",
+                    "source chunk reaches exact Sable block-ticking readiness before fixture/glue creation",
                     now,
-                    now + ASSEMBLY_DEADLINE_TICKS,
+                    now + SOURCE_CHUNK_READINESS_DEADLINE_TICKS,
                     sourceIds(),
                     safeServerState(),
-                    "beforeSubLevelIds=" + beforeIds + " beforeHoldingIds=" + beforeHoldingIds
-                            + "; nested child realization deferred until live primary body");
-            publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
-            primaryAssemblyTriggered = true;
-            pollAssembly(now, true);
+                    "fixtureChunk=" + FIXTURE_CHUNK + " beforeSubLevelIds=" + beforeIds
+                            + " beforeHoldingIds=" + beforeHoldingIds);
         } catch (ReflectiveOperationException exception) {
             failReflection(stageFailureCode(), exception);
         } catch (RuntimeException exception) {
@@ -206,6 +200,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         long now = level.getGameTime();
         try {
             switch (stage) {
+                case SOURCE_CHUNK_READINESS -> pollSourceChunkReadiness(now);
                 case ASSEMBLY -> pollAssembly(now, false);
                 case PHYSICS_INITIALIZATION -> pollPhysicsInitialization(now);
                 case KINETIC_BUILD -> pollKineticBuild(now);
@@ -225,7 +220,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static SkyforgeCompilerIntegrationFailure stageFailureCode() {
         if (stage == null) return SkyforgeCompilerIntegrationFailure.FAIL_PERSISTENCE;
         return switch (stage) {
-            case ASSEMBLY -> SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY;
+            case SOURCE_CHUNK_READINESS, ASSEMBLY -> SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY;
             case PHYSICS_INITIALIZATION -> SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS;
             case KINETIC_BUILD, KINETIC_DISCONNECT, KINETIC_REBUILD ->
                     SkyforgeCompilerIntegrationFailure.FAIL_KINETIC_REBUILD;
@@ -237,12 +232,68 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
     private static SkyforgeCompilerIntegrationPhase stagePhase() {
         if (stage == null) return SkyforgeCompilerIntegrationPhase.PERSISTENCE_RELOAD;
         return switch (stage) {
-            case ASSEMBLY -> SkyforgeCompilerIntegrationPhase.ASSEMBLY;
+            case SOURCE_CHUNK_READINESS, ASSEMBLY -> SkyforgeCompilerIntegrationPhase.ASSEMBLY;
             case PHYSICS_INITIALIZATION -> SkyforgeCompilerIntegrationPhase.PHYSICS_INITIALIZATION;
             case KINETIC_BUILD, CHILD_REASSEMBLY, KINETIC_DISCONNECT, KINETIC_REBUILD ->
                     SkyforgeCompilerIntegrationPhase.MECHANISM_INITIALIZATION;
             case RELOAD_RECOVERY -> SkyforgeCompilerIntegrationPhase.PERSISTENCE_RELOAD;
         };
+    }
+
+    private static void pollSourceChunkReadiness(long now) throws ReflectiveOperationException {
+        if (!isFixtureChunkLoadedEnough()) {
+            if (waitDiagnostic.expired(now)) {
+                fail(SkyforgeCompilerIntegrationFailure.TIMEOUT_ASSEMBLY_REGISTRATION,
+                        waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
+                                "fixtureChunk=" + FIXTURE_CHUNK + " sableChunkLoadedEnough=false"),
+                        "source chunk did not reach Sable block-ticking readiness before deadline");
+            }
+            return;
+        }
+
+        prepareFixture();
+        if (countSourceFixtureNonAir() != 17) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
+                    waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
+                            "preAssemblySourceNonAir=" + countSourceFixtureNonAir()
+                                    + " residual=" + sourceFixtureNonAirPositions()),
+                    "PLATFORM-007 source fixture did not materialize as the exact 17-cell source set");
+        }
+        GlueFixture mainGlue = addGlue(MAIN_GLUE_MIN, MAIN_GLUE_MAX, "main");
+        mainGlueId = mainGlue.id();
+        requireMainGlueVisibleToCreate(mainGlue);
+
+        BlockEntity assembler = requireExpectedBlockEntity(ASSEMBLER_SOURCE, "PhysicsAssemblerBlockEntity");
+        stage = Stage.ASSEMBLY;
+        waitDiagnostic = diagnostic(
+                SkyforgeCompilerIntegrationPhase.ASSEMBLY,
+                "real Physics Assembler synchronously captures the exact bounded primary Sable/Create mechanism",
+                now,
+                now + ASSEMBLY_DEADLINE_TICKS,
+                sourceIds(),
+                safeServerState(),
+                "sableChunkLoadedEnough=true mainGlueVisibleToCreate=true preAssemblySourceNonAir=17"
+                        + " beforeSubLevelIds=" + beforeIds + " beforeHoldingIds=" + beforeHoldingIds);
+        publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
+        primaryAssemblyTriggered = true;
+
+        int residual = countSourceFixtureNonAir();
+        if (residual != 0) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
+                    waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "headless",
+                            "synchronousSourceNonAir=" + residual
+                                    + " residual=" + sourceFixtureNonAirPositions()
+                                    + " liveIds=" + currentSubLevelIds()
+                                    + " holdingIds=" + currentHoldingSubLevelIds()),
+                    "Physics Assembler returned before exact synchronous 17->0 source transfer completed");
+        }
+        pollAssembly(now, true);
+    }
+
+    private static boolean isFixtureChunkLoadedEnough() throws ReflectiveOperationException {
+        Class<?> manager = Class.forName("dev.ryanhcode.sable.sublevel.system.ticket.PhysicsChunkTicketManager");
+        return Boolean.TRUE.equals(manager.getMethod("isChunkLoadedEnough", ServerLevel.class, int.class, int.class)
+                .invoke(null, level, FIXTURE_CHUNK.x, FIXTURE_CHUNK.z));
     }
 
     private static void pollAssembly(long now, boolean synchronousObservation) throws ReflectiveOperationException {
@@ -931,6 +982,38 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         return new GlueFixture(glue.getUUID(), box, glue);
     }
 
+    private static void requireMainGlueVisibleToCreate(GlueFixture main) throws ReflectiveOperationException {
+        Class<?> glueClass = Class.forName(GLUE_CLASS_NAME);
+        BlockPos seed = BODY_MAX;
+        BlockPos neighbor = seed.west();
+        AABB search = ((AABB) glueClass.getMethod("span", BlockPos.class, BlockPos.class)
+                .invoke(null, seed, neighbor)).inflate(16.0);
+        Object result = publicMethod(level, "getEntitiesOfClass", Class.class, AABB.class)
+                .invoke(level, glueClass, search);
+        if (!(result instanceof List<?> visible)) {
+            throw new IllegalStateException("typed Create Super Glue query returned unexpected value " + result);
+        }
+        Entity exact = null;
+        for (Object candidate : visible) {
+            if (candidate instanceof Entity entity && entity.getUUID().equals(main.id())) {
+                exact = entity;
+                break;
+            }
+        }
+        boolean containsSeed = exact != null && Boolean.TRUE.equals(
+                publicMethod(exact, "contains", BlockPos.class).invoke(exact, seed));
+        boolean containsNeighbor = exact != null && Boolean.TRUE.equals(
+                publicMethod(exact, "contains", BlockPos.class).invoke(exact, neighbor));
+        if (exact == null || !containsSeed || !containsNeighbor) {
+            throw new IllegalStateException("main Super Glue not visible through exact typed Create query: id="
+                    + main.id() + " visibleCount=" + visible.size() + " seed=" + seed + " neighbor=" + neighbor
+                    + " containsSeed=" + containsSeed + " containsNeighbor=" + containsNeighbor);
+        }
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " MAIN_GLUE_VISIBLE_TO_CREATE id=" + main.id()
+                        + " visibleCount=" + visible.size() + " seed=" + seed + " neighbor=" + neighbor);
+    }
+
     private static void requireGlueBoundary(GlueFixture main, GlueFixture child) throws ReflectiveOperationException {
         boolean mainContainsHub = Boolean.TRUE.equals(publicMethod(main.entity(), "contains", BlockPos.class)
                 .invoke(main.entity(), CHILD_HUB_SOURCE));
@@ -1131,6 +1214,20 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
             };
         }
         return number(publicMethod(vector, name).invoke(vector));
+    }
+
+    private static List<BlockPos> sourceFixtureNonAirPositions() {
+        List<BlockPos> positions = new ArrayList<>();
+        if (!level.getBlockState(ASSEMBLER_SOURCE).isAir()) positions.add(ASSEMBLER_SOURCE);
+        for (int x = BODY_MIN.getX(); x <= BODY_MAX.getX(); x++) {
+            for (int y = BODY_MIN.getY(); y <= BODY_MAX.getY(); y++) {
+                for (int z = BODY_MIN.getZ(); z <= BODY_MAX.getZ(); z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (!level.getBlockState(pos).isAir()) positions.add(pos);
+                }
+            }
+        }
+        return List.copyOf(positions);
     }
 
     private static int countSourceFixtureNonAir() {

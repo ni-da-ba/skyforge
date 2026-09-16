@@ -55,6 +55,13 @@ final class ComposedMechanismPersistenceResourceTest {
         assertTrue(source.contains("glueDuplicate=false"));
         assertTrue(source.contains("normalizedChildBlocksInPlot=true"));
         assertTrue(source.contains("ENTITY_REHYDRATION_GRACE_TICKS"));
+        assertTrue(source.contains("SOURCE_CHUNK_READINESS"));
+        assertTrue(source.contains("PhysicsChunkTicketManager"));
+        assertTrue(source.contains("isChunkLoadedEnough"));
+        assertTrue(source.contains("MAIN_GLUE_VISIBLE_TO_CREATE"));
+        assertTrue(source.contains("getEntitiesOfClass"));
+        assertTrue(source.contains("synchronousSourceNonAir"));
+        assertTrue(source.contains("sourceFixtureNonAirPositions"));
         assertTrue(source.contains("persisted-both"));
         assertTrue(source.contains("mixed-persisted-reactivated"));
         assertTrue(source.contains("recreated-both"));
