@@ -101,7 +101,7 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
     }
 
     @Test
-    void workflowRunsActualClientAndCapabilityRemainsUnpublishedBeforeL2Acceptance() throws IOException {
+    void workflowRunsActualClientAndLedgerPublishesAcceptedAgentBAuthority() throws IOException {
         String workflow = Files.readString(PROJECT_DIRECTORY.resolve(
                 "../.github/workflows/compiler-platform-player-tracking-on-sable.yml").normalize());
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
@@ -115,7 +115,18 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(workflow.contains("harnessTrackingSetterInvoked=false"));
         assertTrue(workflow.contains("harnessPlayerMutationDuringMeasurement=false"));
         assertTrue(workflow.contains("inheritedParentTranslationQualified=true"));
-        assertFalse(ledger.contains("\"PLAYER_TRACKING_ON_SABLE_LIFECYCLE\""));
+
+        int start = ledger.indexOf("\"PLAYER_TRACKING_ON_SABLE_LIFECYCLE\"");
+        assertTrue(start >= 0);
+        String entry = ledger.substring(start);
+        assertTrue(entry.contains("\"status\": \"accepted\""));
+        assertTrue(entry.contains("\"workflow_run\": 35116518760"));
+        assertTrue(entry.contains("\"job\": 104864132429"));
+        assertTrue(entry.contains("\"commit\": \"f742d7a4dbd73a7a2bc1c7a2316207de891961cd\""));
+        assertTrue(entry.contains("client_sublevel_collision_then_movement_packet"));
+        assertTrue(entry.contains("harnessPlayerMutationDuringMeasurement"));
+        assertTrue(entry.contains("\"B\": true"));
+        assertTrue(entry.contains("\"C\": false"));
     }
 
     private static String serverSource() throws IOException {
