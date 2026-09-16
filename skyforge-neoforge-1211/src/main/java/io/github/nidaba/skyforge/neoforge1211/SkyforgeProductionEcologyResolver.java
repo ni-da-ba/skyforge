@@ -39,26 +39,28 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
             int worldX,
             int worldY,
             int worldZ) {
-        if (!volumeId.equals(Objects.requireNonNull(candidateVolumeId, "candidateVolumeId"))) {
-            throw new IllegalArgumentException(
-                    "DR-40 ecology resolver references a foreign exact volume: "
-                            + candidateVolumeId.path());
-        }
-        return resolveAuthoredSurface(candidateVolumeId, worldX, worldZ)
-                .orElseThrow(() -> new IllegalStateException(
-                        "DR-40 native population sampled physical terrain without authored surface ecology at "
-                                + worldX + "," + worldZ));
+        requireVolume(candidateVolumeId);
+        // Native cave/interior algorithms require a registered biome context for every exact
+        // physical column. PLAINS is a neutral technical fallback only; supportsSurface() remains
+        // false there, so it cannot authorize vegetation or persistent surface-biome presentation.
+        return resolveAuthoredSurface(candidateVolumeId, worldX, worldZ).orElse(Biomes.PLAINS);
+    }
+
+    @Override
+    public boolean supportsSurface(
+            SkyIslandWorldVolumeId candidateVolumeId,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        requireVolume(candidateVolumeId);
+        return resolveAuthoredSurface(candidateVolumeId, worldX, worldZ).isPresent();
     }
 
     Optional<ResourceKey<Biome>> resolveAuthoredSurface(
             SkyIslandWorldVolumeId candidateVolumeId,
             int worldX,
             int worldZ) {
-        if (!volumeId.equals(Objects.requireNonNull(candidateVolumeId, "candidateVolumeId"))) {
-            throw new IllegalArgumentException(
-                    "DR-40 ecology resolver references a foreign exact volume: "
-                            + candidateVolumeId.path());
-        }
+        requireVolume(candidateVolumeId);
         var surface = ecology.sample(volumeId, new Coordinate2(worldX, worldZ));
         var authored = surface.ecologySample();
         if (authored.isEmpty()) {
@@ -82,9 +84,23 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
             if (terrain.integerSolidRange(volumeId, worldX, worldZ).isEmpty()) {
                 continue;
             }
-            return ecology.sample(volumeId, new Coordinate2(worldX, worldZ)).authoredSurfacePresent();
+            return supportsSurface(volumeId, worldX, rangeY(terrain, worldX, worldZ), worldZ);
         }
         return false;
+    }
+
+    private void requireVolume(SkyIslandWorldVolumeId candidateVolumeId) {
+        if (!volumeId.equals(Objects.requireNonNull(candidateVolumeId, "candidateVolumeId"))) {
+            throw new IllegalArgumentException(
+                    "DR-40 ecology resolver references a foreign exact volume: "
+                            + candidateVolumeId.path());
+        }
+    }
+
+    private int rangeY(SkyforgeNeoForge1211ChunkAdapter terrain, int worldX, int worldZ) {
+        return terrain.integerSolidRange(volumeId, worldX, worldZ)
+                .orElseThrow()
+                .maximumY() + 1;
     }
 
     static ResourceKey<Biome> carrier(SkyIslandEcologyRegime regime) {

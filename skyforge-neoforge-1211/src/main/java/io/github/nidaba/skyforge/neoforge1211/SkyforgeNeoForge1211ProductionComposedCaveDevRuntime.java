@@ -102,8 +102,6 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         Set<Long> plannedChunks = SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(volumeId);
         persistentPopulationBinding = SkyforgeNativeSurfacePopulationStage.install(
                 (chunkPos, minimumY, height) -> plannedChunks.contains(chunkPos.toLong())
-                                && (productionEcology == null
-                                        || productionEcology.supportsCoordinatorSurface(terrainAdapter, chunkPos))
                         ? List.of(SkyforgeNativeSurfacePopulationPlan.surfaceEcology(
                                 volumeId,
                                 biomeResolver,

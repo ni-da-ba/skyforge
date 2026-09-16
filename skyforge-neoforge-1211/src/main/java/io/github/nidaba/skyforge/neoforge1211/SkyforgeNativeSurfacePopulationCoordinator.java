@@ -62,6 +62,10 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
             return new Result(plan.volumeId(), chunkPos, false, List.of());
         }
         SurfaceSample sample = surface.orElseThrow();
+        if (!plan.biomeResolver().supportsSurface(
+                plan.volumeId(), sample.x(), sample.firstFreeY(), sample.z())) {
+            return new Result(plan.volumeId(), chunkPos, true, List.of());
+        }
         List<PhaseResult> phaseResults = new ArrayList<>(plan.phases().size());
 
         for (GenerationStep.Decoration phase : plan.phases()) {
