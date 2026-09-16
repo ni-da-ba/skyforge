@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -146,6 +147,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
             beforeIds = currentSubLevelIds();
             prepareFixture();
             glueId = addFixtureGlue();
+            requireSynchronousSimulatedTraversal();
             BlockEntity assembler = level.getBlockEntity(ASSEMBLER_SOURCE);
             if (assembler == null || !assembler.getClass().getName().endsWith("PhysicsAssemblerBlockEntity")) {
                 fail(
@@ -782,6 +784,58 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
                 || !level.setBlock(ASSEMBLER_SOURCE, assemblerState, 3)) {
             throw new IllegalStateException("failed to place complete moving Create seat fixture");
         }
+    }
+
+    private static void requireSynchronousSimulatedTraversal() throws ReflectiveOperationException {
+        Class<?> contraptionType = Class.forName(
+                "dev.simulated_team.simulated.util.assembly.SimAssemblyContraption");
+        Constructor<?> constructor = contraptionType.getConstructor(BlockPos.class, boolean.class);
+        // Mirror SimAssemblyHelper.assembleFromSingleBlock(..., includeStart=true, includeEncasingGlue=true).
+        Object probe = constructor.newInstance(null, false);
+        Object searched = contraptionType.getMethod("searchMovedStructure", Level.class, BlockPos.class)
+                .invoke(probe, level, ASSEMBLER_SOURCE.below());
+        if (!(searched instanceof Boolean ok) || !ok) {
+            throw new IllegalStateException("Simulated dry traversal rejected the PLATFORM-012 fixture");
+        }
+
+        Object rawBlocks = contraptionType.getMethod("getBlocks").invoke(probe);
+        if (!(rawBlocks instanceof Collection<?> blocks)) {
+            throw new IllegalStateException("Simulated dry traversal did not expose a block collection: " + rawBlocks);
+        }
+        Set<BlockPos> observed = new LinkedHashSet<>();
+        for (Object block : blocks) {
+            if (!(block instanceof BlockPos pos)) {
+                throw new IllegalStateException("Simulated dry traversal returned a non-BlockPos entry: " + block);
+            }
+            observed.add(pos.immutable());
+        }
+
+        Set<BlockPos> expected = new LinkedHashSet<>();
+        for (BlockPos pos : BlockPos.betweenClosed(BODY_MIN, BODY_MAX)) {
+            expected.add(pos.immutable());
+        }
+        expected.add(SEAT_SOURCE);
+        expected.add(ASSEMBLER_SOURCE);
+        if (!observed.equals(expected)) {
+            throw new IllegalStateException("Simulated dry traversal did not resolve the exact ten-cell fixture: expected="
+                    + expected + " observed=" + observed);
+        }
+
+        Object rawGlues = contraptionType.getMethod("getGlues").invoke(probe);
+        if (!(rawGlues instanceof Collection<?> glues) || glues.size() != 1) {
+            throw new IllegalStateException("Simulated dry traversal did not cache exactly one Super Glue entity: "
+                    + rawGlues);
+        }
+        Object cachedGlue = glues.iterator().next();
+        if (!(cachedGlue instanceof Entity entity) || !glueId.equals(entity.getUUID())) {
+            throw new IllegalStateException("Simulated dry traversal cached the wrong Super Glue entity: expected="
+                    + glueId + " observed=" + cachedGlue);
+        }
+
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " SIMULATED_TRAVERSAL_READY glueId=" + glueId
+                        + " observedBlocks=" + observed.size() + " cachedGlues=" + glues.size()
+                        + " synchronousPreAssemblyProbe=true");
     }
 
     private static UUID addFixtureGlue() throws ReflectiveOperationException {
