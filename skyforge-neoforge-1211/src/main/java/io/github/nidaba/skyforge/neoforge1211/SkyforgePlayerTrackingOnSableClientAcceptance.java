@@ -41,6 +41,7 @@ final class SkyforgePlayerTrackingOnSableClientAcceptance {
     private static boolean clientSeatDismounted;
     private static boolean clientComplete;
     private static InteractionResult seatUseResult;
+    private static int seatUseAttempts;
     private static UUID clientSeatEntityId;
     private static UUID clientTrackingId;
     private static boolean clientTrackingAcquired;
@@ -110,19 +111,24 @@ final class SkyforgePlayerTrackingOnSableClientAcceptance {
         BlockPos seatPos = snapshot.seatPos();
         if (!clientSubLevelReady) {
             if (!sableSubLevelReady(minecraft.level, seatPos)) {
+                publishMountDiagnostic("gate=sublevel-ready value=false seatPos=" + seatPos);
                 stageTicks = 0;
                 return;
             }
             clientSubLevelReady = true;
+            publishMountDiagnostic("gate=sublevel-ready value=true seatPos=" + seatPos);
             stageTicks = 0;
             return;
         }
         if (minecraft.screen != null) {
+            publishMountDiagnostic("gate=gameplay-screen screen=" + minecraft.screen.getClass().getName());
             stageTicks = 0;
             return;
         }
         clientGameplayReady = true;
+        String clientSeatBlock = String.valueOf(minecraft.level.getBlockState(seatPos));
         if (!minecraft.level.getBlockState(seatPos).getBlock().getClass().getName().endsWith("SeatBlock")) {
+            publishMountDiagnostic("gate=seat-block value=false block=" + clientSeatBlock + " seatPos=" + seatPos);
             stageTicks = 0;
             return;
         }
@@ -134,12 +140,20 @@ final class SkyforgePlayerTrackingOnSableClientAcceptance {
         float partialTick = minecraft.getTimer().getGameTimeDeltaPartialTick(true);
         Vec3 renderedSeatCenter = projectOutOfClientRenderPose(
                 minecraft.level, seatPos, Vec3.atCenterOf(seatPos), partialTick);
-        if (renderedSeatCenter.distanceTo(snapshot.expectedGlobalSeatCenter())
-                > CLIENT_SERVER_POSE_TOLERANCE_BLOCKS) {
+        double poseError = renderedSeatCenter.distanceTo(snapshot.expectedGlobalSeatCenter());
+        if (poseError > CLIENT_SERVER_POSE_TOLERANCE_BLOCKS) {
+            publishMountDiagnostic("gate=pose-convergence value=false poseError=" + poseError
+                    + " renderedSeatCenter=" + renderedSeatCenter
+                    + " expectedGlobalSeatCenter=" + snapshot.expectedGlobalSeatCenter()
+                    + " clientSeatBlock=" + clientSeatBlock);
             stageTicks = 0;
             return;
         }
         clientServerPoseConverged = true;
+        publishMountDiagnostic("gate=use-ready poseError=" + poseError
+                + " clientSeatBlock=" + clientSeatBlock
+                + " attempts=" + seatUseAttempts
+                + " lastUseResult=" + seatUseResult);
 
         UUID serverSeatId = SkyforgePlayerTrackingOnSableLifecycleAcceptance.seatEntityId();
         Entity vehicle = player.getVehicle();
@@ -177,7 +191,14 @@ final class SkyforgePlayerTrackingOnSableClientAcceptance {
             Vec3 seatPlotCenter = Vec3.atCenterOf(seatPos);
             BlockHitResult hit = new BlockHitResult(seatPlotCenter, Direction.UP, seatPos, false);
             minecraft.hitResult = hit;
+            seatUseAttempts++;
             seatUseResult = minecraft.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
+            publishMountDiagnostic("gate=seat-use-attempt attempts=" + seatUseAttempts
+                    + " result=" + seatUseResult
+                    + " poseError=" + poseError
+                    + " playerPos=" + player.position()
+                    + " seatPlotCenter=" + seatPlotCenter
+                    + " renderedSeatCenter=" + renderedSeatCenter);
         }
 
         if (stageTicks > MOUNT_CLIENT_DEADLINE_TICKS) {
@@ -431,6 +452,10 @@ final class SkyforgePlayerTrackingOnSableClientAcceptance {
         } catch (ReflectiveOperationException failure) {
             throw new IllegalStateException("could not project PLATFORM-012 plot position through client renderPose", failure);
         }
+    }
+
+    private static void publishMountDiagnostic(String diagnostic) {
+        SkyforgePlayerTrackingOnSableBridge.publishMountDiagnostic(diagnostic);
     }
 
     private static void advanceStage() {

@@ -393,7 +393,9 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
                         waitDiagnostic.withFinalState(movedIds(), safeServerState(), "actual-client",
                                 "playerPassenger=" + positionedPlayer.isPassenger()
                                         + " vehicle=" + entitySummary(vehicle)
-                                        + " seatEntities=" + seatEntitySummary(seatEntitiesAtMovedSeat())),
+                                        + " seatEntities=" + seatEntitySummary(seatEntitiesAtMovedSeat())
+                                        + " clientMountDiagnostic={"
+                                        + SkyforgePlayerTrackingOnSableBridge.mountDiagnostic() + "}"),
                         "ordinary actual-client Create seat use did not produce a bounded real mount");
             }
             return;

@@ -8,6 +8,7 @@ import net.minecraft.world.phys.Vec3;
 /** In-process handoff between the PLATFORM-012 integrated server and actual client. */
 final class SkyforgePlayerTrackingOnSableBridge {
     private static volatile Snapshot snapshot;
+    private static volatile String mountDiagnostic = "client-not-started";
 
     private SkyforgePlayerTrackingOnSableBridge() {}
 
@@ -25,6 +26,14 @@ final class SkyforgePlayerTrackingOnSableBridge {
 
     static Snapshot snapshot() {
         return snapshot;
+    }
+
+    static void publishMountDiagnostic(String diagnostic) {
+        mountDiagnostic = Objects.requireNonNull(diagnostic, "diagnostic");
+    }
+
+    static String mountDiagnostic() {
+        return mountDiagnostic;
     }
 
     record Snapshot(

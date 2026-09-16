@@ -49,12 +49,20 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
     void trackingAndMeasurementUseNaturalInputWithoutHarnessTrackingOrPlayerMutation() throws IOException {
         String client = clientSource();
         String server = serverSource();
+        String bridge = bridgeSource();
         String measurement = client.substring(client.indexOf("private static void awaitNaturalTracking"),
                 client.indexOf("private static void complete"));
 
         assertTrue(client.contains("minecraft.options.keyJump.setDown(true)"));
         assertTrue(client.contains("minecraft.gameMode.useItemOn"));
         assertTrue(client.contains("minecraft.options.keyShift.setDown(true)"));
+        assertTrue(client.contains("publishMountDiagnostic"));
+        assertTrue(client.contains("gate=sublevel-ready"));
+        assertTrue(client.contains("gate=seat-block"));
+        assertTrue(client.contains("gate=pose-convergence"));
+        assertTrue(client.contains("gate=seat-use-attempt"));
+        assertTrue(server.contains("clientMountDiagnostic={"));
+        assertTrue(bridge.contains("mountDiagnostic"));
         assertTrue(measurement.contains("clientTrackingSubLevel"));
         assertTrue(measurement.contains("submitClientTranslationBaseline"));
         assertTrue(measurement.contains("submitClientTranslationResult"));
@@ -108,6 +116,12 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         return Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/"
                         + "SkyforgePlayerTrackingOnSableLifecycleAcceptance.java"));
+    }
+
+    private static String bridgeSource() throws IOException {
+        return Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/"
+                        + "SkyforgePlayerTrackingOnSableBridge.java"));
     }
 
     private static String clientSource() throws IOException {
