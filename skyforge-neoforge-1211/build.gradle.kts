@@ -2048,6 +2048,26 @@ neoForge {
         }
 
 
+        // AIRCRAFT-RUNTIME-002: two-boot production v0.12 aircraft persistence consumer.
+        create("aircraftPowertrainPersistencePrepareServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-aircraft-powertrain-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.aircraftPowertrainPersistence", "prepare")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("aircraftPowertrainPersistenceVerifyServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-aircraft-powertrain-persistence").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.aircraftPowertrainPersistence", "verify")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         // PLATFORM-006: prepare a blank quick-play world, then exercise a real client Steering Wheel on Sable.
         create("compilerPlatformSteeringWheelClientWorldPrepareServer") {
             server()
@@ -2734,6 +2754,39 @@ tasks.named("runAircraftPowertrainRuntime128Server").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(aircraftPowertrainRuntime128ServerProperties)
+    }
+}
+
+
+val aircraftPowertrainPersistenceServerProperties = """
+    level-name=aircraft-powertrain-persistence
+    level-seed=674001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=4
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runAircraftPowertrainPersistencePrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-aircraft-powertrain-persistence").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(aircraftPowertrainPersistenceServerProperties)
+    }
+}
+
+tasks.named("runAircraftPowertrainPersistenceVerifyServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-aircraft-powertrain-persistence").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(aircraftPowertrainPersistenceServerProperties)
     }
 }
 

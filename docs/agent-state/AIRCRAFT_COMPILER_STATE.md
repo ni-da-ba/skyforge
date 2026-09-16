@@ -285,6 +285,12 @@ and must not invent an aircraft-specific persistence workaround. Until that depe
 static frozen yaw-control evidence may remain reference material but must not be promoted as a
 production-ready new axis.
 
+## AIRCRAFT-RUNTIME-002 in progress
+
+Issue #674 consumes accepted `SABLE_COMPOSED_MECHANISM_PERSISTENCE_LIFECYCLE` authority from PLATFORM-007. Its dedicated two-boot workflow recompiles the same production v0.12 Guild utility chain in both fresh processes, preserves manifest/powertrain digest identity and the persistent primary Sable UUID, normalizes the nine-block Propeller Bearing child before save, then re-resolves current body/physics/block-entity authority after reload. Missing compiler-emitted Super Glue entities may only be re-realized after the accepted bounded rehydration grace semantics; the proof must recover exactly five compiler glue domains without duplicates, explicitly reactivate only the Portable Engine burn/governor lifecycle state, and return to the already-qualified 128-RPM stress/thrust boundary.
+
+Until the dedicated exact-stack workflow passes on an authority-bearing head, aircraft persistence remains unqualified and no control-axis production tranche may be promoted.
+
 ## Prepared by AIRCRAFT-DESIGN-001
 
 Issue #687 records target-neutral pitch/roll semantic direction and a discrete feasibility study against the accepted Guild utility blockspace plus corrected-yaw occupancy. It defines nose-up/down and port/starboard-down moment signs in the production coordinate frame, demonstrates collision-aware split-elevator and mirrored outboard-aileron candidate partitions, and quantifies their target-realization centroid shifts without feeding those shifts back into the analytical design.
