@@ -1218,6 +1218,79 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // DR-50 canonical integrated dressed-region qualification. This is the DR-00 specimen,
+        // not a new world-authoring fixture: it composes SF-IMP-0068 terrain/caves, DR-20 authored
+        // hydrology, DR-30's already-authorized generic mansion probe, DR-40 ecology, accepted
+        // post-cave native interior population, and C20 starting-cluster Iron in one lifecycle.
+        create("dr50IntegratedRegionAcceptanceA") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr50-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCave", "true")
+            systemProperty("skyforge.dev.dr50IntegratedRegion", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-50-integrated-region-a")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr-50/production-a.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr50IntegratedRegionAcceptanceB") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr50-auto-b").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCave", "true")
+            systemProperty("skyforge.dev.dr50IntegratedRegion", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-50-integrated-region-b")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr-50/production-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr50IntegratedRegionAcceptanceReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-dr50-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCaveReload", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcologyReload", "true")
+            systemProperty("skyforge.dev.dr50IntegratedRegionReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-50-integrated-region-reload")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
+            systemProperty(
+                "skyforge.dev.productionComposedCaveExpectedResultFile",
+                layout.buildDirectory.file("acceptance/dr-50/production-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr-50/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         create("productionComposedCaveAcceptanceStacked") {
             server()
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0068-auto-stacked").asFile
@@ -5253,6 +5326,165 @@ tasks.register("dr40ProductionEcologyAcceptance") {
         "runDr40ProductionEcologyAcceptanceReloadClient",
     )
     finalizedBy("dr40ProductionEcologyAcceptanceVerify")
+}
+
+val dr50AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/dr-50")
+val dr50AcceptanceServerProperties = """
+    level-name=acceptance
+    level-seed=493030
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=7
+    simulation-distance=5
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareDr50AcceptanceServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(dr50AcceptanceServerProperties)
+}
+
+fun requireDr50AcceptancePass(resultName: String): Properties {
+    val file = dr50AcceptanceResultDirectory.get().file("$resultName.properties").asFile
+    check(file.isFile) { "DR-50 acceptance result missing: $file" }
+    return Properties().also { properties ->
+        file.inputStream().use(properties::load)
+        check(properties.getProperty("status") == "PASS") {
+            val detail = properties.getProperty("failure") ?: "status=${properties.getProperty("status")}"
+            "DR-50 acceptance case $resultName did not PASS: $detail"
+        }
+    }
+}
+
+listOf(
+    Triple("runDr50IntegratedRegionAcceptanceA", "run-dr50-auto-a", "production-a"),
+    Triple("runDr50IntegratedRegionAcceptanceB", "run-dr50-auto-b", "production-b"),
+).forEach { (taskName, relativePath, resultName) ->
+    tasks.named(taskName).configure {
+        doFirst { prepareDr50AcceptanceServerDirectory(relativePath) }
+        doLast { requireDr50AcceptancePass(resultName) }
+    }
+}
+
+tasks.named("runDr50IntegratedRegionAcceptanceA").configure {
+    doFirst { delete(dr50AcceptanceResultDirectory) }
+}
+tasks.named("runDr50IntegratedRegionAcceptanceB").configure {
+    mustRunAfter("runDr50IntegratedRegionAcceptanceA")
+}
+tasks.named("runDr50IntegratedRegionAcceptanceReloadClient").configure {
+    mustRunAfter("runDr50IntegratedRegionAcceptanceB")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-dr50-auto-b").asFile
+        directory.resolve("options.txt").writeText("onboardAccessibility:false\nnarrator:0\n")
+    }
+    doLast { requireDr50AcceptancePass("reload") }
+}
+
+tasks.register("dr50IntegratedRegionAcceptanceVerify") {
+    group = "verification"
+    description = "Verify deterministic DR-50 canonical dressed-region integration evidence."
+    doLast {
+        val first = requireDr50AcceptancePass("production-a")
+        val second = requireDr50AcceptancePass("production-b")
+        val reload = requireDr50AcceptancePass("reload")
+        for (key in listOf(
+            "islandKey", "nativeTransformDigest", "nativeCarveDigest", "authoredChangedDigest",
+            "authoredProvenanceDigest", "finalAuthoredAir", "authoredDownstreamOccupied",
+            "dr40PopulationOutcomeDigest", "dr50SpecimenId",
+            "dr50Volume", "dr50WorldSeedUnsigned", "dr50HydrologyPositions", "dr50HydrologyDigest",
+            "dr50HydrologyRepresentativePos", "dr50InteriorCompleted", "dr50InteriorNonEmpty",
+            "dr50InteriorSuccessfulFeatures", "dr50InteriorUnsupportedLakeFeatures",
+            "dr50InteriorTrackedFluids", "dr50InteriorFluidSchedulesOutsideOwner",
+            "dr50InteriorRejectedBoundaryWrites", "dr50InteriorDigest", "dr50Material",
+            "dr50MaterialPos", "dr50StructureLifecycleInvoked", "dr50CanonicalCompletedStructures",
+            "dr50CanonicalStructureDigest", "dr50StructureProofAuthority", "dr50StructurePersistenceAuthority",
+            "dr50PopulationOutcomeDigest", "dr50RegionDigest"
+        )) {
+            check(first.getProperty(key) == second.getProperty(key)) {
+                "DR-50 deterministic evidence changed for $key: A=${first.getProperty(key)} B=${second.getProperty(key)}"
+            }
+        }
+        check(first.getProperty("dr50IntegratedRegion") == "true"
+                && first.getProperty("dr50SpecimenId") == "P2_DRESSED_REGION_A"
+                && first.getProperty("dr50Volume") == "6001989086914692933/sf-imp-0068-production-composed-cave/0/0/680068"
+                && first.getProperty("dr50HydrologyPositions").toInt() > 0
+                && first.getProperty("dr50InteriorCompleted") == first.getProperty("requiredChunks")
+                && first.getProperty("dr50InteriorNonEmpty").toInt() > 0
+                && first.getProperty("dr50InteriorSuccessfulFeatures").toInt() > 0
+                && first.getProperty("dr50InteriorUnsupportedLakeFeatures") == "0"
+                && first.getProperty("dr50InteriorFluidSchedulesOutsideOwner") == "0"
+                && first.getProperty("dr50InteriorRejectedBoundaryWrites") == "0"
+                && first.getProperty("dr50InteriorReplayWorked") == "false"
+                && first.getProperty("finalAuthoredAir").toInt() > 0
+                && first.getProperty("finalAuthoredAir").toInt() <= first.getProperty("authoredPositive").toInt()
+                && first.getProperty("authoredDownstreamOccupied").toInt()
+                    == first.getProperty("authoredPositive").toInt() - first.getProperty("finalAuthoredAir").toInt()
+                && first.getProperty("dr50Material") == "minecraft:iron_ore"
+                && first.getProperty("dr50MaterialReplayWritten") == "false"
+                && first.getProperty("dr50StructureLifecycleInvoked") == "true"
+                && first.getProperty("dr50StructureProofAuthority") == "DR-30_NATIVE_STRUCTURE_ACCEPTANCE"
+                && first.getProperty("dr50StructurePersistenceAuthority") == "DR-30_NATIVE_STRUCTURE_ACCEPTANCE"
+                && first.getProperty("dr50DiagnosticFinalRequiredChunkNonAirBlocks").toLong() > 0L
+                && first.getProperty("dr50ExactVolumeIsolation") == "true"
+                && first.getProperty("dr50NoHydrologyMaterialCollision") == "true"
+                && first.getProperty("dr50NoStructureMaterialCollision") == "true"
+                && first.getProperty("dr40ProductionEcology") == "true"
+                && first.getProperty("dr40WetBiome") == "minecraft:swamp"
+                && first.getProperty("noReplay") == "true") {
+            "DR-50 integrated region evidence incomplete: $first"
+        }
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("dr40ReloadServerBiomePass") == "true"
+                && reload.getProperty("dr40ReloadClientBiomePass") == "true"
+                && reload.getProperty("dr50ReloadServerPass") == "true"
+                && reload.getProperty("dr50ReloadClientPass") == "true") {
+            "DR-50 integrated save/reload or actual-client reopen failed: $reload"
+        }
+
+        val stackedCaves = Properties().also { properties ->
+            layout.buildDirectory.file("acceptance/sf-imp-0068/stacked.properties").get().asFile
+                .inputStream().use(properties::load)
+        }
+        val stackedStructures = Properties().also { properties ->
+            layout.buildDirectory.file("acceptance/dr-30-native-structure/stacked.properties").get().asFile
+                .inputStream().use(properties::load)
+        }
+        check(stackedCaves.getProperty("status") == "PASS"
+                && stackedCaves.getProperty("independentLedgers") == "true"
+                && stackedCaves.getProperty("foreignVolumePreserved") == "true"
+                && stackedStructures.getProperty("status") == "PASS"
+                && stackedStructures.getProperty("exactVolumeIdentitiesDistinct") == "true"
+                && stackedStructures.getProperty("physicalPlacementsDistinct") == "true") {
+            "DR-50 stacked-volume isolation support evidence failed"
+        }
+        println("DR-50 AUTOMATED ACCEPTANCE PASS: regionDigest=${first.getProperty("dr50RegionDigest")}, "
+                + "hydrology=${first.getProperty("dr50HydrologyPositions")}, "
+                + "interiorSuccessful=${first.getProperty("dr50InteriorSuccessfulFeatures")}, "
+                + "canonicalStructures=${first.getProperty("dr50CanonicalCompletedStructures")}, material=${first.getProperty("dr50Material")}, "
+                + "reloadServerClient=true, stackedIsolation=true")
+    }
+}
+
+tasks.register("dr50IntegratedRegionAcceptance") {
+    group = "verification"
+    description = "Run complete DR-50 canonical dressed-region integration acceptance."
+    dependsOn(
+        "runDr50IntegratedRegionAcceptanceA",
+        "runDr50IntegratedRegionAcceptanceB",
+        "runDr50IntegratedRegionAcceptanceReloadClient",
+        "runProductionComposedCaveAcceptanceStacked",
+        "runDr30NativeStructureAcceptanceStacked",
+    )
+    finalizedBy("dr50IntegratedRegionAcceptanceVerify")
 }
 
 tasks.register("waveC1ResolvePinnedMods") {
