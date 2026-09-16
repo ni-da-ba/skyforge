@@ -68,6 +68,9 @@ final class PlayerTrackingOnSableLifecycleResourceTest {
         assertTrue(server.contains("bodyId.equals(serverTrackingId)"));
         assertTrue(server.contains("playerSableTrackingQualified=true inheritedParentTranslationQualified=true"));
         assertTrue(server.contains("fixtureLivenessTicket=sable:command_forced(released)"));
+        assertTrue(server.contains("primary seat assembly source cleanup did not settle before deadline"));
+        assertTrue(server.contains("if (sourceNonAir != 0)"));
+        assertFalse(server.contains("valid synchronous post-assembly state"));
     }
 
     @Test

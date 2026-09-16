@@ -151,7 +151,7 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
             stage = Stage.ASSEMBLY;
             waitDiagnostic = diagnostic(
                     SkyforgeCompilerIntegrationPhase.ASSEMBLY,
-                    "exactly one new Sable UUID is synchronously registered and all source cells transfer",
+                    "exactly one new Sable UUID registers with valid mass and all source cells transfer within the bounded assembly window",
                     now, now + ASSEMBLY_DEADLINE_TICKS, sourceIds(), safeServerState(),
                     "glueId=" + glueId + " beforeSubLevelIds=" + beforeIds);
             publicMethod(assembler, "assembleOrDisassemble").invoke(assembler);
@@ -232,15 +232,29 @@ final class SkyforgePlayerTrackingOnSableLifecycleAcceptance {
             double mass = number(publicMethod(massTracker, "getMass").invoke(massTracker));
             Object centerOfMass = publicMethod(massTracker, "getCenterOfMass").invoke(massTracker);
             boolean removed = Boolean.TRUE.equals(publicMethod(listedBody, "isRemoved").invoke(listedBody));
-            if (sourceNonAir != 0 || removed || !(mass > 0.0) || centerOfMass == null) {
+            if (removed || !(mass > 0.0) || centerOfMass == null) {
                 fail(
-                        removed || !(mass > 0.0) || centerOfMass == null
-                                ? SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS
-                                : SkyforgeCompilerIntegrationFailure.FAIL_ASSEMBLY,
+                        SkyforgeCompilerIntegrationFailure.FAIL_PHYSICS,
                         waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "actual-client",
                                 "bodyId=" + bodyId + " sourceNonAirAfterAssembly=" + sourceNonAir
                                         + " mass=" + mass + " centerOfMass=" + centerOfMass + " removed=" + removed),
-                        "primary seat body did not reach a valid synchronous post-assembly state");
+                        "primary seat assembly registered an invalid Sable body");
+            }
+            // Simulated may register the live positive-mass Sable body before its parent-world source
+            // cleanup becomes observable. PLATFORM-007 established that this cleanup edge is bounded
+            // post-registration state, not a same-tick invariant. Preserve the exact final requirement
+            // (all source cells transferred), but poll it through the existing assembly deadline.
+            if (sourceNonAir != 0) {
+                if (waitDiagnostic.expired(now)) {
+                    fail(
+                            SkyforgeCompilerIntegrationFailure.TIMEOUT_ASSEMBLY_REGISTRATION,
+                            waitDiagnostic.withFinalState(sourceIds(), safeServerState(), "actual-client",
+                                    "bodyId=" + bodyId + " sourceNonAirAfterAssembly=" + sourceNonAir
+                                            + " mass=" + mass + " centerOfMass=" + centerOfMass
+                                            + " removed=" + removed),
+                            "primary seat assembly source cleanup did not settle before deadline");
+                }
+                return;
             }
             assembledBody = listedBody;
             movedOffset = movedOffset(listedBody, centerOfMass);
