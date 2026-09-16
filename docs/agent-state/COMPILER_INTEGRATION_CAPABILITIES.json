@@ -420,6 +420,13 @@
       },
       "negative_evidence": [
         {
+          "workflow_run": 35041461818,
+          "job": 104622371453,
+          "commit": "c6cf4478063341c71a6c4c5e3be936833858a250",
+          "result": "TRANSIENT_HOLDING_POINTER_NOT_READY",
+          "finding": "A retained-regression run on the PLATFORM-008 authority head reached a transient Sable holding state during PLATFORM-007 Boot A where getHoldingSubLevel(UUID) returned a holding object but holding.pointer() was still null. The accepted recovery helper incorrectly dereferenced pointer.getClass() and classified the resulting NPE as FAIL_ASSEMBLY. Recovery now treats a present holding with a null pointer as a bounded not-ready state, logs HOLDING_POINTER_PENDING, and retries on subsequent lifecycle polls; both Boot-A holding recovery and fresh-process Boot-B reload use the same guarded helper."
+        },
+        {
           "workflow_run": 35034563292,
           "job": 104600913610,
           "commit": "e8eaff0025473c8bfff37f4c57f02dd41ce3dd49",
@@ -523,6 +530,64 @@
           "commit": "60c06b4d58ab69e934450fa58b328683f27eb0d7",
           "result": "ENTITY_STATE_REQUIRES_LIFECYCLE_REACTIVATION",
           "finding": "Boot A saved a live composed mechanism and Boot B recovered the same canonical Sable UUID, current physics state, and moved bearing block, but the moved Super Glue entity was absent after fresh-process reload. Exact Sable serializer authority persists the sublevel plot/pose and not arbitrary runtime entities. PLATFORM-007 therefore normalizes the entity-backed bearing child into plot blocks before save, then deterministically re-realizes the accepted disjoint glue topology and reassembles a fresh child after reload before live kinetic sever/rebuild proof."
+        }
+      ]
+    },
+    "SWIVEL_CONTROL_CHILD_ON_SABLE_LIFECYCLE": {
+      "status": "accepted",
+      "verification_level": "L2",
+      "target_stack_authority": "C11_FLIGHT_EXACT_2026-09-05",
+      "minimal_fixture": "SkyforgeSwivelControlChildLifecycleAcceptance",
+      "owning_tests": [
+        "CompilerIntegrationDiagnosticTest",
+        "SwivelControlChildLifecycleResourceTest"
+      ],
+      "owning_workflow": ".github/workflows/compiler-platform-swivel-control-child-lifecycle.yml",
+      "latest_accepted_evidence": {
+        "workflow_run": 35040964372,
+        "job": 104620922398,
+        "commit": "88e0df10ba9a5c8cba716c6eee8a0e36c5397621",
+        "result": "PASS",
+        "finding": "Exact-stack L2 proved one canonical live Sable parent and a fresh Swivel control child driven only through real Create kinetics: carrier speed 16.0, hidden extra-cog command speed -16.0 for 10 ticks, neutral target 0.0 to deflected target -48.0000019 degrees with physical yaw -41.7807331 degrees, zero-source locked hold retaining the target, then inverse command returning target to 0.0 and physical yaw to -1.4192537 degrees. Current primary/child authority was re-resolved per phase, targetAngleDegrees remained observation-only, and the bounded COMMAND_FORCED ticket was released before PASS."
+      },
+      "assumptions_preconditions": [
+        "Consumes accepted SABLE_PRIMARY_ASSEMBLY_LIFECYCLE and CREATE_KINETIC_ON_SABLE_LIFECYCLE as carrier authority; Swivel child and command network are realized only after the primary body is canonical, and the pre-assembly Super Glue UUID is never retained as post-assembly authority.",
+        "Exact Simulated source commit 50443d00afa06e0982b45f40cd686f7ecf978132 is evidence for Swivel hidden-extra-cog, target-angle, locking, and child-sublevel lifecycle semantics on the bundled exact stack.",
+        "The fixture uses a real Create Creative Motor and cogwheel command path at the bounded 16-RPM probe point; Swivel targetAngleDegrees is observation-only and is never directly mutated.",
+        "The bounded child payload is four simulated:white_symmetric_sail cells internally glued above an UP-facing Swivel, with no glue crossing the controller plane.",
+        "Source-off behavior is qualified only as bounded locked hold; return to neutral is an inverse commanded kinetic return, not passive self-centering.",
+        "Production aircraft geometry, yaw-force authority, Steering Wheel interaction, cockpit routing, persistence, player tracking, pitch/roll, and flight remain outside this capability."
+      ],
+      "failure_taxonomy": [
+        "FAIL_DEPENDENCY_RESOLUTION",
+        "FAIL_PLACEMENT",
+        "FAIL_BLOCK_ENTITY_INIT",
+        "FAIL_GLUE_REGISTRATION",
+        "FAIL_ASSEMBLY",
+        "FAIL_CHILD_ASSEMBLY",
+        "FAIL_KINETIC_REBUILD",
+        "FAIL_NETWORK",
+        "FAIL_PHYSICS",
+        "TIMEOUT_SERVER_BOOT",
+        "TIMEOUT_ASSEMBLY_REGISTRATION",
+        "TIMEOUT_PHYSICS_INITIALIZATION",
+        "TIMEOUT_KINETIC_BUILD",
+        "TIMEOUT_KINETIC_DISCONNECT",
+        "TIMEOUT_KINETIC_REBUILD",
+        "TIMEOUT_CHILD_ASSEMBLY",
+        "TIMEOUT_FIXTURE_TERMINAL_STATE"
+      ],
+      "production_authority_for_agents": {
+        "B": true,
+        "C": true
+      },
+      "negative_evidence": [
+        {
+          "workflow_run": 35040217064,
+          "job": 104618631535,
+          "commit": "53a329fafbb49ae9fb5c3b26b33fce6d9038091d",
+          "result": "STALE_PRIMARY_GLUE_UUID_AUTHORITY",
+          "finding": "Primary Sable assembly and the accepted moving Create carrier succeeded, but the first PLATFORM-008 L2 failed before Swivel realization because the fixture required the source Super Glue entity UUID to remain resolvable after Sable transfer. That UUID is pre-assembly fixture identity, not canonical moved authority. The fixture now resolves the broad assembly-glue domain by its exact moved bounding box, tolerates it already being consumed, discards exactly one moved match when present, and fails only on duplicate/remaining broad glue authority before creating the Swivel child."
         }
       ]
     }

@@ -532,15 +532,7 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         movedOffset = identity.movedOffset();
         shaftState = withProperty(requireBlock(SHAFT_ID).defaultBlockState(), "axis", "x");
         level.getChunk(0, 0);
-        Object holdingMap = publicMethod(container, "getHoldingChunkMap").invoke(container);
-        Object holding = publicMethod(holdingMap, "getHoldingSubLevel", UUID.class).invoke(holdingMap, bodyId);
-        if (holding != null) {
-            Object pointer = publicMethod(holding, "pointer").invoke(holding);
-            Method snatch = holdingMap.getClass().getMethod("snatchAndLoad", pointer.getClass(), UUID.class);
-            snatch.invoke(holdingMap, pointer, bodyId);
-            LOGGER.log(System.Logger.Level.INFO,
-                    PREFIX + " RELOAD_SNATCH_REQUEST bodyId=" + bodyId + " pointer=" + pointer);
-        }
+        requestHoldingLoadIfAvailable();
         stage = Stage.RELOAD_RECOVERY;
         waitDiagnostic = diagnostic(
                 SkyforgeCompilerIntegrationPhase.PERSISTENCE_RELOAD,
@@ -747,13 +739,21 @@ final class SkyforgeComposedMechanismPersistenceAcceptance {
         }
     }
 
-    private static void requestHoldingLoadIfAvailable() throws ReflectiveOperationException {
+    private static boolean requestHoldingLoadIfAvailable() throws ReflectiveOperationException {
         Object holdingMap = publicMethod(container, "getHoldingChunkMap").invoke(container);
         Object holding = publicMethod(holdingMap, "getHoldingSubLevel", UUID.class).invoke(holdingMap, bodyId);
-        if (holding == null) return;
+        if (holding == null) return false;
         Object pointer = publicMethod(holding, "pointer").invoke(holding);
+        if (pointer == null) {
+            LOGGER.log(System.Logger.Level.INFO,
+                    PREFIX + " HOLDING_POINTER_PENDING bodyId=" + bodyId + " holding=" + holding);
+            return false;
+        }
         Method snatch = holdingMap.getClass().getMethod("snatchAndLoad", pointer.getClass(), UUID.class);
         snatch.invoke(holdingMap, pointer, bodyId);
+        LOGGER.log(System.Logger.Level.INFO,
+                PREFIX + " HOLDING_SNATCH_REQUEST bodyId=" + bodyId + " pointer=" + pointer);
+        return true;
     }
 
     private static boolean allMovedChildBlocksPresent() {

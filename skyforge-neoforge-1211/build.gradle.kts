@@ -2008,6 +2008,16 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // PLATFORM-008: bounded Swivel child + real Create signed actuation/hold/inverse-neutral lifecycle.
+        create("compilerPlatformSwivelControlChildLifecycleServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-compiler-platform-swivel-control-child-lifecycle").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.compilerPlatformSwivelControlChildLifecycle", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // PLATFORM-007: fresh-process persistence of one composed Sable/Create/Aeronautics mechanism.
         create("compilerPlatformComposedMechanismPersistencePrepareServer") {
             server()
@@ -2647,6 +2657,29 @@ tasks.named("runCompilerPlatformNestedPropellerBearingLifecycleServer").configur
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(compilerPlatformNestedPropellerBearingLifecycleServerProperties)
+    }
+}
+
+val compilerPlatformSwivelControlChildLifecycleServerProperties = """
+    level-name=compiler-platform-swivel-control-child-lifecycle
+    level-seed=694001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runCompilerPlatformSwivelControlChildLifecycleServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-compiler-platform-swivel-control-child-lifecycle").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(compilerPlatformSwivelControlChildLifecycleServerProperties)
     }
 }
 
