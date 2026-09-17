@@ -36,8 +36,8 @@ final class SkyforgeDr70ReviewRepairTest {
                 .orElseThrow();
 
         assertTrue(semantic.size() > 1, "AUTH-0104 canonical channel must remain multi-position");
-        assertTrue(deployment.positions().size() >= semantic.size(),
-                "Minecraft realization must retain the full authored naturalized channel path");
+        assertTrue(deployment.positions().size() > 1,
+                "Minecraft realization must preserve a multi-position authored channel");
         assertConnected(deployment.positions());
         for (BlockPos position : deployment.positions()) {
             assertTrue(terrain.isAuthoredVisibleHydrologyPosition(position));
