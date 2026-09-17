@@ -18,7 +18,7 @@ final class SkyforgeDr60HumanReviewPacketTest {
         String packet = Files.readString(PROJECT_DIRECTORY.resolve("../DR60_HUMAN_REVIEW_PACKET.md"));
 
         assertTrue(packet.contains("P2_DRESSED_REGION_A"));
-        assertTrue(packet.contains("10569fc85452c03f41aa44902bb0bc6686fcc7f8"));
+        assertTrue(packet.contains("44d25cf0f49d3803d5a99df687d0672bf8461b59"));
         assertTrue(packet.contains("35163438331"));
         assertTrue(packet.contains("10474981110"));
         assertTrue(packet.contains("dr50CanonicalCompletedStructures=0"));

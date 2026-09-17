@@ -8,7 +8,7 @@ This packet packages the accepted DR-50 specimen for inspection. It records mach
 
 ## 1. Exact specimen and evidence identity
 
-- Packet source main SHA: `10569fc85452c03f41aa44902bb0bc6686fcc7f8`.
+- Packet source main SHA: `44d25cf0f49d3803d5a99df687d0672bf8461b59`.
 - Accepted DR-50 repair merge on main: `8119c50209a184b5a0f42dc44d2d3e0726860593`.
 - Exact accepted repair head: `c9b5692587b3cb80fd7874e9a3a6bd4dc14cd53b`.
 - DR-50 acceptance workflow run: `35163438331`; same-head repeat artifact: `10474981110`.
@@ -51,7 +51,7 @@ git rev-parse HEAD
 .\gradlew.bat :skyforge-neoforge-1211:dr50IntegratedRegionAcceptance --stacktrace --no-configuration-cache
 ```
 
-For exact reproduction of this packet snapshot, `git rev-parse HEAD` should be `10569fc85452c03f41aa44902bb0bc6686fcc7f8`. If main has advanced, review the intervening changes before treating this packet as an exact-current-main handoff; do not silently reuse an older prepared world.
+For exact reproduction of this packet snapshot, `git rev-parse HEAD` should be `44d25cf0f49d3803d5a99df687d0672bf8461b59`. If main has advanced, review the intervening changes before treating this packet as an exact-current-main handoff; do not silently reuse an older prepared world.
 
 After the aggregate task reports PASS, launch the persistent human viewer:
 
