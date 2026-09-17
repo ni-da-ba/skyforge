@@ -63,11 +63,9 @@ def legacy_dispatch():
     }
 
 
-def fake_git(args, **kwargs):
-    return subprocess.CompletedProcess(args, 0, stdout=MAIN + "\n", stderr="")
-
-
 def fake_gh(args, **kwargs):
+    if args[:2] == ["gh", "api"]:
+        return subprocess.CompletedProcess(args, 0, stdout=MAIN + "\n", stderr="")
     pr = {
         "state": "OPEN",
         "headRefName": "codex/task-900",
@@ -91,13 +89,11 @@ class HostedShadowCycleTest(unittest.TestCase):
             first = cycle.run_shadow_cycle(
                 root=root,
                 repo="ni-da-ba/skyforge",
-                git_runner=fake_git,
                 gh_runner=fake_gh,
             )
             second = cycle.run_shadow_cycle(
                 root=root,
                 repo="ni-da-ba/skyforge",
-                git_runner=fake_git,
                 gh_runner=fake_gh,
             )
         self.assertEqual(first, second)
@@ -119,7 +115,6 @@ class HostedShadowCycleTest(unittest.TestCase):
             value = cycle.run_shadow_cycle(
                 root=root,
                 repo="ni-da-ba/skyforge",
-                git_runner=fake_git,
                 gh_runner=fake_gh,
             )
         self.assertEqual(value["managed_lane_count"], 0)
@@ -134,27 +129,47 @@ class HostedShadowCycleTest(unittest.TestCase):
                 cycle.run_shadow_cycle(
                     root=root,
                     repo="ni-da-ba/skyforge",
-                    git_runner=fake_git,
-                    gh_runner=fake_gh,
+                        gh_runner=fake_gh,
                 )
 
-    def test_git_allowlist_is_exact(self) -> None:
+    def test_current_main_github_allowlist_is_exact(self) -> None:
+        valid = [
+            "gh",
+            "api",
+            "repos/ni-da-ba/skyforge/commits/main",
+            "--jq",
+            ".sha",
+        ]
         self.assertEqual(
-            cycle.validate_readonly_git_command(["git", "rev-parse", "HEAD"]),
-            ("git", "rev-parse", "HEAD"),
+            cycle.validate_current_main_gh_command(
+                valid,
+                repo="ni-da-ba/skyforge",
+            ),
+            tuple(valid),
         )
-        for command in (
-            ["git", "fetch", "origin"],
-            ["git", "status"],
-            ["git", "rev-parse", "origin/main"],
-            ["git", "push"],
-        ):
+        forbidden = (
+            ["gh", "api", "repos/ni-da-ba/skyforge/commits/main"],
+            ["gh", "api", "repos/ni-da-ba/skyforge/commits/main", "--jq", ".commit"],
+            ["gh", "api", "repos/ni-da-ba/skyforge/branches/main", "--jq", ".commit.sha"],
+            ["gh", "api", "--method", "POST", "repos/ni-da-ba/skyforge/commits/main", "--jq", ".sha"],
+            ["gh", "api", "repos/other/repo/commits/main", "--jq", ".sha"],
+            ["gh", "api", "repos/ni-da-ba/skyforge/commits/main", "--input", "-", "--jq", ".sha"],
+        )
+        for command in forbidden:
             with self.subTest(command=command), self.assertRaises(ValueError):
-                cycle.validate_readonly_git_command(command)
+                cycle.validate_current_main_gh_command(
+                    command,
+                    repo="ni-da-ba/skyforge",
+                )
 
-    def test_bad_head_identity_fails_closed(self) -> None:
-        def bad_git(args, **kwargs):
-            return subprocess.CompletedProcess(args, 0, stdout="not-a-sha\n", stderr="")
+    def test_bad_github_main_identity_fails_closed(self) -> None:
+        def bad_gh(args, **kwargs):
+            if args[:2] == ["gh", "api"]:
+                return subprocess.CompletedProcess(
+                    args, 0, stdout="not-a-sha\n", stderr=""
+                )
+            return fake_gh(args, **kwargs)
+
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             write_state(root)
@@ -162,9 +177,23 @@ class HostedShadowCycleTest(unittest.TestCase):
                 cycle.run_shadow_cycle(
                     root=root,
                     repo="ni-da-ba/skyforge",
-                    git_runner=bad_git,
-                    gh_runner=fake_gh,
+                    gh_runner=bad_gh,
                 )
+
+    def test_local_checkout_identity_is_not_used_for_current_main(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            write_state(root)
+            value = cycle.run_shadow_cycle(
+                root=root,
+                repo="ni-da-ba/skyforge",
+                gh_runner=fake_gh,
+            )
+        self.assertEqual(value["current_main"], MAIN)
+        source = Path(cycle.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("git rev-parse HEAD", source)
+        self.assertNotIn("refs/heads/main", source)
+        self.assertNotIn("refs/remotes/origin/main", source)
 
     def test_cycle_source_has_no_file_write_or_mutation_command_surface(self) -> None:
         source = Path(cycle.__file__).read_text(encoding="utf-8")
