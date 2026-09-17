@@ -68,6 +68,10 @@ final class SkyforgeCarverVerticalFrameTest {
                     "carver fluid must not be placed on the exact-volume shell");
             assertTrue(execution.authorizeFluidForTest(interior),
                     "interior cave fluid remains accepted and is fenced during later propagation");
+            var snapshot = execution.snapshot();
+            assertTrue(snapshot.rejectedWriteAttempts() == 1);
+            assertTrue(snapshot.rejectedFluidWriteAttempts() == 1,
+                    "intentional shell-fluid veto must be distinguishable from unsafe write rejection");
             domain.requireActive();
         }
     }

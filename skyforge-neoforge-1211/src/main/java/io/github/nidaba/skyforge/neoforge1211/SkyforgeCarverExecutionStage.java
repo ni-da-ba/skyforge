@@ -134,6 +134,7 @@ public final class SkyforgeCarverExecutionStage {
             int writeAttempts,
             int acceptedWriteAttempts,
             int rejectedWriteAttempts,
+            int rejectedFluidWriteAttempts,
             int changedBlocks,
             int uniqueChangedBlocks,
             long changedPositionDigest,
@@ -154,6 +155,7 @@ public final class SkyforgeCarverExecutionStage {
         private int writeAttempts;
         private int acceptedWriteAttempts;
         private int rejectedWriteAttempts;
+        private int rejectedFluidWriteAttempts;
         private int changedBlocks;
         private long changedPositionDigest = FNV_OFFSET_BASIS;
         private int minimumChangedY = Integer.MAX_VALUE;
@@ -176,15 +178,18 @@ public final class SkyforgeCarverExecutionStage {
 
         private boolean authorize(BlockPos position, boolean fluidWrite) {
             writeAttempts++;
-            boolean accepted = ownerSolid.test(position)
-                    && !foreignSolid.test(position)
-                    && (!fluidWrite
-                            || SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
-                                    position, ownerSolid));
+            boolean ownerAccepted = ownerSolid.test(position) && !foreignSolid.test(position);
+            boolean fluidShellRejected = fluidWrite
+                    && ownerAccepted
+                    && !SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(position, ownerSolid);
+            boolean accepted = ownerAccepted && !fluidShellRejected;
             if (accepted) {
                 acceptedWriteAttempts++;
             } else {
                 rejectedWriteAttempts++;
+                if (fluidShellRejected) {
+                    rejectedFluidWriteAttempts++;
+                }
             }
             return accepted;
         }
@@ -206,6 +211,7 @@ public final class SkyforgeCarverExecutionStage {
                     writeAttempts,
                     acceptedWriteAttempts,
                     rejectedWriteAttempts,
+                    rejectedFluidWriteAttempts,
                     changedBlocks,
                     changedPositions.size(),
                     changedPositionDigest,
