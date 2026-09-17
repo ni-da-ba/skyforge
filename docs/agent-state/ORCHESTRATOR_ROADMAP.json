@@ -5,7 +5,7 @@
   "max_auto_claims_per_utc_day": 6,
   "notes": [
     "This machine-readable manifest implements the project-owner-authorized docs/agent-state/DRESSED_REGION_CONVERGENCE_ROADMAP.md directive on main.",
-    "All DR work converges on one canonical specimen and advances strictly DR-00 -> DR-10 -> DR-20 -> DR-30 -> DR-40 -> DR-50 -> DR-60 -> HUMAN REVIEW.",
+    "The original DR path advanced DR-00 -> DR-10 -> DR-20 -> DR-30 -> DR-40 -> DR-50 -> DR-60 -> HUMAN REVIEW. That human review returned CHANGES REQUIRED and now authorizes exactly one bounded DR-70 repair tranche followed by another human gate.",
     "DR-00 selection authority is deterministic and non-aesthetic: among current-main candidates that already satisfy accepted morphology and production-geography machine constraints, order by stable specimen/member ID and choose the first eligible candidate; if it fails an objective DR-00 machine invariant, advance to the next candidate in the same ordering. This is an integration fixture only, not aesthetic acceptance or issue #214 closure.",
     "Execution authority is defined by docs/agent-state/EXECUTION_BOUNDARIES.md: the DigitalOcean host may run the lightweight classifier and one bounded Codex editing worker, but all automated project builds/tests/evidence run in GitHub Actions and all manual/interactive judgment runs on Nicholas' local workstation.",
     "Hosted workers are editors only. They must not run Gradle/Java/NeoForge/Minecraft builds, tests, benchmarks, generators, or provision project toolchains; machine verification belongs to GitHub Actions.",
@@ -13,7 +13,7 @@
     "Every task remains issue-backed and fail-closed on missing authority, human/product judgment, unavailable accepted semantics, or unavailable GitHub Actions validation.",
     "No autonomous node may modify or advance #488/#489 or machine-optimize aesthetics, density, pacing, beauty, or final Skyforge visual identity.",
     "Do not seed unrelated Bootstrap, AAL, computing, polish, or speculative capability expansion while this convergence manifest is active.",
-    "The terminal gate is project-owner flight/exploration review; machines stop after DR-60 and do not answer subjective quality questions."
+    "DR-70 is authorized only by the recorded DR-60 human findings: canopy clipping, token/weak hydrology, and excessive incidental water/lava edge discharge. Preserve the already-coherent island/cave foundation and stop again for human re-review."
   ],
   "nodes": [
     {
@@ -114,7 +114,31 @@
       "prerequisites": [
         "dr-60-exploration-review-packet"
       ],
-      "human_message": "DR-60 is ready. On Nicholas' local workstation, launch the exact canonical specimen and judge coherent-place read, macro flight interest, physical relationship among water/geology/ecology, procedural artifacts, exploration variation, emptiness/clutter, geography-motivated ecology, invitation to traverse/investigate, recognizably Skyforge identity, and whether the region is worth flying around. The accepted DR-50 specimen contains no completed canonical structure, so structure grounding/architecture is not assessable at this gate; record that absence as a limitation and do not substitute the separate DR-30 generic probe. Autonomous DR convergence stops here."
+      "human_message": "DR-60 project-owner flight review completed with CHANGES REQUIRED. Preserve the positive finding that the island surface and caves/interiors are coherent and interesting. Authorized corrections are limited to tall-jungle-canopy headroom/clipping, physically legible authored hydrology beyond token water presence, and strong suppression of commonplace incidental water/lava edge discharge while retaining deliberate justified waterfalls/cascades. The accepted DR-50 specimen contains no completed canonical structure, so structure grounding/architecture remains unassessed."
+    },
+    {
+      "id": "dr-70-human-review-repair",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 754,
+      "priority": 125,
+      "max_runs": 1,
+      "prerequisites": [
+        "dr-60-exploration-review-packet"
+      ],
+      "objective_hint": "Implement only the explicit DR-60 human-review corrections on the same canonical specimen: deterministic tall-vegetation headroom safety with no clipped canopy; physically legible authored hydrology that is more than token source-block presence; and deterministic suppression of incidental water/lava edge leakage while retaining intentionally authorized waterfalls/cascades or geologically justified discharge. Preserve the already-coherent island massing and cave/interior foundation. Reuse prior expensive evidence where the changed dependency surface permits it; all automated validation belongs in GitHub Actions.",
+      "stop_boundary": "Do not broadly retune terrain morphology, caves, ecology density, pacing, beauty, final visual identity, structure architecture, or #488/#489. Do not invent new Authorship hydrology/geology/ecology semantics; if existing accepted semantics are insufficient, stop at the precise Authorship dependency. Do not run project validation on the DigitalOcean host."
+    },
+    {
+      "id": "dr-human-exploration-rereview",
+      "kind": "gate",
+      "lane": "Implementation",
+      "priority": 120,
+      "max_runs": 1,
+      "prerequisites": [
+        "dr-70-human-review-repair"
+      ],
+      "human_message": "DR-70 repair evidence is machine-complete. On Nicholas' local workstation, reopen the repaired canonical specimen and verify specifically that tall vegetation no longer clips at the upper boundary, authored hydrology reads as an actual geographic feature rather than token water presence, incidental water/lava edge discharge is no longer commonplace, and the previously coherent island surface and cave/interior foundation has not regressed. Machines must not self-pass this re-review."
     }
   ]
 }
