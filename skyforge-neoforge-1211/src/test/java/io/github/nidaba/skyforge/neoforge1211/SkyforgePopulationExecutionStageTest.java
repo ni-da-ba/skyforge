@@ -8,6 +8,7 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import org.junit.jupiter.api.Test;
 
@@ -51,6 +52,38 @@ final class SkyforgePopulationExecutionStageTest {
             domain.requireActive();
             executionScope.requireActive();
             assertTrue(executionScope.execution().canWrite(shell));
+        }
+    }
+
+    @Test
+    void vegetationReadsVirtualizeNeighborOwnerTerrainWithoutBlockingCrossChunkAttachments() {
+        var volumeId = new SkyIslandWorldVolumeId(39L, "population-neighbor-read", 0, 0, 47L);
+        var operation = SkyforgePopulationOperation.create(
+                volumeId,
+                new ChunkPos(0, 0),
+                ResourceLocation.fromNamespaceAndPath("minecraft", "trees_birch_and_oak"),
+                GenerationStep.Decoration.VEGETAL_DECORATION.ordinal(),
+                0);
+        BlockPos localOwner = new BlockPos(15, 100, 0);
+        BlockPos neighborOwner = new BlockPos(16, 100, 0);
+        BlockPos neighborAir = new BlockPos(16, 101, 0);
+        java.util.function.Predicate<BlockPos> owner = position ->
+                position.equals(localOwner) || position.equals(neighborOwner);
+
+        try (var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
+                var executionScope = SkyforgePopulationExecutionStage.openForTest(operation, owner, 2)) {
+            domain.requireActive();
+            executionScope.requireActive();
+            var execution = executionScope.execution();
+
+            assertTrue(execution.isVisible(localOwner));
+            assertFalse(execution.isVisible(neighborOwner));
+            assertTrue(execution.hiddenBlockState(neighborOwner).is(Blocks.BEDROCK));
+
+            assertFalse(execution.isVisible(neighborAir));
+            assertTrue(execution.hiddenBlockState(neighborAir).isAir());
+            assertTrue(execution.acceptWrite(neighborAir));
+            assertTrue(execution.isVisible(neighborAir));
         }
     }
 

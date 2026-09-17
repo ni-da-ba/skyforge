@@ -39,7 +39,7 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
             CallbackInfoReturnable<BlockState> callback) {
         if (SkyforgeWorldGenRegionDomainBridge.active()
                 && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
-            callback.setReturnValue(SkyforgeWorldGenRegionDomainBridge.hiddenExteriorBlockState());
+            callback.setReturnValue(SkyforgeWorldGenRegionDomainBridge.hiddenBlockState(position));
         }
     }
 
@@ -58,7 +58,7 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
             CallbackInfoReturnable<Boolean> callback) {
         if (SkyforgeWorldGenRegionDomainBridge.active()
                 && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
-            callback.setReturnValue(predicate.test(SkyforgeWorldGenRegionDomainBridge.hiddenExteriorBlockState()));
+            callback.setReturnValue(predicate.test(SkyforgeWorldGenRegionDomainBridge.hiddenBlockState(position)));
         }
     }
 
