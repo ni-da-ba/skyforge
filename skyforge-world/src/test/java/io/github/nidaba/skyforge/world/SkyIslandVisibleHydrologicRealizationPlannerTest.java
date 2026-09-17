@@ -161,36 +161,29 @@ final class SkyIslandVisibleHydrologicRealizationPlannerTest {
     }
 
     @Test
-    void lockedCanonicalSpecimenAuthorsDeterministicMultiPositionRetainedWaterWithoutChangingDropProvenance() {
+    void lockedCanonicalSpecimenRetainsDeterministicMultiPositionNaturalizedChannel() {
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(SEED, 8L, 81L, 1471L));
         SkyIslandVisibleHydrologicRealizationPlan first =
                 SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor);
         SkyIslandVisibleHydrologicRealizationPlan second =
                 SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor);
-        SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
 
         assertEquals(first, second);
-        SkyIslandVisibleRetainedWaterIntent retained = first.retainedWater().stream()
-                .filter(intent -> intent.footprint().inundatedCellCount() > 1)
+        SkyIslandVisibleChannelWaterIntent channel = first.channels().stream()
                 .findFirst()
                 .orElseThrow(() -> new AssertionError(
-                        "locked canonical specimen must author a multi-position retained-water footprint"));
-        assertEquals(SkyIslandVisibleHydrologicRealizationKind.RETAINED_WATER, retained.kind());
-        assertEquals(2, retained.footprint().inundatedCellCount());
+                        "locked canonical specimen must retain an accepted naturalized channel"));
+        assertEquals(SkyIslandVisibleHydrologicRealizationKind.CHANNEL_WATER, channel.kind());
+        assertTrue(channel.path().points().size() > 1);
         assertEquals(
-                retained.footprint().cells().stream()
-                        .map(SkyIslandWaterbodyFootprintCell::watershedCellIndex)
-                        .distinct()
-                        .count(),
-                retained.footprint().inundatedCellCount());
-        assertTrue(retained.footprint().cells().stream().allMatch(cell -> watershed.cells().stream()
-                .anyMatch(source -> source.index() == cell.watershedCellIndex()
-                        && source.position().equals(cell.position()))));
+                first.coherentHydrology().naturalizedChannels().paths().getFirst(),
+                channel.path(),
+                "AUTH-0104 must preserve exact accepted channel provenance rather than synthesize topology");
         assertEquals(
                 first.coherentHydrology().drops().drops(),
                 first.drops().stream().map(SkyIslandVisibleDropWaterIntent::drop).toList(),
-                "canonical retained-water authorization must not synthesize or relabel drop/outlet intent");
+                "AUTH-0104 must not synthesize or relabel drop/outlet intent");
     }
 
     private static SkyIslandDescriptor descriptor(long key) {
