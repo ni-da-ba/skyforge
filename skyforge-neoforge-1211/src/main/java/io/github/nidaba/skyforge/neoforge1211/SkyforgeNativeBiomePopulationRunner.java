@@ -20,6 +20,10 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 /** Executes one native biome generation step inside one exact Skyforge world volume. */
 final class SkyforgeNativeBiomePopulationRunner {
     private static final String BIOME_PROOF_PROPERTY = "skyforge.dev.biomePopulation";
+    // Bounded native-tree envelope: enough for tall vanilla jungle trunks plus canopy, while the
+    // existing foreign-volume veto remains authoritative. The same depth is used for precommit
+    // build-height admission so an over-height tree is rejected before any partial canopy writes.
+    private static final int MINIMUM_TREE_ATTACHMENT_DEPTH = 36;
     private static final long SLOW_FEATURE_LOG_THRESHOLD_NANOS = 50_000_000L;
     private static final System.Logger LOGGER = System.getLogger(SkyforgeNativeBiomePopulationRunner.class.getName());
 
@@ -168,9 +172,12 @@ final class SkyforgeNativeBiomePopulationRunner {
                     stepIndex,
                     occurrenceIndex);
             boolean treeFeature = featureKey.getPath().toLowerCase(Locale.ROOT).contains("tree");
+            int featureAttachmentDepth = treeFeature
+                    ? treeAttachmentDepth(maximumAttachmentDepth)
+                    : maximumAttachmentDepth;
             if (treeFeature && !treeHeadroomEvaluated) {
                 treeHeadroomAdmitted = SkyforgeSurfaceVegetationHeadroomPolicy.admits(
-                        level, volumeId, originChunk, maximumAttachmentDepth);
+                        level, volumeId, originChunk, featureAttachmentDepth);
                 treeHeadroomEvaluated = true;
             }
             if (treeFeature && !treeHeadroomAdmitted) {
@@ -212,7 +219,7 @@ final class SkyforgeNativeBiomePopulationRunner {
                     biome,
                     operation,
                     nativeChunkOrigin,
-                    maximumAttachmentDepth);
+                    featureAttachmentDepth);
             if (performanceMetricsEnabled) {
                 long elapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(featurePerformanceStart);
                 String performanceStage = featurePerformanceStage(
@@ -298,6 +305,13 @@ final class SkyforgeNativeBiomePopulationRunner {
                                 List.copyOf(admittedLakeOrigins),
                                 List.copyOf(rejectedLakeOrigins))
                         : LakeEvidence.empty());
+    }
+
+    static int treeAttachmentDepth(int configuredMaximumAttachmentDepth) {
+        if (configuredMaximumAttachmentDepth < 0) {
+            throw new IllegalArgumentException("configuredMaximumAttachmentDepth must be non-negative");
+        }
+        return Math.max(configuredMaximumAttachmentDepth, MINIMUM_TREE_ATTACHMENT_DEPTH);
     }
 
     static String featurePerformanceStage(
