@@ -1291,6 +1291,24 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // DR-60 is the terminal human review gate. Reopen the already-qualified DR-50 B world
+        // with the same reload expectations, but deliberately omit the automated acceptance
+        // harness so the client remains open for project-owner flight/exploration review.
+        create("dr60HumanReviewClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-dr50-auto-b").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCaveReload", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcologyReload", "true")
+            systemProperty("skyforge.dev.dr50IntegratedRegionReload", "true")
+            systemProperty(
+                "skyforge.dev.productionComposedCaveExpectedResultFile",
+                layout.buildDirectory.file("acceptance/dr-50/production-b.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         create("productionComposedCaveAcceptanceStacked") {
             server()
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0068-auto-stacked").asFile
