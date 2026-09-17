@@ -123,6 +123,13 @@ from .rebase import (
     classify_rebase_result,
 )
 from .replay import ReplayRecord
+from .shadow import (
+    OfflineShadowInput,
+    OfflineShadowReport,
+    ShadowEntry,
+    build_shadow_report,
+    evaluate_offline_shadow,
+)
 from .state_store import JsonStateSnapshot, JsonStateStoreAdapter, StateStoreError
 from .worker import (
     WorkerLifecycleState,
@@ -183,6 +190,8 @@ __all__ = [
     "NoChangeDisposition",
     "NoChangeRetryPlan",
     "HOSTED_PREFLIGHT",
+    "OfflineShadowInput",
+    "OfflineShadowReport",
     "OwnershipToken",
     "PreHandoffDecision",
     "PreHandoffDisposition",
@@ -205,6 +214,7 @@ __all__ = [
     "RebaseResultDecision",
     "RebaseResultDisposition",
     "ReplayRecord",
+    "ShadowEntry",
     "SourcePRState",
     "StateStoreError",
     "TaskAttemptIdentity",
@@ -217,6 +227,7 @@ __all__ = [
     "WorkerRecoveryObservation",
     "WorkerTier",
     "WriterFence",
+    "build_shadow_report",
     "cached_decision_disposition",
     "cached_decision_is_current",
     "canonical_digest",
@@ -236,6 +247,7 @@ __all__ = [
     "compact_events",
     "decide_mechanical",
     "enqueue_events",
+    "evaluate_offline_shadow",
     "normalize_legacy_event_key",
     "reconcile_remote_effect",
     "reduce_managed_pr",
