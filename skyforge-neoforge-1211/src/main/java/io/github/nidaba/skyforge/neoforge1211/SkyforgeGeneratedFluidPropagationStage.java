@@ -22,6 +22,7 @@ import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.saveddata.SavedData;
 
 /**
@@ -115,6 +116,14 @@ public final class SkyforgeGeneratedFluidPropagationStage {
                 return true;
             }
             throw new IllegalStateException("nested Skyforge generated-fluid tick scopes are not supported");
+        }
+        if ((state.getType() == Fluids.WATER || state.getType() == Fluids.FLOWING_WATER)
+                && SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(position)) {
+            // AUTH-0104 channel/drop positions are a static, deterministic realization of authored
+            // topology. Vanilla propagation beyond those cells is incidental discharge, not a new
+            // authored outlet, so freeze the source tick rather than granting it an owner-wide flow
+            // domain. Deliberate cascades/edge drops remain represented by their authored cells.
+            return false;
         }
         GeneratedFluidData data = dataIfPresent(serverLevel);
         if (data == null) {

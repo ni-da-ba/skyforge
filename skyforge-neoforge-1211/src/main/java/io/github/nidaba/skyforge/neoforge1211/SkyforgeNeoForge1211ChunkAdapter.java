@@ -24,6 +24,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 
@@ -45,6 +48,8 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     private final Map<SkyIslandWorldVolumeId, SkyIslandTerrainInterpreter> interpretersByVolumeId;
     private final Map<SkyIslandWorldVolumeId, WorldBounds> boundsByVolumeId;
     private final Map<SkyIslandWorldVolumeId, SkyIslandDescriptor> authoredDescriptorsByVolumeId;
+    private final Map<SkyIslandWorldVolumeId, Set<Long>> authoredHydrologyPositionsByVolumeId =
+            new ConcurrentHashMap<>();
 
     public SkyforgeNeoForge1211ChunkAdapter(
             SkyIslandWorldCatalog catalog,
@@ -84,6 +89,47 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     Optional<SkyIslandDescriptor> authoredDescriptor(SkyIslandWorldVolumeId volumeId) {
         Objects.requireNonNull(volumeId, "volumeId");
         return Optional.ofNullable(authoredDescriptorsByVolumeId.get(volumeId));
+    }
+
+    /**
+     * Returns whether one exact runtime position belongs to accepted authored visible hydrology.
+     *
+     * <p>The result is derived only from the immutable authored descriptor and exact physical volume.
+     * Cached positions therefore survive ordinary save/reload without introducing a second fluid
+     * topology or mutable backend policy.
+     */
+    boolean isAuthoredVisibleHydrologyPosition(BlockPos position) {
+        Objects.requireNonNull(position, "position");
+        for (var entry : authoredDescriptorsByVolumeId.entrySet()) {
+            SkyIslandWorldVolumeId volumeId = entry.getKey();
+            WorldBounds bounds = boundsByVolumeId.get(volumeId);
+            if (bounds == null || !bounds.contains(position.getX(), position.getY(), position.getZ())) {
+                continue;
+            }
+            Set<Long> positions = authoredHydrologyPositionsByVolumeId.computeIfAbsent(
+                    volumeId,
+                    this::deriveAuthoredHydrologyPositions);
+            if (positions.contains(position.asLong())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Set<Long> deriveAuthoredHydrologyPositions(SkyIslandWorldVolumeId volumeId) {
+        SkyIslandDescriptor descriptor = authoredDescriptorsByVolumeId.get(volumeId);
+        if (descriptor == null) {
+            return Set.of();
+        }
+        SkyIslandWorldVolume volume = catalog.volumes().stream()
+                .filter(candidate -> candidate.id().equals(volumeId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "authored hydrology references unknown runtime volume " + volumeId.path()));
+        return SkyforgeAuthoredVisibleHydrologyAdapter.plan(descriptor, volume, this).stream()
+                .flatMap(deployment -> deployment.positions().stream())
+                .map(BlockPos::asLong)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     /** Returns whether the supplied Minecraft chunk interval intersects any planned Skyforge volume. */

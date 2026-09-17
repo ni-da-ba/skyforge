@@ -20,8 +20,9 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  * <p>It deliberately selects no watershed or water availability. For each authored class that is
  * actually present, it realizes the first stable accepted intent of that kind. Missing classes are
  * left absent rather than synthesized; bounded accepted-corpus fixtures cover implementation risks
- * that the DR-00 canonical specimen does not carry. Water replaces only exact owner voxels, keeping
- * this initial static realization out of the native-spring provenance/propagation path.
+ * that the DR-00 canonical specimen does not carry. Water replaces only exact owner voxels. AUTH-0104
+ * channel geometry is rasterized between its accepted naturalized samples, while static authored-water
+ * ticks are separately fenced so vanilla propagation cannot invent an unauthored outlet.
  */
 final class SkyforgeAuthoredVisibleHydrologyAdapter {
     enum Feature { CHANNEL, RETAINED_WATER, VERTICAL_DISCHARGE, EDGE_DISCHARGE }
@@ -100,11 +101,54 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyforgeNeoForge1211ChunkAdapter terrain,
             Feature feature,
             List<io.github.nidaba.skyforge.world.SkyIslandLocalPosition> points) {
-        List<BlockPos> positions = new ArrayList<>();
-        for (var point : points) {
-            positions.addAll(at(volume, terrain, feature, point.x(), point.z(), 1).positions());
+        if (points.isEmpty()) {
+            throw new IllegalArgumentException("authored channel path requires at least one point");
         }
-        return deployment(volume.id(), feature, positions);
+        LinkedHashSet<BlockPos> positions = new LinkedHashSet<>();
+        BlockPos previous = null;
+        for (var point : points) {
+            int worldX = (int) Math.round(volume.compiledVolume().descriptor().centerX() + point.x());
+            int worldZ = (int) Math.round(volume.compiledVolume().descriptor().centerZ() + point.z());
+            BlockPos current = surfacePosition(volume, terrain, feature, worldX, worldZ);
+            if (previous == null) {
+                positions.add(current);
+            } else {
+                appendConnectedSurfaceColumns(volume, terrain, feature, previous, current, positions);
+            }
+            previous = current;
+        }
+        return deployment(volume.id(), feature, new ArrayList<>(positions));
+    }
+
+    private static void appendConnectedSurfaceColumns(
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Feature feature,
+            BlockPos from,
+            BlockPos to,
+            LinkedHashSet<BlockPos> positions) {
+        int dx = to.getX() - from.getX();
+        int dz = to.getZ() - from.getZ();
+        int steps = Math.max(Math.abs(dx), Math.abs(dz));
+        if (steps == 0) {
+            positions.add(to);
+            return;
+        }
+        for (int step = 0; step <= steps; step++) {
+            double fraction = (double) step / steps;
+            int worldX = from.getX() + (int) Math.round(dx * fraction);
+            int worldZ = from.getZ() + (int) Math.round(dz * fraction);
+            positions.add(surfacePosition(volume, terrain, feature, worldX, worldZ));
+        }
+    }
+
+    private static BlockPos surfacePosition(
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Feature feature,
+            int worldX,
+            int worldZ) {
+        return atWorldColumn(volume, terrain, feature, worldX, worldZ, 1).positions().getFirst();
     }
 
     private static Deployment atFootprint(
@@ -124,6 +168,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             double localX, double localZ, int depth) {
         int x = (int) Math.round(volume.compiledVolume().descriptor().centerX() + localX);
         int z = (int) Math.round(volume.compiledVolume().descriptor().centerZ() + localZ);
+        return atWorldColumn(volume, terrain, feature, x, z, depth);
+    }
+
+    private static Deployment atWorldColumn(
+            SkyIslandWorldVolume volume, SkyforgeNeoForge1211ChunkAdapter terrain, Feature feature,
+            int x, int z, int depth) {
         var range = terrain.integerSolidRange(volume.id(), x, z)
                 .orElseThrow(() -> new IllegalStateException("AUTH-0086 intent has no realized owner column"));
         List<BlockPos> positions = new ArrayList<>();

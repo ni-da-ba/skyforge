@@ -636,6 +636,12 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         };
     }
 
+    static boolean isAuthoredVisibleHydrologyPosition(BlockPos position) {
+        Objects.requireNonNull(position, "position");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding != null && binding.adapter().isAuthoredVisibleHydrologyPosition(position);
+    }
+
     static boolean hasActiveBinding() {
         return ACTIVE.get() != null;
     }
