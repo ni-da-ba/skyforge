@@ -1,4 +1,5 @@
 import importlib
+import json
 import pathlib
 import sys
 import tempfile
@@ -26,12 +27,14 @@ class LightweightHostedEditingRuntimeTests(unittest.TestCase):
             recovery._resolve_active_closed_issue,
         )
 
-    def test_worker_instructions_are_edit_only(self):
+    def test_worker_instructions_are_edit_only_and_checkpoint_first(self):
         instructions = runtime.core.WORKER_INSTRUCTIONS
         self.assertIn("HOSTED EXECUTION BOUNDARY — EDITING ONLY", instructions)
         self.assertIn("Automated project verification belongs to GitHub Actions", instructions)
         self.assertIn("Do NOT run project builds", instructions)
         self.assertIn("with_hosted_jdk.py", instructions)
+        self.assertIn("CONTEXT EFFICIENCY — CHECKPOINT FIRST", instructions)
+        self.assertIn("docs/agent-state/CURRENT_PROJECT_STATE.json", instructions)
         self.assertNotIn(
             "Make local source/test/doc changes and run appropriate local verification.",
             instructions,
@@ -47,6 +50,8 @@ class LightweightHostedEditingRuntimeTests(unittest.TestCase):
 
         self.assertEqual(result, "done")
         forwarded = original.call_args.args[1]
+        self.assertIn("HOSTED DISPATCH CONTEXT", forwarded)
+        self.assertIn("semantic_checkpoint: docs/agent-state/CURRENT_PROJECT_STATE.json", forwarded)
         self.assertIn("GitHub Actions owns automated validation", forwarded)
         self.assertIn("Do NOT run project builds", forwarded)
         self.assertIn("Do not download or provision a project JDK/toolchain", forwarded)
@@ -112,6 +117,129 @@ class LightweightHostedEditingRuntimeTests(unittest.TestCase):
             self.assertEqual(gate["reason"], "Current review wording.")
             self.assertIn("last_gate_message_refresh_at", refreshed)
             self.assertEqual(refreshed["manifest_fingerprint"], new_manifest.fingerprint)
+
+    def test_idle_blocked_human_gate_quiesces_ordinary_event_model_free(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            orchestrator = runtime.core.Orchestrator.__new__(runtime.core.Orchestrator)
+            orchestrator.root = root
+            orchestrator.state = runtime.core.LocalState(root / "state.json")
+            orchestrator._state_lock = threading.RLock()
+
+            manifest = runtime.roadmap_runtime.roadmap_policy.parse_manifest(
+                {
+                    "schema_version": 1,
+                    "roadmap_id": "quiescence-test",
+                    "enabled": True,
+                    "max_auto_claims_per_utc_day": 1,
+                    "nodes": [
+                        {
+                            "id": "human-gate",
+                            "kind": "gate",
+                            "lane": "Implementation",
+                            "priority": 1,
+                            "max_runs": 1,
+                            "prerequisites": [],
+                            "human_message": "Review locally.",
+                        }
+                    ],
+                }
+            )
+            state = runtime._ORIGINAL_ROADMAP_STATE_LOCKED(orchestrator, manifest)
+            state["blocked_nodes"] = {
+                "human-gate": {"at": "2026-09-17T00:00:00+00:00", "reason": "Review locally."}
+            }
+            state["active"] = None
+            orchestrator.state.save()
+
+            ordinary = runtime.core.EventDecision(
+                True,
+                "main advanced",
+                "push",
+                action="updated",
+                head_sha="a" * 40,
+            )
+            with (
+                mock.patch.object(runtime.roadmap_runtime, "_roadmap_manifest", return_value=manifest),
+                mock.patch.object(runtime, "_ORIGINAL_ENQUEUE") as original,
+            ):
+                runtime._quiescing_enqueue(orchestrator, ordinary)
+
+            original.assert_not_called()
+            self.assertEqual(
+                orchestrator.state.data["metrics"]["human_gate_quiesced_events"],
+                1,
+            )
+            last = orchestrator.state.data["last_human_gate_quiesced_event"]
+            self.assertEqual(last["gates"], ["human-gate"])
+
+    def test_explicit_task_authority_breaks_human_gate_quiescence(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            orchestrator = runtime.core.Orchestrator.__new__(runtime.core.Orchestrator)
+            orchestrator.root = root
+            orchestrator.state = runtime.core.LocalState(root / "state.json")
+            orchestrator._state_lock = threading.RLock()
+
+            manifest = runtime.roadmap_runtime.roadmap_policy.parse_manifest(
+                {
+                    "schema_version": 1,
+                    "roadmap_id": "quiescence-task-test",
+                    "enabled": True,
+                    "max_auto_claims_per_utc_day": 1,
+                    "nodes": [
+                        {
+                            "id": "human-gate",
+                            "kind": "gate",
+                            "lane": "Implementation",
+                            "priority": 1,
+                            "max_runs": 1,
+                            "prerequisites": [],
+                            "human_message": "Review locally.",
+                        }
+                    ],
+                }
+            )
+            state = runtime._ORIGINAL_ROADMAP_STATE_LOCKED(orchestrator, manifest)
+            state["blocked_nodes"] = {
+                "human-gate": {"at": "2026-09-17T00:00:00+00:00", "reason": "Review locally."}
+            }
+            orchestrator.state.save()
+
+            task = runtime.core.EventDecision(
+                True,
+                "explicit follow-up task",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=535,
+                signal_kind="task",
+                signal_text="repair the accepted human-review defects",
+            )
+            with (
+                mock.patch.object(runtime.roadmap_runtime, "_roadmap_manifest", return_value=manifest),
+                mock.patch.object(runtime, "_ORIGINAL_ENQUEUE") as original,
+            ):
+                runtime._quiescing_enqueue(orchestrator, task)
+
+            original.assert_called_once_with(orchestrator, task)
+
+    def test_current_project_checkpoint_records_dr60_outcome(self):
+        checkpoint = json.loads(
+            (REPO_ROOT / "docs" / "agent-state" / "CURRENT_PROJECT_STATE.json").read_text()
+        )
+        self.assertEqual(checkpoint["schema_version"], 1)
+        self.assertEqual(
+            checkpoint["dressed_region"]["human_review"]["status"],
+            "CHANGES_REQUIRED",
+        )
+        self.assertEqual(
+            checkpoint["dressed_region"]["human_review"]["authoritative_record"],
+            "docs/agent-state/DR60_HUMAN_REVIEW_RESULT.md",
+        )
+        self.assertIn(
+            "large orchestrator module split/refactor",
+            checkpoint["control_plane"]["efficiency_work"]["deferred"],
+        )
 
     def test_service_has_resource_and_java_backstops(self):
         service = (REPO_ROOT / "deploy" / "orchestrator" / "skyforge-orchestrator.service.in").read_text()
