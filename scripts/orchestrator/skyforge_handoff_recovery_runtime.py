@@ -7,12 +7,14 @@ Normal discard remains strict. This extension adds explicit paused-only recovery
   durable shared surface;
 * a worker that reached ``handoff`` for its exact controller-managed PR after that PR was already
   MERGED, archiving any local delta before retirement; and
-* an ``editing`` worker whose exact controller-managed PR is already MERGED.
+* an ``editing`` worker whose exact controller-managed PR is already MERGED; and
+* an unmanaged ``editing`` worker whose retry circuit is open after repeated no-progress attempts,
+  but only when its isolated worktree is clean and its HEAD still equals the recorded start HEAD.
 
-In all recovery cases local committed/uncommitted worker deltas are archived before the isolated
-worktree is removed. Pending classifier state and transient retry blocks are cleared so current
-repository evidence can be reclassified on resume. Unknown, closed-unmerged, non-managed, and
-branch-drift cases remain fail-closed.
+Managed recovery cases archive local committed/uncommitted deltas before removal. Retry-circuit
+recovery is intentionally stricter: any dirty path, HEAD movement, missing start-head identity, or
+managed PR remains fail-closed. Pending classifier authority is preserved for ordinary no-progress
+discard so resume can revalidate it against current repository/external-producer state.
 """
 
 from __future__ import annotations
@@ -302,6 +304,64 @@ def _detach_merged_managed_editing(
     )
 
 
+def _discard_stalled_unmanaged_editing(
+    self: core.Orchestrator,
+    pending: dict[str, Any],
+    *,
+    actor: str | None,
+) -> None:
+    """Retire only a retry-circuit editing worker that provably produced no durable work."""
+    if pending.get("stage") != "editing" or pending.get("managed_pr"):
+        raise RuntimeError("Stalled editing-worker discard requires an unmanaged editing worker")
+    if not pending.get("worker_retry_circuit_open"):
+        raise RuntimeError("Refusing editing-worker discard before the retry circuit is open")
+
+    worktree = _worktree_path(self, pending)
+    start_head = str(pending.get("start_head") or "").strip()
+    if not start_head:
+        raise RuntimeError("Refusing stalled editing-worker discard without recorded start HEAD")
+    current_head = core._run(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip()
+    if current_head != start_head:
+        raise RuntimeError("Refusing stalled editing-worker discard after worker HEAD movement")
+
+    changed_paths = self._changed_paths(worktree)
+    if changed_paths:
+        raise RuntimeError(
+            "Refusing stalled editing-worker discard with local changes: "
+            + ", ".join(changed_paths[:10])
+        )
+
+    core._run(
+        ["git", "worktree", "remove", "--force", str(worktree)],
+        cwd=self.root,
+        timeout=120,
+    )
+    core._run(["git", "worktree", "prune"], cwd=self.root, check=False)
+
+    with self._state_lock:
+        current = self.state.data.get("pending_worker")
+        if (
+            not isinstance(current, dict)
+            or current.get("branch") != pending.get("branch")
+            or not current.get("worker_retry_circuit_open")
+        ):
+            raise RuntimeError("Pending worker ownership changed during stalled-worker discard")
+        self.state.data["pending_worker"] = None
+        self.state.data["last_worker_discard"] = {
+            "discarded_at": core._utc_now(),
+            "discarded_by": actor,
+            "branch": pending.get("branch"),
+            "stage": pending.get("stage"),
+            "changed_paths": [],
+            "reason": (
+                "retry-circuit editing worker retired after repeated no-progress attempts; "
+                "clean worktree and unchanged start HEAD verified"
+            ),
+        }
+        self.state.save()
+    self._metric("operator_stalled_editing_worker_discards")
+
+
 def discard_pending_worker(self: core.Orchestrator, *, actor: str | None = None) -> None:
     with self._state_lock:
         if not self.state.data.get("paused"):
@@ -320,6 +380,15 @@ def discard_pending_worker(self: core.Orchestrator, *, actor: str | None = None)
     if pending.get("stage") == "editing" and pending.get("managed_pr"):
         with self._dispatch_lock:
             _detach_merged_managed_editing(self, pending, actor=actor)
+        return
+
+    if (
+        pending.get("stage") == "editing"
+        and not pending.get("managed_pr")
+        and pending.get("worker_retry_circuit_open")
+    ):
+        with self._dispatch_lock:
+            _discard_stalled_unmanaged_editing(self, pending, actor=actor)
         return
 
     _ORIGINAL_DISCARD_PENDING_WORKER(self, actor=actor)
