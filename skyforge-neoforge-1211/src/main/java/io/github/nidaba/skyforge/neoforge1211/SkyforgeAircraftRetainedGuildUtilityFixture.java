@@ -92,6 +92,22 @@ final class SkyforgeAircraftRetainedGuildUtilityFixture {
         return new SteeringYawSourceFixture(v0131, authority, steeringYawSource);
     }
 
+    static CockpitYawRouteFixture compileCockpitYawRoute() {
+        SteeringYawSourceFixture steering = compileSteeringYawSource();
+        Fixture v012 = steering.v0131().v012();
+        SkyforgeAircraftCockpitYawRouteIR cockpitYawRoute = new SkyforgeAircraftCockpitYawRouteLowerer().lower(
+                v012.pilot(),
+                v012.manifest(),
+                v012.assemblyFixture(),
+                v012.glue(),
+                v012.powertrain(),
+                steering.v0131().yawControl(),
+                steering.steeringYawSource(),
+                "skyforge.aircraft.guild_utility_monoplane.cockpit_yaw_route.v1",
+                SkyforgeAircraftCockpitYawRouteProfile.retainedC11());
+        return new CockpitYawRouteFixture(steering, cockpitYawRoute);
+    }
+
     private static AircraftDesignSpec designSpec() {
         return new AircraftDesignSpec(
                 AircraftDesignSpec.SCHEMA_VERSION,
@@ -172,4 +188,8 @@ final class SkyforgeAircraftRetainedGuildUtilityFixture {
             YawFixture v0131,
             SkyforgeAircraftRudderControlAuthority rudderAuthority,
             SkyforgeAircraftSteeringYawSourceIR steeringYawSource) {}
+
+    record CockpitYawRouteFixture(
+            SteeringYawSourceFixture steering,
+            SkyforgeAircraftCockpitYawRouteIR cockpitYawRoute) {}
 }
