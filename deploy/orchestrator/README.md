@@ -355,7 +355,7 @@ sudo systemctl status skyforge-v2-shadow.timer
 sudo journalctl -u skyforge-v2-shadow.service --since '-2 hours' --no-pager
 ```
 
-A healthy cycle emits one canonical JSON object containing the current main SHA, each durable managed lane's snapshot/shadow/parity evidence, classification counts, and a deterministic cycle digest. Any lane that cannot be observed safely makes the cycle fail rather than disappear from the evidence.
+A healthy cycle emits one canonical JSON object containing the current accepted GitHub `main` SHA, each durable managed lane's snapshot/shadow/parity evidence, classification counts, and a deterministic cycle digest. The accepted-main identity is read directly through the exact read-only GitHub endpoint `gh api repos/ni-da-ba/skyforge/commits/main --jq .sha`; the host checkout branch, local `main`, and local `origin/main` refs are deliberately not authoritative for shadow freshness because the production checkout may legitimately remain on active product work. Any lane that cannot be observed safely makes the cycle fail rather than disappear from the evidence.
 
 Remove the shadow without touching production orchestration:
 
