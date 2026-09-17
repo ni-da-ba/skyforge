@@ -78,6 +78,14 @@ from .pre_handoff import (
     PreHandoffObservation,
     classify_pre_handoff,
 )
+from .quota import (
+    LocalBudgetObservation,
+    ProviderQuotaDecision,
+    QuotaAdmissionDecision,
+    QuotaAdmissionDisposition,
+    QuotaPolicySettings,
+    classify_quota_admission,
+)
 from .roadmap_recovery import (
     ClosedActiveDisposition,
     ClosedActiveRoadmapDecision,
@@ -141,6 +149,7 @@ __all__ = [
     "InboxTransition",
     "JsonStateSnapshot",
     "JsonStateStoreAdapter",
+    "LocalBudgetObservation",
     "ManagedPRObservation",
     "ManagedPRState",
     "ManagedNoChangeDecision",
@@ -156,6 +165,10 @@ __all__ = [
     "PreHandoffDisposition",
     "PreHandoffObservation",
     "PRClass",
+    "ProviderQuotaDecision",
+    "QuotaAdmissionDecision",
+    "QuotaAdmissionDisposition",
+    "QuotaPolicySettings",
     "PendingDecisionRecord",
     "PendingWorkerState",
     "RemoteEffectIdentity",
@@ -190,6 +203,7 @@ __all__ = [
     "classify_managed_no_change",
     "classify_managed_rebase",
     "classify_pre_handoff",
+    "classify_quota_admission",
     "classify_rebase_result",
     "classify_worker_recovery",
     "compact_events",
