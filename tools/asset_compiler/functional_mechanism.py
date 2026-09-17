@@ -656,6 +656,7 @@ def _compile_mech_003(
                 "fromPlacementId": "cut_station",
                 "toPlacementId": "press_station",
                 "mode": "world_item_restage",
+                "retractionStagingCell": [3, 1, 3],
                 "clearanceCells": lowered["handoffClearanceCells"],
             },
             "forbiddenTransportBlocks": [

@@ -146,6 +146,9 @@ def _validate_plan_references(
             if position in seen_handoff:
                 raise SpecError("manual handoff clearance contains duplicates")
             seen_handoff.add(position)
+        staging = _int_triple(handoff.get("retractionStagingCell"), "manual handoff retractionStagingCell")
+        if staging not in seen_handoff:
+            raise SpecError("manual handoff retractionStagingCell must be one of its clearanceCells")
 
         forbidden = processing.get("forbiddenTransportBlocks")
         if not isinstance(forbidden, list) or not forbidden or not all(isinstance(v, str) and v for v in forbidden):

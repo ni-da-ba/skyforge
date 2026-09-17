@@ -177,7 +177,7 @@ class FunctionalMechanismCompilerTest(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(
             first["digestSha256"],
-            "a34c3135f77a4d5ac1f84751b4bd625747599c96c4b2f8e390e0498a54e962c0",
+            "8509f14ab82c4711ed381ad5f4b6dd57350f95886c6b6c44ef4e07717a89a4c7",
         )
         self.assertEqual(first["compilerVersion"], "mech-0.3-fixed-world")
         self.assertEqual(first["envelope"]["size"], [7, 4, 5])

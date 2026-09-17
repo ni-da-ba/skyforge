@@ -31,7 +31,7 @@ final class Mech003SequencedWorkshopResourceTest {
         assertTrue(plan.contains("\"mode\": \"world_item_restage\""));
         assertTrue(plan.contains("\"terminalResultPolicy\": \"live_weighted_result_pool\""));
         assertTrue(plan.contains("\"singleAttemptSuccessRequired\": false"));
-        assertTrue(plan.contains("a34c3135f77a4d5ac1f84751b4bd625747599c96c4b2f8e390e0498a54e962c0"));
+        assertTrue(plan.contains("8509f14ab82c4711ed381ad5f4b6dd57350f95886c6b6c44ef4e07717a89a4c7"));
         assertFalse(plan.contains("\"name\": \"create:depot\""));
         assertFalse(plan.contains("\"name\": \"create:mechanical_arm\""));
         Path structure = PROJECT_DIRECTORY.resolve(

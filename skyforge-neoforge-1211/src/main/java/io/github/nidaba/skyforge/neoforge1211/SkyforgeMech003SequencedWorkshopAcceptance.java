@@ -52,7 +52,7 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
     private static final String REQUIRED_CAPABILITY = "CREATE_WORLD_ITEM_CUT_PRESS_LIFECYCLE";
     private static final String TARGET_STACK = "C11_FLIGHT_EXACT_2026-09-05";
     private static final String EXPECTED_DIGEST =
-            "a34c3135f77a4d5ac1f84751b4bd625747599c96c4b2f8e390e0498a54e962c0";
+            "8509f14ab82c4711ed381ad5f4b6dd57350f95886c6b6c44ef4e07717a89a4c7";
     private static final String PLAN_RESOURCE =
             "/data/skyforge/mechanisms/mech_003_portable_engine_workshop.json";
     private static final String STRUCTURE_ID = "skyforge:mech_003_portable_engine_workshop";
@@ -104,6 +104,7 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
     private static BlockPos pressRelayPos;
     private static BlockPos pressStationPos;
     private static BlockPos pressWorldSurfacePos;
+    private static BlockPos retractionStagingPos;
     private static List<BlockPos> clearancePositions = List.of();
 
     private static float cutSpeed;
@@ -343,6 +344,9 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
                                 + " uuid=" + currentItemId + " item=" + item
                                 + " recipe=" + sequence.id() + " progress=" + sequence.progress()
                                 + " groundedObserved=true tick=" + now);
+                itemEntity.setPos(retractionStagingPos.getX() + 0.5, retractionStagingPos.getY() + 0.15, retractionStagingPos.getZ() + 0.5);
+                itemEntity.setDeltaMovement(Vec3.ZERO);
+                itemEntity.setDefaultPickUpDelay();
                 stage = Stage.PRESS_RETRACTION;
                 waitDiagnostic = diagnostic(
                         "Mechanical Press fully retracts before the next manual handoff after step " + completedSteps,
@@ -543,7 +547,9 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
         if (stations == null || stations.size() != 2) throw new IllegalStateException("MECH-003 requires CUT and PRESS stations");
         requireString(stations.get(0).getAsJsonObject(), "role", "cut");
         requireString(stations.get(1).getAsJsonObject(), "role", "press");
-        requireString(processing.getAsJsonObject("manualHandoff"), "mode", "world_item_restage");
+        JsonObject handoff = processing.getAsJsonObject("manualHandoff");
+        requireString(handoff, "mode", "world_item_restage");
+        requireTriple(handoff.getAsJsonArray("retractionStagingCell"), 3, 1, 3, "retraction staging cell");
         JsonObject product = loaded.getAsJsonObject("productProcessingContract");
         requireString(product, "recipeAuthority", "live_exact_stack_recipe_manager");
         requireString(product, "loopCountAuthority", "live_recipe");
@@ -598,9 +604,11 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
             else if ("press_station".equals(placementId)) pressStationPos = worldPos;
             else if ("press_world_surface".equals(placementId)) pressWorldSurfacePos = worldPos;
         }
+        retractionStagingPos = BASE.offset(toBlockPos(loaded.getAsJsonObject("processingEnvelope")
+                .getAsJsonObject("manualHandoff").getAsJsonArray("retractionStagingCell")));
         if (cutSourcePos == null || cutRelayPos == null || cutStationPos == null
                 || pressSourcePos == null || pressRelayPos == null || pressStationPos == null
-                || pressWorldSurfacePos == null) {
+                || pressWorldSurfacePos == null || retractionStagingPos == null) {
             throw new IllegalStateException("compiled MECH-003 plan is missing required station/power placements");
         }
 

@@ -102,7 +102,7 @@
     ],
     "severNode": "cut_power_relay"
   },
-  "digestSha256": "a34c3135f77a4d5ac1f84751b4bd625747599c96c4b2f8e390e0498a54e962c0",
+  "digestSha256": "8509f14ab82c4711ed381ad5f4b6dd57350f95886c6b6c44ef4e07717a89a4c7",
   "envelope": {
     "max": [
       6,
@@ -832,6 +832,11 @@
       ],
       "fromPlacementId": "cut_station",
       "mode": "world_item_restage",
+      "retractionStagingCell": [
+        3,
+        1,
+        3
+      ],
       "toPlacementId": "press_station"
     },
     "pressWorldSurfacePlacementId": "press_world_surface",
