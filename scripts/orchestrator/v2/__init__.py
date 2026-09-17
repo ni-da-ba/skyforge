@@ -33,7 +33,17 @@ from .domain import (
     TransitionPlan,
     decide_mechanical,
 )
-from .effects import EffectKind, EffectStatus, RemoteEffectIdentity, RemoteEffectRecord
+from .effects import (
+    EffectKind,
+    EffectReconcileDecision,
+    EffectReconcileDisposition,
+    EffectStatus,
+    RemoteEffectIdentity,
+    RemoteEffectObservation,
+    RemoteEffectPresence,
+    RemoteEffectRecord,
+    reconcile_remote_effect,
+)
 from .events import DurableEvent, normalize_legacy_event_key
 from .external import (
     ClaimAdmissionDecision,
@@ -134,6 +144,8 @@ __all__ = [
     "ClaimRetentionDisposition",
     "CoreDecision",
     "EffectKind",
+    "EffectReconcileDecision",
+    "EffectReconcileDisposition",
     "EffectStatus",
     "ExternalClaimRequest",
     "ExternalDispatchDecision",
@@ -172,6 +184,8 @@ __all__ = [
     "PendingDecisionRecord",
     "PendingWorkerState",
     "RemoteEffectIdentity",
+    "RemoteEffectObservation",
+    "RemoteEffectPresence",
     "RemoteEffectRecord",
     "RoadmapIssueState",
     "RebaseDecision",
@@ -210,6 +224,7 @@ __all__ = [
     "decide_mechanical",
     "enqueue_events",
     "normalize_legacy_event_key",
+    "reconcile_remote_effect",
     "reduce_managed_pr",
     "select_dispatch_batch",
 ]
