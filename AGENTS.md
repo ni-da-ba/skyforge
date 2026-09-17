@@ -12,6 +12,7 @@ This file is a map, not the full manual. Read deeper documents only when the cur
 
 ## Canonical sources
 
+- Compact bootstrap snapshot: `docs/agent-state/CURRENT_PROJECT_STATE.md`
 - Program rules: `docs/agent-state/PROGRAM_CHARTER.md`
 - Product-convergence sequence: `docs/agent-state/PROGRAM_ROADMAP.md`
 - Validation/evidence economy: `docs/agent-state/VALIDATION_POLICY.md`
@@ -27,6 +28,8 @@ This file is a map, not the full manual. Read deeper documents only when the cur
   - Presentation: `docs/agent-state/PRESENTATION_STATE.md`
 - Lightweight multi-agent operation: `docs/agent-state/ORCHESTRATION_PROTOCOL.md`
 - Manual/hosted producer ownership: `docs/agent-state/MANUAL_PRODUCER_PROTOCOL.md`
+
+`CURRENT_PROJECT_STATE.md` is a compact context cache, not an authority override. Read it early, then verify its snapshot boundary against current `main`, active issue/PR authority, controller ownership, tests, and merged history before relying on it. Update it in the same bounded tranche when a human/product boundary or primary next-work boundary materially changes.
 
 If summaries disagree with `main`, source/tests, or merged history, the repository evidence wins.
 
@@ -81,7 +84,7 @@ Use the roadmap's state/entry/exit/missing-issue rules. Do not fully reread it o
 
 A producer starting or resuming bounded work should:
 
-0. inspect hosted-controller ownership, controller-managed PRs, active external-producer claims, and healthy manual producer PRs before selecting work; for an interactive/manual producer, follow `MANUAL_PRODUCER_PROTOCOL.md` and obtain/verify the issue claim before editing;
+0. read `CURRENT_PROJECT_STATE.md`, verify its snapshot boundary against current `main` and live ownership, then inspect hosted-controller ownership, controller-managed PRs, active external-producer claims, and healthy manual producer PRs before selecting work; for an interactive/manual producer, follow `MANUAL_PRODUCER_PROTOCOL.md` and obtain/verify the issue claim before editing;
 1. verify current `main`, its branch/PR, and whether a newer accepted boundary exists;
 2. read the Program Charter;
 3. read the Program Roadmap when the task affects phase sequencing, next-work selection, or a cross-phase dependency;
@@ -132,6 +135,7 @@ Before declaring a meaningful milestone complete:
 - source/tests/evidence support the claim;
 - required human gates are recorded;
 - lane state and genuinely changed cross-lane contracts are updated in the milestone PR when practical;
+- `CURRENT_PROJECT_STATE.md` is refreshed when the primary human/product boundary or recommended next tranche materially changed;
 - the PR is mergeable/current enough for the relevant dependency surface;
 - deferred work is explicit rather than silently absorbed into the next milestone.
 
