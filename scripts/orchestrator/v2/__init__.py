@@ -81,6 +81,11 @@ from .inbox import (
     enqueue_events,
     select_dispatch_batch,
 )
+from .live_parity import (
+    LiveParityClassification,
+    LiveParitySample,
+    analyze_live_parity,
+)
 from .no_change import (
     ManagedNoChangeDecision,
     ManagedNoChangeObservation,
@@ -179,6 +184,8 @@ __all__ = [
     "InboxTransition",
     "JsonStateSnapshot",
     "JsonStateStoreAdapter",
+    "LiveParityClassification",
+    "LiveParitySample",
     "LocalBudgetObservation",
     "ManagedPRObservation",
     "ManagedPRState",
@@ -227,6 +234,7 @@ __all__ = [
     "WorkerRecoveryObservation",
     "WorkerTier",
     "WriterFence",
+    "analyze_live_parity",
     "build_shadow_report",
     "cached_decision_disposition",
     "cached_decision_is_current",
