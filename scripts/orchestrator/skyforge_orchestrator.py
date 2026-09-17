@@ -46,6 +46,7 @@ DEFAULT_MAX_SEEN_DELIVERIES = 512
 DEFAULT_MAX_SEEN_ISSUE_COMMENTS = 512
 DEFAULT_MAX_PENDING_EVENTS = 100
 DEFAULT_MAX_RETIRED_EVENT_KEYS = 1024
+EVENT_KEY_HASH_PREFIX = "sha256:"
 DEFAULT_STARTUP_RECONCILE_RETRY_SECONDS = 60
 DEFAULT_PERIODIC_RECONCILE_SECONDS = 900
 DEFAULT_TRUSTED_GITHUB_ACTORS = ("ni-da-ba",)
@@ -268,7 +269,74 @@ def _event_key(value: EventDecision | dict[str, Any]) -> str:
     # Observation time is telemetry, not event identity. Redelivery/replay must deduplicate the same
     # repository transition even when it is observed at a different wall-clock instant.
     payload.pop("observed_at", None)
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return EVENT_KEY_HASH_PREFIX + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _normalize_persisted_event_key(value: Any) -> str:
+    """Upgrade the pre-hash event-key representation without weakening replay suppression."""
+    text = str(value or "")
+    if re.fullmatch(r"sha256:[0-9a-f]{64}", text):
+        return text
+    try:
+        payload = json.loads(text)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        # Unknown historical values are preserved fail-closed rather than silently discarded.
+        return text
+    if not isinstance(payload, dict):
+        return text
+    return _event_key(payload)
+
+
+def _migrate_persisted_event_keys(data: dict[str, Any]) -> dict[str, int]:
+    """Compact durable replay identity to hashes, including any captured pending decision."""
+    changed: dict[str, int] = {}
+
+    for field in ("retired_event_keys", "completed_authority_event_keys"):
+        values = data.get(field)
+        if not isinstance(values, list):
+            continue
+        normalized: list[str] = []
+        seen: set[str] = set()
+        field_changes = 0
+        for value in values:
+            original = str(value or "")
+            key = _normalize_persisted_event_key(value)
+            if key != original:
+                field_changes += 1
+            if key and key not in seen:
+                normalized.append(key)
+                seen.add(key)
+        normalized = normalized[-DEFAULT_MAX_RETIRED_EVENT_KEYS:]
+        if normalized != values:
+            data[field] = normalized
+        if field_changes:
+            changed[field] = field_changes
+
+    decision = data.get("pending_decision")
+    if isinstance(decision, dict):
+        for field in ("event_keys", "authority_event_keys", "ordinary_event_keys"):
+            values = decision.get(field)
+            if not isinstance(values, list):
+                continue
+            normalized = [_normalize_persisted_event_key(value) for value in values if value]
+            if normalized != values:
+                decision[field] = normalized
+                changed[f"pending_decision.{field}"] = sum(
+                    1 for old, new in zip(values, normalized) if str(old) != new
+                ) or 1
+
+    if changed:
+        metrics = data.setdefault("metrics", {})
+        if isinstance(metrics, dict):
+            metrics["event_key_state_migrations"] = int(
+                metrics.get("event_key_state_migrations") or 0
+            ) + 1
+        data["last_event_key_state_migration"] = {
+            "at": _utc_now(),
+            "fields": changed,
+        }
+    return changed
 
 
 def _task_issue_number(value: EventDecision | dict[str, Any]) -> int | None:
@@ -883,6 +951,7 @@ class LocalState:
         if loaded is not None:
             self.data.update(loaded)
 
+        event_key_migration = _migrate_persisted_event_keys(self.data)
         if recovered_from_backup:
             metrics = self.data.get("metrics")
             if not isinstance(metrics, dict):
@@ -896,6 +965,7 @@ class LocalState:
                 "source": self.backup_path.name,
                 "primary_error": type(primary_error).__name__ if primary_error else "missing",
             }
+        if recovered_from_backup or event_key_migration:
             self.save()
 
     @staticmethod
