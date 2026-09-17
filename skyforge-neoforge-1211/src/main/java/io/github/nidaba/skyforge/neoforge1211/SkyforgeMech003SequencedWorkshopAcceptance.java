@@ -115,6 +115,7 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
     private static UUID currentItemId;
     private static boolean sawInventoryObserved;
     private static boolean pressGroundedObserved;
+    private static int retractionLastRunningTicks = -1;
     private static Set<ResourceLocation> terminalResultIds = Set.of();
     private static String terminalPoolSummary = "<unresolved>";
     private static float liveEngineChance;
@@ -347,6 +348,10 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
                 itemEntity.setPos(retractionStagingPos.getX() + 0.5, retractionStagingPos.getY() + 0.15, retractionStagingPos.getZ() + 0.5);
                 itemEntity.setDeltaMovement(Vec3.ZERO);
                 itemEntity.setDefaultPickUpDelay();
+                Object press = requireExpectedBlockEntity(pressStationPos, "MechanicalPressBlockEntity", now);
+                Object pressBehaviour = press.getClass().getField("pressingBehaviour").get(press);
+                retractionLastRunningTicks = pressBehaviour == null ? -1
+                        : pressBehaviour.getClass().getField("runningTicks").getInt(pressBehaviour);
                 stage = Stage.PRESS_RETRACTION;
                 waitDiagnostic = diagnostic(
                         "Mechanical Press fully retracts before the next manual handoff after step " + completedSteps,
@@ -421,7 +426,20 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
         Object behaviour = press.getClass().getField("pressingBehaviour").get(press);
         if (behaviour == null) throw new IllegalStateException("Mechanical Press pressingBehaviour is missing");
         boolean running = behaviour.getClass().getField("running").getBoolean(behaviour);
+        int runningTicks = behaviour.getClass().getField("runningTicks").getInt(behaviour);
+        if (running && retractionLastRunningTicks >= 0 && runningTicks < retractionLastRunningTicks) {
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_NETWORK,
+                    waitDiagnostic.withFinalState(fixtureIds(), safeServerState(), "headless",
+                            "pressCycleRestarted previousRunningTicks=" + retractionLastRunningTicks
+                                    + " currentRunningTicks=" + runningTicks
+                                    + " exactAcquisitionItems=" + itemDump(pressAcquisitionSearch())
+                                    + " current=" + entityDiagnostic(itemEntity)),
+                    "Mechanical Press started another WORLD cycle while the processed item was staged away");
+            return;
+        }
+        retractionLastRunningTicks = runningTicks;
         if (!running) {
+            retractionLastRunningTicks = -1;
             LOGGER.log(System.Logger.Level.INFO,
                     PREFIX + " PRESS_RETRACTED afterStep=" + completedSteps
                             + " uuid=" + currentItemId + " tick=" + now);
@@ -758,6 +776,7 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
 
     private static AABB sawSearch() { return new AABB(cutStationPos).inflate(3.0, 4.0, 3.0); }
     private static AABB pressSearch() { return new AABB(pressWorldSurfacePos).inflate(3.0, 3.0, 3.0); }
+    private static AABB pressAcquisitionSearch() { return new AABB(pressStationPos.below()).deflate(.125); }
     private static List<ItemEntity> itemEntities(AABB box) { return level.getEntitiesOfClass(ItemEntity.class, box); }
 
     private static String itemDump(AABB box) {
