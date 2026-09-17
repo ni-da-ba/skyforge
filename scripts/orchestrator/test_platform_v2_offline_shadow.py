@@ -150,7 +150,9 @@ class OfflineShadowIntegrationTest(unittest.TestCase):
         self.assertNotIn("_runtime", source)
         self.assertNotIn("subprocess", source)
         self.assertNotIn("requests", source)
-        lowered = source.lower()\n        self.assertNotIn("import github", lowered)\n        self.assertNotIn("from github", lowered)\n
+        lowered = source.lower()
+        self.assertNotIn("import github", lowered)
+        self.assertNotIn("from github", lowered)
 
 if __name__ == "__main__":
     unittest.main()
