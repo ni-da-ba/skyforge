@@ -63,6 +63,14 @@ from .external import (
     classify_external_dispatch_hold,
     classify_external_pr_event,
 )
+from .fairness import (
+    PendingTimerDecision,
+    PendingTimerObservation,
+    QuiescentBatchDecision,
+    TimerDisposition,
+    classify_pending_timer,
+    select_quiescent_dispatch_batch,
+)
 from .fence import FenceBusyError, WriterFence
 from .identity import AcceptanceIdentity, FrozenTaskSpec, TaskAttemptIdentity, canonical_digest
 from .inbox import (
@@ -154,6 +162,9 @@ __all__ = [
     "ExternalProducerClaim",
     "DurableEvent",
     "FenceBusyError",
+    "PendingTimerDecision",
+    "PendingTimerObservation",
+    "QuiescentBatchDecision",
     "FrozenTaskSpec",
     "HumanGateRecord",
     "InboxCompactionReport",
@@ -197,6 +208,7 @@ __all__ = [
     "SourcePRState",
     "StateStoreError",
     "TaskAttemptIdentity",
+    "TimerDisposition",
     "TransitionKind",
     "TransitionPlan",
     "WorkerLifecycleState",
@@ -216,6 +228,7 @@ __all__ = [
     "classify_external_pr_event",
     "classify_managed_no_change",
     "classify_managed_rebase",
+    "classify_pending_timer",
     "classify_pre_handoff",
     "classify_quota_admission",
     "classify_rebase_result",
@@ -227,4 +240,5 @@ __all__ = [
     "reconcile_remote_effect",
     "reduce_managed_pr",
     "select_dispatch_batch",
+    "select_quiescent_dispatch_batch",
 ]
