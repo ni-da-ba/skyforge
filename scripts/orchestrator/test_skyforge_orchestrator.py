@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import pathlib
 import sys
 import tempfile
@@ -1543,6 +1544,73 @@ class DurableStateTests(unittest.TestCase):
             observed_at="2026-09-08T01:05:00+00:00",
         )
         self.assertEqual(orch._event_key(first), orch._event_key(second))
+
+    def test_event_identity_is_fixed_size_hash(self):
+        event = orch.EventDecision(
+            True,
+            "Audit/watchdog orchestration signal",
+            "issue_comment",
+            action="audit_signal",
+            pr_number=401,
+            source_id="100",
+            signal_kind="human_gate",
+            signal_text="A" * 5000,
+        )
+
+        key = orch._event_key(event)
+
+        self.assertRegex(key, r"^sha256:[0-9a-f]{64}$")
+        self.assertEqual(len(key), 71)
+
+    def test_local_state_migrates_legacy_event_keys_and_pending_decision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            state = orch.LocalState(root)
+            event = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=401,
+                source_id="100",
+                signal_kind="human_gate",
+                signal_text="legacy durable authority",
+            )
+            payload = event.to_state()
+            payload.pop("observed_at", None)
+            legacy_key = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+            hashed_key = orch._event_key(event)
+            state.data["retired_event_keys"] = [legacy_key]
+            state.data["completed_authority_event_keys"] = [legacy_key]
+            state.data["pending_decision"] = {
+                "decision": {"decision": "HUMAN_GATE", "lane": "Audit"},
+                "event_keys": [legacy_key],
+                "authority_event_keys": [legacy_key],
+                "ordinary_event_keys": [],
+            }
+            state.save()
+
+            migrated = orch.LocalState(root)
+
+            self.assertEqual(migrated.data["retired_event_keys"], [hashed_key])
+            self.assertEqual(migrated.data["completed_authority_event_keys"], [hashed_key])
+            self.assertEqual(migrated.data["pending_decision"]["event_keys"], [hashed_key])
+            self.assertEqual(
+                migrated.data["pending_decision"]["authority_event_keys"],
+                [hashed_key],
+            )
+            self.assertEqual(
+                migrated.data["metrics"].get("event_key_state_migrations"),
+                1,
+            )
+            self.assertIn(
+                "retired_event_keys",
+                migrated.data["last_event_key_state_migration"]["fields"],
+            )
+            self.assertEqual(
+                orch.LocalState._read_mapping(migrated.backup_path)["retired_event_keys"],
+                [hashed_key],
+            )
 
     def test_distinct_audit_comments_with_same_text_do_not_collapse(self):
         first = orch.EventDecision(
