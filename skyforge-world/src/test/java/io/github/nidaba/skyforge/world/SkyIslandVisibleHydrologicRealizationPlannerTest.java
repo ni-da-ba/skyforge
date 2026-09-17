@@ -160,6 +160,32 @@ final class SkyIslandVisibleHydrologicRealizationPlannerTest {
         fail("representative corpus contains no accepted visible channel");
     }
 
+    @Test
+    void lockedCanonicalSpecimenRetainsDeterministicMultiPositionNaturalizedChannel() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, 8L, 81L, 1471L));
+        SkyIslandVisibleHydrologicRealizationPlan first =
+                SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor);
+        SkyIslandVisibleHydrologicRealizationPlan second =
+                SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor);
+
+        assertEquals(first, second);
+        SkyIslandVisibleChannelWaterIntent channel = first.channels().stream()
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "locked canonical specimen must retain an accepted naturalized channel"));
+        assertEquals(SkyIslandVisibleHydrologicRealizationKind.CHANNEL_WATER, channel.kind());
+        assertTrue(channel.path().points().size() > 1);
+        assertEquals(
+                first.coherentHydrology().naturalizedChannels().paths().getFirst(),
+                channel.path(),
+                "AUTH-0104 must preserve exact accepted channel provenance rather than synthesize topology");
+        assertEquals(
+                first.coherentHydrology().drops().drops(),
+                first.drops().stream().map(SkyIslandVisibleDropWaterIntent::drop).toList(),
+                "AUTH-0104 must not synthesize or relabel drop/outlet intent");
+    }
+
     private static SkyIslandDescriptor descriptor(long key) {
         return SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(SEED, 9L, 86L, key));
