@@ -160,6 +160,39 @@ final class SkyIslandVisibleHydrologicRealizationPlannerTest {
         fail("representative corpus contains no accepted visible channel");
     }
 
+    @Test
+    void lockedCanonicalSpecimenAuthorsDeterministicMultiPositionRetainedWaterWithoutChangingDropProvenance() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, 8L, 81L, 1471L));
+        SkyIslandVisibleHydrologicRealizationPlan first =
+                SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor);
+        SkyIslandVisibleHydrologicRealizationPlan second =
+                SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor);
+        SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
+
+        assertEquals(first, second);
+        SkyIslandVisibleRetainedWaterIntent retained = first.retainedWater().stream()
+                .filter(intent -> intent.footprint().inundatedCellCount() > 1)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "locked canonical specimen must author a multi-position retained-water footprint"));
+        assertEquals(SkyIslandVisibleHydrologicRealizationKind.RETAINED_WATER, retained.kind());
+        assertEquals(2, retained.footprint().inundatedCellCount());
+        assertEquals(
+                retained.footprint().cells().stream()
+                        .map(SkyIslandWaterbodyFootprintCell::watershedCellIndex)
+                        .distinct()
+                        .count(),
+                retained.footprint().inundatedCellCount());
+        assertTrue(retained.footprint().cells().stream().allMatch(cell -> watershed.cells().stream()
+                .anyMatch(source -> source.index() == cell.watershedCellIndex()
+                        && source.position().equals(cell.position()))));
+        assertEquals(
+                first.coherentHydrology().drops().drops(),
+                first.drops().stream().map(SkyIslandVisibleDropWaterIntent::drop).toList(),
+                "canonical retained-water authorization must not synthesize or relabel drop/outlet intent");
+    }
+
     private static SkyIslandDescriptor descriptor(long key) {
         return SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(SEED, 9L, 86L, key));

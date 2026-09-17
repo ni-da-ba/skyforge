@@ -13,6 +13,8 @@ import java.util.Set;
 
 /** Converts retained-waterbody candidates into connected coarse semantic inundation footprints. */
 public final class SkyIslandWaterbodyFootprintPlanner {
+    private static final Comparator<SkyIslandWaterbodyFootprint> CANONICAL_ORDER =
+            Comparator.comparingInt(footprint -> footprint.sourceCandidates().getFirst().sinkCellIndex());
     private static final double EPSILON = 1.0e-12;
     private static final double SPILL_MATCH_EPSILON = 1.0e-10;
 
@@ -36,7 +38,9 @@ public final class SkyIslandWaterbodyFootprintPlanner {
         for (List<CandidateSeed> group : overlapGroups(seeds)) {
             footprints.add(merge(group, watershed, cells));
         }
-        footprints.sort(Comparator.comparingInt(footprint -> footprint.sourceCandidates().getFirst().sinkCellIndex()));
+        SkyIslandCanonicalHydrologyAuthoring.retainedWater(descriptor, watershed)
+                .ifPresent(footprints::add);
+        footprints.sort(CANONICAL_ORDER);
         return new SkyIslandWaterbodyFootprintPlan(descriptor, footprints);
     }
 
