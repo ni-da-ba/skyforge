@@ -71,6 +71,13 @@ from .no_change import (
     classify_managed_no_change,
 )
 from .ownership import ControllerIdentity, OwnershipToken
+from .pre_handoff import (
+    HOSTED_PREFLIGHT,
+    PreHandoffDecision,
+    PreHandoffDisposition,
+    PreHandoffObservation,
+    classify_pre_handoff,
+)
 from .rebase import (
     ManagedMergeState,
     ManagedRebaseObservation,
@@ -133,7 +140,11 @@ __all__ = [
     "MechanicalSnapshot",
     "NoChangeDisposition",
     "NoChangeRetryPlan",
+    "HOSTED_PREFLIGHT",
     "OwnershipToken",
+    "PreHandoffDecision",
+    "PreHandoffDisposition",
+    "PreHandoffObservation",
     "PRClass",
     "PendingDecisionRecord",
     "PendingWorkerState",
@@ -166,6 +177,7 @@ __all__ = [
     "classify_external_pr_event",
     "classify_managed_no_change",
     "classify_managed_rebase",
+    "classify_pre_handoff",
     "classify_rebase_result",
     "classify_worker_recovery",
     "compact_events",
