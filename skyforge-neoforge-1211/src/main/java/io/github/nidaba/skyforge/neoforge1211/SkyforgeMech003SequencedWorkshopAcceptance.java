@@ -116,6 +116,7 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
     private static boolean sawInventoryObserved;
     private static boolean pressGroundedObserved;
     private static int retractionLastRunningTicks = -1;
+    private static int retractionUnchangedTicks;
     private static Set<ResourceLocation> terminalResultIds = Set.of();
     private static String terminalPoolSummary = "<unresolved>";
     private static float liveEngineChance;
@@ -352,6 +353,7 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
                 Object pressBehaviour = press.getClass().getField("pressingBehaviour").get(press);
                 retractionLastRunningTicks = pressBehaviour == null ? -1
                         : pressBehaviour.getClass().getField("runningTicks").getInt(pressBehaviour);
+                retractionUnchangedTicks = 0;
                 stage = Stage.PRESS_RETRACTION;
                 waitDiagnostic = diagnostic(
                         "Mechanical Press fully retracts before the next manual handoff after step " + completedSteps,
@@ -437,9 +439,29 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
                     "Mechanical Press started another WORLD cycle while the processed item was staged away");
             return;
         }
+        if (running && runningTicks == retractionLastRunningTicks) retractionUnchangedTicks++;
+        else retractionUnchangedTicks = 0;
         retractionLastRunningTicks = runningTicks;
+        if (running && retractionUnchangedTicks >= 20) {
+            KineticState kinetic = kineticState(press);
+            int runningTickSpeed = ((Number) behaviour.getClass().getMethod("getRunningTickSpeed").invoke(behaviour)).intValue();
+            fail(SkyforgeCompilerIntegrationFailure.FAIL_BLOCK_ENTITY_INIT,
+                    waitDiagnostic.withFinalState(fixtureIds(), safeServerState(), "headless",
+                            "pressTickStalled unchangedTicks=" + retractionUnchangedTicks
+                                    + " runningTicks=" + runningTicks
+                                    + " runningTickSpeed=" + runningTickSpeed
+                                    + " kinetic=" + kinetic
+                                    + " entitySectionTicking=" + level.isPositionEntityTicking(pressStationPos)
+                                    + " removed=" + ((BlockEntity) press).isRemoved()
+                                    + " sameBlockEntity=" + (level.getBlockEntity(pressStationPos) == press)
+                                    + " exactAcquisitionItems=" + itemDump(pressAcquisitionSearch())
+                                    + " current=" + entityDiagnostic(itemEntity)),
+                    "Mechanical Press behaviour stopped advancing during powered retraction");
+            return;
+        }
         if (!running) {
             retractionLastRunningTicks = -1;
+            retractionUnchangedTicks = 0;
             LOGGER.log(System.Logger.Level.INFO,
                     PREFIX + " PRESS_RETRACTED afterStep=" + completedSteps
                             + " uuid=" + currentItemId + " tick=" + now);
