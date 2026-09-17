@@ -438,11 +438,47 @@ Readiness advances only `steeringWheelSourceStaticTopologyPassed=true` and recor
 authority reference. Aircraft-tail response to the real Steering Wheel, cockpit routing, pilot interaction, passive
 self-centering, pitch/roll, handling, stable powered flight, and human flight/feel remain unqualified.
 
+## AIRCRAFT-PROD-014 acceptance boundary
+
+On acceptance of issue #692, the production Java aircraft compiler advances the accepted Steering Wheel source
+contract through a deterministic **static-only cockpit-to-rudder Create route** with exact current provenance and
+no runtime or pilot-interaction authority:
+
+- the upstream chain is current and digest-closed across pilot station, probe manifest, assembly fixture, glue
+  encoding, v0.12 powertrain, corrected v0.13.1 yaw topology, and AIRCRAFT-PROD-013 Steering Wheel source;
+- the selected retained candidate is the starboard pilot-adjacent floor wheel at `[5,3,1]`, facing north toward
+  the accepted pilot seat `[5,3,0]`; its downward drop gearbox begins the y=2 service-plane route at `[5,2,1]`;
+- the deterministic accepted route is the direct 14-cell path `[5,2,1]` through `[18,2,1]`, materialized as one
+  real `simulated:steering_wheel`, two `create:gearbox` cells, twelve `create:shaft` cells, and the accepted aft
+  `create:cogwheel` at `[18,3,1]`: 16 new parent-main placements total;
+- Create 6.0.10 sign propagation is source-pinned to commit
+  `ac0c444d9828da3453ae8cc65338e8de063286fb` and evaluated from the RotationPropagator gearbox source-face /
+  output-direction equation rather than a route-specific sign table. Positive logical wheel command generates
+  source sign `-1`, reaches tail drive-cog sign `+1`, then the final small-cog/Swivel mesh closes on the accepted
+  hidden-extra-cog sign `-1`; the retained RPM magnitude remains 16;
+- the route glue domain is parent-only, bounded `[5,2,0]` -> `[18,3,1]` with selection size `[14,2,2]`, below
+  the accepted 24-block Create selection limit and excluding propeller child, rudder child, and corrected yaw
+  air-gap cells; no route placement may collide with current parent geometry or either dynamic child;
+- corrected parent-main membership advances from 118 to 134 placements while preserving 9 propeller-child and
+  4 rudder-child cells, for expected primary Sable transfer count 147 at the downstream runtime gate;
+- deterministic negative coverage forces a sign-correct detour around a declared service-plane obstacle and
+  fails compile-visible when a complete x=10 / z=-3..3 service-plane wall removes every valid route; mixed
+  Steering/yaw provenance, resource drift, child overlap, air-gap crossing, glue-bound overflow, and sign failure
+  remain fail-closed;
+- exact-head ordinary CI passed on candidate `72bdccf93bc3fc0bc0c500aa829001d0a3b841fc`, run `35254095399`,
+  job `105313338075`. No exact-stack runtime was required or claimed for this static tranche.
+
+Readiness advances only deterministic route search and placement-patch authority. Complete-route Sable recapture,
+kinetic continuity/sign/RPM, physical rudder response, commanded neutral return, post-route mass/COM, actual-client
+interaction, seat/passenger tracking, pitch/roll, handling, stable powered flight, and human flight/feel remain
+unqualified.
+
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-PROD-013 is accepted on `main`, the next bounded Agent-B gate is AIRCRAFT-PROD-014 / issue #692:
-productionize the deterministic cockpit-to-rudder Create route from a pilot-adjacent Steering Wheel to the accepted
-aft drive-cog/Swivel interface. AIRCRAFT-RUNTIME-005 / #723 and later client/pilot gates remain downstream.
+After AIRCRAFT-PROD-014 is accepted on `main`, the next bounded Agent-B gate is AIRCRAFT-RUNTIME-005 / issue #723:
+qualify the complete compiler-emitted cockpit-to-rudder route on the canonical production Sable aircraft using real
+Create kinetics, physical rudder deflection/hold/inverse neutral return, and current-body identity discipline.
+AIRCRAFT-RUNTIME-006 / #724 actual-client control and AIRCRAFT-RUNTIME-007 / #725 seat/tracking remain downstream.
 
 ## Prepared by AIRCRAFT-DESIGN-001
 
