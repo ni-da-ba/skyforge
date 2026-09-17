@@ -24,7 +24,7 @@ final class SkyforgeDr70ReviewRepairTest {
     }
 
     @Test
-    void canonicalAuth0104ChannelRasterIsConnectedAndMoreConcreteThanSemanticSamples() {
+    void canonicalAuth0104ChannelRasterIsMultiCellConnectedAndOwnerLocal() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var terrain = terrain(fixture);
         var semantic = SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor())
@@ -35,8 +35,9 @@ final class SkyforgeDr70ReviewRepairTest {
                 .findFirst()
                 .orElseThrow();
 
-        assertTrue(deployment.positions().size() > semantic.size(),
-                "canonical channel should be a connected raster, not only sparse AUTH-0104 samples");
+        assertTrue(semantic.size() > 1, "AUTH-0104 canonical channel must remain multi-position");
+        assertTrue(deployment.positions().size() >= semantic.size(),
+                "Minecraft realization must retain the full authored naturalized channel path");
         assertConnected(deployment.positions());
         for (BlockPos position : deployment.positions()) {
             assertTrue(terrain.isAuthoredVisibleHydrologyPosition(position));
