@@ -824,6 +824,13 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
         return new int[] {array.get(0).getAsInt(), array.get(1).getAsInt(), array.get(2).getAsInt()};
     }
 
+    private static void requireTriple(JsonArray array, int x, int y, int z, String label) {
+        int[] values = intTriple(array);
+        if (values[0] != x || values[1] != y || values[2] != z) {
+            throw new IllegalStateException(label + " must equal [" + x + "," + y + "," + z + "]");
+        }
+    }
+
     private static void requireString(JsonObject object, String key, String expected) {
         if (object == null || !object.has(key) || !expected.equals(object.get(key).getAsString())) {
             throw new IllegalStateException("compiled MECH-003 " + key + " must equal " + expected);
