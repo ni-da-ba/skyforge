@@ -233,6 +233,104 @@ class HandoffRecoveryRuntimeTests(unittest.TestCase):
 
             self.assertIsNotNone(o.state.data.get("pending_worker"))
 
+    def test_retry_circuit_clean_editing_worker_can_be_discarded(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            worktree = root / "worker"
+            worktree.mkdir()
+            o = self.make_orchestrator(root)
+            pending = {
+                "branch": "codex/implementation-stalled",
+                "stage": "editing",
+                "managed_pr": None,
+                "worktree": str(worktree),
+                "start_head": "start-head",
+                "worker_retry_circuit_open": True,
+            }
+            o.state.data["paused"] = True
+            o.state.data["pending_worker"] = pending
+            o.state.data["pending_decision"] = {"decision": {"decision": "DISPATCH"}}
+            o.state.save()
+            o._changed_paths.return_value = []
+
+            def run(args, **kwargs):
+                if args[:3] == ["git", "rev-parse", "HEAD"]:
+                    return completed(args, "start-head\n")
+                return completed(args)
+
+            with mock.patch.object(core, "_run", side_effect=run):
+                runtime.discard_pending_worker(o, actor="ni-da-ba")
+
+            self.assertIsNone(o.state.data.get("pending_worker"))
+            self.assertIsNotNone(o.state.data.get("pending_decision"))
+            self.assertIn("repeated no-progress", o.state.data["last_worker_discard"]["reason"])
+            o._metric.assert_called_with("operator_stalled_editing_worker_discards")
+
+    def test_retry_circuit_editing_worker_with_changes_remains_protected(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            worktree = root / "worker"
+            worktree.mkdir()
+            o = self.make_orchestrator(root)
+            pending = {
+                "branch": "codex/implementation-stalled",
+                "stage": "editing",
+                "managed_pr": None,
+                "worktree": str(worktree),
+                "start_head": "start-head",
+                "worker_retry_circuit_open": True,
+            }
+            o.state.data["paused"] = True
+            o.state.data["pending_worker"] = pending
+            o.state.save()
+            o._changed_paths.return_value = ["src/Work.java"]
+            with mock.patch.object(
+                core, "_run", return_value=completed(["git"], "start-head\n")
+            ):
+                with self.assertRaisesRegex(RuntimeError, "with local changes"):
+                    runtime.discard_pending_worker(o, actor="ni-da-ba")
+            self.assertIsNotNone(o.state.data.get("pending_worker"))
+
+    def test_retry_circuit_editing_worker_with_moved_head_remains_protected(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            worktree = root / "worker"
+            worktree.mkdir()
+            o = self.make_orchestrator(root)
+            pending = {
+                "branch": "codex/implementation-stalled",
+                "stage": "editing",
+                "managed_pr": None,
+                "worktree": str(worktree),
+                "start_head": "start-head",
+                "worker_retry_circuit_open": True,
+            }
+            o.state.data["paused"] = True
+            o.state.data["pending_worker"] = pending
+            o.state.save()
+            with mock.patch.object(
+                core, "_run", return_value=completed(["git"], "different-head\n")
+            ):
+                with self.assertRaisesRegex(RuntimeError, "HEAD movement"):
+                    runtime.discard_pending_worker(o, actor="ni-da-ba")
+            self.assertIsNotNone(o.state.data.get("pending_worker"))
+
+    def test_open_editing_worker_without_retry_circuit_delegates(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            o = self.make_orchestrator(root)
+            o.state.data["paused"] = True
+            o.state.data["pending_worker"] = {
+                "branch": "codex/implementation-active",
+                "stage": "editing",
+                "managed_pr": None,
+                "worker_retry_circuit_open": False,
+            }
+            o.state.save()
+            with mock.patch.object(runtime, "_ORIGINAL_DISCARD_PENDING_WORKER") as delegate:
+                runtime.discard_pending_worker(o, actor="ni-da-ba")
+            delegate.assert_called_once_with(o, actor="ni-da-ba")
+
     def test_other_pending_worker_stage_delegates_to_existing_guard(self):
         with tempfile.TemporaryDirectory() as td:
             root = pathlib.Path(td)
