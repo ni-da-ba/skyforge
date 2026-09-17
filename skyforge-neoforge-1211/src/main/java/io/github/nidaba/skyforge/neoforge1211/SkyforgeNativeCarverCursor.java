@@ -16,7 +16,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.CarvingMask;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Aquifer;
-import net.minecraft.world.level.levelgen.Beardifier;
+import net.minecraft.world.level.levelgen.DensityFunction;
+import net.minecraft.world.level.levelgen.DensityFunctions;
 import net.minecraft.world.level.levelgen.blending.Blender;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
@@ -38,6 +39,29 @@ final class SkyforgeNativeCarverCursor {
     private static final int VANILLA_SOURCE_RADIUS_CHUNKS = 8;
     private static final long FNV_OFFSET_BASIS = 0xcbf29ce484222325L;
     private static final long FNV_PRIME = 0x100000001b3L;
+    /**
+     * Deferred exact-volume carving must not inherit base-world structure density. The NoiseChunk
+     * exists only so vanilla carver surface-rule repair has its normal noise context; foreign
+     * structures are outside the island-owned generation domain and can appear in different
+     * lifecycle states between equivalent deferred runs.
+     */
+    private static final DensityFunctions.BeardifierOrMarker EMPTY_STRUCTURE_DENSITY =
+            new DensityFunctions.BeardifierOrMarker() {
+                @Override
+                public double compute(DensityFunction.FunctionContext context) {
+                    return 0.0;
+                }
+
+                @Override
+                public double minValue() {
+                    return 0.0;
+                }
+
+                @Override
+                public double maxValue() {
+                    return 0.0;
+                }
+            };
 
     private final ServerLevel level;
     private final NoiseBasedChunkGenerator generator;
@@ -269,7 +293,7 @@ final class SkyforgeNativeCarverCursor {
         return targetChunk.getOrCreateNoiseChunk(chunk -> NoiseChunk.forChunk(
                 chunk,
                 randomState,
-                Beardifier.forStructuresInChunk(level.structureManager(), chunk.getPos()),
+                EMPTY_STRUCTURE_DENSITY,
                 settings,
                 fluidPicker,
                 Blender.empty()));
