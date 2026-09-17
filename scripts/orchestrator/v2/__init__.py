@@ -63,6 +63,13 @@ from .inbox import (
     enqueue_events,
     select_dispatch_batch,
 )
+from .no_change import (
+    ManagedNoChangeDecision,
+    ManagedNoChangeObservation,
+    NoChangeDisposition,
+    NoChangeRetryPlan,
+    classify_managed_no_change,
+)
 from .ownership import ControllerIdentity, OwnershipToken
 from .rebase import (
     ManagedMergeState,
@@ -119,9 +126,13 @@ __all__ = [
     "JsonStateStoreAdapter",
     "ManagedPRObservation",
     "ManagedPRState",
+    "ManagedNoChangeDecision",
+    "ManagedNoChangeObservation",
     "ManagedMergeState",
     "ManagedRebaseObservation",
     "MechanicalSnapshot",
+    "NoChangeDisposition",
+    "NoChangeRetryPlan",
     "OwnershipToken",
     "PRClass",
     "PendingDecisionRecord",
@@ -153,6 +164,7 @@ __all__ = [
     "classify_claim_retention",
     "classify_external_dispatch_hold",
     "classify_external_pr_event",
+    "classify_managed_no_change",
     "classify_managed_rebase",
     "classify_rebase_result",
     "classify_worker_recovery",
