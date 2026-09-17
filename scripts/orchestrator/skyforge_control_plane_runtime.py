@@ -25,6 +25,7 @@ core.CONTROLLER_RUNTIME_PATHS.add(RUNTIME_PATH)
 
 _ORIGINAL_WORKER = core.Orchestrator._worker
 _ORIGINAL_HEALTH_SNAPSHOT = core.Orchestrator.health_snapshot
+_ORIGINAL_ROADMAP_STATE_LOCKED = roadmap_runtime._roadmap_state_locked
 
 _EDIT_ONLY_GUARD = """
 
@@ -55,6 +56,46 @@ core.WORKER_INSTRUCTIONS = core.WORKER_INSTRUCTIONS.replace(
 )
 if _EDIT_ONLY_GUARD.strip() not in core.WORKER_INSTRUCTIONS:
     core.WORKER_INSTRUCTIONS = core.WORKER_INSTRUCTIONS.rstrip() + _EDIT_ONLY_GUARD
+
+
+def _roadmap_state_locked_with_current_gate_messages(
+    self: core.Orchestrator,
+    manifest: roadmap_runtime.roadmap_policy.RoadmapManifest,
+) -> dict[str, Any]:
+    """Keep durable gate identity while deriving human-facing prose from current authority.
+
+    A blocked human gate remains blocked across protected manifest edits. Its timestamp and identity
+    are durable facts; the explanatory message is a view of the current manifest and must not remain
+    stale merely because the gate was first surfaced under an older wording.
+    """
+    state = _ORIGINAL_ROADMAP_STATE_LOCKED(self, manifest)
+    blocked = state.get("blocked_nodes")
+    if not isinstance(blocked, dict):
+        return state
+
+    by_id = {node.node_id: node for node in manifest.nodes}
+    changed = False
+    for node_id, entry in blocked.items():
+        node = by_id.get(str(node_id))
+        if node is None or node.kind != "gate" or not node.human_message:
+            continue
+        if not isinstance(entry, dict):
+            continue
+        current_reason = node.human_message[:1000]
+        if entry.get("reason") == current_reason:
+            continue
+        entry["reason"] = current_reason
+        changed = True
+
+    if changed:
+        state["last_gate_message_refresh_at"] = core._utc_now()
+        self.state.save()
+    return state
+
+
+# Roadmap runtime functions resolve this module-global helper at call time. Wrapping it here keeps the
+# pre-gate hotfix local to the hosted control plane while preserving roadmap blocking/completion state.
+roadmap_runtime._roadmap_state_locked = _roadmap_state_locked_with_current_gate_messages
 
 
 def _edit_only_worker(
