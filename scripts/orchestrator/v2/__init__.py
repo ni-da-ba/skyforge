@@ -48,6 +48,13 @@ from .inbox import (
 from .ownership import ControllerIdentity, OwnershipToken
 from .replay import ReplayRecord
 from .state_store import JsonStateSnapshot, JsonStateStoreAdapter, StateStoreError
+from .worker import (
+    WorkerLifecycleState,
+    WorkerRecoveryDecision,
+    WorkerRecoveryDisposition,
+    WorkerRecoveryObservation,
+    classify_worker_recovery,
+)
 
 __all__ = [
     "AcceptanceIdentity",
@@ -85,11 +92,16 @@ __all__ = [
     "TaskAttemptIdentity",
     "TransitionKind",
     "TransitionPlan",
+    "WorkerLifecycleState",
+    "WorkerRecoveryDecision",
+    "WorkerRecoveryDisposition",
+    "WorkerRecoveryObservation",
     "WorkerTier",
     "WriterFence",
     "cached_decision_disposition",
     "cached_decision_is_current",
     "canonical_digest",
+    "classify_worker_recovery",
     "compact_events",
     "decide_mechanical",
     "enqueue_events",
