@@ -334,3 +334,33 @@ plane and verify that no pilot backup, snapshot, block volume, reserved IP, load
 other separately billable resource remains.
 
 Do not use power-off as cancellation. A powered-off Droplet may still be billable.
+
+
+## Platform v2 read-only shadow
+
+Platform v2 Release 3 shadowing is installed separately from the production controller. The shadow service has no webhook, no listener, no Codex path, no writer fence, and no repository/controller-state write path. It reads the existing atomic legacy state snapshot, performs the allowlisted managed-PR GitHub reads, evaluates v2, compares the current reusable legacy decision, and writes one JSON cycle to journald.
+
+After the corresponding Platform-v2 shadow code is accepted on `main`, activate it deliberately as the existing non-root service user:
+
+```bash
+scripts/orchestrator/install_v2_shadow.sh --confirm-read-only
+```
+
+The installer first runs one foreground read-only cycle. It then installs only `skyforge-v2-shadow.service` and `skyforge-v2-shadow.timer`; it does not restart or edit `skyforge-orchestrator.service`, Caddy, or the GitHub webhook.
+
+Inspect samples and failures with:
+
+```bash
+sudo systemctl status skyforge-v2-shadow.timer
+sudo journalctl -u skyforge-v2-shadow.service --since '-2 hours' --no-pager
+```
+
+A healthy cycle emits one canonical JSON object containing the current main SHA, each durable managed lane's snapshot/shadow/parity evidence, classification counts, and a deterministic cycle digest. Any lane that cannot be observed safely makes the cycle fail rather than disappear from the evidence.
+
+Remove the shadow without touching production orchestration:
+
+```bash
+scripts/orchestrator/remove_v2_shadow.sh --confirm
+```
+
+Release 3 shadow evidence is observational only. `AGREE` samples count toward parity; `NON_COMPARABLE` samples do not. `STRICTER_V2_EVIDENCE_GAP` remains an explicit migration gap, and `DIVERGENCE` requires investigation before Release 4 can receive mutation authority.
