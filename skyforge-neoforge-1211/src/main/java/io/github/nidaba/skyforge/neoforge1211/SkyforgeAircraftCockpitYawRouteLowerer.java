@@ -70,8 +70,10 @@ public final class SkyforgeAircraftCockpitYawRouteLowerer {
             throw new IllegalArgumentException("cockpit route resources no longer match exact production contract");
         }
 
-        Set<AircraftBlockspaceIR.LatticePoint> forbidden = new HashSet<>(profile.forbiddenCoordinates());
-        forbidden.addAll(yaw.airGapCoordinates());
+        Set<AircraftBlockspaceIR.LatticePoint> routeForbidden = new HashSet<>(profile.forbiddenCoordinates());
+        Set<AircraftBlockspaceIR.LatticePoint> yawAirGap = new HashSet<>(yaw.airGapCoordinates());
+        Set<AircraftBlockspaceIR.LatticePoint> forbidden = new HashSet<>(routeForbidden);
+        forbidden.addAll(yawAirGap);
         Set<AircraftBlockspaceIR.LatticePoint> obstacles = new HashSet<>(partition.effective().keySet());
         obstacles.addAll(forbidden);
         obstacles.addAll(partition.propellerChild());
@@ -168,7 +170,7 @@ public final class SkyforgeAircraftCockpitYawRouteLowerer {
         if (maxDimension(routeGlue.selectionSizeBlocks()) > maxAllowed) {
             throw new IllegalArgumentException("cockpit route glue domain exceeds accepted Create selection bound: " + routeGlue.selectionSizeBlocks());
         }
-        if (containsAny(routeGlue, partition.propellerChild()) || containsAny(routeGlue, partition.rudderChild()) || containsAny(routeGlue, forbidden)) {
+        if (containsAny(routeGlue, partition.propellerChild()) || containsAny(routeGlue, partition.rudderChild()) || containsAny(routeGlue, yawAirGap)) {
             throw new IllegalArgumentException("cockpit route glue domain crosses forbidden child or air-gap boundary");
         }
 
