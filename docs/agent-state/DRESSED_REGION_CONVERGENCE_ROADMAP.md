@@ -124,9 +124,21 @@ Required repair observations:
 
 This result authorizes a narrow repair loop. It does not authorize broad terrain/cave/aesthetic retuning.
 
+## DR-65 — Canonical hydrology Authorship dependency
+
+Consumes AUTH-0104 / #756.
+
+The first bounded #754 Implementation attempt correctly stopped at `TASK_NO_CHANGE`: AUTH-0086 defines general visible-hydrology vocabulary, but the locked canonical specimen does not currently author a coherent retained/channel feature that Implementation is permitted to synthesize. The project-owner DR-60 findings now supply explicit product authority to repair that canonical-instance gap without relocking the specimen.
+
+AUTH-0104 must keep the exact locked specimen identity/seed while establishing at least one deterministic multi-position retained-water footprint and/or naturalized channel path, retaining exact source/drop provenance and preserving AUTH-0085's fail-closed molten-fluid rule. No new geothermal/lava authority is implied.
+
+Do not use DR-65 to retune morphology, caves, ecology density, beauty, pacing, or final visual identity. Automated proof remains GitHub Actions-only.
+
+Promotion: #756 closes with accepted canonical-instance hydrology authority on `main`; only then may #754 retry.
+
 ## DR-70 — Human-review repair tranche
 
-Consumes #754.
+Consumes #754 after accepted AUTH-0104 / #756. One retry is authorized because the first bounded run stopped on the now-explicit Authorship dependency.
 
 Repair only the observed DR-60 defects while preserving the accepted coherent island/cave foundation:
 - enforce deterministic vertical-headroom safety for tall vegetation so clipped canopies are rejected or replaced without globally flattening ecology;
@@ -172,7 +184,7 @@ A worker discovering a human gate, missing authority, already-complete state, or
 Allowed convergence states: `LOCKED`, `READY`, `ACTIVE`, `VERIFYING`, `BLOCKED_AUTHORITY`, `BLOCKED_HUMAN`, `NO_CHANGE`, `ACCEPTED`. Only `ACCEPTED` promotes dependent milestones.
 
 ## Critical path
-`DR-00 -> DR-10 -> DR-20 -> DR-30 -> DR-40 -> DR-50 -> DR-60 -> HUMAN REVIEW (CHANGES REQUIRED) -> DR-70 -> HUMAN RE-REVIEW`
+`DR-00 -> DR-10 -> DR-20 -> DR-30 -> DR-40 -> DR-50 -> DR-60 -> HUMAN REVIEW (CHANGES REQUIRED) -> DR-65 AUTH-0104 -> DR-70 -> HUMAN RE-REVIEW`
 
 Parallel work is permitted only when it does not corrupt this dependency model or disproportionately consume worker budget.
 

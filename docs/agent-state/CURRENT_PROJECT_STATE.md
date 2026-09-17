@@ -4,11 +4,12 @@ This file is a compact bootstrap cache for disposable/manual/hosted agents. It i
 
 ## Snapshot boundary
 
-- Snapshot source main: `2adae031a9bf4c540d690675cc3ab44600382007`.
+- Snapshot source main before this dependency-authority update: `3b522f4016d93d7f60fb740b850b77ea4807e430`.
 - Machine dressed-region convergence through DR-60 packaging is complete.
 - The terminal DR-60 human exploration gate has now been exercised by the project owner and returned **CHANGES REQUIRED**.
 - The authoritative human-review record is issue #535, comment `5707566397`.
-- The bounded repair authority is issue #754, `SF-IMP: repair DR-60 canopy headroom and fluid composition defects`.
+- The bounded repair authority remains issue #754, but its first Implementation run correctly stopped on a missing canonical-instance Authorship dependency.
+- AUTH-0104 / issue #756 is now the required prerequisite: authorize coherent canonical hydrology and justified discharge semantics before one bounded #754 retry.
 
 Before using this snapshot, verify current `main` and current issue/PR/controller ownership. If those materially supersede this file, follow the newer authority and update this checkpoint in the same bounded tranche when practical.
 
@@ -28,7 +29,9 @@ Before using this snapshot, verify current `main` and current issue/PR/controlle
 
 ## Active convergence tranche
 
-Issue #754 is the only newly authorized DR repair tranche. It must remain narrow:
+AUTH-0104 / #756 is the active prerequisite. It must preserve the locked canonical identity/seed while making the existing accepted hydrology vocabulary produce at least one multi-position retained-water footprint and/or naturalized channel path for this specimen. It must retain explicit outlet/drop provenance and preserve AUTH-0085 fail-closed molten semantics; no geothermal/lava authority is added.
+
+After #756 is accepted on `main`, issue #754 receives one bounded retry. That Implementation repair remains narrow:
 
 - ecology/vegetation vertical-headroom safety;
 - landform-aware hydrology composition using existing accepted semantics;
@@ -36,7 +39,7 @@ Issue #754 is the only newly authorized DR repair tranche. It must remain narrow
 - deterministic/persistence regression coverage for the affected integration surfaces;
 - regenerate/requalify the same canonical specimen and return to a human flight gate.
 
-If existing accepted Authorship hydrology/geology/ecology semantics are insufficient, stop at the precise cross-lane dependency rather than inventing policy in Implementation.
+The first #754 worker already demonstrated that the generic vocabulary was insufficient as canonical-instance authority. That dependency is now explicit in #756; Implementation must not retry until #756 is accepted.
 
 Do not convert this into broad aesthetic retuning. The human review already established that the underlying surface and cave composition are a working foundation.
 
