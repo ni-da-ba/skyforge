@@ -103,9 +103,11 @@ Coordinates may be chosen because required systems are present, never because th
 Completion artifact: `DR60_HUMAN_REVIEW_PACKET.md`.
 
 ## Terminal human gate — Worth flying around
-At DR-60, stop autonomous Phase-2 convergence work dependent on subjective region quality and ask the project owner to review coherent-place read versus layered generators; macro landform interest from flight; physical relationship among water, geology, ecology, and structures; procedural artifacts; meaningful exploration variation; emptiness/clutter; structure grounding; geography-motivated ecology; invitation to traversal/investigation; recognizably Skyforge identity; and whether it is worth flying around.
+At DR-60, stop autonomous Phase-2 convergence work dependent on subjective region quality and ask the project owner to review coherent-place read versus layered generators; macro landform interest from flight; physical relationship among water, geology, and ecology; procedural artifacts; meaningful exploration variation; emptiness/clutter; geography-motivated ecology; invitation to traversal/investigation; recognizably Skyforge identity; and whether it is worth flying around.
 
-Machines must not answer those questions.
+The accepted DR-50 specimen currently contains no completed canonical structure. Structure grounding and architecture are therefore not assessable on this specimen; record that absence as a review limitation and do not substitute the separate DR-30 generic native placement probe as if it were physically present in the canonical region.
+
+Machines must not answer the subjective quality questions.
 
 ## Dispatch priority until DR-60
 1. blockers preventing canonical-specimen advancement;
