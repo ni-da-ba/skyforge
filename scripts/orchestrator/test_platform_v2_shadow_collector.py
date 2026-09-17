@@ -203,6 +203,39 @@ class ReadOnlyCollectorTest(unittest.TestCase):
         report = json.loads(shadow_runner.render_report(snapshot))
         self.assertEqual(report["report"]["entries"][0]["disposition"], "RECONCILE")
 
+    def test_collector_source_has_no_local_write_or_production_import_surface(self) -> None:
+        import ast
+
+        source_path = Path(collector.__file__)
+        source = source_path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+
+        forbidden_calls = {
+            "write_text",
+            "write_bytes",
+            "unlink",
+            "rename",
+            "replace",
+            "mkdir",
+            "touch",
+        }
+        seen_calls = {
+            node.func.attr
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+        }
+        self.assertTrue(seen_calls.isdisjoint(forbidden_calls), seen_calls & forbidden_calls)
+        self.assertNotIn("skyforge_orchestrator", source)
+        self.assertNotIn("from v2", source)
+        self.assertNotIn("import v2", source)
+        self.assertNotIn("shell=True", source)
+
+    def test_production_runtime_does_not_import_shadow_collector(self) -> None:
+        root = Path(collector.__file__).resolve().parent
+        for path in [root / "skyforge_orchestrator.py", *sorted(root.glob("skyforge*_runtime.py"))]:
+            source = path.read_text(encoding="utf-8")
+            self.assertNotIn("platform_v2_shadow_collector", source, path.name)
+
     def test_rendered_snapshot_is_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
