@@ -80,6 +80,18 @@ final class SkyforgeAircraftRetainedGuildUtilityFixture {
         return new YawFixture(v012, yawControl);
     }
 
+    static SteeringYawSourceFixture compileSteeringYawSource() {
+        YawFixture v0131 = compileV0131();
+        SkyforgeAircraftRudderControlAuthority authority =
+                SkyforgeAircraftRudderControlAuthority.accepted(v0131.yawControl());
+        SkyforgeAircraftSteeringYawSourceIR steeringYawSource = new SkyforgeAircraftSteeringYawSourceLowerer().lower(
+                v0131.yawControl(),
+                authority,
+                "skyforge.aircraft.guild_utility_monoplane.steering_yaw_source.v1",
+                SkyforgeAircraftSteeringYawSourceProfile.retainedC11());
+        return new SteeringYawSourceFixture(v0131, authority, steeringYawSource);
+    }
+
     private static AircraftDesignSpec designSpec() {
         return new AircraftDesignSpec(
                 AircraftDesignSpec.SCHEMA_VERSION,
@@ -155,4 +167,9 @@ final class SkyforgeAircraftRetainedGuildUtilityFixture {
             SkyforgeAircraftPowertrainIR powertrain) {}
 
     record YawFixture(Fixture v012, SkyforgeAircraftYawControlIR yawControl) {}
+
+    record SteeringYawSourceFixture(
+            YawFixture v0131,
+            SkyforgeAircraftRudderControlAuthority rudderAuthority,
+            SkyforgeAircraftSteeringYawSourceIR steeringYawSource) {}
 }

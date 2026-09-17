@@ -405,12 +405,44 @@ This gate qualifies only nonzero, correctly signed physical yaw authority at the
 point. It does **not** qualify cockpit routing, actual-client control, passive self-centering, pitch/roll,
 atmosphere envelopes, static/dynamic stability, handling, stable powered flight, or human flight/feel.
 
+## AIRCRAFT-PROD-013 acceptance boundary
+
+On acceptance of issue #691, the production Java aircraft compiler advances the accepted corrected-yaw chain
+through a deterministic **static-only Steering Wheel source contract** while consuming current runtime authority
+by digest rather than reviving frozen Python schemas:
+
+- the retained source interface is the accepted AIRCRAFT-RUNTIME-003 tail command boundary: Swivel
+  `[18,3,0]`, aft drive cog `[18,3,1]`, and temporary source coordinate `[18,2,1]`;
+- the production source resource is exactly `simulated:steering_wheel` at `[18,2,1]` with block state
+  `facing=north,on_floor=false,waterlogged=false`; the profile fails closed if the source is no longer directly
+  below the accepted Y-axis drive cog;
+- exact Simulated source authority is pinned to `Creators-of-Aeronautics/Simulated-Project` commit
+  `50443d00afa06e0982b45f40cd686f7ecf978132`: the Steering Wheel uses Y-axis kinetics, exposes its upward
+  shaft when `on_floor=false`, generates the retained 16-RPM magnitude, and provides bounded signed
+  `updateTargetAngle` command behavior;
+- accepted Platform `STEERING_WHEEL_CLIENT_ON_SABLE_LIFECYCLE` remains the reusable runtime authority for
+  ordinary actual-client acquisition and real +/-16-RPM command/release behavior. AIRCRAFT-PROD-013 references
+  that authority and does not reproduce its actual-client fixture;
+- `SkyforgeAircraftRudderControlAuthority` derives deterministic actuation and commanded-neutral-return digests
+  from the **current** v0.13.1 yaw-control IR plus accepted AIRCRAFT-RUNTIME-003 coordinates, 16-RPM source,
+  target/physical neutral tolerances, minimum deflection, source-off hold, inverse-command neutral return, and
+  `passiveSelfCentering=false`; mixed/stale authority is rejected;
+- `SkyforgeAircraftSteeringYawSourceIR` serializes exact current yaw, rudder-actuation, and neutral-return digests,
+  source coordinate/resource/state/provenance, 16-RPM magnitude, retained bounded 48-degree command reference,
+  Platform capability ID, topology checks, runtime obligations, readiness, and validation into a deterministic
+  SHA-256 identity;
+- fail-closed tests reject mixed current runtime authority, source/drive coordinate drift, resource drift, block-
+  state drift, RPM drift, wrong Platform capability, and exact Simulated source-provenance drift.
+
+Readiness advances only `steeringWheelSourceStaticTopologyPassed=true` and records the reusable Platform runtime
+authority reference. Aircraft-tail response to the real Steering Wheel, cockpit routing, pilot interaction, passive
+self-centering, pitch/roll, handling, stable powered flight, and human flight/feel remain unqualified.
+
 ## Next bounded aircraft tranche
 
-After AIRCRAFT-RUNTIME-004 is accepted on `main`, the next bounded Agent-B gate is AIRCRAFT-PROD-013 /
-issue #691: productionize the exact Simulated Steering Wheel yaw-source contract at the accepted temporary
-source coordinate while keeping cockpit routing and pilot interaction explicitly unresolved. AIRCRAFT-PROD-014
-/ #692 and the later runtime/client/pilot gates remain downstream.
+After AIRCRAFT-PROD-013 is accepted on `main`, the next bounded Agent-B gate is AIRCRAFT-PROD-014 / issue #692:
+productionize the deterministic cockpit-to-rudder Create route from a pilot-adjacent Steering Wheel to the accepted
+aft drive-cog/Swivel interface. AIRCRAFT-RUNTIME-005 / #723 and later client/pilot gates remain downstream.
 
 ## Prepared by AIRCRAFT-DESIGN-001
 
