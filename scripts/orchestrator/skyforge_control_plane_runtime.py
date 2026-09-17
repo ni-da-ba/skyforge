@@ -21,9 +21,11 @@ import skyforge_roadmap_closed_issue_recovery_runtime as roadmap_closed_issue_re
 
 core = roadmap_runtime.core
 RUNTIME_PATH = "scripts/orchestrator/skyforge_control_plane_runtime.py"
+CHECKPOINT_PATH = "docs/agent-state/CURRENT_PROJECT_STATE.json"
 core.CONTROLLER_RUNTIME_PATHS.add(RUNTIME_PATH)
 
 _ORIGINAL_WORKER = core.Orchestrator._worker
+_ORIGINAL_ENQUEUE = core.Orchestrator.enqueue
 _ORIGINAL_HEALTH_SNAPSHOT = core.Orchestrator.health_snapshot
 _ORIGINAL_ROADMAP_STATE_LOCKED = roadmap_runtime._roadmap_state_locked
 
@@ -46,9 +48,19 @@ not fabricate the result: hand off the edit and let GitHub Actions provide the e
 gate if the edit itself cannot be made safely without that evidence.
 """
 
+_CONTEXT_EFFICIENCY_GUARD = f"""
+
+CONTEXT EFFICIENCY — CHECKPOINT FIRST:
+Read ``{CHECKPOINT_PATH}`` first for the current semantic project checkpoint, then read only the
+contracts, lane state, source, tests, and recent history needed for the bounded objective. Treat the
+checkpoint as a compact bootstrap rather than immutable git truth: verify current HEAD/recent commits
+when they can affect the objective. Do not replay broad historical ledgers merely to reconstruct state
+already represented by the checkpoint and current repository evidence.
+"""
+
 # The historical base prompt predates the hosted-JDK incident and asks workers to run local tests.
-# Override that sentence at runtime rather than duplicating the large base module. The appended guard
-# is intentionally stronger and later than any stale roadmap wording retained in durable state.
+# Override that sentence at runtime rather than duplicating the large base module. The appended guards
+# are intentionally stronger and later than any stale roadmap wording retained in durable state.
 core.WORKER_INSTRUCTIONS = core.WORKER_INSTRUCTIONS.replace(
     "Make local source/test/doc changes and run appropriate local verification.",
     "Make only the bounded local source/document/configuration edits required by the objective. "
@@ -56,6 +68,8 @@ core.WORKER_INSTRUCTIONS = core.WORKER_INSTRUCTIONS.replace(
 )
 if _EDIT_ONLY_GUARD.strip() not in core.WORKER_INSTRUCTIONS:
     core.WORKER_INSTRUCTIONS = core.WORKER_INSTRUCTIONS.rstrip() + _EDIT_ONLY_GUARD
+if _CONTEXT_EFFICIENCY_GUARD.strip() not in core.WORKER_INSTRUCTIONS:
+    core.WORKER_INSTRUCTIONS = core.WORKER_INSTRUCTIONS.rstrip() + _CONTEXT_EFFICIENCY_GUARD
 
 
 def _roadmap_state_locked_with_current_gate_messages(
@@ -98,19 +112,113 @@ def _roadmap_state_locked_with_current_gate_messages(
 roadmap_runtime._roadmap_state_locked = _roadmap_state_locked_with_current_gate_messages
 
 
+def _human_gate_quiescence_state(self: core.Orchestrator) -> tuple[list[str], bool]:
+    """Return blocked human gate ids and whether ordinary lifecycle noise may be quiesced.
+
+    This is deliberately model-free and fail-open. A blocked roadmap gate suppresses ordinary
+    push/PR/workflow/reconcile wakes only while no explicit controller work is active. Any protected
+    authority, cached decision, worker, or managed PR disables quiescence so legitimate follow-up work
+    can continue through its normal lifecycle.
+    """
+    try:
+        if not roadmap_runtime._roadmap_enabled():
+            return [], False
+        manifest = roadmap_runtime._roadmap_manifest(self)
+        by_id = {node.node_id: node for node in manifest.nodes}
+        with self._state_lock:
+            state = roadmap_runtime._roadmap_state_locked(self, manifest)
+            blocked = state.get("blocked_nodes") or {}
+            gate_ids = [
+                str(node_id)
+                for node_id in blocked
+                if str(node_id) in by_id and by_id[str(node_id)].kind == "gate"
+            ]
+            if not gate_ids or state.get("active"):
+                return gate_ids, False
+            if isinstance(self.state.data.get("pending_decision"), dict):
+                return gate_ids, False
+            if isinstance(self.state.data.get("pending_worker"), dict):
+                return gate_ids, False
+            managed = self.state.data.get("managed") or {}
+            if isinstance(managed, dict) and any(
+                isinstance(value, dict) and value.get("pr_number") for value in managed.values()
+            ):
+                return gate_ids, False
+            for value in self.state.data.get("pending_events") or []:
+                if not isinstance(value, dict):
+                    continue
+                if core.EventDecision.from_state(value).signal_kind in core.PROTECTED_AUTHORITY_SIGNAL_KINDS:
+                    return gate_ids, False
+        return gate_ids, True
+    except Exception:
+        # Quiescence is an optimization, never an authority boundary. Any uncertainty falls back to
+        # the ordinary controller path rather than dropping potentially meaningful work.
+        return [], False
+
+
+def _event_breaks_human_gate_quiescence(event: core.EventDecision) -> bool:
+    """Return True for explicit authority/control that is allowed to wake a blocked gate."""
+    if event.signal_kind in core.PROTECTED_AUTHORITY_SIGNAL_KINDS:
+        return True
+    if event.action == "manual_command":
+        return True
+    if event.event == "roadmap":
+        return True
+    return False
+
+
+def _quiescing_enqueue(self: core.Orchestrator, event: core.EventDecision) -> None:
+    """Drop ordinary lifecycle noise model-free while an idle human gate owns program progress."""
+    if event.actionable and not _event_breaks_human_gate_quiescence(event):
+        gate_ids, active = _human_gate_quiescence_state(self)
+        if active:
+            with self._state_lock:
+                metrics = self.state.data.setdefault("metrics", {})
+                metrics["human_gate_quiesced_events"] = int(
+                    metrics.get("human_gate_quiesced_events") or 0
+                ) + 1
+                self.state.data["last_human_gate_quiesced_event"] = {
+                    "at": core._utc_now(),
+                    "gates": gate_ids,
+                    "summary": event.summary()[:500],
+                }
+                self.state.save()
+            print(
+                "[orchestrator] human gate quiescence suppressed ordinary wake: "
+                + event.summary(),
+                flush=True,
+            )
+            return
+    _ORIGINAL_ENQUEUE(self, event)
+
+
 def _edit_only_worker(
     self: core.Orchestrator,
     prompt: str,
     worker_tier: str,
     worker_root=None,
 ) -> str:
-    """Run the existing bounded Codex worker with a non-negotiable no-build/no-test guard."""
-    guarded_prompt = prompt.replace(
+    """Run the existing bounded Codex worker with no-build and compact-context guards."""
+    worker_base_sha = "unknown"
+    try:
+        target_root = worker_root or self.root
+        worker_base_sha = core._run(["git", "rev-parse", "HEAD"], cwd=target_root).stdout.strip()
+    except Exception:
+        pass
+
+    dispatch_context = f"""
+
+HOSTED DISPATCH CONTEXT:
+- worker_base_sha: {worker_base_sha}
+- semantic_checkpoint: {CHECKPOINT_PATH}
+- context_policy: checkpoint first; expand only into objective-relevant authority/source/tests/history
+"""
+    guarded_prompt = dispatch_context + prompt.replace(
         "Persist the bounded result as local file changes and tests.",
         "Persist the bounded result as local file changes only. Do not run project builds/tests here; "
         "GitHub Actions owns automated validation.",
     )
-    guarded_prompt = guarded_prompt.rstrip() + _EDIT_ONLY_GUARD
+    guarded_prompt = guarded_prompt.rstrip() + _EDIT_ONLY_GUARD + _CONTEXT_EFFICIENCY_GUARD
     return _ORIGINAL_WORKER(self, guarded_prompt, worker_tier, worker_root)
 
 
@@ -126,6 +234,15 @@ def health_snapshot(self: core.Orchestrator) -> dict[str, Any]:
         "github_cloud_agent_required": False,
         "manual_verification": "nicholas-local-workstation",
     }
+    gate_ids, quiescing = _human_gate_quiescence_state(self)
+    metrics = self.state.data.get("metrics") or {}
+    snapshot["human_gate_quiescence"] = {
+        "active": quiescing,
+        "blocked_gate_ids": gate_ids,
+        "ordinary_events_suppressed": int(metrics.get("human_gate_quiesced_events") or 0),
+        "last_suppressed_event": self.state.data.get("last_human_gate_quiesced_event"),
+        "explicit_authority_still_wakes": True,
+    }
     return snapshot
 
 
@@ -133,6 +250,7 @@ def install_extension() -> None:
     if getattr(core, "_skyforge_lightweight_hosted_editing_extension_installed", False):
         return
     core.Orchestrator._worker = _edit_only_worker
+    core.Orchestrator.enqueue = _quiescing_enqueue
     core.Orchestrator.health_snapshot = health_snapshot
     core._skyforge_lightweight_hosted_editing_extension_installed = True
 
