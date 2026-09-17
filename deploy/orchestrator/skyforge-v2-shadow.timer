@@ -1,0 +1,13 @@
+[Unit]
+Description=Sample Skyforge Platform v2 read-only shadow parity
+
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=15m
+AccuracySec=1m
+RandomizedDelaySec=30s
+Persistent=true
+Unit=skyforge-v2-shadow.service
+
+[Install]
+WantedBy=timers.target

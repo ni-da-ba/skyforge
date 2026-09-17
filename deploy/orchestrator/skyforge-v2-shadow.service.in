@@ -1,0 +1,29 @@
+[Unit]
+Description=Skyforge Platform v2 read-only shadow parity cycle
+After=network-online.target skyforge-orchestrator.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=@@USER@@
+WorkingDirectory=@@ROOT@@
+Environment=HOME=@@HOME@@
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=GH_PROMPT_DISABLED=1
+Environment=JAVA_HOME=/nonexistent/skyforge-shadow-no-project-java
+ExecStart=@@VENV_PYTHON@@ @@ROOT@@/scripts/orchestrator/platform_v2_shadow_cycle.py --root @@ROOT@@ --repo ni-da-ba/skyforge
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=@@ROOT@@
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+UMask=0077
+MemoryMax=256M
+CPUQuota=20%
+TasksMax=64
+TimeoutStartSec=90
+StandardOutput=journal
+StandardError=journal
