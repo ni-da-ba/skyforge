@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "state_id": "post-dr60-human-review-changes-required",
+  "purpose": "Compact semantic checkpoint for fresh human and AI workers. This is not a substitute for current git/GitHub/live-controller truth; inspect recent commits and live status when they materially affect the objective.",
+  "baseline_main_sha": "be2badd412d23d3a9e141da0853997deaaffa422",
+  "program_phase": "DR-60 human review returned CHANGES REQUIRED; bounded control-plane efficiency tranche precedes world repair.",
+  "dressed_region": {
+    "specimen_id": "P2_DRESSED_REGION_A",
+    "machine_milestones_completed": [
+      "DR-00",
+      "DR-10",
+      "DR-20",
+      "DR-30",
+      "DR-40",
+      "DR-50",
+      "DR-60"
+    ],
+    "human_review": {
+      "status": "CHANGES_REQUIRED",
+      "authoritative_record": "docs/agent-state/DR60_HUMAN_REVIEW_RESULT.md",
+      "preserve": [
+        "coherent and interesting island-top/surface massing",
+        "coherent and interesting cave/interior system"
+      ],
+      "required_repairs": [
+        "prevent tall jungle canopy truncation at the upper generation boundary",
+        "replace presence-only hydrology with geographically legible hydrology composition",
+        "strongly suppress incidental water/lava edge discharge while retaining deliberate waterfalls"
+      ],
+      "known_limitation": "No completed canonical structure exists in the accepted specimen, so structure grounding/architecture was not assessable."
+    }
+  },
+  "control_plane": {
+    "execution_boundary": "DigitalOcean hosted controller performs lightweight classification and bounded edit-only Codex work; GitHub Actions owns automated project validation; Nicholas's local workstation owns manual/subjective verification.",
+    "current_gate": "The bounded DR roadmap is stopped at the human exploration boundary until explicit follow-up authority is supplied.",
+    "live_state_authority": "Issue #349 / controller health status. This checked-in checkpoint intentionally does not claim live pending-event, claim, quota, or worker counts.",
+    "efficiency_work": {
+      "in_progress": [
+        "human-gate quiescence for ordinary repository lifecycle noise",
+        "compact first-read project checkpoint",
+        "worker dispatch context includes explicit base identity and checkpoint-first guidance"
+      ],
+      "deferred": [
+        "large orchestrator module split/refactor"
+      ]
+    }
+  },
+  "next_legal_work": [
+    "complete and validate the bounded control-plane efficiency tranche",
+    "open a narrow DR-60 repair tranche for canopy headroom, hydrology composition, and incidental edge-fluid discharge",
+    "regenerate the canonical specimen and rerun required machine evidence",
+    "return the repaired specimen to human flight/exploration review"
+  ],
+  "bootstrap_guidance": [
+    "Read this checkpoint first for current semantic state.",
+    "Read AGENTS.md and the relevant authority/contract files for the bounded objective.",
+    "Use recent main history and live controller/GitHub state to detect anything newer than this checkpoint.",
+    "Do not replay historical ledgers wholesale unless the objective requires them."
+  ]
+}
