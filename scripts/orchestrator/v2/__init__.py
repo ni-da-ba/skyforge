@@ -78,6 +78,13 @@ from .pre_handoff import (
     PreHandoffObservation,
     classify_pre_handoff,
 )
+from .roadmap_recovery import (
+    ClosedActiveDisposition,
+    ClosedActiveRoadmapDecision,
+    ClosedActiveRoadmapObservation,
+    RoadmapIssueState,
+    classify_closed_active_roadmap,
+)
 from .rebase import (
     ManagedMergeState,
     ManagedRebaseObservation,
@@ -103,6 +110,9 @@ __all__ = [
     "AcceptanceIdentity",
     "CIState",
     "CachedDecisionDisposition",
+    "ClosedActiveDisposition",
+    "ClosedActiveRoadmapDecision",
+    "ClosedActiveRoadmapObservation",
     "ClassifierDecision",
     "ControllerIdentity",
     "ControllerIssueOwner",
@@ -150,6 +160,7 @@ __all__ = [
     "PendingWorkerState",
     "RemoteEffectIdentity",
     "RemoteEffectRecord",
+    "RoadmapIssueState",
     "RebaseDecision",
     "RebaseDisposition",
     "RebasePlan",
@@ -171,6 +182,7 @@ __all__ = [
     "cached_decision_is_current",
     "canonical_digest",
     "classify_claim_admission",
+    "classify_closed_active_roadmap",
     "classify_claim_release",
     "classify_claim_retention",
     "classify_external_dispatch_hold",
