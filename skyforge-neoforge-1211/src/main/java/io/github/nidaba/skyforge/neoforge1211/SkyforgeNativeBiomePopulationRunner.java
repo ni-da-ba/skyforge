@@ -140,6 +140,8 @@ final class SkyforgeNativeBiomePopulationRunner {
         List<BlockPos> admittedLakeOrigins = new ArrayList<>();
         List<BlockPos> rejectedLakeOrigins = new ArrayList<>();
         boolean performanceMetricsEnabled = SkyforgeRuntimePerformanceMetrics.enabled();
+        boolean treeHeadroomEvaluated = false;
+        boolean treeHeadroomAdmitted = true;
 
         int featureOrdinal = 0;
         for (Holder<PlacedFeature> placedFeature : featureSteps.get(stepIndex)) {
@@ -166,6 +168,18 @@ final class SkyforgeNativeBiomePopulationRunner {
                     stepIndex,
                     occurrenceIndex);
             boolean treeFeature = featureKey.getPath().toLowerCase(Locale.ROOT).contains("tree");
+            if (treeFeature && !treeHeadroomEvaluated) {
+                treeHeadroomAdmitted = SkyforgeSurfaceVegetationHeadroomPolicy.admits(
+                        level, volumeId, originChunk, maximumAttachmentDepth);
+                treeHeadroomEvaluated = true;
+            }
+            if (treeFeature && !treeHeadroomAdmitted) {
+                attempted++;
+                featureResults.add(new FeatureResult(featureKey, false, 0));
+                SkyforgeRuntimePerformanceMetrics.recordSample(
+                        "surfacePopulation.treeHeadroomRejected", 1L);
+                continue;
+            }
             if (Boolean.getBoolean(BIOME_PROOF_PROPERTY) && treeFeature) {
                 var probe = SkyforgeNativePlacedFeatureRunner.probeTreePrerequisites(
                         level,
@@ -254,7 +268,6 @@ final class SkyforgeNativeBiomePopulationRunner {
                 }
             }
             featureResults.add(new FeatureResult(featureKey, result.placed(), result.attachmentWrites()));
-
             if (Boolean.getBoolean(BIOME_PROOF_PROPERTY) && treeFeature) {
                 LOGGER.log(
                         System.Logger.Level.INFO,

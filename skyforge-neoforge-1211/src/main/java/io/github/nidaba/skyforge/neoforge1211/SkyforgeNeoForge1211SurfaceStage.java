@@ -13,6 +13,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicReference;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
@@ -634,6 +635,12 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 throw new IllegalStateException("Skyforge post-surface runtime binding changed before close");
             }
         };
+    }
+
+    static boolean isAuthoredVisibleHydrologyPosition(BlockPos position) {
+        Objects.requireNonNull(position, "position");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding != null && binding.adapter().isAuthoredVisibleHydrologyPosition(position);
     }
 
     static boolean hasActiveBinding() {
