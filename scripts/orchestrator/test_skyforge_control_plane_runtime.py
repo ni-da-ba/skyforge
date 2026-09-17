@@ -1,6 +1,8 @@
 import importlib
 import pathlib
 import sys
+import tempfile
+import threading
 import unittest
 from unittest import mock
 
@@ -48,6 +50,68 @@ class LightweightHostedEditingRuntimeTests(unittest.TestCase):
         self.assertIn("GitHub Actions owns automated validation", forwarded)
         self.assertIn("Do NOT run project builds", forwarded)
         self.assertIn("Do not download or provision a project JDK/toolchain", forwarded)
+
+    def test_blocked_gate_keeps_identity_but_refreshes_manifest_message(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            orchestrator = runtime.core.Orchestrator.__new__(runtime.core.Orchestrator)
+            orchestrator.root = root
+            orchestrator.state = runtime.core.LocalState(root / "state.json")
+            orchestrator._state_lock = threading.RLock()
+
+            old_manifest = runtime.roadmap_runtime.roadmap_policy.parse_manifest(
+                {
+                    "schema_version": 1,
+                    "roadmap_id": "gate-refresh-test",
+                    "enabled": True,
+                    "max_auto_claims_per_utc_day": 1,
+                    "nodes": [
+                        {
+                            "id": "human-gate",
+                            "kind": "gate",
+                            "lane": "Implementation",
+                            "priority": 1,
+                            "max_runs": 1,
+                            "prerequisites": [],
+                            "human_message": "Old review wording.",
+                        }
+                    ],
+                }
+            )
+            state = runtime._ORIGINAL_ROADMAP_STATE_LOCKED(orchestrator, old_manifest)
+            state["blocked_nodes"] = {
+                "human-gate": {"at": "2026-09-17T00:00:00+00:00", "reason": "Old review wording."}
+            }
+            orchestrator.state.save()
+
+            new_manifest = runtime.roadmap_runtime.roadmap_policy.parse_manifest(
+                {
+                    "schema_version": 1,
+                    "roadmap_id": "gate-refresh-test",
+                    "enabled": True,
+                    "max_auto_claims_per_utc_day": 1,
+                    "nodes": [
+                        {
+                            "id": "human-gate",
+                            "kind": "gate",
+                            "lane": "Implementation",
+                            "priority": 1,
+                            "max_runs": 1,
+                            "prerequisites": [],
+                            "human_message": "Current review wording.",
+                        }
+                    ],
+                }
+            )
+            refreshed = runtime._roadmap_state_locked_with_current_gate_messages(
+                orchestrator, new_manifest
+            )
+
+            gate = refreshed["blocked_nodes"]["human-gate"]
+            self.assertEqual(gate["at"], "2026-09-17T00:00:00+00:00")
+            self.assertEqual(gate["reason"], "Current review wording.")
+            self.assertIn("last_gate_message_refresh_at", refreshed)
+            self.assertEqual(refreshed["manifest_fingerprint"], new_manifest.fingerprint)
 
     def test_service_has_resource_and_java_backstops(self):
         service = (REPO_ROOT / "deploy" / "orchestrator" / "skyforge-orchestrator.service.in").read_text()
