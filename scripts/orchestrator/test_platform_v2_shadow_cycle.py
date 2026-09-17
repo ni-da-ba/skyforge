@@ -198,6 +198,12 @@ class HostedShadowCycleTest(unittest.TestCase):
         self.assertIn("OnUnitActiveSec=15m", timer)
         self.assertIn("skyforge-v2-shadow.service", timer)
 
+    def test_production_runtime_does_not_import_shadow_cycle(self) -> None:
+        root = Path(cycle.__file__).resolve().parent
+        for path in [root / "skyforge_orchestrator.py", *sorted(root.glob("skyforge*_runtime.py"))]:
+            source = path.read_text(encoding="utf-8")
+            self.assertNotIn("platform_v2_shadow_cycle", source, path.name)
+
     def test_install_and_remove_are_explicit_and_do_not_touch_production_service(self) -> None:
         root = Path(__file__).resolve().parents[2]
         install = (root / "scripts/orchestrator/install_v2_shadow.sh").read_text()
