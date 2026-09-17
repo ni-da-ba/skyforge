@@ -33,10 +33,11 @@ public final class SkyforgeWorldGenRegionDomainBridge {
                 .orElse(true);
     }
 
-    /** Phase-aware virtual block state for reads hidden outside the active exact volume. */
-    public static BlockState hiddenExteriorBlockState() {
+    /** Phase- and position-aware virtual block state for reads hidden from the active operation. */
+    public static BlockState hiddenBlockState(BlockPos position) {
+        Objects.requireNonNull(position, "position");
         return SkyforgePopulationExecutionStage.activeExecution()
-                .map(SkyforgePopulationExecutionStage.Execution::hiddenExteriorBlockState)
+                .map(execution -> execution.hiddenBlockState(position))
                 .orElseGet(() -> net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
     }
 

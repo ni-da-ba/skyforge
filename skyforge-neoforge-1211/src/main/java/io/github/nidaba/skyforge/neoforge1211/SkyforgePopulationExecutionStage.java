@@ -169,11 +169,31 @@ final class SkyforgePopulationExecutionStage {
 
         boolean isVisible(BlockPos position) {
             Objects.requireNonNull(position, "position");
-            return ownerSolid.test(position) || attachmentEnvelope.ownsAttachment(position);
+            return (ownerSolid.test(position) && originChunkContains(position))
+                    || attachmentEnvelope.ownsAttachment(position);
         }
 
-        BlockState hiddenExteriorBlockState() {
+        /**
+         * Returns the deterministic virtual state for a read hidden from this population operation.
+         *
+         * <p>Same-volume solid terrain in a neighboring chunk must not expose its live materialization
+         * state: that chunk may or may not have completed deferred Skyforge realization yet, depending
+         * on Minecraft scheduling. Present it as an inert solid barrier. Non-owner exterior keeps the
+         * phase-specific historical virtualization (AIR for surface vegetation, BEDROCK for sensitive
+         * underground phases), so cross-chunk canopy attachments remain possible without reading
+         * neighboring terrain realization order.
+         */
+        BlockState hiddenBlockState(BlockPos position) {
+            Objects.requireNonNull(position, "position");
+            if (ownerSolid.test(position)) {
+                return net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState();
+            }
             return SkyforgeNativeInteriorPlacementPolicy.hiddenExteriorBlockState(operation);
+        }
+
+        private boolean originChunkContains(BlockPos position) {
+            return (position.getX() >> 4) == operation.originChunk().x
+                    && (position.getZ() >> 4) == operation.originChunk().z;
         }
 
         boolean canWrite(BlockPos position) {
