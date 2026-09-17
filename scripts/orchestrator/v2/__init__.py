@@ -64,6 +64,17 @@ from .inbox import (
     select_dispatch_batch,
 )
 from .ownership import ControllerIdentity, OwnershipToken
+from .rebase import (
+    ManagedMergeState,
+    ManagedRebaseObservation,
+    RebaseDecision,
+    RebaseDisposition,
+    RebasePlan,
+    RebaseResultDecision,
+    RebaseResultDisposition,
+    classify_managed_rebase,
+    classify_rebase_result,
+)
 from .replay import ReplayRecord
 from .state_store import JsonStateSnapshot, JsonStateStoreAdapter, StateStoreError
 from .worker import (
@@ -108,6 +119,8 @@ __all__ = [
     "JsonStateStoreAdapter",
     "ManagedPRObservation",
     "ManagedPRState",
+    "ManagedMergeState",
+    "ManagedRebaseObservation",
     "MechanicalSnapshot",
     "OwnershipToken",
     "PRClass",
@@ -115,6 +128,11 @@ __all__ = [
     "PendingWorkerState",
     "RemoteEffectIdentity",
     "RemoteEffectRecord",
+    "RebaseDecision",
+    "RebaseDisposition",
+    "RebasePlan",
+    "RebaseResultDecision",
+    "RebaseResultDisposition",
     "ReplayRecord",
     "SourcePRState",
     "StateStoreError",
@@ -135,6 +153,8 @@ __all__ = [
     "classify_claim_retention",
     "classify_external_dispatch_hold",
     "classify_external_pr_event",
+    "classify_managed_rebase",
+    "classify_rebase_result",
     "classify_worker_recovery",
     "compact_events",
     "decide_mechanical",
