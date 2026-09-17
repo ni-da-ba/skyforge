@@ -23,8 +23,17 @@ from .domain import (
     decide_mechanical,
 )
 from .effects import EffectKind, EffectStatus, RemoteEffectIdentity, RemoteEffectRecord
+from .events import DurableEvent, normalize_legacy_event_key
 from .fence import FenceBusyError, WriterFence
 from .identity import AcceptanceIdentity, FrozenTaskSpec, TaskAttemptIdentity, canonical_digest
+from .inbox import (
+    InboxCompactionReport,
+    InboxState,
+    InboxTransition,
+    compact_events,
+    enqueue_events,
+    select_dispatch_batch,
+)
 from .ownership import ControllerIdentity, OwnershipToken
 from .replay import ReplayRecord
 from .state_store import JsonStateSnapshot, JsonStateStoreAdapter, StateStoreError
@@ -37,9 +46,13 @@ __all__ = [
     "CoreDecision",
     "EffectKind",
     "EffectStatus",
+    "DurableEvent",
     "FenceBusyError",
     "FrozenTaskSpec",
     "HumanGateRecord",
+    "InboxCompactionReport",
+    "InboxState",
+    "InboxTransition",
     "JsonStateSnapshot",
     "JsonStateStoreAdapter",
     "ManagedPRObservation",
@@ -57,6 +70,10 @@ __all__ = [
     "TransitionPlan",
     "WriterFence",
     "canonical_digest",
+    "compact_events",
     "decide_mechanical",
+    "enqueue_events",
+    "normalize_legacy_event_key",
     "reduce_managed_pr",
+    "select_dispatch_batch",
 ]
