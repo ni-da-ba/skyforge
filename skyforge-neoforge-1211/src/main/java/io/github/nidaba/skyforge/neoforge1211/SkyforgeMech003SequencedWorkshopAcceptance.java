@@ -85,7 +85,7 @@ final class SkyforgeMech003SequencedWorkshopAcceptance {
     // before the next scan/start plus ~60 ticks to the processing midpoint. Keep this bounded but
     // large enough to cover that real residual-cycle timing without resetting Create internals.
     private static final long PRESS_DEADLINE_TICKS = 260L;
-    private static final long PRESS_RETRACTION_DEADLINE_TICKS = 140L;
+    private static final long PRESS_RETRACTION_DEADLINE_TICKS = 180L;
 
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeMech003SequencedWorkshopAcceptance.class.getName());
