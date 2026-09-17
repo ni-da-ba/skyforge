@@ -37,13 +37,16 @@ final class SkyforgeDr50IntegratedRegionEvidenceTest {
     }
 
     @Test
-    void candidatePacketPinsTheDr00SpecimenAndObjectiveBoundaries() throws Exception {
+    void acceptedPacketPinsTheDr00SpecimenAndObjectiveBoundaries() throws Exception {
         Path project = Path.of(System.getProperty("skyforge.test.projectDirectory", "."))
                 .toAbsolutePath().normalize();
         String packet = Files.readString(project.resolve("../docs/agent-state/DR50_INTEGRATED_REGION_EVIDENCE.json"));
         assertTrue(packet.contains("\"milestone\": \"DR-50\""));
         assertTrue(packet.contains("\"specimen_id\": \"P2_DRESSED_REGION_A\""));
-        assertTrue(packet.contains("\"state\": \"CANDIDATE\""));
+        assertTrue(packet.contains("\"state\": \"ACCEPTED\""));
+        assertTrue(packet.contains("\"implementation_pr\": 743"));
+        assertTrue(packet.contains("35163438331"));
+        assertTrue(packet.contains("10474981110"));
         assertTrue(packet.contains("\"aesthetic_tuning_authorized\": false"));
         assertTrue(packet.contains("\"impossible_deposit_placement\""));
         assertTrue(packet.contains("\"overwritten_structure_support\""));

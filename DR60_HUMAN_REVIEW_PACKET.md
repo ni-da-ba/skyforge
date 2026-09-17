@@ -108,7 +108,7 @@ Key repaired digests: native transform `56fadc5cec66c609`, native carve `a91d1bd
 - **No completed canonical structure is present in the repaired integrated specimen.** DR-50 records zero completed canonical structures. DR-30 proves the generic native placement/persistence seam on its accepted machine fixture; that evidence must not be presented as a structure physically present in this DR-50 world.
 - Final structure architecture, settlement layout, route geometry, and aesthetic policy remain outside DR-30/DR-50 machine authority.
 - Ecology carriers, feature counts, and the documented stops are proof/inspection evidence, not target density or beauty thresholds.
-- The checked-in `docs/agent-state/DR50_INTEGRATED_REGION_EVIDENCE.json` still describes its promotion state as `CANDIDATE`; current acceptance authority is the merged DR-50 repair, closed #496, successful exact-head Actions runs, and repeat artifact identified above. Do not infer that the stale JSON state revokes the accepted runtime evidence.
+- The checked-in `docs/agent-state/DR50_INTEGRATED_REGION_EVIDENCE.json` is promoted to `ACCEPTED` and pins PR #743, accepted head `c9b5692587b3cb80fd7874e9a3a6bd4dc14cd53b`, merge `8119c50209a184b5a0f42dc44d2d3e0726860593`, Actions run `35163438331`, and same-head repeat artifact `10474981110`. Human product judgment remains exclusively this DR-60 review gate.
 - The review world is a development/acceptance world prepared with creative/peaceful/offline settings, not a final player-start configuration.
 - Once the manual viewer is open, normal game simulation can advance. DR-50 determinism applies to the accepted generation/reload comparison boundary, not to arbitrary elapsed live-simulation time after the owner begins exploring.
 
