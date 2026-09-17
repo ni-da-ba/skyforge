@@ -60,21 +60,54 @@ done
 
 fixture_started=$(date +%s)
 fixture_deadline=$((fixture_started + fixture_timeout))
+pass_seen=0
+pass_seen_at=0
+post_pass_grace=${SKYFORGE_EXACT_STACK_POST_PASS_GRACE_SECONDS:-5}
+post_pass_deadline=0
 while true; do
-  if grep -Fq "${pass_marker}" "${log}" 2>/dev/null; then
-    grep -F "${pass_marker}" "${log}"
-    exit 0
-  fi
   if grep -Fq "${fail_marker}" "${log}" 2>/dev/null; then
     grep -F "${fail_marker}" "${log}" >&2 || true
     tail -n 120 "${log}" >&2 || true
     exit 1
   fi
-  if ! kill -0 "${pid}" 2>/dev/null; then
-    fail_with_log "FAIL_RUNTIME_EXIT" "fixture emits classified PASS or FAIL marker" "${fixture_started}" "${fixture_deadline}"
+
+  if (( pass_seen == 0 )) && grep -Fq "${pass_marker}" "${log}" 2>/dev/null; then
+    pass_seen=1
+    pass_seen_at=$(date +%s)
+    post_pass_deadline=$((pass_seen_at + post_pass_grace))
   fi
+
+  if ! kill -0 "${pid}" 2>/dev/null; then
+    set +e
+    wait "${pid}"
+    process_status=$?
+    set -e
+    if (( process_status != 0 )); then
+      fail_with_log "FAIL_RUNTIME_EXIT" "fixture process remains healthy through terminal observation" "${fixture_started}" "${fixture_deadline}"
+    fi
+    if (( pass_seen == 1 )); then
+      grep -F "${pass_marker}" "${log}"
+      exit 0
+    fi
+    fail_with_log "FAIL_RUNTIME_EXIT" "fixture emits classified PASS before clean process exit" "${fixture_started}" "${fixture_deadline}"
+  fi
+
   now=$(date +%s)
-  if (( now > fixture_deadline )); then
+  if (( pass_seen == 1 )); then
+    if (( now > post_pass_deadline )); then
+      # Exact-stack server fixtures deliberately stay alive after PASS; the runner owns teardown.
+      # Observe one bounded grace window first so an immediate late FAIL/crash cannot be masked.
+      if grep -Fq "${fail_marker}" "${log}" 2>/dev/null; then
+        grep -F "${fail_marker}" "${log}" >&2 || true
+        tail -n 120 "${log}" >&2 || true
+        exit 1
+      fi
+      grep -F "${pass_marker}" "${log}"
+      cleanup
+      trap - EXIT
+      exit 0
+    fi
+  elif (( now > fixture_deadline )); then
     fail_with_log "TIMEOUT_FIXTURE_TERMINAL_STATE" "fixture emits classified PASS or FAIL marker" "${fixture_started}" "${fixture_deadline}"
   fi
   sleep 1

@@ -83,6 +83,10 @@ jobs:
             echo "Product code, asset, build, or general workflow impact detected: running full CI."
           fi
 
+      - name: Verify exact-stack fixture runner semantics
+        if: steps.impact.outputs.full == 'true'
+        run: python3 scripts/compiler-integration/test_run_exact_stack_fixture.py
+
       - name: Verify music source integrity
         if: steps.impact.outputs.music == 'true'
         run: python3 scripts/music/verify_music_sources.py
