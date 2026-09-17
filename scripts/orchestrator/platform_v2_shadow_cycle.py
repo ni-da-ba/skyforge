@@ -25,19 +25,44 @@ from v2.identity import canonical_digest
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
-def validate_readonly_git_command(args: Sequence[str]) -> tuple[str, ...]:
+def validate_current_main_gh_command(
+    args: Sequence[str],
+    *,
+    repo: str,
+) -> tuple[str, ...]:
+    validated_repo = collector.validate_repo(repo)
     command = tuple(str(part) for part in args)
-    if command != ("git", "rev-parse", "HEAD"):
-        raise ValueError("shadow cycle permits only exact git rev-parse HEAD")
+    expected = (
+        "gh",
+        "api",
+        f"repos/{validated_repo}/commits/main",
+        "--jq",
+        ".sha",
+    )
+    if command != expected:
+        raise ValueError(
+            "shadow cycle permits only the exact read-only GitHub main-commit lookup"
+        )
     return command
 
 
 def read_current_main(
     root: Path,
     *,
+    repo: str,
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> str:
-    command = validate_readonly_git_command(["git", "rev-parse", "HEAD"])
+    validated_repo = collector.validate_repo(repo)
+    command = validate_current_main_gh_command(
+        [
+            "gh",
+            "api",
+            f"repos/{validated_repo}/commits/main",
+            "--jq",
+            ".sha",
+        ],
+        repo=validated_repo,
+    )
     result = runner(
         list(command),
         cwd=root,
@@ -48,7 +73,9 @@ def read_current_main(
     )
     sha = result.stdout.strip().lower()
     if not _SHA_RE.fullmatch(sha):
-        raise ValueError("git rev-parse HEAD did not return a 40-character lowercase SHA")
+        raise ValueError(
+            "GitHub main-commit lookup did not return a 40-character lowercase SHA"
+        )
     return sha
 
 
@@ -70,12 +97,11 @@ def run_shadow_cycle(
     *,
     root: Path,
     repo: str,
-    git_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
     gh_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> dict[str, Any]:
     state = collector.read_legacy_state(root)
     lanes = _managed_lanes(state)
-    current_main = read_current_main(root, runner=git_runner)
+    current_main = read_current_main(root, repo=repo, runner=gh_runner)
 
     samples: list[dict[str, Any]] = []
     classifications: Counter[str] = Counter()
