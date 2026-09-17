@@ -9,6 +9,8 @@ import json
 import os
 from pathlib import Path
 
+from .ownership import OwnershipToken
+
 
 class FenceBusyError(RuntimeError):
     """Raised when another process already owns the writer fence."""
@@ -16,11 +18,28 @@ class FenceBusyError(RuntimeError):
 
 @dataclass
 class WriterFence:
-    """Exclusive advisory lock with human-readable owner metadata."""
+    """Exclusive advisory lock with human-readable owner/epoch metadata."""
 
     path: Path
     controller_id: str
+    generation: int = 1
     _handle: object | None = None
+
+    def __post_init__(self) -> None:
+        token = OwnershipToken(
+            controller_id=self.controller_id,
+            generation=self.generation,
+        )
+        self.controller_id = token.controller_id
+        self.generation = token.generation
+
+    @classmethod
+    def for_token(cls, path: Path, token: OwnershipToken) -> "WriterFence":
+        return cls(
+            path=path,
+            controller_id=token.controller_id,
+            generation=token.generation,
+        )
 
     def acquire(self) -> None:
         if self._handle is not None:
@@ -36,6 +55,7 @@ class WriterFence:
         metadata = {
             "acquired_at": datetime.now(timezone.utc).isoformat(),
             "controller_id": self.controller_id,
+            "generation": self.generation,
             "pid": os.getpid(),
         }
         handle.seek(0)
