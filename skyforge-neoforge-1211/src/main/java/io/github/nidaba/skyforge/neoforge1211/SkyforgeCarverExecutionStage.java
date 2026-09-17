@@ -9,6 +9,7 @@ import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 /**
@@ -79,9 +80,10 @@ public final class SkyforgeCarverExecutionStage {
      *
      * <p>Outside a carver scope this is inert and returns true.
      */
-    public static boolean authorizeWrite(LevelChunk chunk, BlockPos position) {
+    public static boolean authorizeWrite(LevelChunk chunk, BlockPos position, BlockState state) {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(position, "position");
+        Objects.requireNonNull(state, "state");
         Execution execution = ACTIVE.get();
         if (execution == null) {
             return true;
@@ -91,13 +93,14 @@ public final class SkyforgeCarverExecutionStage {
                     "native carver attempted to mutate a chunk outside its target: target="
                             + execution.targetChunk + ", actual=" + chunk.getPos());
         }
-        return execution.authorize(position);
+        return execution.authorize(position, !state.getFluidState().isEmpty());
     }
 
     /** Called after LevelChunk reports that an authorized direct write actually changed a block. */
-    public static void afterChangedWrite(LevelChunk chunk, BlockPos position) {
+    public static void afterChangedWrite(LevelChunk chunk, BlockPos position, BlockState state) {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(position, "position");
+        Objects.requireNonNull(state, "state");
         Execution execution = ACTIVE.get();
         if (execution == null) {
             return;
@@ -105,12 +108,19 @@ public final class SkyforgeCarverExecutionStage {
         if (!chunk.getPos().equals(execution.targetChunk)) {
             throw new IllegalStateException("carver changed a chunk outside its target");
         }
-        execution.recordChanged(position);
-        // LevelChunk#setBlockState already updates heightmaps and lighting. The missing stable-chunk
-        // side effect is notifying tracking clients of the changed block.
         if (!(chunk.getLevel() instanceof ServerLevel serverLevel)) {
             throw new IllegalStateException("exact-volume native carver requires a server LevelChunk");
         }
+        execution.recordChanged(position);
+        if (!state.getFluidState().isEmpty()) {
+            SkyforgeGeneratedFluidPropagationStage.observeCarverFluidWrite(
+                    serverLevel,
+                    execution.volumeId,
+                    position,
+                    state);
+        }
+        // LevelChunk#setBlockState already updates heightmaps and lighting. The missing stable-chunk
+        // side effect is notifying tracking clients of the changed block.
         serverLevel.getChunkSource().blockChanged(position.immutable());
     }
 
@@ -161,8 +171,16 @@ public final class SkyforgeCarverExecutionStage {
         }
 
         private boolean authorize(BlockPos position) {
+            return authorize(position, false);
+        }
+
+        private boolean authorize(BlockPos position, boolean fluidWrite) {
             writeAttempts++;
-            boolean accepted = ownerSolid.test(position) && !foreignSolid.test(position);
+            boolean accepted = ownerSolid.test(position)
+                    && !foreignSolid.test(position)
+                    && (!fluidWrite
+                            || SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(
+                                    position, ownerSolid));
             if (accepted) {
                 acceptedWriteAttempts++;
             } else {
@@ -212,6 +230,11 @@ public final class SkyforgeCarverExecutionStage {
         boolean authorizeForTest(BlockPos position) {
             requireActive();
             return execution.authorize(Objects.requireNonNull(position, "position"));
+        }
+
+        boolean authorizeFluidForTest(BlockPos position) {
+            requireActive();
+            return execution.authorize(Objects.requireNonNull(position, "position"), true);
         }
 
         void requireActive() {

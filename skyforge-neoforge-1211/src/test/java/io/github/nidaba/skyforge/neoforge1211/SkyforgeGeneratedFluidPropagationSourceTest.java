@@ -46,4 +46,15 @@ final class SkyforgeGeneratedFluidPropagationSourceTest {
         assertTrue(stage.contains("? BoundaryPolicy.INTERIOR_SHELL"));
         assertTrue(stage.contains("SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell"));
     }
+    @Test
+    void nativeLakeAdmissionFailsClosedWithoutMoltenSemantics() throws IOException {
+        String stage = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeLakeAdmissionStage.java"));
+        String mixin = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeLakeFeatureAdmissionMixin.java"));
+        assertTrue(stage.contains("configuration.fluid() instanceof SimpleStateProvider"));
+        assertTrue(stage.contains("fluidState.getType() == net.minecraft.world.level.material.Fluids.WATER"));
+        assertTrue(mixin.contains("context.config()"));
+    }
+
 }

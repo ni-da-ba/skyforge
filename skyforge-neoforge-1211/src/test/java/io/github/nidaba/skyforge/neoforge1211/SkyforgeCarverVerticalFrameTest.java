@@ -46,4 +46,30 @@ final class SkyforgeCarverVerticalFrameTest {
             domain.requireActive();
         }
     }
+    @Test
+    void nativeCarverFluidsRequireInteriorOwnerShellWhileAirCarvingMayReachOwnerBoundary() throws Exception {
+        var volumeId = new SkyIslandWorldVolumeId(62L, "carver-fluid-test", 0, 0, 6201L);
+        var targetChunk = new ChunkPos(0, 0);
+
+        try (var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
+                var execution = SkyforgeCarverExecutionStage.openForTest(
+                        volumeId,
+                        targetChunk,
+                        position -> position.getX() >= 0 && position.getX() <= 4
+                                && position.getY() >= 220 && position.getY() <= 224
+                                && position.getZ() >= 0 && position.getZ() <= 4,
+                        position -> false)) {
+            BlockPos boundary = new BlockPos(0, 222, 2);
+            BlockPos interior = new BlockPos(2, 222, 2);
+
+            assertTrue(execution.authorizeForTest(boundary),
+                    "ordinary cave carving may preserve an accepted owner-boundary opening");
+            assertFalse(execution.authorizeFluidForTest(boundary),
+                    "carver fluid must not be placed on the exact-volume shell");
+            assertTrue(execution.authorizeFluidForTest(interior),
+                    "interior cave fluid remains accepted and is fenced during later propagation");
+            domain.requireActive();
+        }
+    }
+
 }

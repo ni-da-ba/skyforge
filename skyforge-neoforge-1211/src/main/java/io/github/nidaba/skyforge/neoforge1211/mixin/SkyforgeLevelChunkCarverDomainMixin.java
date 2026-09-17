@@ -23,7 +23,7 @@ abstract class SkyforgeLevelChunkCarverDomainMixin {
             CallbackInfoReturnable<BlockState> callback) {
         LevelChunk chunk = (LevelChunk) (Object) this;
         if (SkyforgeCarverExecutionStage.active()
-                && !SkyforgeCarverExecutionStage.authorizeWrite(chunk, position)) {
+                && !SkyforgeCarverExecutionStage.authorizeWrite(chunk, position, state)) {
             callback.setReturnValue(null);
         }
     }
@@ -39,6 +39,6 @@ abstract class SkyforgeLevelChunkCarverDomainMixin {
         if (!SkyforgeCarverExecutionStage.active() || callback.getReturnValue() == null) {
             return;
         }
-        SkyforgeCarverExecutionStage.afterChangedWrite((LevelChunk) (Object) this, position);
+        SkyforgeCarverExecutionStage.afterChangedWrite((LevelChunk) (Object) this, position, state);
     }
 }
