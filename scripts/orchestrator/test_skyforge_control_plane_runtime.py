@@ -26,16 +26,18 @@ class LightweightHostedEditingRuntimeTests(unittest.TestCase):
             recovery._resolve_active_closed_issue,
         )
 
-    def test_worker_instructions_are_edit_only(self):
+    def test_worker_instructions_are_edit_only_and_checkpoint_first(self):
         instructions = runtime.core.WORKER_INSTRUCTIONS
         self.assertIn("HOSTED EXECUTION BOUNDARY — EDITING ONLY", instructions)
         self.assertIn("Automated project verification belongs to GitHub Actions", instructions)
         self.assertIn("Do NOT run project builds", instructions)
         self.assertIn("with_hosted_jdk.py", instructions)
+        self.assertIn("docs/agent-state/CURRENT_PROJECT_STATE.md", instructions)
         self.assertNotIn(
             "Make local source/test/doc changes and run appropriate local verification.",
             instructions,
         )
+        self.assertIn(runtime.CURRENT_PROJECT_STATE_PATH, runtime.core.PROTECTED_WORKER_PATHS)
 
     def test_worker_prompt_is_guarded_even_when_replayed_text_is_stale(self):
         stale_prompt = (
@@ -112,6 +114,134 @@ class LightweightHostedEditingRuntimeTests(unittest.TestCase):
             self.assertEqual(gate["reason"], "Current review wording.")
             self.assertIn("last_gate_message_refresh_at", refreshed)
             self.assertEqual(refreshed["manifest_fingerprint"], new_manifest.fingerprint)
+
+    def test_terminal_gate_quiescence_retires_only_ordinary_noise(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            orchestrator = runtime.core.Orchestrator.__new__(runtime.core.Orchestrator)
+            orchestrator.root = root
+            orchestrator.state = runtime.core.LocalState(root / "state.json")
+            orchestrator._state_lock = threading.RLock()
+
+            manifest = runtime.roadmap_runtime.roadmap_policy.parse_manifest(
+                {
+                    "schema_version": 1,
+                    "roadmap_id": "terminal-gate-test",
+                    "enabled": True,
+                    "max_auto_claims_per_utc_day": 1,
+                    "nodes": [
+                        {
+                            "id": "task-a",
+                            "kind": "task",
+                            "lane": "Implementation",
+                            "issue_number": 1,
+                            "priority": 2,
+                            "max_runs": 1,
+                            "prerequisites": [],
+                            "objective_hint": "finish task",
+                            "stop_boundary": "stop",
+                        },
+                        {
+                            "id": "human-gate",
+                            "kind": "gate",
+                            "lane": "Implementation",
+                            "priority": 1,
+                            "max_runs": 1,
+                            "prerequisites": ["task-a"],
+                            "human_message": "Review it.",
+                        },
+                    ],
+                }
+            )
+            orchestrator.state.data["roadmap"] = {
+                "roadmap_id": manifest.roadmap_id,
+                "manifest_fingerprint": manifest.fingerprint,
+                "completed_runs": {"task-a": 1},
+                "blocked_nodes": {
+                    "human-gate": {
+                        "at": "2026-09-17T00:00:00+00:00",
+                        "reason": "Review it.",
+                    }
+                },
+                "active": None,
+            }
+            ordinary = runtime.core.EventDecision(
+                actionable=True,
+                reason="workflow completed",
+                event="workflow_run",
+                action="completed",
+                source_id="ordinary-1",
+            ).to_state()
+            orchestrator.state.data["pending_events"] = [ordinary]
+            orchestrator.state.save()
+
+            with mock.patch.object(runtime.roadmap_runtime, "_roadmap_manifest", return_value=manifest):
+                snapshot = runtime._terminal_human_gate_snapshot(orchestrator)
+                self.assertTrue(snapshot["latched"])
+                with orchestrator._state_lock:
+                    retired = runtime._retire_terminal_gate_noise_locked(orchestrator)
+
+            self.assertEqual(retired, 1)
+            self.assertEqual(orchestrator.state.data["pending_events"], [])
+            self.assertEqual(
+                orchestrator.state.data["metrics"]["terminal_gate_events_retired_model_free"],
+                1,
+            )
+
+            protected = runtime.core.EventDecision(
+                actionable=True,
+                reason="explicit task authority",
+                event="issue_comment",
+                action="created",
+                pr_number=2,
+                source_id="protected-1",
+                signal_kind="task",
+                signal_text="Do the bounded task.",
+            ).to_state()
+            orchestrator.state.data["pending_events"] = [protected]
+            orchestrator.state.save()
+            with orchestrator._state_lock:
+                self.assertTrue(runtime._protected_pending_authority_exists_locked(orchestrator))
+                self.assertEqual(runtime._retire_terminal_gate_noise_locked(orchestrator), 0)
+            self.assertEqual(orchestrator.state.data["pending_events"], [protected])
+
+    def test_manifest_change_breaks_terminal_gate_quiescence(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            orchestrator = runtime.core.Orchestrator.__new__(runtime.core.Orchestrator)
+            orchestrator.root = root
+            orchestrator.state = runtime.core.LocalState(root / "state.json")
+            orchestrator._state_lock = threading.RLock()
+            manifest = runtime.roadmap_runtime.roadmap_policy.parse_manifest(
+                {
+                    "schema_version": 1,
+                    "roadmap_id": "manifest-change-test",
+                    "enabled": True,
+                    "max_auto_claims_per_utc_day": 1,
+                    "nodes": [
+                        {
+                            "id": "human-gate",
+                            "kind": "gate",
+                            "lane": "Audit",
+                            "priority": 1,
+                            "max_runs": 1,
+                            "prerequisites": [],
+                            "human_message": "Review it.",
+                        }
+                    ],
+                }
+            )
+            orchestrator.state.data["roadmap"] = {
+                "roadmap_id": manifest.roadmap_id,
+                "manifest_fingerprint": "old-fingerprint",
+                "completed_runs": {},
+                "blocked_nodes": {"human-gate": {"reason": "Review it."}},
+                "active": None,
+            }
+            with mock.patch.object(runtime.roadmap_runtime, "_roadmap_manifest", return_value=manifest):
+                snapshot = runtime._terminal_human_gate_snapshot(orchestrator)
+            self.assertFalse(snapshot["latched"])
+            self.assertEqual(snapshot["reason"], "roadmap manifest changed")
 
     def test_service_has_resource_and_java_backstops(self):
         service = (REPO_ROOT / "deploy" / "orchestrator" / "skyforge-orchestrator.service.in").read_text()
