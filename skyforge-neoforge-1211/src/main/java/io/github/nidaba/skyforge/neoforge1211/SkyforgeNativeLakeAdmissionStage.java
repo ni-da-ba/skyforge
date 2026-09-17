@@ -24,6 +24,7 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
  * therefore covers exactly that finite 16x8x16 mutation box. Candidates that need air/exterior
  * beyond compiled owner support fail closed before native mutation.
  */
+@SuppressWarnings("deprecation")
 public final class SkyforgeNativeLakeAdmissionStage {
     static final int MIN_X_OFFSET = 0;
     static final int MAX_X_OFFSET = 15;
