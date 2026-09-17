@@ -1,28 +1,36 @@
-# Skyforge Platform v2 control-plane primitives
+# Skyforge Platform v2 control plane
 
-This directory is the inert starting point for the Platform v2 migration tracked by issue #767.
+This directory contains the **inert** Platform v2 implementation tracked by #767.
 
-## Current authority boundary
+## Authority boundary
 
-These modules have **no production authority**. The current hosted controller must not import them yet.
-They exist only to establish separately testable primitives before any shadow/canary wiring occurs.
+The current hosted controller does not import this package. Platform v2 currently has no GitHub,
+Codex, deployment, state-file, merge, or repository mutation authority.
 
-Release 1A may define:
+Release 1 established independently tested safety primitives:
 
-- frozen task/spec/attempt identity;
-- exact-SHA acceptance identity;
-- replay-record digests;
-- a single-writer fence primitive;
-- deterministic unit tests for those concepts.
+- frozen task/spec/attempt identity and exact-SHA acceptance identity;
+- durable remote-effect identities;
+- PR lifecycle and mechanical transition rules;
+- single-writer fencing and controller ownership epochs;
+- an evidence-backed legacy replay/parity corpus.
 
-Release 1A must not:
+Release 2 is now building the explicit pure controller core behind that boundary. The first slice
+projects the current JSON state into immutable typed state, preserves the current primary/backup JSON
+store contract behind an adapter, and evaluates managed-PR observations with a side-effect-free
+reducer.
 
-- modify or replace the active controller entrypoint;
-- mutate live controller state;
-- deploy/restart/reload the hosted service;
-- alter roadmap or DR-70 human-gate authority;
-- change Java/NeoForge/world-generation semantics;
-- grant v2 repository write/merge authority.
+The intended progression remains:
 
-The package becomes runtime-reachable only in a later explicitly authorized release after replay parity,
-shadow operation, and the migration preservation gates are satisfied.
+```text
+legacy/current durable state + durable repository observation
+    -> typed v2 state/event
+    -> deterministic pure transition plan
+    -> later durable effect/outbox layer
+    -> later read-only shadow
+    -> only after preservation and parity gates: canary mutation authority
+```
+
+No v2 module may become production-reachable merely by being merged. Live shadow/canary wiring is a
+separate migration release with its own preservation, replay, and single-writer gates. DR-70 and
+other product/human-review authority remain independent of this control-plane migration.
