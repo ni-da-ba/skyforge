@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
 import re
 from typing import Any, Mapping
-
-from .identity import canonical_digest
-
 
 EVENT_KEY_PREFIX = "sha256:"
 PROTECTED_AUTHORITY_SIGNAL_KINDS = frozenset(
@@ -91,7 +89,17 @@ class DurableEvent:
 
     @property
     def event_id(self) -> str:
-        return EVENT_KEY_PREFIX + canonical_digest(self.identity_payload())
+        # Compatibility boundary: the production controller's durable replay key is
+        # SHA-256 over json.dumps(..., sort_keys=True, separators=(",", ":")) with
+        # Python's default ensure_ascii=True.  Do not substitute the general v2
+        # canonical_digest here; Unicode escaping is part of the already-persisted
+        # legacy identity contract.
+        encoded = json.dumps(
+            self.identity_payload(),
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return EVENT_KEY_PREFIX + hashlib.sha256(encoded).hexdigest()
 
     @property
     def protected_authority(self) -> bool:
