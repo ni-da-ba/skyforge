@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# This no-behavior marker intentionally retriggers PR validation after R1C advanced main.
 import json
 from pathlib import Path
 import tempfile
