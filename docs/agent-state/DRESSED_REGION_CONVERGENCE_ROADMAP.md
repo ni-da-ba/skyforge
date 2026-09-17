@@ -35,7 +35,7 @@ Determine exactly one of:
 2. accepted authority exists but needs the smallest bounded Content fixture -> dispatch that tranche;
 3. a genuinely new product/design choice is required -> stop at authority/human gate.
 
-Canonical acceptance retains the #491 requirements: accepted geological/content eligibility, zero-opportunity rejection, retained vanilla/Create identities, exact-volume ownership, stacked-volume isolation, deterministic/idempotent placement, save/reload persistence, noncompetition with broad Create Zinc generation inside Skyforge-owned volumes, explicit Implementation-owned count/grade/accessibility, and accessible production-geography evidence where required.
+Canonical acceptance retains the #491 requirements: accepted geological/content eligibility, zero-opportunity rejection, retained vanilla/Create-Zinc identities, exact-volume ownership, stacked-volume isolation, deterministic/idempotent placement, save/reload persistence, noncompetition with broad Create Zinc generation inside Skyforge-owned volumes, explicit Implementation-owned count/grade/accessibility, and accessible production-geography evidence where required.
 
 Completion artifact: `DR10_MATERIALS_EVIDENCE.json` or equivalent.
 
@@ -109,12 +109,54 @@ The accepted DR-50 specimen currently contains no completed canonical structure.
 
 Machines must not answer the subjective quality questions.
 
-## Dispatch priority until DR-60
-1. blockers preventing canonical-specimen advancement;
-2. cross-system defects affecting the canonical specimen;
-3. next sequential DR milestone;
-4. cheap deterministic preparation for the following milestone;
-5. unrelated Bootstrap work only when it does not consume scarce capacity needed by convergence;
+## DR-60 human review result — CHANGES REQUIRED
+
+The project-owner flight review has now occurred. Preserve this result as product authority rather than re-inferring it from machine metrics.
+
+Accepted observations:
+- the top/surface of the island was surprisingly coherent and interesting;
+- caves/interiors were also coherent and interesting, even if not yet especially dramatic.
+
+Required repair observations:
+1. tall jungle trees could reach the upper production boundary and have their tops visibly chopped off;
+2. visible authored hydrology was effectively about one source block spilling directly over the side and therefore failed the intended geographic read despite satisfying machine presence checks;
+3. water and lava spilled from island sides far too commonly; ordinary incidental discharge is not desired, although deliberate waterfalls/cascades may remain when compositionally justified.
+
+This result authorizes a narrow repair loop. It does not authorize broad terrain/cave/aesthetic retuning.
+
+## DR-70 — Human-review repair tranche
+
+Consumes #754.
+
+Repair only the observed DR-60 defects while preserving the accepted coherent island/cave foundation:
+- enforce deterministic vertical-headroom safety for tall vegetation so clipped canopies are rejected or replaced without globally flattening ecology;
+- make the canonical authored hydrology physically legible as a coherent retained/channelized/composed water feature rather than token water presence;
+- strongly suppress incidental water/lava edge leakage while retaining intentionally authorized waterfalls/cascades or geologically justified discharge.
+
+Use existing accepted Authorship hydrology/geology/ecology semantics. If those semantics are insufficient to determine coherent retained water or justified discharge, stop at an explicit Authorship dependency rather than inventing policy in Implementation.
+
+Prove only the dependency surfaces changed by the repair: deterministic/idempotent realization, relevant persistence/reload behavior, exact-volume isolation, no clipped canonical canopy, coherent authored-water evidence beyond source-block counting, and deterministic intentional-vs-incidental discharge rejection. Reuse prior expensive evidence where the tested dependency surface is unchanged.
+
+Do not broadly retune morphology, caves, ecology density, pacing, beauty, structure architecture, or #488/#489.
+
+Promotion: #754 closes with machine-green repaired canonical evidence and an updated launchable specimen ready for a second project-owner review.
+
+## DR-70 human re-review gate
+
+After DR-70 machine evidence is accepted, stop again and ask the project owner to verify specifically that:
+- tall vegetation no longer clips at the upper boundary;
+- hydrology reads as an actual geographic feature rather than token mechanical water presence;
+- incidental water/lava edge discharge is no longer commonplace;
+- the previously coherent island surface and cave/interior foundation has not regressed.
+
+Machines must not self-pass this re-review.
+
+## Dispatch priority until DR-70 re-review
+1. blockers preventing the #754 canonical repair;
+2. cross-system defects directly caused/exposed by canopy-headroom or fluid/hydrology composition repair;
+3. deterministic evidence needed to qualify the repaired canonical specimen;
+4. cheap preparation for the second human review;
+5. unrelated work only when it does not consume scarce capacity needed by the repair;
 6. reserve work only when the primary path is genuinely blocked.
 
 Do not dispatch low-priority AAL/computing, optional polish, speculative infrastructure, or unrelated capability expansion merely because Codex quota exists.
@@ -130,11 +172,11 @@ A worker discovering a human gate, missing authority, already-complete state, or
 Allowed convergence states: `LOCKED`, `READY`, `ACTIVE`, `VERIFYING`, `BLOCKED_AUTHORITY`, `BLOCKED_HUMAN`, `NO_CHANGE`, `ACCEPTED`. Only `ACCEPTED` promotes dependent milestones.
 
 ## Critical path
-`DR-00 -> DR-10 -> DR-20 -> DR-30 -> DR-40 -> DR-50 -> DR-60 -> HUMAN REVIEW`
+`DR-00 -> DR-10 -> DR-20 -> DR-30 -> DR-40 -> DR-50 -> DR-60 -> HUMAN REVIEW (CHANGES REQUIRED) -> DR-70 -> HUMAN RE-REVIEW`
 
 Parallel work is permitted only when it does not corrupt this dependency model or disproportionately consume worker budget.
 
 ## Definition of machine success
 The orchestrator succeeds when current main contains one exact, reproducible Skyforge production region whose terrain, materials, deposits, authored water, caves/interiors, structures, and ecology coexist under accepted authority; the region survives deterministic reconstruction and reload without lifecycle conflicts; objective integration failures are green; and a human can launch directly into the specimen and fly a documented inspection route.
 
-At that statement: **STOP and hand the specimen to the project owner.**
+After a human review returns required corrections, machine success becomes narrower: implement only those explicitly authorized corrections, requalify the affected canonical dependency surfaces, and stop at the next human gate.

@@ -4,10 +4,11 @@ This file is a compact bootstrap cache for disposable/manual/hosted agents. It i
 
 ## Snapshot boundary
 
-- Snapshot source main: `be2badd412d23d3a9e141da0853997deaaffa422`.
+- Snapshot source main: `2adae031a9bf4c540d690675cc3ab44600382007`.
 - Machine dressed-region convergence through DR-60 packaging is complete.
 - The terminal DR-60 human exploration gate has now been exercised by the project owner and returned **CHANGES REQUIRED**.
 - The authoritative human-review record is issue #535, comment `5707566397`.
+- The bounded repair authority is issue #754, `SF-IMP: repair DR-60 canopy headroom and fluid composition defects`.
 
 Before using this snapshot, verify current `main` and current issue/PR/controller ownership. If those materially supersede this file, follow the newer authority and update this checkpoint in the same bounded tranche when practical.
 
@@ -25,20 +26,22 @@ Before using this snapshot, verify current `main` and current issue/PR/controlle
 2. **Hydrology quality** — mechanical water presence is insufficient. The reviewed canonical hydrology was effectively about one source block spilling directly over the island side. Hydrology must produce coherent geographic expression such as basins, ponds, channels, streams, seepage, or intentionally composed waterfalls.
 3. **Incidental edge discharge** — water and lava spill from island sides too commonly. Arbitrary edge leakage should be uncommon; discharge must be compositionally/geologically justified. Deliberate waterfalls remain valid, but incidental runoff, especially lava, should be strongly suppressed.
 
-## Recommended next product tranche
+## Active convergence tranche
 
-Resume autonomous implementation only against the explicit DR-60 findings above. Keep the repair narrow:
+Issue #754 is the only newly authorized DR repair tranche. It must remain narrow:
 
 - ecology/vegetation vertical-headroom safety;
-- landform-aware hydrology composition;
+- landform-aware hydrology composition using existing accepted semantics;
 - containment / intentional-discharge rules for fluids;
 - deterministic/persistence regression coverage for the affected integration surfaces;
-- regenerate a canonical specimen and return to a human flight gate.
+- regenerate/requalify the same canonical specimen and return to a human flight gate.
+
+If existing accepted Authorship hydrology/geology/ecology semantics are insufficient, stop at the precise cross-lane dependency rather than inventing policy in Implementation.
 
 Do not convert this into broad aesthetic retuning. The human review already established that the underlying surface and cave composition are a working foundation.
 
 ## Orchestration boundary
 
-At the snapshot source main, the bounded DR roadmap is at its terminal human gate with no active successor node. Ordinary lifecycle/wake noise should not consume classifier/model calls while such a terminal gate is latched. Explicit task authority, a human-gate response, a meaningful roadmap-manifest change, or exceptional controller state may reopen work.
+The prior terminal DR-60 human gate remains a durable historical block/result, but the owner-approved #754 repair creates a new explicit successor task followed by a second human gate. Ordinary lifecycle/wake noise should remain model-free whenever the roadmap is exhausted behind a human gate; explicit task authority, a human-gate response, a meaningful roadmap-manifest change, or exceptional controller state may reopen work.
 
 For fresh agent reconstruction, read this file immediately after `AGENTS.md`, verify it against current `main`/live ownership, then read only the lane/contracts/evidence required by the bounded task.
