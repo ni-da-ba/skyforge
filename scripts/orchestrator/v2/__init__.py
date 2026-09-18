@@ -148,6 +148,11 @@ from .fairness import (
     select_quiescent_dispatch_batch,
 )
 from .fence import FenceBusyError, WriterFence
+from .hosted_execution_evidence import (
+    HostedExecutionEvidenceDecision,
+    HostedExecutionEvidenceDisposition,
+    evaluate_hosted_execution_evidence,
+)
 from .hosted_admission import (
     HOSTED_ADMISSION_BACKUP_RELATIVE_PATH,
     HOSTED_ADMISSION_RELATIVE_PATH,
@@ -406,6 +411,8 @@ __all__ = [
     "HOSTED_TASK_PLAN_RELATIVE_PATH",
     "HOSTED_ADMISSION_BACKUP_RELATIVE_PATH",
     "HOSTED_ADMISSION_RELATIVE_PATH",
+    "HostedExecutionEvidenceDecision",
+    "HostedExecutionEvidenceDisposition",
     "HostedAdmissionAdvanceResult",
     "HostedAdmissionDisposition",
     "HostedAdmissionLedger",
@@ -573,6 +580,7 @@ __all__ = [
     "decide_mechanical",
     "enqueue_events",
     "evaluate_canary_guard",
+    "evaluate_hosted_execution_evidence",
     "evaluate_production_activation",
     "evaluate_cutover_readiness",
     "evaluate_offline_shadow",
