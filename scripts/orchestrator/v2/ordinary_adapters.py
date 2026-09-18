@@ -69,6 +69,13 @@ def validate_workspace_command(
         ("git", "status", "--porcelain=v1", "--untracked-files=all"),
         (
             "git",
+            "ls-remote",
+            "--heads",
+            "origin",
+            f"refs/heads/{branch}",
+        ),
+        (
+            "git",
             "push",
             "origin",
             f"{expected}:refs/heads/{branch}",
@@ -241,27 +248,15 @@ class OrdinaryWorkspaceEffectAdapter(OrdinaryEffectAdapter):
         return head, branch, status
 
     def _remote_head(self) -> str | None:
-        # ls-remote is intentionally not part of the mutation command allowlist and is
-        # executed through git itself with an exact immutable argument shape.
-        cmd = (
-            "git",
-            "ls-remote",
-            "--heads",
-            "origin",
-            f"refs/heads/{self.scope.branch}",
+        text = self._run(
+            [
+                "git",
+                "ls-remote",
+                "--heads",
+                "origin",
+                f"refs/heads/{self.scope.branch}",
+            ]
         )
-        try:
-            result = self.runner(
-                list(cmd),
-                cwd=self.worktree,
-                check=True,
-                text=True,
-                capture_output=True,
-                timeout=60,
-            )
-        except (OSError, subprocess.SubprocessError) as exc:
-            raise OrdinaryRemoteUnavailable(str(exc)) from exc
-        text = result.stdout.strip()
         if not text:
             return None
         rows = [row for row in text.splitlines() if row.strip()]
@@ -476,13 +471,13 @@ class OrdinaryGitHubEffectAdapter(OrdinaryEffectAdapter):
             )
             if not isinstance(value, Mapping) or not isinstance(value.get("comments"), list):
                 raise OrdinaryRemoteUnavailable("issue comments observation is malformed")
-            exact_ids: list[int] = []
+            exact_ids: list[str] = []
             for raw in value["comments"]:
                 if not isinstance(raw, Mapping):
                     raise OrdinaryRemoteUnavailable("issue comment row is malformed")
                 if str(raw.get("body") or "") == self.comment_body:
-                    ident = raw.get("id")
-                    if isinstance(ident, bool) or not isinstance(ident, int) or ident <= 0:
+                    ident = str(raw.get("id") or "").strip()
+                    if not ident:
                         raise OrdinaryRemoteUnavailable("exact comment has malformed identity")
                     exact_ids.append(ident)
             if not exact_ids:
