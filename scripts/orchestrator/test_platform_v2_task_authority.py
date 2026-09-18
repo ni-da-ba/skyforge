@@ -299,9 +299,23 @@ class HostedIsolationTest(unittest.TestCase):
             "compose_ordinary_task_request",
         ):
             self.assertNotIn(forbidden, source)
-        self.assertIn('"mutation_authority": False', source)
-        self.assertIn('"worker_dispatch_enabled": False', source)
-        self.assertIn('"remote_effect_execution_enabled": False', source)
+        self.assertIn("production_execution_requested: bool = False", source)
+        self.assertIn(
+            '"mutation_authority": self.production_execution_enabled',
+            source,
+        )
+        self.assertIn(
+            '"worker_dispatch_enabled": self.production_execution_enabled',
+            source,
+        )
+        self.assertIn(
+            '"remote_effect_execution_enabled": self.production_execution_enabled',
+            source,
+        )
+        self.assertIn(
+            "Platform v2 production execution is disabled for this hosted process",
+            source,
+        )
 
 
 if __name__ == "__main__":
