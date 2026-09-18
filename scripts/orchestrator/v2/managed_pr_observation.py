@@ -37,6 +37,8 @@ class ManagedPRTruthResult:
     disposition: ManagedPRTruthDisposition
     reason: str
     handoff_digest: str
+    remote_state: str = ""
+    is_draft: bool = False
     merge_state: str = ""
     observation: ManagedPRObservation | None = None
 
@@ -47,6 +49,8 @@ class ManagedPRTruthResult:
                 "disposition": self.disposition.value,
                 "reason": self.reason,
                 "handoff_digest": self.handoff_digest,
+                "remote_state": self.remote_state,
+                "is_draft": self.is_draft,
                 "merge_state": self.merge_state,
                 "observation_digest": (
                     self.observation.digest if self.observation is not None else ""
@@ -182,7 +186,9 @@ def observe_managed_pr_truth(
         )
 
     state = str(pr.get("state") or "").upper()
-    active = state == "OPEN" and not pr.get("mergedAt")
+    remote_state = "MERGED" if pr.get("mergedAt") else state
+    is_draft = bool(pr.get("isDraft"))
+    active = remote_state == "OPEN"
     base = str(pr.get("baseRefName") or "")
     branch = str(pr.get("headRefName") or "")
     head = str(pr.get("headRefOid") or "")
@@ -202,6 +208,8 @@ def observe_managed_pr_truth(
             ManagedPRTruthDisposition.REJECTED,
             "live PR identity/head differs from frozen managed handoff",
             handoff.digest,
+            remote_state=remote_state,
+            is_draft=is_draft,
             merge_state=merge_state,
         )
 
@@ -213,6 +221,8 @@ def observe_managed_pr_truth(
             ManagedPRTruthDisposition.REJECTED,
             str(exc),
             handoff.digest,
+            remote_state=remote_state,
+            is_draft=is_draft,
             merge_state=merge_state,
         )
     recorded = set(handoff.changed_paths)
@@ -222,6 +232,8 @@ def observe_managed_pr_truth(
             ManagedPRTruthDisposition.REJECTED,
             "live PR changed-path scope widens durable handoff: " + ",".join(unexpected),
             handoff.digest,
+            remote_state=remote_state,
+            is_draft=is_draft,
             merge_state=merge_state,
         )
 
@@ -232,6 +244,8 @@ def observe_managed_pr_truth(
             ManagedPRTruthDisposition.REJECTED,
             str(exc),
             handoff.digest,
+            remote_state=remote_state,
+            is_draft=is_draft,
             merge_state=merge_state,
         )
 
@@ -266,6 +280,8 @@ def observe_managed_pr_truth(
         ManagedPRTruthDisposition.OBSERVED,
         "exact managed PR truth projected into mechanical observation",
         handoff.digest,
+        remote_state=remote_state,
+        is_draft=is_draft,
         merge_state=merge_state,
         observation=observation,
     )
