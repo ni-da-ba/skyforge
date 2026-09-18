@@ -223,6 +223,8 @@ from .worker import (
 )
 
 __all__ = [
+    "AcceptedMainReadCommandValidator",
+    "AcceptedMainRemoteUnavailable",
     "AcceptanceIdentity",
     "CANARY_BRANCH_PREFIX",
     "CANARY_DOC_PREFIX",
@@ -286,6 +288,8 @@ __all__ = [
     "HostedStateStore",
     "HostedIngressTransition",
     "HostedIngressState",
+    "HostedTaskPreflightDisposition",
+    "HostedTaskPreflightResult",
     "HOSTED_STATE_RELATIVE_PATH",
     "HOSTED_STATE_BACKUP_RELATIVE_PATH",
     "InboxState",
@@ -367,6 +371,7 @@ __all__ = [
     "TaskDirectiveParseResult",
     "TaskPipelineSeed",
     "TypedTaskDirective",
+    "GhAcceptedMainReader",
     "GhTaskAuthorityHydrator",
     "TerminalGateDecision",
     "TerminalGateDisposition",
@@ -419,6 +424,7 @@ __all__ = [
     "evaluate_roadmap_shadow",
     "normalize_legacy_event_key",
     "parse_typed_task_directive",
+    "preflight_captured_task",
     "reconcile_remote_effect",
     "reduce_managed_pr",
     "select_dispatch_batch",

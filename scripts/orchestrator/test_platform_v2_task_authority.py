@@ -288,12 +288,20 @@ class GhHydratorTest(unittest.TestCase):
 
 
 class HostedIsolationTest(unittest.TestCase):
-    def test_r5c7_does_not_activate_hosted_runtime(self):
+    def test_hosted_task_hydration_does_not_activate_execution(self):
         from pathlib import Path
         root = Path(__file__).resolve().parent
         source = (root / "platform_v2_hosted_runtime.py").read_text(encoding="utf-8")
-        self.assertNotIn("task_authority", source)
-        self.assertNotIn("GhTaskAuthorityHydrator", source)
+        for forbidden in (
+            "advance_ordinary_pipeline",
+            "CodexWorkerProvider",
+            "WriterFence",
+            "compose_ordinary_task_request",
+        ):
+            self.assertNotIn(forbidden, source)
+        self.assertIn('"mutation_authority": False', source)
+        self.assertIn('"worker_dispatch_enabled": False', source)
+        self.assertIn('"remote_effect_execution_enabled": False', source)
 
 
 if __name__ == "__main__":

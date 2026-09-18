@@ -20,13 +20,22 @@ from typing import Any, Mapping
 
 from v2.cutover import LegacyOperationalProjection
 from v2.hosted_state import HostedIngressState, HostedStateStore, ingest_event
+from v2.hosted_task_preflight import (
+    HostedTaskPreflightDisposition,
+    HostedTaskPreflightResult,
+    preflight_captured_task,
+)
 from v2.identity import canonical_digest
 from v2.ingress import (
     classify_legacy_compatible_control,
     classify_legacy_compatible_event,
     verify_github_signature,
 )
-from v2.state_store import JsonStateStoreAdapter
+from v2.state_store import JsonStateStoreAdapter, StateStoreError
+from v2.task_event_composition import (
+    TaskAuthorityEventStore,
+    capture_task_authority_event,
+)
 
 
 DEFAULT_REPO = "ni-da-ba/skyforge"
@@ -68,6 +77,7 @@ class HostedV2Substrate:
         self.webhook_secret = webhook_secret or os.environ.get("SKYFORGE_WEBHOOK_SECRET")
         self.trusted_actors = trusted_actors or _trusted_actors()
         self.store = HostedStateStore.for_root(self.root)
+        self.task_authority_store = TaskAuthorityEventStore.for_root(self.root)
         self._lock = threading.RLock()
         self.state = self.store.load()
         self.validate_environment()
@@ -101,6 +111,7 @@ class HostedV2Substrate:
             projection = state.legacy_projection or {}
             external = projection.get("external_claims") or []
             roadmap = projection.get("roadmap") or {}
+            authority_ledger = self.task_authority_store.load()
             return {
                 "status": "ok",
                 "controller": "platform-v2",
@@ -121,6 +132,9 @@ class HostedV2Substrate:
                 "projected_external_claim_count": len(external),
                 "projected_roadmap_id": str(roadmap.get("roadmap_id") or ""),
                 "ordinary_v2_mutation_authority": False,
+                "task_authority_capture_enabled": True,
+                "task_authority_record_count": len(authority_ledger.records),
+                "task_preflight_enabled": True,
             }
 
     def handle_webhook(
@@ -188,6 +202,35 @@ class HostedV2Substrate:
             repo=self.repo,
             trusted_actors=self.trusted_actors,
         )
+
+        # For task authority, persist the exact signed-webhook actor/revision sidecar
+        # before the durable event can enter the inbox. A crash after this write is
+        # harmless; the inverse ordering could leave an executable task without actor
+        # identity and is therefore forbidden.
+        try:
+            authority_record = capture_task_authority_event(
+                event=event,
+                payload=payload,
+                repo=self.repo,
+                trusted_actors=self.trusted_actors,
+                delivery_id=delivery_id,
+            )
+            if authority_record is not None:
+                with self._lock:
+                    self.task_authority_store.capture(authority_record)
+        except ValueError as exc:
+            return 409, {
+                "accepted": False,
+                "error": f"task authority capture rejected: {exc}",
+                "mutation_authority": False,
+            }
+        except StateStoreError:
+            return 503, {
+                "accepted": False,
+                "error": "task authority capture persistence unavailable",
+                "mutation_authority": False,
+            }
+
         self.refresh_legacy_projection()
 
         with self._lock:
@@ -211,8 +254,33 @@ class HostedV2Substrate:
             "accepted": event.actionable,
             "reason": event.reason,
             "semantic_replay_suppressed": transition.semantic_replay_suppressed,
+            "task_authority_recorded": authority_record is not None,
             "mutation_authority": False,
         }
+
+    def preflight_task_event(
+        self,
+        event_id: str,
+        *,
+        runner=None,
+    ) -> HostedTaskPreflightResult:
+        """Freshly hydrate one captured task without classifier/provider execution."""
+        with self._lock:
+            record = self.task_authority_store.load().get(event_id)
+        if record is None:
+            return HostedTaskPreflightResult(
+                HostedTaskPreflightDisposition.REJECTED,
+                "no captured task authority exists for durable event",
+                str(event_id),
+            )
+        kwargs = {
+            "record": record,
+            "trusted_actors": self.trusted_actors,
+            "repo": self.repo,
+        }
+        if runner is not None:
+            kwargs["runner"] = runner
+        return preflight_captured_task(**kwargs)
 
 
 

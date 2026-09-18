@@ -353,12 +353,18 @@ class TaskPipelineCompositionTest(unittest.TestCase):
                 pr_body="y",
             )
 
-    def test_hosted_runtime_remains_unactivated(self):
+    def test_hosted_runtime_composes_capture_but_not_execution(self):
         root = Path(__file__).resolve().parent
         source = (root / "platform_v2_hosted_runtime.py").read_text(encoding="utf-8")
-        self.assertNotIn("task_event_composition", source)
-        self.assertNotIn("TaskAuthorityEventStore", source)
-        self.assertNotIn("compose_ordinary_task_request", source)
+        self.assertIn("TaskAuthorityEventStore", source)
+        self.assertIn("capture_task_authority_event", source)
+        for forbidden in (
+            "compose_ordinary_task_request",
+            "advance_ordinary_pipeline",
+            "WriterFence",
+            "CodexWorkerProvider",
+        ):
+            self.assertNotIn(forbidden, source)
 
 
 if __name__ == "__main__":
