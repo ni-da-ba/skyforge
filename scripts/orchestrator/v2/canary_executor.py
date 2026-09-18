@@ -322,22 +322,145 @@ def advance_canary(
     crash_after_create: bool = False,
     crash_after_merge: bool = False,
 ) -> CanaryExecutionResult:
-    """Advance at most one durable canary lifecycle invocation.
+    """Advance one exact canary lifecycle while preserving crash-safe effects.
 
-    Every remote mutation has a PENDING durable effect written first. Remote truth is
-    observed before execution, so restart after an ambiguous crash reconciles rather
-    than duplicates the mutation.
+    Read-only reconciliation of an already-recorded PENDING effect is allowed before
+    current authorization/base checks so a crash after a successful remote mutation can
+    be completed locally without attempting the mutation again. Any *new* remote
+    mutation still requires the full R4A guard, exact base/head identity, and writer
+    fence.
     """
 
     store = canary_state_store(root)
     fence_path = Path(root) / WRITER_FENCE_RELATIVE_PATH
     with WriterFence.for_token(fence_path, ownership_token):
         state = _load_state(store)
+        spec = task.frozen_spec()
+        attempt = task.attempt(attempt_number)
+
+        if state.attempt_id:
+            immutable = {
+                "attempt_id": attempt.attempt_id,
+                "task_spec_hash": spec.spec_hash,
+                "base_sha": task.base_sha,
+                "expected_head_sha": task.expected_head_sha,
+                "branch": task.head_branch,
+            }
+            for field, expected in immutable.items():
+                if getattr(state, field) != expected:
+                    return _block(
+                        f"durable canary state belongs to a different frozen attempt: {field}",
+                        state,
+                    )
+
+        if state.completed:
+            return CanaryExecutionResult(
+                CanaryExecutionDisposition.COMPLETE,
+                "canary attempt is already durably complete",
+                state,
+            )
+
+        # First reconcile already-recorded effects. This is intentionally allowed before
+        # the mutation guard because MARK_COMPLETE/NOOP_COMPLETE performs no remote write.
+        snapshot: CanaryPRSnapshot | None = None
+        if state.create_pr_effect is not None or state.merge_pr_effect is not None:
+            try:
+                snapshot = remote.observe_pr(task)
+            except CanaryRemoteUnavailable:
+                return _block("cannot establish remote effect truth", state)
+
+        create_identity = RemoteEffectIdentity.create(
+            attempt_id=attempt.attempt_id,
+            kind=EffectKind.CREATE_PR,
+            subject=f"{task.head_branch}->{task.base_sha}",
+        )
+        if state.create_pr_effect is not None:
+            if state.create_pr_effect.identity != create_identity:
+                return _block("durable CREATE_PR effect identity drifted", state)
+            create_reconcile = reconcile_remote_effect(
+                state.create_pr_effect,
+                _effect_observation_for_create(task, snapshot),
+            )
+            if create_reconcile.disposition is EffectReconcileDisposition.BLOCK:
+                return _block(create_reconcile.reason, state)
+            if create_reconcile.disposition is EffectReconcileDisposition.MARK_COMPLETE:
+                if snapshot is None:
+                    return _block("CREATE_PR reconciliation lost exact remote snapshot", state)
+                state = replace(
+                    state,
+                    pr_number=snapshot.pr_number,
+                    create_pr_effect=state.create_pr_effect.complete(
+                        create_reconcile.remote_identity
+                    ),
+                )
+                _save_state(store, state)
+                return CanaryExecutionResult(
+                    CanaryExecutionDisposition.PR_RECONCILED,
+                    "existing exact canary PR reconciled after restart",
+                    state,
+                    snapshot.digest,
+                )
+            if (
+                create_reconcile.disposition is EffectReconcileDisposition.NOOP_COMPLETE
+                and snapshot is None
+            ):
+                return _block(
+                    "durably completed CREATE_PR no longer exists remotely",
+                    state,
+                )
+
+        if state.merge_pr_effect is not None:
+            if state.pr_number is None:
+                return _block("MERGE_PR effect exists without durable PR identity", state)
+            merge_identity = RemoteEffectIdentity.create(
+                attempt_id=attempt.attempt_id,
+                kind=EffectKind.MERGE_PR,
+                subject=f"pr:{state.pr_number}@{task.expected_head_sha}",
+            )
+            if state.merge_pr_effect.identity != merge_identity:
+                return _block("durable MERGE_PR effect identity drifted", state)
+            merge_reconcile = reconcile_remote_effect(
+                state.merge_pr_effect,
+                _effect_observation_for_merge(task, snapshot),
+            )
+            if merge_reconcile.disposition is EffectReconcileDisposition.BLOCK:
+                return _block(merge_reconcile.reason, state)
+            if merge_reconcile.disposition is EffectReconcileDisposition.MARK_COMPLETE:
+                state = replace(
+                    state,
+                    merge_pr_effect=state.merge_pr_effect.complete(
+                        merge_reconcile.remote_identity
+                    ),
+                    completed=True,
+                )
+                _save_state(store, state)
+                return CanaryExecutionResult(
+                    CanaryExecutionDisposition.MERGE_RECONCILED,
+                    "remote merge reconciled after restart without re-execution",
+                    state,
+                    snapshot.digest if snapshot else "",
+                )
+            if merge_reconcile.disposition is EffectReconcileDisposition.NOOP_COMPLETE:
+                if snapshot is None or snapshot.state != "MERGED":
+                    return _block(
+                        "completed MERGE_PR lacks exact merged remote truth",
+                        state,
+                    )
+                if not state.completed:
+                    state = replace(state, completed=True)
+                    _save_state(store, state)
+                return CanaryExecutionResult(
+                    CanaryExecutionDisposition.COMPLETE,
+                    "merge effect is already durably complete",
+                    state,
+                    snapshot.digest,
+                )
+            # EXECUTE is handled only after the full mutation guard below.
+
         exclusion = LegacyCanaryExclusion.from_legacy_state(
             legacy_state,
             issue_number=task.issue_number,
         )
-
         try:
             current_main = remote.current_main_sha()
             branch_head = remote.branch_head_sha(task.head_branch)
@@ -355,27 +478,10 @@ def advance_canary(
         )
         if guard.disposition is not CanaryGuardDisposition.ALLOW_MUTATION:
             return _block(guard.reason, state)
-
-        spec = task.frozen_spec()
-        attempt = task.attempt(attempt_number)
         if branch_head != task.expected_head_sha:
             return _block("candidate branch head moved from frozen expected SHA", state)
 
-        if state.attempt_id:
-            immutable = {
-                "attempt_id": attempt.attempt_id,
-                "task_spec_hash": spec.spec_hash,
-                "base_sha": task.base_sha,
-                "expected_head_sha": task.expected_head_sha,
-                "branch": task.head_branch,
-            }
-            for field, expected in immutable.items():
-                if getattr(state, field) != expected:
-                    return _block(
-                        f"durable canary state belongs to a different frozen attempt: {field}",
-                        state,
-                    )
-        else:
+        if not state.attempt_id:
             state = replace(
                 state,
                 attempt_id=attempt.attempt_id,
@@ -386,32 +492,20 @@ def advance_canary(
             )
             _save_state(store, state)
 
-        if state.completed:
-            return CanaryExecutionResult(
-                CanaryExecutionDisposition.COMPLETE,
-                "canary attempt is already durably complete",
-                state,
-            )
+        # Refresh when no prior-effect reconciliation needed an observation.
+        if snapshot is None:
+            try:
+                snapshot = remote.observe_pr(task)
+            except CanaryRemoteUnavailable:
+                return _block("cannot establish remote CREATE_PR truth", state)
 
-        # CREATE_PR: record pending before any remote create.
-        create_identity = RemoteEffectIdentity.create(
-            attempt_id=attempt.attempt_id,
-            kind=EffectKind.CREATE_PR,
-            subject=f"{task.head_branch}->{task.base_sha}",
-        )
+        # CREATE_PR: PENDING must exist durably before any create call.
         if state.create_pr_effect is None:
             state = replace(
                 state,
                 create_pr_effect=RemoteEffectRecord.begin(create_identity),
             )
             _save_state(store, state)
-        elif state.create_pr_effect.identity != create_identity:
-            return _block("durable CREATE_PR effect identity drifted", state)
-
-        try:
-            snapshot = remote.observe_pr(task)
-        except CanaryRemoteUnavailable:
-            return _block("cannot establish remote CREATE_PR truth", state)
 
         create_reconcile = reconcile_remote_effect(
             state.create_pr_effect,
@@ -423,7 +517,10 @@ def advance_canary(
             try:
                 snapshot = remote.create_pr(task)
             except CanaryRemoteUnavailable:
-                return _block("CREATE_PR outcome is unknown; pending effect preserved", state)
+                return _block(
+                    "CREATE_PR outcome is unknown; pending effect preserved",
+                    state,
+                )
             conflict = _validate_exact_pr(task, snapshot)
             if conflict is not None:
                 return _block(conflict, state)
@@ -456,16 +553,17 @@ def advance_canary(
             _save_state(store, state)
             return CanaryExecutionResult(
                 CanaryExecutionDisposition.PR_RECONCILED,
-                "existing exact canary PR reconciled after restart",
+                "pre-existing exact canary PR reconciled without duplicate creation",
                 state,
                 snapshot.digest,
             )
 
-        # Effect is already complete; refresh exact PR truth.
-        try:
-            snapshot = remote.observe_pr(task)
-        except CanaryRemoteUnavailable:
-            return _block("cannot refresh exact canary PR truth", state)
+        # CREATE_PR is now complete; exact PR truth is mandatory.
+        if snapshot is None:
+            try:
+                snapshot = remote.observe_pr(task)
+            except CanaryRemoteUnavailable:
+                return _block("cannot refresh exact canary PR truth", state)
         if snapshot is None:
             return _block("durably completed CREATE_PR no longer exists remotely", state)
         conflict = _validate_exact_pr(task, snapshot)
@@ -478,50 +576,10 @@ def advance_canary(
             _save_state(store, state)
 
         if snapshot.state == "MERGED":
-            # A prior merge may have succeeded before local completion.
-            merge_identity = RemoteEffectIdentity.create(
-                attempt_id=attempt.attempt_id,
-                kind=EffectKind.MERGE_PR,
-                subject=f"pr:{snapshot.pr_number}@{task.expected_head_sha}",
-            )
-            if state.merge_pr_effect is None:
-                state = replace(
-                    state,
-                    merge_pr_effect=RemoteEffectRecord.begin(merge_identity),
-                )
-                _save_state(store, state)
-            observation = _effect_observation_for_merge(task, snapshot)
-            reconcile = reconcile_remote_effect(state.merge_pr_effect, observation)
-            if reconcile.disposition not in {
-                EffectReconcileDisposition.MARK_COMPLETE,
-                EffectReconcileDisposition.NOOP_COMPLETE,
-            }:
-                return _block("merged remote PR conflicts with durable merge effect", state)
-            if state.merge_pr_effect.status is EffectStatus.PENDING:
-                state = replace(
-                    state,
-                    merge_pr_effect=state.merge_pr_effect.complete(
-                        reconcile.remote_identity
-                    ),
-                    completed=True,
-                )
-                _save_state(store, state)
-                return CanaryExecutionResult(
-                    CanaryExecutionDisposition.MERGE_RECONCILED,
-                    "remote merge reconciled after restart",
-                    state,
-                    snapshot.digest,
-                )
-            if not state.completed:
-                state = replace(state, completed=True)
-                _save_state(store, state)
-            return CanaryExecutionResult(
-                CanaryExecutionDisposition.COMPLETE,
-                "exact canary PR is already merged and durable",
+            return _block(
+                "PR is merged remotely without a matching durable MERGE_PR effect",
                 state,
-                snapshot.digest,
             )
-
         if snapshot.state != "OPEN":
             return _block("canary PR closed without the authorized merge", state)
 
@@ -533,7 +591,7 @@ def advance_canary(
                 snapshot.digest,
             )
 
-        # Structural review for this first canary is exact path + exact immutable metadata/head.
+        # Structural review for the first canary is exact immutable metadata/head/path.
         state = replace(
             state,
             evidence_sha=task.expected_head_sha,
@@ -559,6 +617,26 @@ def advance_canary(
                 f"exact canary acceptance did not reach MERGE_ELIGIBLE: {plan.reason}",
                 state,
             )
+
+        # Recheck base/head immediately before recording/executing the merge effect.
+        try:
+            latest_main = remote.current_main_sha()
+            latest_branch = remote.branch_head_sha(task.head_branch)
+        except CanaryRemoteUnavailable:
+            return _block("pre-merge repository truth is unavailable", state)
+        guard = evaluate_canary_guard(
+            gate=gate,
+            task=task,
+            exclusion=exclusion,
+            current_main=latest_main,
+            ownership_token=ownership_token,
+            attempt_number=attempt_number,
+            execute_requested=True,
+        )
+        if guard.disposition is not CanaryGuardDisposition.ALLOW_MUTATION:
+            return _block(guard.reason, state)
+        if latest_branch != task.expected_head_sha:
+            return _block("candidate branch head moved before merge", state)
 
         merge_identity = RemoteEffectIdentity.create(
             attempt_id=attempt.attempt_id,
@@ -611,24 +689,31 @@ def advance_canary(
                 latest.digest if latest else "",
             )
 
-        # EXECUTE only when exact PR is still open at exact expected head.
         if latest is None or latest.state != "OPEN":
             return _block("merge execution requires exact open PR snapshot", state)
         try:
             remote.merge_pr(latest.pr_number, task.expected_head_sha)
         except CanaryRemoteUnavailable:
-            return _block("MERGE_PR outcome is unknown; pending effect preserved", state)
+            return _block(
+                "MERGE_PR outcome is unknown; pending effect preserved",
+                state,
+            )
         if crash_after_merge:
             raise InjectedCanaryCrash("injected crash after MERGE_PR")
 
-        # Re-observe before claiming completion.
         try:
             merged_snapshot = remote.observe_pr(task)
         except CanaryRemoteUnavailable:
-            return _block("merge executed but confirmation unavailable; pending effect preserved", state)
+            return _block(
+                "merge executed but confirmation unavailable; pending effect preserved",
+                state,
+            )
         observation = _effect_observation_for_merge(task, merged_snapshot)
         if observation.presence is not RemoteEffectPresence.PRESENT_EXACT:
-            return _block("merge executed but exact merged state is not yet provable", state)
+            return _block(
+                "merge executed but exact merged state is not yet provable",
+                state,
+            )
 
         state = replace(
             state,
