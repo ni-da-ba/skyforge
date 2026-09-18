@@ -77,6 +77,7 @@ def readiness(projection, **overrides):
         "hosted_v2_runtime_accepted": True,
         "ingress_handoff_defined": True,
         "writer_revocation_plan_defined": True,
+        "legacy_revocation_mechanism_ready": True,
         "state_projection_complete": True,
         "projection": projection,
     }
@@ -180,6 +181,16 @@ class CutoverReadinessTest(unittest.TestCase):
             decision.blockers,
         )
 
+    def test_missing_privileged_revocation_mechanism_blocks(self):
+        projection = LegacyOperationalProjection.from_legacy_mapping(legacy_state())
+        decision = evaluate_cutover_readiness(
+            readiness(projection, legacy_revocation_mechanism_ready=False)
+        )
+        self.assertIn(
+            "privileged legacy-writer revocation mechanism is not operational",
+            decision.blockers,
+        )
+
     def test_non_quiescent_state_blocks(self):
         projection = LegacyOperationalProjection.from_legacy_mapping(
             legacy_state(pending_events=[{"event": "x"}])
@@ -201,6 +212,7 @@ class CutoverReadinessTest(unittest.TestCase):
             "hosted_v2_runtime_accepted": False,
             "ingress_handoff_defined": False,
             "writer_revocation_plan_defined": True,
+            "legacy_revocation_mechanism_ready": False,
             "state_projection_complete": True,
         }
         report = cli.build_report(
