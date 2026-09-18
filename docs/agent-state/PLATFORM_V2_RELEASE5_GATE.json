@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "release": 5,
-  "tranche": "R5A",
+  "tranche": "R5B",
   "status": "BLOCKED",
   "release4_accepted": true,
   "release4_acceptance_main": "4f5ce6ecab91e86b6bc4ff346a31d07e8ce04314",
@@ -49,10 +49,19 @@
   },
   "hosted_v2_runtime": {
     "accepted": false,
-    "identity": null
+    "substrate_accepted": true,
+    "substrate_path": "scripts/orchestrator/platform_v2_hosted_runtime.py",
+    "mutation_capable": false,
+    "state_path": ".skyforge-platform-v2/hosted-state.json",
+    "classifier_compatibility_adapter": "skyforge_orchestrator.classify_event only"
   },
   "ingress_handoff": {
-    "defined": false
+    "defined": true,
+    "public_endpoint_unchanged": true,
+    "caddy_unchanged": true,
+    "service_unit_unchanged_until_activation": true,
+    "bind": "127.0.0.1:3000",
+    "activation_rule": "A later accepted activation PR changes the stable controller entrypoint; trusted paused runtime refresh pulls it, the legacy process exits 75, and systemd starts the replacement only after legacy exit."
   },
   "writer_revocation_plan": {
     "defined": true,
@@ -66,15 +75,13 @@
       "NONE",
       "LEGACY"
     ],
-    "operational_mechanism_ready": false,
-    "observation": "The skyforge service account cannot sudo/systemctl stop the production service. Actual authority switch requires a separately accepted privileged revocation mechanism; no v2 writer may activate until legacy mutation authority is visibly revoked."
+    "operational_mechanism_ready": true,
+    "observation": "Operational mechanism is the accepted legacy self-restart path: paused /skyforge-refresh-runtime syncs main; changed controller runtime source causes the old process to os._exit(75); systemd Restart=on-failure starts replacement source after old process termination. No sudo is required."
   },
   "state_projection_complete": true,
   "blockers": [
     "legacy runtime checkout does not match accepted cutover main",
-    "hosted Platform-v2 production runtime is not accepted",
-    "webhook/control ingress handoff is not defined",
-    "privileged legacy-writer revocation mechanism is not operational"
+    "ordinary mutation-capable hosted Platform-v2 runtime is not accepted"
   ],
-  "note": "R5A rollback checkpoint is PASS and state projection preserves active #613/#754 authority plus the DR-70 human re-review gate. Production cutover remains BLOCKED; ordinary v2 mutation authority is false."
+  "note": "R5B defines the hosted ingress/durable-state substrate and self-restart handoff, but it is deliberately read-only. Production cutover remains BLOCKED and ordinary v2 mutation authority remains false."
 }
