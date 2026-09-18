@@ -447,7 +447,22 @@ class HostedExecutionDriver:
             return self._snapshot
 
     def budget_snapshot(self) -> dict[str, Any]:
-        ledger, luna_limit, terra_limit = self.dependencies.budget_snapshot()
+        legacy = dict(self.dependencies.legacy_reader(self.root))
+        ledger = self.dependencies.store.load()
+        luna_limit = _limit_from_legacy(
+            legacy,
+            "luna_daily_limit_override",
+            environ=self.dependencies.environ,
+            env_key="SKYFORGE_ORCHESTRATOR_MAX_CLASSIFIER_CALLS_PER_DAY",
+            default=DEFAULT_LUNA_DAILY_LIMIT,
+        )
+        terra_limit = _limit_from_legacy(
+            legacy,
+            "terra_daily_limit_override",
+            environ=self.dependencies.environ,
+            env_key="SKYFORGE_ORCHESTRATOR_MAX_WORKER_CALLS_PER_DAY",
+            default=DEFAULT_TERRA_DAILY_LIMIT,
+        )
         return {
             **ledger.as_dict(),
             "luna_calls": ledger.luna_calls,
