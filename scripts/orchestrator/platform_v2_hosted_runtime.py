@@ -28,6 +28,14 @@ from v2.hosted_classifier import (
     HostedClassifierResult,
     advance_hosted_classifier_proposal,
 )
+from v2.hosted_execution_runtime import (
+    HostedExecutionAdvanceResult,
+    HostedExecutionDependencies,
+    HostedExecutionGateDecision,
+    HostedExecutionGateDisposition,
+    HostedExecutionCoordinator,
+    load_hosted_execution_gate,
+)
 from v2.hosted_state import HostedIngressState, HostedStateStore, ingest_event
 from v2.hosted_task_plan import (
     HostedTaskPlanDisposition,
@@ -85,6 +93,8 @@ class HostedV2Substrate:
         startup_reconcile: bool,
         webhook_secret: str | None = None,
         trusted_actors: tuple[str, ...] | None = None,
+        production_execution_requested: bool = False,
+        execution_gate: HostedExecutionGateDecision | None = None,
     ) -> None:
         self.root = Path(root).resolve()
         self.repo = str(repo).strip()
@@ -92,6 +102,22 @@ class HostedV2Substrate:
         self.startup_reconcile = bool(startup_reconcile)
         self.webhook_secret = webhook_secret or os.environ.get("SKYFORGE_WEBHOOK_SECRET")
         self.trusted_actors = trusted_actors or _trusted_actors()
+        self.production_execution_requested = bool(production_execution_requested)
+        self.execution_gate = execution_gate
+        if self.production_execution_requested:
+            if (
+                self.execution_gate is None
+                or self.execution_gate.disposition
+                is not HostedExecutionGateDisposition.READY
+            ):
+                raise RuntimeError(
+                    "production execution requested without an accepted R5C24 activation gate"
+                )
+        self.production_execution_enabled = (
+            self.production_execution_requested
+            and self.execution_gate is not None
+            and self.execution_gate.enabled
+        )
         self.store = HostedStateStore.for_root(self.root)
         self.task_authority_store = TaskAuthorityEventStore.for_root(self.root)
         self.task_plan_store = HostedTaskPlanStore.for_root(self.root)
@@ -136,12 +162,16 @@ class HostedV2Substrate:
             return {
                 "status": "ok",
                 "controller": "platform-v2",
-                "runtime_mode": "hosted-substrate-read-only",
+                "runtime_mode": (
+                    "hosted-v2-gated-execution"
+                    if self.production_execution_enabled
+                    else "hosted-substrate-read-only"
+                ),
                 "schema_version": 1,
                 "repo": self.repo,
-                "mutation_authority": False,
-                "worker_dispatch_enabled": False,
-                "remote_effect_execution_enabled": False,
+                "mutation_authority": self.production_execution_enabled,
+                "worker_dispatch_enabled": self.production_execution_enabled,
+                "remote_effect_execution_enabled": self.production_execution_enabled,
                 "startup_reconcile_requested": self.startup_reconcile,
                 "legacy_classifier_adapter": True,
                 "state_digest": state.digest,
@@ -152,7 +182,7 @@ class HostedV2Substrate:
                 ),
                 "projected_external_claim_count": len(external),
                 "projected_roadmap_id": str(roadmap.get("roadmap_id") or ""),
-                "ordinary_v2_mutation_authority": False,
+                "ordinary_v2_mutation_authority": self.production_execution_enabled,
                 "task_authority_capture_enabled": True,
                 "task_authority_record_count": len(authority_ledger.records),
                 "task_preflight_enabled": True,
@@ -161,6 +191,16 @@ class HostedV2Substrate:
                 "automatic_classifier_execution_enabled": False,
                 "explicit_task_admission_enabled": True,
                 "automatic_task_admission_enabled": False,
+                "production_execution_requested": self.production_execution_requested,
+                "production_execution_enabled": self.production_execution_enabled,
+                "production_execution_gate_digest": (
+                    self.execution_gate.digest if self.execution_gate is not None else ""
+                ),
+                "production_execution_gate_blockers": (
+                    list(self.execution_gate.blockers)
+                    if self.execution_gate is not None
+                    else ["no production execution activation evidence supplied"]
+                ),
                 "active_admission_record_id": (
                     admission.record_id if admission is not None else ""
                 ),
@@ -222,7 +262,7 @@ class HostedV2Substrate:
                     return 200, {
                         "accepted": False,
                         "duplicate": True,
-                        "mutation_authority": False,
+                        "mutation_authority": self.production_execution_enabled,
                     }
                 next_state = self.state.with_rejected_control(delivery_id)
                 self.store.save(next_state)
@@ -231,7 +271,7 @@ class HostedV2Substrate:
                 "accepted": False,
                 "control": control,
                 "read_only": True,
-                "mutation_authority": False,
+                "mutation_authority": self.production_execution_enabled,
             }
 
         event = classify_legacy_compatible_event(
@@ -260,13 +300,13 @@ class HostedV2Substrate:
             return 409, {
                 "accepted": False,
                 "error": f"task authority capture rejected: {exc}",
-                "mutation_authority": False,
+                "mutation_authority": self.production_execution_enabled,
             }
         except StateStoreError:
             return 503, {
                 "accepted": False,
                 "error": "task authority capture persistence unavailable",
-                "mutation_authority": False,
+                "mutation_authority": self.production_execution_enabled,
             }
 
         self.refresh_legacy_projection()
@@ -285,7 +325,7 @@ class HostedV2Substrate:
             return 200, {
                 "accepted": False,
                 "duplicate": True,
-                "mutation_authority": False,
+                "mutation_authority": self.production_execution_enabled,
             }
 
         return 202, {
@@ -293,7 +333,7 @@ class HostedV2Substrate:
             "reason": event.reason,
             "semantic_replay_suppressed": transition.semantic_replay_suppressed,
             "task_authority_recorded": authority_record is not None,
-            "mutation_authority": False,
+            "mutation_authority": self.production_execution_enabled,
         }
 
     def claim_next_task_plan(
@@ -403,6 +443,27 @@ class HostedV2Substrate:
             kwargs["runner"] = runner
         return advance_hosted_task_admission(**kwargs)
 
+    def advance_one_execution_step(
+        self,
+        dependencies: HostedExecutionDependencies,
+    ) -> HostedExecutionAdvanceResult:
+        """Advance at most one mutation-capable durable lifecycle boundary.
+
+        Webhook handling never calls this method. Production execution must have been
+        explicitly enabled at process startup with an accepted R5C24 activation gate.
+        """
+        if not self.production_execution_enabled or self.execution_gate is None:
+            raise RuntimeError(
+                "Platform v2 production execution is disabled for this hosted process"
+            )
+        coordinator = HostedExecutionCoordinator(
+            root=self.root,
+            repo=self.repo,
+            trusted_actors=self.trusted_actors,
+            gate=self.execution_gate,
+        )
+        return coordinator.advance_once(dependencies)
+
     def preflight_task_event(
         self,
         event_id: str,
@@ -497,25 +558,62 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         default=os.environ.get("SKYFORGE_STARTUP_RECONCILE") == "1",
     )
+    parser.add_argument(
+        "--enable-production-execution",
+        action="store_true",
+        default=os.environ.get("SKYFORGE_V2_PRODUCTION_EXECUTION") == "1",
+        help="Enable the R5C24 mutation-capable coordinator only with accepted activation evidence.",
+    )
+    parser.add_argument(
+        "--activation-evidence",
+        type=Path,
+        default=(
+            Path(os.environ["SKYFORGE_V2_ACTIVATION_EVIDENCE"])
+            if os.environ.get("SKYFORGE_V2_ACTIVATION_EVIDENCE")
+            else None
+        ),
+        help="R5C24 activation evidence JSON; required when production execution is enabled.",
+    )
     args = parser.parse_args(argv)
     if args.auto_merge:
-        parser.error("R5B hosted substrate has no merge/mutation authority")
+        parser.error("auto-merge is controlled only by frozen task authority")
+    if args.enable_production_execution and args.activation_evidence is None:
+        parser.error(
+            "--enable-production-execution requires --activation-evidence"
+        )
     return args
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    execution_gate = None
+    if args.enable_production_execution:
+        execution_gate = load_hosted_execution_gate(
+            args.activation_evidence,
+            root=args.root,
+        )
+        if not execution_gate.enabled:
+            raise RuntimeError(
+                "production execution activation evidence is blocked: "
+                + "; ".join(execution_gate.blockers)
+            )
     runtime = HostedV2Substrate(
         args.root,
         repo=args.repo,
         require_webhook_secret=args.require_webhook_secret,
         startup_reconcile=args.startup_reconcile,
+        production_execution_requested=args.enable_production_execution,
+        execution_gate=execution_gate,
     )
     Handler.runtime = runtime
     server = ThreadingHTTPServer((args.bind, args.port), Handler)
     print(
-        f"[platform-v2] read-only hosted substrate listening on "
-        f"http://{args.bind}:{args.port}/webhook for {args.repo}",
+        (
+            f"[platform-v2] gated execution-capable hosted runtime listening on "
+            if runtime.production_execution_enabled
+            else f"[platform-v2] read-only hosted substrate listening on "
+        )
+        + f"http://{args.bind}:{args.port}/webhook for {args.repo}",
         flush=True,
     )
     try:
