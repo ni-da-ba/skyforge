@@ -197,6 +197,11 @@ class ManagedLifecycleEffectAdapter:
         number = self.handoff.pr_number
 
         if identity.kind is EffectKind.UPDATE_PR:
+            if truth.remote_state == "MERGED":
+                return RemoteEffectObservation(
+                    RemoteEffectPresence.PRESENT_EXACT,
+                    remote_identity=f"ready:pr:{number}@{scope.expected_head_sha}",
+                )
             if truth.remote_state != "OPEN":
                 return RemoteEffectObservation(RemoteEffectPresence.PRESENT_CONFLICT)
             if truth.is_draft:
@@ -304,19 +309,53 @@ def advance_managed_pr_lifecycle(
             truth_digest=truth.digest,
         )
 
-    decision = decide_managed_pr_truth(handoff=handoff, truth=truth)
-    if decision.transition.kind is not TransitionKind.MERGE_ELIGIBLE:
+    ready_identity = handoff.scope.ready_identity(handoff.pr_number)
+    merge_identity = handoff.scope.merge_identity(handoff.pr_number)
+    ledger = store.load()
+
+    # A merged exact PR may be an effect-recovery case (including a crash after
+    # mutation or an exact external/manual merge). Reconcile it before the pure
+    # reducer sees the now-inactive PR.
+    if truth.remote_state == "MERGED":
+        merge_result = advance_remote_effect(
+            store=store,
+            identity=merge_identity,
+            adapter=ManagedLifecycleEffectAdapter(
+                root=root,
+                handoff=handoff,
+                identity=merge_identity,
+                runner=runner,
+            ),
+        )
+        if _effect_ok(merge_result):
+            return ManagedLifecycleResult(
+                ManagedLifecycleDisposition.COMPLETE,
+                "exact merged PR reconciled into durable lifecycle state",
+                handoff.digest,
+                transition_kind=TransitionKind.MERGE_ELIGIBLE.value,
+                merge_effect=merge_result,
+                truth_digest=truth.digest,
+            )
         return ManagedLifecycleResult(
-            ManagedLifecycleDisposition.NOT_ELIGIBLE,
-            decision.transition.reason,
+            ManagedLifecycleDisposition.BLOCKED,
+            merge_result.reason,
             handoff.digest,
-            transition_kind=decision.transition.kind.value,
+            merge_effect=merge_result,
             truth_digest=truth.digest,
         )
 
+    decision = decide_managed_pr_truth(handoff=handoff, truth=truth)
+
     ready_result = None
-    if truth.is_draft:
-        ready_identity = handoff.scope.ready_identity(handoff.pr_number)
+    existing_ready = ledger.get(ready_identity)
+    should_advance_ready = (
+        existing_ready is not None
+        or (
+            truth.is_draft
+            and decision.transition.kind is TransitionKind.MERGE_ELIGIBLE
+        )
+    )
+    if should_advance_ready:
         ready_result = advance_remote_effect(
             store=store,
             identity=ready_identity,
@@ -387,7 +426,6 @@ def advance_managed_pr_lifecycle(
             truth_digest=truth.digest,
         )
 
-    merge_identity = handoff.scope.merge_identity(handoff.pr_number)
     merge_result = advance_remote_effect(
         store=store,
         identity=merge_identity,
