@@ -4,8 +4,8 @@
   "release3_acceptance_main": "5da0dc9b61d33532f73a26bb81584df9a7091244",
   "workstation_preservation_passed": true,
   "workstation_evidence": "Primary workstation audit PASS on 2026-09-17 local time. Audited C:\\Users\\nicho\\Documents\\skyforge: one worktree; no ordinary unpublished commits; all four stashes preserved as patch+stat; local authored guild NBT artifacts and screenshots copied outside repo; SHA256 manifest generated; preservation archive C:\\Users\\nicho\\Documents\\skyforge-preservation-20260917-195708.zip reported at 5,254,699 bytes. Canary remains disabled pending R4B acceptance and separate explicit authorization.",
-  "canary_enabled": false,
-  "canary_issue_number": null,
+  "canary_enabled": true,
+  "canary_issue_number": 833,
   "preservation_requirements": [
     "Enumerate every Skyforge checkout/worktree on Nicholas' primary workstation.",
     "Confirm no unpushed commits exist on any branch that contains irreplaceable work.",
@@ -13,5 +13,5 @@
     "Confirm no dirty/untracked local files contain irreplaceable work without an independent preserved copy.",
     "Record the audit evidence durably before changing workstation_preservation_passed to true."
   ],
-  "note": "DR-70 product repair is not a mutation-gate prerequisite. Workstation preservation is now PASS. Release-4 live v2 mutation remains blocked until the canary executor is accepted and canary_enabled is explicitly set for one exact canary issue."
+  "note": "DR-70 product repair is not a mutation-gate prerequisite. Workstation preservation is PASS. Exactly one live Release-4 canary is authorized: issue #833. No broader Platform-v2 mutation authority is granted."
 }
