@@ -149,6 +149,11 @@ from .shadow import (
     evaluate_offline_shadow,
 )
 from .state_store import JsonStateSnapshot, JsonStateStoreAdapter, StateStoreError
+from .terminal_gate import (
+    TerminalGateDecision,
+    TerminalGateDisposition,
+    classify_terminal_gate_quiescence,
+)
 from .worker import (
     WorkerLifecycleState,
     WorkerRecoveryDecision,
@@ -247,6 +252,8 @@ __all__ = [
     "SourcePRState",
     "StateStoreError",
     "TaskAttemptIdentity",
+    "TerminalGateDecision",
+    "TerminalGateDisposition",
     "TimerDisposition",
     "TransitionKind",
     "TransitionPlan",
@@ -273,6 +280,7 @@ __all__ = [
     "classify_pre_handoff",
     "classify_quota_admission",
     "classify_rebase_result",
+    "classify_terminal_gate_quiescence",
     "classify_worker_recovery",
     "compact_events",
     "decide_mechanical",
