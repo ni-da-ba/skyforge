@@ -315,7 +315,7 @@ def advance_claimed_task_preflight(
     authority_events: TaskAuthorityEventLedger,
     trusted_actors: Iterable[str],
     repo: str,
-    runner,
+    runner=None,
 ) -> HostedTaskPlanResult:
     plan = ledger.active
     if plan is None:
@@ -350,12 +350,14 @@ def advance_claimed_task_preflight(
         )
 
     try:
-        preflight = preflight_captured_task(
-            record=record,
-            trusted_actors=tuple(trusted_actors),
-            repo=repo,
-            runner=runner,
-        )
+        preflight_kwargs = {
+            "record": record,
+            "trusted_actors": tuple(trusted_actors),
+            "repo": repo,
+        }
+        if runner is not None:
+            preflight_kwargs["runner"] = runner
+        preflight = preflight_captured_task(**preflight_kwargs)
     except AcceptedMainRemoteUnavailable as exc:
         waiting = HostedTaskDispatchPlan(
             event_id=plan.event_id,
