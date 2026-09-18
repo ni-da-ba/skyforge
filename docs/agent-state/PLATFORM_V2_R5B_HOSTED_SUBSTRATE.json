@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "tranche": "R5B",
+  "authority_issue": 850,
+  "status": "HOSTED_SUBSTRATE_READY_PENDING_EXACT_HEAD_ACCEPTANCE",
+  "base_main_sha": "74caefc31230437524136f0440152d9fa0d68392",
+  "runtime_path": "scripts/orchestrator/platform_v2_hosted_runtime.py",
+  "hosted_state_path": ".skyforge-platform-v2/hosted-state.json",
+  "capabilities": {
+    "health_endpoint": true,
+    "webhook_endpoint": true,
+    "github_hmac_sha256": true,
+    "repository_identity_check": true,
+    "durable_v2_inbox": true,
+    "delivery_replay_suppression": true,
+    "semantic_event_replay_suppression": true,
+    "legacy_authority_projection": true,
+    "legacy_classifier_compatibility_adapter": true
+  },
+  "mutation_capabilities": {
+    "worker_dispatch": false,
+    "github_write": false,
+    "pr_create": false,
+    "pr_merge": false,
+    "issue_comment_write": false,
+    "roadmap_write": false,
+    "human_gate_write": false,
+    "writer_fence_acquisition": false
+  },
+  "handoff": {
+    "public_endpoint_changes": false,
+    "caddy_changes": false,
+    "systemd_unit_change_required_for_activation": false,
+    "mechanism": "trusted paused runtime refresh -> git ff-only sync -> legacy os._exit(75) -> systemd Restart=on-failure -> accepted replacement entrypoint",
+    "forward_authority_sequence": [
+      "LEGACY",
+      "NONE",
+      "V2"
+    ]
+  },
+  "production_cutover_authorized": false
+}
