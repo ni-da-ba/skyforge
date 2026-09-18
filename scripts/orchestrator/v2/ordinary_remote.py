@@ -82,6 +82,10 @@ class OrdinaryCommandValidator:
         encoded_branch = quote(scope.branch, safe="")
         commands: set[tuple[str, ...]] = {
             (
+                "gh", "api", f"repos/{scope.repo}/commits/main",
+                "--jq", ".sha",
+            ),
+            (
                 "gh", "api", f"repos/{scope.repo}/commits/{encoded_branch}",
                 "--jq", ".sha",
             ),
@@ -185,6 +189,18 @@ class GhGitOrdinaryEffectAdapter:
         except subprocess.SubprocessError as exc:
             raise OrdinaryRemoteUnavailable(str(exc)) from exc
         return result.stdout.strip()
+
+    def _current_main(self) -> str:
+        scope = self.binding.scope
+        output = self._run(
+            [
+                "gh", "api", f"repos/{scope.repo}/commits/main",
+                "--jq", ".sha",
+            ]
+        )
+        if output is None or len(output) != 40:
+            raise OrdinaryRemoteUnavailable("current main SHA is malformed")
+        return output
 
     def _branch_head(self) -> str | None:
         scope = self.binding.scope
@@ -384,6 +400,16 @@ class GhGitOrdinaryEffectAdapter:
             return f"branch:{scope.branch}@{scope.expected_head_sha}"
 
         if identity.kind is EffectKind.CREATE_PR:
+            # Close the stale-read window immediately before PR creation.  The PR is
+            # meaningful only against the frozen base/head pair.
+            if self._current_main() != scope.base_sha:
+                raise OrdinaryRemoteUnavailable(
+                    "current main moved from frozen ordinary-task base"
+                )
+            if self._branch_head() != scope.expected_head_sha:
+                raise OrdinaryRemoteUnavailable(
+                    "remote branch moved from frozen ordinary-task head"
+                )
             self._run(
                 [
                     "gh", "pr", "create", "--repo", scope.repo,
@@ -410,6 +436,19 @@ class GhGitOrdinaryEffectAdapter:
 
         if identity.kind is EffectKind.MERGE_PR:
             assert self.binding.pr_number is not None
+            # Re-observe exact PR identity immediately before mutation rather than
+            # relying only on the executor's preceding observation.
+            view = self._pr_view(self.binding.pr_number)
+            ok, _ = self._exact_pr_identity(view)
+            state = (
+                "MERGED"
+                if view.get("mergedAt")
+                else str(view.get("state") or "").upper()
+            )
+            if not ok or state != "OPEN":
+                raise OrdinaryRemoteUnavailable(
+                    "PR identity/head moved before expected-head merge"
+                )
             self._run(
                 [
                     "gh", "pr", "merge", str(self.binding.pr_number),
