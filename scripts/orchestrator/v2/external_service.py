@@ -273,6 +273,23 @@ class ExternalClaimLedger:
     def from_legacy_projection(cls, projection: Mapping[str, Any]) -> "ExternalClaimLedger":
         if not isinstance(projection, Mapping):
             raise ValueError("legacy projection must be an object")
+
+        normalized = projection.get("external_claims")
+        if normalized is not None:
+            if not isinstance(normalized, list):
+                raise ValueError("projected external_claims must be a list")
+            return cls(
+                tuple(
+                    sorted(
+                        (
+                            ExternalProducerClaim.from_legacy_mapping(value)
+                            for value in normalized
+                        ),
+                        key=lambda claim: claim.issue_number,
+                    )
+                )
+            )
+
         raw = projection.get("external_producer_claims") or {}
         if not isinstance(raw, Mapping):
             raise ValueError("legacy external_producer_claims must be an object")
@@ -560,18 +577,16 @@ class GhExternalClaimObserver:
 class ExternalClaimRefreshResult:
     ledger: ExternalClaimLedger
     decisions: tuple[ClaimRetentionDecision, ...]
+    retired_issue_numbers: tuple[int, ...] = ()
 
     @property
-    def retired_issue_numbers(self) -> tuple[int, ...]:
-        retired_digests = {
-            decision.claim_digest
-            for decision in self.decisions
-            if decision.disposition is ClaimRetentionDisposition.RETIRE
-        }
-        return tuple(
-            claim.issue_number
-            for claim in []  # retained for API shape; callers use decisions + before ledger
-            if claim.digest in retired_digests
+    def digest(self) -> str:
+        return canonical_digest(
+            {
+                "ledger_digest": self.ledger.digest,
+                "decision_digests": [decision.digest for decision in self.decisions],
+                "retired_issue_numbers": list(self.retired_issue_numbers),
+            }
         )
 
 
@@ -584,6 +599,7 @@ def refresh_external_claims(
 ) -> ExternalClaimRefreshResult:
     current = ledger
     decisions: list[ClaimRetentionDecision] = []
+    retired: list[int] = []
     for claim in ledger.claims:
         decision = GhExternalClaimObserver(
             root=root,
@@ -594,4 +610,9 @@ def refresh_external_claims(
         decisions.append(decision)
         if decision.disposition is ClaimRetentionDisposition.RETIRE:
             current, _ = current.release(claim.issue_number)
-    return ExternalClaimRefreshResult(current, tuple(decisions))
+            retired.append(claim.issue_number)
+    return ExternalClaimRefreshResult(
+        current,
+        tuple(decisions),
+        tuple(sorted(retired)),
+    )
