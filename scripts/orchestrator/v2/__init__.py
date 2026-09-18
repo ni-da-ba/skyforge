@@ -5,6 +5,12 @@ Modules here may model state, replay decisions, and persistence contracts, but r
 no repository-mutating authority merely because they exist.
 """
 
+from .activation_gate import (
+    ProductionActivationDecision,
+    ProductionActivationDisposition,
+    ProductionActivationInput,
+    evaluate_production_activation,
+)
 from .canary import (
     CANARY_BRANCH_PREFIX,
     CANARY_DOC_PREFIX,
@@ -307,6 +313,9 @@ from .worker import (
 __all__ = [
     "AcceptedMainReadCommandValidator",
     "AcceptedMainRemoteUnavailable",
+    "ProductionActivationDecision",
+    "ProductionActivationDisposition",
+    "ProductionActivationInput",
     "AcceptanceIdentity",
     "CANARY_BRANCH_PREFIX",
     "CANARY_DOC_PREFIX",
@@ -564,6 +573,7 @@ __all__ = [
     "decide_mechanical",
     "enqueue_events",
     "evaluate_canary_guard",
+    "evaluate_production_activation",
     "evaluate_cutover_readiness",
     "evaluate_offline_shadow",
     "evaluate_roadmap_shadow",
