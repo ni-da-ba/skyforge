@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "audit": "PLATFORM-V2-R5C28",
+  "accepted_main_at_audit": "7f6411c3e0e722cecf8f560ef73bc93562b39734",
+  "repository_findings": {
+    "platform_v2_regression_suite_before_audit": "604/604 PASS",
+    "r5c27_hosted_soak": "PASS",
+    "roadmap_regression_root_cause": "unit-test live GitHub leakage: historical issue #284 is now closed",
+    "roadmap_runtime_defect_found": false,
+    "roadmap_test_isolated_from_live_github": true,
+    "legacy_and_v2_units_conflict": true,
+    "v2_requires_activation_evidence": true,
+    "v2_requires_production_execution_gate": true,
+    "legacy_rollback_requires_startup_reconcile_success": true,
+    "staging_requires_exact_accepted_head": true,
+    "staging_rejects_tracked_dirty_checkout": true
+  },
+  "read_only_live_observation": {
+    "legacy_checkout_head": "c7ff98a3b6a1250f1ae7f349239ac0c25dd13ea7",
+    "accepted_main": "7f6411c3e0e722cecf8f560ef73bc93562b39734",
+    "legacy_service_executes": "skyforge_control_plane_runtime.py",
+    "legacy_service_user": "skyforge",
+    "legacy_service_port": 3000,
+    "v2_service_state": "inactive",
+    "v2_unit_installed": false,
+    "caddy_reverse_proxy": "127.0.0.1:3000",
+    "controller_noninteractive_sudo": false,
+    "production_writer_authority": "LEGACY"
+  },
+  "remaining_pre_cutover_actions": [
+    "synchronize live checkout to final accepted migration head without changing writer authority",
+    "stage separately named v2 unit from exact accepted clean head",
+    "generate and validate final activation facts",
+    "run final nonproduction preflight/rehearsal",
+    "resolve DR-70 only when production activation authority is required",
+    "perform privileged LEGACY -> NONE -> V2 only after explicit operator authorization"
+  ],
+  "dr70": "DEFERRED_NOT_PASSED",
+  "production_mutation_performed": false,
+  "disposition": "READY_FOR_FINAL_NONPRODUCTION_ACCEPTANCE_REHEARSAL"
+}
