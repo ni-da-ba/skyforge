@@ -116,6 +116,14 @@ class OrdinaryMutationScope:
             subject=f"{self.branch}->{self.base_sha}",
         )
 
+    def ready_identity(self, pr_number: int) -> RemoteEffectIdentity:
+        number = _positive_int(pr_number, "ready pr_number")
+        return RemoteEffectIdentity.create(
+            attempt_id=self.attempt_id,
+            kind=EffectKind.UPDATE_PR,
+            subject=f"pr:{number}:ready@{self.expected_head_sha}",
+        )
+
     def merge_identity(self, pr_number: int) -> RemoteEffectIdentity:
         return RemoteEffectIdentity.create(
             attempt_id=self.attempt_id,
