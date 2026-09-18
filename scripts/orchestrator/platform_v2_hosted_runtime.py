@@ -20,6 +20,13 @@ from typing import Any, Mapping
 
 from v2.cutover import LegacyOperationalProjection
 from v2.hosted_state import HostedIngressState, HostedStateStore, ingest_event
+from v2.hosted_task_plan import (
+    HostedTaskPlanDisposition,
+    HostedTaskPlanResult,
+    HostedTaskPlanStore,
+    advance_claimed_task_preflight,
+    claim_next_protected_task,
+)
 from v2.hosted_task_preflight import (
     HostedTaskPreflightDisposition,
     HostedTaskPreflightResult,
@@ -78,6 +85,7 @@ class HostedV2Substrate:
         self.trusted_actors = trusted_actors or _trusted_actors()
         self.store = HostedStateStore.for_root(self.root)
         self.task_authority_store = TaskAuthorityEventStore.for_root(self.root)
+        self.task_plan_store = HostedTaskPlanStore.for_root(self.root)
         self._lock = threading.RLock()
         self.state = self.store.load()
         self.validate_environment()
@@ -112,6 +120,8 @@ class HostedV2Substrate:
             external = projection.get("external_claims") or []
             roadmap = projection.get("roadmap") or {}
             authority_ledger = self.task_authority_store.load()
+            task_plan = self.task_plan_store.load()
+            active_plan = task_plan.active
             return {
                 "status": "ok",
                 "controller": "platform-v2",
@@ -135,6 +145,13 @@ class HostedV2Substrate:
                 "task_authority_capture_enabled": True,
                 "task_authority_record_count": len(authority_ledger.records),
                 "task_preflight_enabled": True,
+                "hosted_task_planning_enabled": True,
+                "active_task_plan_id": (
+                    active_plan.plan_id if active_plan is not None else ""
+                ),
+                "active_task_plan_status": (
+                    active_plan.status.value if active_plan is not None else ""
+                ),
             }
 
     def handle_webhook(
@@ -257,6 +274,63 @@ class HostedV2Substrate:
             "task_authority_recorded": authority_record is not None,
             "mutation_authority": False,
         }
+
+    def claim_next_task_plan(
+        self,
+        *,
+        external_claims=(),
+    ) -> HostedTaskPlanResult:
+        """Durably claim one protected task for planning only.
+
+        This method performs no network I/O and cannot call a classifier, worker, or
+        remote-effect adapter.
+        """
+        with self._lock:
+            ledger = self.task_plan_store.load()
+            authority = self.task_authority_store.load()
+            result = claim_next_protected_task(
+                ledger=ledger,
+                inbox=self.state.inbox,
+                authority_events=authority,
+                external_claims=tuple(external_claims),
+            )
+            if result.ledger != ledger:
+                self.task_plan_store.save(result.ledger)
+            return result
+
+    def advance_task_plan_preflight(
+        self,
+        *,
+        runner=None,
+    ) -> HostedTaskPlanResult:
+        """Advance the already-claimed plan through fresh read-only preflight only."""
+        with self._lock:
+            before = self.task_plan_store.load()
+            authority = self.task_authority_store.load()
+
+        kwargs = {
+            "ledger": before,
+            "authority_events": authority,
+            "trusted_actors": self.trusted_actors,
+            "repo": self.repo,
+        }
+        if runner is not None:
+            kwargs["runner"] = runner
+        result = advance_claimed_task_preflight(**kwargs)
+
+        with self._lock:
+            current = self.task_plan_store.load()
+            before_id = before.active.plan_id if before.active is not None else ""
+            current_id = current.active.plan_id if current.active is not None else ""
+            if current != before or current_id != before_id:
+                return HostedTaskPlanResult(
+                    HostedTaskPlanDisposition.BLOCKED,
+                    "hosted task plan changed during read-only preflight; refusing stale save",
+                    current,
+                )
+            if result.ledger != current:
+                self.task_plan_store.save(result.ledger)
+            return result
 
     def preflight_task_event(
         self,
