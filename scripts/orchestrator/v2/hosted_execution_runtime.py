@@ -1,7 +1,7 @@
 """Gated hosted execution coordinator for Platform v2 R5C24.
 
 This module composes already-accepted Release-5 capabilities behind a fail-closed
-production activation gate.  It does not change systemd/Caddy or writer authority.
+production activation gate.  It does not change service/proxy configuration or writer authority.
 The coordinator advances at most one durable lifecycle boundary per call.
 """
 
