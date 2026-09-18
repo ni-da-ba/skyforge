@@ -12,9 +12,12 @@ from v2.operator_cutover import OperatorCutoverController, OperatorDisposition
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("preflight", "cutover", "rollback"))
+    parser.add_argument("command", choices=("preflight", "cutover", "rollback", "transfer-authority"))
     parser.add_argument("--root", type=Path, default=Path.cwd())
-    parser.add_argument("--activation-template", type=Path, required=True)
+    parser.add_argument("--activation-template", type=Path)
+    parser.add_argument("--event-key")
+    parser.add_argument("--issue-number", type=int)
+    parser.add_argument("--source-id")
     parser.add_argument(
         "--activation-evidence",
         type=Path,
@@ -28,18 +31,33 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.command == "preflight" and args.execute:
         parser.error("preflight is always read-only")
+    if args.command in {"preflight", "cutover"} and args.activation_template is None:
+        parser.error("--activation-template is required for preflight/cutover")
+    if args.command == "transfer-authority":
+        if not args.event_key or args.issue_number is None or not args.source_id:
+            parser.error("transfer-authority requires --event-key, --issue-number, and --source-id")
     return args
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    activation_template = args.activation_template or (
+        args.root / ".skyforge-platform-v2" / "operator-evidence" / "final-activation-template.json"
+    )
     controller = OperatorCutoverController(
         root=args.root,
-        activation_template=args.activation_template,
+        activation_template=activation_template,
         activation_evidence=args.activation_evidence,
     )
     if args.command == "rollback":
         report = controller.rollback(execute=args.execute)
+    elif args.command == "transfer-authority":
+        report = controller.transfer_authority(
+            event_key=args.event_key,
+            issue_number=args.issue_number,
+            source_id=args.source_id,
+            execute=args.execute,
+        )
     else:
         report = controller.cutover(execute=args.command == "cutover" and args.execute)
     print(json.dumps(report.as_dict(), sort_keys=True, indent=2))
@@ -47,6 +65,8 @@ def main(argv: list[str] | None = None) -> int:
         OperatorDisposition.PREFLIGHT_READY,
         OperatorDisposition.CUTOVER_COMPLETE,
         OperatorDisposition.ROLLBACK_COMPLETE,
+        OperatorDisposition.AUTHORITY_TRANSFER_READY,
+        OperatorDisposition.AUTHORITY_TRANSFER_COMPLETE,
     } else 1
 
 

@@ -13,6 +13,7 @@ from v2.cutover import (
     CutoverReadinessDisposition,
     WriterAuthority,
 )
+from v2.events import DurableEvent
 from v2.operator_cutover import (
     LEGACY_SERVICE,
     V2_SERVICE,
@@ -104,6 +105,72 @@ def write_template(root: Path, main: str, *, dr70: bool = True, dr70_waived: boo
         encoding="utf-8",
     )
     return template, evidence
+
+
+def task_event(*, issue: int = 916, source_id: str = "5735968195", text: str = "AUDIT NEW TASK") -> DurableEvent:
+    return DurableEvent(
+        actionable=True,
+        reason=f"trusted actor issued explicit Audit task on issue #{issue}",
+        event="issue_comment",
+        action="audit_signal",
+        pr_number=issue,
+        source_id=source_id,
+        signal_kind="task",
+        signal_text=text,
+    )
+
+
+def protected_gate_event(*, issue: int = 535) -> DurableEvent:
+    return DurableEvent(
+        actionable=True,
+        reason="human gate response required",
+        event="issue_comment",
+        action="audit_signal",
+        pr_number=issue,
+        source_id="human-gate-source",
+        signal_kind="human_gate",
+        signal_text="HUMAN GATE",
+    )
+
+
+def write_legacy_transfer_state(
+    root: Path,
+    *events: DurableEvent,
+    completed: tuple[str, ...] = (),
+    retired: tuple[str, ...] = (),
+) -> tuple[Path, Path]:
+    state_dir = root / ".skyforge-orchestrator"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    state = state_dir / "state.json"
+    backup = state_dir / "state.json.bak"
+    raw = {
+        "paused": True,
+        "pending_events": [event.as_dict() for event in events],
+        "pending_decision": None,
+        "pending_worker": None,
+        "retired_event_keys": list(retired),
+        "completed_authority_event_keys": list(completed),
+    }
+    payload = json.dumps(raw, sort_keys=True, indent=2) + "\n"
+    state.write_text(payload, encoding="utf-8")
+    backup.write_text(payload, encoding="utf-8")
+    state.chmod(0o640)
+    backup.chmod(0o640)
+    return state, backup
+
+
+def legacy_transfer_health(root: Path) -> dict[str, object]:
+    raw = json.loads((root / ".skyforge-orchestrator" / "state.json").read_text())
+    pending = [DurableEvent.from_legacy_mapping(value) for value in raw.get("pending_events", [])]
+    return {
+        "status": "ok",
+        "paused": raw.get("paused") is True,
+        "pending_worker": bool(raw.get("pending_worker")),
+        "pending_decision": bool(raw.get("pending_decision")),
+        "task_authority_pending": sum(1 for event in pending if event.signal_kind == "task"),
+        "last_startup_reconcile_error": None,
+        "last_startup_reconcile_success_at": "2026-09-18T20:00:00Z",
+    }
 
 
 class FakeServices:
@@ -373,6 +440,166 @@ class OperatorCutoverTest(unittest.TestCase):
         self.assertEqual(report.authority, WriterAuthority.NONE)
         self.assertFalse(services.state[LEGACY_SERVICE]["active"])
         self.assertFalse(services.state[V2_SERVICE]["active"])
+
+    def test_authority_transfer_preflight_is_read_only_and_exact(self):
+        td, root, _main, _template, _evidence, services, controller = self.build()
+        self.addCleanup(td.cleanup)
+        event = task_event()
+        state, _backup = write_legacy_transfer_state(root, event)
+        before = state.read_bytes()
+        controller.health_probe = lambda: legacy_transfer_health(root)
+
+        report = controller.transfer_authority(
+            event_key=event.event_id,
+            issue_number=916,
+            source_id="5735968195",
+            execute=False,
+        )
+
+        self.assertEqual(report.disposition, OperatorDisposition.AUTHORITY_TRANSFER_READY)
+        self.assertEqual(report.authority, WriterAuthority.LEGACY)
+        self.assertEqual(services.log, [])
+        self.assertEqual(state.read_bytes(), before)
+        self.assertEqual(report.events[0].kind, "AUTHORITY_TRANSFER_PREFLIGHT")
+
+    def test_authority_transfer_retires_exact_task_never_completes_and_preserves_metadata(self):
+        td, root, _main, _template, _evidence, services, controller = self.build()
+        self.addCleanup(td.cleanup)
+        event = task_event(text="AUDIT NEW TASK exact provenance")
+        state, backup = write_legacy_transfer_state(root, event)
+        before_state = state.stat()
+        before_backup = backup.stat()
+        controller.health_probe = lambda: legacy_transfer_health(root)
+
+        report = controller.transfer_authority(
+            event_key=event.event_id,
+            issue_number=916,
+            source_id="5735968195",
+            execute=True,
+        )
+
+        self.assertEqual(report.disposition, OperatorDisposition.AUTHORITY_TRANSFER_COMPLETE)
+        self.assertEqual(report.authority, WriterAuthority.LEGACY)
+        self.assertTrue(services.state[LEGACY_SERVICE]["active"])
+        self.assertFalse(services.state[V2_SERVICE]["active"])
+        self.assertLess(
+            services.log.index(("stop", LEGACY_SERVICE)),
+            services.log.index(("start", LEGACY_SERVICE)),
+        )
+        raw = json.loads(state.read_text(encoding="utf-8"))
+        self.assertEqual(raw["pending_events"], [])
+        self.assertIn(event.event_id, raw["retired_event_keys"])
+        self.assertNotIn(event.event_id, raw["completed_authority_event_keys"])
+        transfer = raw["last_platform_v2_authority_transfer"]
+        self.assertEqual(transfer["event_key"], event.event_id)
+        self.assertEqual(transfer["issue_number"], 916)
+        self.assertEqual(transfer["source_id"], "5735968195")
+        self.assertEqual(transfer["disposition"], "RETIRED_FOR_PLATFORM_V2_TRANSFER")
+        self.assertIs(transfer["completed"], False)
+        self.assertTrue(transfer["signal_text_digest"])
+        self.assertEqual(json.loads(backup.read_text(encoding="utf-8")), raw)
+        self.assertEqual(stat.S_IMODE(state.stat().st_mode), stat.S_IMODE(before_state.st_mode))
+        self.assertEqual(stat.S_IMODE(backup.stat().st_mode), stat.S_IMODE(before_backup.st_mode))
+        kinds = [item.kind for item in report.events]
+        self.assertEqual(
+            kinds,
+            [
+                "AUTHORITY_TRANSFER_WRITER_NONE",
+                "AUTHORITY_RETIRED_FOR_V2_TRANSFER",
+                "AUTHORITY_TRANSFER_LEGACY_READY",
+            ],
+        )
+
+    def test_authority_transfer_refuses_identity_mismatch_and_completed_authority(self):
+        td, root, _main, _template, _evidence, services, controller = self.build()
+        self.addCleanup(td.cleanup)
+        event = task_event()
+        write_legacy_transfer_state(root, event)
+        controller.health_probe = lambda: legacy_transfer_health(root)
+
+        wrong = controller.transfer_authority(
+            event_key=event.event_id,
+            issue_number=916,
+            source_id="wrong-comment",
+            execute=True,
+        )
+        self.assertEqual(wrong.disposition, OperatorDisposition.BLOCKED)
+        self.assertEqual(services.log, [])
+
+        write_legacy_transfer_state(root, event, completed=(event.event_id,))
+        completed = controller.transfer_authority(
+            event_key=event.event_id,
+            issue_number=916,
+            source_id="5735968195",
+            execute=True,
+        )
+        self.assertEqual(completed.disposition, OperatorDisposition.BLOCKED)
+        self.assertTrue(any("already marked completed" in value for value in completed.blockers))
+        self.assertEqual(services.log, [])
+
+    def test_authority_transfer_refuses_other_protected_authority(self):
+        td, root, _main, _template, _evidence, services, controller = self.build()
+        self.addCleanup(td.cleanup)
+        event = task_event()
+        other = protected_gate_event()
+        write_legacy_transfer_state(root, event, other)
+        controller.health_probe = lambda: legacy_transfer_health(root)
+
+        report = controller.transfer_authority(
+            event_key=event.event_id,
+            issue_number=916,
+            source_id="5735968195",
+            execute=True,
+        )
+        self.assertEqual(report.disposition, OperatorDisposition.BLOCKED)
+        self.assertTrue(any("other protected legacy authority" in value for value in report.blockers))
+        self.assertEqual(services.log, [])
+
+    def test_authority_transfer_is_idempotent_after_success(self):
+        td, root, _main, _template, _evidence, services, controller = self.build()
+        self.addCleanup(td.cleanup)
+        event = task_event()
+        write_legacy_transfer_state(root, event)
+        controller.health_probe = lambda: legacy_transfer_health(root)
+        first = controller.transfer_authority(
+            event_key=event.event_id,
+            issue_number=916,
+            source_id="5735968195",
+            execute=True,
+        )
+        self.assertEqual(first.disposition, OperatorDisposition.AUTHORITY_TRANSFER_COMPLETE)
+        before = list(services.log)
+        second = controller.transfer_authority(
+            event_key=event.event_id,
+            issue_number=916,
+            source_id="5735968195",
+            execute=True,
+        )
+        self.assertEqual(second.disposition, OperatorDisposition.AUTHORITY_TRANSFER_COMPLETE)
+        self.assertEqual(second.events[0].kind, "AUTHORITY_ALREADY_TRANSFERRED")
+        self.assertEqual(services.log, before)
+
+    def test_authority_transfer_verification_failure_returns_to_none(self):
+        td, root, _main, _template, _evidence, services, controller = self.build()
+        self.addCleanup(td.cleanup)
+        event = task_event()
+        write_legacy_transfer_state(root, event)
+        controller.health_probe = lambda: legacy_transfer_health(root)
+        controller._verify_transferred_legacy_health = lambda **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("injected reconciliation resurrection")
+        )
+
+        report = controller.transfer_authority(
+            event_key=event.event_id,
+            issue_number=916,
+            source_id="5735968195",
+            execute=True,
+        )
+        self.assertEqual(report.disposition, OperatorDisposition.FAILED_SAFE_NONE)
+        self.assertEqual(report.authority, WriterAuthority.NONE)
+        self.assertFalse(services.state[LEGACY_SERVICE]["active"])
+        self.assertFalse(services.state[V2_SERVICE]["active"])
+        self.assertEqual(report.events[-1].kind, "AUTHORITY_TRANSFER_FAILED_SAFE_NONE")
 
     def test_dual_writer_observation_blocks_rollback(self):
         td, _root, _main, _template, _evidence, services, controller = self.build()
