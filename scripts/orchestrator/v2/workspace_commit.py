@@ -193,9 +193,24 @@ class WorkspaceCommitAdapter:
             return None
         if self._changed_paths():
             raise RuntimeError("attempt commit exists but worktree is dirty")
+        parent = self._raw(("git", "rev-parse", "HEAD^"))
+        if parent != self.scope.start_head:
+            raise RuntimeError(
+                "attempt marker exists on a commit not directly based on frozen start_head"
+            )
+        changed = tuple(
+            sorted(
+                _normalize(path)
+                for path in self._raw(
+                    ("git", "diff", "--name-only", f"{self.scope.start_head}..HEAD")
+                ).splitlines()
+                if path.strip()
+            )
+        )
+        self._validate_paths(changed)
         return WorkspaceCommitResult(
             head_sha=head,
-            changed_paths=(),
+            changed_paths=changed,
             commit_created=False,
         )
 
