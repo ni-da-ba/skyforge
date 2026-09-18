@@ -56,6 +56,12 @@ class ClaimRetentionDisposition(str, Enum):
     KEEP = "KEEP"
 
 
+class ExternalIssueState(str, Enum):
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
+    UNKNOWN = "UNKNOWN"
+
+
 class ExternalPREventDisposition(str, Enum):
     KEEP = "KEEP"
     RETIRE_EXTERNAL = "RETIRE_EXTERNAL"
@@ -233,7 +239,9 @@ class ClaimRetentionDecision:
     reason: str
     claim_digest: str
     remote_pr_state: SourcePRState
-    remote_observation_available: bool
+    remote_pr_observation_available: bool
+    remote_issue_state: ExternalIssueState
+    remote_issue_observation_available: bool
 
     @property
     def digest(self) -> str:
@@ -243,7 +251,9 @@ class ClaimRetentionDecision:
                 "reason": self.reason,
                 "claim_digest": self.claim_digest,
                 "remote_pr_state": self.remote_pr_state.value,
-                "remote_observation_available": self.remote_observation_available,
+                "remote_pr_observation_available": self.remote_pr_observation_available,
+                "remote_issue_state": self.remote_issue_state.value,
+                "remote_issue_observation_available": self.remote_issue_observation_available,
             }
         )
 
@@ -252,42 +262,82 @@ def classify_claim_retention(
     claim: ExternalProducerClaim,
     remote_pr_state: SourcePRState = SourcePRState.UNKNOWN,
     *,
-    remote_observation_available: bool = True,
+    remote_pr_observation_available: bool = True,
+    remote_issue_state: ExternalIssueState = ExternalIssueState.UNKNOWN,
+    remote_issue_observation_available: bool = True,
 ) -> ClaimRetentionDecision:
     if not isinstance(remote_pr_state, SourcePRState):
         raise ValueError("remote_pr_state must be SourcePRState")
-    if not isinstance(remote_observation_available, bool):
-        raise ValueError("remote_observation_available must be a boolean")
-    if claim.pr_number is None:
+    if not isinstance(remote_pr_observation_available, bool):
+        raise ValueError("remote_pr_observation_available must be a boolean")
+    if not isinstance(remote_issue_state, ExternalIssueState):
+        raise ValueError("remote_issue_state must be ExternalIssueState")
+    if not isinstance(remote_issue_observation_available, bool):
+        raise ValueError("remote_issue_observation_available must be a boolean")
+
+    if claim.pr_number is not None:
+        if not remote_pr_observation_available:
+            return ClaimRetentionDecision(
+                ClaimRetentionDisposition.KEEP,
+                "remote bound-PR truth is unavailable; keep claim fail-closed",
+                claim.digest,
+                remote_pr_state,
+                remote_pr_observation_available,
+                remote_issue_state,
+                remote_issue_observation_available,
+            )
+        if remote_pr_state in {SourcePRState.MERGED, SourcePRState.CLOSED}:
+            return ClaimRetentionDecision(
+                ClaimRetentionDisposition.RETIRE,
+                (
+                    "exact bound PR is provably merged"
+                    if remote_pr_state is SourcePRState.MERGED
+                    else "exact bound PR is provably closed without merge"
+                ),
+                claim.digest,
+                remote_pr_state,
+                remote_pr_observation_available,
+                remote_issue_state,
+                remote_issue_observation_available,
+            )
         return ClaimRetentionDecision(
             ClaimRetentionDisposition.KEEP,
-            "claim has no bound PR and requires explicit release",
+            "bound PR is not provably terminal",
             claim.digest,
             remote_pr_state,
-            remote_observation_available,
+            remote_pr_observation_available,
+            remote_issue_state,
+            remote_issue_observation_available,
         )
-    if not remote_observation_available:
+
+    if not remote_issue_observation_available:
         return ClaimRetentionDecision(
             ClaimRetentionDisposition.KEEP,
-            "remote PR truth is unavailable; keep claim fail-closed",
+            "remote governing-issue truth is unavailable; keep claim fail-closed",
             claim.digest,
             remote_pr_state,
-            remote_observation_available,
+            remote_pr_observation_available,
+            remote_issue_state,
+            remote_issue_observation_available,
         )
-    if remote_pr_state is SourcePRState.MERGED:
+    if remote_issue_state is ExternalIssueState.CLOSED:
         return ClaimRetentionDecision(
             ClaimRetentionDisposition.RETIRE,
-            "exact bound PR is provably merged",
+            "unbound claim governing issue is provably closed",
             claim.digest,
             remote_pr_state,
-            remote_observation_available,
+            remote_pr_observation_available,
+            remote_issue_state,
+            remote_issue_observation_available,
         )
     return ClaimRetentionDecision(
         ClaimRetentionDisposition.KEEP,
-        "bound PR is not provably merged",
+        "unbound claim remains until explicit release or governing issue closure",
         claim.digest,
         remote_pr_state,
-        remote_observation_available,
+        remote_pr_observation_available,
+        remote_issue_state,
+        remote_issue_observation_available,
     )
 
 
