@@ -426,6 +426,34 @@ class OrdinaryRemoteObservationTest(unittest.TestCase):
         conflict = adapter.observe(binding.identity)
         self.assertEqual(conflict.presence, RemoteEffectPresence.PRESENT_CONFLICT)
 
+    def test_comment_observation_parses_multiple_line_delimited_pages(self):
+        s = scope()
+        identity = s.comment_identity("summary")
+        binding = OrdinaryEffectBinding(
+            scope=s,
+            identity=identity,
+            comment_body="summary",
+        )
+        exact = {
+            "id": 1234,
+            "body": comment_payload(identity, "summary"),
+        }
+        unrelated = {"id": 2222, "body": "unrelated"}
+
+        def runner(args, **kwargs):
+            return FakeProcess(
+                stdout=json.dumps(unrelated) + "\n" + json.dumps(exact) + "\n"
+            )
+
+        adapter = GhGitOrdinaryEffectAdapter(
+            root=Path("."),
+            binding=binding,
+            runner=runner,
+        )
+        observation = adapter.observe(identity)
+        self.assertEqual(observation.presence, RemoteEffectPresence.PRESENT_EXACT)
+        self.assertEqual(observation.remote_identity, "comment:1234")
+
     def test_exact_comment_marker_reconciles(self):
         s = scope()
         identity = s.comment_identity("summary")
@@ -440,7 +468,11 @@ class OrdinaryRemoteObservationTest(unittest.TestCase):
         }
 
         def runner(args, **kwargs):
-            return FakeProcess(stdout=json.dumps([[comment]]))
+            self.assertEqual(
+                tuple(args[-3:]),
+                ("--paginate", "--jq", ".[]"),
+            )
+            return FakeProcess(stdout=json.dumps(comment) + "\n")
 
         adapter = GhGitOrdinaryEffectAdapter(
             root=Path("."),
