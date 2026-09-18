@@ -44,6 +44,7 @@ from .dormant_worker import (
 from .external import ExternalProducerClaim
 from .external_service import ExternalClaimStore
 from .hosted_admission import (
+    HostedAdmissionLedger,
     HostedAdmissionOutcome,
     HostedAdmissionStore,
     advance_hosted_task_admission,
@@ -602,6 +603,97 @@ class HostedExecutionCoordinator:
             revision.event_id,
         )
 
+    def _supersede_reclassify_admission(
+        self,
+        *,
+        state,
+        plan_store,
+        plan,
+        admission,
+    ) -> HostedExecutionAdvanceResult | None:
+        """Accept one newer signed same-issue task revision after non-executed RECLASSIFY."""
+        if admission.outcome is not HostedAdmissionOutcome.RECLASSIFY:
+            return None
+        if admission.plan_id != plan.plan_id:
+            return self._blocked("reclassify admission plan identity drifted")
+        if (
+            admission.consume_attempt
+            or admission.frozen_task is not None
+            or admission.attempt is not None
+            or admission.worker_spec is not None
+        ):
+            return self._blocked(
+                "reclassify admission unexpectedly carries executable worker authority"
+            )
+        if DormantHandoffCommitStore.for_root(self.root).load().record is not None:
+            return self._blocked(
+                "reclassify admission cannot be revised after handoff commit state exists"
+            )
+
+        authority_events = TaskAuthorityEventStore.for_root(self.root).load()
+        original = authority_events.get(plan.event_id)
+        if original is None:
+            return self._blocked(
+                "reclassify admission lacks original signed task authority"
+            )
+        original_order = (
+            str(original.reference.created_at),
+            int(original.reference.comment_id),
+        )
+        candidates = []
+        for event in state.inbox.pending_events:
+            if (
+                event.event_id == plan.event_id
+                or event.signal_kind != "task"
+                or not event.protected_authority
+                or event.task_issue_number != plan.issue_number
+            ):
+                continue
+            record = authority_events.get(event.event_id)
+            if record is None or record.reference.issue_number != plan.issue_number:
+                continue
+            candidate_order = (
+                str(record.reference.created_at),
+                int(record.reference.comment_id),
+            )
+            if candidate_order > original_order:
+                candidates.append((event, candidate_order))
+
+        if not candidates:
+            return self._blocked(
+                "reclassify admission requires a newer explicit signed task revision"
+            )
+        if len(candidates) != 1:
+            return self._blocked(
+                "multiple newer task revisions are pending; operator must disambiguate authority"
+            )
+
+        revision, _order = candidates[0]
+        retired = list(state.inbox.retired_event_keys)
+        if plan.event_id not in retired:
+            retired.append(plan.event_id)
+        new_inbox = replace(
+            state.inbox,
+            pending_events=tuple(
+                event for event in state.inbox.pending_events if event.event_id != plan.event_id
+            ),
+            retired_event_keys=tuple(retired),
+            owned_event_keys=tuple(
+                key for key in state.inbox.owned_event_keys if key != plan.event_id
+            ),
+        )
+        HostedStateStore.for_root(self.root).save(replace(state, inbox=new_inbox))
+        # Clear only non-executed active ownership. The immutable classifier run remains
+        # durable; the old authority is retired rather than completed.
+        HostedAdmissionStore.for_root(self.root).save(HostedAdmissionLedger())
+        plan_store.save(HostedTaskPlanLedger())
+        return HostedExecutionAdvanceResult(
+            HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED,
+            "newer signed task authority superseded non-executed reclassify admission",
+            self.gate.digest,
+            revision.event_id,
+        )
+
     def _managed_handoff_for_attempt(
         self,
         attempt_id: str,
@@ -774,6 +866,15 @@ class HostedExecutionCoordinator:
                 result.ledger.record.record_id if result.ledger.record else plan.plan_id,
             )
 
+        if admission.outcome is HostedAdmissionOutcome.RECLASSIFY:
+            revision = self._supersede_reclassify_admission(
+                state=state,
+                plan_store=plan_store,
+                plan=plan,
+                admission=admission,
+            )
+            if revision is not None:
+                return revision
         if admission.outcome is not HostedAdmissionOutcome.ADMITTED:
             return self._blocked(admission.reason)
         if admission.worker_spec is None or admission.attempt is None or admission.frozen_task is None:
