@@ -43,6 +43,14 @@ from .core import (
     PendingWorkerState,
     reduce_managed_pr,
 )
+from .cutover_rehearsal import (
+    CutoverRehearsalEvidence,
+    DisposableProcessSupervisor,
+    RehearsalDisposition,
+    RehearsalEvent,
+    RehearsalRole,
+    rehearse_cutover_and_rollback,
+)
 from .cutover import (
     CutoverReadinessDecision,
     CutoverReadinessDisposition,
@@ -321,6 +329,9 @@ __all__ = [
     "ProductionActivationDecision",
     "ProductionActivationDisposition",
     "ProductionActivationInput",
+    "RehearsalDisposition",
+    "RehearsalEvent",
+    "RehearsalRole",
     "AcceptanceIdentity",
     "CANARY_BRANCH_PREFIX",
     "CANARY_DOC_PREFIX",
@@ -353,6 +364,8 @@ __all__ = [
     "LegacyOperationalProjection",
     "CutoverReadinessInput",
     "CutoverReadinessDisposition",
+    "CutoverRehearsalEvidence",
+    "DisposableProcessSupervisor",
     "CutoverReadinessDecision",
     "DecisionFreshnessObservation",
     "DecisionKind",
@@ -593,6 +606,7 @@ __all__ = [
     "reconcile_remote_effect",
     "record_gate_visibility",
     "refresh_external_claims",
+    "rehearse_cutover_and_rollback",
     "reduce_managed_pr",
     "select_dispatch_batch",
     "roadmap_gate_record",
