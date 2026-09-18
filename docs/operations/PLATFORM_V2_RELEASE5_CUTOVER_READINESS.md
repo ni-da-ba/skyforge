@@ -1,6 +1,6 @@
 # Platform v2 Release 5 — Cutover Readiness
 
-Status: **R5A IN PROGRESS — PRODUCTION CUTOVER BLOCKED**
+Status: **R5A READINESS CONTRACT COMPLETE — PRODUCTION CUTOVER BLOCKED**
 
 Parent migration: #767  
 Release-4 acceptance: #845 / PR #846  
@@ -52,8 +52,9 @@ R5A projects these authorities deterministically into v2 state. Their existence 
 7. A hosted v2 production runtime has been separately accepted.
 8. Webhook/control ingress handoff is defined.
 9. Old-writer revocation/rollback sequencing is defined.
+10. A privileged mechanism exists that can actually revoke the legacy hosted writer before v2 activation.
 
-R5A starts BLOCKED because items 5–8 are not all satisfied.
+R5A remains BLOCKED because the legacy runtime SHA is behind accepted main, the hosted v2 runtime is not yet accepted, ingress handoff is undefined, and the controller service account cannot itself stop/revoke the production systemd service.
 
 ## Writer authority handoff
 
@@ -67,9 +68,27 @@ The only accepted rollback sequence is:
 
 The pure handoff contract rejects direct `LEGACY -> V2` activation. This makes the no-dual-writer interval explicit and testable.
 
-## Fresh checkpoint requirement
+## Fresh checkpoint — PASS
 
-Before the authority switch, R5A/R5B must retain a fresh `pre-v2-cutover` checkpoint containing at minimum:
+R5A captured `pre-v2-cutover-20260917T2115CDT`.
+
+Evidence:
+
+- accepted main at checkpoint: `4f5ce6ecab91e86b6bc4ff346a31d07e8ce04314`;
+- live legacy runtime: `c7ff98a3b6a1250f1ae7f349239ac0c25dd13ea7`;
+- quiescent primary/backup state SHA-256: `64ff62f20063d9d8873e1a13d27345cdfcc182e590e6aecc41d41d27094a2f37`;
+- trusted paused rollback-state SHA-256: `ec368a4d7cd730452cea154d009c9cac38639132c9d3bfc00b117fd222cf2e57`;
+- checkpoint archive SHA-256: `1245ed5976e3c82e5616757b1756188adae2b680d0cb5dee38ba1045c4a6e6e7`;
+- all-refs Git bundle SHA-256: `bdfed8f699478db8f2edbe27c34896fa39c559dceb94be8b9ec2666039c9019e`;
+- bundle size: 10,009,116 bytes;
+- bundle verification: PASS;
+- restore drill: PASS, restored `main` exactly `4f5ce6ec...`;
+- whole-host DigitalOcean snapshot: image `245929672`, action `3415118353`;
+- public Git bundle copied off-Droplet to an unpublished draft release asset.
+
+The paused rollback-state copy was captured with `paused=true`, no pending worker, no pending decision, no managed PR, no controller block, and zero pending events. Legacy was then explicitly resumed and returned to a zero-event quiescent state.
+
+The checkpoint contains at minimum:
 
 - exact accepted main;
 - exact running legacy runtime SHA;
@@ -83,6 +102,12 @@ Before the authority switch, R5A/R5B must retain a fresh `pre-v2-cutover` checkp
 - restorable repository identity/bundle evidence.
 
 Secrets remain outside repository evidence.
+
+## Privileged revocation blocker
+
+The `skyforge` service account does not have permission to invoke `sudo systemctl stop skyforge-orchestrator.service`. The attempted R5A stop failed before changing service state.
+
+That is useful cutover evidence: Release 5 must establish a separately accepted privileged revocation mechanism. v2 must never be activated merely because a low-privilege process *intended* to stop legacy. The old writer must be observably revoked first.
 
 ## Current architectural blocker
 
@@ -102,4 +127,4 @@ R5A does not:
 - pass the DR-70 human gate;
 - migrate to SQLite.
 
-The expected R5A completion state is therefore valid even if Release 5 remains BLOCKED for R5B runtime work.
+R5A therefore completes its readiness/checkpoint purpose while Release 5 remains fail-closed for R5B runtime/ingress/revocation work.
