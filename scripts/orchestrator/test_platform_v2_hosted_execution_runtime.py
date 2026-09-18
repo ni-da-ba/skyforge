@@ -127,6 +127,25 @@ class FakeClassifier:
         return DISPATCH, parse_classifier_response(DISPATCH)
 
 
+class SourcePRClassifier:
+    def __init__(self):
+        self.calls = 0
+
+    def classify(self, *, request, root, config):
+        self.calls += 1
+        raw = json.dumps({
+            "decision": "DISPATCH",
+            "lane": "Implementation",
+            "pr_number": 77,
+            "objective": "Implement bounded feature",
+            "stop_boundary": "merge boundary",
+            "worker_tier": "LUNA",
+            "allowed_paths": ["docs/operations/**"],
+            "reason": "mistook task issue for source PR",
+        }, separators=(",", ":"))
+        return raw, parse_classifier_response(raw)
+
+
 class FailingClassifier:
     def __init__(self):
         self.calls = 0
@@ -404,6 +423,69 @@ class HostedExecutionCoordinatorTest(unittest.TestCase):
             ).expected_path(admission.worker_spec)
             self.assertNotEqual(git(worker_tree, "rev-parse", "HEAD"), base)
             self.assertEqual(git(worker_tree, "status", "--porcelain"), "")
+
+    def test_new_signed_revision_supersedes_nonexecuted_reclassify_admission(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            base = make_repo(root)
+            write_legacy(root)
+            gate = ready_gate(base)
+            app = self.restart(root, gate)
+            raw, headers = signed(task_payload(), delivery="r5c24-reclassify-original")
+            status, response = app.handle_webhook(headers=headers, raw=raw)
+            self.assertEqual(status, 202)
+            self.assertTrue(response["task_authority_recorded"])
+
+            classifier = SourcePRClassifier()
+            deps = HostedExecutionDependencies(
+                classifier_provider=classifier,
+                worker_provider=FakeWorker(),
+                classifier_local_budget=budget(),
+                worker_local_budget=budget(),
+                classifier_config=ClassifierProviderConfig("fixture-classifier", "low"),
+                runner=CompositeReadRunner(base),
+            )
+            self.assertEqual(app.advance_one_execution_step(deps).disposition, HostedExecutionAdvanceDisposition.TASK_CLAIMED)
+            self.assertEqual(app.advance_one_execution_step(deps).disposition, HostedExecutionAdvanceDisposition.PREFLIGHT_ADVANCED)
+            self.assertEqual(app.advance_one_execution_step(deps).disposition, HostedExecutionAdvanceDisposition.CLASSIFIER_ADVANCED)
+            admission_result = app.advance_one_execution_step(deps)
+            self.assertEqual(admission_result.disposition, HostedExecutionAdvanceDisposition.ADMISSION_ADVANCED)
+            admission = app.admission_store.load().record
+            self.assertIsNotNone(admission)
+            self.assertEqual(admission.outcome.value, "RECLASSIFY")
+            self.assertIsNone(admission.attempt)
+            self.assertIsNone(admission.worker_spec)
+            plan = app.task_plan_store.load().active
+            old_event_id = plan.event_id
+            old_request_id = plan.seed.classifier_request.request_id
+
+            revised = task_payload()
+            revised["comment"]["id"] = 12347
+            revised["comment"]["created_at"] = "2026-09-18T03:02:00Z"
+            revised["comment"]["updated_at"] = "2026-09-18T03:02:00Z"
+            revised["comment"]["body"] = revised["comment"]["body"].replace(
+                "Implement bounded feature", "Implement bounded feature revision two"
+            )
+            raw2, headers2 = signed(revised, delivery="r5c24-reclassify-revision")
+            status2, response2 = app.handle_webhook(headers=headers2, raw=raw2)
+            self.assertEqual(status2, 202)
+            self.assertTrue(response2["task_authority_recorded"])
+
+            superseded = app.advance_one_execution_step(deps)
+            self.assertEqual(superseded.disposition, HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED)
+            self.assertEqual(classifier.calls, 1)
+            state = app.store.load()
+            self.assertIn(old_event_id, state.inbox.retired_event_keys)
+            self.assertNotIn(old_event_id, state.inbox.completed_authority_event_keys)
+            self.assertIsNone(app.task_plan_store.load().active)
+            self.assertIsNone(app.admission_store.load().record)
+            self.assertEqual(
+                ClassifierRunStore.for_root(root).load().get(old_request_id).status,
+                ClassifierRunStatus.COMPLETE,
+            )
+            reclaimed = app.advance_one_execution_step(deps)
+            self.assertEqual(reclaimed.disposition, HostedExecutionAdvanceDisposition.TASK_CLAIMED)
+            self.assertNotEqual(app.task_plan_store.load().active.event_id, old_event_id)
 
     def test_new_signed_revision_supersedes_failed_classifier_without_retrying_old_request(self):
         with tempfile.TemporaryDirectory() as td:

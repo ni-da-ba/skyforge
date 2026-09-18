@@ -79,6 +79,8 @@ class ClassifierProviderTest(unittest.TestCase):
         self.assertIn('"decision":"NOOP|DISPATCH|HUMAN_GATE|MERGE"', prompt)
         self.assertIn("never widen its allowed_paths", prompt)
         self.assertIn("DISPATCH requires lane", prompt)
+        self.assertIn("Never copy task_issue_numbers", prompt)
+        self.assertIn("for issue-defined new work it must be null", prompt)
 
     def test_request_fingerprint_changes_with_semantic_input_or_main(self):
         first = request()
