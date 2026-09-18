@@ -141,6 +141,12 @@ class DormantHandoffCommitRecord:
                 "admission_record_id": self.admission_record_id,
                 "worker_run_id": self.worker_run_id,
                 "attempt_id": self.attempt_id,
+                "branch": self.branch,
+                "base_sha": self.base_sha,
+                "outcome": self.outcome.value,
+                "reason": self.reason,
+                "head_sha": self.head_sha,
+                "changed_paths": list(self.changed_paths),
             }
         )
 
