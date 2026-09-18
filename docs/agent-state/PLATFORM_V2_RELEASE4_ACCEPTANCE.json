@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "status": "ACCEPTED_FOR_RELEASE_5_CUTOVER_READINESS",
+  "parent_issue": 767,
+  "acceptance_issue": 845,
+  "release4_baseline": "33192df10bb3f0d8a919dafd820aa9f6a3c419f3",
+  "preservation": {
+    "status": "PASS",
+    "issue": 830,
+    "pr": 831
+  },
+  "live_canary": {
+    "issue": 833,
+    "pr": 840,
+    "acceptance_issue": 841,
+    "acceptance_pr": 842,
+    "frozen_base_sha": "b05c5c0fe59202d364bbff947fd8fcce62fffcda",
+    "candidate_sha": "914124d9aa03c449f4d5a3b5effca4cefcb8cba9",
+    "task_spec_hash": "5175d82968cb114e1186c2398ecb23aa5a91c744b35786ac44eb5bfb0915f038",
+    "attempt_id": "6d5cfa98b0cfb94d95a736ee5ec7031eea422d0c45c64a7ce93b74a8afc7c14d",
+    "merge_commit_sha": "579ad221371f4f2b0ffb585fea4a253d06ec03f4",
+    "status": "PASS"
+  },
+  "failure_corpus": {
+    "issue": 843,
+    "pr": 844,
+    "scenario_count": 26,
+    "status": "PASS"
+  },
+  "mutation_gate_enabled": false,
+  "broader_authority_granted": false,
+  "release5_ready_for_readiness_work": true
+}
