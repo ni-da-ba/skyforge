@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 import re
-from typing import Callable
+from typing import Any, Callable, Mapping
 
 from .core import ControllerState, ManagedPRObservation
 from .domain import TransitionKind, TransitionPlan
@@ -124,14 +124,34 @@ class ManagedOrdinaryHandoff:
     auto_merge_eligible: bool
 
     def __post_init__(self) -> None:
+        for name in ("task_id", "authority_key", "task_spec_hash", "lane"):
+            object.__setattr__(self, name, _required(getattr(self, name), name))
+        if len(self.task_spec_hash) != 64 or any(
+            ch not in "0123456789abcdef" for ch in self.task_spec_hash
+        ):
+            raise ValueError("task_spec_hash must be lowercase SHA-256 hex")
         if isinstance(self.pr_number, bool) or not isinstance(self.pr_number, int) or self.pr_number <= 0:
             raise ValueError("pr_number must be positive")
         if not isinstance(self.scope, OrdinaryMutationScope):
             raise ValueError("scope must be OrdinaryMutationScope")
-        if not isinstance(self.changed_paths, tuple):
-            raise ValueError("changed_paths must be tuple")
+        if not isinstance(self.changed_paths, tuple) or any(
+            not isinstance(path, str) or not path.strip() for path in self.changed_paths
+        ):
+            raise ValueError("changed_paths must be a tuple of non-empty repository paths")
+        normalized = tuple(sorted({path.strip().replace("\\", "/") for path in self.changed_paths}))
+        if any(
+            path.startswith("/")
+            or path.startswith("../")
+            or "/../" in path
+            or path in {".", ".."}
+            for path in normalized
+        ):
+            raise ValueError("changed_paths must be normalized repository-relative paths")
+        object.__setattr__(self, "changed_paths", normalized)
         if not isinstance(self.auto_merge_eligible, bool):
             raise ValueError("auto_merge_eligible must be boolean")
+        if self.scope.attempt_id == "":
+            raise ValueError("handoff scope attempt_id is required")
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -144,6 +164,24 @@ class ManagedOrdinaryHandoff:
             "changed_paths": list(self.changed_paths),
             "auto_merge_eligible": self.auto_merge_eligible,
         }
+
+    @classmethod
+    def from_mapping(cls, raw: Any) -> "ManagedOrdinaryHandoff":
+        if not isinstance(raw, Mapping):
+            raise ValueError("managed ordinary handoff must be an object")
+        changed = raw.get("changed_paths")
+        if not isinstance(changed, list):
+            raise ValueError("managed ordinary handoff changed_paths must be a list")
+        return cls(
+            task_id=raw.get("task_id"),
+            authority_key=raw.get("authority_key"),
+            task_spec_hash=raw.get("task_spec_hash"),
+            lane=raw.get("lane"),
+            scope=OrdinaryMutationScope.from_mapping(raw.get("scope")),
+            pr_number=raw.get("pr_number"),
+            changed_paths=tuple(changed),
+            auto_merge_eligible=raw.get("auto_merge_eligible"),
+        )
 
     @property
     def digest(self) -> str:

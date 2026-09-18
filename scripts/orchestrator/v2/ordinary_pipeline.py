@@ -168,6 +168,7 @@ class OrdinaryPipelineRecord:
     worker_run_id: str = ""
     handoff_digest: str = ""
     pr_number: int | None = None
+    managed_handoff: ManagedOrdinaryHandoff | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -185,6 +186,11 @@ class OrdinaryPipelineRecord:
             "worker_run_id": self.worker_run_id,
             "handoff_digest": self.handoff_digest,
             "pr_number": self.pr_number,
+            "managed_handoff": (
+                self.managed_handoff.as_dict()
+                if self.managed_handoff is not None
+                else None
+            ),
         }
 
     @classmethod
@@ -198,7 +204,13 @@ class OrdinaryPipelineRecord:
             or pr_number <= 0
         ):
             raise ValueError("pipeline pr_number must be positive or null")
-        return cls(
+        handoff_raw = raw.get("managed_handoff")
+        managed_handoff = (
+            ManagedOrdinaryHandoff.from_mapping(handoff_raw)
+            if handoff_raw is not None
+            else None
+        )
+        record = cls(
             pipeline_id=str(raw.get("pipeline_id") or ""),
             classifier_request_id=str(raw.get("classifier_request_id") or ""),
             authority_digest=str(raw.get("authority_digest") or ""),
@@ -213,7 +225,18 @@ class OrdinaryPipelineRecord:
             worker_run_id=str(raw.get("worker_run_id") or ""),
             handoff_digest=str(raw.get("handoff_digest") or ""),
             pr_number=pr_number,
+            managed_handoff=managed_handoff,
         )
+        if managed_handoff is not None:
+            if record.handoff_digest != managed_handoff.digest:
+                raise ValueError("pipeline managed handoff digest mismatch")
+            if record.pr_number != managed_handoff.pr_number:
+                raise ValueError("pipeline managed handoff PR number mismatch")
+            if record.task_spec_hash != managed_handoff.task_spec_hash:
+                raise ValueError("pipeline managed handoff task_spec_hash mismatch")
+            if record.attempt_id != managed_handoff.scope.attempt_id:
+                raise ValueError("pipeline managed handoff attempt_id mismatch")
+        return record
 
     @property
     def digest(self) -> str:
@@ -256,6 +279,28 @@ class OrdinaryPipelineLedger:
             tuple(
                 record if item.pipeline_id == record.pipeline_id else item
                 for item in self.records
+            )
+        )
+
+    def reconstructible_managed_handoffs(self) -> tuple[ManagedOrdinaryHandoff, ...]:
+        """Return only exact durable handoffs safe for later lifecycle processing."""
+        handoffs: list[ManagedOrdinaryHandoff] = []
+        for record in self.records:
+            if (
+                record.stage is OrdinaryPipelineStage.COMPLETE
+                and record.managed_handoff is not None
+            ):
+                handoffs.append(record.managed_handoff)
+        return tuple(handoffs)
+
+    def incomplete_completed_records(self) -> tuple[OrdinaryPipelineRecord, ...]:
+        """Pre-R5C10 completed records remain visible but fail closed for automation."""
+        return tuple(
+            record
+            for record in self.records
+            if (
+                record.stage is OrdinaryPipelineStage.COMPLETE
+                and record.managed_handoff is None
             )
         )
 
@@ -620,6 +665,7 @@ def advance_ordinary_pipeline(
         reason=reason,
         handoff_digest=handoff.digest,
         pr_number=handoff.pr_number,
+        managed_handoff=handoff,
     )
     pipeline_store.save(ledger.put(current))
     return OrdinaryPipelineResult(
