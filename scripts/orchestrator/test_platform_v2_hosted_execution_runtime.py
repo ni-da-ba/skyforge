@@ -33,6 +33,7 @@ from v2.ordinary_effects import OrdinaryEffectStore
 from v2.ordinary_pipeline import OrdinaryPipelineStore
 from v2.quota import LocalBudgetObservation
 from v2.worker_provider import WorkerProviderConfig
+from v2.worker_workspace import WorkerWorkspaceManager
 
 
 DISPATCH = json.dumps(
@@ -385,12 +386,9 @@ class HostedExecutionCoordinatorTest(unittest.TestCase):
             self.assertTrue(all(record.status.value == "COMPLETE" for record in effects.records))
 
             self.assertEqual(git(root, "rev-parse", "HEAD"), base)
-            worker_tree = (
-                root
-                / ".skyforge-platform-v2"
-                / "worktrees"
-                / admission.worker_spec.branch
-            )
+            worker_tree = WorkerWorkspaceManager(
+                root=root
+            ).expected_path(admission.worker_spec)
             self.assertNotEqual(git(worker_tree, "rev-parse", "HEAD"), base)
             self.assertEqual(git(worker_tree, "status", "--porcelain"), "")
 
