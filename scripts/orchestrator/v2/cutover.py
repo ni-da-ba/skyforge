@@ -14,6 +14,7 @@ import json
 import re
 from typing import Any, Mapping
 
+from .core import HumanGateRecord
 from .external import ExternalProducerClaim
 from .identity import canonical_digest
 
@@ -66,22 +67,45 @@ def _canonical_value(value: Any, label: str) -> Any:
 class RoadmapProjection:
     roadmap_id: str
     active: Any
+    completed_runs: Mapping[str, int]
     blocked_nodes: Mapping[str, Any]
     manifest_fingerprint: str
+    claims_day: str | None = None
+    claims_today: int = 0
 
     @classmethod
     def from_legacy_mapping(cls, raw: Any) -> "RoadmapProjection":
         mapping = _mapping(raw or {}, "roadmap")
+        completed = mapping.get("completed_runs") or {}
+        completed_mapping = _mapping(completed, "roadmap.completed_runs")
+        completed_runs: dict[str, int] = {}
+        for key, value in completed_mapping.items():
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError("roadmap.completed_runs values must be nonnegative integers")
+            completed_runs[str(key)] = value
+
         blocked = mapping.get("blocked_nodes") or {}
         blocked_mapping = _mapping(blocked, "roadmap.blocked_nodes")
+
+        claims_day = _optional_text(mapping.get("claims_day"), "roadmap.claims_day")
+        claims_today = mapping.get("claims_today", 0)
+        if isinstance(claims_today, bool) or not isinstance(claims_today, int) or claims_today < 0:
+            raise ValueError("roadmap.claims_today must be a nonnegative integer")
+
         return cls(
             roadmap_id=str(mapping.get("roadmap_id") or "").strip(),
             active=_canonical_value(mapping.get("active"), "roadmap.active"),
+            completed_runs=_canonical_value(
+                completed_runs,
+                "roadmap.completed_runs",
+            ),
             blocked_nodes=_canonical_value(
                 dict(blocked_mapping),
                 "roadmap.blocked_nodes",
             ),
             manifest_fingerprint=str(mapping.get("manifest_fingerprint") or "").strip(),
+            claims_day=claims_day,
+            claims_today=claims_today,
         )
 
     @property
@@ -92,8 +116,11 @@ class RoadmapProjection:
         return {
             "roadmap_id": self.roadmap_id,
             "active": self.active,
+            "completed_runs": dict(self.completed_runs),
             "blocked_nodes": dict(self.blocked_nodes),
             "manifest_fingerprint": self.manifest_fingerprint,
+            "claims_day": self.claims_day,
+            "claims_today": self.claims_today,
         }
 
 
@@ -107,7 +134,7 @@ class LegacyOperationalProjection:
     pending_events: tuple[Any, ...]
     external_claims: tuple[ExternalProducerClaim, ...]
     roadmap: RoadmapProjection
-    human_gate_records_digest: str
+    human_gate_records: tuple[HumanGateRecord, ...]
     source_state_digest: str
 
     @classmethod
@@ -143,6 +170,15 @@ class LegacyOperationalProjection:
             state.get("human_gate_records") or {},
             "human_gate_records",
         )
+        human_gates = tuple(
+            sorted(
+                (
+                    HumanGateRecord.from_legacy(str(key), value)
+                    for key, value in gates.items()
+                ),
+                key=lambda record: record.key,
+            )
+        )
 
         return cls(
             paused=paused,
@@ -161,7 +197,7 @@ class LegacyOperationalProjection:
             ),
             external_claims=tuple(claims),
             roadmap=RoadmapProjection.from_legacy_mapping(state.get("roadmap")),
-            human_gate_records_digest=canonical_digest(dict(gates)),
+            human_gate_records=human_gates,
             source_state_digest=canonical_digest(dict(state)),
         )
 
@@ -185,10 +221,21 @@ class LegacyOperationalProjection:
             "pending_events": list(self.pending_events),
             "external_claims": [claim.as_dict() for claim in self.external_claims],
             "roadmap": self.roadmap.as_dict(),
+            "human_gate_records": [record.as_dict() for record in self.human_gate_records],
             "human_gate_records_digest": self.human_gate_records_digest,
             "source_state_digest": self.source_state_digest,
             "quiescent": self.quiescent,
         }
+
+    @property
+    def human_gate_records_digest(self) -> str:
+        return canonical_digest(
+            {record.key: {
+                "token": record.token,
+                "target": record.target,
+                "seeded_from_github": record.seeded_from_github,
+            } for record in self.human_gate_records}
+        )
 
     @property
     def digest(self) -> str:
