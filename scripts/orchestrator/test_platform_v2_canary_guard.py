@@ -199,12 +199,13 @@ class CanaryGuardTest(unittest.TestCase):
 
 
 class MachineGateFileTest(unittest.TestCase):
-    def test_repository_gate_is_fail_closed_until_workstation_audit(self) -> None:
+    def test_repository_gate_records_preservation_pass_but_canary_stays_disabled(self) -> None:
         root = Path(__file__).resolve().parents[2]
         path = root / "docs/agent-state/PLATFORM_V2_MUTATION_GATE.json"
         value = MutationGateRecord.from_mapping(json.loads(path.read_text()))
         self.assertTrue(value.release3_accepted)
-        self.assertFalse(value.workstation_preservation_passed)
+        self.assertTrue(value.workstation_preservation_passed)
+        self.assertTrue(value.workstation_evidence)
         self.assertFalse(value.canary_enabled)
         self.assertIsNone(value.canary_issue_number)
 
