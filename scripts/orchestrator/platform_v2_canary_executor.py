@@ -12,6 +12,7 @@ from pathlib import Path
 import subprocess
 import sys
 from typing import Any, Mapping, Sequence
+from urllib.parse import quote
 
 import platform_v2_shadow_collector as legacy_reader
 from v2.canary import CanaryTaskContract, MutationGateRecord
@@ -44,12 +45,13 @@ def validate_gh_command(
     repo = _repo(repo)
     cmd = tuple(str(x) for x in args)
 
+    encoded_branch = quote(task.head_branch, safe="")
     allowed = {
         (
             "gh", "api", f"repos/{repo}/commits/main", "--jq", ".sha"
         ),
         (
-            "gh", "api", f"repos/{repo}/commits/{task.head_branch}", "--jq", ".sha"
+            "gh", "api", f"repos/{repo}/commits/{encoded_branch}", "--jq", ".sha"
         ),
         (
             "gh", "pr", "list", "--repo", repo, "--head", task.head_branch,
@@ -172,8 +174,9 @@ class GhCanaryRemote(CanaryRemoteAdapter):
     def branch_head_sha(self, branch: str) -> str:
         if branch != self.task.head_branch:
             raise ValueError("branch read is outside frozen canary task")
+        encoded_branch = quote(branch, safe="")
         raw = self._run_mutation(
-            ["gh", "api", f"repos/{self.repo}/commits/{branch}", "--jq", ".sha"]
+            ["gh", "api", f"repos/{self.repo}/commits/{encoded_branch}", "--jq", ".sha"]
         )
         if len(raw) != 40:
             raise CanaryRemoteUnavailable("candidate branch SHA is malformed")
