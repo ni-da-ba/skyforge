@@ -75,6 +75,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeWaterWheelSourceLifecycleAcceptance.installFromSystemProperty();
         SkyforgeMech001FunctionalMechanismAcceptance.installFromSystemProperty();
         SkyforgeMech002NaturalPowerAcceptance.installFromSystemProperty();
+        SkyforgeMech003SequencedWorkshopAcceptance.installFromSystemProperty();
         SkyforgeCreateKineticOnSableLifecycleAcceptance.installFromSystemProperty();
         SkyforgeSuperGlueAssemblyDomainAcceptance.installFromSystemProperty();
         SkyforgeNestedPropellerBearingLifecycleAcceptance.installFromSystemProperty();

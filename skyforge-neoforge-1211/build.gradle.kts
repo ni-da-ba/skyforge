@@ -2171,6 +2171,24 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // MECH-003: compiled beltless Portable Engine sequenced workshop lifecycle.
+        create("mech003SequencedWorkshopServer") {
+            server()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-mech-003-sequenced-workshop-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.mech003SequencedWorkshop", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // MECH-003 human gate: exact C11 stack plus compiler-emitted development structure.
+        create("mech003SequencedWorkshopClient") {
+            client()
+            sourceSet.set(waveC11Runtime)
+            gameDirectory = layout.projectDirectory.dir("run-mech-003-sequenced-workshop-client").asFile
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
 
         // PLATFORM-003: preassembled Create kinetic network transferred into one live Sable body.
         create("compilerPlatformCreateKineticOnSableLifecycleServer") {
@@ -3004,6 +3022,29 @@ tasks.named("runMech002NaturalPowerServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(mech002NaturalPowerServerProperties)
+    }
+}
+
+val mech003SequencedWorkshopServerProperties = """
+    level-name=mech-003-sequenced-workshop
+    level-seed=734003
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=3
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runMech003SequencedWorkshopServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-mech-003-sequenced-workshop-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(mech003SequencedWorkshopServerProperties)
     }
 }
 

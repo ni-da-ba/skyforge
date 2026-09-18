@@ -1,0 +1,15 @@
+{
+  "assetId": "guild.utility.portable_engine_workshop.mech_003",
+  "mechanism": {
+    "mountingRole": "masonry_pad",
+    "operatorClearance": 2,
+    "orientation": "east",
+    "powerRole": "qualified_stationary_kinetic",
+    "stagingRole": "world_item_manual_handoff",
+    "workflowRole": "manual_sequenced_processing"
+  },
+  "requiredPlatformCapability": "CREATE_WORLD_ITEM_CUT_PRESS_LIFECYCLE",
+  "schemaVersion": "mech-0.1",
+  "seed": 734003,
+  "targetStackAuthority": "C11_FLIGHT_EXACT_2026-09-05"
+}
