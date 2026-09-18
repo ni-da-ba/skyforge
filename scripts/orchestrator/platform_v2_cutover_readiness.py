@@ -42,6 +42,7 @@ def build_report(
         hosted_v2_runtime_accepted=observation["hosted_v2_runtime_accepted"],
         ingress_handoff_defined=observation["ingress_handoff_defined"],
         writer_revocation_plan_defined=observation["writer_revocation_plan_defined"],
+        legacy_revocation_mechanism_ready=observation["legacy_revocation_mechanism_ready"],
         state_projection_complete=observation["state_projection_complete"],
         projection=projection,
     )
