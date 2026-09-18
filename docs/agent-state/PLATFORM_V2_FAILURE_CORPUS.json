@@ -175,7 +175,7 @@
       "id": "external_manual_producer_active",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_external_authority.py::test_active_claim_holds_matching_task",
+        "scripts/orchestrator/test_platform_v2_external_authority.py::test_claim_holds_only_matching_task",
         "docs/operations/PLATFORM_V2_R4C_LIVE_CANARY_ACCEPTANCE.md::Legacy exclusion"
       ]
     },
