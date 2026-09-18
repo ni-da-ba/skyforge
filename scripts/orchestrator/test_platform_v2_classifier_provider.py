@@ -74,6 +74,12 @@ class ClassifierProviderTest(unittest.TestCase):
         self.assertEqual(custom.model, "fixture-model")
         self.assertEqual(custom.reasoning_effort, "high")
 
+    def test_prompt_declares_exact_decision_schema(self):
+        prompt = request().prompt()
+        self.assertIn('"decision":"NOOP|DISPATCH|HUMAN_GATE|MERGE"', prompt)
+        self.assertIn("never widen its allowed_paths", prompt)
+        self.assertIn("DISPATCH requires lane", prompt)
+
     def test_request_fingerprint_changes_with_semantic_input_or_main(self):
         first = request()
         again = request()

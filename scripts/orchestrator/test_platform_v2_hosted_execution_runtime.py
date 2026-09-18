@@ -15,7 +15,7 @@ from test_platform_v2_hosted_task_preflight import (
 )
 from test_platform_v2_ordinary_service import FakeRemoteFactory
 from v2.activation_gate import ProductionActivationInput
-from v2.classifier_provider import ClassifierProviderConfig, parse_classifier_response
+from v2.classifier_provider import ClassifierProviderConfig, ClassifierProviderError, ClassifierRunStatus, ClassifierRunStore, parse_classifier_response
 from v2.cutover import (
     CutoverReadinessDecision,
     CutoverReadinessDisposition,
@@ -125,6 +125,19 @@ class FakeClassifier:
     def classify(self, *, request, root, config):
         self.calls += 1
         return DISPATCH, parse_classifier_response(DISPATCH)
+
+
+class FailingClassifier:
+    def __init__(self):
+        self.calls = 0
+
+    def classify(self, *, request, root, config):
+        self.calls += 1
+        raise ClassifierProviderError(
+            "classifier_invalid_response",
+            0,
+            "unknown classifier decision kind",
+        )
 
 
 class FakeWorker:
@@ -391,6 +404,81 @@ class HostedExecutionCoordinatorTest(unittest.TestCase):
             ).expected_path(admission.worker_spec)
             self.assertNotEqual(git(worker_tree, "rev-parse", "HEAD"), base)
             self.assertEqual(git(worker_tree, "status", "--porcelain"), "")
+
+    def test_new_signed_revision_supersedes_failed_classifier_without_retrying_old_request(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            base = make_repo(root)
+            write_legacy(root)
+            gate = ready_gate(base)
+            app = self.restart(root, gate)
+            raw, headers = signed(task_payload(), delivery="r5c24-failed-original")
+            status, response = app.handle_webhook(headers=headers, raw=raw)
+            self.assertEqual(status, 202)
+            self.assertTrue(response["task_authority_recorded"])
+
+            classifier = FailingClassifier()
+            deps = HostedExecutionDependencies(
+                classifier_provider=classifier,
+                worker_provider=FakeWorker(),
+                classifier_local_budget=budget(),
+                worker_local_budget=budget(),
+                classifier_config=ClassifierProviderConfig("fixture-classifier", "low"),
+                runner=CompositeReadRunner(base),
+            )
+            self.assertEqual(
+                app.advance_one_execution_step(deps).disposition,
+                HostedExecutionAdvanceDisposition.TASK_CLAIMED,
+            )
+            self.assertEqual(
+                app.advance_one_execution_step(deps).disposition,
+                HostedExecutionAdvanceDisposition.PREFLIGHT_ADVANCED,
+            )
+            failed = app.advance_one_execution_step(deps)
+            self.assertEqual(failed.disposition, HostedExecutionAdvanceDisposition.CLASSIFIER_ADVANCED)
+            self.assertEqual(classifier.calls, 1)
+            plan = app.task_plan_store.load().active
+            self.assertIsNotNone(plan)
+            old_event_id = plan.event_id
+            old_request_id = plan.seed.classifier_request.request_id
+            self.assertEqual(
+                ClassifierRunStore.for_root(root).load().get(old_request_id).status,
+                ClassifierRunStatus.FAILED,
+            )
+
+            revised = task_payload()
+            revised["comment"]["id"] = 12346
+            revised["comment"]["created_at"] = "2026-09-18T03:01:00Z"
+            revised["comment"]["updated_at"] = "2026-09-18T03:01:00Z"
+            revised["comment"]["body"] = revised["comment"]["body"].replace(
+                "Implement bounded feature", "Implement bounded feature revision"
+            )
+            raw2, headers2 = signed(revised, delivery="r5c24-failed-revision")
+            status2, response2 = app.handle_webhook(headers=headers2, raw=raw2)
+            self.assertEqual(status2, 202)
+            self.assertTrue(response2["task_authority_recorded"])
+
+            superseded = app.advance_one_execution_step(deps)
+            self.assertEqual(
+                superseded.disposition,
+                HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED,
+            )
+            self.assertEqual(classifier.calls, 1)
+            state = app.store.load()
+            self.assertIn(old_event_id, state.inbox.retired_event_keys)
+            self.assertNotIn(old_event_id, state.inbox.completed_authority_event_keys)
+            self.assertIsNone(app.task_plan_store.load().active)
+            self.assertEqual(
+                ClassifierRunStore.for_root(root).load().get(old_request_id).status,
+                ClassifierRunStatus.FAILED,
+            )
+
+            reclaimed = app.advance_one_execution_step(deps)
+            self.assertEqual(
+                reclaimed.disposition,
+                HostedExecutionAdvanceDisposition.TASK_CLAIMED,
+            )
+            self.assertNotEqual(app.task_plan_store.load().active.event_id, old_event_id)
 
     def test_checkout_head_drift_blocks_before_any_lifecycle_mutation(self):
         with tempfile.TemporaryDirectory() as td:

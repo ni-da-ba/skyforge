@@ -388,6 +388,8 @@ def should_continue_after(
     if disposition is HostedExecutionAdvanceDisposition.PREFLIGHT_ADVANCED:
         plan = HostedTaskPlanStore.for_root(root).load().active
         return plan is not None and plan.status is HostedTaskPlanStatus.READY_FOR_CLASSIFIER
+    if disposition is HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED:
+        return True
     if disposition is HostedExecutionAdvanceDisposition.CLASSIFIER_ADVANCED:
         plan = HostedTaskPlanStore.for_root(root).load().active
         if plan is None or plan.seed is None:
