@@ -43,15 +43,29 @@ def _repo(value: Any) -> str:
     return text
 
 
-def _text_tuple(value: Any, label: str, *, require_nonempty: bool) -> tuple[str, ...]:
+def _task_path(value: Any, label: str) -> str:
+    text = _required_text(value, label).replace("\\", "/")
+    if (
+        text.startswith("/")
+        or text.startswith("./")
+        or re.match(r"^[A-Za-z]:/", text)
+        or any(part in {"", ".", ".."} for part in text.split("/"))
+    ):
+        raise ValueError(f"{label} must be a normalized repository-relative path")
+    if "*" in text and not text.endswith("/**"):
+        raise ValueError(f"{label} supports only a trailing /** scope wildcard")
+    if text.endswith("/**") and "*" in text[:-3]:
+        raise ValueError(f"{label} contains unsupported wildcard syntax")
+    return text
+
+
+def _path_tuple(value: Any, label: str, *, require_nonempty: bool) -> tuple[str, ...]:
     if not isinstance(value, list):
         raise ValueError(f"{label} must be a JSON array")
-    values: list[str] = []
-    for item in value:
-        values.append(_required_text(item, f"{label} item"))
+    values = tuple(_task_path(item, f"{label} item") for item in value)
     if require_nonempty and not values:
         raise ValueError(f"{label} must not be empty")
-    return tuple(values)
+    return values
 
 
 def _bounded(value: Any, limit: int) -> str:
@@ -111,12 +125,12 @@ class TypedTaskDirective:
             lane=_required_text(raw.get("lane"), "lane"),
             objective=_required_text(raw.get("objective"), "objective"),
             stop_boundary=_required_text(raw.get("stop_boundary"), "stop_boundary"),
-            allowed_paths=_text_tuple(
+            allowed_paths=_path_tuple(
                 raw.get("allowed_paths"),
                 "allowed_paths",
                 require_nonempty=True,
             ),
-            protected_paths=_text_tuple(
+            protected_paths=_path_tuple(
                 raw.get("protected_paths", []),
                 "protected_paths",
                 require_nonempty=False,
