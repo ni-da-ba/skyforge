@@ -413,6 +413,10 @@ def should_continue_after(
     if disposition is HostedExecutionAdvanceDisposition.LOCAL_COMMIT_ADVANCED:
         record = DormantHandoffCommitStore.for_root(root).load().record
         return record is not None and record.outcome is DormantCommitOutcome.COMMITTED
+    if disposition is HostedExecutionAdvanceDisposition.TASK_COMPLETION_RECORDED:
+        return True
+    if disposition is HostedExecutionAdvanceDisposition.TASK_COMPLETED:
+        return True
     return False
 
 

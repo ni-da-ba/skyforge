@@ -49,6 +49,12 @@ from .hosted_admission import (
     advance_hosted_task_admission,
 )
 from .hosted_classifier import advance_hosted_classifier_proposal
+from .hosted_completion import (
+    HostedCompletionDisposition,
+    HostedCompletionStore,
+    advance_hosted_completion_cleanup,
+    record_completed_managed_task,
+)
 from .hosted_state import HostedStateStore
 from .hosted_task_plan import (
     HostedTaskPlanDisposition,
@@ -378,6 +384,8 @@ class HostedExecutionAdvanceDisposition(str, Enum):
     LOCAL_COMMIT_ADVANCED = "LOCAL_COMMIT_ADVANCED"
     REMOTE_HANDOFF_ADVANCED = "REMOTE_HANDOFF_ADVANCED"
     MANAGED_PR_ADVANCED = "MANAGED_PR_ADVANCED"
+    TASK_COMPLETION_RECORDED = "TASK_COMPLETION_RECORDED"
+    TASK_COMPLETED = "TASK_COMPLETED"
     BLOCKED = "BLOCKED"
 
 
@@ -549,6 +557,18 @@ class HostedExecutionCoordinator:
         gate_block = self._verify_gate(deps.runner)
         if gate_block is not None:
             return gate_block
+
+        completion = HostedCompletionStore.for_root(self.root).load().pending()
+        if completion is not None:
+            cleaned = advance_hosted_completion_cleanup(root=self.root)
+            if cleaned.disposition is not HostedCompletionDisposition.CLEANED:
+                return self._blocked(cleaned.reason)
+            return HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.TASK_COMPLETED,
+                cleaned.reason,
+                self.gate.digest,
+                cleaned.record.completion_id if cleaned.record is not None else "",
+            )
 
         claims = self._claims(deps.external_claims)
         state = HostedStateStore.for_root(self.root).load()
@@ -756,6 +776,18 @@ class HostedExecutionCoordinator:
             store=OrdinaryEffectStore.for_root(self.root),
             runner=deps.runner,
         )
+        if result.disposition is ManagedLifecycleDisposition.COMPLETE:
+            completion = record_completed_managed_task(
+                root=self.root,
+                handoff_digest=handoff.digest,
+                lifecycle_digest=result.digest,
+            )
+            return HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.TASK_COMPLETION_RECORDED,
+                completion.reason,
+                self.gate.digest,
+                completion.record.completion_id if completion.record is not None else "",
+            )
         return HostedExecutionAdvanceResult(
             HostedExecutionAdvanceDisposition.MANAGED_PR_ADVANCED,
             result.reason,
