@@ -382,7 +382,11 @@ class CodexProviderAdapterTest(unittest.TestCase):
                 self.assertIs(calls["start"]["sandbox"], Sandbox.workspace_write)
                 self.assertIs(calls["run_sandbox"], Sandbox.workspace_write)
                 self.assertIn("Do not commit, push", calls["prompt"])
-                self.assertIn("do not use\nnetwork access", calls["prompt"].lower())
+                self.assertIn("network access", calls["prompt"].lower())
+                self.assertIn(
+                    "Do not commit, push, create/merge PRs, mutate GitHub, or use network access.",
+                    CodexWorkerProvider.DEVELOPER_INSTRUCTIONS,
+                )
         finally:
             if prior is None:
                 sys.modules.pop("openai_codex", None)
