@@ -229,6 +229,13 @@ def advance_prepared_handoff(
     store: OrdinaryEffectStore,
     remote_factory: RemoteFactory,
 ) -> OrdinaryHandoffResult:
+    if task.attempt_id != workspace.scope.attempt_id:
+        raise ValueError("prepared task attempt_id does not match worker scope")
+    if task.branch != workspace.scope.branch:
+        raise ValueError("prepared task branch does not match worker scope")
+    if task.base_sha != workspace.scope.start_head:
+        raise ValueError("prepared task base does not match worker start_head")
+
     commit = workspace.commit(lane=task.lane, objective=task.objective)
     if not commit.commit_created and commit.head_sha == workspace.scope.start_head:
         return OrdinaryHandoffResult(
