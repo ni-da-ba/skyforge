@@ -336,6 +336,42 @@ class OrdinaryRemoteObservationTest(unittest.TestCase):
         self.assertEqual(observation.remote_identity, "comment:1234")
 
 
+class OrdinaryPreMutationIdentityTest(unittest.TestCase):
+    def test_create_pr_blocks_when_frozen_base_moved(self):
+        s = scope()
+        binding = OrdinaryEffectBinding(
+            scope=s,
+            identity=s.create_pr_identity(),
+        )
+
+        def runner(args, **kwargs):
+            self.assertEqual(
+                args,
+                ["gh", "api", f"repos/{s.repo}/commits/main", "--jq", ".sha"],
+            )
+            return FakeProcess(stdout=("d" * 40) + "\n")
+
+        adapter = GhGitOrdinaryEffectAdapter(
+            root=Path("."),
+            binding=binding,
+            runner=runner,
+        )
+        with self.assertRaisesRegex(OrdinaryRemoteUnavailable, "main moved"):
+            adapter.execute(binding.identity)
+
+    def test_hosted_runtime_does_not_import_ordinary_mutation_surface(self):
+        root = Path(__file__).resolve().parent
+        source = (root / "platform_v2_hosted_runtime.py").read_text(encoding="utf-8")
+        for forbidden in (
+            "ordinary_remote",
+            "ordinary_effect_executor",
+            "ordinary_effects",
+            "workspace_commit",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, source)
+
+
 class WorkspaceCommitAdapterTest(unittest.TestCase):
     def git(self, root: Path, *args: str) -> str:
         result = subprocess.run(
