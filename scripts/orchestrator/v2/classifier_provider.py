@@ -122,6 +122,16 @@ class ClassifierRunRecord:
     failure_kind: str = ""
     retry_after_seconds: int = 0
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.status, ClassifierRunStatus):
+            raise ValueError("status must be ClassifierRunStatus")
+        if self.retry_after_seconds < 0:
+            raise ValueError("retry_after_seconds cannot be negative")
+        if self.status is ClassifierRunStatus.COMPLETE and self.decision is None:
+            raise ValueError("COMPLETE classifier run requires typed decision")
+        if self.status is ClassifierRunStatus.COMPLETE and not self.raw_response_digest:
+            raise ValueError("COMPLETE classifier run requires raw response digest")
+
     @property
     def run_id(self) -> str:
         return canonical_digest({
@@ -271,13 +281,10 @@ def parse_classifier_response(text: str) -> ClassifierDecision:
     value = json.loads(raw[start : end + 1])
     if not isinstance(value, dict):
         raise ValueError("classifier JSON must be an object")
-    decision = ClassifierDecision.from_legacy_mapping(value)
-    # Parsing is not authority, but malformed execution proposals should never become
-    # durable "complete" proposals.
-    error = decision.execution_validation_error()
-    if error:
-        raise ValueError(error)
-    return decision
+    # Parsing establishes only a typed proposal. Repository-owned R5C4 admission is
+    # authoritative for whether the proposal is executable and may supply/narrow
+    # controller-owned scope that the classifier does not own.
+    return ClassifierDecision.from_legacy_mapping(value)
 
 
 class CodexClassifierProvider:
