@@ -42,8 +42,8 @@ class OrdinaryMutationScope:
     expected_head_sha: str
     pr_title: str
     pr_body: str
-    base_ref: str = "main"
     issue_number: int | None = None
+    base_ref: str = "main"
 
     def __post_init__(self) -> None:
         for name in (
@@ -81,7 +81,7 @@ class OrdinaryMutationScope:
             _positive_int(self.issue_number, "mutation scope issue_number")
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "attempt_id": self.attempt_id,
             "repo": self.repo,
             "base_sha": self.base_sha,
@@ -89,9 +89,14 @@ class OrdinaryMutationScope:
             "expected_head_sha": self.expected_head_sha,
             "pr_title": self.pr_title,
             "pr_body": self.pr_body,
-            "base_ref": self.base_ref,
             "issue_number": self.issue_number,
         }
+        # Preserve the exact legacy serialization/digest for ordinary main-scoped
+        # effects and durable handoffs. Non-main rehearsal scopes bind the target ref
+        # explicitly so it cannot be substituted without changing identity.
+        if self.base_ref != "main":
+            value["base_ref"] = self.base_ref
+        return value
 
     @classmethod
     def from_mapping(cls, raw: Any) -> "OrdinaryMutationScope":
