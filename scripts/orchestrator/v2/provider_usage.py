@@ -109,6 +109,23 @@ class ProviderUsageLedger:
             daily_limit=daily_limit,
         )
 
+    def budget_for_spend(
+        self,
+        *,
+        day: str,
+        kind: ProviderSpendKind,
+        spend_id: str,
+        daily_limit: int,
+    ) -> LocalBudgetObservation:
+        """Budget observation that does not charge the same durable reservation twice."""
+        if isinstance(daily_limit,bool) or not isinstance(daily_limit,int) or daily_limit < 1:
+            raise ValueError("daily_limit must be positive")
+        used=sum(
+            1 for r in self.reservations
+            if r.day == day and r.kind is kind and r.spend_id != spend_id
+        )
+        return LocalBudgetObservation(calls_used=used,daily_limit=daily_limit)
+
     def reserve(
         self,
         *,
