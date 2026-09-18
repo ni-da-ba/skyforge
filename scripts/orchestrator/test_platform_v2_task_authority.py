@@ -185,6 +185,15 @@ class HydrationTest(unittest.TestCase):
         self.assertEqual(result.disposition, TaskAuthorityDisposition.REJECTED)
         self.assertIn("changed", result.reason)
 
+    def test_whitespace_only_comment_edit_changes_exact_authority_identity(self):
+        edited = comment(
+            body=BODY + " ",
+            updated_at="2026-09-18T03:01:00Z",
+        )
+        result = self.hydrate(comment_value=edited)
+        self.assertEqual(result.disposition, TaskAuthorityDisposition.REJECTED)
+        self.assertIn("changed", result.reason)
+
     def test_deleted_comment_rejected(self):
         result = self.hydrate(comment_value=None)
         # None means default in helper, so invoke directly for deletion.
