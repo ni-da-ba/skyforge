@@ -26,9 +26,11 @@ if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
 fi
 
 SERVICE_USER="$(id -un)"
+SERVICE_GROUP="$(id -gn)"
 SERVICE_HOME="$HOME"
 VENV_PYTHON="$ROOT/.skyforge-orchestrator/venv/bin/python"
-ACTIVATION_EVIDENCE="${SKYFORGE_V2_ACTIVATION_EVIDENCE:-/etc/skyforge-orchestrator/platform-v2-activation.json}"
+ACTIVATION_EVIDENCE="${SKYFORGE_V2_ACTIVATION_EVIDENCE:-/var/lib/skyforge-orchestrator/platform-v2-activation.json}"
+ACTIVATION_DIR="$(dirname "$ACTIVATION_EVIDENCE")"
 LEGACY_UNIT="/etc/systemd/system/skyforge-orchestrator.service"
 V2_UNIT="/etc/systemd/system/skyforge-orchestrator-v2.service"
 
@@ -76,6 +78,16 @@ grep -q -- '--require-startup-reconcile-success' "$tmp_legacy"
 grep -q -- 'platform_v2_hosted_runtime.py' "$tmp_v2"
 grep -q -- '--enable-production-execution' "$tmp_v2"
 grep -Fq -- "$ACTIVATION_EVIDENCE" "$tmp_v2"
+
+sudo install -d -o root -g "$SERVICE_GROUP" -m 2750 "$ACTIVATION_DIR"
+read_probe="$ACTIVATION_DIR/.skyforge-read-probe.$$"
+sudo install -o root -g "$SERVICE_GROUP" -m 0640 /dev/null "$read_probe"
+if [[ ! -r "$read_probe" ]]; then
+  sudo rm -f "$read_probe"
+  echo "Activation evidence directory is not readable by $SERVICE_USER: $ACTIVATION_DIR" >&2
+  exit 1
+fi
+sudo rm -f "$read_probe"
 
 sudo install -m 0644 "$tmp_legacy" "$LEGACY_UNIT"
 sudo install -m 0644 "$tmp_v2" "$V2_UNIT"

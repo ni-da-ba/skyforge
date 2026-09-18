@@ -18,7 +18,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--activation-evidence",
         type=Path,
-        default=Path("/etc/skyforge-orchestrator/platform-v2-activation.json"),
+        default=Path("/var/lib/skyforge-orchestrator/platform-v2-activation.json"),
     )
     parser.add_argument(
         "--execute",

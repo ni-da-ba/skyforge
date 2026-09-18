@@ -27,6 +27,8 @@ The default CLI path is read-only. Mutating service operations require both the 
 - the legacy `skyforge-orchestrator.service`, now carrying the rollback startup-reconciliation guard;
 - the separate `skyforge-orchestrator-v2.service`, bound to an explicit activation-evidence path.
 
+Activation evidence lives by default at `/var/lib/skyforge-orchestrator/platform-v2-activation.json`. Staging creates that state directory as root-owned, setgid to the service group, and non-writable by the service account; the finalized evidence is `0640`. This keeps `/etc/skyforge-orchestrator` private for secrets while allowing the unprivileged v2 runtime to read root-authorized activation state.
+
 The staging helper requires an exact accepted-main SHA and a clean tracked checkout. It refuses to run while v2 is active, installs the unit files, runs only `daemon-reload`, leaves legacy running, and leaves v2 disabled.
 
 Staging therefore does **not** change writer authority.
