@@ -80,12 +80,14 @@ class LiveTruthRunner:
         actor="ni-da-ba",
         comment_body=BODY,
         comment_status="present",
+        comment_updated_at="2026-09-18T03:00:00Z",
         main=MAIN,
     ):
         self.issue_state = issue_state
         self.actor = actor
         self.comment_body = comment_body
         self.comment_status = comment_status
+        self.comment_updated_at = comment_updated_at
         self.main = main
         self.calls = []
 
@@ -117,11 +119,7 @@ class LiveTruthRunner:
                         "body": self.comment_body,
                         "user": {"login": self.actor},
                         "created_at": "2026-09-18T03:00:00Z",
-                        "updated_at": (
-                            "2026-09-18T03:01:00Z"
-                            if self.comment_body != BODY
-                            else "2026-09-18T03:00:00Z"
-                        ),
+                        "updated_at": self.comment_updated_at,
                     }
                 )
             )
@@ -171,7 +169,7 @@ class HostedTaskCaptureTest(unittest.TestCase):
             app = runtime(root)
             raw, headers = signed(task_payload())
             with mock.patch.object(
-                app.task_authority_store,
+                TaskAuthorityEventStore,
                 "capture",
                 side_effect=StateStoreError("fixture persistence failure"),
             ):
@@ -300,7 +298,10 @@ class HostedDryPreflightTest(unittest.TestCase):
 
     def test_edited_deleted_closed_and_untrusted_live_truth_fail_closed(self):
         cases = [
-            LiveTruthRunner(comment_body=BODY + " "),
+            LiveTruthRunner(
+                comment_body=BODY + " ",
+                comment_updated_at="2026-09-18T03:01:00Z",
+            ),
             LiveTruthRunner(comment_status="deleted"),
             LiveTruthRunner(issue_state="closed"),
             LiveTruthRunner(actor="mallory"),
