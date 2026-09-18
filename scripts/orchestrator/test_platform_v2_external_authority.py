@@ -10,6 +10,7 @@ from v2.external import (
     ClaimRetentionDisposition,
     ControllerIssueOwner,
     ExternalClaimRequest,
+    ExternalIssueState,
     ExternalPREventDisposition,
     ExternalProducerClaim,
     classify_claim_admission,
@@ -126,14 +127,32 @@ class ExternalClaimRetirementParityTest(unittest.TestCase):
         decision = classify_claim_retention(
             claim(pr=548),
             SourcePRState.UNKNOWN,
-            remote_observation_available=False,
+            remote_pr_observation_available=False,
         )
         self.assertEqual(decision.disposition, ClaimRetentionDisposition.KEEP)
         self.assertIn("fail-closed", decision.reason)
 
-    def test_unbound_claim_requires_explicit_release(self) -> None:
-        decision = classify_claim_retention(claim())
+    def test_unbound_claim_retires_when_governing_issue_closes(self) -> None:
+        decision = classify_claim_retention(
+            claim(),
+            remote_issue_state=ExternalIssueState.CLOSED,
+        )
+        self.assertEqual(decision.disposition, ClaimRetentionDisposition.RETIRE)
+
+    def test_unbound_open_issue_claim_is_kept(self) -> None:
+        decision = classify_claim_retention(
+            claim(),
+            remote_issue_state=ExternalIssueState.OPEN,
+        )
         self.assertEqual(decision.disposition, ClaimRetentionDisposition.KEEP)
+
+    def test_unbound_issue_lookup_failure_keeps_claim_fail_closed(self) -> None:
+        decision = classify_claim_retention(
+            claim(),
+            remote_issue_observation_available=False,
+        )
+        self.assertEqual(decision.disposition, ClaimRetentionDisposition.KEEP)
+        self.assertIn("fail-closed", decision.reason)
 
 
 class ExternalPREventFilterParityTest(unittest.TestCase):
