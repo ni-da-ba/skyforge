@@ -63,6 +63,16 @@ class ObjectiveRequest:
             "target": self.target,
         }
 
+    @classmethod
+    def from_mapping(cls, raw: Any) -> "ObjectiveRequest":
+        if not isinstance(raw, Mapping):
+            raise ValueError("objective request must be an object")
+        return cls(
+            raw_text=raw.get("raw_text"),
+            intent=ObjectiveIntent(str(raw.get("intent") or "")),
+            target=raw.get("target"),
+        )
+
 
 @dataclass(frozen=True)
 class ObjectiveCandidateTask:
@@ -83,6 +93,22 @@ class ObjectiveCandidateTask:
             "stop_boundary": self.stop_boundary,
         }
 
+    @classmethod
+    def from_mapping(cls, raw: Any) -> "ObjectiveCandidateTask":
+        if not isinstance(raw, Mapping):
+            raise ValueError("objective candidate task must be an object")
+        issue = raw.get("issue_number")
+        if isinstance(issue, bool) or not isinstance(issue, int) or issue <= 0:
+            raise ValueError("objective candidate issue_number must be positive integer")
+        return cls(
+            roadmap_id=str(raw.get("roadmap_id") or ""),
+            node_id=str(raw.get("node_id") or ""),
+            lane=str(raw.get("lane") or ""),
+            issue_number=issue,
+            objective=str(raw.get("objective") or ""),
+            stop_boundary=str(raw.get("stop_boundary") or ""),
+        )
+
 
 @dataclass(frozen=True)
 class ObjectiveHumanGate:
@@ -98,6 +124,18 @@ class ObjectiveHumanGate:
             "lane": self.lane,
             "message": self.message,
         }
+
+    @classmethod
+    def from_mapping(cls, raw: Any) -> "ObjectiveHumanGate":
+        if not isinstance(raw, Mapping):
+            raise ValueError("objective human gate must be an object")
+        lane = raw.get("lane")
+        return cls(
+            roadmap_id=str(raw.get("roadmap_id") or ""),
+            node_id=str(raw.get("node_id") or ""),
+            lane=None if lane is None else str(lane),
+            message=str(raw.get("message") or ""),
+        )
 
 
 @dataclass(frozen=True)
@@ -126,6 +164,24 @@ class ObjectiveCompileResult:
             "human_gate": self.human_gate.as_dict() if self.human_gate else None,
             "executable_task_authority": False,
         }
+
+    @classmethod
+    def from_mapping(cls, raw: Any) -> "ObjectiveCompileResult":
+        if not isinstance(raw, Mapping) or raw.get("schema_version") != 1:
+            raise ValueError("invalid objective compile result")
+        disposition = ObjectiveCompileDisposition(str(raw.get("disposition") or ""))
+        request_raw = raw.get("request")
+        task_raw = raw.get("candidate_task")
+        gate_raw = raw.get("human_gate")
+        if raw.get("executable_task_authority") is not False:
+            raise ValueError("objective compile result must remain non-authoritative")
+        return cls(
+            disposition=disposition,
+            request=None if request_raw is None else ObjectiveRequest.from_mapping(request_raw),
+            reason=str(raw.get("reason") or ""),
+            candidate_task=None if task_raw is None else ObjectiveCandidateTask.from_mapping(task_raw),
+            human_gate=None if gate_raw is None else ObjectiveHumanGate.from_mapping(gate_raw),
+        )
 
     @property
     def digest(self) -> str:
