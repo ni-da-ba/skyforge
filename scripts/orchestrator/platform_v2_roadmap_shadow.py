@@ -222,7 +222,6 @@ def collect_roadmap_shadow(
             "projected_blocked_nodes": list(decision.projected_blocked_nodes),
             "digest": decision.digest,
         },
-        "accepted_manifest": manifest_payload,
     }
 
 
