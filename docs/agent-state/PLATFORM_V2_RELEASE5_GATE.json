@@ -33,8 +33,19 @@
     "human_gate_blocked_node": "dr-human-exploration-rereview"
   },
   "pre_cutover_checkpoint": {
-    "status": "PENDING",
-    "identity": null
+    "status": "PASS",
+    "identity": "pre-v2-cutover-20260917T2115CDT",
+    "accepted_main_sha": "4f5ce6ecab91e86b6bc4ff346a31d07e8ce04314",
+    "live_legacy_runtime_sha": "c7ff98a3b6a1250f1ae7f349239ac0c25dd13ea7",
+    "quiescent_state_sha256": "64ff62f20063d9d8873e1a13d27345cdfcc182e590e6aecc41d41d27094a2f37",
+    "rollback_paused_state_sha256": "ec368a4d7cd730452cea154d009c9cac38639132c9d3bfc00b117fd222cf2e57",
+    "archive_sha256": "1245ed5976e3c82e5616757b1756188adae2b680d0cb5dee38ba1045c4a6e6e7",
+    "git_bundle_sha256": "bdfed8f699478db8f2edbe27c34896fa39c559dceb94be8b9ec2666039c9019e",
+    "git_bundle_size_bytes": 10009116,
+    "restore_main_sha": "4f5ce6ecab91e86b6bc4ff346a31d07e8ce04314",
+    "digitalocean_snapshot_image_id": 245929672,
+    "digitalocean_snapshot_action_id": 3415118353,
+    "off_droplet_bundle_copy": "draft GitHub release asset platform-v2-pre-cutover-preservation-20260917"
   },
   "hosted_v2_runtime": {
     "accepted": false,
@@ -54,14 +65,16 @@
       "V2",
       "NONE",
       "LEGACY"
-    ]
+    ],
+    "operational_mechanism_ready": false,
+    "observation": "The skyforge service account cannot sudo/systemctl stop the production service. Actual authority switch requires a separately accepted privileged revocation mechanism; no v2 writer may activate until legacy mutation authority is visibly revoked."
   },
   "state_projection_complete": true,
   "blockers": [
     "legacy runtime checkout does not match accepted cutover main",
-    "pre-v2-cutover rollback checkpoint is not PASS",
     "hosted Platform-v2 production runtime is not accepted",
-    "webhook/control ingress handoff is not defined"
+    "webhook/control ingress handoff is not defined",
+    "privileged legacy-writer revocation mechanism is not operational"
   ],
-  "note": "Active external claims #613 and #754 plus the DR-70 human re-review gate are preserved projected authority, not migration cleanup targets. R5A grants no production mutation authority."
+  "note": "R5A rollback checkpoint is PASS and state projection preserves active #613/#754 authority plus the DR-70 human re-review gate. Production cutover remains BLOCKED; ordinary v2 mutation authority is false."
 }
