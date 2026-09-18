@@ -126,6 +126,11 @@ from .fairness import (
     select_quiescent_dispatch_batch,
 )
 from .fence import FenceBusyError, WriterFence
+from .hosted_classifier import (
+    HostedClassifierDisposition,
+    HostedClassifierResult,
+    advance_hosted_classifier_proposal,
+)
 from .hosted_task_plan import (
     HOSTED_TASK_PLAN_BACKUP_RELATIVE_PATH,
     HOSTED_TASK_PLAN_RELATIVE_PATH,
@@ -353,6 +358,8 @@ __all__ = [
     "HostedIngressState",
     "HOSTED_TASK_PLAN_BACKUP_RELATIVE_PATH",
     "HOSTED_TASK_PLAN_RELATIVE_PATH",
+    "HostedClassifierDisposition",
+    "HostedClassifierResult",
     "HostedTaskDispatchPlan",
     "HostedTaskPlanDisposition",
     "HostedTaskPlanLedger",
@@ -469,6 +476,7 @@ __all__ = [
     "WriterFence",
     "advance_canary",
     "advance_claimed_task_preflight",
+    "advance_hosted_classifier_proposal",
     "advance_ordinary_pipeline",
     "advance_writer_authority",
     "apply_roadmap_decision",
