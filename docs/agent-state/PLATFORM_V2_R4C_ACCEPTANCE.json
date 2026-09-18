@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "parent_issue": 767,
+  "canary_issue": 833,
+  "acceptance_issue": 841,
+  "live_pr": 840,
+  "frozen_base_sha": "b05c5c0fe59202d364bbff947fd8fcce62fffcda",
+  "candidate_sha": "914124d9aa03c449f4d5a3b5effca4cefcb8cba9",
+  "merge_commit_sha": "579ad221371f4f2b0ffb585fea4a253d06ec03f4",
+  "branch": "platform/v2-canary/833-first-live",
+  "authorized_path": "docs/operations/platform-v2-canary/r4c-first-live-canary.md",
+  "task_spec_hash": "5175d82968cb114e1186c2398ecb23aa5a91c744b35786ac44eb5bfb0915f038",
+  "attempt_id": "6d5cfa98b0cfb94d95a736ee5ec7031eea422d0c45c64a7ce93b74a8afc7c14d",
+  "create_pr_effect": {
+    "effect_id": "d6febc29d2f379938f88014b657455fafad2cd7078a1e1c158f57d23c5737ab5",
+    "remote_identity": "pr:840",
+    "status": "COMPLETE"
+  },
+  "build": {
+    "run_id": 35294692866,
+    "context": "build",
+    "conclusion": "success",
+    "sha": "914124d9aa03c449f4d5a3b5effca4cefcb8cba9"
+  },
+  "merge_pr_effect": {
+    "effect_id": "30f293d80070ab4606c1f7345cce1caa6a2ac5e3cbd774bc01104c834202831e",
+    "remote_identity": "merge:pr:840@914124d9aa03c449f4d5a3b5effca4cefcb8cba9",
+    "status": "COMPLETE"
+  },
+  "durable_state_digest": "dd46ffed190263fc7888d49871c11081adbb1702d1fdd36b98f06e08957680fe",
+  "durable_state_file_sha256": "088ecc64e8e280a11282adbe18f8f6bf7370abefe42be3cb649b0614e6636221",
+  "create_result_digest": "1727202705bc3d80eb9f1216ff0cab0ef6f18d6263db5c3f1f85deb50c34aa1c",
+  "merge_result_digest": "8773a96d29a797b2e5737d803ddcbad2d3e67f867cdccf67aa73c505ab8b91e9",
+  "completed_noop_result_digest": "cba0632e864a52ad5f2df78e636978ca01adbb3176544b3115dc2b85885400c1",
+  "writer_fence_released": true,
+  "legacy_service_active": true,
+  "mutation_gate_disabled_after_acceptance": true,
+  "broader_authority_granted": false
+}
