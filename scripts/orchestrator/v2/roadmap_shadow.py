@@ -49,6 +49,8 @@ class ShadowRoadmapNode:
     priority: int
     max_runs: int
     prerequisites: tuple[str, ...]
+    objective_hint: str | None = None
+    stop_boundary: str | None = None
     human_message: str | None = None
 
 
@@ -56,6 +58,7 @@ class ShadowRoadmapNode:
 class ShadowRoadmapManifest:
     roadmap_id: str
     enabled: bool
+    max_auto_claims_per_utc_day: int
     nodes: tuple[ShadowRoadmapNode, ...]
     fingerprint: str
 
@@ -102,7 +105,13 @@ class ShadowRoadmapManifest:
             prereq_raw = raw.get("prerequisites") or []
             if not isinstance(prereq_raw, list) or any(not isinstance(x, str) or not x.strip() for x in prereq_raw):
                 raise ValueError(f"{node_id}.prerequisites must be non-empty strings")
+            objective = str(raw.get("objective_hint") or "").strip() or None
+            stop_boundary = str(raw.get("stop_boundary") or "").strip() or None
             human = str(raw.get("human_message") or "").strip() or None
+            if kind is RoadmapNodeKind.TASK and (not objective or not stop_boundary):
+                raise ValueError(
+                    f"{node_id}: task objective_hint and stop_boundary are required"
+                )
             if kind is RoadmapNodeKind.GATE and not human:
                 raise ValueError(f"{node_id}: gate human_message is required")
             nodes.append(
@@ -114,6 +123,8 @@ class ShadowRoadmapManifest:
                     priority=priority,
                     max_runs=max_runs,
                     prerequisites=tuple(x.strip() for x in prereq_raw),
+                    objective_hint=objective,
+                    stop_boundary=stop_boundary,
                     human_message=human,
                 )
             )
@@ -130,9 +141,14 @@ class ShadowRoadmapManifest:
         encoded = json.dumps(
             dict(payload), sort_keys=True, separators=(",", ":")
         ).encode("utf-8")
+        max_claims = _positive_int(
+            payload.get("max_auto_claims_per_utc_day", 1),
+            "max_auto_claims_per_utc_day",
+        )
         return cls(
             roadmap_id=roadmap_id,
             enabled=bool(payload.get("enabled", True)),
+            max_auto_claims_per_utc_day=max_claims,
             nodes=tuple(nodes),
             fingerprint=hashlib.sha256(encoded).hexdigest(),
         )
