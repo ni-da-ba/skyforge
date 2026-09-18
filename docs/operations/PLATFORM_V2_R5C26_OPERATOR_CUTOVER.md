@@ -1,6 +1,6 @@
 # Platform v2 R5C26 — Privileged operator cutover / rollback
 
-Status: **source/test package only; no live production writer transition performed**
+Status: **production-proven; live Platform-v2 writer handoff completed on 2026-09-18**
 
 Parent migration: #767
 Tranche: #903
@@ -100,6 +100,33 @@ The legacy runtime now supports `--require-startup-reconcile-success`. When set,
 
 If rollback starts legacy but its reconciliation/health proof fails, the operator tool stops legacy again and returns to `NONE`.
 
+## Protected task-authority transfer during upgrades
+
+A post-cutover rollback/redeploy can temporarily restore the paused legacy controller. Startup reconciliation may then rediscover a task comment that is already owned by Platform-v2. Ordinary terminal-gate cleanup must **not** discard that protected authority.
+
+`transfer-authority` is the explicit operator primitive for this boundary. It does not mark work complete and it does not create Platform-v2 authority. It only prevents the paused legacy controller from executing one exact task event while preserving source provenance for a later signed-webhook recapture.
+
+Preflight requires:
+
+- legacy loaded, active, healthy, and paused;
+- Platform-v2 loaded and inactive;
+- no pending legacy worker or decision;
+- an exact canonical event key, task issue number, and source comment ID match;
+- the target is the only protected authority pending;
+- the target has not already been marked completed.
+
+Execution preserves the single-writer sequence:
+
+`LEGACY(paused) -> NONE -> retire exact authority for V2 transfer -> LEGACY(paused + reconciled)`
+
+At the `NONE` boundary the operator updates both legacy `state.json` and `state.json.bak`, preserving their ownership/mode. The exact event key is added to `retired_event_keys`, removed from `pending_events`, and recorded under `platform_v2_authority_transfers` with `completed=false`, source issue/comment identity, and a signal-text digest. It is never added to `completed_authority_event_keys`.
+
+After legacy restarts, the operator requires successful startup reconciliation, `paused=true`, no in-flight worker/decision, no protected authority reappearance, the transferred key still retired, and the key still absent from completed authority. If that proof fails, legacy is stopped again and authority returns to `NONE`.
+
+A repeated command for an already-recorded transfer is idempotent after the same post-transfer health proof. A distinct newer signed task comment can later supersede failed/reclassified V2 work through the normal Platform-v2 revision path.
+
+The transfer record preserves the GitHub issue/comment source identity needed to locate/redeliver the original signed webhook. The operator must still use a real signed GitHub delivery (or a newer signed task revision) to create V2 task authority; the transfer command never fabricates ingress.
+
 ## DR-70
 
 DR-70 remains **deferred**, not passed.
@@ -133,7 +160,30 @@ sudo python3 scripts/orchestrator/platform_v2_operator_cutover.py cutover \
   --execute
 ```
 
-Rollback uses `rollback --execute`. Do not run either mutating command merely to test the package.
+Rollback uses `rollback --execute`. It no longer requires a valid activation template; emergency restoration remains independent of review-artifact validity.
+
+Read-only protected-authority transfer preflight:
+
+```bash
+sudo python3 scripts/orchestrator/platform_v2_operator_cutover.py transfer-authority \
+  --root /home/skyforge/skyforge \
+  --event-key sha256:<exact-durable-event-id> \
+  --issue-number <task-issue-number> \
+  --source-id <github-comment-id>
+```
+
+Execute only after that preflight is clean:
+
+```bash
+sudo python3 scripts/orchestrator/platform_v2_operator_cutover.py transfer-authority \
+  --root /home/skyforge/skyforge \
+  --event-key sha256:<exact-durable-event-id> \
+  --issue-number <task-issue-number> \
+  --source-id <github-comment-id> \
+  --execute
+```
+
+Do not run mutating operator commands merely to test the package.
 
 ## Acceptance meaning
 
