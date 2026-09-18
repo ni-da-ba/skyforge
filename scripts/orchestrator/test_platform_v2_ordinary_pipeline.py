@@ -371,8 +371,19 @@ class R5C6IsolationTest(unittest.TestCase):
         source = (root / "platform_v2_hosted_runtime.py").read_text(encoding="utf-8")
         self.assertNotIn("ordinary_pipeline", source)
         self.assertNotIn("advance_ordinary_pipeline", source)
-        self.assertIn('"mutation_authority": False', source)
-        self.assertIn('"ordinary_v2_mutation_authority": False', source)
+        self.assertIn("production_execution_requested: bool = False", source)
+        self.assertIn(
+            '"mutation_authority": self.production_execution_enabled',
+            source,
+        )
+        self.assertIn(
+            '"ordinary_v2_mutation_authority": self.production_execution_enabled',
+            source,
+        )
+        self.assertIn(
+            "Platform v2 production execution is disabled for this hosted process",
+            source,
+        )
 
 
 if __name__ == "__main__":
