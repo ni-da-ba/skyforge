@@ -137,6 +137,49 @@ class WorkerWorkspaceManager:
             )
         return WorkerWorkspace(self.root, worktree, spec.branch, spec.base_sha)
 
+    def verify_recovery_identity(
+        self,
+        spec: FrozenWorkerSpec,
+        worktree: Path,
+    ) -> WorkerWorkspace:
+        """Verify branch/base/path identity without requiring a clean worktree.
+
+        Interrupted or completed providers may have durable uncommitted edits. Recovery
+        must never reset or discard them merely to prove workspace identity.
+        """
+        expected = self.expected_path(spec)
+        actual = Path(worktree).resolve()
+        if actual != expected:
+            raise RuntimeError("worker worktree path does not match deterministic identity")
+        if actual == self.root:
+            raise RuntimeError("controller checkout cannot be worker worktree")
+        if not actual.exists():
+            raise RuntimeError("durable worker worktree is missing")
+
+        probe = self._run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            spec=spec,
+            cwd=actual,
+            check=False,
+        )
+        if probe.returncode != 0 or probe.stdout.strip().lower() != "true":
+            raise RuntimeError("durable worker path is not a Git worktree")
+        branch = self._run(
+            ["git", "branch", "--show-current"],
+            spec=spec,
+            cwd=actual,
+        ).stdout.strip()
+        if branch != spec.branch:
+            raise RuntimeError("durable worker worktree branch identity drifted")
+        head = self._run(
+            ["git", "rev-parse", "HEAD"],
+            spec=spec,
+            cwd=actual,
+        ).stdout.strip()
+        if head != spec.base_sha:
+            raise RuntimeError("durable worker worktree HEAD drifted from frozen base")
+        return WorkerWorkspace(self.root, actual, spec.branch, spec.base_sha)
+
     def prepare(self, spec: FrozenWorkerSpec) -> WorkerWorkspace:
         if not self.root.is_dir():
             raise RuntimeError("controller repository root does not exist")

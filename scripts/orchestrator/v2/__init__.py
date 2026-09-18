@@ -68,6 +68,11 @@ from .domain import (
     TransitionPlan,
     decide_mechanical,
 )
+from .dormant_worker import (
+    DormantWorkerDisposition,
+    DormantWorkerResult,
+    advance_dormant_admitted_worker,
+)
 from .effects import (
     EffectKind,
     EffectReconcileDecision,
@@ -331,6 +336,8 @@ __all__ = [
     "ClaimReleaseDisposition",
     "ClaimRetentionDecision",
     "ClaimRetentionDisposition",
+    "DormantWorkerDisposition",
+    "DormantWorkerResult",
     "CoreDecision",
     "EffectKind",
     "EffectReconcileDecision",
@@ -494,6 +501,7 @@ __all__ = [
     "WorkerTier",
     "WriterFence",
     "advance_canary",
+    "advance_dormant_admitted_worker",
     "advance_claimed_task_preflight",
     "advance_hosted_classifier_proposal",
     "advance_hosted_task_admission",
