@@ -277,6 +277,7 @@ def rehearse_cutover_and_rollback(
     *,
     readiness_accepted: bool = True,
     fail_legacy_revocation: bool = False,
+    abort_after_legacy_revocation: bool = False,
     fail_v2_activation: bool = False,
 ) -> CutoverRehearsalEvidence:
     """Exercise real fixture processes and the accepted writer transition contract."""
@@ -285,6 +286,8 @@ def rehearse_cutover_and_rollback(
         raise ValueError("readiness_accepted must be boolean")
     if not isinstance(fail_legacy_revocation, bool):
         raise ValueError("fail_legacy_revocation must be boolean")
+    if not isinstance(abort_after_legacy_revocation, bool):
+        raise ValueError("abort_after_legacy_revocation must be boolean")
     if not isinstance(fail_v2_activation, bool):
         raise ValueError("fail_v2_activation must be boolean")
 
@@ -366,6 +369,47 @@ def rehearse_cutover_and_rollback(
             detail="legacy process is dead before v2 activation attempt",
         )
 
+        if abort_after_legacy_revocation:
+            record(
+                "ABORT_AT_WRITER_NONE",
+                detail="injected abort after legacy revocation and before v2 activation",
+            )
+            recovery_from_none = True
+            rollback_transition = advance_writer_authority(
+                authority,
+                WriterAuthorityAction.ACTIVATE_LEGACY,
+                readiness_accepted=readiness_accepted,
+            )
+            restored = supervisor.start(RehearsalRole.LEGACY)
+            authority = rollback_transition.after
+            rollback_legacy = True
+            record(
+                "ROLLBACK_LEGACY_READY",
+                role=RehearsalRole.LEGACY,
+                pid=restored.process.pid,
+                transition=rollback_transition,
+                detail="legacy restored from explicit NONE after pre-v2 abort",
+            )
+            return CutoverRehearsalEvidence(
+                RehearsalDisposition.ACCEPTED,
+                "abort at explicit NONE rolled back to legacy without v2 start",
+                authority,
+                tuple(events),
+                False,
+                True,
+                no_overlap,
+                True,
+            )
+
+        # Purely validate the NONE -> V2 authority transition before starting the
+        # v2 fixture. A rejected readiness predicate therefore cannot start even a
+        # disposable would-be v2 writer.
+        v2_transition = advance_writer_authority(
+            authority,
+            WriterAuthorityAction.ACTIVATE_V2,
+            readiness_accepted=readiness_accepted,
+        )
+
         if fail_v2_activation:
             try:
                 supervisor.start(RehearsalRole.V2, fail_start=True)
@@ -376,19 +420,19 @@ def rehearse_cutover_and_rollback(
                     detail=str(exc),
                 )
                 recovery_from_none = True
-                restored = supervisor.start(RehearsalRole.LEGACY)
-                transition = advance_writer_authority(
+                rollback_transition = advance_writer_authority(
                     authority,
                     WriterAuthorityAction.ACTIVATE_LEGACY,
                     readiness_accepted=readiness_accepted,
                 )
-                authority = transition.after
+                restored = supervisor.start(RehearsalRole.LEGACY)
+                authority = rollback_transition.after
                 rollback_legacy = True
                 record(
                     "ROLLBACK_LEGACY_READY",
                     role=RehearsalRole.LEGACY,
                     pid=restored.process.pid,
-                    transition=transition,
+                    transition=rollback_transition,
                     detail="legacy restored from explicit NONE after failed v2 activation",
                 )
                 return CutoverRehearsalEvidence(
@@ -406,11 +450,7 @@ def rehearse_cutover_and_rollback(
             no_overlap = False
             raise RuntimeError("unexpected active process before v2 start")
         v2 = supervisor.start(RehearsalRole.V2)
-        transition = advance_writer_authority(
-            authority,
-            WriterAuthorityAction.ACTIVATE_V2,
-            readiness_accepted=readiness_accepted,
-        )
+        transition = v2_transition
         authority = transition.after
         forward_v2 = True
         record(
@@ -441,12 +481,12 @@ def rehearse_cutover_and_rollback(
         if supervisor.active is not None:
             no_overlap = False
             raise RuntimeError("unexpected active process before legacy rollback")
-        restored = supervisor.start(RehearsalRole.LEGACY)
         transition = advance_writer_authority(
             authority,
             WriterAuthorityAction.ACTIVATE_LEGACY,
             readiness_accepted=readiness_accepted,
         )
+        restored = supervisor.start(RehearsalRole.LEGACY)
         authority = transition.after
         rollback_legacy = True
         recovery_from_none = True
