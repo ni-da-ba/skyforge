@@ -73,10 +73,13 @@ class ProviderUsageTest(unittest.TestCase):
             spend_id="request:a",
             daily_limit=1,
         )
-        self.assertEqual(
-            ledger.budget(day="2026-09-18",kind=ProviderSpendKind.CLASSIFIER,daily_limit=1).calls_remaining,
-            0,
+        spent=ledger.budget(
+            day="2026-09-18",
+            kind=ProviderSpendKind.CLASSIFIER,
+            daily_limit=1,
         )
+        self.assertEqual(spent.calls_used,1)
+        self.assertEqual(spent.daily_limit,1)
         self.assertEqual(
             ledger.budget(day="2026-09-19",kind=ProviderSpendKind.CLASSIFIER,daily_limit=1).calls_used,
             0,
