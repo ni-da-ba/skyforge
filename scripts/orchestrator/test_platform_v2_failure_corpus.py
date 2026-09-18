@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 import tempfile
@@ -247,6 +248,43 @@ class Release4FailureCorpusManifestTest(unittest.TestCase):
         "malformed_corrupt_local_state",
         "pending_remote_effect_after_restart",
     }
+
+    def test_failure_corpus_evidence_references_resolve(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        payload = json.loads(
+            (root / "docs/agent-state/PLATFORM_V2_FAILURE_CORPUS.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        for row in payload["scenarios"]:
+            for reference in row["evidence"]:
+                with self.subTest(scenario=row["id"], reference=reference):
+                    parts = reference.split("::")
+                    path = root / parts[0]
+                    self.assertTrue(path.is_file(), reference)
+                    source = path.read_text(encoding="utf-8")
+
+                    if parts[0].endswith(".py"):
+                        self.assertEqual(len(parts), 3, reference)
+                        class_name, method_name = parts[1], parts[2]
+                        tree = ast.parse(source)
+                        matches = [
+                            node
+                            for node in tree.body
+                            if isinstance(node, ast.ClassDef)
+                            and node.name == class_name
+                        ]
+                        self.assertEqual(len(matches), 1, reference)
+                        methods = {
+                            node.name
+                            for node in matches[0].body
+                            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                        }
+                        self.assertIn(method_name, methods, reference)
+                    else:
+                        self.assertEqual(len(parts), 2, reference)
+                        self.assertIn(parts[1], source, reference)
 
     def test_machine_readable_failure_corpus_is_complete_and_all_pass(self) -> None:
         root = Path(__file__).resolve().parents[2]
