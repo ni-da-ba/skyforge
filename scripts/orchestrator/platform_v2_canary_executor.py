@@ -29,6 +29,7 @@ from v2.ownership import OwnershipToken
 
 PR_VIEW_FIELDS = "number,state,mergedAt,headRefName,headRefOid,baseRefName,title,body,statusCheckRollup,files"
 PR_LIST_FIELDS = "number,state,mergedAt,headRefName,headRefOid,baseRefName,title,body"
+REQUIRED_CI_CONTEXTS = ("build",)
 
 
 def _repo(value: str) -> str:
@@ -81,29 +82,40 @@ def validate_gh_command(
 
 
 def _ci_state(checks: Any) -> CIState:
-    if not isinstance(checks, list) or not checks:
-        return CIState.UNKNOWN
-    active = False
-    bad = False
-    success = False
+    if not isinstance(checks, list):
+        raise ValueError("statusCheckRollup must be a list")
+
+    observed: dict[str, tuple[str, str, str]] = {}
     for raw in checks:
         if not isinstance(raw, Mapping):
             raise ValueError("statusCheckRollup entry must be an object")
-        status = str(raw.get("status") or "").upper()
-        conclusion = str(raw.get("conclusion") or "").upper()
-        if status != "COMPLETED":
-            active = True
-        elif conclusion in {"FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE"}:
-            bad = True
-        elif conclusion == "SUCCESS":
-            success = True
-    if active:
-        return CIState.PENDING
-    if bad:
-        return CIState.FAIL
-    if success:
-        return CIState.PASS
-    return CIState.UNKNOWN
+        name = str(raw.get("name") or raw.get("context") or "").strip()
+        if not name:
+            continue
+        observed[name] = (
+            str(raw.get("status") or "").upper(),
+            str(raw.get("conclusion") or "").upper(),
+            str(raw.get("state") or "").upper(),
+        )
+
+    for required in REQUIRED_CI_CONTEXTS:
+        if required not in observed:
+            return CIState.UNKNOWN
+        status, conclusion, state = observed[required]
+        if state in {"ERROR", "FAILURE"} or conclusion in {
+            "FAILURE",
+            "CANCELLED",
+            "TIMED_OUT",
+            "ACTION_REQUIRED",
+            "STARTUP_FAILURE",
+        }:
+            return CIState.FAIL
+        if state in {"PENDING", "EXPECTED"} or (status and status != "COMPLETED"):
+            return CIState.PENDING
+        if not (state == "SUCCESS" or (status == "COMPLETED" and conclusion == "SUCCESS")):
+            return CIState.UNKNOWN
+
+    return CIState.PASS
 
 
 class GhCanaryRemote(CanaryRemoteAdapter):
