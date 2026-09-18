@@ -279,6 +279,26 @@ class ExternalProducerClaimRuntimeTests(unittest.TestCase):
             "bound_pr_closed",
         )
 
+    def test_unbound_claim_auto_retires_on_governing_issue_closure(self) -> None:
+        fake = _FakeOrchestrator()
+        fake.state.data["external_producer_claims"]["547"] = {
+            "state": "active",
+            "issue_number": 547,
+            "claimed_by": "ni-da-ba",
+        }
+        with mock.patch.object(
+            runtime.core,
+            "_json_cmd",
+            return_value={"state": "closed"},
+        ):
+            retired = runtime._prune_external_claims(fake)
+        self.assertEqual(retired, 1)
+        self.assertNotIn("547", fake.state.data["external_producer_claims"])
+        self.assertEqual(
+            fake.state.data["last_external_producer_auto_retire"]["retired"][0]["reason"],
+            "issue_closed",
+        )
+
     def test_remote_failure_keeps_claim_fail_closed(self) -> None:
         fake = _FakeOrchestrator()
         fake.state.data["external_producer_claims"]["547"] = {
