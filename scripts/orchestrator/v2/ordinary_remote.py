@@ -80,9 +80,10 @@ class OrdinaryCommandValidator:
     def allowed(self) -> set[tuple[str, ...]]:
         scope = self.scope
         encoded_branch = quote(scope.branch, safe="")
+        encoded_base = quote(scope.base_ref, safe="")
         commands: set[tuple[str, ...]] = {
             (
-                "gh", "api", f"repos/{scope.repo}/commits/main",
+                "gh", "api", f"repos/{scope.repo}/commits/{encoded_base}",
                 "--jq", ".sha",
             ),
             (
@@ -91,7 +92,7 @@ class OrdinaryCommandValidator:
             ),
             (
                 "gh", "pr", "list", "--repo", scope.repo,
-                "--head", scope.branch, "--base", "main", "--state", "all",
+                "--head", scope.branch, "--base", scope.base_ref, "--state", "all",
                 "--json", PR_LIST_FIELDS, "--jq=.",
             ),
             (
@@ -100,7 +101,7 @@ class OrdinaryCommandValidator:
             ),
             (
                 "gh", "pr", "create", "--repo", scope.repo,
-                "--draft", "--base", "main", "--head", scope.branch,
+                "--draft", "--base", scope.base_ref, "--head", scope.branch,
                 "--title", scope.pr_title, "--body", scope.pr_body,
             ),
         }
@@ -127,7 +128,7 @@ class OrdinaryCommandValidator:
                 (
                     "gh", "api",
                     f"repos/{scope.repo}/issues/{scope.issue_number}/comments?per_page=100",
-                    "--paginate", "--slurp",
+                    "--paginate", "--jq", ".[]",
                 )
             )
             commands.add(
@@ -181,7 +182,11 @@ class GhGitOrdinaryEffectAdapter:
             )
         except subprocess.CalledProcessError as exc:
             stderr = str(exc.stderr or "")
-            if allow_not_found and ("HTTP 404" in stderr or "Not Found" in stderr):
+            if allow_not_found and (
+                "HTTP 404" in stderr
+                or "Not Found" in stderr
+                or "No commit found for SHA" in stderr
+            ):
                 return None
             raise OrdinaryRemoteUnavailable(
                 f"command failed without safe exact result: {stderr[:500]}"
@@ -190,16 +195,17 @@ class GhGitOrdinaryEffectAdapter:
             raise OrdinaryRemoteUnavailable(str(exc)) from exc
         return result.stdout.strip()
 
-    def _current_main(self) -> str:
+    def _current_base(self) -> str:
         scope = self.binding.scope
+        encoded = quote(scope.base_ref, safe="")
         output = self._run(
             [
-                "gh", "api", f"repos/{scope.repo}/commits/main",
+                "gh", "api", f"repos/{scope.repo}/commits/{encoded}",
                 "--jq", ".sha",
             ]
         )
         if output is None or len(output) != 40:
-            raise OrdinaryRemoteUnavailable("current main SHA is malformed")
+            raise OrdinaryRemoteUnavailable("current base SHA is malformed")
         return output
 
     def _branch_head(self) -> str | None:
@@ -223,7 +229,7 @@ class GhGitOrdinaryEffectAdapter:
         output = self._run(
             [
                 "gh", "pr", "list", "--repo", scope.repo,
-                "--head", scope.branch, "--base", "main", "--state", "all",
+                "--head", scope.branch, "--base", scope.base_ref, "--state", "all",
                 "--json", PR_LIST_FIELDS, "--jq=.",
             ]
         )
@@ -265,7 +271,7 @@ class GhGitOrdinaryEffectAdapter:
         exact = (
             str(value.get("headRefName") or "") == scope.branch
             and str(value.get("headRefOid") or "") == scope.expected_head_sha
-            and str(value.get("baseRefName") or "") == "main"
+            and str(value.get("baseRefName") or "") == scope.base_ref
             and str(value.get("title") or "") == scope.pr_title
             and str(value.get("body") or "") == scope.pr_body
         )
@@ -280,23 +286,25 @@ class GhGitOrdinaryEffectAdapter:
             [
                 "gh", "api",
                 f"repos/{scope.repo}/issues/{scope.issue_number}/comments?per_page=100",
-                "--paginate", "--slurp",
+                "--paginate", "--jq", ".[]",
             ]
         )
-        try:
-            pages = json.loads(output or "[]")
-        except json.JSONDecodeError as exc:
-            raise OrdinaryRemoteUnavailable("comment observation returned malformed JSON") from exc
-        if not isinstance(pages, list):
-            raise OrdinaryRemoteUnavailable("comment observation returned malformed shape")
+        if not output:
+            return []
         result: list[Mapping[str, Any]] = []
-        for page in pages:
-            if not isinstance(page, list):
-                raise OrdinaryRemoteUnavailable("comment page is malformed")
-            for item in page:
-                if not isinstance(item, Mapping):
-                    raise OrdinaryRemoteUnavailable("comment item is malformed")
-                result.append(item)
+        for line in output.splitlines():
+            text = line.strip()
+            if not text:
+                continue
+            try:
+                item = json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise OrdinaryRemoteUnavailable(
+                    "comment observation returned malformed line-delimited JSON"
+                ) from exc
+            if not isinstance(item, Mapping):
+                raise OrdinaryRemoteUnavailable("comment item is malformed")
+            result.append(item)
         return result
 
     def observe(
@@ -402,9 +410,13 @@ class GhGitOrdinaryEffectAdapter:
         if identity.kind is EffectKind.CREATE_PR:
             # Close the stale-read window immediately before PR creation.  The PR is
             # meaningful only against the frozen base/head pair.
-            if self._current_main() != scope.base_sha:
+            if self._current_base() != scope.base_sha:
                 raise OrdinaryRemoteUnavailable(
-                    "current main moved from frozen ordinary-task base"
+                    (
+                        "current main moved from frozen ordinary-task base"
+                        if scope.base_ref == "main"
+                        else "current base ref moved from frozen ordinary-task base"
+                    )
                 )
             if self._branch_head() != scope.expected_head_sha:
                 raise OrdinaryRemoteUnavailable(
@@ -413,7 +425,7 @@ class GhGitOrdinaryEffectAdapter:
             self._run(
                 [
                     "gh", "pr", "create", "--repo", scope.repo,
-                    "--draft", "--base", "main", "--head", scope.branch,
+                    "--draft", "--base", scope.base_ref, "--head", scope.branch,
                     "--title", scope.pr_title, "--body", scope.pr_body,
                 ],
                 mutation=True,

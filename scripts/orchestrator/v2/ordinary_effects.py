@@ -43,6 +43,7 @@ class OrdinaryMutationScope:
     pr_title: str
     pr_body: str
     issue_number: int | None = None
+    base_ref: str = "main"
 
     def __post_init__(self) -> None:
         for name in (
@@ -53,6 +54,7 @@ class OrdinaryMutationScope:
             "expected_head_sha",
             "pr_title",
             "pr_body",
+            "base_ref",
         ):
             object.__setattr__(
                 self,
@@ -65,11 +67,21 @@ class OrdinaryMutationScope:
                 raise ValueError("mutation scope SHAs must be lowercase 40-character hex")
         if "/" not in self.repo or self.repo.count("/") != 1:
             raise ValueError("mutation scope repo must be owner/name")
+        ref = self.base_ref
+        if (
+            ref.startswith((".", "/"))
+            or ref.endswith((".", "/"))
+            or ".." in ref
+            or "//" in ref
+            or "@{" in ref
+            or any(ch in ref for ch in " ~^:?*[\\")
+        ):
+            raise ValueError("mutation scope base_ref is not a safe Git ref name")
         if self.issue_number is not None:
             _positive_int(self.issue_number, "mutation scope issue_number")
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "attempt_id": self.attempt_id,
             "repo": self.repo,
             "base_sha": self.base_sha,
@@ -79,6 +91,12 @@ class OrdinaryMutationScope:
             "pr_body": self.pr_body,
             "issue_number": self.issue_number,
         }
+        # Preserve the exact legacy serialization/digest for ordinary main-scoped
+        # effects and durable handoffs. Non-main rehearsal scopes bind the target ref
+        # explicitly so it cannot be substituted without changing identity.
+        if self.base_ref != "main":
+            value["base_ref"] = self.base_ref
+        return value
 
     @classmethod
     def from_mapping(cls, raw: Any) -> "OrdinaryMutationScope":
@@ -95,6 +113,7 @@ class OrdinaryMutationScope:
             expected_head_sha=raw.get("expected_head_sha"),
             pr_title=raw.get("pr_title"),
             pr_body=raw.get("pr_body"),
+            base_ref=raw.get("base_ref") or "main",
             issue_number=issue_number,
         )
 
@@ -110,10 +129,15 @@ class OrdinaryMutationScope:
         )
 
     def create_pr_identity(self) -> RemoteEffectIdentity:
+        subject = (
+            f"{self.branch}->{self.base_sha}"
+            if self.base_ref == "main"
+            else f"{self.branch}->{self.base_ref}@{self.base_sha}"
+        )
         return RemoteEffectIdentity.create(
             attempt_id=self.attempt_id,
             kind=EffectKind.CREATE_PR,
-            subject=f"{self.branch}->{self.base_sha}",
+            subject=subject,
         )
 
     def ready_identity(self, pr_number: int) -> RemoteEffectIdentity:
@@ -125,10 +149,16 @@ class OrdinaryMutationScope:
         )
 
     def merge_identity(self, pr_number: int) -> RemoteEffectIdentity:
+        number = _positive_int(pr_number, "merge pr_number")
+        subject = (
+            f"pr:{number}@{self.expected_head_sha}"
+            if self.base_ref == "main"
+            else f"pr:{number}:{self.base_ref}@{self.expected_head_sha}"
+        )
         return RemoteEffectIdentity.create(
             attempt_id=self.attempt_id,
             kind=EffectKind.MERGE_PR,
-            subject=f"pr:{_positive_int(pr_number, 'merge pr_number')}@{self.expected_head_sha}",
+            subject=subject,
         )
 
     def comment_identity(self, body: str) -> RemoteEffectIdentity:
