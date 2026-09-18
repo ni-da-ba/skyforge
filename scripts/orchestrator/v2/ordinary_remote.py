@@ -225,7 +225,7 @@ class GhGitOrdinaryEffectAdapter:
         output = self._run(
             [
                 "gh", "pr", "list", "--repo", scope.repo,
-                "--head", scope.branch, "--base", "main", "--state", "all",
+                "--head", scope.branch, "--base", scope.base_ref, "--state", "all",
                 "--json", PR_LIST_FIELDS, "--jq=.",
             ]
         )
@@ -415,7 +415,7 @@ class GhGitOrdinaryEffectAdapter:
             self._run(
                 [
                     "gh", "pr", "create", "--repo", scope.repo,
-                    "--draft", "--base", "main", "--head", scope.branch,
+                    "--draft", "--base", scope.base_ref, "--head", scope.branch,
                     "--title", scope.pr_title, "--body", scope.pr_body,
                 ],
                 mutation=True,
