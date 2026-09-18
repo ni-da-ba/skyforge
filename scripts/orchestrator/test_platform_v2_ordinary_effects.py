@@ -34,7 +34,7 @@ HEAD = "c" * 40
 BRANCH = "codex/implementation-r5c1"
 
 
-def scope(*, issue_number=852) -> OrdinaryMutationScope:
+def scope(*, issue_number=852, base_ref="main") -> OrdinaryMutationScope:
     return OrdinaryMutationScope(
         attempt_id=ATTEMPT,
         repo="ni-da-ba/skyforge",
@@ -44,6 +44,7 @@ def scope(*, issue_number=852) -> OrdinaryMutationScope:
         pr_title="CODEX Implementation: bounded adapter test",
         pr_body="Bounded ordinary task handoff.",
         issue_number=issue_number,
+        base_ref=base_ref,
     )
 
 
@@ -224,6 +225,71 @@ class CommandAllowlistTest(unittest.TestCase):
         self.assertTrue(body.endswith("handoff summary"))
 
 
+class BaseRefCompatibilityTest(unittest.TestCase):
+    def test_default_main_serialization_and_effect_subjects_remain_legacy_compatible(self):
+        s = scope()
+        raw = s.as_dict()
+        self.assertNotIn("base_ref", raw)
+        self.assertEqual(
+            OrdinaryMutationScope.from_mapping(raw).as_dict(),
+            raw,
+        )
+        self.assertEqual(
+            s.create_pr_identity().subject,
+            f"{BRANCH}->{BASE}",
+        )
+        self.assertEqual(
+            s.merge_identity(99).subject,
+            f"pr:99@{HEAD}",
+        )
+
+    def test_non_main_scope_binds_target_ref_into_serialization_and_effect_identity(self):
+        s = scope(base_ref="rehearsal/r5c22-base")
+        self.assertEqual(s.as_dict()["base_ref"], "rehearsal/r5c22-base")
+        self.assertEqual(
+            s.create_pr_identity().subject,
+            f"{BRANCH}->rehearsal/r5c22-base@{BASE}",
+        )
+        self.assertEqual(
+            s.merge_identity(99).subject,
+            f"pr:99:rehearsal/r5c22-base@{HEAD}",
+        )
+        self.assertNotEqual(
+            s.create_pr_identity(),
+            scope(base_ref="rehearsal/other-base").create_pr_identity(),
+        )
+
+    def test_non_main_allowlist_targets_only_exact_frozen_base(self):
+        s = scope(base_ref="rehearsal/r5c22-base")
+        binding = OrdinaryEffectBinding(
+            scope=s,
+            identity=s.create_pr_identity(),
+        )
+        validator = OrdinaryCommandValidator(binding)
+        list_command = (
+            "gh", "pr", "list", "--repo", s.repo,
+            "--head", s.branch, "--base", s.base_ref, "--state", "all",
+            "--json", "number,state,mergedAt,headRefName,headRefOid,baseRefName,title,body",
+            "--jq=.",
+        )
+        create_command = (
+            "gh", "pr", "create", "--repo", s.repo,
+            "--draft", "--base", s.base_ref, "--head", s.branch,
+            "--title", s.pr_title, "--body", s.pr_body,
+        )
+        self.assertEqual(validator.validate(list_command), list_command)
+        self.assertEqual(validator.validate(create_command), create_command)
+        with self.assertRaises(ValueError):
+            validator.validate(
+                tuple("main" if part == s.base_ref else part for part in create_command)
+            )
+
+    def test_unsafe_base_ref_is_rejected(self):
+        for value in ("../main", "/main", "main..other", "main@{1}", "main~1"):
+            with self.subTest(base_ref=value), self.assertRaises(ValueError):
+                scope(base_ref=value)
+
+
 class FakeProcess:
     def __init__(self, stdout="", stderr="", returncode=0):
         self.stdout = stdout
@@ -310,6 +376,41 @@ class OrdinaryRemoteObservationTest(unittest.TestCase):
         observation = adapter.observe(binding.identity)
         self.assertEqual(observation.presence, RemoteEffectPresence.PRESENT_CONFLICT)
 
+    def test_non_main_pr_observation_requires_exact_base_ref(self):
+        s = scope(base_ref="rehearsal/r5c22-base")
+        binding = OrdinaryEffectBinding(
+            scope=s,
+            identity=s.create_pr_identity(),
+        )
+        value = [{
+            "number": 77,
+            "state": "OPEN",
+            "mergedAt": None,
+            "headRefName": BRANCH,
+            "headRefOid": HEAD,
+            "baseRefName": s.base_ref,
+            "title": s.pr_title,
+            "body": s.pr_body,
+        }]
+
+        calls = []
+        def runner(args, **kwargs):
+            calls.append(tuple(args))
+            return FakeProcess(stdout=json.dumps(value))
+
+        adapter = GhGitOrdinaryEffectAdapter(
+            root=Path("."),
+            binding=binding,
+            runner=runner,
+        )
+        exact = adapter.observe(binding.identity)
+        self.assertEqual(exact.presence, RemoteEffectPresence.PRESENT_EXACT)
+        self.assertIn(("--base", s.base_ref), tuple(zip(calls[0], calls[0][1:])))
+
+        value[0]["baseRefName"] = "main"
+        conflict = adapter.observe(binding.identity)
+        self.assertEqual(conflict.presence, RemoteEffectPresence.PRESENT_CONFLICT)
+
     def test_exact_comment_marker_reconciles(self):
         s = scope()
         identity = s.comment_identity("summary")
@@ -358,6 +459,63 @@ class OrdinaryPreMutationIdentityTest(unittest.TestCase):
         )
         with self.assertRaisesRegex(OrdinaryRemoteUnavailable, "main moved"):
             adapter.execute(binding.identity)
+
+    def test_non_main_create_pr_rechecks_exact_base_ref_and_uses_it_for_create(self):
+        s = scope(base_ref="rehearsal/r5c22-base")
+        binding = OrdinaryEffectBinding(
+            scope=s,
+            identity=s.create_pr_identity(),
+        )
+        calls = []
+
+        def runner(args, **kwargs):
+            command = tuple(args)
+            calls.append(command)
+            if command[:2] == ("gh", "api") and command[-2:] == ("--jq", ".sha"):
+                if f"/commits/rehearsal%2Fr5c22-base" in command[2]:
+                    return FakeProcess(stdout=BASE + "\n")
+                if f"/commits/{BRANCH.replace('/', '%2F')}" in command[2]:
+                    return FakeProcess(stdout=HEAD + "\n")
+            if command[:3] == ("gh", "pr", "create"):
+                return FakeProcess(stdout="https://github.com/ni-da-ba/skyforge/pull/999\n")
+            raise AssertionError(command)
+
+        adapter = GhGitOrdinaryEffectAdapter(
+            root=Path("."),
+            binding=binding,
+            runner=runner,
+        )
+        adapter.execute(binding.identity)
+        self.assertIn(
+            (
+                "gh", "pr", "create", "--repo", s.repo,
+                "--draft", "--base", s.base_ref, "--head", s.branch,
+                "--title", s.pr_title, "--body", s.pr_body,
+            ),
+            calls,
+        )
+
+    def test_non_main_create_pr_blocks_if_frozen_target_ref_moved(self):
+        s = scope(base_ref="rehearsal/r5c22-base")
+        binding = OrdinaryEffectBinding(
+            scope=s,
+            identity=s.create_pr_identity(),
+        )
+        calls = []
+
+        def runner(args, **kwargs):
+            calls.append(tuple(args))
+            return FakeProcess(stdout=("d" * 40) + "\n")
+
+        adapter = GhGitOrdinaryEffectAdapter(
+            root=Path("."),
+            binding=binding,
+            runner=runner,
+        )
+        with self.assertRaisesRegex(OrdinaryRemoteUnavailable, "base ref moved"):
+            adapter.execute(binding.identity)
+        self.assertEqual(len(calls), 1)
+        self.assertIn("rehearsal%2Fr5c22-base", calls[0][2])
 
     def test_hosted_runtime_does_not_import_ordinary_mutation_surface(self):
         root = Path(__file__).resolve().parent
