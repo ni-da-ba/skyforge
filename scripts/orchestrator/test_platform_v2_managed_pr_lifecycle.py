@@ -127,7 +127,7 @@ class FakeGitHub:
 
 
 class ManagedLifecycleTest(unittest.TestCase):
-    def run(self, root, remote, **kwargs):
+    def advance(self, root, remote, **kwargs):
         return advance_managed_pr_lifecycle(
             root=root,
             handoff=handoff(),
@@ -140,7 +140,7 @@ class ManagedLifecycleTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             remote = FakeGitHub()
-            first = self.run(root, remote)
+            first = self.advance(root, remote)
 
             self.assertEqual(first.disposition, ManagedLifecycleDisposition.COMPLETE)
             self.assertEqual(remote.ready_calls, 1)
@@ -153,7 +153,7 @@ class ManagedLifecycleTest(unittest.TestCase):
             self.assertEqual(ready.status, EffectStatus.COMPLETE)
             self.assertEqual(merge.status, EffectStatus.COMPLETE)
 
-            second = self.run(root, remote)
+            second = self.advance(root, remote)
             self.assertEqual(second.disposition, ManagedLifecycleDisposition.COMPLETE)
             self.assertEqual(remote.ready_calls, 1)
             self.assertEqual(remote.merge_calls, 1)
@@ -163,7 +163,7 @@ class ManagedLifecycleTest(unittest.TestCase):
             root = Path(td)
             remote = FakeGitHub()
             with self.assertRaisesRegex(RuntimeError, "injected crash"):
-                self.run(root, remote, crash_after_ready_execute=True)
+                self.advance(root, remote, crash_after_ready_execute=True)
 
             self.assertFalse(remote.draft)
             self.assertEqual(remote.ready_calls, 1)
@@ -171,7 +171,7 @@ class ManagedLifecycleTest(unittest.TestCase):
             pending = store.load().get(handoff().scope.ready_identity(904))
             self.assertEqual(pending.status, EffectStatus.PENDING)
 
-            restarted = self.run(root, remote)
+            restarted = self.advance(root, remote)
             self.assertEqual(restarted.disposition, ManagedLifecycleDisposition.COMPLETE)
             self.assertEqual(remote.ready_calls, 1)
             self.assertEqual(remote.merge_calls, 1)
@@ -185,7 +185,7 @@ class ManagedLifecycleTest(unittest.TestCase):
             root = Path(td)
             remote = FakeGitHub()
             with self.assertRaisesRegex(RuntimeError, "injected crash"):
-                self.run(root, remote, crash_after_merge_execute=True)
+                self.advance(root, remote, crash_after_merge_execute=True)
 
             self.assertEqual(remote.state, "MERGED")
             self.assertEqual(remote.ready_calls, 1)
@@ -196,7 +196,7 @@ class ManagedLifecycleTest(unittest.TestCase):
                 EffectStatus.PENDING,
             )
 
-            restarted = self.run(root, remote)
+            restarted = self.advance(root, remote)
             self.assertEqual(restarted.disposition, ManagedLifecycleDisposition.COMPLETE)
             self.assertEqual(remote.ready_calls, 1)
             self.assertEqual(remote.merge_calls, 1)
@@ -213,7 +213,7 @@ class ManagedLifecycleTest(unittest.TestCase):
             remote.state = "MERGED"
             remote.merged_at = "2026-09-18T04:10:00Z"
 
-            result = self.run(root, remote)
+            result = self.advance(root, remote)
             self.assertEqual(result.disposition, ManagedLifecycleDisposition.COMPLETE)
             self.assertEqual(remote.ready_calls, 0)
             self.assertEqual(remote.merge_calls, 0)
@@ -275,7 +275,7 @@ class ManagedLifecycleTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             remote = FlipAfterReady()
-            result = self.run(root, remote)
+            result = self.advance(root, remote)
             self.assertNotEqual(result.disposition, ManagedLifecycleDisposition.COMPLETE)
             self.assertEqual(remote.ready_calls, 1)
             self.assertEqual(remote.merge_calls, 0)
