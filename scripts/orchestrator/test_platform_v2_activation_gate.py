@@ -34,6 +34,7 @@ def activation(**overrides):
         "cutover": cutover_ready(),
         "primary_workstation_preservation_pass": True,
         "dr70_migration_hold_cleared": True,
+        "dr70_migration_hold_waived": False,
         "hosted_shadow_parity_accepted": True,
         "hosted_execution_path_accepted": True,
         "remote_effect_path_accepted": True,
@@ -60,7 +61,7 @@ class ProductionActivationEnvelopeTest(unittest.TestCase):
                 "primary Windows workstation preservation audit is not PASS"
             ),
             "dr70_migration_hold_cleared": (
-                "DR-70 migration/human-review hold is not explicitly cleared"
+                "DR-70 migration hold is neither cleared nor explicitly waived by the operator"
             ),
             "hosted_shadow_parity_accepted": (
                 "hosted Platform-v2 shadow/parity evidence is not accepted"
@@ -86,6 +87,19 @@ class ProductionActivationEnvelopeTest(unittest.TestCase):
                 )
                 self.assertEqual(decision.blockers, (blocker,))
                 self.assertTrue(decision.operator_action_required)
+
+    def test_unfinished_dr70_can_be_explicitly_waived_for_migration(self):
+        decision = evaluate_production_activation(
+            activation(
+                dr70_migration_hold_cleared=False,
+                dr70_migration_hold_waived=True,
+            )
+        )
+        self.assertEqual(
+            decision.disposition,
+            ProductionActivationDisposition.READY_FOR_OPERATOR_REVIEW,
+        )
+        self.assertEqual(decision.blockers, ())
 
     def test_underlying_cutover_blockers_are_preserved_verbatim_with_prefix(self):
         cutover = CutoverReadinessDecision(
@@ -129,7 +143,7 @@ class ProductionActivationEnvelopeTest(unittest.TestCase):
             decision.blockers,
         )
         self.assertIn(
-            "DR-70 migration/human-review hold is not explicitly cleared",
+            "DR-70 migration hold is neither cleared nor explicitly waived by the operator",
             decision.blockers,
         )
         self.assertTrue(decision.operator_action_required)

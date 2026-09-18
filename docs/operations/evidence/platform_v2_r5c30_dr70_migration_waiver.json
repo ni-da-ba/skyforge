@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "tranche": "PLATFORM-V2-R5C30",
+  "operator_direction": "ignore DR-70 as a migration blocker because additional DR-70 development is expected",
+  "dr70_product_status": "UNFINISHED_DEFERRED",
+  "dr70_migration_hold_cleared": false,
+  "dr70_migration_hold_waived": true,
+  "dr70_marked_pass": false,
+  "migration_authorized_past_dr70_hold": true,
+  "scope": "PLATFORM_V2_MIGRATION_ONLY",
+  "production_writer_at_evidence_time": "LEGACY"
+}

@@ -45,7 +45,7 @@ def make_repo(root: Path) -> str:
     return git(root, "rev-parse", "HEAD")
 
 
-def production_input(main: str, *, dr70: bool = True) -> ProductionActivationInput:
+def production_input(main: str, *, dr70: bool = True, dr70_waived: bool = False) -> ProductionActivationInput:
     cutover = CutoverReadinessDecision(
         disposition=CutoverReadinessDisposition.READY_FOR_AUTHORITY_SWITCH,
         blockers=(),
@@ -61,6 +61,7 @@ def production_input(main: str, *, dr70: bool = True) -> ProductionActivationInp
         hosted_execution_path_accepted=True,
         remote_effect_path_accepted=True,
         cutover_rollback_rehearsal_accepted=True,
+        dr70_migration_hold_waived=dr70_waived,
     )
 
 
@@ -75,6 +76,7 @@ def production_mapping(value: ProductionActivationInput) -> dict[str, object]:
         },
         "primary_workstation_preservation_pass": value.primary_workstation_preservation_pass,
         "dr70_migration_hold_cleared": value.dr70_migration_hold_cleared,
+        "dr70_migration_hold_waived": value.dr70_migration_hold_waived,
         "hosted_shadow_parity_accepted": value.hosted_shadow_parity_accepted,
         "hosted_execution_path_accepted": value.hosted_execution_path_accepted,
         "remote_effect_path_accepted": value.remote_effect_path_accepted,
@@ -82,8 +84,8 @@ def production_mapping(value: ProductionActivationInput) -> dict[str, object]:
     }
 
 
-def write_template(root: Path, main: str, *, dr70: bool = True) -> tuple[Path, Path]:
-    activation = production_input(main, dr70=dr70)
+def write_template(root: Path, main: str, *, dr70: bool = True, dr70_waived: bool = False) -> tuple[Path, Path]:
+    activation = production_input(main, dr70=dr70, dr70_waived=dr70_waived)
     template = root / ".skyforge-platform-v2" / "operator-template.json"
     evidence = root / ".skyforge-platform-v2" / "production-activation.json"
     template.parent.mkdir(parents=True, exist_ok=True)
@@ -174,11 +176,11 @@ class FakeServices:
 
 
 class OperatorCutoverTest(unittest.TestCase):
-    def build(self, *, dr70: bool = True):
+    def build(self, *, dr70: bool = True, dr70_waived: bool = False):
         td = tempfile.TemporaryDirectory()
         root = Path(td.name)
         main = make_repo(root)
-        template, evidence = write_template(root, main, dr70=dr70)
+        template, evidence = write_template(root, main, dr70=dr70, dr70_waived=dr70_waived)
         services = FakeServices(evidence)
 
         def health():
@@ -220,12 +222,23 @@ class OperatorCutoverTest(unittest.TestCase):
         self.assertEqual(report.activation_evidence_path, str(evidence.resolve()))
         self.assertEqual(services.log, [])
 
-    def test_deferred_dr70_remains_a_real_live_cutover_blocker(self):
+    def test_unwaived_dr70_remains_a_real_live_cutover_blocker(self):
         td, _root, _main, _template, _evidence, services, controller = self.build(dr70=False)
         self.addCleanup(td.cleanup)
         report = controller.cutover(execute=False)
         self.assertEqual(report.disposition, OperatorDisposition.BLOCKED)
         self.assertTrue(any("DR-70" in item for item in report.blockers))
+        self.assertEqual(services.log, [])
+
+    def test_unfinished_dr70_with_explicit_operator_waiver_allows_preflight(self):
+        td, _root, _main, _template, _evidence, services, controller = self.build(
+            dr70=False,
+            dr70_waived=True,
+        )
+        self.addCleanup(td.cleanup)
+        report = controller.cutover(execute=False)
+        self.assertEqual(report.disposition, OperatorDisposition.PREFLIGHT_READY)
+        self.assertEqual(report.authority, WriterAuthority.LEGACY)
         self.assertEqual(services.log, [])
 
     def test_boot_enabled_v2_blocks_preflight(self):

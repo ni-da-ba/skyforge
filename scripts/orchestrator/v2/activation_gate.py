@@ -37,6 +37,7 @@ class ProductionActivationInput:
     hosted_execution_path_accepted: bool
     remote_effect_path_accepted: bool
     cutover_rollback_rehearsal_accepted: bool
+    dr70_migration_hold_waived: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.cutover, CutoverReadinessDecision):
@@ -48,6 +49,7 @@ class ProductionActivationInput:
             "hosted_execution_path_accepted",
             "remote_effect_path_accepted",
             "cutover_rollback_rehearsal_accepted",
+            "dr70_migration_hold_waived",
         ):
             _bool(getattr(self, name), name)
 
@@ -59,6 +61,7 @@ class ProductionActivationInput:
                 self.primary_workstation_preservation_pass
             ),
             "dr70_migration_hold_cleared": self.dr70_migration_hold_cleared,
+            "dr70_migration_hold_waived": self.dr70_migration_hold_waived,
             "hosted_shadow_parity_accepted": self.hosted_shadow_parity_accepted,
             "hosted_execution_path_accepted": self.hosted_execution_path_accepted,
             "remote_effect_path_accepted": self.remote_effect_path_accepted,
@@ -128,8 +131,10 @@ def evaluate_production_activation(
 
     if not value.primary_workstation_preservation_pass:
         blockers.append("primary Windows workstation preservation audit is not PASS")
-    if not value.dr70_migration_hold_cleared:
-        blockers.append("DR-70 migration/human-review hold is not explicitly cleared")
+    if not (value.dr70_migration_hold_cleared or value.dr70_migration_hold_waived):
+        blockers.append(
+            "DR-70 migration hold is neither cleared nor explicitly waived by the operator"
+        )
     if not value.hosted_shadow_parity_accepted:
         blockers.append("hosted Platform-v2 shadow/parity evidence is not accepted")
     if not value.hosted_execution_path_accepted:
