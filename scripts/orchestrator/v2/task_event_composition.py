@@ -44,6 +44,12 @@ def _required_text(value: Any, label: str) -> str:
     return value.strip()
 
 
+def _required_body(value: Any, label: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{label} must be non-empty text")
+    return value
+
+
 def _positive_int(value: Any, label: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"{label} must be a positive integer")
@@ -175,7 +181,7 @@ def capture_task_authority_event(
 
     issue_number = _positive_int(issue.get("number"), "webhook issue number")
     comment_id = _positive_int(comment.get("id"), "webhook comment id")
-    body = _required_text(comment.get("body"), "webhook comment body")
+    body = _required_body(comment.get("body"), "webhook comment body")
     created_at = _required_text(comment.get("created_at"), "webhook comment created_at")
     updated_at = _required_text(comment.get("updated_at"), "webhook comment updated_at")
     user = comment.get("user") or {}
