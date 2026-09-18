@@ -171,7 +171,9 @@ class OrdinaryServiceIntegrationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _, workspace, task = self.make_worker(root)
-            store = OrdinaryEffectStore.for_root(root)
+            state_root = root.parent / (root.name + "-controller")
+            state_root.mkdir(exist_ok=True)
+            store = OrdinaryEffectStore.for_root(state_root)
             remote = FakeRemoteFactory()
 
             first = advance_prepared_handoff(
@@ -201,7 +203,9 @@ class OrdinaryServiceIntegrationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _, workspace, task = self.make_worker(root, changed=False)
-            store = OrdinaryEffectStore.for_root(root)
+            state_root = root.parent / (root.name + "-controller")
+            state_root.mkdir(exist_ok=True)
+            store = OrdinaryEffectStore.for_root(state_root)
             remote = FakeRemoteFactory()
             result = advance_prepared_handoff(
                 task=task,
@@ -218,7 +222,9 @@ class OrdinaryServiceIntegrationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _, workspace, task = self.make_worker(root)
-            store = OrdinaryEffectStore.for_root(root)
+            state_root = root.parent / (root.name + "-controller")
+            state_root.mkdir(exist_ok=True)
+            store = OrdinaryEffectStore.for_root(state_root)
             remote = FakeRemoteFactory()
             remote.create_state = "CLOSED"
 
@@ -236,7 +242,9 @@ class OrdinaryServiceIntegrationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _, workspace, task = self.make_worker(root)
-            store = OrdinaryEffectStore.for_root(root)
+            state_root = root.parent / (root.name + "-controller")
+            state_root.mkdir(exist_ok=True)
+            store = OrdinaryEffectStore.for_root(state_root)
             remote = FakeRemoteFactory()
             handoff_result = advance_prepared_handoff(
                 task=task,
@@ -274,7 +282,9 @@ class OrdinaryServiceIntegrationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _, workspace, task = self.make_worker(root)
-            store = OrdinaryEffectStore.for_root(root)
+            state_root = root.parent / (root.name + "-controller")
+            state_root.mkdir(exist_ok=True)
+            store = OrdinaryEffectStore.for_root(state_root)
             remote = FakeRemoteFactory()
             handoff = advance_prepared_handoff(
                 task=task,
@@ -304,7 +314,9 @@ class OrdinaryServiceIntegrationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _, workspace, task = self.make_worker(root)
-            store = OrdinaryEffectStore.for_root(root)
+            state_root = root.parent / (root.name + "-controller")
+            state_root.mkdir(exist_ok=True)
+            store = OrdinaryEffectStore.for_root(state_root)
             remote = FakeRemoteFactory()
             handoff = advance_prepared_handoff(
                 task=task,
@@ -337,7 +349,9 @@ class OrdinaryServiceIntegrationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _, workspace, task = self.make_worker(root)
-            store = OrdinaryEffectStore.for_root(root)
+            state_root = root.parent / (root.name + "-controller")
+            state_root.mkdir(exist_ok=True)
+            store = OrdinaryEffectStore.for_root(state_root)
             remote = FakeRemoteFactory()
             handoff = advance_prepared_handoff(
                 task=task,
@@ -368,6 +382,40 @@ class OrdinaryServiceIntegrationTest(unittest.TestCase):
             )
             self.assertEqual(result.disposition, OrdinaryServiceDisposition.BLOCKED)
             self.assertEqual(remote.total_executes, before)
+
+    def test_prepared_task_must_match_worker_attempt_branch_and_base(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _, workspace, task = self.make_worker(root)
+            state_root = root.parent / (root.name + "-controller")
+            state_root.mkdir(exist_ok=True)
+            store = OrdinaryEffectStore.for_root(state_root)
+            remote = FakeRemoteFactory()
+
+            bad = PreparedWorkerTask(
+                task_id=task.task_id,
+                authority_key=task.authority_key,
+                task_spec_hash=task.task_spec_hash,
+                attempt_id="d" * 64,
+                repo=task.repo,
+                base_sha=task.base_sha,
+                branch=task.branch,
+                lane=task.lane,
+                objective=task.objective,
+                pr_title=task.pr_title,
+                pr_body=task.pr_body,
+                issue_number=task.issue_number,
+                comment_body=task.comment_body,
+                auto_merge_eligible=task.auto_merge_eligible,
+            )
+            with self.assertRaisesRegex(ValueError, "attempt_id"):
+                advance_prepared_handoff(
+                    task=bad,
+                    workspace=workspace,
+                    store=store,
+                    remote_factory=remote,
+                )
+            self.assertEqual(remote.total_executes, 0)
 
     def test_hosted_runtime_does_not_import_r5c2_service(self):
         root = Path(__file__).resolve().parent
