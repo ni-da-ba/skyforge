@@ -12,3 +12,6 @@ __pycache__/
 
 # Local event-driven Codex orchestration pilot state/venv
 .skyforge-orchestrator/
+
+# Platform v2 local canary state/fence
+.skyforge-platform-v2/
