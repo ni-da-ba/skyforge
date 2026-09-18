@@ -314,6 +314,42 @@ class TaskPipelineSeed:
             raise ValueError("classifier_request must be ClassifierRequest")
         _positive_int(self.issue_number, "issue_number")
 
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "authority_identity_digest": self.authority_identity_digest,
+            "authority_digest": self.authority_digest,
+            "classifier_request": self.classifier_request.as_dict(),
+            "issue_number": self.issue_number,
+        }
+
+    @classmethod
+    def from_mapping(cls, raw: Any) -> "TaskPipelineSeed":
+        if not isinstance(raw, Mapping):
+            raise ValueError("task pipeline seed must be an object")
+        request_raw = raw.get("classifier_request")
+        if not isinstance(request_raw, Mapping):
+            raise ValueError("task pipeline seed classifier_request must be an object")
+        request = ClassifierRequest(
+            current_main=_required_text(
+                request_raw.get("current_main"),
+                "classifier_request.current_main",
+            ),
+            semantic_input=request_raw.get("semantic_input"),
+            instructions_version=request_raw.get("instructions_version", 1),
+        )
+        seed = cls(
+            event_id=raw.get("event_id"),
+            authority_identity_digest=raw.get("authority_identity_digest"),
+            authority_digest=raw.get("authority_digest"),
+            classifier_request=request,
+            issue_number=raw.get("issue_number"),
+        )
+        recorded = str(raw.get("digest") or "").strip()
+        if recorded and recorded != seed.digest:
+            raise ValueError("task pipeline seed digest mismatch")
+        return seed
+
     @property
     def digest(self) -> str:
         return canonical_digest(
