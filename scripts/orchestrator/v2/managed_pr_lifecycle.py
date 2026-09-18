@@ -314,9 +314,30 @@ def advance_managed_pr_lifecycle(
     ledger = store.load()
 
     # A merged exact PR may be an effect-recovery case (including a crash after
-    # mutation or an exact external/manual merge). Reconcile it before the pure
-    # reducer sees the now-inactive PR.
+    # mutation or an exact external/manual merge). Reconcile any durable ready
+    # prerequisite first, then the merge, before the pure reducer sees inactive PR.
     if truth.remote_state == "MERGED":
+        ready_result = None
+        if ledger.get(ready_identity) is not None:
+            ready_result = advance_remote_effect(
+                store=store,
+                identity=ready_identity,
+                adapter=ManagedLifecycleEffectAdapter(
+                    root=root,
+                    handoff=handoff,
+                    identity=ready_identity,
+                    runner=runner,
+                ),
+            )
+            if not _effect_ok(ready_result):
+                return ManagedLifecycleResult(
+                    ManagedLifecycleDisposition.BLOCKED,
+                    ready_result.reason,
+                    handoff.digest,
+                    ready_effect=ready_result,
+                    truth_digest=truth.digest,
+                )
+
         merge_result = advance_remote_effect(
             store=store,
             identity=merge_identity,
@@ -333,6 +354,7 @@ def advance_managed_pr_lifecycle(
                 "exact merged PR reconciled into durable lifecycle state",
                 handoff.digest,
                 transition_kind=TransitionKind.MERGE_ELIGIBLE.value,
+                ready_effect=ready_result,
                 merge_effect=merge_result,
                 truth_digest=truth.digest,
             )
@@ -340,6 +362,7 @@ def advance_managed_pr_lifecycle(
             ManagedLifecycleDisposition.BLOCKED,
             merge_result.reason,
             handoff.digest,
+            ready_effect=ready_result,
             merge_effect=merge_result,
             truth_digest=truth.digest,
         )
