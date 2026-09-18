@@ -211,6 +211,7 @@ class CutoverReadinessInput:
     hosted_v2_runtime_accepted: bool
     ingress_handoff_defined: bool
     writer_revocation_plan_defined: bool
+    legacy_revocation_mechanism_ready: bool
     state_projection_complete: bool
     projection: LegacyOperationalProjection
 
@@ -223,6 +224,7 @@ class CutoverReadinessInput:
             "hosted_v2_runtime_accepted",
             "ingress_handoff_defined",
             "writer_revocation_plan_defined",
+            "legacy_revocation_mechanism_ready",
             "state_projection_complete",
         ):
             _bool(getattr(self, name), name)
@@ -278,6 +280,8 @@ def evaluate_cutover_readiness(value: CutoverReadinessInput) -> CutoverReadiness
         blockers.append("webhook/control ingress handoff is not defined")
     if not value.writer_revocation_plan_defined:
         blockers.append("old-writer revocation/rollback handoff is not defined")
+    if not value.legacy_revocation_mechanism_ready:
+        blockers.append("privileged legacy-writer revocation mechanism is not operational")
 
     return CutoverReadinessDecision(
         disposition=(
