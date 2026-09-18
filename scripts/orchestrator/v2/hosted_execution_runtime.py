@@ -175,6 +175,10 @@ def production_activation_input_from_mapping(
             raw.get("dr70_migration_hold_cleared"),
             "dr70_migration_hold_cleared",
         ),
+        dr70_migration_hold_waived=_bool(
+            raw.get("dr70_migration_hold_waived", False),
+            "dr70_migration_hold_waived",
+        ),
         hosted_shadow_parity_accepted=_bool(
             raw.get("hosted_shadow_parity_accepted"),
             "hosted_shadow_parity_accepted",
