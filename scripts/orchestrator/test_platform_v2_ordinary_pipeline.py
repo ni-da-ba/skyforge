@@ -197,6 +197,15 @@ class OrdinaryPipelineCompositionTest(unittest.TestCase):
             self.assertTrue(result.record.attempt_id)
             self.assertTrue(result.record.worker_spec_digest)
             self.assertTrue(result.record.handoff_digest)
+            self.assertIsNotNone(result.record.managed_handoff)
+            self.assertEqual(
+                result.record.managed_handoff.digest,
+                result.record.handoff_digest,
+            )
+            self.assertEqual(
+                result.record.managed_handoff.pr_number,
+                result.record.pr_number,
+            )
             self.assertEqual(classifier.calls, 1)
             self.assertEqual(handoff.calls, 1)
             self.assertEqual(
@@ -215,6 +224,19 @@ class OrdinaryPipelineCompositionTest(unittest.TestCase):
             self.assertEqual(again.record.attempt_id, result.record.attempt_id)
 
             store = OrdinaryPipelineStore.for_root(root)
+            reloaded = store.load()
+            durable = reloaded.get(result.record.pipeline_id)
+            self.assertIsNotNone(durable)
+            self.assertIsNotNone(durable.managed_handoff)
+            self.assertEqual(
+                durable.managed_handoff.digest,
+                result.record.handoff_digest,
+            )
+            self.assertEqual(
+                reloaded.reconstructible_managed_handoffs(),
+                (durable.managed_handoff,),
+            )
+            self.assertEqual(reloaded.incomplete_completed_records(), ())
             self.assertEqual(
                 store.adapter.path.read_bytes(),
                 store.adapter.backup_path.read_bytes(),
