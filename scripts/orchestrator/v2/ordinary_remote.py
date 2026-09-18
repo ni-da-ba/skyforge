@@ -182,7 +182,11 @@ class GhGitOrdinaryEffectAdapter:
             )
         except subprocess.CalledProcessError as exc:
             stderr = str(exc.stderr or "")
-            if allow_not_found and ("HTTP 404" in stderr or "Not Found" in stderr):
+            if allow_not_found and (
+                "HTTP 404" in stderr
+                or "Not Found" in stderr
+                or "No commit found for SHA" in stderr
+            ):
                 return None
             raise OrdinaryRemoteUnavailable(
                 f"command failed without safe exact result: {stderr[:500]}"
