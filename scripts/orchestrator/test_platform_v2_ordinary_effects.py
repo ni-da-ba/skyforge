@@ -343,6 +343,21 @@ class OrdinaryRemoteObservationTest(unittest.TestCase):
         observation = adapter.observe(binding.identity)
         self.assertEqual(observation.presence, RemoteEffectPresence.ABSENT)
 
+        def absent_422_runner(args, **kwargs):
+            raise subprocess.CalledProcessError(
+                1,
+                args,
+                stderr="gh: No commit found for SHA: rehearsal/missing (HTTP 422)",
+            )
+
+        adapter = GhGitOrdinaryEffectAdapter(
+            root=Path("."),
+            binding=binding,
+            runner=absent_422_runner,
+        )
+        observation = adapter.observe(binding.identity)
+        self.assertEqual(observation.presence, RemoteEffectPresence.ABSENT)
+
     def test_create_pr_requires_single_exact_identity(self):
         s = scope()
         binding = OrdinaryEffectBinding(
