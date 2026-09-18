@@ -54,12 +54,17 @@ def legacy_state(**overrides):
         "roadmap": {
             "roadmap_id": "skyforge-dressed-region-convergence-v3",
             "active": None,
+            "completed_runs": {
+                "dr-70-human-review-repair": 2
+            },
             "blocked_nodes": {
                 "dr-human-exploration-rereview": {
                     "reason": "Machines must not self-pass this re-review."
                 }
             },
             "manifest_fingerprint": "f" * 64,
+            "claims_day": "2026-09-18",
+            "claims_today": 4,
         },
     }
     value.update(overrides)
@@ -107,6 +112,34 @@ class LegacyProjectionTest(unittest.TestCase):
                 "dr-human-exploration-rereview"
             ]["reason"],
         )
+        self.assertEqual(
+            projection.roadmap.completed_runs["dr-70-human-review-repair"],
+            2,
+        )
+        self.assertEqual(projection.roadmap.claims_day, "2026-09-18")
+        self.assertEqual(projection.roadmap.claims_today, 4)
+        self.assertEqual(len(projection.human_gate_records), 1)
+        self.assertEqual(
+            projection.human_gate_records[0].key,
+            "issue:349:implementation",
+        )
+        self.assertEqual(
+            projection.human_gate_records_digest,
+            projection.as_dict()["human_gate_records_digest"],
+        )
+
+    def test_projection_digest_changes_if_completed_runs_or_gate_identity_changes(self):
+        first = LegacyOperationalProjection.from_legacy_mapping(legacy_state())
+
+        changed_progress = legacy_state()
+        changed_progress["roadmap"]["completed_runs"]["dr-70-human-review-repair"] = 1
+        second = LegacyOperationalProjection.from_legacy_mapping(changed_progress)
+        self.assertNotEqual(first.digest, second.digest)
+
+        changed_gate = legacy_state()
+        changed_gate["human_gate_records"]["issue:349:implementation"]["token"] = "new-token"
+        third = LegacyOperationalProjection.from_legacy_mapping(changed_gate)
+        self.assertNotEqual(first.digest, third.digest)
 
     def test_projection_digest_changes_if_authority_changes(self):
         first = LegacyOperationalProjection.from_legacy_mapping(legacy_state())
