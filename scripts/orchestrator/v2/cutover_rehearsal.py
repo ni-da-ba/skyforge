@@ -27,6 +27,34 @@ from .cutover import (
 from .identity import canonical_digest
 
 
+_FIXTURE_CODE = r"""
+import json
+import os
+from pathlib import Path
+import signal
+import sys
+import time
+
+role = sys.argv[1]
+ready = Path(sys.argv[2]).resolve()
+ready.parent.mkdir(parents=True, exist_ok=True)
+ready.write_text(
+    json.dumps({"role": role, "pid": os.getpid()}, sort_keys=True) + "\n",
+    encoding="utf-8",
+)
+stopping = False
+
+def handle(_signum, _frame):
+    global stopping
+    stopping = True
+
+signal.signal(signal.SIGTERM, handle)
+signal.signal(signal.SIGINT, handle)
+while not stopping:
+    time.sleep(0.05)
+"""
+
+
 class RehearsalRole(str, Enum):
     LEGACY = "LEGACY"
     V2 = "V2"
@@ -159,10 +187,9 @@ class DisposableProcessSupervisor:
         ready.unlink(missing_ok=True)
         command = [
             sys.executable,
-            str(Path(__file__).resolve()),
-            "--fixture-role",
+            "-c",
+            _FIXTURE_CODE,
             role.value,
-            "--ready-file",
             str(ready),
         ]
         process = subprocess.Popen(
@@ -243,32 +270,6 @@ class DisposableProcessSupervisor:
                 fixture.process.kill()
                 fixture.process.wait(timeout=2)
         self.active = None
-
-
-def _fixture_main(role: str, ready_file: str) -> int:
-    parsed = RehearsalRole(role)
-    path = Path(ready_file).resolve()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(
-            {"role": parsed.value, "pid": __import__("os").getpid()},
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-    stop = False
-
-    def _handle(_signum, _frame):
-        nonlocal stop
-        stop = True
-
-    signal.signal(signal.SIGTERM, _handle)
-    signal.signal(signal.SIGINT, _handle)
-    while not stop:
-        time.sleep(0.05)
-    return 0
 
 
 def rehearse_cutover_and_rollback(
@@ -475,18 +476,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Run disposable Platform-v2 cutover/rollback fixture rehearsal."
     )
-    parser.add_argument("--fixture-role", choices=[role.value for role in RehearsalRole])
-    parser.add_argument("--ready-file")
     parser.add_argument("--root", type=Path)
     args = parser.parse_args(argv)
 
-    if args.fixture_role is not None:
-        if not args.ready_file:
-            parser.error("--fixture-role requires --ready-file")
-        return _fixture_main(args.fixture_role, args.ready_file)
-
-    if args.ready_file:
-        parser.error("--ready-file is fixture-only")
     if args.root is None:
         parser.error("--root is required for rehearsal mode")
 
