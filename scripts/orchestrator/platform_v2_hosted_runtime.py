@@ -40,6 +40,7 @@ from v2.hosted_execution_driver import (
     HostedExecutionDriver,
     ProductionHostedDependencyFactory,
 )
+from v2.hosted_completion import HostedCompletionStatus, HostedCompletionStore
 from v2.hosted_state import HostedIngressState, HostedStateStore, ingest_event
 from v2.hosted_task_plan import (
     HostedTaskPlanDisposition,
@@ -174,6 +175,8 @@ class HostedV2Substrate:
             task_plan = self.task_plan_store.load()
             active_plan = task_plan.active
             admission = self.admission_store.load().record
+            completions = HostedCompletionStore.for_root(self.root).load()
+            pending_completion = completions.pending()
             return {
                 "status": "ok",
                 "controller": "platform-v2",
@@ -231,6 +234,16 @@ class HostedV2Substrate:
                 ),
                 "active_task_plan_status": (
                     active_plan.status.value if active_plan is not None else ""
+                ),
+                "hosted_completion_count": len(completions.records),
+                "hosted_completion_cleaned_count": sum(
+                    record.status is HostedCompletionStatus.CLEANED
+                    for record in completions.records
+                ),
+                "hosted_completion_pending_cleanup_id": (
+                    pending_completion.completion_id
+                    if pending_completion is not None
+                    else ""
                 ),
                 "production_execution_driver": (
                     self.execution_driver.snapshot().as_dict()
@@ -504,7 +517,13 @@ class HostedV2Substrate:
             trusted_actors=self.trusted_actors,
             gate=self.execution_gate,
         )
-        return coordinator.advance_once(dependencies)
+        result = coordinator.advance_once(dependencies)
+        # Execution completion may retire an inbox event directly through the durable
+        # store. Reload it here so webhook/health state cannot later overwrite that
+        # accepted retirement with a stale in-memory snapshot.
+        with self._lock:
+            self.state = self.store.load()
+        return result
 
     def preflight_task_event(
         self,
