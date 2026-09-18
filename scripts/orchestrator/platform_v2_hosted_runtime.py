@@ -159,8 +159,8 @@ class HostedV2Substrate:
                 "hosted_task_planning_enabled": True,
                 "explicit_classifier_proposal_enabled": True,
                 "automatic_classifier_execution_enabled": False,
-                "explicit_dispatch_admission_enabled": True,
-                "automatic_dispatch_admission_enabled": False,
+                "explicit_task_admission_enabled": True,
+                "automatic_task_admission_enabled": False,
                 "active_admission_record_id": (
                     admission.record_id if admission is not None else ""
                 ),
