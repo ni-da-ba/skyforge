@@ -406,7 +406,11 @@ class GhGitOrdinaryEffectAdapter:
             # meaningful only against the frozen base/head pair.
             if self._current_base() != scope.base_sha:
                 raise OrdinaryRemoteUnavailable(
-                    "current base ref moved from frozen ordinary-task base"
+                    (
+                        "current main moved from frozen ordinary-task base"
+                        if scope.base_ref == "main"
+                        else "current base ref moved from frozen ordinary-task base"
+                    )
                 )
             if self._branch_head() != scope.expected_head_sha:
                 raise OrdinaryRemoteUnavailable(
