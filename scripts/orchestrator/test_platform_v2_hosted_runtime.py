@@ -182,6 +182,25 @@ class HostedSubstrateTest(unittest.TestCase):
                 "skyforge-dressed-region-convergence-v3",
             )
 
+    def test_real_github_header_casing_is_case_insensitive(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            runtime = self.make_runtime(root)
+            payload = push_payload()
+            canonical = signed_headers(payload, event="push", delivery="delivery-real-case")
+            headers = {
+                "X-Github-Event": canonical["X-GitHub-Event"],
+                "X-Github-Delivery": canonical["X-GitHub-Delivery"],
+                "X-Hub-Signature-256": canonical["X-Hub-Signature-256"],
+            }
+
+            status, response = runtime.handle_webhook(headers=headers, raw=payload)
+
+            self.assertEqual(status, 202)
+            self.assertTrue(response["accepted"])
+            self.assertEqual(len(runtime.state.inbox.pending_events), 1)
+            self.assertIn("delivery-real-case", runtime.state.seen_deliveries)
+
     def test_duplicate_delivery_and_semantic_redelivery_do_not_duplicate_event(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
