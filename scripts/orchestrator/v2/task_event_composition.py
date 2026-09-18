@@ -122,6 +122,15 @@ class TaskAuthorityEventRecord:
         )
 
     @property
+    def authority_digest(self) -> str:
+        return canonical_digest(
+            {
+                "event_id": self.event_id,
+                "reference_digest": self.reference.digest,
+            }
+        )
+
+    @property
     def digest(self) -> str:
         return canonical_digest(self.as_dict())
 
@@ -223,10 +232,12 @@ class TaskAuthorityEventLedger:
             raise ValueError("record must be TaskAuthorityEventRecord")
         existing = self.get(record.event_id)
         if existing is not None:
-            if existing != record:
+            if existing.authority_digest != record.authority_digest:
                 raise ValueError(
                     "conflicting task authority capture for existing durable event_id"
                 )
+            # Delivery identity is transport diagnostics, not repository authority.
+            # Keep the first durable capture rather than rewriting it on redelivery.
             return self
         return TaskAuthorityEventLedger(self.records + (record,))
 
