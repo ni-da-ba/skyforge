@@ -5,6 +5,17 @@ Modules here may model state, replay decisions, and persistence contracts, but r
 no repository-mutating authority merely because they exist.
 """
 
+from .canary import (
+    CANARY_BRANCH_PREFIX,
+    CANARY_DOC_PREFIX,
+    WRITER_FENCE_RELATIVE_PATH,
+    CanaryGuardDecision,
+    CanaryGuardDisposition,
+    CanaryTaskContract,
+    LegacyCanaryExclusion,
+    MutationGateRecord,
+    evaluate_canary_guard,
+)
 from .core import (
     ControllerState,
     CoreDecision,
@@ -164,6 +175,14 @@ from .worker import (
 
 __all__ = [
     "AcceptanceIdentity",
+    "CANARY_BRANCH_PREFIX",
+    "CANARY_DOC_PREFIX",
+    "WRITER_FENCE_RELATIVE_PATH",
+    "CanaryGuardDecision",
+    "CanaryGuardDisposition",
+    "CanaryTaskContract",
+    "LegacyCanaryExclusion",
+    "MutationGateRecord",
     "CIState",
     "CachedDecisionDisposition",
     "ClosedActiveDisposition",
@@ -285,6 +304,7 @@ __all__ = [
     "compact_events",
     "decide_mechanical",
     "enqueue_events",
+    "evaluate_canary_guard",
     "evaluate_offline_shadow",
     "evaluate_roadmap_shadow",
     "normalize_legacy_event_key",
