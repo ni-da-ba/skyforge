@@ -36,6 +36,10 @@ from v2.hosted_execution_runtime import (
     HostedExecutionCoordinator,
     load_hosted_execution_gate,
 )
+from v2.hosted_execution_driver import (
+    HostedExecutionDriver,
+    ProductionHostedDependencyFactory,
+)
 from v2.hosted_state import HostedIngressState, HostedStateStore, ingest_event
 from v2.hosted_task_plan import (
     HostedTaskPlanDisposition,
@@ -122,6 +126,7 @@ class HostedV2Substrate:
         self.task_authority_store = TaskAuthorityEventStore.for_root(self.root)
         self.task_plan_store = HostedTaskPlanStore.for_root(self.root)
         self.admission_store = HostedAdmissionStore.for_root(self.root)
+        self.execution_driver = None
         self._lock = threading.RLock()
         self.state = self.store.load()
         self.validate_environment()
@@ -148,6 +153,16 @@ class HostedV2Substrate:
             next_state = self.state.with_projection(projection.as_dict())
             self.store.save(next_state)
             self.state = next_state
+
+    def attach_execution_driver(self, driver) -> None:
+        if not self.production_execution_enabled:
+            raise RuntimeError("cannot attach execution driver while production execution is disabled")
+        self.execution_driver = driver
+
+    def _signal_execution_driver(self) -> None:
+        driver = self.execution_driver
+        if driver is not None:
+            driver.wake()
 
     def health_snapshot(self) -> dict[str, Any]:
         with self._lock:
@@ -188,9 +203,13 @@ class HostedV2Substrate:
                 "task_preflight_enabled": True,
                 "hosted_task_planning_enabled": True,
                 "explicit_classifier_proposal_enabled": True,
-                "automatic_classifier_execution_enabled": False,
+                "automatic_classifier_execution_enabled": (
+                    self.production_execution_enabled and self.execution_driver is not None
+                ),
                 "explicit_task_admission_enabled": True,
-                "automatic_task_admission_enabled": False,
+                "automatic_task_admission_enabled": (
+                    self.production_execution_enabled and self.execution_driver is not None
+                ),
                 "production_execution_requested": self.production_execution_requested,
                 "production_execution_enabled": self.production_execution_enabled,
                 "production_execution_gate_digest": (
@@ -212,6 +231,26 @@ class HostedV2Substrate:
                 ),
                 "active_task_plan_status": (
                     active_plan.status.value if active_plan is not None else ""
+                ),
+                "production_execution_driver": (
+                    self.execution_driver.snapshot().as_dict()
+                    if self.execution_driver is not None
+                    else {
+                        "enabled": False,
+                        "running": False,
+                        "wake_count": 0,
+                        "advance_count": 0,
+                        "last_disposition": "",
+                        "last_reason": "",
+                        "last_durable_identity": "",
+                        "last_advance_at": "",
+                        "last_error": "",
+                    }
+                ),
+                "production_execution_budget": (
+                    self.execution_driver.budget_snapshot()
+                    if self.execution_driver is not None
+                    else {}
                 ),
             }
 
@@ -327,6 +366,9 @@ class HostedV2Substrate:
                 "duplicate": True,
                 "mutation_authority": self.production_execution_enabled,
             }
+
+        if event.actionable and not transition.semantic_replay_suppressed:
+            self._signal_execution_driver()
 
         return 202, {
             "accepted": event.actionable,
@@ -565,6 +607,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Enable the R5C24 mutation-capable coordinator only with accepted activation evidence.",
     )
     parser.add_argument(
+        "--execution-periodic-seconds",
+        type=int,
+        default=int(os.environ.get("SKYFORGE_V2_PERIODIC_WAKE_SECONDS", "900")),
+        help="Model-free periodic driver wake used to recover missed webhook progress.",
+    )
+    parser.add_argument(
+        "--execution-max-boundaries-per-wake",
+        type=int,
+        default=int(os.environ.get("SKYFORGE_V2_MAX_BOUNDARIES_PER_WAKE", "32")),
+        help="Hard bound on durable lifecycle advances drained by one driver wake.",
+    )
+    parser.add_argument(
         "--activation-evidence",
         type=Path,
         default=(
@@ -581,6 +635,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error(
             "--enable-production-execution requires --activation-evidence"
         )
+    if args.execution_periodic_seconds < 1:
+        parser.error("--execution-periodic-seconds must be positive")
+    if args.execution_max_boundaries_per_wake < 1:
+        parser.error("--execution-max-boundaries-per-wake must be positive")
     return args
 
 
@@ -605,8 +663,20 @@ def main(argv: list[str] | None = None) -> int:
         production_execution_requested=args.enable_production_execution,
         execution_gate=execution_gate,
     )
+    execution_driver = None
+    if runtime.production_execution_enabled:
+        execution_driver = HostedExecutionDriver(
+            runtime=runtime,
+            dependencies=ProductionHostedDependencyFactory(root=args.root),
+            periodic_seconds=args.execution_periodic_seconds,
+            max_boundaries_per_wake=args.execution_max_boundaries_per_wake,
+        )
+        runtime.attach_execution_driver(execution_driver)
+
     Handler.runtime = runtime
     server = ThreadingHTTPServer((args.bind, args.port), Handler)
+    if execution_driver is not None:
+        execution_driver.start()
     print(
         (
             f"[platform-v2] gated execution-capable hosted runtime listening on "
@@ -621,6 +691,8 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         pass
     finally:
+        if execution_driver is not None:
+            execution_driver.stop()
         server.server_close()
     return 0
 
