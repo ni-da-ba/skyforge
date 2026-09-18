@@ -101,7 +101,7 @@ class ClassifierProviderTest(unittest.TestCase):
         decision = parse_classifier_response(text)
         self.assertEqual(decision.kind, DecisionKind.DISPATCH)
         self.assertEqual(decision.worker_tier, WorkerTier.LUNA)
-        self.assertIsNone(decision.allowed_paths)
+        self.assertEqual(decision.allowed_paths, ("scripts/orchestrator/v2/example.py",))
 
     def test_parser_rejects_missing_json_and_unknown_decision(self):
         with self.assertRaises(ValueError):
