@@ -19,6 +19,11 @@ import threading
 from typing import Any, Mapping
 
 from v2.cutover import LegacyOperationalProjection
+from v2.hosted_admission import (
+    HostedAdmissionAdvanceResult,
+    HostedAdmissionStore,
+    advance_hosted_dispatch_admission,
+)
 from v2.hosted_classifier import (
     HostedClassifierResult,
     advance_hosted_classifier_proposal,
@@ -90,6 +95,7 @@ class HostedV2Substrate:
         self.store = HostedStateStore.for_root(self.root)
         self.task_authority_store = TaskAuthorityEventStore.for_root(self.root)
         self.task_plan_store = HostedTaskPlanStore.for_root(self.root)
+        self.admission_store = HostedAdmissionStore.for_root(self.root)
         self._lock = threading.RLock()
         self.state = self.store.load()
         self.validate_environment()
@@ -126,6 +132,7 @@ class HostedV2Substrate:
             authority_ledger = self.task_authority_store.load()
             task_plan = self.task_plan_store.load()
             active_plan = task_plan.active
+            admission = self.admission_store.load().record
             return {
                 "status": "ok",
                 "controller": "platform-v2",
@@ -152,6 +159,14 @@ class HostedV2Substrate:
                 "hosted_task_planning_enabled": True,
                 "explicit_classifier_proposal_enabled": True,
                 "automatic_classifier_execution_enabled": False,
+                "explicit_dispatch_admission_enabled": True,
+                "automatic_dispatch_admission_enabled": False,
+                "active_admission_record_id": (
+                    admission.record_id if admission is not None else ""
+                ),
+                "active_admission_outcome": (
+                    admission.outcome.value if admission is not None else ""
+                ),
                 "active_task_plan_id": (
                     active_plan.plan_id if active_plan is not None else ""
                 ),
@@ -361,6 +376,32 @@ class HostedV2Substrate:
             local_budget=local_budget,
             config=config,
         )
+
+    def advance_task_admission(
+        self,
+        *,
+        active_external_claims=(),
+        provider_quota,
+        local_budget,
+        attempt_number: int,
+        runner=None,
+    ) -> HostedAdmissionAdvanceResult:
+        """Explicitly freeze one admitted worker identity without launching it."""
+        with self._lock:
+            plan = self.task_plan_store.load()
+        kwargs = {
+            "root": self.root,
+            "plan_ledger": plan,
+            "trusted_actors": self.trusted_actors,
+            "repo": self.repo,
+            "active_external_claims": tuple(active_external_claims),
+            "provider_quota": provider_quota,
+            "local_budget": local_budget,
+            "attempt_number": attempt_number,
+        }
+        if runner is not None:
+            kwargs["runner"] = runner
+        return advance_hosted_dispatch_admission(**kwargs)
 
     def preflight_task_event(
         self,
