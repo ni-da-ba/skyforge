@@ -7,7 +7,7 @@ The coordinator advances at most one durable lifecycle boundary per call.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 import json
 from pathlib import Path
@@ -58,6 +58,7 @@ from .hosted_completion import (
 from .hosted_state import HostedStateStore
 from .hosted_task_plan import (
     HostedTaskPlanDisposition,
+    HostedTaskPlanLedger,
     HostedTaskPlanStatus,
     HostedTaskPlanStore,
     advance_claimed_task_preflight,
@@ -383,6 +384,7 @@ class HostedExecutionAdvanceDisposition(str, Enum):
     TASK_CLAIMED = "TASK_CLAIMED"
     PREFLIGHT_ADVANCED = "PREFLIGHT_ADVANCED"
     CLASSIFIER_ADVANCED = "CLASSIFIER_ADVANCED"
+    TASK_REVISION_ACCEPTED = "TASK_REVISION_ACCEPTED"
     ADMISSION_ADVANCED = "ADMISSION_ADVANCED"
     WORKER_ADVANCED = "WORKER_ADVANCED"
     LOCAL_COMMIT_ADVANCED = "LOCAL_COMMIT_ADVANCED"
@@ -508,6 +510,98 @@ class HostedExecutionCoordinator:
             by_issue.setdefault(claim.issue_number, claim)
         return tuple(by_issue[key] for key in sorted(by_issue))
 
+    def _supersede_failed_classifier_plan(
+        self,
+        *,
+        state,
+        plan_store,
+        plan,
+        classifier,
+    ) -> HostedExecutionAdvanceResult | None:
+        """Accept one newer signed same-issue task revision after classifier failure.
+
+        The old request remains immutable and its authority is retired, never completed.
+        No automatic retry is allowed without a distinct captured task-authority event.
+        """
+        if classifier.status not in {
+            ClassifierRunStatus.FAILED,
+            ClassifierRunStatus.INTERRUPTED,
+        }:
+            return None
+
+        if HostedAdmissionStore.for_root(self.root).load().record is not None:
+            return self._blocked(
+                "failed classifier plan cannot be revised after admission state exists"
+            )
+        if DormantHandoffCommitStore.for_root(self.root).load().record is not None:
+            return self._blocked(
+                "failed classifier plan cannot be revised after handoff commit state exists"
+            )
+
+        authority_events = TaskAuthorityEventStore.for_root(self.root).load()
+        original = authority_events.get(plan.event_id)
+        if original is None:
+            return self._blocked(
+                "failed classifier plan lacks original signed task authority"
+            )
+
+        candidates = []
+        original_order = (
+            str(original.reference.created_at),
+            int(original.reference.comment_id),
+        )
+        for event in state.inbox.pending_events:
+            if (
+                event.event_id == plan.event_id
+                or event.signal_kind != "task"
+                or not event.protected_authority
+                or event.task_issue_number != plan.issue_number
+            ):
+                continue
+            record = authority_events.get(event.event_id)
+            if record is None or record.reference.issue_number != plan.issue_number:
+                continue
+            candidate_order = (
+                str(record.reference.created_at),
+                int(record.reference.comment_id),
+            )
+            if candidate_order > original_order:
+                candidates.append((event, candidate_order))
+
+        if not candidates:
+            return self._blocked(
+                "failed classifier request requires a newer explicit signed task revision"
+            )
+        if len(candidates) != 1:
+            return self._blocked(
+                "multiple newer task revisions are pending; operator must disambiguate authority"
+            )
+
+        revision, _order = candidates[0]
+        retired = list(state.inbox.retired_event_keys)
+        if plan.event_id not in retired:
+            retired.append(plan.event_id)
+        new_inbox = replace(
+            state.inbox,
+            pending_events=tuple(
+                event for event in state.inbox.pending_events if event.event_id != plan.event_id
+            ),
+            retired_event_keys=tuple(retired),
+            owned_event_keys=tuple(
+                key for key in state.inbox.owned_event_keys if key != plan.event_id
+            ),
+        )
+        HostedStateStore.for_root(self.root).save(replace(state, inbox=new_inbox))
+        # State is persisted first: a crash here still suppresses the failed old event,
+        # and the surviving plan can deterministically repeat this revision transition.
+        plan_store.save(HostedTaskPlanLedger())
+        return HostedExecutionAdvanceResult(
+            HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED,
+            "newer signed task authority superseded failed classifier plan",
+            self.gate.digest,
+            revision.event_id,
+        )
+
     def _managed_handoff_for_attempt(
         self,
         attempt_id: str,
@@ -631,6 +725,18 @@ class HostedExecutionCoordinator:
 
         classifier_store = ClassifierRunStore.for_root(self.root)
         classifier = classifier_store.load().get(plan.seed.classifier_request.request_id)
+        if classifier is not None and classifier.status in {
+            ClassifierRunStatus.FAILED,
+            ClassifierRunStatus.INTERRUPTED,
+        }:
+            revision = self._supersede_failed_classifier_plan(
+                state=state,
+                plan_store=plan_store,
+                plan=plan,
+                classifier=classifier,
+            )
+            if revision is not None:
+                return revision
         if classifier is None or classifier.status is not ClassifierRunStatus.COMPLETE:
             result = advance_hosted_classifier_proposal(
                 plan_ledger=plan_ledger,

@@ -83,16 +83,30 @@ class ClassifierRequest:
         return canonical_digest(self.as_dict())
 
     def prompt(self) -> str:
+        schema = (
+            "REQUIRED JSON PROPOSAL SCHEMA (all keys allowed; use null when not applicable):\n"
+            '{"decision":"NOOP|DISPATCH|HUMAN_GATE|MERGE","lane":null,'
+            '"pr_number":null,"objective":null,"stop_boundary":null,'
+            '"reusable_evidence":null,"worker_tier":null,"allowed_paths":null,'
+            '"reason":"","human_message":null}\n'
+            "Rules: decision must be exactly one of NOOP, DISPATCH, HUMAN_GATE, MERGE. "
+            "worker_tier, when present, must be LUNA or TERRA. DISPATCH requires lane, "
+            "objective, and stop_boundary; LUNA DISPATCH requires non-empty allowed_paths. "
+            "When task_authority is present, never widen its allowed_paths or protected boundary. "
+            "For executable bounded task work, preserve the task_authority lane/objective/stop_boundary "
+            "in the DISPATCH proposal; the outer controller remains authoritative.\n\n"
+        )
         return (
             "A filtered Skyforge repository event batch requires a bounded proposal.\n\n"
-            "SEMANTIC INPUT:\n"
+            + schema
+            + "SEMANTIC INPUT:\n"
             + json.dumps(
                 dict(self.semantic_input),
                 indent=2,
                 sort_keys=True,
                 ensure_ascii=False,
             )[:50000]
-            + "\n\nReturn only the required JSON proposal. This proposal has no authority "
+            + "\n\nReturn only one JSON object matching the schema above. This proposal has no authority "
             "until the outer controller validates it against repository-owned task authority."
         )
 
@@ -289,7 +303,7 @@ def parse_classifier_response(text: str) -> ClassifierDecision:
 
 class CodexClassifierProvider:
     DEVELOPER_INSTRUCTIONS = """You are the Skyforge bounded classifier.
-Return only one JSON proposal using the required decision schema.
+Return only one JSON proposal. The decision field must be exactly NOOP, DISPATCH, HUMAN_GATE, or MERGE; never invent decision kinds.
 You have read-only repository access. You do not own task authority, dispatch, GitHub
 mutation, merge, human gates, or repository policy. The outer controller validates every
 proposal against repository-owned authority."""
