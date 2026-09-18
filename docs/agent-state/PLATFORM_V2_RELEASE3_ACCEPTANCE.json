@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "status": "ACCEPTED_FOR_RELEASE_4_CANARY",
+  "parent_issue": 767,
+  "acceptance_issue": 825,
+  "release3_main": "db1715b6d8a8cd5819e118f78d57dec9c7f44504",
+  "tranches": [
+    {
+      "id": "R3A",
+      "pr": 808,
+      "merge": "054622bef604173cf8174514ba70a95e6f33c9a2"
+    },
+    {
+      "id": "R3B",
+      "pr": 810,
+      "merge": "8954e477ab18372992d583db2ebd383881769e71"
+    },
+    {
+      "id": "R3C",
+      "pr": 812,
+      "merge": "d09e80f2970b805909bf8d6437f0ea2896ea9740"
+    },
+    {
+      "id": "R3D",
+      "pr": 814,
+      "merge": "c6653774e91e0a60f1b273c0bb8b02fb03fb0f2d"
+    },
+    {
+      "id": "R3E",
+      "pr": 816,
+      "merge": "b45dbaa9fd749400d03277f86ea0427d9c9af265"
+    },
+    {
+      "id": "R3F",
+      "pr": 818,
+      "merge": "388d6f0d4570a4435c348df52bda4bc1f74291a7"
+    },
+    {
+      "id": "R3G",
+      "pr": 820,
+      "merge": "c7ff98a3b6a1250f1ae7f349239ac0c25dd13ea7"
+    },
+    {
+      "id": "R3H",
+      "pr": 822,
+      "merge": "c0c08590fee10ea3f778aeb039e8bbcc38ab6e51"
+    },
+    {
+      "id": "R3I",
+      "pr": 824,
+      "merge": "db1715b6d8a8cd5819e118f78d57dec9c7f44504"
+    }
+  ],
+  "live_evidence": {
+    "first_hosted_cycle_digest": "723a903ec6b7ab718ec433bff977a9581c0889f8d53fe4d97f1ed85ffb672c62",
+    "roadmap_human_gate_decision_digest": "732c93eb8757b6090ab332f02ea8fdfb5ce34e8b34ad092eb92d9049aeeb55df",
+    "external_claim_cycle_digest": "ae72d3f101efd757c27eb399f3794a20e6e44ba22c6c6944e598dd6e8ac3b80d",
+    "terminal_gate_decision_digest": "c7989dfaf7377befaf36f9dfdaab2f9336414ff27f83c60f9d566921cf16b630",
+    "terminal_gate_cycle_digest": "4cb8b04a9f08b1d85d30fbe3f13e7c3f8fa38e171ab283ebb4a6617a63b2fb00",
+    "ordinary_event_count": 4,
+    "classifier_calls_before": 1,
+    "classifier_calls_after": 1
+  },
+  "resolved_divergences": [
+    "accepted_main_identity",
+    "terminal_gate_roadmap_deadlock",
+    "external_claim_terminal_semantics"
+  ],
+  "unresolved_divergences": [],
+  "intentional_release4_gap": "legacy managed PRs lack durable reviewed-SHA and frozen/accepted task-spec identity; v2 remains RECONCILE",
+  "persistent_shadow_timer_installed": false,
+  "release4_authorized": true
+}
