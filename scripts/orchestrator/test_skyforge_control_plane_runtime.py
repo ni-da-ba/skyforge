@@ -205,6 +205,77 @@ class LightweightHostedEditingRuntimeTests(unittest.TestCase):
                 self.assertEqual(runtime._retire_terminal_gate_noise_locked(orchestrator), 0)
             self.assertEqual(orchestrator.state.data["pending_events"], [protected])
 
+    def test_blocked_task_prevents_terminal_gate_latch_and_delegates_to_roadmap_drain(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            orchestrator = runtime.core.Orchestrator.__new__(runtime.core.Orchestrator)
+            orchestrator.root = root
+            orchestrator.state = runtime.core.LocalState(root / "state.json")
+            orchestrator._state_lock = threading.RLock()
+
+            manifest = runtime.roadmap_runtime.roadmap_policy.parse_manifest(
+                {
+                    "schema_version": 1,
+                    "roadmap_id": "terminal-gate-reconcile-test",
+                    "enabled": True,
+                    "max_auto_claims_per_utc_day": 2,
+                    "nodes": [
+                        {
+                            "id": "old-gate",
+                            "kind": "gate",
+                            "lane": "Implementation",
+                            "priority": 100,
+                            "max_runs": 1,
+                            "prerequisites": [],
+                            "human_message": "Older review gate.",
+                        },
+                        {
+                            "id": "repair",
+                            "kind": "task",
+                            "lane": "Implementation",
+                            "issue_number": 10,
+                            "priority": 90,
+                            "max_runs": 1,
+                            "prerequisites": [],
+                            "objective_hint": "repair",
+                            "stop_boundary": "stop",
+                        },
+                        {
+                            "id": "new-gate",
+                            "kind": "gate",
+                            "lane": "Implementation",
+                            "priority": 80,
+                            "max_runs": 1,
+                            "prerequisites": ["repair"],
+                            "human_message": "New review gate.",
+                        },
+                    ],
+                }
+            )
+            orchestrator.state.data["roadmap"] = {
+                "roadmap_id": manifest.roadmap_id,
+                "manifest_fingerprint": manifest.fingerprint,
+                "completed_runs": {},
+                "blocked_nodes": {
+                    "old-gate": {"reason": "Older review gate."},
+                    "repair": {"reason": "awaiting out-of-band completion"},
+                },
+                "active": None,
+            }
+            orchestrator.state.data["pending_events"] = []
+            orchestrator.state.save()
+
+            with (
+                mock.patch.object(runtime.roadmap_runtime, "_roadmap_manifest", return_value=manifest),
+                mock.patch.object(runtime, "_ORIGINAL_DRAIN_AND_DISPATCH") as original,
+            ):
+                snapshot = runtime._terminal_human_gate_snapshot(orchestrator)
+                self.assertFalse(snapshot["latched"])
+                self.assertIn("blocked roadmap task requires", snapshot["reason"])
+                runtime._terminal_gate_quiescent_drain(orchestrator)
+
+            original.assert_called_once_with(orchestrator)
+
     def test_manifest_change_breaks_terminal_gate_quiescence(self):
         with tempfile.TemporaryDirectory() as td:
             root = pathlib.Path(td)
