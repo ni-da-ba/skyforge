@@ -170,7 +170,10 @@ class WorkspaceCommitAdapter:
         for line in lines:
             if not line:
                 continue
-            raw = line[3:] if len(line) > 3 else line
+            # Porcelain v1 begins with two status columns followed by optional
+            # spacing before the path.  Consume exactly the status columns and
+            # trim only whitespace so the first path character is never lost.
+            raw = line[2:].lstrip() if len(line) > 2 else line
             if " -> " in raw:
                 raw = raw.split(" -> ", 1)[1]
             paths.add(_normalize(raw.strip()))
