@@ -352,6 +352,85 @@ class InboxProtectionTest(unittest.TestCase):
             )
 
 
+class HostedRuntimePlanningIntegrationTest(unittest.TestCase):
+    def test_webhook_capture_does_not_auto_claim_or_preflight(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app, _, _ = capture_task(root)
+            self.assertIsNone(app.task_plan_store.load().active)
+            health = app.health_snapshot()
+            self.assertTrue(health["hosted_task_planning_enabled"])
+            self.assertEqual(health["active_task_plan_id"], "")
+            self.assertEqual(health["active_task_plan_status"], "")
+            self.assertFalse(health["mutation_authority"])
+            self.assertFalse(health["worker_dispatch_enabled"])
+            self.assertFalse(health["remote_effect_execution_enabled"])
+
+    def test_explicit_runtime_claim_and_preflight_persist_across_restart(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app, event, _ = capture_task(root)
+
+            claimed = app.claim_next_task_plan()
+            self.assertEqual(
+                claimed.disposition,
+                HostedTaskPlanDisposition.CLAIMED,
+            )
+            self.assertEqual(claimed.ledger.active.event_id, event.event_id)
+            health = app.health_snapshot()
+            self.assertEqual(
+                health["active_task_plan_status"],
+                HostedTaskPlanStatus.CLAIMED.value,
+            )
+            self.assertFalse(health["mutation_authority"])
+
+            ready = app.advance_task_plan_preflight(runner=LiveTruthRunner())
+            self.assertEqual(
+                ready.disposition,
+                HostedTaskPlanDisposition.READY_FOR_CLASSIFIER,
+            )
+            ready_id = ready.ledger.active.plan_id
+            self.assertEqual(
+                app.health_snapshot()["active_task_plan_status"],
+                HostedTaskPlanStatus.READY_FOR_CLASSIFIER.value,
+            )
+
+            restarted = hosted.HostedV2Substrate(
+                root,
+                repo="ni-da-ba/skyforge",
+                require_webhook_secret=True,
+                startup_reconcile=True,
+                webhook_secret=SECRET,
+                trusted_actors=("ni-da-ba",),
+            )
+            after = restarted.health_snapshot()
+            self.assertEqual(after["active_task_plan_id"], ready_id)
+            self.assertEqual(
+                after["active_task_plan_status"],
+                HostedTaskPlanStatus.READY_FOR_CLASSIFIER.value,
+            )
+            self.assertFalse(after["mutation_authority"])
+            self.assertFalse(after["worker_dispatch_enabled"])
+            self.assertFalse(after["remote_effect_execution_enabled"])
+
+    def test_runtime_external_hold_creates_no_plan(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app, _, _ = capture_task(root)
+            hold = ExternalProducerClaim(
+                issue_number=900,
+                claimed_by="ni-da-ba",
+                lane="Implementation",
+                branch="manual/900",
+            )
+            result = app.claim_next_task_plan(external_claims=(hold,))
+            self.assertEqual(
+                result.disposition,
+                HostedTaskPlanDisposition.EXTERNAL_HOLD,
+            )
+            self.assertIsNone(app.task_plan_store.load().active)
+
+
 class CapabilityBoundaryTest(unittest.TestCase):
     def test_planner_source_has_no_provider_worker_or_mutation_surface(self):
         source = (
