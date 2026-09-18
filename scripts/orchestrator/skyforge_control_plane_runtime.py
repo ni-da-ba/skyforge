@@ -152,6 +152,21 @@ def _terminal_human_gate_snapshot(self: core.Orchestrator) -> dict[str, Any]:
     if not gate_ids:
         return {"latched": False, "reason": "no blocked human gate", "gate_ids": []}
 
+    blocked_task_ids = sorted(
+        node_id
+        for node_id in blocked_nodes
+        if node_id in by_id and by_id[node_id].kind == "task"
+    )
+    if blocked_task_ids:
+        return {
+            "latched": False,
+            "reason": (
+                "blocked roadmap task requires ordinary roadmap reconciliation: "
+                + ",".join(blocked_task_ids)
+            ),
+            "gate_ids": gate_ids,
+        }
+
     next_node = roadmap_runtime.roadmap_policy.select_next_node(
         manifest,
         completed_runs=completed_runs,
