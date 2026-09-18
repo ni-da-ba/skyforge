@@ -291,6 +291,34 @@ class CanaryExecutorTest(unittest.TestCase):
                     self.advance(root, FakeRemote())
 
 
+class RequiredCanaryCITest(unittest.TestCase):
+    def test_required_build_context_must_be_present_and_successful(self):
+        self.assertEqual(
+            cli._ci_state([
+                {"name": "other", "status": "COMPLETED", "conclusion": "SUCCESS"}
+            ]),
+            CIState.UNKNOWN,
+        )
+        self.assertEqual(
+            cli._ci_state([
+                {"name": "build", "status": "IN_PROGRESS", "conclusion": ""}
+            ]),
+            CIState.PENDING,
+        )
+        self.assertEqual(
+            cli._ci_state([
+                {"name": "build", "status": "COMPLETED", "conclusion": "FAILURE"}
+            ]),
+            CIState.FAIL,
+        )
+        self.assertEqual(
+            cli._ci_state([
+                {"name": "build", "status": "COMPLETED", "conclusion": "SUCCESS"}
+            ]),
+            CIState.PASS,
+        )
+
+
 class CanaryGhAllowlistTest(unittest.TestCase):
     def test_allowlist_accepts_only_exact_canary_shapes(self):
         t = task()
