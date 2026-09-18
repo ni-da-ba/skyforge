@@ -123,8 +123,8 @@ class HostedAdmissionPolicyTest(unittest.TestCase):
             )
 
             health = app.health_snapshot()
-            self.assertTrue(health["explicit_dispatch_admission_enabled"])
-            self.assertFalse(health["automatic_dispatch_admission_enabled"])
+            self.assertTrue(health["explicit_task_admission_enabled"])
+            self.assertFalse(health["automatic_task_admission_enabled"])
             self.assertEqual(health["active_admission_record_id"], record.record_id)
             self.assertEqual(health["active_admission_outcome"], "ADMITTED")
             self.assertFalse(health["worker_dispatch_enabled"])
