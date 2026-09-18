@@ -126,6 +126,18 @@ from .fairness import (
     select_quiescent_dispatch_batch,
 )
 from .fence import FenceBusyError, WriterFence
+from .hosted_task_plan import (
+    HOSTED_TASK_PLAN_BACKUP_RELATIVE_PATH,
+    HOSTED_TASK_PLAN_RELATIVE_PATH,
+    HostedTaskDispatchPlan,
+    HostedTaskPlanDisposition,
+    HostedTaskPlanLedger,
+    HostedTaskPlanResult,
+    HostedTaskPlanStatus,
+    HostedTaskPlanStore,
+    advance_claimed_task_preflight,
+    claim_next_protected_task,
+)
 from .identity import AcceptanceIdentity, FrozenTaskSpec, TaskAttemptIdentity, canonical_digest
 from .inbox import (
     InboxCompactionReport,
@@ -339,6 +351,14 @@ __all__ = [
     "HostedStateStore",
     "HostedIngressTransition",
     "HostedIngressState",
+    "HOSTED_TASK_PLAN_BACKUP_RELATIVE_PATH",
+    "HOSTED_TASK_PLAN_RELATIVE_PATH",
+    "HostedTaskDispatchPlan",
+    "HostedTaskPlanDisposition",
+    "HostedTaskPlanLedger",
+    "HostedTaskPlanResult",
+    "HostedTaskPlanStatus",
+    "HostedTaskPlanStore",
     "HostedTaskPreflightDisposition",
     "HostedTaskPreflightResult",
     "HOSTED_STATE_RELATIVE_PATH",
@@ -448,6 +468,7 @@ __all__ = [
     "WorkerTier",
     "WriterFence",
     "advance_canary",
+    "advance_claimed_task_preflight",
     "advance_ordinary_pipeline",
     "advance_writer_authority",
     "apply_roadmap_decision",
@@ -467,6 +488,7 @@ __all__ = [
     "classify_legacy_compatible_event",
     "classify_legacy_compatible_control",
     "apply_external_control",
+    "claim_next_protected_task",
     "classify_claim_admission",
     "classify_closed_active_roadmap",
     "classify_claim_release",
