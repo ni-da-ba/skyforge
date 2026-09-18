@@ -19,6 +19,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--issue-number", type=int)
     parser.add_argument("--source-id")
     parser.add_argument(
+        "--signal-kind",
+        default="task",
+        help="Protected authority signal kind to transfer. Defaults to task for backward compatibility.",
+    )
+    parser.add_argument(
         "--activation-evidence",
         type=Path,
         default=Path("/var/lib/skyforge-orchestrator/platform-v2-activation.json"),
@@ -56,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
             event_key=args.event_key,
             issue_number=args.issue_number,
             source_id=args.source_id,
+            signal_kind=args.signal_kind,
             execute=args.execute,
         )
     else:

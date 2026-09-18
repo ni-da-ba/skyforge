@@ -106,6 +106,9 @@ A post-cutover rollback/redeploy can temporarily restore the paused legacy contr
 
 `transfer-authority` is the explicit operator primitive for this boundary. It does not mark work complete and it does not create Platform-v2 authority. It only prevents the paused legacy controller from executing one exact task event while preserving source provenance for a later signed-webhook recapture.
 
+`transfer-authority` defaults to `--signal-kind task` for backward compatibility. During guarded upgrades it may also transfer another exact protected legacy signal (for example `human_gate`) only when the operator supplies the exact event key, issue/PR number, source comment ID, and protected signal kind. Transfer retires the legacy event as transferred, never completed, and restart reconciliation must prove that no protected authority reappears.
+
+
 Preflight requires:
 
 - legacy loaded, active, healthy, and paused;
