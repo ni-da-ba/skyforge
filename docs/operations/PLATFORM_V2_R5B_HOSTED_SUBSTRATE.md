@@ -1,6 +1,6 @@
 # Platform v2 R5B — Hosted runtime substrate
 
-Status: **STAGED FOR ACCEPTANCE — NO PRODUCTION AUTHORITY**
+Status: **IMPLEMENTED READ-ONLY SUBSTRATE — PRODUCTION CUTOVER BLOCKED**
 
 Parent migration: #767  
 R5A: #847 / PR #849  
