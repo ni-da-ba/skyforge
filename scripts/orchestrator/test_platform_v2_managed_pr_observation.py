@@ -6,13 +6,14 @@ import subprocess
 import tempfile
 import unittest
 
-from v2.domain import CIState, PRClass
+from v2.domain import CIState, PRClass, TransitionKind
 from v2.managed_pr_observation import (
     GhManagedPRObserver,
     ManagedPRReadCommandValidator,
     ManagedPRRemoteUnavailable,
     ManagedPRTruthDisposition,
     PR_VIEW_FIELDS,
+    decide_managed_pr_truth,
     observe_managed_pr_truth,
 )
 from v2.ordinary_effects import OrdinaryMutationScope
@@ -175,6 +176,55 @@ class ManagedPRProjectionTest(unittest.TestCase):
                     ManagedPRTruthDisposition.REJECTED,
                 )
                 self.assertIsNone(result.observation)
+
+    def test_observed_truth_reduces_without_mutation(self):
+        ready = observe_managed_pr_truth(
+            handoff=handoff(),
+            pr=pr(),
+            changed_paths=("docs/operations/a.md",),
+        )
+        self.assertEqual(
+            decide_managed_pr_truth(handoff=handoff(), truth=ready).transition.kind,
+            TransitionKind.MERGE_ELIGIBLE,
+        )
+
+        pending = observe_managed_pr_truth(
+            handoff=handoff(),
+            pr=pr(
+                statusCheckRollup=[
+                    {"name": "build", "status": "IN_PROGRESS", "conclusion": ""}
+                ]
+            ),
+            changed_paths=("docs/operations/a.md",),
+        )
+        self.assertEqual(
+            decide_managed_pr_truth(handoff=handoff(), truth=pending).transition.kind,
+            TransitionKind.WAIT,
+        )
+
+        gated_handoff = handoff(auto=False)
+        gated = observe_managed_pr_truth(
+            handoff=gated_handoff,
+            pr=pr(),
+            changed_paths=("docs/operations/a.md",),
+        )
+        self.assertEqual(
+            decide_managed_pr_truth(
+                handoff=gated_handoff,
+                truth=gated,
+            ).transition.kind,
+            TransitionKind.HUMAN_GATE,
+        )
+
+    def test_rejected_truth_cannot_enter_reducer(self):
+        value = handoff()
+        rejected = observe_managed_pr_truth(
+            handoff=value,
+            pr=pr(headRefOid="f" * 40),
+            changed_paths=("docs/operations/a.md",),
+        )
+        with self.assertRaises(ValueError):
+            decide_managed_pr_truth(handoff=value, truth=rejected)
 
     def test_closed_exact_pr_is_observed_inactive_without_acceptance(self):
         result = observe_managed_pr_truth(
