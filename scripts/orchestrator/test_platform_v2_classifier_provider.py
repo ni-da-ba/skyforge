@@ -93,7 +93,7 @@ class ClassifierProviderTest(unittest.TestCase):
             + fence
             + 'json\n{"decision":"DISPATCH","lane":"Implementation",'
             + '"objective":"bounded","stop_boundary":"stop",'
-            + '"worker_tier":"LUNA","allowed_paths":null,'
+            + '"worker_tier":"LUNA","allowed_paths":["scripts/orchestrator/v2/example.py"],'
             + '"reason":"proposal only"}\n'
             + fence
             + "\nsuffix"
