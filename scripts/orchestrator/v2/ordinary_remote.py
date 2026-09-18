@@ -128,7 +128,7 @@ class OrdinaryCommandValidator:
                 (
                     "gh", "api",
                     f"repos/{scope.repo}/issues/{scope.issue_number}/comments?per_page=100",
-                    "--paginate", "--slurp",
+                    "--paginate", "--jq", ".[]",
                 )
             )
             commands.add(
@@ -286,23 +286,25 @@ class GhGitOrdinaryEffectAdapter:
             [
                 "gh", "api",
                 f"repos/{scope.repo}/issues/{scope.issue_number}/comments?per_page=100",
-                "--paginate", "--slurp",
+                "--paginate", "--jq", ".[]",
             ]
         )
-        try:
-            pages = json.loads(output or "[]")
-        except json.JSONDecodeError as exc:
-            raise OrdinaryRemoteUnavailable("comment observation returned malformed JSON") from exc
-        if not isinstance(pages, list):
-            raise OrdinaryRemoteUnavailable("comment observation returned malformed shape")
+        if not output:
+            return []
         result: list[Mapping[str, Any]] = []
-        for page in pages:
-            if not isinstance(page, list):
-                raise OrdinaryRemoteUnavailable("comment page is malformed")
-            for item in page:
-                if not isinstance(item, Mapping):
-                    raise OrdinaryRemoteUnavailable("comment item is malformed")
-                result.append(item)
+        for line in output.splitlines():
+            text = line.strip()
+            if not text:
+                continue
+            try:
+                item = json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise OrdinaryRemoteUnavailable(
+                    "comment observation returned malformed line-delimited JSON"
+                ) from exc
+            if not isinstance(item, Mapping):
+                raise OrdinaryRemoteUnavailable("comment item is malformed")
+            result.append(item)
         return result
 
     def observe(
