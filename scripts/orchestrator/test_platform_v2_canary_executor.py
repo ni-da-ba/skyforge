@@ -120,6 +120,7 @@ class FakeRemote:
         if self.fail_merge:
             raise CanaryRemoteUnavailable("merge unknown")
         self.pr = replace(self.pr, state="MERGED")
+        self.main = "d" * 40
 
 
 class CanaryExecutorTest(unittest.TestCase):
@@ -202,6 +203,33 @@ class CanaryExecutorTest(unittest.TestCase):
             durable = canary_state_store(root).load().as_dict()
             self.assertEqual(durable["create_pr_effect"]["status"], "PENDING")
 
+    def test_unknown_merge_outcome_preserves_pending_effect(self):
+        remote = FakeRemote()
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self.advance(root, remote)
+            remote.pr = replace(remote.pr, ci_state=CIState.PASS)
+            remote.fail_merge = True
+            result = self.advance(root, remote)
+            self.assertEqual(result.disposition, CanaryExecutionDisposition.BLOCKED)
+            durable = canary_state_store(root).load().as_dict()
+            self.assertEqual(durable["merge_pr_effect"]["status"], "PENDING")
+            self.assertFalse(durable["completed"])
+
+    def test_reconcile_remote_merge_even_after_main_moves(self):
+        remote = FakeRemote()
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self.advance(root, remote)
+            remote.pr = replace(remote.pr, ci_state=CIState.PASS)
+            with self.assertRaises(InjectedCanaryCrash):
+                self.advance(root, remote, crash_after_merge=True)
+            self.assertNotEqual(remote.main, BASE)
+            result = self.advance(root, remote)
+            self.assertEqual(result.disposition, CanaryExecutionDisposition.MERGE_RECONCILED)
+            self.assertEqual(remote.merge_calls, 1)
+            self.assertTrue(result.state.completed)
+
     def test_head_movement_blocks_and_never_merges(self):
         remote = FakeRemote()
         remote.branch = "c" * 40
@@ -268,7 +296,7 @@ class CanaryGhAllowlistTest(unittest.TestCase):
         t = task()
         valid = [
             ["gh","api","repos/ni-da-ba/skyforge/commits/main","--jq",".sha"],
-            ["gh","api",f"repos/ni-da-ba/skyforge/commits/{BRANCH}","--jq",".sha"],
+            ["gh","api","repos/ni-da-ba/skyforge/commits/platform%2Fv2-canary%2F900-doc","--jq",".sha"],
             ["gh","pr","list","--repo","ni-da-ba/skyforge","--head",BRANCH,"--base","main","--state","all","--json",cli.PR_LIST_FIELDS,"--jq=."],
             ["gh","pr","create","--repo","ni-da-ba/skyforge","--base","main","--head",BRANCH,"--title",t.pr_title,"--body",t.pr_body],
             ["gh","pr","view","901","--repo","ni-da-ba/skyforge","--json",cli.PR_VIEW_FIELDS,"--jq=."],
