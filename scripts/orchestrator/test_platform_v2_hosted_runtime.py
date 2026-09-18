@@ -335,6 +335,23 @@ class HostedSubstrateTest(unittest.TestCase):
             hosted.parse_args(["--auto-merge"])
 
 
+class SelfRestartHandoffTest(unittest.TestCase):
+    def test_legacy_refresh_provides_none_writer_restart_interval(self):
+        root = Path(__file__).resolve().parents[2]
+        core = (root / "scripts/orchestrator/skyforge_orchestrator.py").read_text()
+        service = (root / "deploy/orchestrator/skyforge-orchestrator.service.in").read_text()
+
+        self.assertIn("def sync_main(self)", core)
+        self.assertIn("runtime_changes", core)
+        self.assertIn("self._request_runtime_restart", core)
+        self.assertIn("os._exit(75)", core)
+        self.assertIn("Restart=on-failure", service)
+        self.assertIn(
+            "scripts/orchestrator/skyforge_control_plane_runtime.py",
+            service,
+        )
+
+
 class HostedMutationSurfaceTest(unittest.TestCase):
     def test_hosted_substrate_has_no_remote_mutation_surface(self):
         root = Path(__file__).resolve().parent
