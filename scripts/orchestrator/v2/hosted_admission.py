@@ -342,6 +342,11 @@ class HostedAdmissionRecord:
         task_raw = raw.get("frozen_task")
         attempt_raw = raw.get("attempt")
         worker_raw = raw.get("worker_spec")
+        present = tuple(value is not None for value in (task_raw, attempt_raw, worker_raw))
+        if any(present) and not all(present):
+            raise ValueError(
+                "hosted admission frozen task/attempt/worker must be all present or all absent"
+            )
         spec = None if task_raw is None else _frozen_task_from_mapping(task_raw)
         attempt = (
             None
