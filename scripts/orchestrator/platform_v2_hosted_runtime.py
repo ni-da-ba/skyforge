@@ -19,6 +19,10 @@ import threading
 from typing import Any, Mapping
 
 from v2.cutover import LegacyOperationalProjection
+from v2.hosted_classifier import (
+    HostedClassifierResult,
+    advance_hosted_classifier_proposal,
+)
 from v2.hosted_state import HostedIngressState, HostedStateStore, ingest_event
 from v2.hosted_task_plan import (
     HostedTaskPlanDisposition,
@@ -146,6 +150,8 @@ class HostedV2Substrate:
                 "task_authority_record_count": len(authority_ledger.records),
                 "task_preflight_enabled": True,
                 "hosted_task_planning_enabled": True,
+                "explicit_classifier_proposal_enabled": True,
+                "automatic_classifier_execution_enabled": False,
                 "active_task_plan_id": (
                     active_plan.plan_id if active_plan is not None else ""
                 ),
@@ -331,6 +337,30 @@ class HostedV2Substrate:
             if result.ledger != current:
                 self.task_plan_store.save(result.ledger)
             return result
+
+    def advance_task_classifier(
+        self,
+        *,
+        provider,
+        provider_quota,
+        local_budget,
+        config=None,
+    ) -> HostedClassifierResult:
+        """Explicitly advance the classifier-ready plan through one durable proposal.
+
+        The HTTP webhook path never calls this method. The classifier proposal remains
+        non-authoritative until later repository dispatch admission.
+        """
+        with self._lock:
+            plan = self.task_plan_store.load()
+        return advance_hosted_classifier_proposal(
+            plan_ledger=plan,
+            root=self.root,
+            provider=provider,
+            provider_quota=provider_quota,
+            local_budget=local_budget,
+            config=config,
+        )
 
     def preflight_task_event(
         self,
