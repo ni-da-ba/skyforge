@@ -266,19 +266,12 @@ class Release4FailureCorpusManifestTest(unittest.TestCase):
                     source = path.read_text(encoding="utf-8")
 
                     if parts[0].endswith(".py"):
-                        self.assertEqual(len(parts), 3, reference)
-                        class_name, method_name = parts[1], parts[2]
+                        self.assertEqual(len(parts), 2, reference)
+                        method_name = parts[1]
                         tree = ast.parse(source)
-                        matches = [
-                            node
-                            for node in tree.body
-                            if isinstance(node, ast.ClassDef)
-                            and node.name == class_name
-                        ]
-                        self.assertEqual(len(matches), 1, reference)
                         methods = {
                             node.name
-                            for node in matches[0].body
+                            for node in ast.walk(tree)
                             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
                         }
                         self.assertIn(method_name, methods, reference)
