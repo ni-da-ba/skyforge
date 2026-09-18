@@ -520,7 +520,7 @@ def _blocked_before_admission(
     )
 
 
-def advance_hosted_dispatch_admission(
+def advance_hosted_task_admission(
     *,
     root: Path,
     plan_ledger: HostedTaskPlanLedger,
