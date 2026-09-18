@@ -7,12 +7,11 @@ from enum import Enum
 from typing import Any, Iterable
 
 from .decision import (
-    CachedDecisionDisposition,
     DecisionFreshnessObservation,
     DecisionKind,
     PendingDecisionRecord,
     WorkerTier as DecisionWorkerTier,
-    cached_decision_disposition,
+    cached_decision_is_current,
 )
 from .external import ExternalProducerClaim, classify_external_dispatch_hold
 from .identity import FrozenTaskSpec, TaskAttemptIdentity, canonical_digest
@@ -194,22 +193,13 @@ def admit_dispatch(
 
     quota = classify_quota_admission(provider_quota, local_budget)
 
-    freshness_result = cached_decision_disposition(record, freshness)
-    if freshness_result is CachedDecisionDisposition.RECLASSIFY:
+    if not cached_decision_is_current(record, freshness):
         return _blocked(
             authority=authority,
             record=record,
             quota=quota,
             disposition=DispatchAdmissionDisposition.RECLASSIFY,
             reason="classifier proposal is stale against current repository truth",
-        )
-    if freshness_result is CachedDecisionDisposition.INVALID:
-        return _blocked(
-            authority=authority,
-            record=record,
-            quota=quota,
-            disposition=DispatchAdmissionDisposition.BLOCK,
-            reason="classifier proposal is structurally invalid",
         )
 
     decision = record.decision
