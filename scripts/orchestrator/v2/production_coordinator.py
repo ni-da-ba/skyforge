@@ -46,6 +46,7 @@ from .hosted_task_plan import (
     claim_next_protected_task,
 )
 from .identity import canonical_digest
+from .ordinary_effects import OrdinaryEffectStore
 from .managed_pr_lifecycle import (
     ManagedLifecycleDisposition,
     advance_managed_pr_lifecycle,
@@ -398,10 +399,7 @@ class ProductionCoordinator:
         lifecycle=advance_managed_pr_lifecycle(
             root=root,
             handoff=handoff,
-            store=__import__(
-                "scripts.orchestrator.v2.ordinary_effects",
-                fromlist=["OrdinaryEffectStore"],
-            ).OrdinaryEffectStore.for_root(root),
+            store=OrdinaryEffectStore.for_root(root),
             runner=self.runner,
         )
         if lifecycle.disposition is ManagedLifecycleDisposition.COMPLETE:
