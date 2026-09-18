@@ -4,7 +4,7 @@ This file is a compact bootstrap cache for disposable/manual/hosted agents. It d
 
 ## Snapshot boundary
 
-- Platform-v2 is the active production orchestrator at accepted SHA `ef0f1b513b1fb421528c22012674e8642af2e644`.
+- Platform-v2 is the active production orchestrator at accepted SHA `1c23016db136de9ff0ba7dcda8a9017fbf42f358`.
 - The production activation gate is healthy, and Platform-v2 owns writer authority.
 - Legacy is inactive and boot-disabled; it remains an emergency/upgrade rollback path while Platform-v2 is authoritative.
 - Post-cutover production soak #916 completed end-to-end through classifier, admission, one bounded worker, PR #924, CI, auto-merge, durable completion, and cleanup.
@@ -20,7 +20,7 @@ Before using this snapshot, verify current `main`, live orchestrator state, and 
 
 ## Active convergence tranche
 
-The Platform-v2 migration/soak tranche is complete. The canonical post-migration optimization plan is `docs/architecture/SKYFORGE_DEVELOPMENT_PLATFORM_OPTIMIZATION_ROADMAP.md`. Begin OPT-1 (natural objective intake / intent compiler) and exercise it immediately on renewed DR-70 development; platform optimization and product development should proceed as one workload-driven loop.
+The Platform-v2 migration/soak tranche is complete. The canonical post-migration optimization plan is `docs/architecture/SKYFORGE_DEVELOPMENT_PLATFORM_OPTIMIZATION_ROADMAP.md`. OPT-1A/1B natural objective intake is accepted in live production: signed `Continue DR-70` resolves durably to the explicit DR-70 human re-review gate without creating task/worker authority. OPT-2 is now current: derive compact reproducible context and exact file scope before any objective candidate can become executable authority. Platform optimization and product development should proceed as one workload-driven loop.
 
 ## Orchestration boundary
 
