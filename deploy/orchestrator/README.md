@@ -364,3 +364,24 @@ scripts/orchestrator/remove_v2_shadow.sh --confirm
 ```
 
 Release 3 shadow evidence is observational only. `AGREE` samples count toward parity; `NON_COMPARABLE` samples do not. `STRICTER_V2_EVIDENCE_GAP` remains an explicit migration gap, and `DIVERGENCE` requires investigation before Release 4 can receive mutation authority.
+
+## Platform v2 operator cutover package
+
+R5C26 adds a separate `skyforge-orchestrator-v2.service` and a privileged operator
+cutover/rollback tool. Unit staging is intentionally separate from writer activation:
+
+```bash
+export SKYFORGE_ACCEPTED_MAIN_SHA=<accepted-main-sha>
+./scripts/orchestrator/stage_platform_v2_cutover.sh
+python3 scripts/orchestrator/platform_v2_operator_cutover.py preflight \
+  --root "$PWD" \
+  --activation-template /path/to/reviewed-activation-template.json
+```
+
+Staging updates unit definitions and performs `daemon-reload` only. It verifies the
+legacy MainPID is unchanged and leaves v2 disabled. Live `cutover --execute` and
+`rollback --execute` require a root operator and preserve `LEGACY -> NONE -> V2` and
+`V2 -> NONE -> LEGACY`. See
+`docs/operations/PLATFORM_V2_R5C26_OPERATOR_CUTOVER.md` for the evidence and abort
+contract. DR-70 remains an explicit production-gate input; the operator package does
+not infer or machine-pass it.
