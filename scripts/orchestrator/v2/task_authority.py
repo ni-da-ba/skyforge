@@ -30,6 +30,12 @@ def _required_text(value: Any, label: str) -> str:
     return value.strip()
 
 
+def _required_body(value: Any, label: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{label} must be non-empty text")
+    return value
+
+
 def _positive_int(value: Any, label: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"{label} must be a positive integer")
@@ -252,7 +258,7 @@ class TaskAuthorityWakeReference:
             self, "comment_id", _positive_int(self.comment_id, "comment_id")
         )
         object.__setattr__(self, "actor", _required_text(self.actor, "actor"))
-        object.__setattr__(self, "body", _required_text(self.body, "body"))
+        object.__setattr__(self, "body", _required_body(self.body, "body"))
         object.__setattr__(
             self, "created_at", _required_text(self.created_at, "created_at")
         )
@@ -295,7 +301,7 @@ class TaskAuthorityIdentity:
         reference: TaskAuthorityWakeReference,
         comment: Mapping[str, Any],
     ) -> "TaskAuthorityIdentity":
-        body = _required_text(comment.get("body"), "live comment body")
+        body = _required_body(comment.get("body"), "live comment body")
         user = comment.get("user") or {}
         if not isinstance(user, Mapping):
             raise ValueError("live comment user must be an object")
@@ -406,7 +412,7 @@ def hydrate_task_authority(
         issue_state = _required_text(issue.get("state"), "live issue state").lower()
         live_identity = TaskAuthorityIdentity.from_live_comment(reference, comment)
         issue_url = _required_text(comment.get("issue_url"), "live comment issue_url")
-        live_body = _required_text(comment.get("body"), "live comment body")
+        live_body = _required_body(comment.get("body"), "live comment body")
     except ValueError as exc:
         return _result(TaskAuthorityDisposition.REJECTED, str(exc))
 
