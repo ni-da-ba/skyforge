@@ -2,7 +2,7 @@
   "schema_version": 1,
   "tranche": "R5B",
   "authority_issue": 850,
-  "status": "HOSTED_SUBSTRATE_READY_PENDING_EXACT_HEAD_ACCEPTANCE",
+  "status": "IMPLEMENTED_READ_ONLY_SUBSTRATE",
   "base_main_sha": "74caefc31230437524136f0440152d9fa0d68392",
   "runtime_path": "scripts/orchestrator/platform_v2_hosted_runtime.py",
   "hosted_state_path": ".skyforge-platform-v2/hosted-state.json",
