@@ -20,6 +20,7 @@ from typing import Any, Mapping
 
 from v2.cutover import LegacyOperationalProjection
 from v2.hosted_state import HostedIngressState, HostedStateStore, ingest_event
+from v2.identity import canonical_digest
 from v2.ingress import (
     classify_legacy_compatible_control,
     classify_legacy_compatible_event,
@@ -115,11 +116,7 @@ class HostedV2Substrate:
                 "pending_event_count": len(state.inbox.pending_events),
                 "seen_delivery_count": len(state.seen_deliveries),
                 "legacy_projection_digest": (
-                    LegacyOperationalProjection.from_legacy_mapping(
-                        _projection_as_legacy_shape(projection)
-                    ).digest
-                    if projection
-                    else ""
+                    canonical_digest(projection) if projection else ""
                 ),
                 "projected_external_claim_count": len(external),
                 "projected_roadmap_id": str(roadmap.get("roadmap_id") or ""),
@@ -217,27 +214,6 @@ class HostedV2Substrate:
             "mutation_authority": False,
         }
 
-
-def _projection_as_legacy_shape(projection: Mapping[str, Any]) -> dict[str, Any]:
-    """Rehydrate only fields required to recompute a projection digest for health."""
-    claims = {
-        str(item["issue_number"]): dict(item)
-        for item in (projection.get("external_claims") or [])
-    }
-    return {
-        "paused": projection.get("paused", False),
-        "blocked_kind": projection.get("blocked_kind"),
-        "pending_worker": projection.get("pending_worker"),
-        "pending_decision": projection.get("pending_decision"),
-        "managed": projection.get("managed") or {},
-        "pending_events": projection.get("pending_events") or [],
-        "external_producer_claims": claims,
-        "roadmap": projection.get("roadmap") or {},
-        # The projection stores only the digest of human-gate records by design;
-        # digest recomputation for health therefore does not use this helper's
-        # result as authority.  Keep an empty mapping here.
-        "human_gate_records": {},
-    }
 
 
 class Handler(BaseHTTPRequestHandler):
