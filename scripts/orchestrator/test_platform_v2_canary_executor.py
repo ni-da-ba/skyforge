@@ -291,6 +291,32 @@ class CanaryExecutorTest(unittest.TestCase):
                     self.advance(root, FakeRemote())
 
 
+class CanaryIsolationTest(unittest.TestCase):
+    def test_canary_state_store_never_writes_legacy_state(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            legacy_dir = root / ".skyforge-orchestrator"
+            legacy_dir.mkdir()
+            legacy_path = legacy_dir / "state.json"
+            legacy_payload = '{"sentinel":"legacy"}\n'
+            legacy_path.write_text(legacy_payload, encoding="utf-8")
+
+            store = canary_state_store(root)
+            store.save({"schema_version": 1, "sentinel": "v2"})
+
+            self.assertEqual(legacy_path.read_text(encoding="utf-8"), legacy_payload)
+            self.assertTrue((root / ".skyforge-platform-v2/canary-state.json").exists())
+            self.assertTrue((root / ".skyforge-platform-v2/canary-state.json.bak").exists())
+
+    def test_legacy_production_does_not_import_canary_executor(self):
+        root = Path(__file__).resolve().parent
+        paths = [root / "skyforge_orchestrator.py", *sorted(root.glob("skyforge*_runtime.py"))]
+        for path in paths:
+            source = path.read_text(encoding="utf-8")
+            self.assertNotIn("platform_v2_canary_executor", source, path.name)
+            self.assertNotIn("v2.canary_executor", source, path.name)
+
+
 class RequiredCanaryCITest(unittest.TestCase):
     def test_required_build_context_must_be_present_and_successful(self):
         self.assertEqual(
