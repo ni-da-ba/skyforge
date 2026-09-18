@@ -217,7 +217,12 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _atomic_write_json(path: Path, value: Mapping[str, Any]) -> None:
+def _atomic_write_json(
+    path: Path,
+    value: Mapping[str, Any],
+    *,
+    mode: int | None = None,
+) -> None:
     path = Path(path).resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
@@ -225,6 +230,8 @@ def _atomic_write_json(path: Path, value: Mapping[str, Any]) -> None:
     with tmp.open("w", encoding="utf-8") as handle:
         handle.write(payload)
         handle.flush()
+        if mode is not None:
+            os.fchmod(handle.fileno(), mode)
         os.fsync(handle.fileno())
     os.replace(tmp, path)
 
@@ -516,7 +523,7 @@ class OperatorCutoverController:
             record("WRITER_NONE", "legacy writer observably inactive")
 
             final_evidence = template.final_evidence()
-            _atomic_write_json(self.activation_evidence, final_evidence)
+            _atomic_write_json(self.activation_evidence, final_evidence, mode=0o640)
             gate = self.gate_loader(
                 self.activation_evidence,
                 root=self.root,

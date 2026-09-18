@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import stat
 from pathlib import Path
 import subprocess
 import tempfile
@@ -290,6 +291,7 @@ class OperatorCutoverTest(unittest.TestCase):
         self.assertTrue(raw["legacy_writer_revoked_observed"])
         self.assertEqual(raw["writer_authority"], "NONE")
         self.assertEqual(raw["accepted_main_sha"], main)
+        self.assertEqual(stat.S_IMODE(evidence.stat().st_mode), 0o640)
         self.assertTrue(Path(report.checkpoint_path).is_file())
 
     def test_failed_legacy_revocation_never_activates_v2(self):
@@ -402,6 +404,9 @@ class ServiceTemplateContractTest(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         source = (root / "scripts/orchestrator/stage_platform_v2_cutover.sh").read_text()
         self.assertIn("systemctl daemon-reload", source)
+        self.assertIn("/var/lib/skyforge-orchestrator/platform-v2-activation.json", source)
+        self.assertIn('install -d -o root -g "$SERVICE_GROUP" -m 2750 "$ACTIVATION_DIR"', source)
+        self.assertIn('install -o root -g "$SERVICE_GROUP" -m 0640 /dev/null "$read_probe"', source)
         self.assertIn("disable skyforge-orchestrator-v2.service", source)
         self.assertNotIn("systemctl restart", source)
         self.assertNotIn("systemctl start", source)
