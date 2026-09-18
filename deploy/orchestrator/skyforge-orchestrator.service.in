@@ -13,7 +13,7 @@ Environment=HOME=@@HOME@@
 Environment=JAVA_HOME=/nonexistent/skyforge-project-java-is-github-actions-only
 EnvironmentFile=/etc/skyforge-orchestrator/env
 ExecStartPre=@@VENV_PYTHON@@ @@ROOT@@/scripts/orchestrator/sync_runtime_dependencies.py --root @@ROOT@@
-ExecStart=@@VENV_PYTHON@@ @@ROOT@@/scripts/orchestrator/skyforge_control_plane_runtime.py --root @@ROOT@@ --repo ni-da-ba/skyforge --bind 127.0.0.1 --port 3000 --require-webhook-secret --startup-reconcile
+ExecStart=@@VENV_PYTHON@@ @@ROOT@@/scripts/orchestrator/skyforge_control_plane_runtime.py --root @@ROOT@@ --repo ni-da-ba/skyforge --bind 127.0.0.1 --port 3000 --require-webhook-secret --startup-reconcile --require-startup-reconcile-success
 Restart=on-failure
 RestartSec=10
 TimeoutStopSec=30

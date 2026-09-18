@@ -1,0 +1,32 @@
+[Unit]
+Description=Skyforge Platform v2 gated production orchestration
+After=network-online.target
+Wants=network-online.target
+Conflicts=skyforge-orchestrator.service
+
+[Service]
+Type=simple
+User=@@USER@@
+WorkingDirectory=@@ROOT@@
+Environment=HOME=@@HOME@@
+Environment=JAVA_HOME=/nonexistent/skyforge-project-java-is-github-actions-only
+EnvironmentFile=/etc/skyforge-orchestrator/env
+Environment=SKYFORGE_V2_PRODUCTION_EXECUTION=1
+Environment=SKYFORGE_V2_ACTIVATION_EVIDENCE=@@ACTIVATION_EVIDENCE@@
+ExecStartPre=@@VENV_PYTHON@@ @@ROOT@@/scripts/orchestrator/sync_runtime_dependencies.py --root @@ROOT@@
+ExecStart=@@VENV_PYTHON@@ @@ROOT@@/scripts/orchestrator/platform_v2_hosted_runtime.py --root @@ROOT@@ --repo ni-da-ba/skyforge --bind 127.0.0.1 --port 3000 --require-webhook-secret --startup-reconcile --enable-production-execution --activation-evidence @@ACTIVATION_EVIDENCE@@
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+KillSignal=SIGINT
+NoNewPrivileges=true
+PrivateTmp=true
+
+MemoryHigh=1200M
+MemoryMax=1600M
+CPUQuota=85%
+TasksMax=256
+InaccessiblePaths=-@@ROOT@@/.skyforge-orchestrator/toolchains -/usr/lib/jvm
+
+[Install]
+WantedBy=multi-user.target

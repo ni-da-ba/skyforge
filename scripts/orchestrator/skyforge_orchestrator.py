@@ -4782,6 +4782,15 @@ def parse_args() -> argparse.Namespace:
         default=os.environ.get("SKYFORGE_STARTUP_RECONCILE") == "1",
         help="Compare current GitHub state with the prior startup baseline and synthesize one wake if changed.",
     )
+    parser.add_argument(
+        "--require-startup-reconcile-success",
+        action="store_true",
+        default=os.environ.get("SKYFORGE_REQUIRE_STARTUP_RECONCILE_SUCCESS") == "1",
+        help=(
+            "Fail closed before dispatch when startup reconciliation cannot complete; "
+            "used by the R5C26 rollback-safe legacy service."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -4809,7 +4818,22 @@ def main() -> int:
         flush=True,
     )
     if orchestrator.startup_reconcile:
-        orchestrator.attempt_startup_reconcile()
+        reconciled = orchestrator.attempt_startup_reconcile()
+        if args.require_startup_reconcile_success and not reconciled:
+            print(
+                "[orchestrator] required startup reconciliation did not complete; "
+                "exiting before durable work can resume",
+                flush=True,
+            )
+            server.server_close()
+            return 75
+    elif args.require_startup_reconcile_success:
+        print(
+            "[orchestrator] --require-startup-reconcile-success requires --startup-reconcile",
+            flush=True,
+        )
+        server.server_close()
+        return 64
     orchestrator.resume_pending()
     try:
         server.serve_forever()
