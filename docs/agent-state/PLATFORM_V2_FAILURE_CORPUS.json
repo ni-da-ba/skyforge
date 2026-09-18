@@ -8,7 +8,7 @@
       "id": "duplicate_webhook",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_inbox.py::PureInboxPolicyTest::test_enqueue_deduplicates_pending_and_observed_time_redelivery",
+        "scripts/orchestrator/test_platform_v2_inbox.py::test_enqueue_deduplicates_pending_and_observed_time_redelivery",
         "scripts/orchestrator/test_skyforge_orchestrator.py::test_pending_events_are_durable_and_deduplicated"
       ]
     },
@@ -16,14 +16,14 @@
       "id": "out_of_order_webhook",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_failure_corpus.py::Release4ExplicitFailureCorpusTest::test_out_of_order_webhook_delivery_cannot_override_current_repository_truth"
+        "scripts/orchestrator/test_platform_v2_failure_corpus.py::test_out_of_order_webhook_delivery_cannot_override_current_repository_truth"
       ]
     },
     {
       "id": "missed_webhook_reconciliation",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_failure_corpus.py::Release4ExplicitFailureCorpusTest::test_missed_webhook_reconciliation_uses_current_truth_without_event",
+        "scripts/orchestrator/test_platform_v2_failure_corpus.py::test_missed_webhook_reconciliation_uses_current_truth_without_event",
         "scripts/orchestrator/test_skyforge_orchestrator.py::test_startup_reconcile_wakes_only_after_baseline_changes"
       ]
     },
@@ -31,7 +31,7 @@
       "id": "restart_after_classification_before_dispatch",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_decision.py::CachedDecisionFreshnessTest::test_current_valid_decision_is_reusable",
+        "scripts/orchestrator/test_platform_v2_decision.py::test_current_valid_decision_is_reusable",
         "scripts/orchestrator/test_skyforge_orchestrator.py::test_new_event_preserves_inflight_worker_decision"
       ]
     },
@@ -39,7 +39,7 @@
       "id": "restart_during_worker",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_worker_recovery.py::WorkerRecoveryProjectionTest::test_projection_is_deterministic",
+        "scripts/orchestrator/test_platform_v2_worker_recovery.py::test_projection_is_deterministic",
         "scripts/orchestrator/test_skyforge_handoff_recovery_runtime.py::test_open_editing_worker_remains_protected"
       ]
     },
@@ -47,7 +47,7 @@
       "id": "worker_timeout_failure",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_worker_recovery.py::WorkerRecoveryProjectionTest::test_stalled_worker_with_changes_remains_protected",
+        "scripts/orchestrator/test_platform_v2_worker_recovery.py::test_stalled_worker_with_changes_remains_protected",
         "scripts/orchestrator/test_skyforge_orchestrator.py::test_timer_callback_surfaces_pre_dispatch_failure_and_retries"
       ]
     },
@@ -55,23 +55,23 @@
       "id": "provider_quota_capacity_exhaustion",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_failure_corpus.py::Release4ExplicitFailureCorpusTest::test_provider_and_local_quota_exhaustion_block_without_consuming_attempt",
-        "scripts/orchestrator/test_platform_v2_quota.py::ProviderQuotaAdmissionParityTest::test_authoritative_provider_denial_blocks_without_consumption"
+        "scripts/orchestrator/test_platform_v2_failure_corpus.py::test_provider_and_local_quota_exhaustion_block_without_consuming_attempt",
+        "scripts/orchestrator/test_platform_v2_quota.py::test_authoritative_provider_denial_blocks_without_consumption"
       ]
     },
     {
       "id": "push_succeeds_local_state_update_fails",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_failure_corpus.py::Release4ExplicitFailureCorpusTest::test_push_succeeds_but_local_completion_save_fails_reconciles_without_repush",
-        "scripts/orchestrator/test_platform_v2_effect_reconciliation.py::RemoteEffectReconciliationTest::test_representative_effect_kinds_share_same_exactly_once_contract"
+        "scripts/orchestrator/test_platform_v2_failure_corpus.py::test_push_succeeds_but_local_completion_save_fails_reconciles_without_repush",
+        "scripts/orchestrator/test_platform_v2_effect_reconciliation.py::test_representative_effect_kinds_share_same_exactly_once_contract"
       ]
     },
     {
       "id": "pr_creation_succeeds_local_state_update_fails",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_canary_executor.py::CanaryExecutorTest::test_create_effect_is_persisted_before_remote_and_restart_reconciles",
+        "scripts/orchestrator/test_platform_v2_canary_executor.py::test_create_effect_is_persisted_before_remote_and_restart_reconciles",
         "docs/operations/PLATFORM_V2_R4C_LIVE_CANARY_ACCEPTANCE.md::Invocation 1"
       ]
     },
@@ -79,31 +79,31 @@
       "id": "comment_succeeds_local_state_update_fails",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_failure_corpus.py::Release4ExplicitFailureCorpusTest::test_comment_succeeds_but_local_completion_save_fails_reconciles_without_repost",
-        "scripts/orchestrator/test_platform_v2_effect_reconciliation.py::RemoteEffectReconciliationTest::test_pending_exact_present_marks_complete_without_reexecution"
+        "scripts/orchestrator/test_platform_v2_failure_corpus.py::test_comment_succeeds_but_local_completion_save_fails_reconciles_without_repost",
+        "scripts/orchestrator/test_platform_v2_effect_reconciliation.py::test_pending_exact_present_marks_complete_without_reexecution"
       ]
     },
     {
       "id": "ci_evidence_stale_after_head_move",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_transition_contracts.py::MechanicalDecisionTest::test_stale_evidence_invalidates_before_merge",
-        "scripts/orchestrator/test_platform_v2_transition_contracts.py::MechanicalDecisionTest::test_stale_review_invalidates_before_merge"
+        "scripts/orchestrator/test_platform_v2_transition_contracts.py::test_stale_evidence_invalidates_before_merge",
+        "scripts/orchestrator/test_platform_v2_transition_contracts.py::test_stale_review_invalidates_before_merge"
       ]
     },
     {
       "id": "merge_attempt_changed_head",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_canary_executor.py::CanaryExecutorTest::test_head_movement_blocks_and_never_merges",
-        "scripts/orchestrator/test_platform_v2_canary_executor.py::CanaryGhAllowlistTest::test_allowlist_accepts_only_exact_canary_shapes"
+        "scripts/orchestrator/test_platform_v2_canary_executor.py::test_head_movement_blocks_and_never_merges",
+        "scripts/orchestrator/test_platform_v2_canary_executor.py::test_allowlist_accepts_only_exact_canary_shapes"
       ]
     },
     {
       "id": "human_gate_active",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_transition_contracts.py::MechanicalDecisionTest::test_human_gate_blocks_machine_merge",
+        "scripts/orchestrator/test_platform_v2_transition_contracts.py::test_human_gate_blocks_machine_merge",
         "docs/operations/PLATFORM_V2_RELEASE3_LIVE_SHADOW_ACCEPTANCE.md::Roadmap progression + human gate"
       ]
     },
@@ -111,31 +111,31 @@
       "id": "task_or_roadmap_spec_changes_active_attempt",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_failure_corpus.py::Release4ExplicitFailureCorpusTest::test_active_attempt_task_spec_change_produces_new_attempt_and_effect_identity",
-        "scripts/orchestrator/test_platform_v2_primitives.py::FrozenIdentityTest::test_authoritative_content_change_changes_spec_hash"
+        "scripts/orchestrator/test_platform_v2_failure_corpus.py::test_active_attempt_task_spec_change_produces_new_attempt_and_effect_identity",
+        "scripts/orchestrator/test_platform_v2_primitives.py::test_authoritative_content_change_changes_spec_hash"
       ]
     },
     {
       "id": "issue_closes_outside_controller",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_roadmap_recovery.py::ClosedActiveRoadmapRecoveryTest::test_closed_issue_without_pr_completes_full_node",
-        "scripts/orchestrator/test_platform_v2_external_authority.py::ExternalClaimRetentionTest::test_unbound_claim_retires_when_governing_issue_closes"
+        "scripts/orchestrator/test_platform_v2_roadmap_recovery.py::test_closed_issue_without_pr_completes_full_node",
+        "scripts/orchestrator/test_platform_v2_external_authority.py::test_unbound_claim_retires_when_governing_issue_closes"
       ]
     },
     {
       "id": "pr_merges_outside_controller",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_canary_executor.py::CanaryExecutorTest::test_reconcile_remote_merge_even_after_main_moves",
-        "scripts/orchestrator/test_platform_v2_external_authority.py::ExternalClaimRetentionTest::test_bound_claim_retires_when_exact_pr_is_terminal"
+        "scripts/orchestrator/test_platform_v2_canary_executor.py::test_reconcile_remote_merge_even_after_main_moves",
+        "scripts/orchestrator/test_platform_v2_external_authority.py::test_bound_claim_retires_when_exact_pr_is_terminal"
       ]
     },
     {
       "id": "pr_closes_without_merge",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_worker_recovery.py::WorkerRecoveryProjectionTest::test_closed_unmerged_handoff_remains_protected",
+        "scripts/orchestrator/test_platform_v2_worker_recovery.py::test_closed_unmerged_handoff_remains_protected",
         "scripts/orchestrator/test_skyforge_external_producer_claim_runtime.py::test_pr_bound_claim_auto_retires_on_closed_unmerged_pr"
       ]
     },
@@ -143,31 +143,31 @@
       "id": "github_temporarily_unavailable",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_canary_executor.py::CanaryExecutorTest::test_github_unavailable_does_not_mutate",
-        "scripts/orchestrator/test_platform_v2_effect_reconciliation.py::RemoteEffectReconciliationTest::test_pending_unknown_remote_truth_blocks"
+        "scripts/orchestrator/test_platform_v2_canary_executor.py::test_github_unavailable_does_not_mutate",
+        "scripts/orchestrator/test_platform_v2_effect_reconciliation.py::test_pending_unknown_remote_truth_blocks"
       ]
     },
     {
       "id": "stale_local_state_after_host_restore",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_failure_corpus.py::Release4ExplicitFailureCorpusTest::test_stale_local_state_after_restore_is_invalidated_by_current_head_truth",
-        "scripts/orchestrator/test_platform_v2_core.py::JsonStateStoreAdapterTest::test_corrupt_primary_recovers_valid_backup"
+        "scripts/orchestrator/test_platform_v2_failure_corpus.py::test_stale_local_state_after_restore_is_invalidated_by_current_head_truth",
+        "scripts/orchestrator/test_platform_v2_core.py::test_corrupt_primary_recovers_valid_backup"
       ]
     },
     {
       "id": "two_controllers_attempt_ownership",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_failure_corpus.py::Release4ExplicitFailureCorpusTest::test_two_controllers_attempt_mutation_ownership_second_writer_is_denied",
-        "scripts/orchestrator/test_platform_v2_controller_ownership.py::EpochWriterFenceTest::test_epoch_fence_remains_exclusive"
+        "scripts/orchestrator/test_platform_v2_failure_corpus.py::test_two_controllers_attempt_mutation_ownership_second_writer_is_denied",
+        "scripts/orchestrator/test_platform_v2_controller_ownership.py::test_epoch_fence_remains_exclusive"
       ]
     },
     {
       "id": "old_trusted_comment_replayed",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_inbox.py::PureInboxPolicyTest::test_retired_and_completed_keys_suppress_replay",
+        "scripts/orchestrator/test_platform_v2_inbox.py::test_retired_and_completed_keys_suppress_replay",
         "scripts/orchestrator/test_skyforge_orchestrator.py::test_completed_exact_replay_is_suppressed_before_classifier"
       ]
     },
@@ -175,7 +175,7 @@
       "id": "external_manual_producer_active",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_external_authority.py::ExternalDispatchPolicyTest::test_active_claim_holds_matching_task",
+        "scripts/orchestrator/test_platform_v2_external_authority.py::test_active_claim_holds_matching_task",
         "docs/operations/PLATFORM_V2_R4C_LIVE_CANARY_ACCEPTANCE.md::Legacy exclusion"
       ]
     },
@@ -199,7 +199,7 @@
       "id": "malformed_corrupt_local_state",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_core.py::JsonStateStoreAdapterTest::test_dual_corruption_fails_closed",
+        "scripts/orchestrator/test_platform_v2_core.py::test_dual_corruption_fails_closed",
         "scripts/orchestrator/test_skyforge_orchestrator.py::test_local_state_fails_closed_when_primary_and_backup_are_corrupt"
       ]
     },
@@ -207,8 +207,8 @@
       "id": "pending_remote_effect_after_restart",
       "status": "PASS",
       "evidence": [
-        "scripts/orchestrator/test_platform_v2_canary_executor.py::CanaryExecutorTest::test_create_effect_is_persisted_before_remote_and_restart_reconciles",
-        "scripts/orchestrator/test_platform_v2_effect_reconciliation.py::RemoteEffectReconciliationTest::test_pending_exact_present_marks_complete_without_reexecution"
+        "scripts/orchestrator/test_platform_v2_canary_executor.py::test_create_effect_is_persisted_before_remote_and_restart_reconciles",
+        "scripts/orchestrator/test_platform_v2_effect_reconciliation.py::test_pending_exact_present_marks_complete_without_reexecution"
       ]
     }
   ]
