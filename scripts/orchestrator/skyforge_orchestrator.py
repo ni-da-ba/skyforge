@@ -427,11 +427,14 @@ def _audit_signal_kind(body_lower: str) -> str | None:
     # language in explanatory paragraphs. Otherwise an acceptance/clearance update
     # that merely quotes an earlier "RESTART RECOMMENDED" or "HUMAN GATE" can
     # manufacture a new protected wake long after the original condition cleared.
-    if "restart recommended" in directive_line:
+    explicit_audit_directive = directive_line.startswith("audit")
+    if explicit_audit_directive and "restart recommended" in directive_line:
         return "restart_recommended"
-    if "loop risk" in directive_line:
+    if explicit_audit_directive and "loop risk" in directive_line:
         return "loop_risk"
-    if "human_gate" in directive_line or "human gate" in directive_line:
+    if explicit_audit_directive and (
+        "human_gate" in directive_line or "human gate" in directive_line
+    ):
         return "human_gate"
 
     # Retain the legacy broad task fallback for trusted multiline task notices whose
@@ -2120,7 +2123,12 @@ class Orchestrator:
                 and event.signal_text
             ):
                 current_kind = _audit_signal_kind(event.signal_text.lower())
-                if current_kind is not None and current_kind != event.signal_kind:
+                # Preserve the physical event while removing stale protected authority.
+                # A previously-protected comment that no longer matches any explicit
+                # directive remains a generic Audit wake rather than disappearing.
+                if current_kind is None:
+                    current_kind = "audit"
+                if current_kind != event.signal_kind:
                     payload = event.to_state()
                     payload["signal_kind"] = current_kind
                     changed += 1
