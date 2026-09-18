@@ -101,7 +101,7 @@ The optimization program reaches its planned final point when this objective-to-
 
 Accepted by the production cutover, post-cutover soak, and authority-transfer bootstrap. Do not reopen this phase absent a concrete regression.
 
-### OPT-1 — Natural objective intake / intent compiler — NEXT
+### OPT-1 — Natural objective intake / intent compiler — IN PROGRESS (live intake accepted)
 
 **Goal:** remove hand-authored `NEW TASK` JSON from the user's normal workflow.
 
@@ -120,9 +120,11 @@ Required properties:
 - ambiguity that changes product semantics stops at a human decision rather than being guessed;
 - routine decomposition/issue creation/task authority can become controller-owned once policy permits.
 
+**Live acceptance (2026-09-18):** OPT-1A/1B are running in production. A trusted signed plain-language objective (`Continue DR-70`) was durably compiled to the existing DR-70 human re-review gate with no task authority, plan, admission, worker wake, or execution advance. The remaining OPT-1 exit depends on OPT-2 producing repository-justified bounded scope; do not guess file authority inside the intent compiler.
+
 **Exit:** normal bounded work can start from a plain-language objective without Nicholas manually constructing task JSON or GitHub comments.
 
-### OPT-2 — Automatic context acquisition and task packaging
+### OPT-2 — Automatic context acquisition and task packaging — CURRENT
 
 **Goal:** minimize reconstruction cost and worker context while improving task correctness.
 
