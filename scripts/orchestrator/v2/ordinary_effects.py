@@ -59,8 +59,10 @@ class OrdinaryMutationScope:
                 name,
                 _required_text(getattr(self, name), f"mutation scope {name}"),
             )
-        if len(self.base_sha) != 40 or len(self.expected_head_sha) != 40:
-            raise ValueError("mutation scope SHAs must be 40 characters")
+        for name in ("base_sha", "expected_head_sha"):
+            value = getattr(self, name)
+            if len(value) != 40 or any(ch not in "0123456789abcdef" for ch in value):
+                raise ValueError("mutation scope SHAs must be lowercase 40-character hex")
         if "/" not in self.repo or self.repo.count("/") != 1:
             raise ValueError("mutation scope repo must be owner/name")
         if self.issue_number is not None:
