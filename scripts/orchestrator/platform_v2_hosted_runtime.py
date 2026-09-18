@@ -22,7 +22,7 @@ from v2.cutover import LegacyOperationalProjection
 from v2.hosted_admission import (
     HostedAdmissionAdvanceResult,
     HostedAdmissionStore,
-    advance_hosted_dispatch_admission,
+    advance_hosted_task_admission,
 )
 from v2.hosted_classifier import (
     HostedClassifierResult,
@@ -401,7 +401,7 @@ class HostedV2Substrate:
         }
         if runner is not None:
             kwargs["runner"] = runner
-        return advance_hosted_dispatch_admission(**kwargs)
+        return advance_hosted_task_admission(**kwargs)
 
     def preflight_task_event(
         self,
