@@ -514,6 +514,25 @@ def advance_canary(
         if create_reconcile.disposition is EffectReconcileDisposition.BLOCK:
             return _block(create_reconcile.reason, state)
         if create_reconcile.disposition is EffectReconcileDisposition.EXECUTE:
+            # Recheck exact base/head immediately before the first remote mutation.
+            try:
+                create_main = remote.current_main_sha()
+                create_head = remote.branch_head_sha(task.head_branch)
+            except CanaryRemoteUnavailable:
+                return _block("pre-create repository truth is unavailable", state)
+            create_guard = evaluate_canary_guard(
+                gate=gate,
+                task=task,
+                exclusion=exclusion,
+                current_main=create_main,
+                ownership_token=ownership_token,
+                attempt_number=attempt_number,
+                execute_requested=True,
+            )
+            if create_guard.disposition is not CanaryGuardDisposition.ALLOW_MUTATION:
+                return _block(create_guard.reason, state)
+            if create_head != task.expected_head_sha:
+                return _block("candidate branch head moved before PR creation", state)
             try:
                 snapshot = remote.create_pr(task)
             except CanaryRemoteUnavailable:
