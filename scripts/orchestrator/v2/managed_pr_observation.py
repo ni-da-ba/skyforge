@@ -9,7 +9,13 @@ from pathlib import Path
 import subprocess
 from typing import Any, Mapping, Sequence
 
-from .core import ManagedPRObservation
+from .core import (
+    ControllerState,
+    CoreDecision,
+    ManagedPRObservation,
+    ManagedPRState,
+    reduce_managed_pr,
+)
 from .domain import CIState, PRClass
 from .identity import canonical_digest
 from .ordinary_service import ManagedOrdinaryHandoff
@@ -262,6 +268,44 @@ def observe_managed_pr_truth(
         handoff.digest,
         merge_state=merge_state,
         observation=observation,
+    )
+
+
+def managed_state_from_handoff(
+    handoff: ManagedOrdinaryHandoff,
+) -> ControllerState:
+    """Project restart-safe R5C10 handoff authority into the pure managed-PR core."""
+    if not isinstance(handoff, ManagedOrdinaryHandoff):
+        raise ValueError("handoff must be ManagedOrdinaryHandoff")
+    return ControllerState(
+        managed=(
+            ManagedPRState(
+                lane=handoff.lane,
+                pr_number=handoff.pr_number,
+                branch=handoff.scope.branch,
+                authority_key=handoff.authority_key,
+                expected_head=handoff.scope.expected_head_sha,
+                auto_merge_eligible=handoff.auto_merge_eligible,
+                changed_paths=handoff.changed_paths,
+            ),
+        )
+    )
+
+
+def decide_managed_pr_truth(
+    *,
+    handoff: ManagedOrdinaryHandoff,
+    truth: ManagedPRTruthResult,
+) -> CoreDecision:
+    if truth.disposition is not ManagedPRTruthDisposition.OBSERVED:
+        raise ValueError("rejected managed PR truth cannot enter the mechanical reducer")
+    if truth.observation is None:
+        raise ValueError("observed managed PR truth lacks observation")
+    if truth.handoff_digest != handoff.digest:
+        raise ValueError("managed PR truth belongs to a different durable handoff")
+    return reduce_managed_pr(
+        managed_state_from_handoff(handoff),
+        truth.observation,
     )
 
 
