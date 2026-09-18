@@ -108,13 +108,15 @@ class ExternalDispatchParityTest(unittest.TestCase):
 
 
 class ExternalClaimRetirementParityTest(unittest.TestCase):
-    # Mirrors test_pr_bound_claim_auto_retires_on_merge.
-    def test_bound_claim_retires_only_when_exact_pr_is_merged(self) -> None:
-        decision = classify_claim_retention(claim(pr=548), SourcePRState.MERGED)
-        self.assertEqual(decision.disposition, ClaimRetentionDisposition.RETIRE)
+    # Mirrors exact legacy terminal-PR pruning semantics.
+    def test_bound_claim_retires_when_exact_pr_is_terminal(self) -> None:
+        for state in (SourcePRState.MERGED, SourcePRState.CLOSED):
+            with self.subTest(state=state):
+                decision = classify_claim_retention(claim(pr=548), state)
+                self.assertEqual(decision.disposition, ClaimRetentionDisposition.RETIRE)
 
-    def test_open_or_closed_unmerged_claim_is_kept(self) -> None:
-        for state in (SourcePRState.OPEN, SourcePRState.CLOSED, SourcePRState.UNKNOWN):
+    def test_open_or_unknown_claim_is_kept(self) -> None:
+        for state in (SourcePRState.OPEN, SourcePRState.UNKNOWN):
             with self.subTest(state=state):
                 decision = classify_claim_retention(claim(pr=548), state)
                 self.assertEqual(decision.disposition, ClaimRetentionDisposition.KEEP)
