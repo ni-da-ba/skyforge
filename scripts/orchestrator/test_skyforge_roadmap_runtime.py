@@ -425,6 +425,11 @@ class RoadmapRuntimeTests(unittest.TestCase):
             with (
                 mock.patch.object(runtime, "_roadmap_manifest", return_value=manifest),
                 mock.patch.object(runtime, "_roadmap_live_task_prs", return_value=[]),
+                # Keep the backing issue open in this unit test. The closed-blocked-task
+                # reconciler intentionally promotes a blocked node to completed when its
+                # authoritative issue is closed; consulting live GitHub here made this
+                # assertion depend on the current state of historical issue #284.
+                mock.patch.object(runtime, "_roadmap_issue_open", return_value=True),
             ):
                 seeded = runtime._roadmap_maybe_advance(o, trigger="test")
 
