@@ -80,6 +80,24 @@ class OrdinaryMutationScope:
             "issue_number": self.issue_number,
         }
 
+    @classmethod
+    def from_mapping(cls, raw: Any) -> "OrdinaryMutationScope":
+        if not isinstance(raw, Mapping):
+            raise ValueError("ordinary mutation scope must be an object")
+        issue_number = raw.get("issue_number")
+        if issue_number is not None:
+            issue_number = _positive_int(issue_number, "mutation scope issue_number")
+        return cls(
+            attempt_id=raw.get("attempt_id"),
+            repo=raw.get("repo"),
+            base_sha=raw.get("base_sha"),
+            branch=raw.get("branch"),
+            expected_head_sha=raw.get("expected_head_sha"),
+            pr_title=raw.get("pr_title"),
+            pr_body=raw.get("pr_body"),
+            issue_number=issue_number,
+        )
+
     @property
     def digest(self) -> str:
         return canonical_digest(self.as_dict())
