@@ -278,11 +278,13 @@ class HostedV2Substrate:
         if len(raw) > MAX_PAYLOAD_BYTES:
             return 400, {"error": "invalid payload size"}
 
+        normalized_headers = {str(key).lower(): value for key, value in headers.items()}
+
         if self.require_webhook_secret:
             if not verify_github_signature(
                 str(self.webhook_secret or ""),
                 raw,
-                headers.get("X-Hub-Signature-256"),
+                normalized_headers.get("x-hub-signature-256"),
             ):
                 return 403, {"error": "invalid webhook signature"}
 
@@ -300,8 +302,8 @@ class HostedV2Substrate:
         if full_name and full_name != self.repo:
             return 400, {"error": "repository mismatch"}
 
-        event_name = str(headers.get("X-GitHub-Event") or "")
-        delivery_id = headers.get("X-GitHub-Delivery")
+        event_name = str(normalized_headers.get("x-github-event") or "")
+        delivery_id = normalized_headers.get("x-github-delivery")
 
         control = classify_legacy_compatible_control(
             event_name,
