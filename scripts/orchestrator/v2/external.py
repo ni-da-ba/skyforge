@@ -274,17 +274,21 @@ def classify_claim_retention(
             remote_pr_state,
             remote_observation_available,
         )
-    if remote_pr_state is SourcePRState.MERGED:
+    if remote_pr_state in {SourcePRState.MERGED, SourcePRState.CLOSED}:
         return ClaimRetentionDecision(
             ClaimRetentionDisposition.RETIRE,
-            "exact bound PR is provably merged",
+            (
+                "exact bound PR is provably merged"
+                if remote_pr_state is SourcePRState.MERGED
+                else "exact bound PR is provably closed without merge"
+            ),
             claim.digest,
             remote_pr_state,
             remote_observation_available,
         )
     return ClaimRetentionDecision(
         ClaimRetentionDisposition.KEEP,
-        "bound PR is not provably merged",
+        "bound PR is not provably terminal",
         claim.digest,
         remote_pr_state,
         remote_observation_available,
