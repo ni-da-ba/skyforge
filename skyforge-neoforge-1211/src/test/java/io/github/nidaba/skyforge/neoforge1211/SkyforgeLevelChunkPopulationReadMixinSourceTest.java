@@ -26,9 +26,14 @@ final class SkyforgeLevelChunkPopulationReadMixinSourceTest {
         String heightSource = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeChunkAccessPopulationHeightMixin.java"));
         assertTrue(heightSource.contains("@Mixin(ChunkAccess.class)"));
-        assertTrue(heightSource.contains("SkyforgeWorldGenRegionDomainBridge.populationActive()"));
+        assertTrue(heightSource.contains("SkyforgeWorldGenRegionDomainBridge.populationHeightVirtualizationActive()"));
         assertTrue(heightSource.contains("SkyforgeWorldGenRegionDomainBridge.exactHeight("));
         assertTrue(heightSource.contains("firstFreeHeight.getAsInt() - 1"));
+
+        String bridge = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWorldGenRegionDomainBridge.java"));
+        assertTrue(bridge.contains("public static boolean populationHeightVirtualizationActive()"));
+        assertTrue(bridge.contains("GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()"));
 
         String mixins = Files.readString(PROJECT_DIRECTORY.resolve("src/main/resources/skyforge.mixins.json"));
         assertTrue(mixins.contains("\"SkyforgeChunkAccessPopulationHeightMixin\""));

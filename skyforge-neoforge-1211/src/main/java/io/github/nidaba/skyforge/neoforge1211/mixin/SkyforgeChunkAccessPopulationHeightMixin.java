@@ -21,7 +21,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *
  * <p>ChunkAccess height queries return the highest occupied Y, while the level-facing bridge returns
  * the first free Y. Subtract one so this direct seam observes exactly the same compiled terrain
- * surface without exposing previously populated attachments.
+ * surface without exposing previously populated attachments. This direct-chunk hook is intentionally
+ * limited to vegetal decoration: that is the observed scheduling-sensitive consumer, while broader
+ * heightmap virtualization perturbs unrelated deferred population/cave-fluid lifecycle state.
  */
 @Mixin(ChunkAccess.class)
 abstract class SkyforgeChunkAccessPopulationHeightMixin {
@@ -43,7 +45,7 @@ abstract class SkyforgeChunkAccessPopulationHeightMixin {
             int localX,
             int localZ,
             CallbackInfoReturnable<Integer> callback) {
-        if (!SkyforgeWorldGenRegionDomainBridge.populationActive()) {
+        if (!SkyforgeWorldGenRegionDomainBridge.populationHeightVirtualizationActive()) {
             return;
         }
         ChunkPos chunk = getPos();
