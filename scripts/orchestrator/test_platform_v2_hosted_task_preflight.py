@@ -274,6 +274,8 @@ class HostedDryPreflightTest(unittest.TestCase):
             self.assertEqual(
                 files,
                 [
+                    ".skyforge-platform-v2/external-claims.json",
+                    ".skyforge-platform-v2/external-claims.json.bak",
                     ".skyforge-platform-v2/hosted-state.json",
                     ".skyforge-platform-v2/hosted-state.json.bak",
                     ".skyforge-platform-v2/task-authority-events.json",
