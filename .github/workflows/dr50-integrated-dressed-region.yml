@@ -48,3 +48,32 @@ jobs:
             skyforge-neoforge-1211/build/acceptance/dr-30-native-structure/stacked.properties
             skyforge-neoforge-1211/run-dr50-auto-*/logs/*.log
             skyforge-neoforge-1211/run-dr50-auto-*/crash-reports/*.txt
+  windows-determinism:
+    runs-on: windows-latest
+    timeout-minutes: 80
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Compile and unit-test DR-50 integration
+        timeout-minutes: 10
+        shell: pwsh
+        run: .\gradlew.bat :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:test --stacktrace --no-configuration-cache
+      - name: Qualify fresh Windows DR-50 server A/B determinism
+        timeout-minutes: 65
+        shell: pwsh
+        run: .\gradlew.bat :skyforge-neoforge-1211:dr50IntegratedRegionDeterminismAcceptance --stacktrace --no-configuration-cache
+      - name: Publish Windows DR-50 determinism evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dr50-windows-determinism-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            skyforge-neoforge-1211/build/acceptance/dr-50/*.properties
+            skyforge-neoforge-1211/run-dr50-auto-*/logs/*.log
+            skyforge-neoforge-1211/run-dr50-auto-*/crash-reports/*.txt

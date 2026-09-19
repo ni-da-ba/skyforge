@@ -5430,6 +5430,44 @@ tasks.named("runDr50IntegratedRegionAcceptanceReloadClient").configure {
     doLast { requireDr50AcceptancePass("reload") }
 }
 
+val dr50DeterministicEvidenceKeys = listOf(
+    "islandKey", "nativeTransformDigest", "nativeCarveDigest", "authoredChangedDigest",
+    "authoredProvenanceDigest", "finalAuthoredAir", "authoredDownstreamOccupied",
+    "dr40PopulationOutcomeDigest", "dr50SpecimenId",
+    "dr50Volume", "dr50WorldSeedUnsigned", "dr50HydrologyPositions", "dr50HydrologyDigest",
+    "dr50HydrologyRepresentativePos", "dr50InteriorCompleted", "dr50InteriorNonEmpty",
+    "dr50InteriorSuccessfulFeatures", "dr50InteriorUnsupportedLakeFeatures",
+    "dr50InteriorTrackedFluids", "dr50InteriorFluidSchedulesOutsideOwner",
+    "dr50InteriorRejectedBoundaryWrites", "dr50InteriorDigest", "dr50Material",
+    "dr50MaterialPos", "dr50StructureLifecycleInvoked", "dr50CanonicalCompletedStructures",
+    "dr50CanonicalStructureDigest", "dr50StructureProofAuthority", "dr50StructurePersistenceAuthority",
+    "dr50PopulationOutcomeDigest", "dr50RegionDigest"
+)
+
+fun requireDr50DeterministicMatch(first: Properties, second: Properties) {
+    for (key in dr50DeterministicEvidenceKeys) {
+        check(first.getProperty(key) == second.getProperty(key)) {
+            "DR-50 deterministic evidence changed for $key: A=${first.getProperty(key)} B=${second.getProperty(key)}"
+        }
+    }
+}
+
+tasks.register("dr50IntegratedRegionDeterminismAcceptance") {
+    group = "verification"
+    description = "Run fresh server-only DR-50 A/B and require deterministic integrated evidence."
+    dependsOn(
+        "runDr50IntegratedRegionAcceptanceA",
+        "runDr50IntegratedRegionAcceptanceB",
+    )
+    doLast {
+        val first = requireDr50AcceptancePass("production-a")
+        val second = requireDr50AcceptancePass("production-b")
+        requireDr50DeterministicMatch(first, second)
+        println("DR-50 SERVER A/B DETERMINISM PASS: regionDigest=${first.getProperty("dr50RegionDigest")}, "
+                + "populationDigest=${first.getProperty("dr50PopulationOutcomeDigest")}")
+    }
+}
+
 tasks.register("dr50IntegratedRegionAcceptanceVerify") {
     group = "verification"
     description = "Verify deterministic DR-50 canonical dressed-region integration evidence."
@@ -5437,23 +5475,7 @@ tasks.register("dr50IntegratedRegionAcceptanceVerify") {
         val first = requireDr50AcceptancePass("production-a")
         val second = requireDr50AcceptancePass("production-b")
         val reload = requireDr50AcceptancePass("reload")
-        for (key in listOf(
-            "islandKey", "nativeTransformDigest", "nativeCarveDigest", "authoredChangedDigest",
-            "authoredProvenanceDigest", "finalAuthoredAir", "authoredDownstreamOccupied",
-            "dr40PopulationOutcomeDigest", "dr50SpecimenId",
-            "dr50Volume", "dr50WorldSeedUnsigned", "dr50HydrologyPositions", "dr50HydrologyDigest",
-            "dr50HydrologyRepresentativePos", "dr50InteriorCompleted", "dr50InteriorNonEmpty",
-            "dr50InteriorSuccessfulFeatures", "dr50InteriorUnsupportedLakeFeatures",
-            "dr50InteriorTrackedFluids", "dr50InteriorFluidSchedulesOutsideOwner",
-            "dr50InteriorRejectedBoundaryWrites", "dr50InteriorDigest", "dr50Material",
-            "dr50MaterialPos", "dr50StructureLifecycleInvoked", "dr50CanonicalCompletedStructures",
-            "dr50CanonicalStructureDigest", "dr50StructureProofAuthority", "dr50StructurePersistenceAuthority",
-            "dr50PopulationOutcomeDigest", "dr50RegionDigest"
-        )) {
-            check(first.getProperty(key) == second.getProperty(key)) {
-                "DR-50 deterministic evidence changed for $key: A=${first.getProperty(key)} B=${second.getProperty(key)}"
-            }
-        }
+        requireDr50DeterministicMatch(first, second)
         check(first.getProperty("dr50IntegratedRegion") == "true"
                 && first.getProperty("dr50SpecimenId") == "P2_DRESSED_REGION_A"
                 && first.getProperty("dr50Volume") == "6001989086914692933/sf-imp-0068-production-composed-cave/0/0/680068"

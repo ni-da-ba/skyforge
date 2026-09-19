@@ -4,8 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayDeque;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
+import net.minecraft.world.level.ChunkPos;
 import org.junit.jupiter.api.Test;
 
 final class SkyforgePhysicalVolumeCatchupServiceTest {
@@ -60,6 +63,19 @@ final class SkyforgePhysicalVolumeCatchupServiceTest {
 
         assertEquals(0, result.workedQuanta());
         assertEquals(1, calls.get());
+    }
+
+    @Test
+    void canonicalPopulationChunkKeysSortByChunkXThenZ() {
+        long a = new ChunkPos(1, -2).toLong();
+        long b = new ChunkPos(-1, 4).toLong();
+        long c = new ChunkPos(-1, -3).toLong();
+        long d = new ChunkPos(0, 9).toLong();
+
+        assertEquals(
+                List.of(c, b, d, a),
+                SkyforgePhysicalVolumeCatchupService.canonicalPopulationChunkKeys(
+                        Set.of(a, b, c, d)));
     }
 
     @Test
