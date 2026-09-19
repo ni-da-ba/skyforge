@@ -22,5 +22,8 @@ final class SkyforgeProductionComposedCaveIntegratedTopologySourceTest {
         assertTrue(source.contains("finalEvidence.finalAuthoredAir() <= authoredPositive"));
         assertTrue(source.contains(": finalEvidence.finalAuthoredAir() == authoredPositive"));
         assertTrue(source.contains("authoredDownstreamOccupied"));
+        assertTrue(source.contains("DR50_FLUID_SETTLE_TICKS = 100"));
+        assertTrue(source.contains("dr50FluidSettleStartTick = level.getGameTime()"));
+        assertTrue(source.contains("level.getGameTime() - dr50FluidSettleStartTick < DR50_FLUID_SETTLE_TICKS"));
     }
 }

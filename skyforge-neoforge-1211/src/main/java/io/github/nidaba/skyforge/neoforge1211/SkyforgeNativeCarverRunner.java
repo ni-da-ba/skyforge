@@ -69,6 +69,7 @@ final class SkyforgeNativeCarverRunner {
             int writeAttempts,
             int acceptedWrites,
             int rejectedWrites,
+            int rejectedFluidWrites,
             int changedBlocks,
             long transformDigest,
             long changedPositionDigest,

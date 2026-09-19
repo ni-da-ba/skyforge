@@ -23,6 +23,21 @@ public final class SkyforgeWorldGenRegionDomainBridge {
         return SkyforgePopulationExecutionStage.activeExecution().isPresent();
     }
 
+    /**
+     * True only while the vegetal-decoration phase needs a deterministic direct-chunk height view.
+     *
+     * <p>The direct {@code ChunkAccess#getHeight} seam was introduced for native tree placement:
+     * stable LevelChunk heightmaps can otherwise expose vegetation written by earlier scheduling.
+     * Keep that extra virtualization scoped to the observed vegetation dependency so unrelated
+     * population phases retain their previously accepted lifecycle/read behavior.
+     */
+    public static boolean populationHeightVirtualizationActive() {
+        return SkyforgePopulationExecutionStage.activeExecution()
+                .map(execution -> execution.operation().generationStep()
+                        == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal())
+                .orElse(false);
+    }
+
     public static boolean isVisible(BlockPos position) {
         Objects.requireNonNull(position, "position");
         if (!SkyforgeStructurePlacementExecutionStage.isVisible(position)) {

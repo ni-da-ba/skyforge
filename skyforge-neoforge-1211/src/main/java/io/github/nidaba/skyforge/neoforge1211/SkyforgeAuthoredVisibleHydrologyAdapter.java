@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandNaturalizedChannelPath;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlan;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner;
@@ -52,7 +53,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         List<Deployment> deployments = new ArrayList<>();
 
         intent.channels().stream().findFirst().ifPresent(channel -> deployments.add(
-                atPath(volume, terrain, Feature.CHANNEL, channel.path().points())));
+                atPath(volume, terrain, Feature.CHANNEL, channel.path())));
         intent.retainedWater().stream().findFirst().ifPresent(retained -> deployments.add(
                 atFootprint(volume, terrain, retained.footprint().cells())));
         intent.drops().stream()
@@ -100,24 +101,65 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
             Feature feature,
-            List<io.github.nidaba.skyforge.world.SkyIslandLocalPosition> points) {
-        if (points.isEmpty()) {
+            SkyIslandNaturalizedChannelPath path) {
+        if (path.points().isEmpty()) {
             throw new IllegalArgumentException("authored channel path requires at least one point");
         }
-        LinkedHashSet<BlockPos> positions = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> centerline = new LinkedHashSet<>();
         BlockPos previous = null;
-        for (var point : points) {
+        for (var point : path.points()) {
             int worldX = (int) Math.round(volume.compiledVolume().descriptor().centerX() + point.x());
             int worldZ = (int) Math.round(volume.compiledVolume().descriptor().centerZ() + point.z());
             BlockPos current = surfacePosition(volume, terrain, feature, worldX, worldZ);
             if (previous == null) {
-                positions.add(current);
+                centerline.add(current);
             } else {
-                appendConnectedSurfaceColumns(volume, terrain, feature, previous, current, positions);
+                appendConnectedSurfaceColumns(volume, terrain, feature, previous, current, centerline);
             }
             previous = current;
         }
+
+        int radius = channelRadius(path);
+        int depth = channelDepth(path);
+        LinkedHashSet<BlockPos> positions = new LinkedHashSet<>();
+        for (BlockPos center : centerline) {
+            appendChannelCrossSection(volume, terrain, center, radius, depth, positions);
+        }
         return deployment(volume.id(), feature, new ArrayList<>(positions));
+    }
+
+    /** Maps accepted bankfull width potential to a bounded 3- or 5-block channel footprint. */
+    static int channelRadius(SkyIslandNaturalizedChannelPath path) {
+        Objects.requireNonNull(path, "path");
+        return 1 + (int) Math.round(path.profile().bankfullWidthPotential());
+    }
+
+    /** Maps accepted depth potential to a bounded one- or two-block water column. */
+    static int channelDepth(SkyIslandNaturalizedChannelPath path) {
+        Objects.requireNonNull(path, "path");
+        return 1 + (int) Math.round(path.profile().depthPotential());
+    }
+
+    private static void appendChannelCrossSection(
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            BlockPos center,
+            int radius,
+            int depth,
+            LinkedHashSet<BlockPos> positions) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                if (Math.abs(dx) + Math.abs(dz) > radius) {
+                    continue;
+                }
+                positions.addAll(ownedColumnPositions(
+                        volume,
+                        terrain,
+                        center.getX() + dx,
+                        center.getZ() + dz,
+                        depth));
+            }
+        }
     }
 
     private static void appendConnectedSurfaceColumns(
@@ -174,8 +216,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     private static Deployment atWorldColumn(
             SkyIslandWorldVolume volume, SkyforgeNeoForge1211ChunkAdapter terrain, Feature feature,
             int x, int z, int depth) {
-        var range = terrain.integerSolidRange(volume.id(), x, z)
-                .orElseThrow(() -> new IllegalStateException("AUTH-0086 intent has no realized owner column"));
+        List<BlockPos> positions = ownedColumnPositions(volume, terrain, x, z, depth);
+        if (positions.isEmpty()) {
+            throw new IllegalStateException("AUTH-0086 intent has no realized owner column");
+        }
+        return deployment(volume.id(), feature, positions);
+    }
+
+    private static List<BlockPos> ownedColumnPositions(
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            int x,
+            int z,
+            int depth) {
+        var optionalRange = terrain.integerSolidRange(volume.id(), x, z);
+        if (optionalRange.isEmpty()) {
+            return List.of();
+        }
+        var range = optionalRange.orElseThrow();
         List<BlockPos> positions = new ArrayList<>();
         for (int y = range.maximumY(); y >= range.minimumY() && positions.size() < depth; y--) {
             if (terrain.isSolidOwnedBy(volume.id(), x, y, z)
@@ -183,7 +241,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 positions.add(new BlockPos(x, y, z));
             }
         }
-        return deployment(volume.id(), feature, positions);
+        return positions;
     }
 
     private static Deployment deployment(

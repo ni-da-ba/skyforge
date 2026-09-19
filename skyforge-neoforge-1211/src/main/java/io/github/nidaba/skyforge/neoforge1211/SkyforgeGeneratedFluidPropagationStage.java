@@ -317,6 +317,32 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         }
     }
 
+    /**
+     * Persists provenance for a fluid block committed by an admitted native carver.
+     *
+     * <p>Carver fluid is allowed only in an interior owner cell by the carver write fence. Persisting
+     * the same INTERIOR_SHELL policy used by native springs prevents subsequent vanilla water/lava
+     * ticks from turning accepted cave fluid into incidental floating-island edge discharge.
+     */
+    static void observeCarverFluidWrite(
+            ServerLevel level,
+            SkyIslandWorldVolumeId volumeId,
+            BlockPos position,
+            BlockState state) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(position, "position");
+        Objects.requireNonNull(state, "state");
+        FluidState fluidState = state.getFluidState();
+        if (fluidState.isEmpty()) {
+            return;
+        }
+        if (!allows(BoundaryPolicy.INTERIOR_SHELL, volumeId, position)) {
+            throw new IllegalStateException("carver fluid committed outside the interior owner shell");
+        }
+        track(level, volumeId, position, fluidState.getType(), BoundaryPolicy.INTERIOR_SHELL);
+    }
+
     /** Development/runtime evidence for one exact volume without exposing mutable SavedData. */
     static Snapshot snapshot(
             ServerLevel level,

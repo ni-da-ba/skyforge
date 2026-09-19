@@ -5,8 +5,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.feature.Feature;
+import net.minecraft.world.level.levelgen.feature.LakeFeature;
+import net.minecraft.world.level.levelgen.feature.stateproviders.SimpleStateProvider;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 
 /**
@@ -21,6 +24,7 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
  * therefore covers exactly that finite 16x8x16 mutation box. Candidates that need air/exterior
  * beyond compiled owner support fail closed before native mutation.
  */
+@SuppressWarnings("deprecation")
 public final class SkyforgeNativeLakeAdmissionStage {
     static final int MIN_X_OFFSET = 0;
     static final int MAX_X_OFFSET = 15;
@@ -72,13 +76,15 @@ public final class SkyforgeNativeLakeAdmissionStage {
         Objects.requireNonNull(origin, "origin");
         try (var scope = open(operation)) {
             scope.requireActive();
-            admit(origin);
+            admit(origin, null);
             return scope.snapshot();
         }
     }
 
     /** Called at LakeFeature.place HEAD before any LakeFeature mutation is possible. */
-    public static boolean admit(BlockPos origin) {
+    public static boolean admit(
+            BlockPos origin,
+            LakeFeature.Configuration configuration) {
         Objects.requireNonNull(origin, "origin");
         State state = ACTIVE.get();
         if (state == null) {
@@ -87,6 +93,15 @@ public final class SkyforgeNativeLakeAdmissionStage {
 
         state.attempted++;
         state.decisionDigest = mix(state.decisionDigest, origin.asLong());
+        if (configuration != null && !authorizedFluid(configuration, origin)) {
+            state.rejected++;
+            state.decisionDigest = mix(state.decisionDigest, 0L);
+            state.decisionDigest = mix(state.decisionDigest, origin.asLong());
+            state.lastRejectedOrigin = origin.immutable();
+            state.lastRejectedPosition = origin.immutable();
+            state.rejectedOrigins.add(origin.immutable());
+            return false;
+        }
 
         BlockPos firstRejected = null;
         int inspected = 0;
@@ -133,6 +148,25 @@ public final class SkyforgeNativeLakeAdmissionStage {
         state.admittedOrigins.add(origin.immutable());
         state.decisionDigest = mix(state.decisionDigest, 1L);
         return true;
+    }
+
+    /**
+     * AUTH-0104/AUTH-0085 provide no geothermal or molten-lake authority. Native lake population is
+     * therefore fail-closed to a deterministic simple WATER provider. Dynamic/custom providers are
+     * rejected because one sampled state cannot prove a stable fluid semantic for the whole lake.
+     */
+    static boolean authorizedFluid(
+            LakeFeature.Configuration configuration,
+            BlockPos origin) {
+        Objects.requireNonNull(configuration, "configuration");
+        Objects.requireNonNull(origin, "origin");
+        if (!(configuration.fluid() instanceof SimpleStateProvider)) {
+            return false;
+        }
+        var fluidState = configuration.fluid()
+                .getState(RandomSource.create(0L), origin)
+                .getFluidState();
+        return !fluidState.isEmpty() && fluidState.getType() == net.minecraft.world.level.material.Fluids.WATER;
     }
 
     /** Snapshot for deterministic runtime/acceptance evidence. */

@@ -79,6 +79,8 @@ final class SkyforgePopulationExecutionStageTest {
             assertTrue(execution.isVisible(localOwner));
             assertFalse(execution.isVisible(neighborOwner));
             assertTrue(execution.hiddenBlockState(neighborOwner).is(Blocks.BEDROCK));
+            assertFalse(execution.canWrite(neighborOwner));
+            assertFalse(execution.acceptWrite(neighborOwner));
 
             assertFalse(execution.isVisible(neighborAir));
             assertTrue(execution.hiddenBlockState(neighborAir).isAir());

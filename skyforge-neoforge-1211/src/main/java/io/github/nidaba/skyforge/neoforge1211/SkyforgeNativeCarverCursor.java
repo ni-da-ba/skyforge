@@ -78,6 +78,7 @@ final class SkyforgeNativeCarverCursor {
     private final List<Holder<ConfiguredWorldCarver<?>>> carvers;
     private final Aquifer aquifer;
     private final CarvingMask mask;
+    private final NoiseChunk noiseChunk;
     private final WorldgenRandom random;
 
     private int sourceDx = -VANILLA_SOURCE_RADIUS_CHUNKS;
@@ -100,6 +101,7 @@ final class SkyforgeNativeCarverCursor {
     private int writeAttempts;
     private int acceptedWrites;
     private int rejectedWrites;
+    private int rejectedFluidWrites;
     private int changedBlocks;
     private long transformDigest = FNV_OFFSET_BASIS;
     private long changedPositionDigest = FNV_OFFSET_BASIS;
@@ -144,6 +146,7 @@ final class SkyforgeNativeCarverCursor {
         this.aquifer = Aquifer.createDisabled((x, y, z) ->
                 new Aquifer.FluidStatus(Integer.MIN_VALUE, Blocks.AIR.defaultBlockState()));
         this.mask = new CarvingMask(targetHeight, targetMinimumBuildY);
+        this.noiseChunk = createNoiseChunk(targetChunk);
         // Every source/carver attempt is reseeded immediately through setLargeFeatureSeed(...).
         // Start the wrapper from a fixed value rather than process entropy so no implementation
         // detail of WorldgenRandom/LegacyRandomSource can leak JVM-specific state into a production
@@ -223,7 +226,7 @@ final class SkyforgeNativeCarverCursor {
                 generator,
                 level.registryAccess(),
                 targetChunk.getHeightAccessorForGeneration(),
-                requireNoiseChunk(targetChunk),
+                noiseChunk,
                 level.getChunkSource().randomState(),
                 generator.generatorSettings().value().surfaceRule());
 
@@ -233,7 +236,7 @@ final class SkyforgeNativeCarverCursor {
         var postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(level);
         try {
             try (var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
-                    var execution = SkyforgeCarverExecutionStage.open(volumeId, targetPos);
+                    var execution = SkyforgeCarverExecutionStage.openNativeCarver(volumeId, targetPos);
                     var vertical = SkyforgeCarverVerticalFrame.open(
                             level, volumeId, targetMinimumY, targetMaximumY)) {
                 domain.requireActive();
@@ -278,25 +281,30 @@ final class SkyforgeNativeCarverCursor {
         writeAttempts = Math.addExact(writeAttempts, writeSnapshot.writeAttempts());
         acceptedWrites = Math.addExact(acceptedWrites, writeSnapshot.acceptedWriteAttempts());
         rejectedWrites = Math.addExact(rejectedWrites, writeSnapshot.rejectedWriteAttempts());
+        rejectedFluidWrites = Math.addExact(
+                rejectedFluidWrites, writeSnapshot.rejectedFluidWriteAttempts());
         changedBlocks = Math.addExact(changedBlocks, writeSnapshot.changedBlocks());
         transformDigest = mix(transformDigest, verticalSnapshot.transformDigest());
         changedPositionDigest = mix(changedPositionDigest, writeSnapshot.changedPositionDigest());
     }
 
-    private NoiseChunk requireNoiseChunk(LevelChunk targetChunk) {
+    private NoiseChunk createNoiseChunk(LevelChunk targetChunk) {
         var randomState = level.getChunkSource().randomState();
         var settings = generator.generatorSettings().value();
         int seaLevel = settings.seaLevel();
         var lava = new Aquifer.FluidStatus(-54, Blocks.LAVA.defaultBlockState());
         var defaultFluid = new Aquifer.FluidStatus(seaLevel, settings.defaultFluid());
         Aquifer.FluidPicker fluidPicker = (x, y, z) -> y < Math.min(-54, seaLevel) ? lava : defaultFluid;
-        return targetChunk.getOrCreateNoiseChunk(chunk -> NoiseChunk.forChunk(
-                chunk,
+        // Do not reuse LevelChunk#getOrCreateNoiseChunk here. A stable chunk may already carry a
+        // vanilla/lifecycle-created NoiseChunk whose hidden inputs differ with deferred scheduling.
+        // Native Skyforge carving owns a cursor-local deterministic noise context instead.
+        return NoiseChunk.forChunk(
+                targetChunk,
                 randomState,
                 EMPTY_STRUCTURE_DENSITY,
                 settings,
                 fluidPicker,
-                Blender.empty()));
+                Blender.empty());
     }
 
     private void advanceLoopPosition() {
@@ -335,6 +343,7 @@ final class SkyforgeNativeCarverCursor {
                 writeAttempts,
                 acceptedWrites,
                 rejectedWrites,
+                rejectedFluidWrites,
                 changedBlocks,
                 transformDigest,
                 changedPositionDigest,

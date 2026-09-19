@@ -36,6 +36,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
     private static final long FNV_OFFSET_BASIS = 0xcbf29ce484222325L;
     private static final long FNV_PRIME = 0x100000001b3L;
     private static final int MAXIMUM_ATTACHMENT_DEPTH = 24;
+    private static final int DR50_FLUID_SETTLE_TICKS = 100;
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeNeoForge1211ProductionComposedCaveDevRuntime.class.getName());
 
@@ -50,6 +51,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
     private static SkyforgeComposedCaveStage.Snapshot initialSnapshot;
     private static int previousPending = Integer.MAX_VALUE;
     private static int progressObservationTicks;
+    private static long dr50FluidSettleStartTick = Long.MIN_VALUE;
     private static boolean proofComplete;
 
     private SkyforgeNeoForge1211ProductionComposedCaveDevRuntime() {}
@@ -183,6 +185,20 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         && SkyforgeNativeInteriorPopulationStage.snapshot(volumeId).pendingObligations() != 0)) {
             return;
         }
+        if (SkyforgeDr50IntegratedRegionEvidence.enabled()) {
+            if (dr50FluidSettleStartTick == Long.MIN_VALUE) {
+                dr50FluidSettleStartTick = level.getGameTime();
+                LOGGER.log(
+                        System.Logger.Level.INFO,
+                        "DR-50 lifecycle complete; waiting " + DR50_FLUID_SETTLE_TICKS
+                                + " ticks for generated-fluid propagation to settle before final evidence.");
+                return;
+            }
+            if (level.getGameTime() - dr50FluidSettleStartTick < DR50_FLUID_SETTLE_TICKS) {
+                return;
+            }
+        }
+
         if (stage.totalObligations() != admission.requiredChunks()
                 || stage.completedObligations() != admission.requiredChunks()) {
             throw new IllegalStateException(
@@ -207,6 +223,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         int nativeChangedBlocks = 0;
         int nativeSuccessfulCalls = 0;
         int nativeRejectedWrites = 0;
+        int nativeRejectedFluidWrites = 0;
         int nativeMappedOutsideTarget = 0;
         int authoredPositive = 0;
         int authoredBasePositive = 0;
@@ -237,6 +254,8 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
             nativeChangedBlocks = Math.addExact(nativeChangedBlocks, nativeResult.changedBlocks());
             nativeSuccessfulCalls = Math.addExact(nativeSuccessfulCalls, nativeResult.successfulCalls());
             nativeRejectedWrites = Math.addExact(nativeRejectedWrites, nativeResult.rejectedWrites());
+            nativeRejectedFluidWrites = Math.addExact(
+                    nativeRejectedFluidWrites, nativeResult.rejectedFluidWrites());
             nativeMappedOutsideTarget =
                     Math.addExact(nativeMappedOutsideTarget, nativeResult.mappedOutsideTarget());
             authoredPositive = Math.addExact(authoredPositive, authoredResult.positiveSamples());
@@ -262,6 +281,8 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         }
 
         FinalEvidence finalEvidence = verifyFinalUnion(level, volume, chunks);
+        int nativeUnsafeRejectedWrites = Math.subtractExact(
+                nativeRejectedWrites, nativeRejectedFluidWrites);
         int authoredDownstreamOccupied = Math.subtractExact(authoredPositive, finalEvidence.finalAuthoredAir());
         boolean finalAuthoredTopologyValid = SkyforgeDr50IntegratedRegionEvidence.enabled()
                 ? finalEvidence.finalAuthoredAir() > 0
@@ -271,7 +292,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         if (resultChunks <= 0
                 || nativeChangedBlocks <= 0
                 || nativeSuccessfulCalls <= 0
-                || nativeRejectedWrites != 0
+                || nativeUnsafeRejectedWrites != 0
                 || nativeMappedOutsideTarget != 0
                 || authoredPositive <= 0
                 || authoredBasePositive <= 0
@@ -290,6 +311,8 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                             + ", nativeChanged=" + nativeChangedBlocks
                             + ", nativeSuccessful=" + nativeSuccessfulCalls
                             + ", rejected=" + nativeRejectedWrites
+                            + ", rejectedFluidShell=" + nativeRejectedFluidWrites
+                            + ", rejectedUnsafe=" + nativeUnsafeRejectedWrites
                             + ", mappedOutside=" + nativeMappedOutsideTarget
                             + ", authoredPositive=" + authoredPositive
                             + ", authoredUnsafe=" + authoredUnsafe
@@ -366,6 +389,8 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         java.util.Map.entry("nativeSuccessfulCalls", nativeSuccessfulCalls),
                         java.util.Map.entry("nativeOnlyAir", finalEvidence.nativeOnlyAir()),
                         java.util.Map.entry("nativeRejectedWrites", nativeRejectedWrites),
+                        java.util.Map.entry("nativeRejectedFluidWrites", nativeRejectedFluidWrites),
+                        java.util.Map.entry("nativeUnsafeRejectedWrites", nativeUnsafeRejectedWrites),
                         java.util.Map.entry("nativeMappedOutsideTarget", nativeMappedOutsideTarget),
                         java.util.Map.entry("nativeTransformDigest", nativeTransformDigestText),
                         java.util.Map.entry("nativeCarveDigest", nativeCarveDigestText),

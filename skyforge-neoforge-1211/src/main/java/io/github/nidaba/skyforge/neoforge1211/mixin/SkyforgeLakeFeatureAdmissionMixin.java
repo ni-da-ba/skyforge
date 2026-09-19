@@ -24,7 +24,7 @@ abstract class SkyforgeLakeFeatureAdmissionMixin {
     private void skyforge$admitWholeLake(
             FeaturePlaceContext<LakeFeature.Configuration> context,
             CallbackInfoReturnable<Boolean> callback) {
-        if (!SkyforgeNativeLakeAdmissionStage.admit(context.origin())) {
+        if (!SkyforgeNativeLakeAdmissionStage.admit(context.origin(), context.config())) {
             callback.setReturnValue(false);
         }
     }

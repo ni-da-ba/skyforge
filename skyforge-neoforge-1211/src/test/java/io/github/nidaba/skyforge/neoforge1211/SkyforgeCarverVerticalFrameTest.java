@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import org.junit.jupiter.api.Test;
 
 final class SkyforgeCarverVerticalFrameTest {
@@ -29,11 +30,19 @@ final class SkyforgeCarverVerticalFrameTest {
         var targetChunk = new ChunkPos(0, 0);
 
         try (var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
-                var execution = SkyforgeCarverExecutionStage.openForTest(
+                var execution = SkyforgeCarverExecutionStage.openForTestWithVirtualReads(
                         volumeId,
                         targetChunk,
                         position -> position.getY() >= 220 && position.getY() <= 240,
                         position -> position.getY() == 235)) {
+            assertTrue(execution.virtualizesReadsForTest());
+            assertEquals(Blocks.STONE.defaultBlockState(),
+                    execution.virtualBlockStateForTest(new BlockPos(8, 225, 8)));
+            assertEquals(Blocks.BEDROCK.defaultBlockState(),
+                    execution.virtualBlockStateForTest(new BlockPos(8, 235, 8)));
+            assertEquals(Blocks.AIR.defaultBlockState(),
+                    execution.virtualBlockStateForTest(new BlockPos(8, 100, 8)));
+
             assertTrue(execution.authorizeForTest(new BlockPos(8, 225, 8)));
             assertFalse(execution.authorizeForTest(new BlockPos(8, 235, 8)));
             assertFalse(execution.authorizeForTest(new BlockPos(8, 100, 8)));
@@ -46,4 +55,53 @@ final class SkyforgeCarverVerticalFrameTest {
             domain.requireActive();
         }
     }
+    @Test
+    void authoredCommitFenceDoesNotVirtualizeBeforeAfterReads() throws Exception {
+        var volumeId = new SkyIslandWorldVolumeId(63L, "authored-commit-test", 0, 0, 6301L);
+        var targetChunk = new ChunkPos(0, 0);
+        try (var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
+                var execution = SkyforgeCarverExecutionStage.openForTest(
+                        volumeId,
+                        targetChunk,
+                        position -> true,
+                        position -> false)) {
+            assertTrue(SkyforgeCarverExecutionStage.active());
+            assertEquals(Blocks.STONE.defaultBlockState(),
+                    execution.virtualBlockStateForTest(new BlockPos(1, 100, 1)));
+            assertFalse(execution.virtualizesReadsForTest(),
+                    "authored commit scopes must retain live before/after reads for changed-block accounting");
+            domain.requireActive();
+        }
+    }
+
+    @Test
+    void nativeCarverFluidsRequireInteriorOwnerShellWhileAirCarvingMayReachOwnerBoundary() throws Exception {
+        var volumeId = new SkyIslandWorldVolumeId(62L, "carver-fluid-test", 0, 0, 6201L);
+        var targetChunk = new ChunkPos(0, 0);
+
+        try (var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
+                var execution = SkyforgeCarverExecutionStage.openForTest(
+                        volumeId,
+                        targetChunk,
+                        position -> position.getX() >= 0 && position.getX() <= 4
+                                && position.getY() >= 220 && position.getY() <= 224
+                                && position.getZ() >= 0 && position.getZ() <= 4,
+                        position -> false)) {
+            BlockPos boundary = new BlockPos(0, 222, 2);
+            BlockPos interior = new BlockPos(2, 222, 2);
+
+            assertTrue(execution.authorizeForTest(boundary),
+                    "ordinary cave carving may preserve an accepted owner-boundary opening");
+            assertFalse(execution.authorizeFluidForTest(boundary),
+                    "carver fluid must not be placed on the exact-volume shell");
+            assertTrue(execution.authorizeFluidForTest(interior),
+                    "interior cave fluid remains accepted and is fenced during later propagation");
+            var snapshot = execution.snapshot();
+            assertTrue(snapshot.rejectedWriteAttempts() == 1);
+            assertTrue(snapshot.rejectedFluidWriteAttempts() == 1,
+                    "intentional shell-fluid veto must be distinguishable from unsafe write rejection");
+            domain.requireActive();
+        }
+    }
+
 }

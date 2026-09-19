@@ -18,7 +18,7 @@ final class SkyforgeNativeCarverCursorSourceTest {
         String source = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeCarverCursor.java"));
 
-        assertTrue(source.contains("targetChunk.getOrCreateNoiseChunk("));
+        assertFalse(source.contains("targetChunk.getOrCreateNoiseChunk("));
         assertTrue(source.contains("NoiseChunk.forChunk("));
         assertTrue(source.contains("EMPTY_STRUCTURE_DENSITY"));
         assertTrue(source.contains("new DensityFunctions.BeardifierOrMarker()"));
