@@ -88,7 +88,9 @@ from .managed_pr_lifecycle import (
     advance_managed_pr_lifecycle,
 )
 from .quota import LocalBudgetObservation, ProviderQuotaDecision
+from .roadmap_shadow import ShadowRoadmapManifest, ShadowRoadmapState
 from .task_event_composition import TaskAuthorityEventStore
+from .terminal_gate import TerminalGateDisposition, classify_terminal_gate_quiescence
 from .worker_provider import (
     WorkerProvider,
     WorkerProviderConfig,
@@ -97,6 +99,10 @@ from .worker_provider import (
 )
 from .worker_workspace import WorkerWorkspaceManager
 from .workspace_commit import WorkspaceCommitAdapter, WorkspaceCommitScope
+
+
+ROADMAP_MANIFEST_RELATIVE_PATH = Path("docs/agent-state/ORCHESTRATOR_ROADMAP.json")
+MAX_RETIRED_EVENT_KEYS = 1024
 
 
 def _required(value: Any, label: str) -> str:
@@ -382,6 +388,7 @@ class HostedExecutionDependencies:
 class HostedExecutionAdvanceDisposition(str, Enum):
     GATE_BLOCKED = "GATE_BLOCKED"
     IDLE = "IDLE"
+    ORDINARY_QUIESCED = "ORDINARY_QUIESCED"
     TASK_CLAIMED = "TASK_CLAIMED"
     PREFLIGHT_ADVANCED = "PREFLIGHT_ADVANCED"
     CLASSIFIER_ADVANCED = "CLASSIFIER_ADVANCED"
@@ -510,6 +517,73 @@ class HostedExecutionCoordinator:
         for claim in extra:
             by_issue.setdefault(claim.issue_number, claim)
         return tuple(by_issue[key] for key in sorted(by_issue))
+
+    def _quiesce_terminal_gate_ordinary_events(self, state) -> HostedExecutionAdvanceResult | None:
+        """Retire ordinary inbox noise only at an exact projected terminal human gate."""
+        events = tuple(state.inbox.pending_events)
+        if not events:
+            return None
+        if state.inbox.owned_event_keys:
+            return None
+        if any(event.event == "roadmap" or event.protected_authority for event in events):
+            return None
+        if HostedAdmissionStore.for_root(self.root).load().record is not None:
+            return None
+        if DormantHandoffCommitStore.for_root(self.root).load().record is not None:
+            return None
+
+        projection = state.legacy_projection
+        if not isinstance(projection, Mapping):
+            return None
+        roadmap_raw = projection.get("roadmap")
+        try:
+            manifest_raw = json.loads(
+                (self.root / ROADMAP_MANIFEST_RELATIVE_PATH).read_text(encoding="utf-8")
+            )
+            manifest = ShadowRoadmapManifest.from_mapping(manifest_raw)
+            roadmap = ShadowRoadmapState.from_legacy(roadmap_raw, manifest)
+            decision = classify_terminal_gate_quiescence(
+                manifest=manifest,
+                state=roadmap,
+                pending_events=events,
+                pending_decision=False,
+                pending_worker=False,
+                blocked_kind=False,
+            )
+        except (OSError, ValueError, json.JSONDecodeError):
+            # Quiescence is an optimization, never an execution prerequisite. If current
+            # roadmap evidence cannot prove the terminal gate, preserve every event.
+            return None
+
+        if decision.disposition is not TerminalGateDisposition.QUIESCE_ORDINARY:
+            return None
+        ordinary_ids = set(decision.ordinary_event_ids)
+        if not ordinary_ids:
+            return None
+
+        retired = list(state.inbox.retired_event_keys)
+        seen = set(retired)
+        for event_id in decision.ordinary_event_ids:
+            if event_id not in seen:
+                retired.append(event_id)
+                seen.add(event_id)
+        next_inbox = replace(
+            state.inbox,
+            pending_events=tuple(
+                event for event in events if event.event_id not in ordinary_ids
+            ),
+            retired_event_keys=tuple(retired[-MAX_RETIRED_EVENT_KEYS:]),
+        )
+        HostedStateStore.for_root(self.root).save(replace(state, inbox=next_inbox))
+        return HostedExecutionAdvanceResult(
+            HostedExecutionAdvanceDisposition.ORDINARY_QUIESCED,
+            (
+                f"terminal human gate retired {len(ordinary_ids)} ordinary inbox "
+                "event(s) model-free"
+            ),
+            self.gate.digest,
+            decision.digest,
+        )
 
     def _supersede_failed_classifier_plan(
         self,
@@ -767,6 +841,9 @@ class HostedExecutionCoordinator:
         plan = plan_ledger.active
 
         if plan is None:
+            quiesced = self._quiesce_terminal_gate_ordinary_events(state)
+            if quiesced is not None:
+                return quiesced
             authority_events = TaskAuthorityEventStore.for_root(self.root).load()
             result = claim_next_protected_task(
                 ledger=plan_ledger,
