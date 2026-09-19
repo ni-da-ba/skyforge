@@ -47,6 +47,18 @@ final class SkyforgeGeneratedFluidPropagationSourceTest {
         assertTrue(stage.contains("SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell"));
     }
     @Test
+    void dr50SettledEvidenceReconcilesStaleFluidProvenanceWithoutChunkTickets() throws IOException {
+        String stage = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeGeneratedFluidPropagationStage.java"));
+        String evidence = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDr50IntegratedRegionEvidence.java"));
+        assertTrue(stage.contains("static int reconcileSettledFluids("));
+        assertTrue(stage.contains("getChunkNow(position.getX() >> 4, position.getZ() >> 4)"));
+        assertTrue(stage.contains("stale.forEach(data::remove);"));
+        assertTrue(evidence.contains("SkyforgeGeneratedFluidPropagationStage.reconcileSettledFluids(level, volumeId);"));
+    }
+
+    @Test
     void nativeLakeAdmissionFailsClosedWithoutMoltenSemantics() throws IOException {
         String stage = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeLakeAdmissionStage.java"));

@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -31,6 +32,16 @@ final class SkyforgeNativeSurfacePopulationStage {
         if (binding == null) {
             return List.of();
         }
+        if (shouldDeferToStableChunk(
+                SkyforgePhysicalVolumeAdmissionStage.active(),
+                level instanceof WorldGenRegion)) {
+            // Whole-volume physical admission may become ADMITTED while some required chunks are
+            // still finishing ordinary Minecraft generation. Letting those late WorldGenRegion
+            // callbacks populate immediately while earlier chunks populate later as LevelChunks
+            // creates two native execution environments for one volume and makes ecology depend on
+            // scheduler timing. Admitted volumes use the stable-chunk catch-up path exclusively.
+            return List.of();
+        }
 
         List<SkyforgeNativeSurfacePopulationCoordinator.Result> results = new ArrayList<>();
         for (SkyforgeNativeSurfacePopulationPlan plan : resolvePlans(binding, chunk)) {
@@ -48,10 +59,16 @@ final class SkyforgeNativeSurfacePopulationStage {
      * Runs the ordinary exact-volume coordinator on an already-loaded chunk while preserving the
      * generation-time post-processing contract expected by native placed features.
      *
-     * <p>Direct WorldGenRegion population never enters this scope and remains byte-for-byte on the
-     * accepted SF-IMP-0055 lifecycle. The deferred bridge is therefore a catch-up adapter concern,
-     * not a second population implementation.
+     * <p>Fixtures without physical admission retain the accepted direct WorldGenRegion lifecycle.
+     * Physically admitted volumes intentionally defer that path and enter here only after their
+     * stable chunk has completed exact terrain catch-up, giving one canonical execution environment.
      */
+    static boolean shouldDeferToStableChunk(
+            boolean physicalAdmissionActive,
+            boolean worldGenRegion) {
+        return physicalAdmissionActive && worldGenRegion;
+    }
+
     static List<SkyforgeNativeSurfacePopulationCoordinator.Result> populateDeferred(
             ServerLevel level,
             LevelChunk chunk,

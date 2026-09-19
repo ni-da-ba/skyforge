@@ -343,6 +343,45 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         track(level, volumeId, position, fluidState.getType(), BoundaryPolicy.INTERIOR_SHELL);
     }
 
+    /**
+     * Reconciles persisted provenance against settled live fluid state without creating chunk tickets.
+     *
+     * <p>Fluid propagation records are opportunistically retired on observed block writes, but a
+     * scheduled tick can leave stale provenance when its final live state is reached through a path
+     * that does not emit another observed mutation. Final acceptance must compare the settled world,
+     * not timing-sensitive stale bookkeeping. Only already-loaded chunks are inspected; unloaded
+     * provenance is preserved for ordinary runtime/reload behavior.
+     */
+    static int reconcileSettledFluids(
+            ServerLevel level,
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(volumeId, "volumeId");
+        GeneratedFluidData data = dataIfPresent(level);
+        if (data == null) {
+            return 0;
+        }
+        List<Long> stale = new ArrayList<>();
+        for (var entry : data.entries.entrySet()) {
+            if (!entry.getValue().volumeId().equals(volumeId)) {
+                continue;
+            }
+            BlockPos position = BlockPos.of(entry.getKey());
+            if (level.getChunkSource().getChunkNow(position.getX() >> 4, position.getZ() >> 4) == null) {
+                continue;
+            }
+            FluidState live = level.getFluidState(position);
+            ResourceLocation actual = live.isEmpty()
+                    ? null
+                    : BuiltInRegistries.FLUID.getKey(live.getType());
+            if (!entry.getValue().fluidKey().equals(actual)) {
+                stale.add(entry.getKey());
+            }
+        }
+        stale.forEach(data::remove);
+        return stale.size();
+    }
+
     /** Development/runtime evidence for one exact volume without exposing mutable SavedData. */
     static Snapshot snapshot(
             ServerLevel level,
