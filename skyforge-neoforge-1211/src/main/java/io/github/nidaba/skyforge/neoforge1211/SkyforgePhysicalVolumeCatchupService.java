@@ -1,6 +1,10 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import net.minecraft.server.level.ServerLevel;
@@ -24,6 +28,10 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  */
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgePhysicalVolumeCatchupService {
+    private static final Comparator<Long> CHUNK_KEY_ORDER = Comparator
+            .comparingInt((Long key) -> ChunkPos.getX(key))
+            .thenComparingInt(key -> ChunkPos.getZ(key));
+
     /**
      * Composed-cave cursors deliberately expose very small resumable quanta. SF-IMP-0070 measured
      * those quanta as cheap but numerous, so servicing exactly one per 20-TPS tick introduced
@@ -90,9 +98,6 @@ final class SkyforgePhysicalVolumeCatchupService {
                         level,
                         chunk,
                         packet.servicedVolumeId().orElseThrow());
-                if (SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
-                    SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
-                }
             }
             return true;
         }
@@ -148,6 +153,13 @@ final class SkyforgePhysicalVolumeCatchupService {
             int maximumQuanta,
             long timeBudgetNanos) {
         return pumpBoundedWork(serviceOneQuantum, nanoTime, maximumQuanta, timeBudgetNanos);
+    }
+
+    static List<Long> canonicalPopulationChunkKeys(Set<Long> chunkKeys) {
+        Objects.requireNonNull(chunkKeys, "chunkKeys");
+        List<Long> ordered = new ArrayList<>(chunkKeys);
+        ordered.sort(CHUNK_KEY_ORDER);
+        return List.copyOf(ordered);
     }
 
     private static PumpResult pumpBoundedWork(
@@ -213,6 +225,22 @@ final class SkyforgePhysicalVolumeCatchupService {
                         terrainPumpStart);
             }
 
+            // Physically admitted surface ecology has one execution environment only: stable
+            // LevelChunks. WorldGenRegion callbacks are intentionally deferred by the population
+            // stage, and every loaded chunk whose terrain catch-up is complete reaches the same
+            // coordinator here in canonical X/Z order before post-terrain cave/interior work.
+            for (long chunkKey : canonicalPopulationChunkKeys(
+                    SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentationChunkKeys())) {
+                int chunkX = ChunkPos.getX(chunkKey);
+                int chunkZ = ChunkPos.getZ(chunkKey);
+                LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
+                if (chunk == null
+                        || !SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
+                    continue;
+                }
+                SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
+            }
+
             // Composed caves are a post-terrain exact-volume obligation. The stage itself gates on
             // whole-volume admission and on the absence of deferred terrain for the same
             // volume/chunk. getChunkNow preserves the no-ticket lifecycle contract. After each
@@ -254,7 +282,8 @@ final class SkyforgePhysicalVolumeCatchupService {
             // Biome identity is committed only after admission and only on stable chunks Minecraft
             // already loaded independently. The obligation includes the admission-triggering chunk,
             // which may never have needed terrain catch-up, as well as all earlier deferred chunks.
-            for (long chunkKey : SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentationChunkKeys()) {
+            for (long chunkKey : canonicalPopulationChunkKeys(
+                    SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentationChunkKeys())) {
                 int chunkX = ChunkPos.getX(chunkKey);
                 int chunkZ = ChunkPos.getZ(chunkKey);
                 LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
