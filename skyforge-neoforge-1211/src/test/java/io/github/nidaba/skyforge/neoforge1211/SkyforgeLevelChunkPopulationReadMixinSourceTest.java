@@ -15,12 +15,22 @@ final class SkyforgeLevelChunkPopulationReadMixinSourceTest {
 
     @Test
     void directStableChunkReadsUseThePopulationVirtualNeighborView() throws IOException {
-        String source = Files.readString(PROJECT_DIRECTORY.resolve(
+        String blockFluidSource = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeLevelChunkPopulationReadMixin.java"));
-        assertTrue(source.contains("SkyforgeWorldGenRegionDomainBridge.populationActive()"));
-        assertTrue(source.contains("!SkyforgeWorldGenRegionDomainBridge.isVisible(position)"));
-        assertTrue(source.contains("SkyforgeWorldGenRegionDomainBridge.hiddenBlockState(position)"));
-        assertTrue(source.contains("getBlockState"));
-        assertTrue(source.contains("getFluidState"));
+        assertTrue(blockFluidSource.contains("SkyforgeWorldGenRegionDomainBridge.populationActive()"));
+        assertTrue(blockFluidSource.contains("!SkyforgeWorldGenRegionDomainBridge.isVisible(position)"));
+        assertTrue(blockFluidSource.contains("SkyforgeWorldGenRegionDomainBridge.hiddenBlockState(position)"));
+        assertTrue(blockFluidSource.contains("getBlockState"));
+        assertTrue(blockFluidSource.contains("getFluidState"));
+
+        String heightSource = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeChunkAccessPopulationHeightMixin.java"));
+        assertTrue(heightSource.contains("@Mixin(ChunkAccess.class)"));
+        assertTrue(heightSource.contains("SkyforgeWorldGenRegionDomainBridge.populationActive()"));
+        assertTrue(heightSource.contains("SkyforgeWorldGenRegionDomainBridge.exactHeight("));
+        assertTrue(heightSource.contains("firstFreeHeight.getAsInt() - 1"));
+
+        String mixins = Files.readString(PROJECT_DIRECTORY.resolve("src/main/resources/skyforge.mixins.json"));
+        assertTrue(mixins.contains("\"SkyforgeChunkAccessPopulationHeightMixin\""));
     }
 }

@@ -12,6 +12,7 @@
     "SkyforgeChunkPostProcessingMixin",
     "SkyforgeHeightRangePlacementDomainMixin",
     "SkyforgeCarverHeightProviderDomainMixin",
+    "SkyforgeChunkAccessPopulationHeightMixin",
     "SkyforgeLevelChunkPopulationReadMixin",
     "SkyforgeLevelChunkCarverDomainMixin",
     "SkyforgeWorldCarverDomainMixin",
