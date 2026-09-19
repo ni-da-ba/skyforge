@@ -30,11 +30,12 @@ final class SkyforgeCarverVerticalFrameTest {
         var targetChunk = new ChunkPos(0, 0);
 
         try (var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
-                var execution = SkyforgeCarverExecutionStage.openForTest(
+                var execution = SkyforgeCarverExecutionStage.openForTestWithVirtualReads(
                         volumeId,
                         targetChunk,
                         position -> position.getY() >= 220 && position.getY() <= 240,
                         position -> position.getY() == 235)) {
+            assertTrue(execution.virtualizesReadsForTest());
             assertEquals(Blocks.STONE.defaultBlockState(),
                     execution.virtualBlockStateForTest(new BlockPos(8, 225, 8)));
             assertEquals(Blocks.BEDROCK.defaultBlockState(),
@@ -54,6 +55,25 @@ final class SkyforgeCarverVerticalFrameTest {
             domain.requireActive();
         }
     }
+    @Test
+    void authoredCommitFenceDoesNotVirtualizeBeforeAfterReads() throws Exception {
+        var volumeId = new SkyIslandWorldVolumeId(63L, "authored-commit-test", 0, 0, 6301L);
+        var targetChunk = new ChunkPos(0, 0);
+        try (var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
+                var execution = SkyforgeCarverExecutionStage.openForTest(
+                        volumeId,
+                        targetChunk,
+                        position -> true,
+                        position -> false)) {
+            assertTrue(SkyforgeCarverExecutionStage.active());
+            assertEquals(Blocks.STONE.defaultBlockState(),
+                    execution.virtualBlockStateForTest(new BlockPos(1, 100, 1)));
+            assertFalse(execution.virtualizesReadsForTest(),
+                    "authored commit scopes must retain live before/after reads for changed-block accounting");
+            domain.requireActive();
+        }
+    }
+
     @Test
     void nativeCarverFluidsRequireInteriorOwnerShellWhileAirCarvingMayReachOwnerBoundary() throws Exception {
         var volumeId = new SkyIslandWorldVolumeId(62L, "carver-fluid-test", 0, 0, 6201L);

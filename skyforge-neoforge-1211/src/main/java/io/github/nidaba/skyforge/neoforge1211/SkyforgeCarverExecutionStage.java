@@ -33,6 +33,15 @@ public final class SkyforgeCarverExecutionStage {
             ChunkPos targetChunk,
             Predicate<BlockPos> ownerSolid,
             Predicate<BlockPos> foreignSolid) {
+        return open(volumeId, targetChunk, ownerSolid, foreignSolid, false);
+    }
+
+    private static Scope open(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos targetChunk,
+            Predicate<BlockPos> ownerSolid,
+            Predicate<BlockPos> foreignSolid,
+            boolean virtualizeReads) {
         Objects.requireNonNull(volumeId, "volumeId");
         Objects.requireNonNull(targetChunk, "targetChunk");
         Objects.requireNonNull(ownerSolid, "ownerSolid");
@@ -44,12 +53,24 @@ public final class SkyforgeCarverExecutionStage {
         if (ACTIVE.get() != null) {
             throw new IllegalStateException("nested Skyforge carver executions are not supported");
         }
-        Execution execution = new Execution(volumeId, targetChunk, ownerSolid, foreignSolid);
+        Execution execution = new Execution(volumeId, targetChunk, ownerSolid, foreignSolid, virtualizeReads);
         ACTIVE.set(execution);
         return new Scope(execution);
     }
 
     static Scope open(SkyIslandWorldVolumeId volumeId, ChunkPos targetChunk) {
+        return openRuntime(volumeId, targetChunk, false);
+    }
+
+    /** Opens the same exact-volume write fence with deterministic topology reads for vanilla carvers. */
+    static Scope openNativeCarver(SkyIslandWorldVolumeId volumeId, ChunkPos targetChunk) {
+        return openRuntime(volumeId, targetChunk, true);
+    }
+
+    private static Scope openRuntime(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos targetChunk,
+            boolean virtualizeReads) {
         Objects.requireNonNull(volumeId, "volumeId");
         if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
             throw new IllegalStateException("carver execution requires an active Skyforge runtime binding");
@@ -60,7 +81,7 @@ public final class SkyforgeCarverExecutionStage {
         Predicate<BlockPos> foreignSolid = position -> SkyforgeNeoForge1211SurfaceStage.isSolidOwnedByOtherVolume(
                         volumeId, position.getX(), position.getY(), position.getZ())
                 .orElseThrow(() -> new IllegalStateException("Skyforge runtime binding disappeared during carving"));
-        return open(volumeId, targetChunk, ownerSolid, foreignSolid);
+        return open(volumeId, targetChunk, ownerSolid, foreignSolid, virtualizeReads);
     }
 
     static Scope openForTest(
@@ -69,6 +90,14 @@ public final class SkyforgeCarverExecutionStage {
             Predicate<BlockPos> ownerSolid,
             Predicate<BlockPos> foreignSolid) {
         return open(volumeId, targetChunk, ownerSolid, foreignSolid);
+    }
+
+    static Scope openForTestWithVirtualReads(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos targetChunk,
+            Predicate<BlockPos> ownerSolid,
+            Predicate<BlockPos> foreignSolid) {
+        return open(volumeId, targetChunk, ownerSolid, foreignSolid, true);
     }
 
     /** Returns whether a native carver mutation scope is active. */
@@ -90,7 +119,7 @@ public final class SkyforgeCarverExecutionStage {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(position, "position");
         Execution execution = ACTIVE.get();
-        if (execution == null) {
+        if (execution == null || !execution.virtualizeReads) {
             return Optional.empty();
         }
         if (!chunk.getPos().equals(execution.targetChunk)) {
@@ -177,6 +206,7 @@ public final class SkyforgeCarverExecutionStage {
         private final ChunkPos targetChunk;
         private final Predicate<BlockPos> ownerSolid;
         private final Predicate<BlockPos> foreignSolid;
+        private final boolean virtualizeReads;
         private final Set<Long> changedPositions = new HashSet<>();
         private int writeAttempts;
         private int acceptedWriteAttempts;
@@ -191,11 +221,13 @@ public final class SkyforgeCarverExecutionStage {
                 SkyIslandWorldVolumeId volumeId,
                 ChunkPos targetChunk,
                 Predicate<BlockPos> ownerSolid,
-                Predicate<BlockPos> foreignSolid) {
+                Predicate<BlockPos> foreignSolid,
+                boolean virtualizeReads) {
             this.volumeId = volumeId;
             this.targetChunk = targetChunk;
             this.ownerSolid = ownerSolid;
             this.foreignSolid = foreignSolid;
+            this.virtualizeReads = virtualizeReads;
         }
 
         private BlockState virtualBlockState(BlockPos position) {
@@ -273,6 +305,11 @@ public final class SkyforgeCarverExecutionStage {
         BlockState virtualBlockStateForTest(BlockPos position) {
             requireActive();
             return execution.virtualBlockState(Objects.requireNonNull(position, "position"));
+        }
+
+        boolean virtualizesReadsForTest() {
+            requireActive();
+            return execution.virtualizeReads;
         }
 
         boolean authorizeForTest(BlockPos position) {

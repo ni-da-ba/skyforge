@@ -234,7 +234,7 @@ final class SkyforgeNativeCarverCursor {
         var postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(level);
         try {
             try (var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
-                    var execution = SkyforgeCarverExecutionStage.open(volumeId, targetPos);
+                    var execution = SkyforgeCarverExecutionStage.openNativeCarver(volumeId, targetPos);
                     var vertical = SkyforgeCarverVerticalFrame.open(
                             level, volumeId, targetMinimumY, targetMaximumY)) {
                 domain.requireActive();

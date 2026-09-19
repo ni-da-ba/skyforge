@@ -21,11 +21,17 @@ final class SkyforgeCarverReadVirtualizationSourceTest {
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeLevelChunkCarverDomainMixin.java"));
 
         assertTrue(stage.contains("public static Optional<BlockState> virtualRead"));
+        assertTrue(stage.contains("!execution.virtualizeReads"));
+        assertTrue(stage.contains("openNativeCarver"));
         assertTrue(stage.contains("Blocks.BEDROCK.defaultBlockState()"));
         assertTrue(stage.contains("Blocks.STONE.defaultBlockState()"));
         assertTrue(stage.contains("Blocks.AIR.defaultBlockState()"));
         assertTrue(mixin.contains("getBlockState"));
         assertTrue(mixin.contains("getFluidState"));
         assertTrue(mixin.contains("SkyforgeCarverExecutionStage.virtualRead"));
+
+        String cursor = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeCarverCursor.java"));
+        assertTrue(cursor.contains("SkyforgeCarverExecutionStage.openNativeCarver"));
     }
 }
