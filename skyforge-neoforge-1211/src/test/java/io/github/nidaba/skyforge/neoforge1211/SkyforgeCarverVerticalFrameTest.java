@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import org.junit.jupiter.api.Test;
 
 final class SkyforgeCarverVerticalFrameTest {
@@ -34,6 +35,13 @@ final class SkyforgeCarverVerticalFrameTest {
                         targetChunk,
                         position -> position.getY() >= 220 && position.getY() <= 240,
                         position -> position.getY() == 235)) {
+            assertEquals(Blocks.STONE.defaultBlockState(),
+                    execution.virtualBlockStateForTest(new BlockPos(8, 225, 8)));
+            assertEquals(Blocks.BEDROCK.defaultBlockState(),
+                    execution.virtualBlockStateForTest(new BlockPos(8, 235, 8)));
+            assertEquals(Blocks.AIR.defaultBlockState(),
+                    execution.virtualBlockStateForTest(new BlockPos(8, 100, 8)));
+
             assertTrue(execution.authorizeForTest(new BlockPos(8, 225, 8)));
             assertFalse(execution.authorizeForTest(new BlockPos(8, 235, 8)));
             assertFalse(execution.authorizeForTest(new BlockPos(8, 100, 8)));

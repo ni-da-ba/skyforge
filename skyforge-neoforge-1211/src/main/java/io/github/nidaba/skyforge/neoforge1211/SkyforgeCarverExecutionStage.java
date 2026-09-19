@@ -9,6 +9,7 @@ import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 
@@ -73,6 +74,31 @@ public final class SkyforgeCarverExecutionStage {
     /** Returns whether a native carver mutation scope is active. */
     public static boolean active() {
         return ACTIVE.get() != null;
+    }
+
+    /**
+     * Returns the deterministic block state visible to native carver reads while the exact-volume
+     * carver scope is active.
+     *
+     * <p>Deferred carvers execute against stable LevelChunks after other lifecycle work may already
+     * have populated them. Reading those live blocks makes vanilla carver control flow/RNG depend on
+     * chunk scheduling. Present the immutable compiled ownership topology instead: this volume's
+     * solids are ordinary carveable stone, foreign-volume solids are an uncarvable barrier, and
+     * everything else is exterior air. Actual mutations still go through the normal write fence.
+     */
+    public static Optional<BlockState> virtualRead(LevelChunk chunk, BlockPos position) {
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(position, "position");
+        Execution execution = ACTIVE.get();
+        if (execution == null) {
+            return Optional.empty();
+        }
+        if (!chunk.getPos().equals(execution.targetChunk)) {
+            throw new IllegalStateException(
+                    "native carver attempted to read a chunk outside its target: target="
+                            + execution.targetChunk + ", actual=" + chunk.getPos());
+        }
+        return Optional.of(execution.virtualBlockState(position));
     }
 
     /**
@@ -172,6 +198,17 @@ public final class SkyforgeCarverExecutionStage {
             this.foreignSolid = foreignSolid;
         }
 
+        private BlockState virtualBlockState(BlockPos position) {
+            Objects.requireNonNull(position, "position");
+            if (foreignSolid.test(position)) {
+                return Blocks.BEDROCK.defaultBlockState();
+            }
+            if (ownerSolid.test(position)) {
+                return Blocks.STONE.defaultBlockState();
+            }
+            return Blocks.AIR.defaultBlockState();
+        }
+
         private boolean authorize(BlockPos position) {
             return authorize(position, false);
         }
@@ -231,6 +268,11 @@ public final class SkyforgeCarverExecutionStage {
         Snapshot snapshot() {
             requireActive();
             return execution.snapshot();
+        }
+
+        BlockState virtualBlockStateForTest(BlockPos position) {
+            requireActive();
+            return execution.virtualBlockState(Objects.requireNonNull(position, "position"));
         }
 
         boolean authorizeForTest(BlockPos position) {
