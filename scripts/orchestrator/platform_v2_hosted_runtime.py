@@ -60,9 +60,11 @@ from v2.objective_ingress import (
     parse_objective_comment,
 )
 from v2.events import DurableEvent
+from v2.inbox import InboxState
 from v2.ingress import (
     classify_legacy_compatible_control,
     classify_legacy_compatible_event,
+    reclassify_legacy_compatible_audit_event,
     verify_github_signature,
 )
 from v2.state_store import JsonStateStoreAdapter, StateStoreError
@@ -137,6 +139,7 @@ class HostedV2Substrate:
         self._lock = threading.RLock()
         self.state = self.store.load()
         self.validate_environment()
+        self.startup_audit_signal_reclassifications = self._migrate_pending_audit_signals()
         self.refresh_legacy_projection()
 
     def validate_environment(self) -> None:
@@ -153,6 +156,33 @@ class HostedV2Substrate:
                 raise RuntimeError(
                     "SKYFORGE_WEBHOOK_SECRET must be at least 32 characters in hosted mode."
                 )
+
+    def _migrate_pending_audit_signals(self) -> int:
+        """Apply current deterministic Audit parsing to durable pre-upgrade events."""
+        inbox = self.state.inbox
+        migrated = tuple(
+            reclassify_legacy_compatible_audit_event(event)
+            for event in inbox.pending_events
+        )
+        changed = sum(before != after for before, after in zip(inbox.pending_events, migrated))
+        if not changed:
+            return 0
+        next_inbox = InboxState(
+            pending_events=migrated,
+            retired_event_keys=inbox.retired_event_keys,
+            completed_authority_event_keys=inbox.completed_authority_event_keys,
+            owned_event_keys=inbox.owned_event_keys,
+        )
+        next_state = HostedIngressState(
+            inbox=next_inbox,
+            seen_deliveries=self.state.seen_deliveries,
+            legacy_projection=self.state.legacy_projection,
+            accepted_deliveries=self.state.accepted_deliveries,
+            rejected_controls=self.state.rejected_controls,
+        )
+        self.store.save(next_state)
+        self.state = next_state
+        return changed
 
     def refresh_legacy_projection(self) -> None:
         projection = _read_legacy_projection(self.root)
@@ -200,6 +230,7 @@ class HostedV2Substrate:
                 "remote_effect_execution_enabled": self.production_execution_enabled,
                 "startup_reconcile_requested": self.startup_reconcile,
                 "legacy_classifier_adapter": True,
+                "startup_audit_signal_reclassifications": self.startup_audit_signal_reclassifications,
                 "state_digest": state.digest,
                 "pending_event_count": len(state.inbox.pending_events),
                 "seen_delivery_count": len(state.seen_deliveries),
