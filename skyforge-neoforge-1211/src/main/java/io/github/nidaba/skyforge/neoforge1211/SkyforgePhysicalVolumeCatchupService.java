@@ -287,7 +287,8 @@ final class SkyforgePhysicalVolumeCatchupService {
                 int chunkX = ChunkPos.getX(chunkKey);
                 int chunkZ = ChunkPos.getZ(chunkKey);
                 LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
-                if (chunk == null) {
+                if (chunk == null
+                        || !SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
                     continue;
                 }
                 for (var volumeId : SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentation(chunk.getPos())) {

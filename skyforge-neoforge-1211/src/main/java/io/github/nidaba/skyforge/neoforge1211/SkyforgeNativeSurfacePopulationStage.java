@@ -59,9 +59,9 @@ final class SkyforgeNativeSurfacePopulationStage {
      * Runs the ordinary exact-volume coordinator on an already-loaded chunk while preserving the
      * generation-time post-processing contract expected by native placed features.
      *
-     * <p>Direct WorldGenRegion population never enters this scope and remains byte-for-byte on the
-     * accepted SF-IMP-0055 lifecycle. The deferred bridge is therefore a catch-up adapter concern,
-     * not a second population implementation.
+     * <p>Fixtures without physical admission retain the accepted direct WorldGenRegion lifecycle.
+     * Physically admitted volumes intentionally defer that path and enter here only after their
+     * stable chunk has completed exact terrain catch-up, giving one canonical execution environment.
      */
     static boolean shouldDeferToStableChunk(
             boolean physicalAdmissionActive,
