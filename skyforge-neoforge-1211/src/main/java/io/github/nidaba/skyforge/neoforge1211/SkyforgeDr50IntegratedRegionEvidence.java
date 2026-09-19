@@ -229,6 +229,7 @@ final class SkyforgeDr50IntegratedRegionEvidence {
                 }
             }
         }
+        SkyforgeGeneratedFluidPropagationStage.reconcileSettledFluids(level, volumeId);
         var fluids = SkyforgeGeneratedFluidPropagationStage.snapshot(level, volumeId);
         if (fluids.scheduledOutsideOwner() != 0 || fluids.rejectedBoundaryWrites() != 0) {
             throw new IllegalStateException("DR-50 generated-fluid containment failed: " + fluids);
