@@ -10,6 +10,7 @@ execution is not enabled in R5B.
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -60,6 +61,14 @@ from v2.objective_ingress import (
     parse_objective_comment,
 )
 from v2.events import DurableEvent
+from v2.external import ControllerIssueOwner
+from v2.external_service import (
+    EXTERNAL_CLAIMS_RELATIVE_PATH,
+    ExternalClaimLedger,
+    ExternalClaimStore,
+    apply_external_control,
+    parse_external_control,
+)
 from v2.inbox import InboxState
 from v2.ingress import (
     classify_legacy_compatible_control,
@@ -132,6 +141,7 @@ class HostedV2Substrate:
         )
         self.store = HostedStateStore.for_root(self.root)
         self.task_authority_store = TaskAuthorityEventStore.for_root(self.root)
+        self.external_claim_store = ExternalClaimStore.for_root(self.root)
         self.objective_proposal_store = ObjectiveProposalStore.for_root(self.root)
         self.task_plan_store = HostedTaskPlanStore.for_root(self.root)
         self.admission_store = HostedAdmissionStore.for_root(self.root)
@@ -140,6 +150,7 @@ class HostedV2Substrate:
         self.state = self.store.load()
         self.validate_environment()
         self.startup_audit_signal_reclassifications = self._migrate_pending_audit_signals()
+        self.startup_external_claim_migrations = self._migrate_external_claims_once()
         self.refresh_legacy_projection()
 
     def validate_environment(self) -> None:
@@ -184,12 +195,95 @@ class HostedV2Substrate:
         self.state = next_state
         return changed
 
+    def _migrate_external_claims_once(self) -> int:
+        """Seed V2 external ownership exactly once from the cutover projection."""
+        path = self.root / EXTERNAL_CLAIMS_RELATIVE_PATH
+        if path.exists():
+            return 0
+        projection = _read_legacy_projection(self.root)
+        ledger = ExternalClaimLedger(tuple(projection.external_claims))
+        self.external_claim_store.save(ledger)
+        return len(ledger.claims)
+
     def refresh_legacy_projection(self) -> None:
         projection = _read_legacy_projection(self.root)
+        if (self.root / EXTERNAL_CLAIMS_RELATIVE_PATH).exists():
+            projection = replace(
+                projection,
+                external_claims=self.external_claim_store.load().claims,
+            )
         with self._lock:
             next_state = self.state.with_projection(projection.as_dict())
             self.store.save(next_state)
             self.state = next_state
+
+    def _controller_issue_owner(self, issue_number: int) -> ControllerIssueOwner:
+        """Return concrete controller ownership for external-claim admission."""
+        with self._lock:
+            plan = self.task_plan_store.load().active
+            admission = self.admission_store.load().record
+            projection = dict(self.state.legacy_projection or {})
+
+        if plan is not None and plan.issue_number == issue_number:
+            return ControllerIssueOwner.PENDING_WORKER
+        if admission is not None and admission.issue_number == issue_number:
+            return ControllerIssueOwner.PENDING_WORKER
+
+        roadmap = projection.get("roadmap") or {}
+        active = roadmap.get("active") if isinstance(roadmap, Mapping) else None
+        if isinstance(active, Mapping) and active.get("issue_number") == issue_number:
+            return ControllerIssueOwner.ACTIVE_ROADMAP
+
+        pending = projection.get("pending_worker")
+        if isinstance(pending, Mapping) and pending.get("authority_issue") == issue_number:
+            return ControllerIssueOwner.PENDING_WORKER
+
+        decision = projection.get("pending_decision")
+        if isinstance(decision, Mapping) and issue_number in (decision.get("task_issue_numbers") or []):
+            return ControllerIssueOwner.PENDING_DECISION
+
+        managed = projection.get("managed") or {}
+        if isinstance(managed, Mapping):
+            for value in managed.values():
+                if isinstance(value, Mapping) and value.get("authority_issue") == issue_number:
+                    return ControllerIssueOwner.MANAGED_PR
+        return ControllerIssueOwner.NONE
+
+    def _retire_terminal_external_claim(
+        self,
+        event_name: str,
+        payload: Mapping[str, Any],
+    ) -> bool:
+        """Retire exact external ownership from signed terminal GitHub facts."""
+        action = str(payload.get("action") or "").lower()
+        ledger = self.external_claim_store.load()
+        issue_to_release = None
+
+        if event_name == "pull_request" and action == "closed":
+            pull_request = payload.get("pull_request") or {}
+            number = payload.get("number")
+            if number is None and isinstance(pull_request, Mapping):
+                number = pull_request.get("number")
+            if isinstance(number, int) and not isinstance(number, bool):
+                for claim in ledger.claims:
+                    if claim.pr_number == number:
+                        issue_to_release = claim.issue_number
+                        break
+        elif event_name == "issues" and action == "closed":
+            issue = payload.get("issue") or {}
+            number = issue.get("number") if isinstance(issue, Mapping) else None
+            if isinstance(number, int) and not isinstance(number, bool):
+                claim = ledger.get(number)
+                if claim is not None and claim.pr_number is None:
+                    issue_to_release = claim.issue_number
+
+        if issue_to_release is None:
+            return False
+        updated, changed = ledger.release(issue_to_release)
+        if changed:
+            self.external_claim_store.save(updated)
+            self.refresh_legacy_projection()
+        return changed
 
     def attach_execution_driver(self, driver) -> None:
         if not self.production_execution_enabled:
@@ -205,7 +299,7 @@ class HostedV2Substrate:
         with self._lock:
             state = self.state
             projection = state.legacy_projection or {}
-            external = projection.get("external_claims") or []
+            external = [claim.as_dict() for claim in self.external_claim_store.load().claims]
             roadmap = projection.get("roadmap") or {}
             authority_ledger = self.task_authority_store.load()
             task_plan = self.task_plan_store.load()
@@ -231,6 +325,7 @@ class HostedV2Substrate:
                 "startup_reconcile_requested": self.startup_reconcile,
                 "legacy_classifier_adapter": True,
                 "startup_audit_signal_reclassifications": self.startup_audit_signal_reclassifications,
+                "startup_external_claim_migrations": self.startup_external_claim_migrations,
                 "state_digest": state.digest,
                 "pending_event_count": len(state.inbox.pending_events),
                 "seen_delivery_count": len(state.seen_deliveries),
@@ -417,6 +512,74 @@ class HostedV2Substrate:
                 "objective_disposition": captured.record.compiled.disposition.value,
                 "executable_task_authority": False,
                 "task_authority_recorded": False,
+                "mutation_authority": self.production_execution_enabled,
+            }
+
+        # External producer ownership is a V2-native control surface after cutover.
+        # Retire exact terminal ownership before processing any ordinary event, then handle
+        # claim/release directives without placing them in the work inbox.
+        self._retire_terminal_external_claim(event_name, payload)
+        try:
+            external_control = parse_external_control(
+                event=event_name,
+                payload=payload,
+                trusted_actors=self.trusted_actors,
+            )
+        except ValueError as exc:
+            return 409, {
+                "accepted": False,
+                "error": f"external producer control rejected: {exc}",
+                "mutation_authority": self.production_execution_enabled,
+            }
+
+        if external_control is not None:
+            with self._lock:
+                if delivery_id and delivery_id in self.state.seen_deliveries:
+                    return 200, {
+                        "accepted": False,
+                        "duplicate": True,
+                        "external_control": True,
+                        "mutation_authority": self.production_execution_enabled,
+                    }
+                before = self.external_claim_store.load()
+                result = apply_external_control(
+                    ledger=before,
+                    control=external_control,
+                    controller_owner=self._controller_issue_owner(external_control.issue_number),
+                )
+                if result.ledger != before:
+                    self.external_claim_store.save(result.ledger)
+
+                if result.accepted:
+                    marker = DurableEvent(
+                        actionable=False,
+                        reason=result.reason,
+                        event="external_control",
+                        action=external_control.kind.value.lower(),
+                        pr_number=external_control.issue_number,
+                        source_id=str(external_control.source_comment_id or ""),
+                    )
+                    transition = ingest_event(
+                        self.state,
+                        marker,
+                        delivery_id=delivery_id,
+                    )
+                    if transition.after is not self.state:
+                        self.store.save(transition.after)
+                        self.state = transition.after
+                else:
+                    next_state = self.state.with_rejected_control(delivery_id)
+                    self.store.save(next_state)
+                    self.state = next_state
+
+            self.refresh_legacy_projection()
+            if result.accepted:
+                self._signal_execution_driver()
+            return 202, {
+                "accepted": result.accepted,
+                "external_control": external_control.kind.value,
+                "reason": result.reason,
+                "external_claim_count": len(result.ledger.claims),
                 "mutation_authority": self.production_execution_enabled,
             }
 

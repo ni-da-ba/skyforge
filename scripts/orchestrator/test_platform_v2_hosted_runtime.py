@@ -10,6 +10,7 @@ import unittest
 import platform_v2_hosted_runtime as hosted
 import skyforge_orchestrator as legacy_core
 from v2.events import DurableEvent
+from v2.external_service import ExternalClaimStore
 from v2.hosted_state import HostedIngressState, HostedStateStore
 from v2.inbox import InboxState
 from v2.ingress import (
@@ -98,6 +99,28 @@ def push_payload() -> bytes:
             "ref": "refs/heads/main",
             "after": MAIN,
             "repository": {"full_name": "ni-da-ba/skyforge"},
+        },
+        separators=(",", ":"),
+    ).encode()
+
+
+def issue_comment_payload(
+    body: str,
+    *,
+    issue_number: int,
+    comment_id: int,
+    actor: str = "ni-da-ba",
+) -> bytes:
+    return json.dumps(
+        {
+            "action": "created",
+            "repository": {"full_name": "ni-da-ba/skyforge"},
+            "issue": {"number": issue_number},
+            "comment": {
+                "id": comment_id,
+                "body": body,
+                "user": {"login": actor},
+            },
         },
         separators=(",", ":"),
     ).encode()
@@ -344,6 +367,141 @@ class HostedSubstrateTest(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertTrue(response["duplicate"])
             self.assertEqual(runtime.state.rejected_controls, 1)
+
+    def test_external_claim_controls_migrate_once_and_survive_restart(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            original = write_legacy(root)
+            runtime = hosted.HostedV2Substrate(
+                root,
+                repo="ni-da-ba/skyforge",
+                require_webhook_secret=True,
+                startup_reconcile=True,
+                webhook_secret=SECRET,
+                trusted_actors=("ni-da-ba",),
+            )
+            store = ExternalClaimStore.for_root(root)
+            self.assertEqual(
+                tuple(claim.issue_number for claim in store.load().claims),
+                (613, 754),
+            )
+            self.assertEqual(runtime.startup_external_claim_migrations, 2)
+
+            release = issue_comment_payload(
+                "/skyforge-release-external",
+                issue_number=754,
+                comment_id=2001,
+            )
+            headers = signed_headers(
+                release,
+                event="issue_comment",
+                delivery="external-release-1",
+            )
+            status, response = runtime.handle_webhook(headers=headers, raw=release)
+            self.assertEqual(status, 202)
+            self.assertTrue(response["accepted"])
+            self.assertEqual(response["external_control"], "RELEASE")
+            self.assertEqual(
+                tuple(claim.issue_number for claim in store.load().claims),
+                (613,),
+            )
+            self.assertEqual(
+                (root / ".skyforge-orchestrator/state.json").read_bytes(),
+                original,
+            )
+
+            duplicate_status, duplicate = runtime.handle_webhook(
+                headers=headers,
+                raw=release,
+            )
+            self.assertEqual(duplicate_status, 200)
+            self.assertTrue(duplicate["duplicate"])
+            self.assertEqual(
+                tuple(claim.issue_number for claim in store.load().claims),
+                (613,),
+            )
+
+            claim = issue_comment_payload(
+                "/skyforge-claim-external lane=Implementation "
+                "branch=implementation/900-test pr=901",
+                issue_number=900,
+                comment_id=2002,
+            )
+            claim_status, claim_response = runtime.handle_webhook(
+                headers=signed_headers(
+                    claim,
+                    event="issue_comment",
+                    delivery="external-claim-1",
+                ),
+                raw=claim,
+            )
+            self.assertEqual(claim_status, 202)
+            self.assertTrue(claim_response["accepted"])
+            self.assertEqual(claim_response["external_control"], "CLAIM")
+            self.assertEqual(
+                tuple(claim.issue_number for claim in store.load().claims),
+                (613, 900),
+            )
+            self.assertEqual(runtime.health_snapshot()["projected_external_claim_count"], 2)
+
+            restarted = hosted.HostedV2Substrate(
+                root,
+                repo="ni-da-ba/skyforge",
+                require_webhook_secret=True,
+                startup_reconcile=True,
+                webhook_secret=SECRET,
+                trusted_actors=("ni-da-ba",),
+            )
+            self.assertEqual(restarted.startup_external_claim_migrations, 0)
+            self.assertEqual(
+                tuple(claim.issue_number for claim in store.load().claims),
+                (613, 900),
+            )
+            self.assertEqual(
+                restarted.health_snapshot()["projected_external_claim_count"],
+                2,
+            )
+
+    def test_signed_terminal_pr_event_retires_bound_external_claim(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            runtime = self.make_runtime(root)
+            store = ExternalClaimStore.for_root(root)
+            self.assertEqual(
+                tuple(claim.issue_number for claim in store.load().claims),
+                (613, 754),
+            )
+
+            payload = json.dumps(
+                {
+                    "action": "closed",
+                    "number": 769,
+                    "repository": {"full_name": "ni-da-ba/skyforge"},
+                    "pull_request": {
+                        "number": 769,
+                        "head": {
+                            "sha": "b" * 40,
+                            "repo": {"full_name": "ni-da-ba/skyforge"},
+                        },
+                    },
+                },
+                separators=(",", ":"),
+            ).encode()
+            status, response = runtime.handle_webhook(
+                headers=signed_headers(
+                    payload,
+                    event="pull_request",
+                    delivery="external-pr-closed-1",
+                ),
+                raw=payload,
+            )
+            self.assertEqual(status, 202)
+            self.assertTrue(response["accepted"])
+            self.assertEqual(
+                tuple(claim.issue_number for claim in store.load().claims),
+                (613,),
+            )
+            self.assertEqual(runtime.health_snapshot()["projected_external_claim_count"], 1)
 
     def test_restart_reloads_exact_hosted_state(self):
         with tempfile.TemporaryDirectory() as td:
