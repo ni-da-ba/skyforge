@@ -510,6 +510,77 @@ class OperatorCutoverTest(unittest.TestCase):
             ],
         )
 
+    def test_authority_transfer_exact_human_gate_preserves_noncompletion_and_is_idempotent(self):
+        td, root, _main, _template, _evidence, services, controller = self.build()
+        self.addCleanup(td.cleanup)
+        event = protected_gate_event(issue=767)
+        state, _backup = write_legacy_transfer_state(root, event)
+        controller.health_probe = lambda: legacy_transfer_health(root)
+
+        first = controller.transfer_authority(
+            event_key=event.event_id,
+            issue_number=767,
+            source_id="human-gate-source",
+            signal_kind="human_gate",
+            execute=True,
+        )
+        self.assertEqual(first.disposition, OperatorDisposition.AUTHORITY_TRANSFER_COMPLETE)
+        raw = json.loads(state.read_text(encoding="utf-8"))
+        self.assertEqual(raw["pending_events"], [])
+        self.assertIn(event.event_id, raw["retired_event_keys"])
+        self.assertNotIn(event.event_id, raw["completed_authority_event_keys"])
+        transfer = raw["last_platform_v2_authority_transfer"]
+        self.assertEqual(transfer["event_key"], event.event_id)
+        self.assertEqual(transfer["issue_number"], 767)
+        self.assertEqual(transfer["source_id"], "human-gate-source")
+        self.assertEqual(transfer["signal_kind"], "human_gate")
+        self.assertIs(transfer["completed"], False)
+
+        before = list(services.log)
+        second = controller.transfer_authority(
+            event_key=event.event_id,
+            issue_number=767,
+            source_id="human-gate-source",
+            signal_kind="human_gate",
+            execute=True,
+        )
+        self.assertEqual(second.disposition, OperatorDisposition.AUTHORITY_TRANSFER_COMPLETE)
+        self.assertEqual(second.events[0].kind, "AUTHORITY_ALREADY_TRANSFERRED")
+        self.assertEqual(services.log, before)
+
+    def test_authority_transfer_human_gate_refuses_wrong_kind_or_source(self):
+        td, root, _main, _template, _evidence, services, controller = self.build()
+        self.addCleanup(td.cleanup)
+        event = protected_gate_event(issue=767)
+        write_legacy_transfer_state(root, event)
+        controller.health_probe = lambda: legacy_transfer_health(root)
+
+        wrong_kind = controller.transfer_authority(
+            event_key=event.event_id,
+            issue_number=767,
+            source_id="human-gate-source",
+            signal_kind="task",
+            execute=True,
+        )
+        self.assertEqual(wrong_kind.disposition, OperatorDisposition.BLOCKED)
+        wrong_source = controller.transfer_authority(
+            event_key=event.event_id,
+            issue_number=767,
+            source_id="wrong-source",
+            signal_kind="human_gate",
+            execute=True,
+        )
+        self.assertEqual(wrong_source.disposition, OperatorDisposition.BLOCKED)
+        invalid_kind = controller.transfer_authority(
+            event_key=event.event_id,
+            issue_number=767,
+            source_id="human-gate-source",
+            signal_kind="not_protected",
+            execute=True,
+        )
+        self.assertEqual(invalid_kind.disposition, OperatorDisposition.BLOCKED)
+        self.assertEqual(services.log, [])
+
     def test_authority_transfer_refuses_identity_mismatch_and_completed_authority(self):
         td, root, _main, _template, _evidence, services, controller = self.build()
         self.addCleanup(td.cleanup)

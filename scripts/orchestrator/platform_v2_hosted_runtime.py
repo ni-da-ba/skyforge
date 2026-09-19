@@ -55,9 +55,16 @@ from v2.hosted_task_preflight import (
     preflight_captured_task,
 )
 from v2.identity import canonical_digest
+from v2.objective_ingress import (
+    ObjectiveProposalStore,
+    parse_objective_comment,
+)
+from v2.events import DurableEvent
+from v2.inbox import InboxState
 from v2.ingress import (
     classify_legacy_compatible_control,
     classify_legacy_compatible_event,
+    reclassify_legacy_compatible_audit_event,
     verify_github_signature,
 )
 from v2.state_store import JsonStateStoreAdapter, StateStoreError
@@ -125,12 +132,14 @@ class HostedV2Substrate:
         )
         self.store = HostedStateStore.for_root(self.root)
         self.task_authority_store = TaskAuthorityEventStore.for_root(self.root)
+        self.objective_proposal_store = ObjectiveProposalStore.for_root(self.root)
         self.task_plan_store = HostedTaskPlanStore.for_root(self.root)
         self.admission_store = HostedAdmissionStore.for_root(self.root)
         self.execution_driver = None
         self._lock = threading.RLock()
         self.state = self.store.load()
         self.validate_environment()
+        self.startup_audit_signal_reclassifications = self._migrate_pending_audit_signals()
         self.refresh_legacy_projection()
 
     def validate_environment(self) -> None:
@@ -147,6 +156,33 @@ class HostedV2Substrate:
                 raise RuntimeError(
                     "SKYFORGE_WEBHOOK_SECRET must be at least 32 characters in hosted mode."
                 )
+
+    def _migrate_pending_audit_signals(self) -> int:
+        """Apply current deterministic Audit parsing to durable pre-upgrade events."""
+        inbox = self.state.inbox
+        migrated = tuple(
+            reclassify_legacy_compatible_audit_event(event)
+            for event in inbox.pending_events
+        )
+        changed = sum(before != after for before, after in zip(inbox.pending_events, migrated))
+        if not changed:
+            return 0
+        next_inbox = InboxState(
+            pending_events=migrated,
+            retired_event_keys=inbox.retired_event_keys,
+            completed_authority_event_keys=inbox.completed_authority_event_keys,
+            owned_event_keys=inbox.owned_event_keys,
+        )
+        next_state = HostedIngressState(
+            inbox=next_inbox,
+            seen_deliveries=self.state.seen_deliveries,
+            legacy_projection=self.state.legacy_projection,
+            accepted_deliveries=self.state.accepted_deliveries,
+            rejected_controls=self.state.rejected_controls,
+        )
+        self.store.save(next_state)
+        self.state = next_state
+        return changed
 
     def refresh_legacy_projection(self) -> None:
         projection = _read_legacy_projection(self.root)
@@ -177,6 +213,8 @@ class HostedV2Substrate:
             admission = self.admission_store.load().record
             completions = HostedCompletionStore.for_root(self.root).load()
             pending_completion = completions.pending()
+            objective_ledger = self.objective_proposal_store.load()
+            latest_objective = objective_ledger.records[-1] if objective_ledger.records else None
             return {
                 "status": "ok",
                 "controller": "platform-v2",
@@ -192,6 +230,7 @@ class HostedV2Substrate:
                 "remote_effect_execution_enabled": self.production_execution_enabled,
                 "startup_reconcile_requested": self.startup_reconcile,
                 "legacy_classifier_adapter": True,
+                "startup_audit_signal_reclassifications": self.startup_audit_signal_reclassifications,
                 "state_digest": state.digest,
                 "pending_event_count": len(state.inbox.pending_events),
                 "seen_delivery_count": len(state.seen_deliveries),
@@ -203,6 +242,14 @@ class HostedV2Substrate:
                 "ordinary_v2_mutation_authority": self.production_execution_enabled,
                 "task_authority_capture_enabled": True,
                 "task_authority_record_count": len(authority_ledger.records),
+                "objective_intake_enabled": True,
+                "objective_proposal_count": len(objective_ledger.records),
+                "latest_objective_disposition": (
+                    latest_objective.compiled.disposition.value if latest_objective else ""
+                ),
+                "latest_objective_proposal_id": (
+                    latest_objective.proposal_id if latest_objective else ""
+                ),
                 "task_preflight_enabled": True,
                 "hosted_task_planning_enabled": True,
                 "explicit_classifier_proposal_enabled": True,
@@ -304,6 +351,74 @@ class HostedV2Substrate:
 
         event_name = str(normalized_headers.get("x-github-event") or "")
         delivery_id = normalized_headers.get("x-github-delivery")
+
+        try:
+            objective_source = parse_objective_comment(
+                event_name=event_name,
+                payload=payload,
+                repo=self.repo,
+                trusted_actors=self.trusted_actors,
+            )
+        except ValueError as exc:
+            return 409, {
+                "accepted": False,
+                "error": f"objective ingress rejected: {exc}",
+                "mutation_authority": self.production_execution_enabled,
+            }
+
+        if objective_source is not None:
+            with self._lock:
+                if delivery_id and delivery_id in self.state.seen_deliveries:
+                    return 200, {
+                        "accepted": False,
+                        "duplicate": True,
+                        "objective": True,
+                        "mutation_authority": self.production_execution_enabled,
+                    }
+                try:
+                    captured = self.objective_proposal_store.capture(
+                        source=objective_source,
+                        delivery_id=str(delivery_id or ""),
+                        root=self.root,
+                    )
+                except (ValueError, StateStoreError) as exc:
+                    return 409 if isinstance(exc, ValueError) else 503, {
+                        "accepted": False,
+                        "error": (
+                            f"objective proposal rejected: {exc}"
+                            if isinstance(exc, ValueError)
+                            else "objective proposal persistence unavailable"
+                        ),
+                        "mutation_authority": self.production_execution_enabled,
+                    }
+                marker_event = DurableEvent(
+                    actionable=False,
+                    reason="signed objective proposal captured without task authority",
+                    event="objective",
+                    action="compile",
+                    pr_number=objective_source.issue_number,
+                    source_id=str(objective_source.comment_id),
+                    signal_kind=None,
+                    signal_text=None,
+                )
+                transition = ingest_event(
+                    self.state,
+                    marker_event,
+                    delivery_id=delivery_id,
+                )
+                if transition.after is not self.state:
+                    self.store.save(transition.after)
+                    self.state = transition.after
+            return 202, {
+                "accepted": True,
+                "objective": True,
+                "objective_recorded": captured.created,
+                "proposal_id": captured.record.proposal_id,
+                "objective_disposition": captured.record.compiled.disposition.value,
+                "executable_task_authority": False,
+                "task_authority_recorded": False,
+                "mutation_authority": self.production_execution_enabled,
+            }
 
         control = classify_legacy_compatible_control(
             event_name,

@@ -306,6 +306,7 @@ def _find_transfer_target(
     event_key: str,
     issue_number: int,
     source_id: str,
+    signal_kind: str = "task",
 ) -> tuple[DurableEvent | None, tuple[DurableEvent, ...], bool]:
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", event_key):
         raise ValueError("event_key must be canonical sha256 durable-event identity")
@@ -314,6 +315,9 @@ def _find_transfer_target(
     source = str(source_id or "").strip()
     if not source:
         raise ValueError("source_id is required")
+    signal = str(signal_kind or "").strip()
+    if signal not in PROTECTED_AUTHORITY_SIGNAL_KINDS:
+        raise ValueError("signal_kind must be a protected authority signal kind")
 
     completed = _legacy_key_set(raw, "completed_authority_event_keys")
     if event_key in completed:
@@ -325,8 +329,12 @@ def _find_transfer_target(
         event
         for event in protected
         if event.event_id == event_key
-        and event.signal_kind == "task"
-        and event.task_issue_number == issue_number
+        and event.signal_kind == signal
+        and (
+            event.task_issue_number == issue_number
+            if signal == "task"
+            else event.pr_number == issue_number
+        )
         and str(event.source_id or "") == source
     )
     if len(matches) > 1:
@@ -340,6 +348,7 @@ def _find_transfer_target(
         and str(item.get("event_key") or "") == event_key
         and int(item.get("issue_number") or 0) == issue_number
         and str(item.get("source_id") or "") == source
+        and str(item.get("signal_kind") or "task") == signal
         and item.get("completed") is False
         and str(item.get("disposition") or "") == "RETIRED_FOR_PLATFORM_V2_TRANSFER"
         for item in transfers
@@ -348,7 +357,7 @@ def _find_transfer_target(
     if not matches and already_transferred and event_key in retired:
         return None, protected, True
     if len(matches) != 1:
-        raise ValueError("exact pending task authority was not found")
+        raise ValueError("exact pending protected authority was not found")
     return matches[0], protected, False
 
 
@@ -770,6 +779,7 @@ class OperatorCutoverController:
         event_key: str,
         issue_number: int,
         source_id: str,
+        signal_kind: str = "task",
     ) -> tuple[list[str], bool]:
         blockers: list[str] = []
         already_transferred = False
@@ -813,6 +823,7 @@ class OperatorCutoverController:
                 event_key=event_key,
                 issue_number=issue_number,
                 source_id=source_id,
+                signal_kind=signal_kind,
             )
             unrelated = tuple(
                 event for event in protected if target is None or event.event_id != target.event_id
@@ -831,6 +842,7 @@ class OperatorCutoverController:
         event_key: str,
         issue_number: int,
         source_id: str,
+        signal_kind: str = "task",
     ) -> Mapping[str, Any]:
         state_path, backup_path = _legacy_state_paths(self.root)
         raw = _load_json_mapping(state_path, "legacy state")
@@ -843,6 +855,7 @@ class OperatorCutoverController:
             event_key=event_key,
             issue_number=issue_number,
             source_id=source_id,
+            signal_kind=signal_kind,
         )
         if already_transferred:
             raise RuntimeError("authority is already transferred")
@@ -941,6 +954,7 @@ class OperatorCutoverController:
         event_key: str,
         issue_number: int,
         source_id: str,
+        signal_kind: str = "task",
         execute: bool = False,
     ) -> OperatorReport:
         accepted_main = self._rollback_accepted_main()
@@ -948,6 +962,7 @@ class OperatorCutoverController:
             event_key=event_key,
             issue_number=issue_number,
             source_id=source_id,
+            signal_kind=signal_kind,
         )
         if blockers:
             return OperatorReport(
@@ -1016,6 +1031,7 @@ class OperatorCutoverController:
                 event_key=event_key,
                 issue_number=issue_number,
                 source_id=source_id,
+                signal_kind=signal_kind,
             )
             record("AUTHORITY_RETIRED_FOR_V2_TRANSFER", json.dumps(transfer, sort_keys=True))
 

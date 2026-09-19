@@ -171,6 +171,35 @@ class EventFilterTests(unittest.TestCase):
         self.assertTrue(d.actionable)
         self.assertEqual(d.signal_kind, "human_gate")
 
+    def test_acceptance_prose_mentioning_human_gate_is_not_protected(self):
+        cases = (
+            (
+                "PRODUCTION ACCEPTANCE: repaired OPT-2C upgrade completed. "
+                "Exact #767 human-gate event was transferred with completed=false.",
+                False,
+                None,
+            ),
+            (
+                "OPT-2C production upgrade is accepted. During upgrade, the previous "
+                "HUMAN_GATE audit signal was transferred and not self-approved.",
+                True,
+                "audit",
+            ),
+        )
+        for body, actionable, signal_kind in cases:
+            with self.subTest(body=body):
+                d = orch.classify_event(
+                    "issue_comment",
+                    {
+                        "action": "created",
+                        "issue": {"number": 767},
+                        "comment": {"id": 103, "body": body, "user": {"login": "ni-da-ba"}},
+                    },
+                )
+                self.assertEqual(d.actionable, actionable)
+                self.assertEqual(d.signal_kind, signal_kind)
+                self.assertNotEqual(d.signal_kind, "human_gate")
+
     def test_explicit_new_task_signal_outranks_contextual_human_gate_text(self):
         d = orch.classify_event(
             "issue_comment",
@@ -4413,6 +4442,66 @@ class Audit0034DurableSignalMigrationTests(unittest.TestCase):
                 1,
             )
             self.assertIn("signal=audit", snapshot["pending_event_summaries"][0])
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_stale_contextual_human_gate_demotes_to_generic_audit_without_deletion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            stale = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=938,
+                source_id="5737207940",
+                signal_kind="human_gate",
+                signal_text=(
+                    "PRODUCTION ACCEPTANCE: repaired OPT-2C upgrade completed. "
+                    "Exact #767 human-gate event was transferred with completed=false."
+                ),
+            )
+            original_key = orch._event_key(stale)
+            o.state.data["pending_events"] = [stale.to_state()]
+            o.state.save()
+
+            pending = o._pending_events()
+
+            self.assertEqual(len(pending), 1)
+            self.assertEqual(pending[0].signal_kind, "audit")
+            self.assertEqual(pending[0].source_id, "5737207940")
+            self.assertEqual(pending[0].signal_text, stale.signal_text)
+            self.assertNotEqual(orch._event_key(pending[0]), original_key)
+            self.assertEqual(
+                o.state.data["metrics"].get("pending_audit_signal_reclassifications"),
+                1,
+            )
+            if o._timer is not None:
+                o._timer.cancel()
+
+    def test_explicit_human_gate_remains_protected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            o = self.make_orchestrator(pathlib.Path(tmp))
+            gate = orch.EventDecision(
+                True,
+                "Audit/watchdog orchestration signal",
+                "issue_comment",
+                action="audit_signal",
+                pr_number=767,
+                source_id="gate",
+                signal_kind="human_gate",
+                signal_text="AUDIT HUMAN_GATE: owner re-review required",
+            )
+            o.state.data["pending_events"] = [gate.to_state()]
+            o.state.save()
+
+            pending = o._pending_events()
+
+            self.assertEqual(len(pending), 1)
+            self.assertEqual(pending[0].signal_kind, "human_gate")
+            self.assertIsNone(
+                o.state.data["metrics"].get("pending_audit_signal_reclassifications")
+            )
             if o._timer is not None:
                 o._timer.cancel()
 

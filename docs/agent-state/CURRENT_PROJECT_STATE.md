@@ -4,10 +4,11 @@ This file is a compact bootstrap cache for disposable/manual/hosted agents. It d
 
 ## Snapshot boundary
 
-- Platform-v2 is the active production orchestrator at accepted SHA `86e83aeb3981bee3c53bc2a390c16ce13c1fa03d`.
+- Platform-v2 is the active production orchestrator at accepted SHA `1c23016db136de9ff0ba7dcda8a9017fbf42f358`.
 - The production activation gate is healthy, and Platform-v2 owns writer authority.
-- Legacy is inactive and boot-disabled; it is retained only as rollback history during post-cutover soak.
-- This state supersedes the earlier #916 revision that resulted in `RECLASSIFY`.
+- Legacy is inactive and boot-disabled; it remains an emergency/upgrade rollback path while Platform-v2 is authoritative.
+- Post-cutover production soak #916 completed end-to-end through classifier, admission, one bounded worker, PR #924, CI, auto-merge, durable completion, and cleanup.
+- Protected-authority transfer is productized through `platform_v2_operator_cutover.py transfer-authority` and has been exercised in production.
 
 Before using this snapshot, verify current `main`, live orchestrator state, and current issue/PR ownership. If they materially supersede this file, follow the newer authority and update this checkpoint in the same bounded tranche when practical.
 
@@ -19,8 +20,8 @@ Before using this snapshot, verify current `main`, live orchestrator state, and 
 
 ## Active convergence tranche
 
-The immediate next program phase is to complete the post-cutover soak, productize upgrade authority transfer, and then resume renewed DR-70 development. Preserve the accepted Platform-v2 production authority and rollback history while soak evidence is completed; do not change unrelated project history or implementation behavior in this documentation checkpoint.
+The Platform-v2 migration/soak tranche is complete. The canonical post-migration optimization plan is `docs/architecture/SKYFORGE_DEVELOPMENT_PLATFORM_OPTIMIZATION_ROADMAP.md`. OPT-1A/1B natural objective intake is accepted in live production: signed `Continue DR-70` resolves durably to the explicit DR-70 human re-review gate without creating task/worker authority. OPT-2 is now current: derive compact reproducible context and exact file scope before any objective candidate can become executable authority. Platform optimization and product development should proceed as one workload-driven loop.
 
 ## Orchestration boundary
 
-Platform-v2 is the production writer during soak. Legacy remains inactive/boot-disabled and available only as rollback history. Fresh agent reconstruction should verify this snapshot against current `main`, live ownership, and accepted evidence before selecting bounded work.
+Platform-v2 is the production writer. Legacy remains inactive/boot-disabled as the accepted rollback/upgrade path. Fresh agents should verify this snapshot against current `main`, live ownership, and accepted evidence, then follow the post-migration optimization roadmap and current product/lane authority rather than reconstructing the migration from conversation history.
