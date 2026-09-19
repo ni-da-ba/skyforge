@@ -9,9 +9,12 @@ import unittest
 
 import platform_v2_hosted_runtime as hosted
 import skyforge_orchestrator as legacy_core
-from v2.hosted_state import HostedStateStore
+from v2.events import DurableEvent
+from v2.hosted_state import HostedIngressState, HostedStateStore
+from v2.inbox import InboxState
 from v2.ingress import (
     classify_legacy_compatible_event,
+    reclassify_legacy_compatible_audit_event,
     verify_github_signature,
 )
 
@@ -127,6 +130,33 @@ class IngressCompatibilityTest(unittest.TestCase):
         )
         self.assertEqual(v2.as_dict(), legacy.to_state())
         self.assertEqual(v2.event_id, legacy_core._event_key(legacy))
+
+    def test_persisted_false_protected_audit_signal_is_downgraded(self):
+        event = DurableEvent(
+            actionable=True,
+            reason="Audit/watchdog orchestration signal",
+            event="issue_comment",
+            action="audit_signal",
+            pr_number=767,
+            source_id="5736816842",
+            signal_kind="human_gate",
+            signal_text=(
+                "OPT-1 production exercise succeeded. The accepted HUMAN_GATE remained human "
+                "and was not self-approved."
+            ),
+        )
+        migrated = reclassify_legacy_compatible_audit_event(event)
+        self.assertEqual(migrated.signal_kind, "audit")
+        self.assertEqual(migrated.signal_text, event.signal_text)
+        self.assertEqual(migrated.source_id, event.source_id)
+
+        explicit = DurableEvent.from_legacy_mapping(
+            {**event.as_dict(), "signal_text": "AUDIT HUMAN GATE — owner review required"}
+        )
+        self.assertEqual(
+            reclassify_legacy_compatible_audit_event(explicit).signal_kind,
+            "human_gate",
+        )
 
 
 class HostedSubstrateTest(unittest.TestCase):
@@ -335,6 +365,47 @@ class HostedSubstrateTest(unittest.TestCase):
             )
             self.assertEqual(reloaded.state.digest, digest)
             self.assertEqual(len(reloaded.state.inbox.pending_events), 1)
+
+    def test_restart_migrates_stale_false_protected_audit_signal_once(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            write_legacy(root)
+            stale = DurableEvent(
+                actionable=True,
+                reason="Audit/watchdog orchestration signal",
+                event="issue_comment",
+                action="audit_signal",
+                pr_number=767,
+                source_id="5736816842",
+                signal_kind="human_gate",
+                signal_text="OPT-2 accepted; earlier HUMAN_GATE remained human and unmodified.",
+            )
+            HostedStateStore.for_root(root).save(
+                HostedIngressState(inbox=InboxState(pending_events=(stale,)))
+            )
+
+            migrated = hosted.HostedV2Substrate(
+                root,
+                repo="ni-da-ba/skyforge",
+                require_webhook_secret=True,
+                startup_reconcile=True,
+                webhook_secret=SECRET,
+                trusted_actors=("ni-da-ba",),
+            )
+            self.assertEqual(migrated.startup_audit_signal_reclassifications, 1)
+            self.assertEqual(migrated.state.inbox.pending_events[0].signal_kind, "audit")
+            self.assertEqual(migrated.health_snapshot()["startup_audit_signal_reclassifications"], 1)
+
+            restarted = hosted.HostedV2Substrate(
+                root,
+                repo="ni-da-ba/skyforge",
+                require_webhook_secret=True,
+                startup_reconcile=True,
+                webhook_secret=SECRET,
+                trusted_actors=("ni-da-ba",),
+            )
+            self.assertEqual(restarted.startup_audit_signal_reclassifications, 0)
+            self.assertEqual(restarted.state.inbox.pending_events[0].signal_kind, "audit")
 
     def test_cli_accepts_existing_systemd_argument_shape_but_rejects_auto_merge(self):
         args = hosted.parse_args(
