@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 from pathlib import Path
 import subprocess
@@ -21,6 +22,7 @@ from v2.cutover import (
     CutoverReadinessDisposition,
     WriterAuthority,
 )
+from v2.events import DurableEvent
 from v2.hosted_execution_runtime import (
     HostedExecutionActivationInput,
     HostedExecutionAdvanceDisposition,
@@ -29,9 +31,12 @@ from v2.hosted_execution_runtime import (
     evaluate_hosted_execution_gate,
     load_hosted_execution_gate,
 )
+from v2.hosted_state import HostedStateStore
+from v2.inbox import InboxState
 from v2.ordinary_effects import OrdinaryEffectStore
 from v2.ordinary_pipeline import OrdinaryPipelineStore
 from v2.quota import LocalBudgetObservation
+from v2.roadmap_shadow import ShadowRoadmapManifest
 from v2.worker_provider import WorkerProviderConfig
 from v2.worker_workspace import WorkerWorkspaceManager
 
@@ -116,6 +121,59 @@ def ready_gate(main: str):
 
 def budget():
     return LocalBudgetObservation(calls_used=0, daily_limit=10)
+
+
+def install_terminal_roadmap(root: Path) -> str:
+    payload = {
+        "schema_version": 1,
+        "roadmap_id": "terminal-runtime-test",
+        "enabled": True,
+        "max_auto_claims_per_utc_day": 2,
+        "nodes": [
+            {
+                "id": "task",
+                "kind": "task",
+                "lane": "Implementation",
+                "issue_number": 1,
+                "priority": 100,
+                "max_runs": 1,
+                "prerequisites": [],
+                "objective_hint": "do it",
+                "stop_boundary": "stop",
+            },
+            {
+                "id": "gate",
+                "kind": "gate",
+                "lane": "Implementation",
+                "priority": 90,
+                "max_runs": 1,
+                "prerequisites": ["task"],
+                "human_message": "review it",
+            },
+        ],
+    }
+    manifest = ShadowRoadmapManifest.from_mapping(payload)
+    manifest_path = root / "docs/agent-state/ORCHESTRATOR_ROADMAP.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+    git(root, "add", str(manifest_path.relative_to(root)))
+    git(root, "commit", "-m", "terminal roadmap fixture")
+
+    state_path = root / ".skyforge-orchestrator/state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["roadmap"] = {
+        "roadmap_id": manifest.roadmap_id,
+        "manifest_fingerprint": manifest.fingerprint,
+        "completed_runs": {"task": 1},
+        "blocked_nodes": {"gate": {"reason": "human review"}},
+        "active": None,
+        "claims_day": "2026-09-19",
+        "claims_today": 0,
+    }
+    payload_bytes = (json.dumps(state, indent=2, sort_keys=True) + "\n").encode()
+    state_path.write_bytes(payload_bytes)
+    (state_path.parent / "state.json.bak").write_bytes(payload_bytes)
+    return git(root, "rev-parse", "HEAD")
 
 
 class FakeClassifier:
@@ -336,6 +394,55 @@ class HostedExecutionCoordinatorTest(unittest.TestCase):
             production_execution_requested=True,
             execution_gate=gate,
         )
+
+    def test_terminal_gate_quiesces_ordinary_v2_inbox_without_model_calls(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            make_repo(root)
+            write_legacy(root)
+            base = install_terminal_roadmap(root)
+            gate = ready_gate(base)
+            app = self.restart(root, gate)
+
+            ordinary = DurableEvent(
+                actionable=True,
+                reason="CI completed",
+                event="workflow_run",
+                action="completed",
+                head_sha=base,
+            )
+            current = app.store.load()
+            app.store.save(
+                replace(
+                    current,
+                    inbox=InboxState(pending_events=(ordinary,)),
+                )
+            )
+
+            classifier = FakeClassifier()
+            worker = FakeWorker()
+            deps = HostedExecutionDependencies(
+                classifier_provider=classifier,
+                worker_provider=worker,
+                classifier_local_budget=budget(),
+                worker_local_budget=budget(),
+                runner=CompositeReadRunner(base),
+            )
+            result = app.advance_one_execution_step(deps)
+            self.assertEqual(
+                result.disposition,
+                HostedExecutionAdvanceDisposition.ORDINARY_QUIESCED,
+            )
+            self.assertIn("retired 1 ordinary inbox event", result.reason)
+            self.assertEqual(classifier.calls, 0)
+            self.assertEqual(worker.calls, 0)
+
+            state = HostedStateStore.for_root(root).load()
+            self.assertEqual(state.inbox.pending_events, ())
+            self.assertIn(ordinary.event_id, state.inbox.retired_event_keys)
+
+            idle = app.advance_one_execution_step(deps)
+            self.assertEqual(idle.disposition, HostedExecutionAdvanceDisposition.IDLE)
 
     def test_restart_at_each_boundary_reaches_exact_draft_pr_handoff(self):
         with tempfile.TemporaryDirectory() as td:
