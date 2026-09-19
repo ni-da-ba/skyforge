@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -38,5 +39,8 @@ final class SkyforgeCarverReadVirtualizationSourceTest {
         String cursor = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeCarverCursor.java"));
         assertTrue(cursor.contains("SkyforgeCarverExecutionStage.openNativeCarver"));
+        assertTrue(cursor.contains("this.noiseChunk = createNoiseChunk(targetChunk)"));
+        assertTrue(cursor.contains("return NoiseChunk.forChunk("));
+        assertFalse(cursor.contains("getOrCreateNoiseChunk"));
     }
 }
