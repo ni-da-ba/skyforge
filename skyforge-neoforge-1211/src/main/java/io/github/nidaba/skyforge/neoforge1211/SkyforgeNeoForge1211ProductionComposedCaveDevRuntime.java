@@ -36,6 +36,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
     private static final long FNV_OFFSET_BASIS = 0xcbf29ce484222325L;
     private static final long FNV_PRIME = 0x100000001b3L;
     private static final int MAXIMUM_ATTACHMENT_DEPTH = 24;
+    private static final int DR50_FLUID_SETTLE_TICKS = 100;
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeNeoForge1211ProductionComposedCaveDevRuntime.class.getName());
 
@@ -50,6 +51,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
     private static SkyforgeComposedCaveStage.Snapshot initialSnapshot;
     private static int previousPending = Integer.MAX_VALUE;
     private static int progressObservationTicks;
+    private static long dr50FluidSettleStartTick = Long.MIN_VALUE;
     private static boolean proofComplete;
 
     private SkyforgeNeoForge1211ProductionComposedCaveDevRuntime() {}
@@ -183,6 +185,20 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         && SkyforgeNativeInteriorPopulationStage.snapshot(volumeId).pendingObligations() != 0)) {
             return;
         }
+        if (SkyforgeDr50IntegratedRegionEvidence.enabled()) {
+            if (dr50FluidSettleStartTick == Long.MIN_VALUE) {
+                dr50FluidSettleStartTick = level.getGameTime();
+                LOGGER.log(
+                        System.Logger.Level.INFO,
+                        "DR-50 lifecycle complete; waiting " + DR50_FLUID_SETTLE_TICKS
+                                + " ticks for generated-fluid propagation to settle before final evidence.");
+                return;
+            }
+            if (level.getGameTime() - dr50FluidSettleStartTick < DR50_FLUID_SETTLE_TICKS) {
+                return;
+            }
+        }
+
         if (stage.totalObligations() != admission.requiredChunks()
                 || stage.completedObligations() != admission.requiredChunks()) {
             throw new IllegalStateException(
