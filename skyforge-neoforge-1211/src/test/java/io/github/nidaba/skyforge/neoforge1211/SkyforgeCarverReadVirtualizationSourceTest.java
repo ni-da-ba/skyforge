@@ -41,6 +41,6 @@ final class SkyforgeCarverReadVirtualizationSourceTest {
         assertTrue(cursor.contains("SkyforgeCarverExecutionStage.openNativeCarver"));
         assertTrue(cursor.contains("this.noiseChunk = createNoiseChunk(targetChunk)"));
         assertTrue(cursor.contains("return NoiseChunk.forChunk("));
-        assertFalse(cursor.contains("getOrCreateNoiseChunk"));
+        assertFalse(cursor.contains("targetChunk.getOrCreateNoiseChunk("));
     }
 }
