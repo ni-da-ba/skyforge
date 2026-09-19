@@ -106,6 +106,15 @@ final class SkyforgePopulationExecutionStage {
         return Optional.ofNullable(ACTIVE.get());
     }
 
+    private static boolean originChunkContains(
+            SkyforgePopulationOperation operation,
+            BlockPos position) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(position, "position");
+        return (position.getX() >> 4) == operation.originChunk().x
+                && (position.getZ() >> 4) == operation.originChunk().z;
+    }
+
     private static Scope open(
             Optional<WorldGenLevel> level,
             SkyforgePopulationOperation operation,
@@ -122,6 +131,20 @@ final class SkyforgePopulationExecutionStage {
 
         CachedBlockPredicate cachedOwnerSolid = new CachedBlockPredicate(ownerSolid);
         CachedBlockPredicate cachedForeignSolid = new CachedBlockPredicate(foreignSolid);
+        Predicate<BlockPos> attachmentOwnerSolid = cachedOwnerSolid;
+        Predicate<BlockPos> attachmentBarrierSolid = cachedForeignSolid;
+        if (operation.generationStep()
+                == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()) {
+            // Surface ecology may extend canopy across chunk boundaries, but another chunk's
+            // same-volume terrain is not this operation's direct write authority. Treat it as a
+            // write barrier so neighboring population cannot mutate owner-solid cells that a later
+            // operation would otherwise expose as live origin-chunk state. Exterior air remains
+            // reachable through the ordinary bounded attachment envelope.
+            attachmentOwnerSolid =
+                    position -> cachedOwnerSolid.test(position) && originChunkContains(operation, position);
+            attachmentBarrierSolid = position -> cachedForeignSolid.test(position)
+                    || (cachedOwnerSolid.test(position) && !originChunkContains(operation, position));
+        }
         Execution execution = new Execution(
                 level,
                 operation,
@@ -129,8 +152,8 @@ final class SkyforgePopulationExecutionStage {
                 cachedOwnerSolid,
                 cachedForeignSolid,
                 new SkyforgePopulationAttachmentEnvelope(
-                        cachedOwnerSolid,
-                        cachedForeignSolid,
+                        attachmentOwnerSolid,
+                        attachmentBarrierSolid,
                         maximumAttachmentDepth));
         ACTIVE.set(execution);
         return new Scope(execution);
@@ -192,8 +215,7 @@ final class SkyforgePopulationExecutionStage {
         }
 
         private boolean originChunkContains(BlockPos position) {
-            return (position.getX() >> 4) == operation.originChunk().x
-                    && (position.getZ() >> 4) == operation.originChunk().z;
+            return SkyforgePopulationExecutionStage.originChunkContains(operation, position);
         }
 
         boolean canWrite(BlockPos position) {
