@@ -30,6 +30,11 @@ final class SkyforgeCarverReadVirtualizationSourceTest {
         assertTrue(mixin.contains("getFluidState"));
         assertTrue(mixin.contains("SkyforgeCarverExecutionStage.virtualRead"));
 
+        String heightMixin = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeChunkAccessPopulationHeightMixin.java"));
+        assertTrue(stage.contains("public static OptionalInt virtualFirstFreeHeight"));
+        assertTrue(heightMixin.contains("SkyforgeCarverExecutionStage.virtualFirstFreeHeight"));
+
         String cursor = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeCarverCursor.java"));
         assertTrue(cursor.contains("SkyforgeCarverExecutionStage.openNativeCarver"));

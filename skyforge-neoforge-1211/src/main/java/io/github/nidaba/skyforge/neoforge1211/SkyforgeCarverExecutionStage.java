@@ -4,6 +4,7 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
@@ -12,6 +13,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
  * Thread-confined exact-volume mutation fence for one native carver execution.
@@ -128,6 +130,44 @@ public final class SkyforgeCarverExecutionStage {
                             + execution.targetChunk + ", actual=" + chunk.getPos());
         }
         return Optional.of(execution.virtualBlockState(position));
+    }
+
+    /**
+     * Returns the deterministic compiled-terrain first-free height for a registry-native carver.
+     *
+     * <p>Like block reads, stable chunk heightmaps can contain vegetation or other lifecycle writes
+     * that differ with deferred scheduling. Native carvers must see the exact volume's immutable
+     * terrain column instead. Authored commit scopes do not opt into virtual reads and therefore
+     * receive an empty result here.
+     */
+    public static OptionalInt virtualFirstFreeHeight(
+            ChunkPos chunk,
+            Heightmap.Types heightmapType,
+            int worldX,
+            int worldZ,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(heightmapType, "heightmapType");
+        Execution execution = ACTIVE.get();
+        if (execution == null || !execution.virtualizeReads) {
+            return OptionalInt.empty();
+        }
+        if (!chunk.equals(execution.targetChunk)) {
+            throw new IllegalStateException(
+                    "native carver attempted to read height outside its target chunk: target="
+                            + execution.targetChunk + ", actual=" + chunk);
+        }
+        var claim = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
+                execution.volumeId,
+                worldX,
+                worldZ,
+                heightmapType,
+                minimumY,
+                height);
+        return claim.isPresent()
+                ? OptionalInt.of(claim.orElseThrow().height())
+                : OptionalInt.of(minimumY);
     }
 
     /**

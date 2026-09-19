@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211.mixin;
 
+import io.github.nidaba.skyforge.neoforge1211.SkyforgeCarverExecutionStage;
 import io.github.nidaba.skyforge.neoforge1211.SkyforgeWorldGenRegionDomainBridge;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -22,8 +23,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * <p>ChunkAccess height queries return the highest occupied Y, while the level-facing bridge returns
  * the first free Y. Subtract one so this direct seam observes exactly the same compiled terrain
  * surface without exposing previously populated attachments. This direct-chunk hook is intentionally
- * limited to vegetal decoration: that is the observed scheduling-sensitive consumer, while broader
- * heightmap virtualization perturbs unrelated deferred population/cave-fluid lifecycle state.
+ * limited to vegetal decoration for population. Registry-native deferred carvers also consume the
+ * same compiled-terrain height view through their explicitly opted-in carver execution scope.
  */
 @Mixin(ChunkAccess.class)
 abstract class SkyforgeChunkAccessPopulationHeightMixin {
@@ -45,12 +46,23 @@ abstract class SkyforgeChunkAccessPopulationHeightMixin {
             int localX,
             int localZ,
             CallbackInfoReturnable<Integer> callback) {
-        if (!SkyforgeWorldGenRegionDomainBridge.populationHeightVirtualizationActive()) {
-            return;
-        }
         ChunkPos chunk = getPos();
         int worldX = chunk.getMinBlockX() + Math.floorMod(localX, 16);
         int worldZ = chunk.getMinBlockZ() + Math.floorMod(localZ, 16);
+        var carverFirstFreeHeight = SkyforgeCarverExecutionStage.virtualFirstFreeHeight(
+                chunk,
+                heightmapType,
+                worldX,
+                worldZ,
+                getMinBuildHeight(),
+                getHeight());
+        if (carverFirstFreeHeight.isPresent()) {
+            callback.setReturnValue(carverFirstFreeHeight.getAsInt() - 1);
+            return;
+        }
+        if (!SkyforgeWorldGenRegionDomainBridge.populationHeightVirtualizationActive()) {
+            return;
+        }
         var firstFreeHeight = SkyforgeWorldGenRegionDomainBridge.exactHeight(
                 heightmapType,
                 worldX,
