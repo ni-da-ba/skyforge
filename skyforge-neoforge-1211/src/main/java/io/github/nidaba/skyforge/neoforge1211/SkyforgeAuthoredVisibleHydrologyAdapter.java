@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
+import io.github.nidaba.skyforge.world.SkyIslandHydrologicTerrainSurfacePlan;
 import io.github.nidaba.skyforge.world.SkyIslandHydrologicTerrainSurfacePlanner;
 import io.github.nidaba.skyforge.world.SkyIslandNaturalizedChannelPath;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind;
@@ -61,10 +62,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(terrain, "terrain");
         SkyIslandVisibleHydrologicRealizationPlan intent =
                 SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor);
+        SkyIslandHydrologicTerrainSurfacePlan hydrologicSurface =
+                intent.coherentHydrology().terrainSurface();
         List<Deployment> deployments = new ArrayList<>();
 
         for (var channel : intent.channels()) {
-            deployments.add(atPath(descriptor, volume, terrain, Feature.CHANNEL, channel.path()));
+            deployments.add(atPath(hydrologicSurface, volume, terrain, Feature.CHANNEL, channel.path()));
         }
         for (var retained : intent.retainedWater()) {
             deployments.add(atFootprint(volume, terrain, retained.footprint().cells()));
@@ -124,7 +127,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     }
 
     private static Deployment atPath(
-            SkyIslandDescriptor descriptor,
+            SkyIslandHydrologicTerrainSurfacePlan hydrologicSurface,
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
             Feature feature,
@@ -136,7 +139,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         List<Column> centerline = rasterizedCenterline(volume, path);
         int radius = channelRadius(path);
         int waterDepth = channelDepth(path);
-        int incisionDepth = channelIncisionDepth(descriptor, path);
+        int incisionDepth = channelIncisionDepth(hydrologicSurface, path);
 
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
@@ -193,10 +196,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandDescriptor descriptor,
             SkyIslandNaturalizedChannelPath path) {
         Objects.requireNonNull(descriptor, "descriptor");
+        return channelIncisionDepth(
+                SkyIslandHydrologicTerrainSurfacePlanner.plan(descriptor),
+                path);
+    }
+
+    private static int channelIncisionDepth(
+            SkyIslandHydrologicTerrainSurfacePlan hydrologicSurface,
+            SkyIslandNaturalizedChannelPath path) {
+        Objects.requireNonNull(hydrologicSurface, "hydrologicSurface");
         Objects.requireNonNull(path, "path");
         int source = path.profile().segment().sourceCellIndex();
         int downstream = path.profile().segment().downstreamCellIndex();
-        double terrainResponse = SkyIslandHydrologicTerrainSurfacePlanner.plan(descriptor).cells().stream()
+        double terrainResponse = hydrologicSurface.cells().stream()
                 .filter(cell -> cell.watershedCellIndex() == source
                         || cell.watershedCellIndex() == downstream)
                 .mapToDouble(cell -> Math.max(
