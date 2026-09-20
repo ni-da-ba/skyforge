@@ -30,6 +30,9 @@ class SkyIslandFluvialTerrainFieldTest {
                             -radius + 2.0 * radius * z / 48.0);
                     assertEquals(a.sample(position), b.sample(position), EPSILON);
                     assertTrue(a.sample(position) >= 0.0 && a.sample(position) <= 1.0);
+                    assertTrue(
+                            a.adjustment(position)
+                                    >= -SkyIslandFluvialTerrainField.MAX_FLUVIAL_LOWERING - EPSILON);
                 }
             }
         }

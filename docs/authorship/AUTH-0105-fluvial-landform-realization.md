@@ -55,7 +55,9 @@ AUTH-0012 profile identity remains authoritative.
 - CASCADE reaches remain the most confined and direct.
 
 The field never invents another route. Every corridor is centered on the exact accepted AUTH-0017
-naturalized path.
+naturalized path. The first review calibration deliberately keeps valley scale narrower than the
+initial prototype and caps additional AUTH-0105 lowering at 0.20 normalized elevation potential so a
+longitudinal grade cannot bulldoze unrelated relief.
 
 ## Longitudinal bed
 

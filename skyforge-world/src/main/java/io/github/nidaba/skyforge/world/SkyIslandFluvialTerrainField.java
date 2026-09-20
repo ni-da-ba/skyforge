@@ -16,6 +16,7 @@ import java.util.OptionalDouble;
  */
 public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticField {
     private static final double MIN_REACH_DROP = 0.0015;
+    public static final double MAX_FLUVIAL_LOWERING = 0.20;
     private static final double EPSILON = 1.0e-12;
 
     private final SkyIslandDescriptor descriptor;
@@ -80,11 +81,11 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
             if (projection.distance() >= reach.valleyHalfWidth()) {
                 continue;
             }
-            double bed = bedElevation(reach, projection.fraction());
+            double bed = bedElevation(reach, projection);
             double candidate = crossSectionElevation(base, bed, projection.distance(), reach);
             shaped = Math.min(shaped, candidate);
         }
-        return clamp01(shaped);
+        return clamp01(Math.max(shaped, base - MAX_FLUVIAL_LOWERING));
     }
 
     /**
@@ -106,7 +107,7 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
             if (projection.distance() > reach.wetHalfWidth()) {
                 continue;
             }
-            double surface = bedElevation(reach, projection.fraction()) + reach.waterDepthPotential();
+            double surface = bedElevation(reach, projection) + reach.waterDepthPotential();
             if (surface > sample(position) + EPSILON) {
                 result = Math.min(result, surface);
                 found = true;
@@ -122,15 +123,22 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
                 || position.z() > extent;
     }
 
-    private double bedElevation(SkyIslandFluvialReachGeometry reach, double fraction) {
+    private double bedElevation(SkyIslandFluvialReachGeometry reach, Projection projection) {
         SkyIslandNaturalizedChannelPath path = reach.path();
         double start = baseTerrain.sample(path.points().getFirst());
         double rawEnd = baseTerrain.sample(path.points().getLast());
         double requiredDrop = MIN_REACH_DROP
                 * (0.30 + 0.70 * reach.profile().gradientPotential());
         double end = Math.min(rawEnd, start - requiredDrop);
-        double reference = lerp(start, end, fraction);
-        return clamp01(reference - reach.bedDepthPotential());
+        double longitudinalReference = lerp(start, end, projection.fraction());
+        double intendedBed = longitudinalReference - reach.bedDepthPotential();
+
+        double localCenterline = baseTerrain.sample(
+                new SkyIslandLocalPosition(projection.x(), projection.z()));
+        double boundedBed = Math.max(
+                intendedBed,
+                localCenterline - MAX_FLUVIAL_LOWERING);
+        return clamp01(boundedBed);
     }
 
     private static double crossSectionElevation(
@@ -170,15 +178,15 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         SkyIslandChannelSegment segment = profile.segment();
 
         double bankfullHalfWidth = spacing * (
-                0.55
-                        + 1.10 * profile.bankfullWidthPotential()
-                        + 0.60 * segment.relativeDischarge()
-                        + 0.25 * segment.corridorScale());
+                0.40
+                        + 0.80 * profile.bankfullWidthPotential()
+                        + 0.35 * segment.relativeDischarge()
+                        + 0.15 * segment.corridorScale());
 
         double valleyMultiplier = switch (profile.kind()) {
-            case ALLUVIAL -> 4.2 + 2.2 * segment.corridorScale();
-            case INCISED -> 2.2 + 1.5 * profile.incisionPotential();
-            case CASCADE -> 1.6 + 1.0 * profile.incisionPotential();
+            case ALLUVIAL -> 3.2 + 1.4 * segment.corridorScale();
+            case INCISED -> 2.0 + 1.0 * profile.incisionPotential();
+            case CASCADE -> 1.45 + 0.70 * profile.incisionPotential();
         };
         double valleyHalfWidth = bankfullHalfWidth * valleyMultiplier;
 
@@ -225,6 +233,8 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         double prefix = 0.0;
         double bestDistance = Double.POSITIVE_INFINITY;
         double bestAlong = 0.0;
+        double bestX = points.getFirst().x();
+        double bestZ = points.getFirst().z();
 
         for (int i = 1; i < points.size(); i++) {
             SkyIslandLocalPosition a = points.get(i - 1);
@@ -245,13 +255,15 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
             if (distance < bestDistance - EPSILON) {
                 bestDistance = distance;
                 bestAlong = prefix + t * length;
+                bestX = qx;
+                bestZ = qz;
             }
             prefix += length;
         }
 
         double denominator = Math.max(path.pathLength(), prefix);
         double fraction = denominator <= EPSILON ? 0.0 : clamp01(bestAlong / denominator);
-        return new Projection(bestDistance, fraction);
+        return new Projection(bestDistance, fraction, bestX, bestZ);
     }
 
     private static double smootherstep(double value) {
@@ -271,5 +283,5 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         return clamp(value, 0.0, 1.0);
     }
 
-    private record Projection(double distance, double fraction) {}
+    private record Projection(double distance, double fraction, double x, double z) {}
 }
