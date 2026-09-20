@@ -198,7 +198,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         || cell.watershedCellIndex() == downstream)
                 .mapToDouble(cell -> Math.max(
                         0.0,
-                        cell.baseSurfacePotential() - cell.adjustedSurfacePotential()))
+                        cell.baseElevationPotential() - cell.adjustedElevationPotential()))
                 .map(lowering -> lowering / SkyIslandHydrologicTerrainSurfacePlanner.MAX_LOWERING)
                 .map(value -> Math.max(0.0, Math.min(1.0, value)))
                 .max()
