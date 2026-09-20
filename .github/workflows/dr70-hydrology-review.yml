@@ -1,0 +1,60 @@
+name: DR-70 Hydrology Review Qualification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "skyforge-world/**"
+      - "skyforge-neoforge-1211/**"
+      - "docs/authorship/AUTH-0105-fluvial-landform-realization.md"
+      - "docs/agent-state/CROSS_LANE_CONTRACTS.md"
+      - ".github/workflows/dr70-hydrology-review.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dr70-hydrology-review-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Compile and unit-test DR-70 repair
+        timeout-minutes: 12
+        run: |
+          ./gradlew \
+            :skyforge-neoforge-1211:compileJava \
+            :skyforge-neoforge-1211:test \
+            --stacktrace --no-configuration-cache
+
+      - name: Qualify bounded key-421 review world and reload
+        timeout-minutes: 38
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          xvfb-run -a ./gradlew \
+            :skyforge-neoforge-1211:dr70HydrologyReviewAcceptance \
+            --stacktrace --no-configuration-cache
+
+      - name: Publish DR-70 review qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dr70-hydrology-review-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            skyforge-neoforge-1211/build/acceptance/dr70-hydrology-review/*.properties
+            skyforge-neoforge-1211/run-dr70-hydrology-review/logs/*.log
+            skyforge-neoforge-1211/run-dr70-hydrology-review/crash-reports/*.txt
