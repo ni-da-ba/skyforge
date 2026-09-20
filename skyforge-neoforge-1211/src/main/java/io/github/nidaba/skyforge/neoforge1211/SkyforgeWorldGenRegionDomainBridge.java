@@ -48,6 +48,23 @@ public final class SkyforgeWorldGenRegionDomainBridge {
                 .orElse(true);
     }
 
+    /**
+     * Canonical authored-hydrology state for native surface-ecology reads.
+     *
+     * <p>Unlike ordinary visibility, this intentionally overrides even same-chunk live state. The
+     * final channel footprint is immutable authored geometry, while its incremental Minecraft
+     * materialization is a lifecycle detail that vegetation must not observe.
+     */
+    public static Optional<BlockState> authoredHydrologyPopulationState(BlockPos position) {
+        Objects.requireNonNull(position, "position");
+        return SkyforgePopulationExecutionStage.activeExecution()
+                .filter(execution -> execution.operation().generationStep()
+                        == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal())
+                .flatMap(execution -> SkyforgeNeoForge1211SurfaceStage.authoredHydrologyPopulationState(
+                        execution.operation().volumeId(),
+                        position));
+    }
+
     /** Phase- and position-aware virtual block state for reads hidden from the active operation. */
     public static BlockState hiddenBlockState(BlockPos position) {
         Objects.requireNonNull(position, "position");
@@ -73,7 +90,8 @@ public final class SkyforgeWorldGenRegionDomainBridge {
             return true;
         }
         var active = execution.orElseThrow();
-        boolean accepted = active.canWrite(position);
+        boolean accepted = authoredHydrologyPopulationState(position).isEmpty()
+                && active.canWrite(position);
         SkyforgeUndergroundPlacementProbe.observeWritePreflight(
                 active.operation(),
                 position,
@@ -91,7 +109,8 @@ public final class SkyforgeWorldGenRegionDomainBridge {
             return true;
         }
         var active = execution.orElseThrow();
-        boolean accepted = active.acceptWrite(position);
+        boolean accepted = authoredHydrologyPopulationState(position).isEmpty()
+                && active.acceptWrite(position);
         SkyforgeUndergroundPlacementProbe.observeWriteDecision(
                 active.operation(),
                 position,
@@ -111,7 +130,8 @@ public final class SkyforgeWorldGenRegionDomainBridge {
             return true;
         }
         var active = execution.orElseThrow();
-        boolean accepted = active.acceptWrite(position, state);
+        boolean accepted = authoredHydrologyPopulationState(position).isEmpty()
+                && active.acceptWrite(position, state);
         SkyforgeUndergroundPlacementProbe.observeWriteDecision(
                 active.operation(),
                 position,
