@@ -63,3 +63,50 @@ jobs:
             skyforge-neoforge-1211/build/acceptance/dr70-hydrology-review/*.properties
             skyforge-neoforge-1211/run-dr70-hydrology-review/logs/*.log
             skyforge-neoforge-1211/run-dr70-hydrology-review/crash-reports/*.txt
+
+  contract:
+    name: contract / ${{ matrix.short_name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - short_name: hydrology-adapter
+            test_class: io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest
+          - short_name: carver-read
+            test_class: io.github.nidaba.skyforge.neoforge1211.SkyforgeCarverReadVirtualizationSourceTest
+          - short_name: carver-frame
+            test_class: io.github.nidaba.skyforge.neoforge1211.SkyforgeCarverVerticalFrameTest
+          - short_name: cave-stage
+            test_class: io.github.nidaba.skyforge.neoforge1211.SkyforgeComposedCaveStageTest
+          - short_name: dr50-evidence
+            test_class: io.github.nidaba.skyforge.neoforge1211.SkyforgeDr50IntegratedRegionEvidenceTest
+          - short_name: dr70-repair
+            test_class: io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70ReviewRepairTest
+          - short_name: fluid-propagation
+            test_class: io.github.nidaba.skyforge.neoforge1211.SkyforgeGeneratedFluidPropagationSourceTest
+          - short_name: stable-chunk-read
+            test_class: io.github.nidaba.skyforge.neoforge1211.SkyforgeLevelChunkPopulationReadMixinSourceTest
+          - short_name: native-carver-cursor
+            test_class: io.github.nidaba.skyforge.neoforge1211.SkyforgeNativeCarverCursorSourceTest
+          - short_name: cave-topology
+            test_class: io.github.nidaba.skyforge.neoforge1211.SkyforgeProductionComposedCaveIntegratedTopologySourceTest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      # VALIDATION_POLICY Tier-0 exact-head contract coverage. One class per job prevents a slow
+      # regression from hiding the rest; runtime characterization remains the qualification job.
+      - name: Run exact-head contract regression
+        run: |
+          ./gradlew \
+            :skyforge-neoforge-1211:test \
+            --tests '${{ matrix.test_class }}' \
+            --stacktrace --no-configuration-cache
+
