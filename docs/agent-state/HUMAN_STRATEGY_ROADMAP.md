@@ -254,9 +254,9 @@ The next evidence should be a deterministic backend-neutral role-graph specimen 
 
 ### HS-R12 — pre-Bootstrap development workflow hardening
 
-**Resolved direction:** do not make full Bootstrap Province the primary convergence workload immediately after DR-70 if the development workflow would still impose high coordination/reconstruction/serial-execution overhead.
+**Resolved direction:** do not make full Bootstrap Province—or another expensive DR-70 retry—the primary convergence workload while the development workflow still imposes high coordination/reconstruction/CI overhead.
 
-After DR-70 human re-review is accepted, run a bounded pre-Bootstrap development-platform gate before Phase 3 becomes PRIMARY_ACTIVE.
+The 2026-09-20 key-2885 DR-70 human review returned CHANGES REQUIRED while confirming real channel geomorphology. By owner direction, run the bounded pre-Bootstrap development-platform gate now; then resume DR-70 and obtain its human acceptance before Phase 3 becomes PRIMARY_ACTIVE.
 
 Canonical gate:
 `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md`.
@@ -273,7 +273,7 @@ The accepted principles are:
 - minimum viable `Continue Skyforge` should remove repeated manual `proceed` coordination for already-authorized work;
 - full Studio polish, IDE replacement, exhaustive dashboards, and speculative platform engineering are not pre-Bootstrap requirements.
 
-This decision is explicitly **deferred while DR-70 is active**. It must not create competing execution, change DR-70 acceptance, or disturb the current DR-70 branch/worker.
+This decision is explicitly **active now**. DR-70 remains open but deferred; the optimization work must preserve the recorded DR-70 findings and must not reinterpret deferral as acceptance.
 
 ---
 
