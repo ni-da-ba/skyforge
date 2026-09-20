@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skyforge Operations Console</title>
+  <link rel="stylesheet" href="/console/styles.css">
+  <script src="/console/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Skyforge Operations Console</h1>
+      <p>Canonical Platform-v2 development state</p>
+    </div>
+    <div id="connection" class="pill muted">Disconnected</div>
+  </header>
+
+  <main>
+    <section id="auth-panel" class="panel auth-panel">
+      <div>
+        <h2>Development API access</h2>
+        <p>The token stays in this browser session and is sent only in the Authorization header.</p>
+      </div>
+      <form id="auth-form">
+        <label for="api-token">Bearer token</label>
+        <div class="auth-row">
+          <input id="api-token" type="password" autocomplete="off" spellcheck="false" required>
+          <button type="submit">Connect</button>
+          <button id="forget-token" type="button" class="secondary">Forget</button>
+        </div>
+      </form>
+      <p id="auth-error" class="error" aria-live="polite"></p>
+    </section>
+
+    <section id="console-content" hidden>
+      <div id="summary-grid" class="grid summary-grid"></div>
+
+      <section class="panel">
+        <div class="section-heading"><h2>Program / roadmap</h2><span id="snapshot-id" class="mono muted"></span></div>
+        <div id="roadmap"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading"><h2>Objectives</h2><span id="objective-count" class="muted"></span></div>
+        <div id="objectives" class="stack"></div>
+      </section>
+
+      <section class="panel two-column">
+        <div>
+          <div class="section-heading"><h2>Workers</h2><span id="worker-count" class="muted"></span></div>
+          <div id="workers" class="stack"></div>
+        </div>
+        <div>
+          <div class="section-heading"><h2>Execution</h2></div>
+          <div id="execution" class="stack"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading"><h2>Human reviews</h2><span id="review-count" class="muted"></span></div>
+        <div id="reviews" class="stack"></div>
+      </section>
+
+      <section class="panel two-column">
+        <div>
+          <div class="section-heading"><h2>External ownership</h2></div>
+          <div id="claims" class="stack"></div>
+        </div>
+        <div>
+          <div class="section-heading"><h2>Recent completions</h2></div>
+          <div id="completions" class="stack"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+</body>
+</html>
