@@ -1,0 +1,55 @@
+name: DR-70 Exact-Head Merge Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "skyforge-neoforge-1211/**"
+      - ".github/workflows/dr70-exact-head-merge-gate.yml"
+      - ".github/workflows/dr70-hydrology-review.yml"
+      - ".github/workflows/ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dr70-exact-head-merge-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-head:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      # VALIDATION_POLICY: cheap exact-head Tier-0 coverage for the DR-70 dependency surface.
+      # Expensive runtime characterization remains owned by DR-30/40/50/70 workflows.
+      - name: Compile affected NeoForge source and tests
+        run: |
+          ./gradlew \
+            :skyforge-neoforge-1211:compileJava \
+            :skyforge-neoforge-1211:compileTestJava \
+            --stacktrace --no-configuration-cache
+
+      - name: Run DR-70 deterministic contract regressions
+        run: |
+          ./gradlew \
+            :skyforge-neoforge-1211:test \
+            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest' \
+            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeCarverReadVirtualizationSourceTest' \
+            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeCarverVerticalFrameTest' \
+            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeComposedCaveStageTest' \
+            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeDr50IntegratedRegionEvidenceTest' \
+            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70ReviewRepairTest' \
+            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeGeneratedFluidPropagationSourceTest' \
+            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeLevelChunkPopulationReadMixinSourceTest' \
+            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeNativeCarverCursorSourceTest' \
+            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeProductionComposedCaveIntegratedTopologySourceTest' \
+            --stacktrace --no-configuration-cache
