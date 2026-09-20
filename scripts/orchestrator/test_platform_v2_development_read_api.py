@@ -119,6 +119,23 @@ class DevelopmentReadApiTest(unittest.TestCase):
             self.assertEqual(payload["error"], "development API is not configured")
             self.assertFalse(runtime.health_snapshot()["development_read_api_enabled"])
 
+    def test_corrupt_durable_worker_state_returns_503_not_empty_success(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            runtime = self.runtime(root)
+            state_dir = root / ".skyforge-platform-v2"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "worker-runs.json").write_text(
+                '{"schema_version":1,"records":"corrupt"}\n',
+                encoding="utf-8",
+            )
+            status, payload = runtime.handle_development_read(
+                f"Bearer {API_TOKEN}"
+            )
+            self.assertEqual(status, 503)
+            self.assertEqual(payload["error"], "development state is unavailable")
+            self.assertEqual(payload["failure_kind"], "ValueError")
+
     def test_short_api_token_is_rejected_at_startup(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

@@ -104,6 +104,17 @@ export SKYFORGE_PUBLIC_HOSTNAME="orchestrator.example.com"
 ./scripts/orchestrator/install_hosted.sh
 ```
 
+The shared development-state API uses a **separate** bearer token. Existing installations may leave
+it unset; in that state the API fails closed with HTTP 503 while `/healthz` and `/webhook` continue
+normally. To enable it, add a distinct high-entropy value to the protected host environment:
+
+```text
+SKYFORGE_DEVELOPMENT_API_TOKEN=<at least 32 high-entropy characters>
+```
+
+Do not reuse `SKYFORGE_WEBHOOK_SECRET`. The development token is an authenticated read-client
+credential; the webhook secret authenticates signed GitHub deliveries.
+
 The installer is deliberately repeatable:
 
 1. reuses the previously stored hostname/webhook secret/cost/report configuration unless explicitly
