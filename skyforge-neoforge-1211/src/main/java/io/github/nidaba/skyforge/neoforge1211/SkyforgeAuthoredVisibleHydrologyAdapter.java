@@ -160,6 +160,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         if (water.isEmpty()) {
             throw new IllegalStateException("AUTH-0086 channel intent has no realized owner columns");
         }
+        // Neighboring rasterized centerline cross-sections overlap by design. A voxel selected as
+        // wet by any sample of this exact reach must not simultaneously remain dry clearance.
+        carved.removeAll(water);
         return deployment(
                 volume.id(),
                 feature,
