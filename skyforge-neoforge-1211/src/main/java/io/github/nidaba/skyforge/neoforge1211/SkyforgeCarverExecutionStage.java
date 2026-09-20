@@ -228,6 +228,8 @@ public final class SkyforgeCarverExecutionStage {
             ChunkPos targetChunk,
             int writeAttempts,
             int acceptedWriteAttempts,
+            int acceptedUniquePositions,
+            long acceptedPositionDigest,
             int rejectedWriteAttempts,
             int rejectedFluidWriteAttempts,
             int changedBlocks,
@@ -247,9 +249,11 @@ public final class SkyforgeCarverExecutionStage {
         private final Predicate<BlockPos> ownerSolid;
         private final Predicate<BlockPos> foreignSolid;
         private final boolean virtualizeReads;
+        private final Set<Long> acceptedPositions = new HashSet<>();
         private final Set<Long> changedPositions = new HashSet<>();
         private int writeAttempts;
         private int acceptedWriteAttempts;
+        private long acceptedPositionDigest = FNV_OFFSET_BASIS;
         private int rejectedWriteAttempts;
         private int rejectedFluidWriteAttempts;
         private int changedBlocks;
@@ -294,6 +298,11 @@ public final class SkyforgeCarverExecutionStage {
             boolean accepted = ownerAccepted && !fluidShellRejected;
             if (accepted) {
                 acceptedWriteAttempts++;
+                long packed = position.asLong();
+                if (acceptedPositions.add(packed)) {
+                    acceptedPositionDigest ^= packed;
+                    acceptedPositionDigest *= FNV_PRIME;
+                }
             } else {
                 rejectedWriteAttempts++;
                 if (fluidShellRejected) {
@@ -319,6 +328,8 @@ public final class SkyforgeCarverExecutionStage {
                     targetChunk,
                     writeAttempts,
                     acceptedWriteAttempts,
+                    acceptedPositions.size(),
+                    acceptedPositionDigest,
                     rejectedWriteAttempts,
                     rejectedFluidWriteAttempts,
                     changedBlocks,
