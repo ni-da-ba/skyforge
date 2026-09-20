@@ -68,6 +68,8 @@ final class SkyforgeNativeCarverRunner {
             int standaloneAnchors,
             int writeAttempts,
             int acceptedWrites,
+            int acceptedUniquePositions,
+            long acceptedPositionDigest,
             int rejectedWrites,
             int rejectedFluidWrites,
             int changedBlocks,
