@@ -42,7 +42,6 @@ jobs:
               :skyforge-reference:test --tests '*AuthorshipFluvialLandformCorpusTest' \
               :skyforge-reference:test --tests '*AuthorshipFluvialSpecimenSearchTest' \
               :skyforge-reference:authorshipFluvialLandformCorpus \
-              :skyforge-reference:authorshipFluvialSpecimenSearch \
               --no-configuration-cache
           verify_command: |
             DIR=skyforge-reference/build/evidence/authorship-fluvial-landforms-v1

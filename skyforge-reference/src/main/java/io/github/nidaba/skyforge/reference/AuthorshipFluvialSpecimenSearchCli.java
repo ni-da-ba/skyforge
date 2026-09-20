@@ -40,17 +40,26 @@ public final class AuthorshipFluvialSpecimenSearchCli {
         Path out = args.length == 1 ? Path.of(args[0]) : Path.of("build", "evidence", EVIDENCE_ID);
         Files.createDirectories(out);
 
-        List<Candidate> all = new ArrayList<>(SEARCH_COUNT);
+        List<PreCandidate> preliminary = new ArrayList<>(SEARCH_COUNT);
         for (long key = 0; key < SEARCH_COUNT; key++) {
             SkyIslandDescriptor descriptor = descriptor(key);
-            SkyIslandCoherentHydrologicRealizationPlan coherent =
-                    SkyIslandCoherentHydrologicRealizationPlanner.plan(descriptor);
-            if (!coherent.naturalizedChannels().paths().isEmpty()) {
-                all.add(candidate(descriptor, coherent));
+            SkyIslandCoherentChannelPlan channels = SkyIslandCoherentChannelPlanner.plan(descriptor);
+            if (channels.retainedReachCount() == 0) {
+                continue;
             }
+            SkyIslandNaturalizedChannelPlan naturalized =
+                    SkyIslandNaturalizedChannelPlanner.plan(descriptor, channels.profiles());
+            preliminary.add(preCandidate(descriptor, channels, naturalized));
         }
-        all.sort(Comparator.comparingDouble(Candidate::score).reversed()
+        preliminary.sort(Comparator.comparingDouble(PreCandidate::score).reversed()
                 .thenComparingLong(candidate -> candidate.descriptor().identity().islandKey()));
+
+        List<Candidate> all = preliminary.stream()
+                .limit(48)
+                .map(AuthorshipFluvialSpecimenSearchCli::fullyEvaluate)
+                .sorted(Comparator.comparingDouble(Candidate::score).reversed()
+                        .thenComparingLong(candidate -> candidate.descriptor().identity().islandKey()))
+                .toList();
         List<Candidate> top = all.stream().limit(TOP_COUNT).toList();
 
         BufferedImage atlas = new BufferedImage(
@@ -101,11 +110,12 @@ public final class AuthorshipFluvialSpecimenSearchCli {
         System.out.println(out.resolve("index.html").toAbsolutePath());
     }
 
-    private static Candidate candidate(
+    private static PreCandidate preCandidate(
             SkyIslandDescriptor descriptor,
-            SkyIslandCoherentHydrologicRealizationPlan coherent) {
+            SkyIslandCoherentChannelPlan channels,
+            SkyIslandNaturalizedChannelPlan naturalized) {
         Map<Integer, SkyIslandNaturalizedChannelPath> bySource = new HashMap<>();
-        for (SkyIslandNaturalizedChannelPath path : coherent.naturalizedChannels().paths()) {
+        for (SkyIslandNaturalizedChannelPath path : naturalized.paths()) {
             bySource.put(path.profile().segment().sourceCellIndex(), path);
         }
         Map<Integer, Double> memo = new HashMap<>();
@@ -113,30 +123,48 @@ public final class AuthorshipFluvialSpecimenSearchCli {
                 .mapToDouble(path -> chainLength(path, bySource, memo))
                 .max().orElse(0.0);
         double chainRatio = longestChain / descriptor.nominalRadius();
-        double terminalDischarge = coherent.channels().retainedComponents().stream()
+        double terminalDischarge = channels.retainedComponents().stream()
                 .mapToDouble(SkyIslandCoherentChannelComponent::terminalRelativeDischarge)
                 .max().orElse(0.0);
-        int maxOrder = coherent.channels().retainedComponents().stream()
+        int maxOrder = channels.retainedComponents().stream()
                 .mapToInt(SkyIslandCoherentChannelComponent::maxStreamOrder).max().orElse(1);
-        int retainedWater = SkyIslandWaterbodyFootprintPlanner.plan(descriptor).footprints().size();
-        int interiorDrops = (int) (coherent.drops().count(SkyIslandChannelDropKind.CASCADE_STEP)
-                + coherent.drops().count(SkyIslandChannelDropKind.WATERFALL));
-        int edgeFalls = (int) coherent.drops().count(SkyIslandChannelDropKind.EDGE_FALL);
-        int components = coherent.channels().retainedComponentCount();
-        int reaches = coherent.channels().retainedReachCount();
+        int components = channels.retainedComponentCount();
+        int reaches = channels.retainedReachCount();
 
         double score =
                 3.2 * Math.min(2.0, chainRatio)
                         + 1.4 * terminalDischarge
                         + 0.55 * Math.min(1.0, (maxOrder - 1) / 3.0)
-                        + 0.65 * Math.min(1, retainedWater)
-                        + 0.45 * Math.min(1.0, interiorDrops / 3.0)
                         + 0.25 * Math.min(1.0, reaches / 20.0)
-                        - 0.18 * Math.max(0, components - 2)
-                        - 0.04 * Math.max(0, edgeFalls - 2);
+                        - 0.18 * Math.max(0, components - 2);
+        return new PreCandidate(
+                descriptor, score, components, reaches, chainRatio, terminalDischarge, maxOrder);
+    }
 
-        return new Candidate(descriptor, score, components, reaches, chainRatio,
-                terminalDischarge, maxOrder, retainedWater, interiorDrops, edgeFalls);
+    private static Candidate fullyEvaluate(PreCandidate preliminary) {
+        SkyIslandDescriptor descriptor = preliminary.descriptor();
+        SkyIslandCoherentHydrologicRealizationPlan coherent =
+                SkyIslandCoherentHydrologicRealizationPlanner.plan(descriptor);
+        int retainedWater = SkyIslandWaterbodyFootprintPlanner.plan(descriptor).footprints().size();
+        int interiorDrops = (int) (coherent.drops().count(SkyIslandChannelDropKind.CASCADE_STEP)
+                + coherent.drops().count(SkyIslandChannelDropKind.WATERFALL));
+        int edgeFalls = (int) coherent.drops().count(SkyIslandChannelDropKind.EDGE_FALL);
+
+        double score = preliminary.score()
+                + 0.65 * Math.min(1, retainedWater)
+                + 0.45 * Math.min(1.0, interiorDrops / 3.0)
+                - 0.04 * Math.max(0, edgeFalls - 2);
+        return new Candidate(
+                descriptor,
+                score,
+                preliminary.componentCount(),
+                preliminary.reachCount(),
+                preliminary.longestChainRatio(),
+                preliminary.terminalDischarge(),
+                preliminary.maxStreamOrder(),
+                retainedWater,
+                interiorDrops,
+                edgeFalls);
     }
 
     private static double chainLength(
@@ -247,6 +275,15 @@ public final class AuthorshipFluvialSpecimenSearchCli {
                 <p><a href="candidates.csv">candidates.csv</a></p>
                 """;
     }
+
+    private record PreCandidate(
+            SkyIslandDescriptor descriptor,
+            double score,
+            int componentCount,
+            int reachCount,
+            double longestChainRatio,
+            double terminalDischarge,
+            int maxStreamOrder) {}
 
     private record Candidate(
             SkyIslandDescriptor descriptor,
