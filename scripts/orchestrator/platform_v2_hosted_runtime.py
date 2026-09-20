@@ -60,6 +60,7 @@ from v2.objective_ingress import (
     ObjectiveProposalStore,
     parse_objective_comment,
 )
+from v2.human_review import HumanReviewStore, parse_human_review_comment
 from v2.events import DurableEvent
 from v2.external import ControllerIssueOwner
 from v2.external_service import (
@@ -143,6 +144,7 @@ class HostedV2Substrate:
         self.task_authority_store = TaskAuthorityEventStore.for_root(self.root)
         self.external_claim_store = ExternalClaimStore.for_root(self.root)
         self.objective_proposal_store = ObjectiveProposalStore.for_root(self.root)
+        self.human_review_store = HumanReviewStore.for_root(self.root)
         self.task_plan_store = HostedTaskPlanStore.for_root(self.root)
         self.admission_store = HostedAdmissionStore.for_root(self.root)
         self.execution_driver = None
@@ -309,6 +311,10 @@ class HostedV2Substrate:
             pending_completion = completions.pending()
             objective_ledger = self.objective_proposal_store.load()
             latest_objective = objective_ledger.records[-1] if objective_ledger.records else None
+            human_review_ledger = self.human_review_store.load()
+            latest_human_review = (
+                human_review_ledger.records[-1] if human_review_ledger.records else None
+            )
             return {
                 "status": "ok",
                 "controller": "platform-v2",
@@ -344,6 +350,23 @@ class HostedV2Substrate:
                 ),
                 "latest_objective_proposal_id": (
                     latest_objective.proposal_id if latest_objective else ""
+                ),
+                "human_review_ingress_enabled": True,
+                "human_review_count": len(human_review_ledger.records),
+                "latest_human_review_id": (
+                    latest_human_review.review_id if latest_human_review else ""
+                ),
+                "latest_human_review_gate_id": (
+                    latest_human_review.gate_id if latest_human_review else ""
+                ),
+                "latest_human_review_artifact_id": (
+                    latest_human_review.artifact_id if latest_human_review else ""
+                ),
+                "latest_human_review_verdict": (
+                    latest_human_review.verdict.value if latest_human_review else ""
+                ),
+                "latest_human_review_next_boundary": (
+                    latest_human_review.next_boundary if latest_human_review else ""
                 ),
                 "task_preflight_enabled": True,
                 "hosted_task_planning_enabled": True,
@@ -446,6 +469,72 @@ class HostedV2Substrate:
 
         event_name = str(normalized_headers.get("x-github-event") or "")
         delivery_id = normalized_headers.get("x-github-delivery")
+
+        try:
+            human_review = parse_human_review_comment(
+                event_name=event_name,
+                payload=payload,
+                repo=self.repo,
+                trusted_actors=self.trusted_actors,
+            )
+        except ValueError as exc:
+            return 409, {
+                "accepted": False,
+                "error": f"human review ingress rejected: {exc}",
+                "mutation_authority": self.production_execution_enabled,
+            }
+
+        if human_review is not None:
+            with self._lock:
+                if delivery_id and delivery_id in self.state.seen_deliveries:
+                    return 200, {
+                        "accepted": False,
+                        "duplicate": True,
+                        "human_review": True,
+                        "mutation_authority": self.production_execution_enabled,
+                    }
+                try:
+                    captured = self.human_review_store.capture(human_review)
+                except (ValueError, StateStoreError) as exc:
+                    return 409 if isinstance(exc, ValueError) else 503, {
+                        "accepted": False,
+                        "error": (
+                            f"human review rejected: {exc}"
+                            if isinstance(exc, ValueError)
+                            else "human review persistence unavailable"
+                        ),
+                        "mutation_authority": self.production_execution_enabled,
+                    }
+                marker_event = DurableEvent(
+                    actionable=False,
+                    reason="signed human review captured as durable project truth",
+                    event="human_review",
+                    action=human_review.verdict.value.lower(),
+                    head_sha=human_review.source_sha,
+                    pr_number=human_review.source.issue_number,
+                    source_id=str(human_review.source.comment_id),
+                    signal_kind=None,
+                    signal_text=None,
+                )
+                transition = ingest_event(
+                    self.state,
+                    marker_event,
+                    delivery_id=delivery_id,
+                )
+                if transition.after is not self.state:
+                    self.store.save(transition.after)
+                    self.state = transition.after
+            return 202, {
+                "accepted": True,
+                "human_review": True,
+                "human_review_recorded": captured.created,
+                "review_id": captured.record.review_id,
+                "gate_id": captured.record.gate_id,
+                "artifact_id": captured.record.artifact_id,
+                "verdict": captured.record.verdict.value,
+                "deferred_product_work": captured.record.deferred_product_work,
+                "mutation_authority": self.production_execution_enabled,
+            }
 
         try:
             objective_source = parse_objective_comment(
