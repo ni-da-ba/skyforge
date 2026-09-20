@@ -3,10 +3,20 @@ package io.github.nidaba.skyforge.neoforge1211;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import io.github.nidaba.skyforge.world.SkyIslandChannelDropKind;
+import io.github.nidaba.skyforge.world.SkyIslandCoherentChannelComponent;
+import io.github.nidaba.skyforge.world.SkyIslandCoherentChannelPlan;
+import io.github.nidaba.skyforge.world.SkyIslandCoherentChannelPlanner;
+import io.github.nidaba.skyforge.world.SkyIslandCoherentHydrologicRealizationPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandCompiledVolumeColumnField;
+import io.github.nidaba.skyforge.world.SkyIslandNaturalizedChannelPath;
+import io.github.nidaba.skyforge.world.SkyIslandNaturalizedChannelPlan;
+import io.github.nidaba.skyforge.world.SkyIslandNaturalizedChannelPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandRealizedExteriorConnectedCaveVolumeField;
-import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind;
-import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner;
+import io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprintPlanner;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -15,62 +25,148 @@ import net.minecraft.world.level.ChunkPos;
 import org.junit.jupiter.api.Test;
 
 /**
- * CI-executed physical admissibility gate for the ranked AUTH-0105 DR-70 review finalists.
+ * CI-executed physical admissibility gate for the accepted AUTH-0105 specimen corpus.
  *
- * <p>The Authorship ranking is already accepted. This test adds only the Minecraft-facing
- * requirement discovered by runtime qualification: the bounded physical volume must realize at
- * least one dry exterior cave-mouth witness while retaining the required hydrology workload.
+ * <p>This reproduces AUTH-0105's exact deterministic 4096-key cheap pass, top-48 full-evaluation
+ * boundary, score, and tie ordering. Implementation adds only Minecraft-facing review constraints:
+ * bounded physical size, a substantial visible drainage workload, at least one interior drop, and
+ * at least one dry physical exterior cave-mouth witness. It does not rerank authored hydrology.
  */
 final class SkyforgeDr70SpecimenSearchTest {
-    private static final long[] RANKED_AUTH_0105_FINALISTS = {
-        287L, 2839L, 999L, 449L, 649L, 3990L, 421L, 2820L
-    };
+    private static final int SEARCH_COUNT = 4096;
+    private static final int FULL_EVALUATION_COUNT = 48;
 
     @Test
-    void selectedReviewSpecimenIsFirstRankedFinalistWithPhysicalDryCaveMouth() {
-        Candidate selected = null;
-        for (long key : RANKED_AUTH_0105_FINALISTS) {
-            Candidate candidate = characterize(key);
-            if (candidate != null) {
-                selected = candidate;
-                break;
-            }
-        }
+    void selectedReviewSpecimenIsFirstAuth0105RankedPhysicallyAdmissibleCandidate() {
+        Candidate selected = rankedAuth0105Candidates().stream()
+                .filter(candidate -> candidate.descriptor().nominalRadius() < 120.0)
+                .filter(candidate -> candidate.reachCount() >= 20)
+                .filter(candidate -> candidate.interiorDrops() >= 1)
+                .map(candidate -> physicallyAdmissible(candidate) ? candidate : null)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
 
         assertNotNull(
                 selected,
-                "none of the accepted AUTH-0105 finalists satisfies bounded hydrology + physical dry cave-mouth constraints");
+                "none of AUTH-0105's fully evaluated top-48 candidates satisfies the retained "
+                        + "bounded hydrology + dry physical cave-mouth review constraints");
         assertEquals(
-                selected.key(),
+                selected.descriptor().identity().islandKey(),
                 SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review().islandKey(),
-                "DR-70 review fixture must use first physically admissible AUTH-0105 finalist: " + selected);
+                "DR-70 review fixture must use first physically admissible AUTH-0105-ranked candidate: "
+                        + selected);
     }
 
-    private static Candidate characterize(long key) {
+    private static java.util.List<Candidate> rankedAuth0105Candidates() {
+        var preliminary = new ArrayList<PreCandidate>(SEARCH_COUNT);
+        for (long key = 0; key < SEARCH_COUNT; key++) {
+            var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70ReviewCandidate(key);
+            var descriptor = fixture.descriptor();
+            SkyIslandCoherentChannelPlan channels = SkyIslandCoherentChannelPlanner.plan(descriptor);
+            if (channels.retainedReachCount() == 0) {
+                continue;
+            }
+            SkyIslandNaturalizedChannelPlan naturalized =
+                    SkyIslandNaturalizedChannelPlanner.plan(descriptor, channels.profiles());
+            preliminary.add(preCandidate(descriptor, channels, naturalized));
+        }
+        preliminary.sort(Comparator.comparingDouble(PreCandidate::score)
+                .reversed()
+                .thenComparingLong(candidate -> candidate.descriptor().identity().islandKey()));
+
+        return preliminary.stream()
+                .limit(FULL_EVALUATION_COUNT)
+                .map(SkyforgeDr70SpecimenSearchTest::fullyEvaluate)
+                .sorted(Comparator.comparingDouble(Candidate::score)
+                        .reversed()
+                        .thenComparingLong(candidate -> candidate.descriptor().identity().islandKey()))
+                .toList();
+    }
+
+    private static PreCandidate preCandidate(
+            io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor descriptor,
+            SkyIslandCoherentChannelPlan channels,
+            SkyIslandNaturalizedChannelPlan naturalized) {
+        Map<Integer, SkyIslandNaturalizedChannelPath> bySource = new HashMap<>();
+        for (SkyIslandNaturalizedChannelPath path : naturalized.paths()) {
+            bySource.put(path.profile().segment().sourceCellIndex(), path);
+        }
+        Map<Integer, Double> memo = new HashMap<>();
+        double longestChain = bySource.values().stream()
+                .mapToDouble(path -> chainLength(path, bySource, memo))
+                .max()
+                .orElse(0.0);
+        double chainRatio = longestChain / descriptor.nominalRadius();
+        double terminalDischarge = channels.retainedComponents().stream()
+                .mapToDouble(SkyIslandCoherentChannelComponent::terminalRelativeDischarge)
+                .max()
+                .orElse(0.0);
+        int maxOrder = channels.retainedComponents().stream()
+                .mapToInt(SkyIslandCoherentChannelComponent::maxStreamOrder)
+                .max()
+                .orElse(1);
+        int components = channels.retainedComponentCount();
+        int reaches = channels.retainedReachCount();
+
+        double score = 3.2 * Math.min(2.0, chainRatio)
+                + 1.4 * terminalDischarge
+                + 0.55 * Math.min(1.0, (maxOrder - 1) / 3.0)
+                + 0.25 * Math.min(1.0, reaches / 20.0)
+                - 0.18 * Math.max(0, components - 2);
+        return new PreCandidate(
+                descriptor, score, components, reaches, chainRatio, terminalDischarge, maxOrder);
+    }
+
+    private static Candidate fullyEvaluate(PreCandidate preliminary) {
+        var descriptor = preliminary.descriptor();
+        var coherent = SkyIslandCoherentHydrologicRealizationPlanner.plan(descriptor);
+        int retainedWater = SkyIslandWaterbodyFootprintPlanner.plan(descriptor).footprints().size();
+        int interiorDrops = (int) (coherent.drops().count(SkyIslandChannelDropKind.CASCADE_STEP)
+                + coherent.drops().count(SkyIslandChannelDropKind.WATERFALL));
+        int edgeFalls = (int) coherent.drops().count(SkyIslandChannelDropKind.EDGE_FALL);
+
+        double score = preliminary.score()
+                + 0.65 * Math.min(1, retainedWater)
+                + 0.45 * Math.min(1.0, interiorDrops / 3.0)
+                - 0.04 * Math.max(0, edgeFalls - 2);
+        return new Candidate(
+                descriptor,
+                score,
+                preliminary.componentCount(),
+                preliminary.reachCount(),
+                preliminary.longestChainRatio(),
+                preliminary.terminalDischarge(),
+                preliminary.maxStreamOrder(),
+                retainedWater,
+                interiorDrops,
+                edgeFalls);
+    }
+
+    private static double chainLength(
+            SkyIslandNaturalizedChannelPath path,
+            Map<Integer, SkyIslandNaturalizedChannelPath> bySource,
+            Map<Integer, Double> memo) {
+        int source = path.profile().segment().sourceCellIndex();
+        Double cached = memo.get(source);
+        if (cached != null) {
+            return cached;
+        }
+        SkyIslandNaturalizedChannelPath next =
+                bySource.get(path.profile().segment().downstreamCellIndex());
+        double value = path.pathLength()
+                + (next == null ? 0.0 : chainLength(next, bySource, memo));
+        memo.put(source, value);
+        return value;
+    }
+
+    private static boolean physicallyAdmissible(Candidate candidate) {
+        long key = candidate.descriptor().identity().islandKey();
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70ReviewCandidate(key);
-        if (fixture.descriptor().nominalRadius() >= 120.0
-                || fixture.field().exposureGeometry().connectionCount() <= 0) {
-            return null;
+        if (fixture.field().exposureGeometry().connectionCount() <= 0) {
+            return false;
         }
-
-        var visible = SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor());
-        long interiorDrops = visible.drops().stream()
-                .filter(drop -> drop.kind() != SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE)
-                .count();
-        if (visible.channels().size() < 20 || interiorDrops < 1) {
-            return null;
-        }
-
-        BlockPos mouth = physicalDryMouth(fixture);
-        return mouth == null
-                ? null
-                : new Candidate(
-                        key,
-                        fixture.descriptor().nominalRadius(),
-                        visible.channels().size(),
-                        interiorDrops,
-                        fixture.field().exposureGeometry().connectionCount(),
-                        mouth);
+        return physicalDryMouth(fixture) != null;
     }
 
     private static BlockPos physicalDryMouth(
@@ -140,11 +236,24 @@ final class SkyforgeDr70SpecimenSearchTest {
         return null;
     }
 
+    private record PreCandidate(
+            io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor descriptor,
+            double score,
+            int componentCount,
+            int reachCount,
+            double longestChainRatio,
+            double terminalDischarge,
+            int maxStreamOrder) {}
+
     private record Candidate(
-            long key,
-            double radius,
-            int channels,
-            long interiorDrops,
-            int abstractConnections,
-            BlockPos physicalDryMouth) {}
+            io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor descriptor,
+            double score,
+            int componentCount,
+            int reachCount,
+            double longestChainRatio,
+            double terminalDischarge,
+            int maxStreamOrder,
+            int retainedWater,
+            int interiorDrops,
+            int edgeFalls) {}
 }
