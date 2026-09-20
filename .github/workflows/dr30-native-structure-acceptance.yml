@@ -27,10 +27,8 @@ jobs:
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
 
-      - name: Compile and unit-test DR-30 runtime
-        timeout-minutes: 20
-        run: ./gradlew :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:test --stacktrace --no-configuration-cache
-
+      # Exhaustive unit tests are authoritative in required CI. This Tier-2 gate runs only
+      # the distinct native-structure runtime characterization.
       - name: Qualify native placement, reload mutation, and stacked isolation
         timeout-minutes: 30
         run: ./gradlew :skyforge-neoforge-1211:dr30NativeStructureAcceptance --stacktrace --no-configuration-cache

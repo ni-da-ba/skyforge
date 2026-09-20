@@ -30,14 +30,8 @@ jobs:
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
 
-      - name: Compile and unit-test DR-70 repair
-        timeout-minutes: 20
-        run: |
-          ./gradlew \
-            :skyforge-neoforge-1211:compileJava \
-            :skyforge-neoforge-1211:test \
-            --stacktrace --no-configuration-cache
-
+      # Required CI owns exhaustive unit tests. DR-70 owns only the bounded production-world
+      # and reload characterization needed before the human visual gate.
       - name: Qualify bounded key-421 review world and reload
         timeout-minutes: 38
         env:

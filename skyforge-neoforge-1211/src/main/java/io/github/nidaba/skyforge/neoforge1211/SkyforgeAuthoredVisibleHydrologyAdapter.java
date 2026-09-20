@@ -175,15 +175,23 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
 
             int baseSurfaceY = range.maximumY();
-            int drySurfaceY = Math.max(
-                    range.minimumY(),
-                    baseSurfaceY - physicalLoweringBlocks(descriptor, lowering));
-
             var authoredWater = distanceToPath(local, path) <= reach.wetHalfWidth()
                     ? fluvial.waterSurfacePotential(local)
                     : java.util.OptionalDouble.empty();
+
+            int loweringBlocks = physicalLoweringBlocks(descriptor, lowering);
+            if (authoredWater.isPresent()) {
+                // A wet Minecraft cross-section needs one solid bed level plus at least one
+                // water block below the pre-fluvial bank surface. A one-block carve cannot
+                // satisfy both constraints and would put water back at the original surface.
+                loweringBlocks = Math.max(2, loweringBlocks);
+            }
+            int drySurfaceY = Math.max(
+                    range.minimumY(),
+                    baseSurfaceY - loweringBlocks);
+
             int waterTopY = Integer.MIN_VALUE;
-            if (authoredWater.isPresent() && drySurfaceY < baseSurfaceY) {
+            if (authoredWater.isPresent() && drySurfaceY <= baseSurfaceY - 2) {
                 double waterDelta = authoredWater.orElseThrow() - basePotential;
                 int projected = baseSurfaceY + physicalSignedDeltaBlocks(descriptor, waterDelta);
                 waterTopY = Math.max(

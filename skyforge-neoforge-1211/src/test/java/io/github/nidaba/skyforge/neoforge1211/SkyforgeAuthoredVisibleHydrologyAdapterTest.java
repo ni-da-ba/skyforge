@@ -99,6 +99,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                                 io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField.MAX_FLUVIAL_LOWERING)
                         >= 1,
                 "accepted neutral fluvial lowering must survive Minecraft integer discretization");
+        assertTrue(channel.positions().stream().noneMatch(position ->
+                terrain.integerSolidRange(
+                                fixture.volume().id(),
+                                position.getX(),
+                                position.getZ())
+                        .map(range -> position.getY() == range.maximumY())
+                        .orElse(true)),
+                "wet channel realization must never consume the original top-surface voxel");
     }
 
     @Test

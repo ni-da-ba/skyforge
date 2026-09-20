@@ -27,9 +27,8 @@ jobs:
           persist-credentials: false
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
-      - name: Compile and unit-test DR-40 runtime
-        timeout-minutes: 20
-        run: ./gradlew :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:test --stacktrace --no-configuration-cache
+      # Exhaustive unit tests are authoritative in required CI; avoid duplicating the full
+      # NeoForge suite before this distinct production-ecology characterization.
       - name: Qualify canonical production ecology and reload
         timeout-minutes: 48
         env:
