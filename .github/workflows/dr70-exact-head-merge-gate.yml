@@ -17,9 +17,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  exact-head:
+  compile:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,8 +29,6 @@ jobs:
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
 
-      # VALIDATION_POLICY: cheap exact-head Tier-0 coverage for the DR-70 dependency surface.
-      # Expensive runtime characterization remains owned by DR-30/40/50/70 workflows.
       - name: Compile affected NeoForge source and tests
         run: |
           ./gradlew \
@@ -38,18 +36,38 @@ jobs:
             :skyforge-neoforge-1211:compileTestJava \
             --stacktrace --no-configuration-cache
 
-      - name: Run DR-70 deterministic contract regressions
+  contract:
+    needs: compile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        test_class:
+          - io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest
+          - io.github.nidaba.skyforge.neoforge1211.SkyforgeCarverReadVirtualizationSourceTest
+          - io.github.nidaba.skyforge.neoforge1211.SkyforgeCarverVerticalFrameTest
+          - io.github.nidaba.skyforge.neoforge1211.SkyforgeComposedCaveStageTest
+          - io.github.nidaba.skyforge.neoforge1211.SkyforgeDr50IntegratedRegionEvidenceTest
+          - io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70ReviewRepairTest
+          - io.github.nidaba.skyforge.neoforge1211.SkyforgeGeneratedFluidPropagationSourceTest
+          - io.github.nidaba.skyforge.neoforge1211.SkyforgeLevelChunkPopulationReadMixinSourceTest
+          - io.github.nidaba.skyforge.neoforge1211.SkyforgeNativeCarverCursorSourceTest
+          - io.github.nidaba.skyforge.neoforge1211.SkyforgeProductionComposedCaveIntegratedTopologySourceTest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      # VALIDATION_POLICY: cheap exact-head Tier-0 coverage for one DR-70 dependency-surface
+      # contract per job. Expensive runtime characterization remains DR-30/40/50/70 authority.
+      - name: Run contract regression
         run: |
           ./gradlew \
             :skyforge-neoforge-1211:test \
-            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest' \
-            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeCarverReadVirtualizationSourceTest' \
-            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeCarverVerticalFrameTest' \
-            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeComposedCaveStageTest' \
-            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeDr50IntegratedRegionEvidenceTest' \
-            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70ReviewRepairTest' \
-            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeGeneratedFluidPropagationSourceTest' \
-            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeLevelChunkPopulationReadMixinSourceTest' \
-            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeNativeCarverCursorSourceTest' \
-            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeProductionComposedCaveIntegratedTopologySourceTest' \
+            --tests '${{ matrix.test_class }}' \
             --stacktrace --no-configuration-cache
