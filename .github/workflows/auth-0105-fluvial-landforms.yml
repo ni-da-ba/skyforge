@@ -11,6 +11,8 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandFluvialTerrainFieldTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialLandformCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialLandformCorpusTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialSpecimenSearchCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialSpecimenSearchTest.java"
       - "skyforge-reference/build.gradle.kts"
   workflow_dispatch:
 
@@ -38,7 +40,9 @@ jobs:
             ./gradlew \
               :skyforge-world:test --tests '*SkyIslandFluvialTerrainFieldTest' \
               :skyforge-reference:test --tests '*AuthorshipFluvialLandformCorpusTest' \
+              :skyforge-reference:test --tests '*AuthorshipFluvialSpecimenSearchTest' \
               :skyforge-reference:authorshipFluvialLandformCorpus \
+              :skyforge-reference:authorshipFluvialSpecimenSearch \
               --no-configuration-cache
           verify_command: |
             DIR=skyforge-reference/build/evidence/authorship-fluvial-landforms-v1
@@ -49,6 +53,11 @@ jobs:
             grep -q '^dr70-1471,' "$DIR/manifest.csv"
             grep -q '^key-83-retained-basin,' "$DIR/manifest.csv"
             awk -F, 'NR > 1 && $12 > 0.01 {found=1} END {exit(found ? 0 : 1)}' "$DIR/manifest.csv"
+            SEARCH=skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1
+            test -f "$SEARCH/index.html"
+            test -f "$SEARCH/atlas.png"
+            test -f "$SEARCH/candidates.csv"
+            test "$(wc -l < "$SEARCH/candidates.csv")" -eq 9
           artifact_name: auth-0105-fluvial-landforms
           artifact_path: |
             skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/index.html
@@ -61,3 +70,7 @@ jobs:
             skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-83-retained-basin.png
             skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-512-stress.png
             skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-811-stress.png
+            skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1/index.html
+            skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1/atlas.png
+            skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1/candidates.csv
+            skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1/rank-*.png
