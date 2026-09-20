@@ -163,6 +163,25 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void settledWaterBearingVariantsRemainStableAcrossReplay() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
+        BlockPos position = new BlockPos(1, 64, 1);
+        var deployment = new SkyforgeAuthoredVisibleHydrologyAdapter.Deployment(
+                fixture.volume().id(),
+                SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
+                List.of(position),
+                List.of());
+        var chunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(0, 0));
+
+        assertEquals(1, SkyforgeAuthoredVisibleHydrologyAdapter.apply(chunk, deployment));
+        chunk.setBlockState(position, Blocks.BUBBLE_COLUMN.defaultBlockState(), false);
+        assertTrue(SkyforgeAuthoredVisibleHydrologyAdapter.isWaterBearing(chunk.getBlockState(position)));
+        assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.apply(chunk, deployment),
+                "replay must not freeze an ordinary settled water-bearing state back to literal WATER");
+        assertTrue(chunk.getBlockState(position).is(Blocks.BUBBLE_COLUMN));
+    }
+
+    @Test
     void stackedVolumesKeepAcceptedCorpusWaterExactOwnerLocal() {
         StackedCorpusFixture fixture = stackedCorpus(77L);
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
