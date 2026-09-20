@@ -98,10 +98,13 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
      * Cached positions therefore survive ordinary save/reload without introducing a second fluid
      * topology or mutable backend policy.
      */
-    boolean isAuthoredVisibleHydrologyPosition(BlockPos position) {
+    Optional<SkyIslandWorldVolumeId> authoredVisibleHydrologyVolumeId(BlockPos position) {
         Objects.requireNonNull(position, "position");
-        for (var entry : authoredDescriptorsByVolumeId.entrySet()) {
-            SkyIslandWorldVolumeId volumeId = entry.getKey();
+        for (SkyIslandWorldVolume volume : catalog.volumes()) {
+            SkyIslandWorldVolumeId volumeId = volume.id();
+            if (!authoredDescriptorsByVolumeId.containsKey(volumeId)) {
+                continue;
+            }
             WorldBounds bounds = boundsByVolumeId.get(volumeId);
             if (bounds == null || !bounds.contains(position.getX(), position.getY(), position.getZ())) {
                 continue;
@@ -110,10 +113,14 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                     volumeId,
                     this::deriveAuthoredHydrologyPositions);
             if (positions.contains(position.asLong())) {
-                return true;
+                return Optional.of(volumeId);
             }
         }
-        return false;
+        return Optional.empty();
+    }
+
+    boolean isAuthoredVisibleHydrologyPosition(BlockPos position) {
+        return authoredVisibleHydrologyVolumeId(position).isPresent();
     }
 
     private Set<Long> deriveAuthoredHydrologyPositions(SkyIslandWorldVolumeId volumeId) {
