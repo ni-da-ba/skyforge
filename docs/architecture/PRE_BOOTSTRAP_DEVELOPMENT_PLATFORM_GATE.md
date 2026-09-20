@@ -1,9 +1,9 @@
 # Pre-Bootstrap Development Platform Gate
 
-**Status:** OWNER-APPROVED / DEFERRED UNTIL DR-70 HUMAN RE-REVIEW ACCEPTANCE  
+**Status:** OWNER-APPROVED / ACTIVE — DR-70 DEFERRED WITH CHANGES REQUIRED  
 **Decision date:** 2026-09-20 (America/Chicago)  
-**Activation boundary:** after DR-70 machine evidence and human re-review are accepted; before Bootstrap Province becomes the primary program focus  
-**Current authority:** persistence only. This document does **not** authorize work that displaces, mutates, pauses, rebases, or otherwise interferes with active DR-70 execution.
+**Activation boundary:** active immediately after the key-2885 DR-70 human re-review returned CHANGES REQUIRED; before DR-70 resumes and before Bootstrap Province becomes the primary program focus  
+**Current authority:** execute the bounded development-platform convergence gate now. Preserve DR-70 as an open deferred product gate; do not resume hydrology implementation or another DR-70 review cycle until this optimization gate has materially improved objective-to-gate throughput and evidence economy.
 
 ## 1. Purpose
 
@@ -102,12 +102,12 @@ Automatic bounded context/scope packaging is the highest-priority throughput opt
 
 ## 3. Required pre-Bootstrap sequence
 
-DR-70 remains untouched until its existing human re-review is accepted.
+The key-2885 DR-70 human re-review returned **CHANGES REQUIRED** but demonstrated a real channel. The remaining hydrology defects are durably recorded and DR-70 is deliberately deferred while the workflow itself is hardened.
 
-After that acceptance, execute this bounded workflow-convergence sequence:
+Execute this bounded workflow-convergence sequence now:
 
 ```text
-DR-70 ACCEPTED
+DR-70 CHANGES REQUIRED / DEFERRED
     -> finish OPT-2 automatic context/scope packaging
     -> finish P0 X-1 project-event authority and X-4 delta-aware human gates
     -> OPT-4 routine platform upgrade / operability
@@ -116,6 +116,8 @@ DR-70 ACCEPTED
     -> OPT-5 basic multi-objective conflict-aware scheduling
     -> minimum viable OPT-6 Continue Skyforge progression
     -> PRE-BOOTSTRAP PLATFORM GATE ACCEPTED
+    -> resume bounded DR-70 repair from the persisted human findings
+    -> DR-70 HUMAN GATE ACCEPTED
     -> Bootstrap Province becomes PRIMARY_ACTIVE
 ```
 
