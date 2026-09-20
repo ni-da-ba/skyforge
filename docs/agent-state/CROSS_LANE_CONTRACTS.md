@@ -38,6 +38,19 @@ Natural water springs require authored cave interior plus accepted aquifer suppo
 
 Implementation may consume exact channel, retained-waterbody, cascade/waterfall, and edge-discharge intents. It owns rasterization, block/fluid identity, mutation, scheduling, persistence, and lifecycle. Normalized semantic potentials are not literal world Y.
 
+### AUTH-0105 — fluvial landform projection — IN PROGRESS (#951)
+
+DR-70 review identified a cross-lane gap between accepted channel semantics and believable physical
+terrain. AUTH-0105 proposes a continuous dry channel/valley field plus contained authored
+water-surface potential over the exact accepted naturalized reach.
+
+While #951 is active, Implementation should not deepen the competing fixed-trench mapping in #949.
+If AUTH-0105 is accepted, Implementation should project its dry terrain field before water/material
+placement and discretize the authored wet corridor rather than inventing independent local
+width/depth geometry.
+
+Until merge, AUTH-0086 and AUTH-0104 remain the accepted authority.
+
 ### AUTH-0087 — published authored-realization binding — ACCEPTED
 
 Publication/authorship association exists only through the explicit exact AUTH-0046 catalog/root/count/coverage contract. No seed/order/spatial inference may replace it.

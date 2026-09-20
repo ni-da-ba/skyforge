@@ -176,7 +176,7 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
                         + 0.25 * segment.corridorScale());
 
         double valleyMultiplier = switch (profile.kind()) {
-            case ALLUVIAL -> 3.6 + 2.4 * segment.corridorScale();
+            case ALLUVIAL -> 4.2 + 2.2 * segment.corridorScale();
             case INCISED -> 2.2 + 1.5 * profile.incisionPotential();
             case CASCADE -> 1.6 + 1.0 * profile.incisionPotential();
         };
