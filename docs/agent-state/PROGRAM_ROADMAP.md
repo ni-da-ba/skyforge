@@ -352,9 +352,9 @@ When this exists, the larger risk becomes complete player experience rather than
 
 Full Bootstrap Province must not become the **PRIMARY_ACTIVE** convergence workload until the owner-approved gate in `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md` is accepted.
 
-This gate is deferred until the current DR-70 machine path and human re-review are accepted. Its existence does **not** authorize platform work to displace, mutate, pause, rebase, or otherwise interfere with active DR-70 execution.
+The key-2885 DR-70 human re-review returned **CHANGES REQUIRED** on 2026-09-20. By owner direction, further DR-70 product work is deferred and this gate is now active. The current DR-70 findings must remain preserved as an open product gate while platform work proceeds.
 
-After DR-70 acceptance, the bounded transition hardens:
+The bounded transition now hardens:
 
 - automatic context/scope packaging;
 - durable significant project/human events and material-delta human gates;
@@ -807,12 +807,12 @@ These remain valid setting/architecture possibilities but are not required for t
 
 ### RM-R06 — pre-Bootstrap development-platform hardening — RESOLVED
 
-After DR-70 human re-review is accepted, execute the bounded workflow-convergence gate in `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md` before promoting Bootstrap Province to PRIMARY_ACTIVE.
+Execute the bounded workflow-convergence gate in `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md` now, before resuming the deferred DR-70 product repair and before promoting Bootstrap Province to PRIMARY_ACTIVE.
 
 The resolved direction is:
 
 ```text
-DR-70 accepted
+DR-70 changes required / deferred
  -> bounded context + workflow-truth hardening
  -> routine platform operability
  -> shared backend + MVP Operations Console + ChatGPT/MCP
@@ -820,10 +820,12 @@ DR-70 accepted
  -> basic safe concurrency
  -> minimum viable Continue Skyforge
  -> pre-Bootstrap gate accepted
+ -> resume bounded DR-70 repair
+ -> DR-70 human gate accepted
  -> Phase 3 PRIMARY_ACTIVE
 ```
 
-The console, ChatGPT, CLI, and future Studio are clients of one development backend; they do not become independent sources of project truth. This transition is explicitly deferred while DR-70 remains active.
+The console, ChatGPT, CLI, and future Studio are clients of one development backend; they do not become independent sources of project truth. This transition is active now by owner direction; DR-70 remains an open deferred gate, not an accepted one.
 
 ## 19. What the orchestrator should do today
 
@@ -848,7 +850,7 @@ The orchestrator should therefore:
 
 If repository state has advanced beyond this snapshot, use current accepted evidence to determine which criteria have already been satisfied rather than blindly repeating them.
 
-**Reserved post-DR-70 transition:** once DR-70 human re-review reaches ACCEPTED, RM-R06 becomes the next program-level transition gate before Phase 3 may become PRIMARY_ACTIVE. Until that acceptance occurs, RM-R06 is persistence/transition authority only and must not create competing active work against DR-70.
+**Current transition:** RM-R06 is the active program-level transition gate. The 2026-09-20 key-2885 DR-70 review returned CHANGES REQUIRED but demonstrated real channel geomorphology; further DR-70 work is deliberately deferred until RM-R06 materially improves workflow throughput/evidence economy. After RM-R06 acceptance, resume the bounded DR-70 repair and obtain human acceptance before Phase 3 may become PRIMARY_ACTIVE.
 
 ## 20. Maintenance rule
 
