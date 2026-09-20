@@ -43,7 +43,7 @@ final class SkyforgeDr70SpecimenSearchTest {
         assertEquals(
                 selected.key(),
                 SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review().islandKey(),
-                () -> "DR-70 review fixture must use first physically admissible AUTH-0105 finalist: " + selected);
+                "DR-70 review fixture must use first physically admissible AUTH-0105 finalist: " + selected);
     }
 
     private static Candidate characterize(long key) {
