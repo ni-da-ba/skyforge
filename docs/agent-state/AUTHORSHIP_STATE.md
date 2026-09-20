@@ -2,9 +2,9 @@
 
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
-**Updated:** 2026-09-15 (America/Chicago)
-**Main snapshot carrying latest accepted Authorship implementation:** `6d3a4873a45d62ee9bf18e080909d6d2ac465d07`
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0103**
+**Updated:** 2026-09-20 (America/Chicago)
+**Main snapshot carrying latest accepted Authorship implementation:** `911939a8bba0062eca6c8c29b891fe9bc1a04f8f`
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0104**
 
 Read first:
 
@@ -16,7 +16,34 @@ Read first:
 This ledger is intentionally concise. Detailed proof remains in milestone docs, source/tests, CI runs,
 artifacts, and merged PR history.
 
+## IN PROGRESS
+
+### AUTH-0105 — fluvial landform realization
+
+Issue #950 / PR #951. DR-70 human review showed that accepted authored channels still reach Minecraft
+as narrow trenches rather than drainage-shaped terrain. AUTH-0105 adds a backend-neutral continuous
+channel/valley landform field over exact AUTH-0019 coherent hydrology and AUTH-0017 naturalized
+centerlines, plus a contained wet-corridor water-surface contract.
+
+The key human criterion is dry readability: with visible water hidden, the authored terrain must still
+read as a drainage landform. The evidence atlas includes the previous DR-70 specimen and deterministic
+hydrology controls so a stronger specimen may replace it if appropriate. Until #951 is accepted,
+AUTH-0086/AUTH-0104 remain the accepted Implementation authority.
+
+Reference: `docs/authorship/AUTH-0105-fluvial-landform-realization.md`.
+
 ## MERGED / ACCEPTED
+
+### AUTH-0104 — canonical coherent hydrology authorization
+
+PR #758 / merge `911939a8bba0062eca6c8c29b891fe9bc1a04f8f`; accepted head
+`0212fdc0499808498bf9cb7391da2793e08279ee`.
+
+AUTH-0104 preserves the accepted canonical naturalized channel and authorizes bounded downstream
+physical legibility without inventing a new watershed, basin, route, discharge topology, or molten
+semantics. It was a DR-70 unblock, not a complete literal bank/valley geomorphology contract.
+
+Reference: `docs/authorship/AUTH-0104-canonical-coherent-hydrology.md`.
 
 ### Older accepted foundation
 

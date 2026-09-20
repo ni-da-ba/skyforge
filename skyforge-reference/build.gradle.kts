@@ -216,3 +216,21 @@ tasks.register<JavaExec>("authorshipRegionalPetroleumSystemOpportunityCorpus") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/authorship-regional-petroleum-system-opportunity-v1").get().asFile.absolutePath)
 }
+
+tasks.register<JavaExec>("authorshipFluvialLandformCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0105 dry fluvial-landform and water-overlay review atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.AuthorshipFluvialLandformCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/authorship-fluvial-landforms-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("authorshipFluvialSpecimenSearch") {
+    group = "verification"
+    description = "Searches deterministic AUTH-0105 islands for strong DR-70 hydrology review specimens."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.AuthorshipFluvialSpecimenSearchCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/authorship-fluvial-specimen-search-v1").get().asFile.absolutePath)
+}
