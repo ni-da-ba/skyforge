@@ -18,6 +18,8 @@ final class SkyforgeLevelChunkPopulationReadMixinSourceTest {
         String blockFluidSource = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeLevelChunkPopulationReadMixin.java"));
         assertTrue(blockFluidSource.contains("SkyforgeWorldGenRegionDomainBridge.populationActive()"));
+        assertTrue(blockFluidSource.contains("SkyforgeWorldGenRegionDomainBridge.authoredHydrologyPopulationState(position)"));
+        assertTrue(blockFluidSource.contains("authoredHydrology.orElseThrow().getFluidState()"));
         assertTrue(blockFluidSource.contains("!SkyforgeWorldGenRegionDomainBridge.isVisible(position)"));
         assertTrue(blockFluidSource.contains("SkyforgeWorldGenRegionDomainBridge.hiddenBlockState(position)"));
         assertTrue(blockFluidSource.contains("getBlockState"));
@@ -34,6 +36,9 @@ final class SkyforgeLevelChunkPopulationReadMixinSourceTest {
         String bridge = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWorldGenRegionDomainBridge.java"));
         assertTrue(bridge.contains("public static boolean populationHeightVirtualizationActive()"));
+        assertTrue(bridge.contains("public static Optional<BlockState> authoredHydrologyPopulationState"));
+        assertTrue(bridge.contains("SkyforgeNeoForge1211SurfaceStage.authoredHydrologyPopulationState"));
+        assertTrue(bridge.contains("authoredHydrologyPopulationState(position).isEmpty()"));
         assertTrue(bridge.contains("GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()"));
 
         String mixins = Files.readString(PROJECT_DIRECTORY.resolve("src/main/resources/skyforge.mixins.json"));
