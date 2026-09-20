@@ -385,3 +385,26 @@ legacy MainPID is unchanged and leaves v2 disabled. Live `cutover --execute` and
 `docs/operations/PLATFORM_V2_R5C26_OPERATOR_CUTOVER.md` for the evidence and abort
 contract. DR-70 remains an explicit production-gate input; the operator package does
 not infer or machine-pass it.
+
+### Routine accepted-main upgrades
+
+After production cutover, ordinary source-only Platform-v2 updates use the composed
+routine-upgrade surface rather than manually repeating rollback/check-out/template/cutover
+steps:
+
+```bash
+git fetch origin main
+python3 scripts/orchestrator/platform_v2_routine_upgrade.py plan \
+  --root /home/skyforge/skyforge
+
+# Only after the read-only plan reports READY:
+sudo python3 scripts/orchestrator/platform_v2_routine_upgrade.py upgrade \
+  --root /home/skyforge/skyforge \
+  --target-sha "$(git rev-parse origin/main)" \
+  --execute
+```
+
+The common path requires a paused/quiescent legacy fallback state and unchanged deployed
+unit/dependency contracts. If protected authority appears during rollback/reconciliation,
+the command stops safely on legacy for exact `transfer-authority` handling rather than
+guessing or draining it. See `docs/operations/PLATFORM_V2_ROUTINE_UPGRADE.md`.
