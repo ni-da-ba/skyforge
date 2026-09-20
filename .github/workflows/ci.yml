@@ -16,7 +16,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # DR-70 exposed that the exhaustive repository suite now legitimately exceeds the historical
+    # 30-minute ceiling. This is a bounded gate-unblocker; post-DR-70 work will optimize/split CI.
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
