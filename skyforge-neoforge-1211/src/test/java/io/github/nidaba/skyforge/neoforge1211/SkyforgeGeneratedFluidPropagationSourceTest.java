@@ -40,6 +40,16 @@ final class SkyforgeGeneratedFluidPropagationSourceTest {
     }
 
     @Test
+    void authoredWaterTicksWaitForDeterministicCatchupThenRemainScheduled() throws IOException {
+        String stage = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeGeneratedFluidPropagationStage.java"));
+        assertTrue(stage.contains("SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId)"));
+        assertTrue(stage.contains("serverLevel.scheduleTick(position, state.getType(), 20)"));
+        assertTrue(stage.contains("BoundaryPolicy.AUTHORED_HYDROLOGY"));
+        assertTrue(stage.contains("return false;"));
+    }
+
+    @Test
     void nativeFluidSpringsRetainInteriorShellFenceForIncidentalEdgeDischarge() throws IOException {
         String stage = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeGeneratedFluidPropagationStage.java"));
