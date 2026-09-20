@@ -624,4 +624,3 @@ class HumanGateReviewReducerTest(unittest.TestCase):
         self.assertEqual(result.disposition, HumanGateReviewDisposition.BLOCKED)
         self.assertIn("active task authority", result.reason)
         self.assertEqual(result.ledger, grafted)
-

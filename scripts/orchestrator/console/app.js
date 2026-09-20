@@ -3,9 +3,13 @@
 
   const POLL_MS = 2500;
   const TOKEN_KEY = "skyforge-development-api-token";
+  const WRITE_TOKEN_KEY = "skyforge-development-write-token";
   let token = sessionStorage.getItem(TOKEN_KEY) || "";
+  let writeToken = sessionStorage.getItem(WRITE_TOKEN_KEY) || "";
   let lastDigest = "";
+  let latestState = null;
   let pollHandle = null;
+  let pendingReviewRequestId = "";
 
   const $ = (id) => document.getElementById(id);
   const el = (tag, text, className) => {
@@ -40,6 +44,21 @@
     headers.set("Authorization", `Bearer ${token}`);
     if (options.etag) headers.set("If-None-Match", `"${options.etag}"`);
     return fetch(path, { ...options, headers, cache: "no-store" });
+  }
+
+  async function writeApi(path, options = {}) {
+    if (!writeToken) throw new Error("Write bearer token is required for human review submission.");
+    const headers = new Headers(options.headers || {});
+    headers.set("Authorization", `Bearer ${writeToken}`);
+    headers.set("X-Skyforge-Client", "operations-console");
+    return fetch(path, { ...options, headers, cache: "no-store" });
+  }
+
+  function textLines(value) {
+    return String(value || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
   }
 
   function setConnection(text, severity) {
@@ -233,6 +252,74 @@
     }, "No human reviews recorded.");
   }
 
+  function populateSelect(select, values, valueOf, labelOf) {
+    const previous = select.value;
+    clear(select);
+    for (const value of values) {
+      const option = document.createElement("option");
+      option.value = valueOf(value);
+      option.textContent = labelOf(value);
+      select.append(option);
+    }
+    if (values.some((value) => valueOf(value) === previous)) select.value = previous;
+  }
+
+  function currentPriorReview(gateId) {
+    if (!latestState) return null;
+    return [...(latestState.human_reviews || [])]
+      .reverse()
+      .find((review) => review.gate_id === gateId) || null;
+  }
+
+  function updateReviewContext() {
+    if (!latestState) return;
+    const gateId = $("review-gate").value;
+    const artifactId = $("review-artifact").value;
+    const gate = (latestState.human_gates || []).find((value) => value.gate_id === gateId);
+    const artifact = (latestState.artifacts || []).find((value) => value.artifact_id === artifactId);
+    const prior = currentPriorReview(gateId);
+    const node = $("review-context");
+    clear(node);
+    if (!gate || !artifact) {
+      node.append(el("span", "Select an exact gate and registered artifact.", "muted"));
+      return;
+    }
+    node.append(kv([
+      ["Gate", gate.gate_id],
+      ["Gate message", gate.message],
+      ["Blocked reason", gate.blocked_reason],
+      ["Artifact", artifact.artifact_id],
+      ["Artifact kind", artifact.kind],
+      ["Source SHA", artifact.source_sha],
+      ["Prior review", prior ? prior.review_id : "none"],
+      ["Prior verdict", prior ? prior.verdict : "none"],
+      ["Prior material delta", prior ? prior.material_delta : "none"],
+    ]));
+  }
+
+  function renderReviewControl(state) {
+    const panel = $("review-control");
+    const gates = state.human_gates || [];
+    const artifacts = state.artifacts || [];
+    const enabled = Boolean((state.runtime || {}).development_write_api_enabled);
+    panel.hidden = !(enabled && gates.length && artifacts.length);
+    if (panel.hidden) return;
+
+    populateSelect(
+      $("review-gate"),
+      gates,
+      (gate) => gate.gate_id,
+      (gate) => gate.gate_id + (gate.lane ? " — " + gate.lane : "")
+    );
+    populateSelect(
+      $("review-artifact"),
+      artifacts,
+      (artifact) => artifact.artifact_id,
+      (artifact) => artifact.artifact_id + " — " + artifact.title
+    );
+    updateReviewContext();
+  }
+
   function renderClaims(state) {
     renderList($("claims"), state.external_claims || [], (claim) => {
       const node = el("article", null, "item");
@@ -257,6 +344,7 @@
   }
 
   function render(state) {
+    latestState = state;
     $("console-content").hidden = false;
     $("snapshot-id").textContent = `snapshot ${state.snapshot_digest || "—"}`;
     renderSummary(state);
@@ -265,6 +353,7 @@
     renderWorkers(state);
     renderExecution(state);
     renderReviews(state);
+    renderReviewControl(state);
     renderClaims(state);
     renderCompletions(state);
   }
@@ -299,11 +388,110 @@
     pollHandle = setInterval(refresh, POLL_MS);
   }
 
+  function nextReviewRequestId() {
+    if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
+      return globalThis.crypto.randomUUID();
+    }
+    return "review-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+  }
+
+  async function submitHumanReview(event) {
+    event.preventDefault();
+    const statusNode = $("review-status");
+    statusNode.className = "small";
+    statusNode.textContent = "";
+
+    if (!latestState) {
+      statusNode.textContent = "No current development snapshot is loaded.";
+      statusNode.className = "small error";
+      return;
+    }
+    if (!writeToken) {
+      statusNode.textContent = "Enter the distinct write bearer token and reconnect first.";
+      statusNode.className = "small error";
+      return;
+    }
+
+    const gateId = $("review-gate").value;
+    const artifactId = $("review-artifact").value;
+    const verdict = $("review-verdict").value;
+    const gate = (latestState.human_gates || []).find((value) => value.gate_id === gateId);
+    const artifact = (latestState.artifacts || []).find((value) => value.artifact_id === artifactId);
+    if (!gate || !artifact || !verdict) {
+      statusNode.textContent = "Select an exact current gate, registered artifact, and verdict.";
+      statusNode.className = "small error";
+      return;
+    }
+
+    const findings = textLines($("review-findings").value);
+    const positiveFindings = textLines($("review-positive").value);
+    const materialDelta = $("review-delta").value.trim();
+    const nextBoundary = $("review-next-boundary").value.trim();
+    if (!findings.length || !materialDelta || !nextBoundary) {
+      statusNode.textContent = "Findings, material delta, and next boundary are required.";
+      statusNode.className = "small error";
+      return;
+    }
+
+    const prior = currentPriorReview(gateId);
+    if (!pendingReviewRequestId) pendingReviewRequestId = nextReviewRequestId();
+    const body = {
+      request_id: pendingReviewRequestId,
+      gate_id: gateId,
+      artifact_id: artifactId,
+      source_sha: artifact.source_sha,
+      verdict,
+      findings,
+      positive_findings: positiveFindings,
+      material_delta: materialDelta,
+      next_boundary: nextBoundary,
+      deferred_product_work: $("review-deferred").checked,
+      prior_review_id: prior ? prior.review_id : null,
+    };
+
+    $("submit-review").disabled = true;
+    try {
+      const response = await writeApi("/api/v1/human-reviews", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(body),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Human review submission failed (" + response.status + ")");
+      }
+      statusNode.textContent =
+        "Durable " + result.verdict + " review reconciled: " + result.review_id;
+      statusNode.className = "small";
+      pendingReviewRequestId = "";
+      $("review-verdict").value = "";
+      $("review-positive").value = "";
+      $("review-findings").value = "";
+      $("review-delta").value = "";
+      $("review-next-boundary").value = "";
+      $("review-deferred").checked = false;
+      lastDigest = "";
+      await refresh();
+    } catch (error) {
+      statusNode.textContent = error.message;
+      statusNode.className = "small error";
+    } finally {
+      $("submit-review").disabled = false;
+    }
+  }
+
+  $("review-gate").addEventListener("change", updateReviewContext);
+  $("review-artifact").addEventListener("change", updateReviewContext);
+  $("review-form").addEventListener("submit", submitHumanReview);
+
   $("auth-form").addEventListener("submit", (event) => {
     event.preventDefault();
     token = $("api-token").value.trim();
+    writeToken = $("write-token").value.trim();
     if (!token) return;
     sessionStorage.setItem(TOKEN_KEY, token);
+    if (writeToken) sessionStorage.setItem(WRITE_TOKEN_KEY, writeToken);
+    else sessionStorage.removeItem(WRITE_TOKEN_KEY);
     lastDigest = "";
     refresh();
     schedulePolling();
@@ -311,9 +499,13 @@
 
   $("forget-token").addEventListener("click", () => {
     token = "";
+    writeToken = "";
     sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(WRITE_TOKEN_KEY);
     $("api-token").value = "";
+    $("write-token").value = "";
     $("console-content").hidden = true;
+    latestState = null;
     lastDigest = "";
     if (pollHandle) clearInterval(pollHandle);
     pollHandle = null;
@@ -322,6 +514,7 @@
 
   if (token) {
     $("api-token").value = token;
+    $("write-token").value = writeToken;
     refresh();
     schedulePolling();
   }

@@ -903,4 +903,3 @@ def apply_human_gate_review(
         gate,
         review,
     )
-

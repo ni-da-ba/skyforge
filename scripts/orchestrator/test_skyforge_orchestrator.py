@@ -811,6 +811,22 @@ class HostedTransportTests(unittest.TestCase):
             installer,
         )
         self.assertIn(
+            "s/^SKYFORGE_DEVELOPMENT_WRITE_TOKEN=//p",
+            installer,
+        )
+        self.assertIn(
+            "s/^SKYFORGE_DEVELOPMENT_WRITE_ACTOR=//p",
+            installer,
+        )
+        self.assertIn(
+            "SKYFORGE_DEVELOPMENT_WRITE_TOKEN=${SKYFORGE_DEVELOPMENT_WRITE_TOKEN:-}",
+            installer,
+        )
+        self.assertIn(
+            "SKYFORGE_DEVELOPMENT_WRITE_ACTOR=${SKYFORGE_DEVELOPMENT_WRITE_ACTOR:-}",
+            installer,
+        )
+        self.assertIn(
             "s/^SKYFORGE_DROPLET_HOURLY_USD=//p",
             installer,
         )

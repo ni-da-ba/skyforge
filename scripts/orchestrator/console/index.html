@@ -23,9 +23,17 @@
         <p>The token stays in this browser session and is sent only in the Authorization header.</p>
       </div>
       <form id="auth-form">
-        <label for="api-token">Bearer token</label>
+        <div class="auth-fields">
+          <div>
+            <label for="api-token">Read bearer token</label>
+            <input id="api-token" type="password" autocomplete="off" spellcheck="false" required>
+          </div>
+          <div>
+            <label for="write-token">Write bearer token (optional)</label>
+            <input id="write-token" type="password" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
         <div class="auth-row">
-          <input id="api-token" type="password" autocomplete="off" spellcheck="false" required>
           <button type="submit">Connect</button>
           <button id="forget-token" type="button" class="secondary">Forget</button>
         </div>
@@ -60,6 +68,57 @@
       <section class="panel">
         <div class="section-heading"><h2>Human reviews</h2><span id="review-count" class="muted"></span></div>
         <div id="reviews" class="stack"></div>
+      </section>
+
+      <section id="review-control" class="panel" hidden>
+        <div class="section-heading">
+          <h2>Submit human review</h2>
+          <span class="pill warn">Human judgment</span>
+        </div>
+        <p class="muted small">This operation records your judgment against the exact selected gate and artifact. No verdict is selected automatically.</p>
+        <div id="review-context" class="item small"></div>
+        <form id="review-form" class="form-grid">
+          <div>
+            <label for="review-gate">Human gate</label>
+            <select id="review-gate" required></select>
+          </div>
+          <div>
+            <label for="review-artifact">Artifact</label>
+            <select id="review-artifact" required></select>
+          </div>
+          <div>
+            <label for="review-verdict">Verdict</label>
+            <select id="review-verdict" required>
+              <option value="">Select a verdict</option>
+              <option value="ACCEPTED">ACCEPTED</option>
+              <option value="CHANGES_REQUIRED">CHANGES_REQUIRED</option>
+            </select>
+          </div>
+          <div class="full">
+            <label for="review-positive">Positive findings (one per line)</label>
+            <textarea id="review-positive" rows="3"></textarea>
+          </div>
+          <div class="full">
+            <label for="review-findings">Findings / judgment notes (one per line)</label>
+            <textarea id="review-findings" rows="4" required></textarea>
+          </div>
+          <div class="full">
+            <label for="review-delta">Material delta reviewed</label>
+            <textarea id="review-delta" rows="2" required></textarea>
+          </div>
+          <div class="full">
+            <label for="review-next-boundary">Next work boundary</label>
+            <textarea id="review-next-boundary" rows="2" required></textarea>
+          </div>
+          <label class="checkbox-row full">
+            <input id="review-deferred" type="checkbox">
+            Defer product work after this judgment
+          </label>
+          <div class="actions full">
+            <button id="submit-review" type="submit">Submit exact review</button>
+          </div>
+        </form>
+        <p id="review-status" class="small" aria-live="polite"></p>
       </section>
 
       <section class="panel two-column">

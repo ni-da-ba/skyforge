@@ -125,6 +125,9 @@ class OperationsConsoleTest(unittest.TestCase):
         self.assertIn("sessionStorage", app)
         self.assertIn("If-None-Match", app)
         self.assertIn("setInterval(refresh, POLL_MS)", app)
+        self.assertIn("/api/v1/human-reviews", app)
+        self.assertIn("X-Skyforge-Client", app)
+        self.assertIn("WRITE_TOKEN_KEY", app)
         self.assertNotIn("innerHTML", app)
         self.assertNotIn("outerHTML", app)
         self.assertNotIn("insertAdjacentHTML", app)
@@ -133,7 +136,7 @@ class OperationsConsoleTest(unittest.TestCase):
         self.assertNotIn("access_token=", app)
         self.assertNotIn(API_TOKEN, app)
 
-    def test_console_contains_required_operational_sections_and_no_mutation_controls(self):
+    def test_console_contains_only_admitted_human_review_mutation_control(self):
         html = (
             Path(hosted.__file__).resolve().parent / "console" / "index.html"
         ).read_text(encoding="utf-8")
@@ -143,12 +146,18 @@ class OperationsConsoleTest(unittest.TestCase):
             'id="workers"',
             'id="execution"',
             'id="reviews"',
+            'id="review-control"',
+            'id="review-form"',
+            'id="review-gate"',
+            'id="review-artifact"',
+            'id="review-verdict"',
             'id="claims"',
             'id="completions"',
         ):
             self.assertIn(section, html)
         lowered = html.lower()
-        self.assertNotIn("submit review", lowered)
+        self.assertIn("submit human review", lowered)
+        self.assertIn("no verdict is selected automatically", lowered)
         self.assertNotIn("pause objective", lowered)
         self.assertNotIn("cancel objective", lowered)
         self.assertNotIn("continue skyforge", lowered)
