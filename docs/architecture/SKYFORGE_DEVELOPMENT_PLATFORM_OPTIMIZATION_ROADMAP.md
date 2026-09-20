@@ -201,7 +201,7 @@ A bounded **pre-Bootstrap Operations Console** is explicitly pulled forward ahea
 Canonical gate and detailed acceptance criteria:
 `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md`.
 
-This requirement is **deferred while DR-70 is active**. It must not displace or perturb the current DR-70 execution/re-review path.
+This requirement is **active by owner direction as of 2026-09-20**. The key-2885 DR-70 review returned CHANGES REQUIRED after confirming real channel geomorphology but also exposing poor biome/material/water presentation and a weak small-island showcase. DR-70 remains open but is deliberately deferred while this bounded platform gate addresses the hours of CI/evidence churn required to reach that review.
 
 ## 4. End-state
 
@@ -292,21 +292,21 @@ Prefer retrieval/typed manifests over broad repository dumps. Record context-pac
 
 **Exit:** routine workers no longer perform broad repository archaeology; context size and reconstruction turns fall materially on real tasks.
 
-### OPT-3 — Workload-driven DR-70 execution / platform feedback loop
+### OPT-3 — Workload-driven DR-70 execution / platform feedback loop — PRODUCT WORK DEFERRED
 
-**Goal:** make real Skyforge development the primary platform benchmark.
+**Goal:** make real Skyforge development the primary platform benchmark without forcing repeated expensive product retries through a workflow that has already demonstrated excessive coordination and CI churn.
 
-Resume DR-70 and subsequent product work through OPT-1/2 surfaces. Any general friction becomes a bounded platform repair, then execution returns immediately to the product task.
+The key-2885 review is now the forcing workload: it proved a real channel exists, while leaving biome/material/water presentation and specimen quality unresolved. Preserve those findings and pause further DR-70 implementation until the bounded pre-Bootstrap optimization gate is accepted.
 
-Do not delay DR-70 for unrelated platform polish. Human visual judgment remains human.
+Human visual judgment remains human, and this deferral is not DR-70 acceptance.
 
-**Exit:** several substantive product tasks, including at least one machine implementation task and one human-gated path, complete through the optimized intake/context flow without bespoke orchestration. Project-significant human findings are durably represented/reconciled under X-1, and any repeated human gate demonstrates the X-4 material delta that justifies another review.
+**Exit:** after the platform gate materially improves objective-to-gate throughput/evidence economy, resume DR-70 from the persisted finding without repeating already-retired evidence.
 
-### OPT-3A — Pre-Bootstrap operational control surface — DEFERRED UNTIL DR-70 ACCEPTANCE
+### OPT-3A — Pre-Bootstrap operational control surface — ACTIVE
 
 **Goal:** establish the minimum shared development API, Operations Console, and ChatGPT/MCP visibility needed to supervise concurrent Bootstrap-scale development without using GPT conversations as the control plane.
 
-This tranche begins only after DR-70 human re-review is accepted. It may overlap later hardening once its backing state contracts are stable.
+This tranche begins now by owner direction. It may overlap later hardening once its backing state contracts are stable. DR-70 remains a deferred open product gate and must not be silently treated as accepted.
 
 Minimum scope:
 
@@ -482,13 +482,7 @@ After OPT-10, platform changes are ordinary product engineering: fix measured re
 The roadmap order is directional, not a requirement to finish all platform work before product work. The preferred cadence is:
 
 ```text
-WHILE DR-70 IS ACTIVE
-    OPT-1 objective intake
-     -> OPT-2 context packaging where DR-70 demonstrates need
-     -> continue DR-70
-     -> X-1/X-4 only where current workload justifies them
-
-AFTER DR-70 HUMAN RE-REVIEW IS ACCEPTED
+NOW — DR-70 CHANGES REQUIRED / DEFERRED
     finish OPT-2 bounded context/scope packaging
      -> finish P0 X-1/X-4 workflow truth / gate semantics
      -> OPT-4 routine upgrades
@@ -497,6 +491,8 @@ AFTER DR-70 HUMAN RE-REVIEW IS ACCEPTED
      -> OPT-5 basic conflict-aware concurrency
      -> minimum viable OPT-6 Continue Skyforge
      -> pre-Bootstrap platform gate acceptance
+     -> resume bounded DR-70 repair from persisted findings
+     -> DR-70 human acceptance
      -> Bootstrap Province may become PRIMARY_ACTIVE
 
 LATER / AS NEEDED
@@ -523,6 +519,6 @@ Do not:
 
 ## 8. Current next action
 
-Continue **OPT-3: workload-driven product/platform feedback** through the active DR-70 repair and human re-review. Do not self-pass that human judgment, and do not start the deferred pre-Bootstrap platform gate in a way that perturbs DR-70.
+Activate `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md` now. Complete bounded context/scope packaging, durable project-event and delta-aware gate semantics, routine platform operability, the MVP shared development API/Operations Console/ChatGPT surface, lifecycle hardening, basic conflict-aware concurrency, and minimum viable `Continue Skyforge`.
 
-Once DR-70 human re-review is **ACCEPTED**, activate `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md`: complete bounded context/scope packaging, durable project-event and delta-aware gate semantics, routine platform operability, the MVP shared development API/Operations Console/ChatGPT surface, lifecycle hardening, basic conflict-aware concurrency, and minimum viable `Continue Skyforge`. Full Bootstrap Province should become the primary convergence workload only after that gate passes.
+DR-70 remains **CHANGES REQUIRED / DEFERRED**. Resume its bounded hydrology/presentation repair only after the platform gate materially improves workflow throughput and evidence economy; do not repeat already-retired validation merely because orchestration plumbing changes. Full Bootstrap Province should become the primary convergence workload only after both the platform gate and the resumed DR-70 human gate are accepted.
