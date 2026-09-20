@@ -1,7 +1,7 @@
 # Platform-v2 Routine Accepted-Main Upgrade
 
-**Status:** OPT-4 routine-operability command surface  
-**Authority:** operator/root for execution; read-only by default  
+**Status:** OPT-4 routine-operability command surface
+**Authority:** operator/root for execution; read-only by default
 **Product impact:** none; DR-70 remains CHANGES REQUIRED / DEFERRED
 
 ## Purpose
