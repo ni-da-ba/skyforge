@@ -14,6 +14,21 @@ final class SkyforgeProductionComposedCaveIntegratedTopologySourceTest {
             .normalize();
 
     @Test
+    void composedCavesWaitForWholeVolumeSurfaceEcologyPresentation() throws IOException {
+        String stage = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeComposedCaveStage.java"));
+        String catchup = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePhysicalVolumeCatchupService.java"));
+
+        assertTrue(stage.contains("pendingBiomePresentationChunks(volumeId)"));
+        assertTrue(stage.contains("near-surface cave"));
+        assertTrue(catchup.indexOf("SkyforgeNativeSurfacePopulationStage.populateDeferred")
+                < catchup.indexOf("pumpComposedCaveQuanta"));
+        assertTrue(catchup.indexOf("pumpComposedCaveQuanta")
+                < catchup.indexOf("SkyforgePersistentBiomePresentationStage.present"));
+    }
+
+    @Test
     void dr50AllowsDownstreamInteriorOccupancyWithoutWeakeningStandaloneCaveProof() throws IOException {
         String source = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211ProductionComposedCaveDevRuntime.java"));
