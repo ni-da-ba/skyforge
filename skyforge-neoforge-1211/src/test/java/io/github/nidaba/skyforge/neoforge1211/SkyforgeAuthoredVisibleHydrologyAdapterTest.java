@@ -85,6 +85,27 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void canonicalHydrologyPopulationViewIsImmutableWetOrDryAuthoredGeometry() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var deployments = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
+                fixture.descriptor(), fixture.volume(), terrain);
+
+        for (var deployment : deployments) {
+            for (var wet : deployment.positions()) {
+                var state = terrain.authoredHydrologyPopulationState(fixture.volume().id(), wet)
+                        .orElseThrow();
+                assertTrue(state.is(Blocks.WATER));
+            }
+            for (var dry : deployment.carvedPositions()) {
+                var state = terrain.authoredHydrologyPopulationState(fixture.volume().id(), dry)
+                        .orElseThrow();
+                assertTrue(state.isAir());
+            }
+        }
+    }
+
+    @Test
     void boundedAcceptedCorpusCoversEveryRequiredImplementationKind() {
         Set<SkyforgeAuthoredVisibleHydrologyAdapter.Feature> observed = new HashSet<>();
         for (long key : ACCEPTED_CORPUS_KEYS) {
