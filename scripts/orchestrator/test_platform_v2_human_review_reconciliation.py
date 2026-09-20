@@ -3,6 +3,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from v2.external import ExternalProducerClaim
+from v2.external_service import ExternalClaimLedger, ExternalClaimStore
 from v2.human_review import (
     HumanReviewLedger,
     HumanReviewSource,
@@ -99,6 +101,53 @@ def review(
 
 
 class HumanReviewReconciliationTest(unittest.TestCase):
+    def test_unresolved_exact_prerequisite_external_claim_blocks_human_gate(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            prepare_root(root)
+            ExternalClaimStore.for_root(root).save(
+                ExternalClaimLedger(
+                    (
+                        ExternalProducerClaim(
+                            issue_number=754,
+                            claimed_by="ni-da-ba",
+                            lane="Implementation",
+                            branch="implementation/754-dr70-hydrology-geomorphology",
+                            pr_number=949,
+                        ),
+                    )
+                )
+            )
+            result = compile_objective("Continue DR-70", root=root)
+            self.assertEqual(result.disposition.value, "BLOCKED")
+            self.assertIn("prerequisite issue #754", result.reason)
+            self.assertIn("PR #949", result.reason)
+            self.assertIsNone(result.human_gate)
+
+    def test_unrelated_external_claim_does_not_block_dr70_human_gate(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            prepare_root(root)
+            ExternalClaimStore.for_root(root).save(
+                ExternalClaimLedger(
+                    (
+                        ExternalProducerClaim(
+                            issue_number=613,
+                            claimed_by="ni-da-ba",
+                            lane="Implementation",
+                            branch="platform/613-aero-moment-contract",
+                            pr_number=762,
+                        ),
+                    )
+                )
+            )
+            result = compile_objective("Continue DR-70", root=root)
+            self.assertEqual(result.disposition.value, "HUMAN_GATE")
+            self.assertEqual(
+                result.human_gate.node_id,
+                "dr-human-exploration-rereview",
+            )
+
     def test_continue_dr70_does_not_resurface_deferred_changes_required_gate(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

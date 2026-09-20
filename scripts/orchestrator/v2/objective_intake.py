@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 from typing import Any, Mapping
 
+from .external_service import ExternalClaimStore
 from .human_review import HumanReviewStore, HumanReviewVerdict
 from .identity import canonical_digest
 from .roadmap_service import RoadmapAuthorityLedger
@@ -409,10 +410,27 @@ def compile_continue_objective(
     )
 
 
+def _gate_prerequisite_issue_numbers(
+    manifest: ShadowRoadmapManifest,
+    gate_id: str,
+) -> tuple[int, ...]:
+    by_id = {node.node_id: node for node in manifest.nodes}
+    gate = by_id.get(str(gate_id or ""))
+    if gate is None or gate.kind is not RoadmapNodeKind.GATE:
+        return ()
+    issues: list[int] = []
+    for prerequisite_id in gate.prerequisites:
+        prerequisite = by_id.get(prerequisite_id)
+        if prerequisite is not None and prerequisite.issue_number is not None:
+            issues.append(prerequisite.issue_number)
+    return tuple(sorted(set(issues)))
+
+
 def _reconcile_human_review_projection(
     result: ObjectiveCompileResult,
     *,
     root: Path,
+    manifest: ShadowRoadmapManifest,
 ) -> ObjectiveCompileResult:
     if (
         result.disposition is not ObjectiveCompileDisposition.HUMAN_GATE
@@ -420,6 +438,31 @@ def _reconcile_human_review_projection(
         or result.human_gate is None
     ):
         return result
+
+    external = ExternalClaimStore.for_root(root).load()
+    blocking_claims = [
+        external.get(issue_number)
+        for issue_number in _gate_prerequisite_issue_numbers(
+            manifest, result.human_gate.node_id
+        )
+    ]
+    blocking_claims = [claim for claim in blocking_claims if claim is not None]
+    if blocking_claims:
+        claim = blocking_claims[0]
+        suffix = (
+            f" / PR #{claim.pr_number}"
+            if claim.pr_number is not None
+            else ""
+        )
+        return ObjectiveCompileResult(
+            ObjectiveCompileDisposition.BLOCKED,
+            result.request,
+            (
+                "durable external producer authority remains active for human-gate "
+                f"prerequisite issue #{claim.issue_number}{suffix}; reconcile that work "
+                "before reporting the human gate ready"
+            ),
+        )
 
     ledger = HumanReviewStore.for_root(root).load()
     latest = ledger.latest_for_gate(result.human_gate.node_id)
@@ -455,4 +498,8 @@ def compile_objective(text: str, *, root: Path) -> ObjectiveCompileResult:
     manifest = load_manifest(root)
     state = load_authoritative_roadmap_state(root, manifest)
     result = compile_continue_objective(parsed.request, manifest=manifest, state=state)
-    return _reconcile_human_review_projection(result, root=Path(root))
+    return _reconcile_human_review_projection(
+        result,
+        root=Path(root),
+        manifest=manifest,
+    )
