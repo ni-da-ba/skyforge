@@ -100,6 +100,8 @@ final class SkyforgeNativeCarverCursor {
     private int standaloneAnchors;
     private int writeAttempts;
     private int acceptedWrites;
+    private int acceptedUniquePositions;
+    private long acceptedPositionDigest = FNV_OFFSET_BASIS;
     private int rejectedWrites;
     private int rejectedFluidWrites;
     private int changedBlocks;
@@ -280,6 +282,10 @@ final class SkyforgeNativeCarverCursor {
                 standaloneAnchors, verticalSnapshot.standaloneAnchors());
         writeAttempts = Math.addExact(writeAttempts, writeSnapshot.writeAttempts());
         acceptedWrites = Math.addExact(acceptedWrites, writeSnapshot.acceptedWriteAttempts());
+        acceptedUniquePositions = Math.addExact(
+                acceptedUniquePositions, writeSnapshot.acceptedUniquePositions());
+        acceptedPositionDigest = mix(
+                acceptedPositionDigest, writeSnapshot.acceptedPositionDigest());
         rejectedWrites = Math.addExact(rejectedWrites, writeSnapshot.rejectedWriteAttempts());
         rejectedFluidWrites = Math.addExact(
                 rejectedFluidWrites, writeSnapshot.rejectedFluidWriteAttempts());
@@ -342,6 +348,8 @@ final class SkyforgeNativeCarverCursor {
                 standaloneAnchors,
                 writeAttempts,
                 acceptedWrites,
+                acceptedUniquePositions,
+                acceptedPositionDigest,
                 rejectedWrites,
                 rejectedFluidWrites,
                 changedBlocks,
