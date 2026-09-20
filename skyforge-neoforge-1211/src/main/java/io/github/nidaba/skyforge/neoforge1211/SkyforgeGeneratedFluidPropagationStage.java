@@ -121,12 +121,22 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         if (state.getType() == Fluids.WATER || state.getType() == Fluids.FLOWING_WATER) {
             var authoredVolume = SkyforgeNeoForge1211SurfaceStage.authoredVisibleHydrologyVolumeId(position);
             if (authoredVolume.isPresent()) {
+                SkyIslandWorldVolumeId volumeId = authoredVolume.orElseThrow();
+                if (!SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId).isEmpty()) {
+                    // Deferred terrain realization and its immediately-following native population
+                    // are a deterministic generation transaction for an admitted volume. Do not let
+                    // asynchronous water simulation mutate later chunks while that transaction is
+                    // still open. Requeue instead of consuming the tick so authored water becomes
+                    // ordinary Minecraft fluid as soon as the last catch-up/population call returns.
+                    serverLevel.scheduleTick(position, state.getType(), 20);
+                    return false;
+                }
                 // Authored water is allowed to execute ordinary Minecraft fluid behavior, but only
                 // inside the exact immutable AUTH-0086 water footprint. Reads/writes outside that
                 // footprint are fenced by the same propagation hooks used for generated fluids.
                 ACTIVE.set(new Context(
                         serverLevel,
-                        authoredVolume.orElseThrow(),
+                        volumeId,
                         Mode.PROPAGATION,
                         BoundaryPolicy.AUTHORED_HYDROLOGY));
                 return true;
