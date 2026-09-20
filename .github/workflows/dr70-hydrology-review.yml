@@ -109,4 +109,3 @@ jobs:
             :skyforge-neoforge-1211:test \
             --tests '${{ matrix.test_class }}' \
             --stacktrace --no-configuration-cache
-
