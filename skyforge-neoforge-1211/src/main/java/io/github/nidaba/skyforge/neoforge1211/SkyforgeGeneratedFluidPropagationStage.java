@@ -122,12 +122,13 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             var authoredVolume = SkyforgeNeoForge1211SurfaceStage.authoredVisibleHydrologyVolumeId(position);
             if (authoredVolume.isPresent()) {
                 SkyIslandWorldVolumeId volumeId = authoredVolume.orElseThrow();
-                if (!SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId).isEmpty()) {
-                    // Deferred terrain realization and its immediately-following native population
-                    // are a deterministic generation transaction for an admitted volume. Do not let
-                    // asynchronous water simulation mutate later chunks while that transaction is
-                    // still open. Requeue instead of consuming the tick so authored water becomes
-                    // ordinary Minecraft fluid as soon as the last catch-up/population call returns.
+                if (authoredHydrologyGenerationPending(volumeId)) {
+                    // Terrain catch-up, stable surface population, composed cave realization, and
+                    // native interior population form one deterministic generation transaction for
+                    // an admitted volume. Do not let asynchronous water simulation mutate state that
+                    // later generation phases can observe. Requeue instead of consuming the tick;
+                    // ordinary Minecraft fluid behavior begins immediately after the transaction
+                    // becomes terminal.
                     serverLevel.scheduleTick(position, state.getType(), 20);
                     return false;
                 }
@@ -176,6 +177,19 @@ public final class SkyforgeGeneratedFluidPropagationStage {
                 Mode.PROPAGATION,
                 provenance.boundaryPolicy()));
         return true;
+    }
+
+    static boolean authoredHydrologyGenerationPending(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        if (!SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId).isEmpty()) {
+            return true;
+        }
+        var caves = SkyforgeComposedCaveStage.snapshot(volumeId);
+        if (caves.totalObligations() > 0 && caves.pendingObligations() > 0) {
+            return true;
+        }
+        var interior = SkyforgeNativeInteriorPopulationStage.snapshot(volumeId);
+        return interior.totalObligations() > 0 && interior.pendingObligations() > 0;
     }
 
     /** Closes the propagation scope opened at the start of one generated FlowingFluid tick. */
