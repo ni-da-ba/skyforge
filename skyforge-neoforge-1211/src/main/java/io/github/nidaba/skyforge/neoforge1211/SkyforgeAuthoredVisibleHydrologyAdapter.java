@@ -179,7 +179,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     range.minimumY(),
                     baseSurfaceY - physicalLoweringBlocks(descriptor, lowering));
 
-            var authoredWater = fluvial.waterSurfacePotential(local);
+            var authoredWater = distanceToPath(local, path) <= reach.wetHalfWidth()
+                    ? fluvial.waterSurfacePotential(local)
+                    : java.util.OptionalDouble.empty();
             int waterTopY = Integer.MIN_VALUE;
             if (authoredWater.isPresent() && drySurfaceY < baseSurfaceY) {
                 double waterDelta = authoredWater.orElseThrow() - basePotential;

@@ -102,6 +102,39 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void eachChannelDeploymentKeepsWetCellsInsideItsOwnAuthoredWetCorridor() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var intent = io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner.plan(
+                fixture.descriptor());
+        var fluvial = io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField.create(
+                fixture.descriptor(), intent.coherentHydrology());
+        var deployments = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
+                fixture.descriptor(), fixture.volume(), terrain);
+        var channels = deployments.stream()
+                .filter(deployment -> deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL)
+                .toList();
+
+        assertEquals(intent.channels().size(), channels.size());
+        var physical = fixture.volume().compiledVolume().descriptor();
+        for (int index = 0; index < channels.size(); index++) {
+            var path = intent.channels().get(index).path();
+            var reach = fluvial.reaches().stream()
+                    .filter(candidate -> candidate.path().equals(path))
+                    .findFirst()
+                    .orElseThrow();
+            for (var wet : channels.get(index).positions()) {
+                var local = new io.github.nidaba.skyforge.world.SkyIslandLocalPosition(
+                        wet.getX() - physical.centerX(),
+                        wet.getZ() - physical.centerZ());
+                assertTrue(
+                        distanceToPath(local, path) <= reach.wetHalfWidth() + 1.0e-9,
+                        "one channel deployment must not borrow a neighboring reach's water surface");
+            }
+        }
+    }
+
+    @Test
     void canonicalHydrologyPopulationViewIsImmutableWetOrDryAuthoredGeometry() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
@@ -231,6 +264,31 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertFalse(upper.isEmpty());
         assertOwned(lower, terrain);
         assertOwned(upper, terrain);
+    }
+
+    private static double distanceToPath(
+            io.github.nidaba.skyforge.world.SkyIslandLocalPosition position,
+            io.github.nidaba.skyforge.world.SkyIslandNaturalizedChannelPath path) {
+        double best = Double.POSITIVE_INFINITY;
+        var points = path.points();
+        for (int index = 1; index < points.size(); index++) {
+            var a = points.get(index - 1);
+            var b = points.get(index);
+            double dx = b.x() - a.x();
+            double dz = b.z() - a.z();
+            double lengthSquared = dx * dx + dz * dz;
+            if (lengthSquared <= 1.0e-12) {
+                best = Math.min(best, Math.hypot(position.x() - a.x(), position.z() - a.z()));
+                continue;
+            }
+            double px = position.x() - a.x();
+            double pz = position.z() - a.z();
+            double fraction = Math.max(0.0, Math.min(1.0, (px * dx + pz * dz) / lengthSquared));
+            double nearestX = a.x() + fraction * dx;
+            double nearestZ = a.z() + fraction * dz;
+            best = Math.min(best, Math.hypot(position.x() - nearestX, position.z() - nearestZ));
+        }
+        return best;
     }
 
     private static Set<SkyforgeAuthoredVisibleHydrologyAdapter.Feature> authoredFeatureKinds(
