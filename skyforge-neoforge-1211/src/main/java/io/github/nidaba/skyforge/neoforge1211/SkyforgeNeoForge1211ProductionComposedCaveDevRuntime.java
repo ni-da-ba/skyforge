@@ -221,6 +221,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         int resultChunks = 0;
         int emptyChunks = 0;
         int nativeChangedBlocks = 0;
+        int nativeAcceptedCarveBlocks = 0;
         int nativeSuccessfulCalls = 0;
         int nativeRejectedWrites = 0;
         int nativeRejectedFluidWrites = 0;
@@ -252,6 +253,8 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
             var nativeResult = result.nativeResult();
             var authoredResult = result.authoredResult();
             nativeChangedBlocks = Math.addExact(nativeChangedBlocks, nativeResult.changedBlocks());
+            nativeAcceptedCarveBlocks = Math.addExact(
+                    nativeAcceptedCarveBlocks, nativeResult.acceptedUniquePositions());
             nativeSuccessfulCalls = Math.addExact(nativeSuccessfulCalls, nativeResult.successfulCalls());
             nativeRejectedWrites = Math.addExact(nativeRejectedWrites, nativeResult.rejectedWrites());
             nativeRejectedFluidWrites = Math.addExact(
@@ -268,7 +271,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
             nativeTransformDigest = mix(nativeTransformDigest, completion.chunkPos().toLong());
             nativeTransformDigest = mix(nativeTransformDigest, nativeResult.transformDigest());
             nativeCarveDigest = mix(nativeCarveDigest, completion.chunkPos().toLong());
-            nativeCarveDigest = mix(nativeCarveDigest, nativeResult.changedPositionDigest());
+            nativeCarveDigest = mix(nativeCarveDigest, nativeResult.acceptedPositionDigest());
             authoredChangedDigest = mix(authoredChangedDigest, completion.chunkPos().toLong());
             authoredChangedDigest = mix(authoredChangedDigest, authoredResult.changedPositionDigest());
             authoredProvenanceDigest = mix(authoredProvenanceDigest, completion.chunkPos().toLong());
@@ -291,6 +294,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                 : finalEvidence.finalAuthoredAir() == authoredPositive;
         if (resultChunks <= 0
                 || nativeChangedBlocks <= 0
+                || nativeAcceptedCarveBlocks <= 0
                 || nativeSuccessfulCalls <= 0
                 || nativeUnsafeRejectedWrites != 0
                 || nativeMappedOutsideTarget != 0
@@ -309,6 +313,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                     "SF-IMP-0068 production composed-cave evidence incomplete: resultChunks=" + resultChunks
                             + ", emptyChunks=" + emptyChunks
                             + ", nativeChanged=" + nativeChangedBlocks
+                            + ", nativeAcceptedCarve=" + nativeAcceptedCarveBlocks
                             + ", nativeSuccessful=" + nativeSuccessfulCalls
                             + ", rejected=" + nativeRejectedWrites
                             + ", rejectedFluidShell=" + nativeRejectedFluidWrites
@@ -386,6 +391,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         java.util.Map.entry("resultChunks", resultChunks),
                         java.util.Map.entry("emptyChunks", emptyChunks),
                         java.util.Map.entry("nativeChangedBlocks", nativeChangedBlocks),
+                        java.util.Map.entry("nativeAcceptedCarveBlocks", nativeAcceptedCarveBlocks),
                         java.util.Map.entry("nativeSuccessfulCalls", nativeSuccessfulCalls),
                         java.util.Map.entry("nativeOnlyAir", finalEvidence.nativeOnlyAir()),
                         java.util.Map.entry("nativeRejectedWrites", nativeRejectedWrites),
