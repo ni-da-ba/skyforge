@@ -1123,20 +1123,79 @@ class HostedV2Substrate:
 class Handler(BaseHTTPRequestHandler):
     runtime: HostedV2Substrate
 
-    def _respond_json(self, status: int, payload: dict[str, Any]) -> None:
+    def _respond_json(
+        self,
+        status: int,
+        payload: dict[str, Any],
+        *,
+        headers: Mapping[str, str] | None = None,
+    ) -> None:
         body = json.dumps(payload, sort_keys=True).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        for key, value in (headers or {}).items():
+            self.send_header(key, value)
         self.end_headers()
         self.wfile.write(body)
 
-    def _respond_bytes(self, status: int, media_type: str, payload: bytes) -> None:
+    def _respond_bytes(
+        self,
+        status: int,
+        media_type: str,
+        payload: bytes,
+        *,
+        headers: Mapping[str, str] | None = None,
+    ) -> None:
         self.send_response(status)
         self.send_header("Content-Type", media_type)
         self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store")
+        for key, value in (headers or {}).items():
+            self.send_header(key, value)
         self.end_headers()
         self.wfile.write(payload)
+
+    def _respond_not_modified(self, etag: str) -> None:
+        self.send_response(304)
+        self.send_header("ETag", etag)
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+
+    def _console_asset(self, path: str) -> tuple[str, bytes] | None:
+        assets = {
+            "/console": ("text/html; charset=utf-8", "index.html"),
+            "/console/": ("text/html; charset=utf-8", "index.html"),
+            "/console/app.js": ("text/javascript; charset=utf-8", "app.js"),
+            "/console/styles.css": ("text/css; charset=utf-8", "styles.css"),
+        }
+        entry = assets.get(path)
+        if entry is None:
+            return None
+        media_type, filename = entry
+        content = (
+            Path(__file__).resolve().parent
+            / "console"
+            / filename
+        ).read_bytes()
+        return media_type, content
+
+    def _respond_console_asset(self, media_type: str, payload: bytes) -> None:
+        self._respond_bytes(
+            200,
+            media_type,
+            payload,
+            headers={
+                "Content-Security-Policy": (
+                    "default-src 'self'; script-src 'self'; style-src 'self'; "
+                    "connect-src 'self'; img-src 'self' blob:; object-src 'none'; "
+                    "base-uri 'none'; frame-ancestors 'none'"
+                ),
+                "Referrer-Policy": "no-referrer",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
 
     def do_GET(self) -> None:  # noqa: N802
         path = urlsplit(self.path).path
@@ -1144,9 +1203,23 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/healthz":
             self._respond_json(200, self.runtime.health_snapshot())
             return
+        console_asset = self._console_asset(path)
+        if console_asset is not None:
+            media_type, payload = console_asset
+            self._respond_console_asset(media_type, payload)
+            return
         if path == "/api/v1/development-state":
             status, payload = self.runtime.handle_development_read(authorization)
-            self._respond_json(status, payload)
+            if status == 200:
+                digest = str(payload.get("snapshot_digest") or "")
+                etag = f'"{digest}"' if digest else ""
+                if etag and self.headers.get("If-None-Match") == etag:
+                    self._respond_not_modified(etag)
+                    return
+                headers = {"ETag": etag} if etag else None
+                self._respond_json(status, payload, headers=headers)
+            else:
+                self._respond_json(status, payload)
             return
         if path == "/api/v1/artifacts":
             status, payload = self.runtime.handle_artifact_list(authorization)

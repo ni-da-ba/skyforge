@@ -126,6 +126,18 @@ GET /api/v1/artifacts/<artifact-id>
 GET /api/v1/artifacts/<artifact-id>/content
 ```
 
+The bounded Operations Console is served at:
+
+```text
+GET /console
+```
+
+The console is a thin read-only client. Enter the development API bearer token in the browser to
+connect; the token is kept in browser session scope and is sent only in the Authorization header.
+The console polls the canonical development snapshot every few seconds and uses its digest as an
+ETag so unchanged state returns HTTP 304 and is not rerendered. Static console assets contain no
+project data, credentials, or mutation controls.
+
 Artifact manifests are source-controlled in `docs/agent-state/REVIEW_ARTIFACTS.json`. Interactive
 specimens expose exact launch/preparation identity but deliberately have no direct `/content` bytes.
 File artifacts are served only from an exact source-SHA repository blob after manifest size and
