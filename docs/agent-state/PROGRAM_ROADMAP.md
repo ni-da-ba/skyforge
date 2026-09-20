@@ -348,6 +348,24 @@ When this exists, the larger risk becomes complete player experience rather than
 
 **State:** PLANNED, with substantial already-authorized bounded work.
 
+### Entry condition — pre-Bootstrap development platform gate
+
+Full Bootstrap Province must not become the **PRIMARY_ACTIVE** convergence workload until the owner-approved gate in `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md` is accepted.
+
+The key-2885 DR-70 human re-review returned **CHANGES REQUIRED** on 2026-09-20. By owner direction, further DR-70 product work is deferred and this gate is now active. The current DR-70 findings must remain preserved as an open product gate while platform work proceeds.
+
+The bounded transition now hardens:
+
+- automatic context/scope packaging;
+- durable significant project/human events and material-delta human gates;
+- routine platform upgrade/operability;
+- one shared development backend with an MVP Operations Console and ChatGPT/MCP visibility;
+- lifecycle/adversarial evidence sufficient for bounded concurrency;
+- basic conflict-aware multi-objective scheduling;
+- minimum viable `Continue Skyforge` autonomous progression.
+
+Already-authorized bounded Bootstrap work may continue under the existing-work exception, but that exception does not waive this entry condition for making Phase 3 the primary program focus.
+
 ### Objective
 
 Produce the first complete Skyforge game slice from crash through independent Skyfarer status and one genuine post-tutorial systemic freight/economy loop.
@@ -787,6 +805,28 @@ Treat the End as the Minecraft backend for the extreme upper-atmosphere / highes
 
 These remain valid setting/architecture possibilities but are not required for the first complete Minecraft realization unless future player evidence or owner strategy deliberately promotes them.
 
+### RM-R06 — pre-Bootstrap development-platform hardening — RESOLVED
+
+Execute the bounded workflow-convergence gate in `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md` now, before resuming the deferred DR-70 product repair and before promoting Bootstrap Province to PRIMARY_ACTIVE.
+
+The resolved direction is:
+
+```text
+DR-70 changes required / deferred
+ -> bounded context + workflow-truth hardening
+ -> routine platform operability
+ -> shared backend + MVP Operations Console + ChatGPT/MCP
+ -> lifecycle hardening
+ -> basic safe concurrency
+ -> minimum viable Continue Skyforge
+ -> pre-Bootstrap gate accepted
+ -> resume bounded DR-70 repair
+ -> DR-70 human gate accepted
+ -> Phase 3 PRIMARY_ACTIVE
+```
+
+The console, ChatGPT, CLI, and future Studio are clients of one development backend; they do not become independent sources of project truth. This transition is active now by owner direction; DR-70 remains an open deferred gate, not an accepted one.
+
 ## 19. What the orchestrator should do today
 
 At the time this roadmap is introduced:
@@ -809,6 +849,8 @@ The orchestrator should therefore:
 8. leave broad atmosphere/shader, mature industry, adventure/Nether, End, Lower Sea, and future-backend work dormant except for the explicitly authorized feasibility/dependency exceptions above.
 
 If repository state has advanced beyond this snapshot, use current accepted evidence to determine which criteria have already been satisfied rather than blindly repeating them.
+
+**Current transition:** RM-R06 is the active program-level transition gate. The 2026-09-20 key-2885 DR-70 review returned CHANGES REQUIRED but demonstrated real channel geomorphology; further DR-70 work is deliberately deferred until RM-R06 materially improves workflow throughput/evidence economy. After RM-R06 acceptance, resume the bounded DR-70 repair and obtain human acceptance before Phase 3 may become PRIMARY_ACTIVE.
 
 ## 20. Maintenance rule
 
