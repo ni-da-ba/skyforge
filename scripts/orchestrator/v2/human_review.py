@@ -321,3 +321,81 @@ def parse_human_review_comment(
         deferred_product_work=review.get("deferred_product_work"),
         prior_review_id=review.get("prior_review_id"),
     )
+
+
+class RepeatReviewDisposition(str, Enum):
+    READY_FIRST_REVIEW = "READY_FIRST_REVIEW"
+    READY_NEW_MATERIAL_DELTA = "READY_NEW_MATERIAL_DELTA"
+    BLOCKED_ALREADY_ACCEPTED = "BLOCKED_ALREADY_ACCEPTED"
+    BLOCKED_UNCHANGED_ARTIFACT = "BLOCKED_UNCHANGED_ARTIFACT"
+    BLOCKED_MISSING_PRIOR_LINK = "BLOCKED_MISSING_PRIOR_LINK"
+    BLOCKED_MISSING_MATERIAL_DELTA = "BLOCKED_MISSING_MATERIAL_DELTA"
+
+
+@dataclass(frozen=True)
+class RepeatReviewReadiness:
+    disposition: RepeatReviewDisposition
+    reason: str
+    prior_review_id: str | None = None
+
+    @property
+    def ready(self) -> bool:
+        return self.disposition in {
+            RepeatReviewDisposition.READY_FIRST_REVIEW,
+            RepeatReviewDisposition.READY_NEW_MATERIAL_DELTA,
+        }
+
+
+def evaluate_repeat_review_readiness(
+    ledger: HumanReviewLedger,
+    *,
+    gate_id: str,
+    artifact_id: str,
+    source_sha: str,
+    material_delta: str,
+    prior_review_id: str | None,
+) -> RepeatReviewReadiness:
+    """Enforce X-4 before a repeated human gate is allowed to resurface."""
+
+    gate = _required(gate_id, "gate_id")
+    artifact = _required(artifact_id, "artifact_id")
+    sha = _required(source_sha, "source_sha").lower()
+    if not _SHA_RE.fullmatch(sha):
+        raise ValueError("source_sha must be an exact 40-character lowercase hex commit")
+    delta = _required(material_delta, "material_delta")
+
+    latest = ledger.latest_for_gate(gate)
+    if latest is None:
+        return RepeatReviewReadiness(
+            RepeatReviewDisposition.READY_FIRST_REVIEW,
+            "no prior review exists for this gate",
+        )
+    if latest.verdict is HumanReviewVerdict.ACCEPTED:
+        return RepeatReviewReadiness(
+            RepeatReviewDisposition.BLOCKED_ALREADY_ACCEPTED,
+            "latest durable human review already accepted this gate",
+            latest.review_id,
+        )
+    if artifact == latest.artifact_id and sha == latest.source_sha:
+        return RepeatReviewReadiness(
+            RepeatReviewDisposition.BLOCKED_UNCHANGED_ARTIFACT,
+            "repeated human review may not resurface the unchanged artifact",
+            latest.review_id,
+        )
+    if prior_review_id != latest.review_id:
+        return RepeatReviewReadiness(
+            RepeatReviewDisposition.BLOCKED_MISSING_PRIOR_LINK,
+            "repeated review must link the latest durable human review",
+            latest.review_id,
+        )
+    if delta == latest.material_delta:
+        return RepeatReviewReadiness(
+            RepeatReviewDisposition.BLOCKED_MISSING_MATERIAL_DELTA,
+            "repeated review must name a new material delta addressing the prior finding",
+            latest.review_id,
+        )
+    return RepeatReviewReadiness(
+        RepeatReviewDisposition.READY_NEW_MATERIAL_DELTA,
+        "new artifact and linked material delta justify another human review",
+        latest.review_id,
+    )

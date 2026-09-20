@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 from typing import Any, Mapping
 
+from .human_review import HumanReviewStore, HumanReviewVerdict
 from .identity import canonical_digest
 from .roadmap_service import RoadmapAuthorityLedger
 from .roadmap_shadow import (
@@ -408,10 +409,50 @@ def compile_continue_objective(
     )
 
 
+def _reconcile_human_review_projection(
+    result: ObjectiveCompileResult,
+    *,
+    root: Path,
+) -> ObjectiveCompileResult:
+    if (
+        result.disposition is not ObjectiveCompileDisposition.HUMAN_GATE
+        or result.request is None
+        or result.human_gate is None
+    ):
+        return result
+
+    ledger = HumanReviewStore.for_root(root).load()
+    latest = ledger.latest_for_gate(result.human_gate.node_id)
+    if latest is None:
+        return result
+
+    if latest.verdict is HumanReviewVerdict.ACCEPTED:
+        reason = (
+            "latest durable human review accepted this gate, but roadmap authority still "
+            "projects it as blocked; reconciliation is required before more work or review"
+        )
+    elif latest.deferred_product_work:
+        reason = (
+            "latest durable human review returned CHANGES_REQUIRED and explicitly deferred "
+            "product work; do not resurface the unchanged human gate"
+        )
+    else:
+        reason = (
+            "latest durable human review returned CHANGES_REQUIRED; a new qualified artifact "
+            "and material delta are required before this human gate may resurface"
+        )
+    return ObjectiveCompileResult(
+        ObjectiveCompileDisposition.BLOCKED,
+        result.request,
+        reason,
+    )
+
+
 def compile_objective(text: str, *, root: Path) -> ObjectiveCompileResult:
     parsed = parse_objective(text)
     if parsed.request is None or parsed.request.intent is not ObjectiveIntent.CONTINUE:
         return parsed
     manifest = load_manifest(root)
     state = load_authoritative_roadmap_state(root, manifest)
-    return compile_continue_objective(parsed.request, manifest=manifest, state=state)
+    result = compile_continue_objective(parsed.request, manifest=manifest, state=state)
+    return _reconcile_human_review_projection(result, root=Path(root))
