@@ -30,9 +30,19 @@ jobs:
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
 
+      # Select from the already-ranked AUTH-0105 finalists before paying for a Minecraft runtime.
+      # This is a focused physical-admissibility preflight, not a second exhaustive unit-test pass.
+      - name: Verify DR-70 physical review specimen
+        timeout-minutes: 10
+        run: |
+          ./gradlew \
+            :skyforge-neoforge-1211:test \
+            --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70SpecimenSearchTest' \
+            --stacktrace --no-configuration-cache
+
       # Required CI owns exhaustive unit tests. DR-70 owns only the bounded production-world
       # and reload characterization needed before the human visual gate.
-      - name: Qualify bounded key-421 review world and reload
+      - name: Qualify bounded DR-70 review world and reload
         timeout-minutes: 38
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"

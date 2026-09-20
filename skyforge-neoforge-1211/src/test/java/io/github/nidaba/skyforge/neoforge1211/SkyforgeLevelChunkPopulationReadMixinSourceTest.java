@@ -25,6 +25,12 @@ final class SkyforgeLevelChunkPopulationReadMixinSourceTest {
         assertTrue(blockFluidSource.contains("getBlockState"));
         assertTrue(blockFluidSource.contains("getFluidState"));
 
+        String levelSource = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeLevelDomainMixin.java"));
+        assertTrue(levelSource.contains("SkyforgeWorldGenRegionDomainBridge.populationActive()"));
+        assertTrue(levelSource.contains("SkyforgeWorldGenRegionDomainBridge.authoredHydrologyPopulationState(position)"));
+        assertTrue(levelSource.contains("authoredHydrology.orElseThrow().getFluidState()"));
+
         String heightSource = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeChunkAccessPopulationHeightMixin.java"));
         assertTrue(heightSource.contains("@Mixin(ChunkAccess.class)"));
