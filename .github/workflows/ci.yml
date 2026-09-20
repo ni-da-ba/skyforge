@@ -42,6 +42,7 @@ jobs:
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             echo "full=true" >> "${GITHUB_OUTPUT}"
             echo "music=true" >> "${GITHUB_OUTPUT}"
+            echo "reason=manual dispatch requests full CI and music-source verification" >> "${GITHUB_OUTPUT}"
             echo "Manual dispatch requests full CI and music-source verification."
             exit 0
           fi
@@ -55,33 +56,23 @@ jobs:
           else
             echo "full=true" >> "${GITHUB_OUTPUT}"
             echo "music=true" >> "${GITHUB_OUTPUT}"
+            echo "reason=unknown event type fails safe to full CI" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
           if [[ -z "${base}" || "${base}" =~ ^0+$ ]] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
             echo "full=true" >> "${GITHUB_OUTPUT}"
             echo "music=true" >> "${GITHUB_OUTPUT}"
+            echo "reason=unable to establish safe comparison base" >> "${GITHUB_OUTPUT}"
             echo "Unable to establish a safe comparison base; running full CI and music-source verification."
             exit 0
           fi
 
-          changed="$(git diff --name-only "${base}" "${head}")"
-          printf '%s\n' "${changed}"
-
-          if printf '%s\n' "${changed}" | grep -Eq '^(assets/music/|scripts/music/verify_music_sources\.py$|\.github/workflows/ci\.yml$)'; then
-            echo "music=true" >> "${GITHUB_OUTPUT}"
-            echo "Music source/verifier impact detected: enabling music-source verification."
-          else
-            echo "music=false" >> "${GITHUB_OUTPUT}"
-          fi
-
-          if [[ -n "${changed}" ]] && ! printf '%s\n' "${changed}" | grep -Ev '^(docs/|scripts/orchestrator/|deploy/orchestrator/|\.github/workflows/orchestrator-smoke\.yml$|AGENTS\.md$|README\.md$|CONTRIBUTING\.md$|SECURITY\.md$|CODE_OF_CONDUCT\.md$)' >/dev/null; then
-            echo "full=false" >> "${GITHUB_OUTPUT}"
-            echo "Lightweight docs/orchestration-only change: skipping Gradle/evidence generation."
-          else
-            echo "full=true" >> "${GITHUB_OUTPUT}"
-            echo "Product code, asset, build, or general workflow impact detected: running full CI."
-          fi
+          mapfile -t changed_paths < <(git diff --name-only "${base}" "${head}")
+          printf '%s\n' "${changed_paths[@]}"
+          python3 scripts/ci/classify_validation_impact.py \
+            --github-output "${GITHUB_OUTPUT}" \
+            "${changed_paths[@]}"
 
       - name: Verify exact-stack fixture runner semantics
         if: steps.impact.outputs.full == 'true'
@@ -100,11 +91,24 @@ jobs:
           test -f docs/agent-state/CROSS_LANE_CONTRACTS.md
           test -f docs/agent-state/VALIDATION_POLICY.md
           test -f docs/agent-state/HUMAN_STRATEGY_ROADMAP.md
-          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- AGENTS.md README.md docs scripts/orchestrator deploy/orchestrator; then
-            echo "Merge-conflict marker found in documentation/state."
+          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- AGENTS.md README.md docs scripts/orchestrator deploy/orchestrator scripts/ci config/ci .github/workflows; then
+            echo "Merge-conflict marker found in lightweight validation surface."
             exit 1
           fi
           echo "PASS lightweight repository integrity gate"
+
+      - name: Validate CI helper and retained workflow contracts
+        if: steps.impact.outputs.full != 'true'
+        working-directory: scripts/ci
+        run: python3 -m unittest -v
+
+      - name: Validate canonical evidence manifest without product build
+        if: steps.impact.outputs.full != 'true'
+        run: python3 scripts/ci/verify_evidence_entry_points.py --validate-manifest
+
+      - name: Verify retained DR workflow contracts
+        if: steps.impact.outputs.full != 'true'
+        run: python3 scripts/ci/verify_validation_workflows.py
 
       - name: Set up Java and Gradle
         if: steps.impact.outputs.full == 'true'

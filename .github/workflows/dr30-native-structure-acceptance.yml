@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - "skyforge-neoforge-1211/**"
-      - ".github/workflows/dr30-native-structure-acceptance.yml"
   workflow_dispatch:
 
 permissions:
@@ -26,10 +25,6 @@ jobs:
 
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
-
-      - name: Compile and unit-test DR-30 runtime
-        timeout-minutes: 20
-        run: ./gradlew :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:test --stacktrace --no-configuration-cache
 
       - name: Qualify native placement, reload mutation, and stacked isolation
         timeout-minutes: 30
