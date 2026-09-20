@@ -19,7 +19,7 @@ final class SkyforgeDr70ReviewRepairTest {
     @Test
     void selectedReviewSpecimenIsBoundedAndExercisesHydrologyAndCaves() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
-        assertEquals(421L, fixture.islandKey());
+        assertEquals(2885L, fixture.islandKey());
         assertTrue(fixture.descriptor().nominalRadius() < 120.0,
                 "DR-70 review specimen must remain near the accepted bounded runtime workload");
         assertTrue(fixture.field().exposureGeometry().connectionCount() > 0,

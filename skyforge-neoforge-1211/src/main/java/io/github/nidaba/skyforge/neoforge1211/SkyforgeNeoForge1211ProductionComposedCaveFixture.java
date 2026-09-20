@@ -26,7 +26,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
     private static final long PROVINCE_KEY = 8L;
     private static final long CLUSTER_KEY = 81L;
     private static final long ISLAND_KEY = 1471L;
-    private static final long DR70_REVIEW_ISLAND_KEY = 421L;
+    private static final long DR70_REVIEW_ISLAND_KEY = 2885L;
     private static final long SINGLE_PHYSICAL_SEED = 680068L;
     private static final long DR70_REVIEW_PHYSICAL_SEED_BASE = 680000L;
     private static final long LOWER_PHYSICAL_SEED = 680168L;
