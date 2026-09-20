@@ -52,9 +52,17 @@ class HumanReviewSource:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "repo", _required(self.repo, "review repo"))
-        if isinstance(self.issue_number, bool) or self.issue_number <= 0:
+        if (
+            isinstance(self.issue_number, bool)
+            or not isinstance(self.issue_number, int)
+            or self.issue_number <= 0
+        ):
             raise ValueError("review issue_number must be positive")
-        if isinstance(self.comment_id, bool) or self.comment_id <= 0:
+        if (
+            isinstance(self.comment_id, bool)
+            or not isinstance(self.comment_id, int)
+            or self.comment_id <= 0
+        ):
             raise ValueError("review comment_id must be positive")
         object.__setattr__(self, "actor", _required(self.actor, "review actor").lower())
         object.__setattr__(self, "created_at", _required(self.created_at, "review created_at"))
