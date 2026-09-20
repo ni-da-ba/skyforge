@@ -85,7 +85,6 @@ from v2.task_event_composition import (
     TaskAuthorityEventStore,
     capture_task_authority_event,
 )
-from v2.worker_provider import WorkerRunStore
 
 
 DEFAULT_REPO = "ni-da-ba/skyforge"
@@ -157,7 +156,11 @@ class HostedV2Substrate:
         self.human_review_store = HumanReviewStore.for_root(self.root)
         self.task_plan_store = HostedTaskPlanStore.for_root(self.root)
         self.admission_store = HostedAdmissionStore.for_root(self.root)
-        self.worker_run_store = WorkerRunStore.for_root(self.root)
+        worker_state_dir = self.root / ".skyforge-platform-v2"
+        self.worker_read_store = JsonStateStoreAdapter(
+            path=worker_state_dir / "worker-runs.json",
+            backup_path=worker_state_dir / "worker-runs.json.bak",
+        )
         self.execution_driver = None
         self._lock = threading.RLock()
         self.state = self.store.load()
@@ -458,7 +461,12 @@ class HostedV2Substrate:
             reviews = self.human_review_store.load()
             plan = self.task_plan_store.load().active
             admission = self.admission_store.load().record
-            workers = self.worker_run_store.load()
+            worker_raw = self.worker_read_store.load().as_dict()
+            if worker_raw not in ({}, None) and worker_raw.get("schema_version") != 1:
+                raise ValueError("invalid worker-run read ledger")
+            worker_records = worker_raw.get("records") or []
+            if not isinstance(worker_records, list):
+                raise ValueError("worker-run read records must be a list")
             completions = HostedCompletionStore.for_root(self.root).load()
             external = self.external_claim_store.load()
 
@@ -489,9 +497,7 @@ class HostedV2Substrate:
                 admission=(
                     admission.as_dict() if admission is not None else None
                 ),
-                worker_records=(
-                    record.as_dict() for record in workers.records
-                ),
+                worker_records=worker_records,
                 completion_records=(
                     record.as_dict() for record in completions.records
                 ),
