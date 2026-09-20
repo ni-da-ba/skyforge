@@ -46,6 +46,17 @@ _SPECIAL_UPGRADE_PATHS = (
     "scripts/orchestrator/stage_platform_v2_cutover.sh",
 )
 
+# A production checkout may occasionally sit on an unmerged validation-maintenance
+# commit after inspecting or repairing CI.  Discarding arbitrary divergent work is
+# forbidden.  Only current-only changes confined to these non-runtime validation
+# surfaces are portable to an accepted target that descends from the last activation
+# baseline.  In particular, scripts/orchestrator/** is intentionally NOT included.
+_PORTABLE_CHECKOUT_ONLY_PREFIXES = (
+    ".github/workflows/",
+    "scripts/ci/",
+    "config/ci/",
+)
+
 
 class RoutineUpgradeDisposition(str, Enum):
     BLOCKED = "BLOCKED"
@@ -274,6 +285,21 @@ class RoutineUpgradeController:
     def _is_ancestor(self, older: str, newer: str) -> bool:
         return self._git_result("merge-base", "--is-ancestor", older, newer, check=False).returncode == 0
 
+    def _current_only_paths(self, current: str, target: str) -> tuple[str, ...]:
+        merge_base = self._git("merge-base", current, target)
+        result = self._git("diff", "--name-only", merge_base, current)
+        return tuple(line for line in result.splitlines() if line.strip())
+
+    def _portable_current_divergence(self, current: str, target: str) -> tuple[bool, tuple[str, ...]]:
+        paths = self._current_only_paths(current, target)
+        if not paths:
+            return True, ()
+        portable = all(
+            any(path.startswith(prefix) for prefix in _PORTABLE_CHECKOUT_ONLY_PREFIXES)
+            for path in paths
+        )
+        return portable, paths
+
     def _legacy_state(self) -> dict[str, Any]:
         return _read_mapping(
             self.root / ".skyforge-orchestrator" / "state.json",
@@ -344,7 +370,12 @@ class RoutineUpgradeController:
                     if baseline is not None and not self._is_ancestor(baseline.accepted_main_sha, target):
                         blockers.append("target is not a forward descendant of prior accepted activation")
                     if previous and not self._is_ancestor(previous, target):
-                        blockers.append("target is not a forward descendant of current checkout HEAD")
+                        portable, current_only = self._portable_current_divergence(previous, target)
+                        if not portable:
+                            blockers.append(
+                                "current checkout contains non-portable divergent changes: "
+                                + ", ".join(current_only)
+                            )
                     if baseline is not None:
                         changed = self._special_path_changes(baseline.accepted_main_sha, target)
                         if changed:

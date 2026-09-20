@@ -196,6 +196,40 @@ class RoutineUpgradeTest(unittest.TestCase):
         self.assertTrue(services.state[LEGACY_SERVICE]["active"])
         self.assertFalse(services.state[V2_SERVICE]["active"])
 
+    def test_validation_only_divergent_checkout_is_portable(self):
+        td, root, accepted, target, _template, _evidence, _state, _services, _operator, controller = self.build()
+        self.addCleanup(td.cleanup)
+        git(root, "switch", "--detach", accepted)
+        workflow = root / ".github/workflows/ci.yml"
+        workflow.parent.mkdir(parents=True, exist_ok=True)
+        workflow.write_text("name: local validation maintenance\n", encoding="utf-8")
+        git(root, "add", str(workflow.relative_to(root)))
+        git(root, "commit", "-m", "local validation maintenance")
+        divergent = git(root, "rev-parse", "HEAD")
+        self.assertNotEqual(divergent, target)
+
+        report = controller.upgrade(target, execute=False)
+
+        self.assertEqual(report.disposition, RoutineUpgradeDisposition.READY)
+        self.assertEqual(report.previous_head_sha, divergent)
+        self.assertEqual(report.target_sha, target)
+
+    def test_runtime_divergent_checkout_is_not_discarded(self):
+        td, root, accepted, target, _template, _evidence, _state, _services, _operator, controller = self.build()
+        self.addCleanup(td.cleanup)
+        git(root, "switch", "--detach", accepted)
+        runtime = root / "scripts/orchestrator/v2/local_only.py"
+        runtime.parent.mkdir(parents=True, exist_ok=True)
+        runtime.write_text("VALUE = 1\n", encoding="utf-8")
+        git(root, "add", str(runtime.relative_to(root)))
+        git(root, "commit", "-m", "local runtime divergence")
+
+        report = controller.upgrade(target, execute=False)
+
+        self.assertEqual(report.disposition, RoutineUpgradeDisposition.BLOCKED)
+        self.assertTrue(any("non-portable divergent changes" in item for item in report.blockers))
+        self.assertTrue(any("scripts/orchestrator/v2/local_only.py" in item for item in report.blockers))
+
     def test_deployment_or_dependency_contract_change_requires_explicit_path(self):
         td, root, _accepted, _target, _template, _evidence, _state, _services, _operator, controller = self.build()
         self.addCleanup(td.cleanup)
