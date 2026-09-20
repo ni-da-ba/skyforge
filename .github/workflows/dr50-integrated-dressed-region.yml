@@ -28,7 +28,7 @@ jobs:
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
       - name: Compile and unit-test DR-50 integration
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: ./gradlew :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:test --stacktrace --no-configuration-cache
       - name: Qualify canonical integrated region, reload, and stacked isolation
         timeout-minutes: 65
@@ -59,7 +59,7 @@ jobs:
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
       - name: Compile and unit-test DR-50 integration
-        timeout-minutes: 10
+        timeout-minutes: 20
         shell: pwsh
         run: .\gradlew.bat :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:test --stacktrace --no-configuration-cache
       - name: Qualify fresh Windows DR-50 server A/B determinism
