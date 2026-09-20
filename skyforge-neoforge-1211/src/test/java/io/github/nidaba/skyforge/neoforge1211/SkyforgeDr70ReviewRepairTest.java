@@ -39,7 +39,7 @@ final class SkyforgeDr70ReviewRepairTest {
     }
 
     @Test
-    void canonicalAuth0104ChannelRasterIsMultiCellConnectedAndOwnerLocal() {
+    void canonicalAuth0105ChannelProjectsDryLandformAndContainedWater() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var terrain = terrain(fixture);
         var semantic = SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor())
@@ -50,11 +50,15 @@ final class SkyforgeDr70ReviewRepairTest {
                 .findFirst()
                 .orElseThrow();
 
-        assertTrue(semantic.size() > 1, "AUTH-0104 canonical channel must remain multi-position");
-        assertTrue(SkyforgeAuthoredVisibleHydrologyAdapter.channelRadius(
-                        SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor())
-                                .channels().getFirst().path()) >= 1,
-                "physical channel footprint must have authored-route-local breadth");
+        assertTrue(semantic.size() > 1, "accepted canonical channel must remain multi-position");
+        var fluvial = io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField.create(
+                fixture.descriptor(),
+                SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor())
+                        .coherentHydrology());
+        var reach = fluvial.reaches().getFirst();
+        assertTrue(reach.wetHalfWidth() < reach.bankfullHalfWidth());
+        assertTrue(reach.bankfullHalfWidth() < reach.valleyHalfWidth(),
+                "AUTH-0105 must expose dry valley terrain beyond the wet corridor");
         long distinctColumns = deployment.positions().stream()
                 .map(position -> new Column(position.getX(), position.getZ()))
                 .distinct()
@@ -65,15 +69,14 @@ final class SkyforgeDr70ReviewRepairTest {
                 "physical channel must cut a dry recessed bed rather than replace the hilltop with water");
         assertTrue(java.util.Collections.disjoint(
                 deployment.positions(), deployment.carvedPositions()));
-        assertTrue(
-                SkyforgeAuthoredVisibleHydrologyAdapter.channelIncisionDepth(
-                                fixture.descriptor(),
-                                SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor())
-                                        .channels().getFirst().path())
-                        > SkyforgeAuthoredVisibleHydrologyAdapter.channelDepth(
-                                SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor())
-                                        .channels().getFirst().path()),
-                "canonical water surface must be physically recessed below its authored banks");
+        assertTrue(deployment.positions().stream().allMatch(position ->
+                terrain.integerSolidRange(
+                                fixture.volume().id(),
+                                position.getX(),
+                                position.getZ())
+                        .map(range -> position.getY() < range.maximumY())
+                        .orElse(false)),
+                "AUTH-0105 water must be physically recessed below the pre-fluvial surface");
         assertConnectedFootprint(deployment.positions());
         for (BlockPos position : deployment.positions()) {
             assertTrue(terrain.isAuthoredVisibleHydrologyPosition(position));

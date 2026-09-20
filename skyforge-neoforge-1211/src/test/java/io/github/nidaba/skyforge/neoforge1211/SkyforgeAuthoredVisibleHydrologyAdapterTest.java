@@ -77,11 +77,28 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertFalse(channel.carvedPositions().isEmpty(),
                 "canonical visible channel must physically incise terrain before water placement");
         assertTrue(java.util.Collections.disjoint(channel.positions(), channel.carvedPositions()));
-        var path = intent.channels().getFirst().path();
+        var fluvial = io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField.create(
+                fixture.descriptor(), intent.coherentHydrology());
+        assertFalse(fluvial.reaches().isEmpty());
+        assertTrue(fluvial.reaches().getFirst().wetHalfWidth()
+                < fluvial.reaches().getFirst().bankfullHalfWidth());
+        assertTrue(fluvial.reaches().getFirst().bankfullHalfWidth()
+                < fluvial.reaches().getFirst().valleyHalfWidth());
+
+        assertTrue(channel.positions().stream().allMatch(position ->
+                terrain.integerSolidRange(
+                                fixture.volume().id(),
+                                position.getX(),
+                                position.getZ())
+                        .map(range -> position.getY() < range.maximumY())
+                        .orElse(false)),
+                "authored wet cells must remain recessed below the pre-fluvial surface");
         assertTrue(
-                SkyforgeAuthoredVisibleHydrologyAdapter.channelIncisionDepth(fixture.descriptor(), path)
-                        > SkyforgeAuthoredVisibleHydrologyAdapter.channelDepth(path),
-                "authored water surface must sit below its bank rather than replacing the hilltop");
+                SkyforgeAuthoredVisibleHydrologyAdapter.physicalLoweringBlocks(
+                                fixture.descriptor(),
+                                io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField.MAX_FLUVIAL_LOWERING)
+                        >= 1,
+                "accepted neutral fluvial lowering must survive Minecraft integer discretization");
     }
 
     @Test

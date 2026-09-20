@@ -50,6 +50,8 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     private final Map<SkyIslandWorldVolumeId, SkyIslandTerrainInterpreter> interpretersByVolumeId;
     private final Map<SkyIslandWorldVolumeId, WorldBounds> boundsByVolumeId;
     private final Map<SkyIslandWorldVolumeId, SkyIslandDescriptor> authoredDescriptorsByVolumeId;
+    private final Map<SkyIslandWorldVolumeId, List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment>>
+            authoredHydrologyDeploymentsByVolumeId = new ConcurrentHashMap<>();
     private final Map<SkyIslandWorldVolumeId, Set<Long>> authoredHydrologyPositionsByVolumeId =
             new ConcurrentHashMap<>();
     private final Map<SkyIslandWorldVolumeId, Map<Long, BlockState>> authoredHydrologyPopulationStatesByVolumeId =
@@ -153,19 +155,39 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         return authoredHydrologyPopulationState(volumeId, position).isPresent();
     }
 
-    private Map<Long, BlockState> deriveAuthoredHydrologyPopulationStates(
+    List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment> authoredHydrologyDeployments(
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        if (!authoredDescriptorsByVolumeId.containsKey(volumeId)) {
+            return List.of();
+        }
+        return authoredHydrologyDeploymentsByVolumeId.computeIfAbsent(
+                volumeId,
+                this::deriveAuthoredHydrologyDeployments);
+    }
+
+    private List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment> deriveAuthoredHydrologyDeployments(
             SkyIslandWorldVolumeId volumeId) {
         SkyIslandDescriptor descriptor = authoredDescriptorsByVolumeId.get(volumeId);
         if (descriptor == null) {
-            return Map.of();
+            return List.of();
         }
         SkyIslandWorldVolume volume = catalog.volumes().stream()
                 .filter(candidate -> candidate.id().equals(volumeId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
                         "authored hydrology references unknown runtime volume " + volumeId.path()));
+        return List.copyOf(SkyforgeAuthoredVisibleHydrologyAdapter.plan(descriptor, volume, this));
+    }
+
+    private Map<Long, BlockState> deriveAuthoredHydrologyPopulationStates(
+            SkyIslandWorldVolumeId volumeId) {
+        SkyIslandDescriptor descriptor = authoredDescriptorsByVolumeId.get(volumeId);
+        if (descriptor == null) {
+            return Map.of();
+        }
         var states = new LinkedHashMap<Long, BlockState>();
-        for (var deployment : SkyforgeAuthoredVisibleHydrologyAdapter.plan(descriptor, volume, this)) {
+        for (var deployment : authoredHydrologyDeployments(volumeId)) {
             for (BlockPos carved : deployment.carvedPositions()) {
                 states.put(carved.asLong(), Blocks.AIR.defaultBlockState());
             }
@@ -181,12 +203,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         if (descriptor == null) {
             return Set.of();
         }
-        SkyIslandWorldVolume volume = catalog.volumes().stream()
-                .filter(candidate -> candidate.id().equals(volumeId))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException(
-                        "authored hydrology references unknown runtime volume " + volumeId.path()));
-        return SkyforgeAuthoredVisibleHydrologyAdapter.plan(descriptor, volume, this).stream()
+        return authoredHydrologyDeployments(volumeId).stream()
                 .flatMap(deployment -> deployment.positions().stream())
                 .map(BlockPos::asLong)
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());

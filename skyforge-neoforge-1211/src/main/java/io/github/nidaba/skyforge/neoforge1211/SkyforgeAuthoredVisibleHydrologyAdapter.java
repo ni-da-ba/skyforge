@@ -1,8 +1,9 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
-import io.github.nidaba.skyforge.world.SkyIslandHydrologicTerrainSurfacePlan;
-import io.github.nidaba.skyforge.world.SkyIslandHydrologicTerrainSurfacePlanner;
+import io.github.nidaba.skyforge.world.SkyIslandFluvialReachGeometry;
+import io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField;
+import io.github.nidaba.skyforge.world.SkyIslandLocalPosition;
 import io.github.nidaba.skyforge.world.SkyIslandNaturalizedChannelPath;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlan;
@@ -64,12 +65,18 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(terrain, "terrain");
         SkyIslandVisibleHydrologicRealizationPlan intent =
                 SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor);
-        SkyIslandHydrologicTerrainSurfacePlan hydrologicSurface =
-                intent.coherentHydrology().terrainSurface();
+        SkyIslandFluvialTerrainField fluvial =
+                SkyIslandFluvialTerrainField.create(descriptor, intent.coherentHydrology());
         List<Deployment> deployments = new ArrayList<>();
 
         for (var channel : intent.channels()) {
-            deployments.add(atPath(hydrologicSurface, volume, terrain, Feature.CHANNEL, channel.path()));
+            deployments.add(atPath(
+                    descriptor,
+                    fluvial,
+                    volume,
+                    terrain,
+                    Feature.CHANNEL,
+                    channel.path()));
         }
         for (var retained : intent.retainedWater()) {
             deployments.add(atFootprint(volume, terrain, retained.footprint().cells()));
@@ -121,7 +128,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (descriptor.isEmpty()) {
                 continue;
             }
-            for (Deployment deployment : plan(descriptor.orElseThrow(), volume, terrain)) {
+            for (Deployment deployment : terrain.authoredHydrologyDeployments(volume.id())) {
                 written += apply(chunk, deployment);
             }
         }
@@ -129,44 +136,85 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     }
 
     private static Deployment atPath(
-            SkyIslandHydrologicTerrainSurfacePlan hydrologicSurface,
+            SkyIslandDescriptor descriptor,
+            SkyIslandFluvialTerrainField fluvial,
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
             Feature feature,
             SkyIslandNaturalizedChannelPath path) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(fluvial, "fluvial");
+        Objects.requireNonNull(path, "path");
         if (path.points().isEmpty()) {
             throw new IllegalArgumentException("authored channel path requires at least one point");
         }
 
-        List<Column> centerline = rasterizedCenterline(volume, path);
-        int radius = channelRadius(path);
-        int waterDepth = channelDepth(path);
-        int incisionDepth = channelIncisionDepth(hydrologicSurface, path);
+        SkyIslandFluvialReachGeometry reach = fluvial.reaches().stream()
+                .filter(candidate -> candidate.path().equals(path))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "AUTH-0105 fluvial field lost accepted visible channel reach"));
 
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
-        for (Column center : centerline) {
-            var centerRange = terrain.integerSolidRange(volume.id(), center.x(), center.z());
-            if (centerRange.isEmpty()) {
+        for (Column column : candidateColumns(volume, reach)) {
+            SkyIslandLocalPosition local = localPosition(volume, column);
+            if (distanceToPath(local, path) > reach.valleyHalfWidth()) {
                 continue;
             }
-            int centerSurfaceY = centerRange.orElseThrow().maximumY();
-            int centerWaterTopY = centerSurfaceY - (incisionDepth - waterDepth);
-            appendChannelCrossSection(
-                    volume,
-                    terrain,
-                    center,
-                    centerWaterTopY,
-                    radius,
-                    waterDepth,
-                    water,
-                    carved);
+            var optionalRange = terrain.integerSolidRange(volume.id(), column.x(), column.z());
+            if (optionalRange.isEmpty()) {
+                continue;
+            }
+            var range = optionalRange.orElseThrow();
+            double basePotential = fluvial.baseTerrain().sample(local);
+            double dryPotential = fluvial.sample(local);
+            double lowering = Math.max(0.0, basePotential - dryPotential);
+            if (lowering <= 1.0e-12) {
+                continue;
+            }
+
+            int baseSurfaceY = range.maximumY();
+            int drySurfaceY = Math.max(
+                    range.minimumY(),
+                    baseSurfaceY - physicalLoweringBlocks(descriptor, lowering));
+
+            var authoredWater = fluvial.waterSurfacePotential(local);
+            int waterTopY = Integer.MIN_VALUE;
+            if (authoredWater.isPresent() && drySurfaceY < baseSurfaceY) {
+                double waterDelta = authoredWater.orElseThrow() - basePotential;
+                int projected = baseSurfaceY + physicalSignedDeltaBlocks(descriptor, waterDelta);
+                waterTopY = Math.max(
+                        drySurfaceY + 1,
+                        Math.min(baseSurfaceY - 1, projected));
+            }
+
+            if (waterTopY != Integer.MIN_VALUE) {
+                for (int y = drySurfaceY + 1; y <= waterTopY; y++) {
+                    if (terrain.isSolidOwnedBy(volume.id(), column.x(), y, column.z())
+                            && !terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), y, column.z())) {
+                        water.add(new BlockPos(column.x(), y, column.z()));
+                    }
+                }
+                for (int y = waterTopY + 1; y <= baseSurfaceY; y++) {
+                    if (terrain.isSolidOwnedBy(volume.id(), column.x(), y, column.z())
+                            && !terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), y, column.z())) {
+                        carved.add(new BlockPos(column.x(), y, column.z()));
+                    }
+                }
+            } else {
+                for (int y = drySurfaceY + 1; y <= baseSurfaceY; y++) {
+                    if (terrain.isSolidOwnedBy(volume.id(), column.x(), y, column.z())
+                            && !terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), y, column.z())) {
+                        carved.add(new BlockPos(column.x(), y, column.z()));
+                    }
+                }
+            }
         }
+
         if (water.isEmpty()) {
-            throw new IllegalStateException("AUTH-0086 channel intent has no realized owner columns");
+            throw new IllegalStateException("AUTH-0105 channel intent has no realized wet owner columns");
         }
-        // Neighboring rasterized centerline cross-sections overlap by design. A voxel selected as
-        // wet by any sample of this exact reach must not simultaneously remain dry clearance.
         carved.removeAll(water);
         return deployment(
                 volume.id(),
@@ -175,144 +223,110 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 new ArrayList<>(carved));
     }
 
-    /** Maps accepted bankfull width potential to a bounded 3- or 5-block channel footprint. */
-    static int channelRadius(SkyIslandNaturalizedChannelPath path) {
-        Objects.requireNonNull(path, "path");
-        return 1 + (int) Math.round(path.profile().bankfullWidthPotential());
-    }
-
-    /** Maps accepted depth potential to a bounded one- or two-block water column. */
-    static int channelDepth(SkyIslandNaturalizedChannelPath path) {
-        Objects.requireNonNull(path, "path");
-        return 1 + (int) Math.round(path.profile().depthPotential());
-    }
-
     /**
-     * Maps accepted channel incision plus AUTH-0014/0015 terrain response to a bounded physical bed.
+     * Converts authored normalized dry-terrain lowering into Minecraft blocks.
      *
-     * <p>The water surface is always recessed by at least one block below its local bank. No new
-     * hydrologic threshold or route is introduced; this is only a discrete realization scale for
-     * already-authored normalized geomorphic potentials.
+     * <p>The authored descriptor's relief budget is the neutral vertical scale. Any nonzero
+     * accepted AUTH-0105 lowering therefore survives integer discretization by at least one block.
      */
-    static int channelIncisionDepth(
+    static int physicalLoweringBlocks(
             SkyIslandDescriptor descriptor,
-            SkyIslandNaturalizedChannelPath path) {
+            double normalizedLowering) {
         Objects.requireNonNull(descriptor, "descriptor");
-        return channelIncisionDepth(
-                SkyIslandHydrologicTerrainSurfacePlanner.plan(descriptor),
-                path);
-    }
-
-    private static int channelIncisionDepth(
-            SkyIslandHydrologicTerrainSurfacePlan hydrologicSurface,
-            SkyIslandNaturalizedChannelPath path) {
-        Objects.requireNonNull(hydrologicSurface, "hydrologicSurface");
-        Objects.requireNonNull(path, "path");
-        int source = path.profile().segment().sourceCellIndex();
-        int downstream = path.profile().segment().downstreamCellIndex();
-        double terrainResponse = hydrologicSurface.cells().stream()
-                .filter(cell -> cell.watershedCellIndex() == source
-                        || cell.watershedCellIndex() == downstream)
-                .mapToDouble(cell -> Math.max(
-                        0.0,
-                        cell.baseElevationPotential() - cell.adjustedElevationPotential()))
-                .map(lowering -> lowering / SkyIslandHydrologicTerrainSurfacePlanner.MAX_LOWERING)
-                .map(value -> Math.max(0.0, Math.min(1.0, value)))
-                .max()
-                .orElse(0.0);
-        double incision = Math.max(path.profile().incisionPotential(), terrainResponse);
-        int waterDepth = channelDepth(path);
-        return Math.max(waterDepth + 1, 2 + (int) Math.round(2.0 * incision));
-    }
-
-    private static void appendChannelCrossSection(
-            SkyIslandWorldVolume volume,
-            SkyforgeNeoForge1211ChunkAdapter terrain,
-            Column center,
-            int centerWaterTopY,
-            int radius,
-            int waterDepth,
-            LinkedHashSet<BlockPos> water,
-            LinkedHashSet<BlockPos> carved) {
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                int distance = Math.abs(dx) + Math.abs(dz);
-                if (distance > radius) {
-                    continue;
-                }
-                int x = center.x() + dx;
-                int z = center.z() + dz;
-                var optionalRange = terrain.integerSolidRange(volume.id(), x, z);
-                if (optionalRange.isEmpty()) {
-                    continue;
-                }
-                var range = optionalRange.orElseThrow();
-                int waterTopY = Math.min(centerWaterTopY, range.maximumY() - 1);
-                int waterBottomY = waterTopY - waterDepth + 1;
-                if (waterBottomY < range.minimumY()) {
-                    continue;
-                }
-
-                // The centerline carries the deepest authored incision. Banks become one block
-                // shallower per Manhattan step where possible, preserving a readable cross-section
-                // without widening the accepted route.
-                int bankRelief = Math.max(0, radius - distance);
-                int maximumCarveTop = Math.min(
-                        range.maximumY(),
-                        waterTopY + 1 + bankRelief);
-
-                for (int y = waterTopY + 1; y <= maximumCarveTop; y++) {
-                    if (terrain.isSolidOwnedBy(volume.id(), x, y, z)
-                            && !terrain.isSolidOwnedByOtherVolume(volume.id(), x, y, z)) {
-                        carved.add(new BlockPos(x, y, z));
-                    }
-                }
-                for (int y = waterBottomY; y <= waterTopY; y++) {
-                    if (terrain.isSolidOwnedBy(volume.id(), x, y, z)
-                            && !terrain.isSolidOwnedByOtherVolume(volume.id(), x, y, z)) {
-                        water.add(new BlockPos(x, y, z));
-                    }
-                }
-            }
+        if (!Double.isFinite(normalizedLowering) || normalizedLowering < 0.0) {
+            throw new IllegalArgumentException("normalizedLowering must be finite and nonnegative");
         }
+        if (normalizedLowering == 0.0) {
+            return 0;
+        }
+        return Math.max(
+                1,
+                (int) Math.round(normalizedLowering * descriptor.reliefBudget()));
     }
 
-    private static List<Column> rasterizedCenterline(
+    static int physicalSignedDeltaBlocks(
+            SkyIslandDescriptor descriptor,
+            double normalizedDelta) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        if (!Double.isFinite(normalizedDelta)) {
+            throw new IllegalArgumentException("normalizedDelta must be finite");
+        }
+        return (int) Math.round(normalizedDelta * descriptor.reliefBudget());
+    }
+
+    private static LinkedHashSet<Column> candidateColumns(
             SkyIslandWorldVolume volume,
-            SkyIslandNaturalizedChannelPath path) {
+            SkyIslandFluvialReachGeometry reach) {
+        double minimumLocalX = Double.POSITIVE_INFINITY;
+        double maximumLocalX = Double.NEGATIVE_INFINITY;
+        double minimumLocalZ = Double.POSITIVE_INFINITY;
+        double maximumLocalZ = Double.NEGATIVE_INFINITY;
+        for (SkyIslandLocalPosition point : reach.path().points()) {
+            minimumLocalX = Math.min(minimumLocalX, point.x());
+            maximumLocalX = Math.max(maximumLocalX, point.x());
+            minimumLocalZ = Math.min(minimumLocalZ, point.z());
+            maximumLocalZ = Math.max(maximumLocalZ, point.z());
+        }
+        double margin = reach.valleyHalfWidth();
+        var physical = volume.compiledVolume().descriptor();
+        int minimumX = (int) Math.ceil(Math.max(
+                volume.bounds().minimumX(),
+                physical.centerX() + minimumLocalX - margin));
+        int maximumX = (int) Math.floor(Math.min(
+                volume.bounds().maximumX(),
+                physical.centerX() + maximumLocalX + margin));
+        int minimumZ = (int) Math.ceil(Math.max(
+                volume.bounds().minimumZ(),
+                physical.centerZ() + minimumLocalZ - margin));
+        int maximumZ = (int) Math.floor(Math.min(
+                volume.bounds().maximumZ(),
+                physical.centerZ() + maximumLocalZ + margin));
+
         LinkedHashSet<Column> columns = new LinkedHashSet<>();
-        Column previous = null;
-        for (var point : path.points()) {
-            int worldX = (int) Math.round(volume.compiledVolume().descriptor().centerX() + point.x());
-            int worldZ = (int) Math.round(volume.compiledVolume().descriptor().centerZ() + point.z());
-            Column current = new Column(worldX, worldZ);
-            if (previous == null) {
-                columns.add(current);
-            } else {
-                appendConnectedColumns(previous, current, columns);
+        for (int z = minimumZ; z <= maximumZ; z++) {
+            for (int x = minimumX; x <= maximumX; x++) {
+                columns.add(new Column(x, z));
             }
-            previous = current;
         }
-        return List.copyOf(columns);
+        return columns;
     }
 
-    private static void appendConnectedColumns(
-            Column from,
-            Column to,
-            LinkedHashSet<Column> columns) {
-        int dx = to.x() - from.x();
-        int dz = to.z() - from.z();
-        int steps = Math.max(Math.abs(dx), Math.abs(dz));
-        if (steps == 0) {
-            columns.add(to);
-            return;
+    private static SkyIslandLocalPosition localPosition(
+            SkyIslandWorldVolume volume,
+            Column column) {
+        var physical = volume.compiledVolume().descriptor();
+        return new SkyIslandLocalPosition(
+                column.x() - physical.centerX(),
+                column.z() - physical.centerZ());
+    }
+
+    private static double distanceToPath(
+            SkyIslandLocalPosition position,
+            SkyIslandNaturalizedChannelPath path) {
+        double best = Double.POSITIVE_INFINITY;
+        var points = path.points();
+        for (int index = 1; index < points.size(); index++) {
+            SkyIslandLocalPosition a = points.get(index - 1);
+            SkyIslandLocalPosition b = points.get(index);
+            double dx = b.x() - a.x();
+            double dz = b.z() - a.z();
+            double lengthSquared = dx * dx + dz * dz;
+            if (lengthSquared <= 1.0e-12) {
+                best = Math.min(best, Math.hypot(position.x() - a.x(), position.z() - a.z()));
+                continue;
+            }
+            double px = position.x() - a.x();
+            double pz = position.z() - a.z();
+            double fraction = Math.max(
+                    0.0,
+                    Math.min(1.0, (px * dx + pz * dz) / lengthSquared));
+            double nearestX = a.x() + fraction * dx;
+            double nearestZ = a.z() + fraction * dz;
+            best = Math.min(
+                    best,
+                    Math.hypot(position.x() - nearestX, position.z() - nearestZ));
         }
-        for (int step = 0; step <= steps; step++) {
-            double fraction = (double) step / steps;
-            int worldX = from.x() + (int) Math.round(dx * fraction);
-            int worldZ = from.z() + (int) Math.round(dz * fraction);
-            columns.add(new Column(worldX, worldZ));
-        }
+        return best;
     }
 
     private static Deployment atFootprint(

@@ -22,10 +22,12 @@ final class SkyforgeProductionComposedCaveIntegratedTopologySourceTest {
 
         assertTrue(stage.contains("pendingBiomePresentationChunks(volumeId)"));
         assertTrue(stage.contains("near-surface cave"));
-        assertTrue(catchup.indexOf("SkyforgeNativeSurfacePopulationStage.populateDeferred")
-                < catchup.indexOf("pumpComposedCaveQuanta"));
-        assertTrue(catchup.indexOf("pumpComposedCaveQuanta")
-                < catchup.indexOf("SkyforgePersistentBiomePresentationStage.present"));
+        int population = catchup.indexOf("SkyforgeNativeSurfacePopulationStage.populateDeferred");
+        int cavePump = catchup.indexOf("PumpResult composedPump = pumpComposedCaveQuanta(");
+        int presentation = catchup.indexOf("SkyforgePersistentBiomePresentationStage.present");
+        assertTrue(population >= 0 && cavePump >= 0 && presentation >= 0);
+        assertTrue(population < cavePump);
+        assertTrue(cavePump < presentation);
     }
 
     @Test
