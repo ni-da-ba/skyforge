@@ -40,7 +40,8 @@ import net.minecraft.world.level.saveddata.SavedData;
  * Admitted native lakes retain the historical exact-owner boundary. Carved cave AIR therefore
  * remains traversable for both, while only spring provenance treats the outer shell as impermeable
  * so a vanilla spring cannot become an accidental floating-island waterfall. Authored hydrology
- * will use an explicit outlet policy rather than the native-spring domain.
+ * executes ordinary fluid ticks inside its immutable AUTH-0086 footprint rather than being frozen
+ * or granted an owner-wide propagation domain.
  */
 public final class SkyforgeGeneratedFluidPropagationStage {
     private static final String DATA_NAME = "skyforge_generated_fluid_provenance";
@@ -117,13 +118,19 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             }
             throw new IllegalStateException("nested Skyforge generated-fluid tick scopes are not supported");
         }
-        if ((state.getType() == Fluids.WATER || state.getType() == Fluids.FLOWING_WATER)
-                && SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(position)) {
-            // AUTH-0104 channel/drop positions are a static, deterministic realization of authored
-            // topology. Vanilla propagation beyond those cells is incidental discharge, not a new
-            // authored outlet, so freeze the source tick rather than granting it an owner-wide flow
-            // domain. Deliberate cascades/edge drops remain represented by their authored cells.
-            return false;
+        if (state.getType() == Fluids.WATER || state.getType() == Fluids.FLOWING_WATER) {
+            var authoredVolume = SkyforgeNeoForge1211SurfaceStage.authoredVisibleHydrologyVolumeId(position);
+            if (authoredVolume.isPresent()) {
+                // Authored water is allowed to execute ordinary Minecraft fluid behavior, but only
+                // inside the exact immutable AUTH-0086 water footprint. Reads/writes outside that
+                // footprint are fenced by the same propagation hooks used for generated fluids.
+                ACTIVE.set(new Context(
+                        serverLevel,
+                        authoredVolume.orElseThrow(),
+                        Mode.PROPAGATION,
+                        BoundaryPolicy.AUTHORED_HYDROLOGY));
+                return true;
+            }
         }
         GeneratedFluidData data = dataIfPresent(serverLevel);
         if (data == null) {
@@ -243,6 +250,11 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         if (context == null || !(type instanceof Fluid fluid)) {
             return;
         }
+        if (context.boundaryPolicy() == BoundaryPolicy.AUTHORED_HYDROLOGY) {
+            // Authored water derives its provenance from immutable descriptor + volume identity.
+            // Do not duplicate that authority into the native generated-fluid SavedData ledger.
+            return;
+        }
         Counters counters = counters(context.serverLevel(), context.volumeId());
         if (!ownerSolid(context.volumeId(), position)) {
             counters.scheduledOutsideOwner++;
@@ -280,6 +292,9 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         Context context = ACTIVE.get();
         FluidState fluidState = state.getFluidState();
         if (context != null && context.serverLevel() == serverLevel) {
+            if (context.boundaryPolicy() == BoundaryPolicy.AUTHORED_HYDROLOGY) {
+                return;
+            }
             if (allows(context.boundaryPolicy(), context.volumeId(), position)) {
                 if (!fluidState.isEmpty()) {
                     track(
@@ -457,6 +472,11 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             BoundaryPolicy boundaryPolicy,
             SkyIslandWorldVolumeId volumeId,
             BlockPos position) {
+        if (boundaryPolicy == BoundaryPolicy.AUTHORED_HYDROLOGY) {
+            return SkyforgeNeoForge1211SurfaceStage.authoredVisibleHydrologyVolumeId(position)
+                    .filter(volumeId::equals)
+                    .isPresent();
+        }
         if (!ownerSolid(volumeId, position)) {
             return false;
         }
@@ -541,7 +561,8 @@ public final class SkyforgeGeneratedFluidPropagationStage {
 
     enum BoundaryPolicy {
         OWNER_DOMAIN,
-        INTERIOR_SHELL;
+        INTERIOR_SHELL,
+        AUTHORED_HYDROLOGY;
 
         static BoundaryPolicy decode(String value) {
             if (value == null || value.isBlank()) {
