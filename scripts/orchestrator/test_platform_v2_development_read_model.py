@@ -121,6 +121,27 @@ def sample_kwargs():
                 "state": "active",
             },
         ),
+        "artifact_records": (
+            {
+                "artifact_id": "dr70:key-2885",
+                "kind": "INTERACTIVE_SPECIMEN",
+                "source_sha": SHA,
+                "title": "DR-70 review specimen",
+                "description": "Interactive specimen",
+                "file": None,
+                "interactive": {
+                    "specimen_kind": "minecraft-neoforge-review-world",
+                    "parameters": {"island_key": 2885},
+                    "preparation_entry_points": [
+                        ":skyforge-neoforge-1211:dr70HydrologyReviewAcceptance"
+                    ],
+                    "launch_entry_point": ":skyforge-neoforge-1211:runDr70HumanReviewClient",
+                    "review_actions": ["/tp @s 0 320 0"],
+                    "associated_artifact_ids": [],
+                },
+                "artifact_digest": "artifact-digest",
+            },
+        ),
         "human_reviews": (
             {
                 "review_id": "review-1",
@@ -166,7 +187,16 @@ class DevelopmentReadModelTest(unittest.TestCase):
         self.assertEqual(raw["snapshot_digest"], first.digest)
         self.assertEqual(raw["roadmap"]["roadmap_id"], "skyforge-test-roadmap")
         self.assertEqual(raw["objectives"][0]["disposition"], "HUMAN_GATE")
+        self.assertEqual(raw["artifact_count"], 1)
         self.assertEqual(raw["human_reviews"][0]["artifact_id"], "dr70:key-2885")
+        self.assertEqual(
+            raw["human_reviews"][0]["artifact"]["artifact_id"],
+            "dr70:key-2885",
+        )
+        self.assertEqual(
+            raw["human_reviews"][0]["artifact"]["interactive"]["parameters"]["island_key"],
+            2885,
+        )
         self.assertEqual(raw["execution"]["workers"][0]["branch"], "codex/audit-task")
 
         encoded = str(raw)

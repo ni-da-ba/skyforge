@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "artifacts": [
+    {
+      "artifact_id": "dr70:key-2885",
+      "kind": "INTERACTIVE_SPECIMEN",
+      "source_sha": "a318f1b1ffb22805087eac52b67035d041a03fb6",
+      "title": "DR-70 key-2885 hydrology review specimen",
+      "description": "Qualified interactive Minecraft specimen used for the 2026-09-20 DR-70 human hydrology review that returned CHANGES_REQUIRED.",
+      "interactive": {
+        "specimen_kind": "minecraft-neoforge-review-world",
+        "parameters": {
+          "world_seed_hex": "0x534B59464F524745",
+          "province_key": 8,
+          "cluster_key": 81,
+          "island_key": 2885,
+          "suspension_y": 220.0
+        },
+        "preparation_entry_points": [
+          ":skyforge-neoforge-1211:dr70HydrologyReviewAcceptance"
+        ],
+        "launch_entry_point": ":skyforge-neoforge-1211:runDr70HumanReviewClient",
+        "review_actions": [
+          "/gamemode creative",
+          "/tp @s 0 320 0"
+        ],
+        "associated_artifact_ids": []
+      }
+    }
+  ]
+}

@@ -9,6 +9,7 @@ on:
       - "docs/agent-state/ORCHESTRATION_PROTOCOL.md"
       - "docs/agent-state/PROGRAM_ROADMAP.md"
       - "docs/agent-state/ORCHESTRATOR_ROADMAP.json"
+      - "docs/agent-state/REVIEW_ARTIFACTS.json"
       - "docs/agent-state/EXECUTION_BOUNDARIES.md"
       - ".github/workflows/orchestrator-smoke.yml"
       - ".github/workflows/ci.yml"

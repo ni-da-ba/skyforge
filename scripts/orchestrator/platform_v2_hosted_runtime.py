@@ -19,6 +19,7 @@ from pathlib import Path
 import re
 import threading
 from typing import Any, Mapping
+from urllib.parse import unquote, urlsplit
 
 from v2.cutover import LegacyOperationalProjection
 from v2.development_read_model import build_development_snapshot
@@ -79,6 +80,13 @@ from v2.ingress import (
     classify_legacy_compatible_event,
     reclassify_legacy_compatible_audit_event,
     verify_github_signature,
+)
+from v2.review_artifacts import (
+    ReviewArtifactCatalog,
+    ReviewArtifactError,
+    ReviewArtifactKind,
+    retrieve_file_artifact,
+    validate_artifact_source,
 )
 from v2.state_store import JsonStateStoreAdapter, StateStoreError
 from v2.task_event_composition import (
@@ -469,6 +477,9 @@ class HostedV2Substrate:
                 raise ValueError("worker-run read records must be a list")
             completions = HostedCompletionStore.for_root(self.root).load()
             external = self.external_claim_store.load()
+            artifacts = ReviewArtifactCatalog.for_root(self.root)
+            for artifact in artifacts.records:
+                validate_artifact_source(self.root, artifact)
 
             runtime = {
                 "status": health["status"],
@@ -504,6 +515,9 @@ class HostedV2Substrate:
                 external_claims=(
                     claim.as_dict() for claim in external.claims
                 ),
+                artifact_records=(
+                    artifact.as_dict() for artifact in artifacts.records
+                ),
                 human_reviews=(
                     record.as_dict() for record in reviews.records
                 ),
@@ -511,10 +525,10 @@ class HostedV2Substrate:
             )
             return snapshot.as_dict()
 
-    def handle_development_read(
+    def _development_api_auth_error(
         self,
         authorization: str | None,
-    ) -> tuple[int, dict[str, Any]]:
+    ) -> tuple[int, dict[str, Any]] | None:
         token = self.development_api_token
         if not token:
             return 503, {"error": "development API is not configured"}
@@ -522,11 +536,99 @@ class HostedV2Substrate:
         expected = f"Bearer {token}"
         if not hmac.compare_digest(supplied, expected):
             return 401, {"error": "development API authorization required"}
+        return None
+
+    def _validated_artifact_catalog(self) -> ReviewArtifactCatalog:
+        catalog = ReviewArtifactCatalog.for_root(self.root)
+        for record in catalog.records:
+            validate_artifact_source(self.root, record)
+        return catalog
+
+    def handle_development_read(
+        self,
+        authorization: str | None,
+    ) -> tuple[int, dict[str, Any]]:
+        auth_error = self._development_api_auth_error(authorization)
+        if auth_error is not None:
+            return auth_error
         try:
             return 200, self.development_snapshot()
-        except (OSError, RuntimeError, StateStoreError, ValueError) as exc:
+        except (
+            OSError,
+            RuntimeError,
+            StateStoreError,
+            ReviewArtifactError,
+            ValueError,
+        ) as exc:
             return 503, {
                 "error": "development state is unavailable",
+                "failure_kind": type(exc).__name__,
+            }
+
+    def handle_artifact_list(
+        self,
+        authorization: str | None,
+    ) -> tuple[int, dict[str, Any]]:
+        auth_error = self._development_api_auth_error(authorization)
+        if auth_error is not None:
+            return auth_error
+        try:
+            catalog = self._validated_artifact_catalog()
+            return 200, {
+                "schema_version": 1,
+                "catalog_digest": catalog.digest,
+                "artifact_count": len(catalog.records),
+                "artifacts": [record.as_dict() for record in catalog.records],
+            }
+        except (OSError, ReviewArtifactError, ValueError) as exc:
+            return 503, {
+                "error": "artifact catalog is unavailable",
+                "failure_kind": type(exc).__name__,
+            }
+
+    def handle_artifact_get(
+        self,
+        authorization: str | None,
+        artifact_id: str,
+    ) -> tuple[int, dict[str, Any]]:
+        auth_error = self._development_api_auth_error(authorization)
+        if auth_error is not None:
+            return auth_error
+        try:
+            catalog = self._validated_artifact_catalog()
+            record = catalog.get(artifact_id)
+            if record is None:
+                return 404, {"error": "artifact not found"}
+            return 200, record.as_dict()
+        except (OSError, ReviewArtifactError, ValueError) as exc:
+            return 503, {
+                "error": "artifact catalog is unavailable",
+                "failure_kind": type(exc).__name__,
+            }
+
+    def handle_artifact_content(
+        self,
+        authorization: str | None,
+        artifact_id: str,
+    ) -> tuple[int, str | None, bytes | dict[str, Any]]:
+        auth_error = self._development_api_auth_error(authorization)
+        if auth_error is not None:
+            status, payload = auth_error
+            return status, None, payload
+        try:
+            catalog = self._validated_artifact_catalog()
+            record = catalog.get(artifact_id)
+            if record is None:
+                return 404, None, {"error": "artifact not found"}
+            if record.kind is not ReviewArtifactKind.FILE or record.file is None:
+                return 409, None, {
+                    "error": "artifact is interactive and has no direct file content"
+                }
+            payload = retrieve_file_artifact(self.root, record)
+            return 200, record.file.media_type, payload
+        except (OSError, ReviewArtifactError, ValueError) as exc:
+            return 503, None, {
+                "error": "artifact content is unavailable",
                 "failure_kind": type(exc).__name__,
             }
 
@@ -1029,16 +1131,48 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _respond_bytes(self, status: int, media_type: str, payload: bytes) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", media_type)
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
     def do_GET(self) -> None:  # noqa: N802
-        if self.path == "/healthz":
+        path = urlsplit(self.path).path
+        authorization = self.headers.get("Authorization")
+        if path == "/healthz":
             self._respond_json(200, self.runtime.health_snapshot())
             return
-        if self.path == "/api/v1/development-state":
-            status, payload = self.runtime.handle_development_read(
-                self.headers.get("Authorization")
-            )
+        if path == "/api/v1/development-state":
+            status, payload = self.runtime.handle_development_read(authorization)
             self._respond_json(status, payload)
             return
+        if path == "/api/v1/artifacts":
+            status, payload = self.runtime.handle_artifact_list(authorization)
+            self._respond_json(status, payload)
+            return
+        prefix = "/api/v1/artifacts/"
+        if path.startswith(prefix):
+            remainder = unquote(path[len(prefix):])
+            if remainder.endswith("/content"):
+                artifact_id = remainder[:-len("/content")]
+                status, media_type, payload = self.runtime.handle_artifact_content(
+                    authorization,
+                    artifact_id,
+                )
+                if isinstance(payload, bytes) and media_type is not None:
+                    self._respond_bytes(status, media_type, payload)
+                else:
+                    self._respond_json(status, payload)
+                return
+            if "/" not in remainder and remainder:
+                status, payload = self.runtime.handle_artifact_get(
+                    authorization,
+                    remainder,
+                )
+                self._respond_json(status, payload)
+                return
         self.send_error(404)
 
     def do_POST(self) -> None:  # noqa: N802

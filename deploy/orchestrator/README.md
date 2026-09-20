@@ -113,7 +113,23 @@ SKYFORGE_DEVELOPMENT_API_TOKEN=<at least 32 high-entropy characters>
 ```
 
 Do not reuse `SKYFORGE_WEBHOOK_SECRET`. The development token is an authenticated read-client
-credential; the webhook secret authenticates signed GitHub deliveries.
+credential; the webhook secret authenticates signed GitHub deliveries. The installer preserves an
+existing development API token across repeat deployments unless the operator explicitly supplies a
+replacement.
+
+Authenticated read surfaces currently include:
+
+```text
+GET /api/v1/development-state
+GET /api/v1/artifacts
+GET /api/v1/artifacts/<artifact-id>
+GET /api/v1/artifacts/<artifact-id>/content
+```
+
+Artifact manifests are source-controlled in `docs/agent-state/REVIEW_ARTIFACTS.json`. Interactive
+specimens expose exact launch/preparation identity but deliberately have no direct `/content` bytes.
+File artifacts are served only from an exact source-SHA repository blob after manifest size and
+SHA-256 verification. The API never proxies arbitrary URLs or reads arbitrary host paths.
 
 The installer is deliberately repeatable:
 
