@@ -56,6 +56,34 @@ final class SkyforgeCarverVerticalFrameTest {
         }
     }
     @Test
+    void carverFenceReservesAuthoredHydrologyWithoutClassifyingItAsUnsafe() throws Exception {
+        var volumeId = new SkyIslandWorldVolumeId(64L, "carver-hydrology-test", 0, 0, 6401L);
+        var targetChunk = new ChunkPos(0, 0);
+        BlockPos river = new BlockPos(8, 225, 8);
+        BlockPos ordinaryOwner = new BlockPos(9, 225, 8);
+
+        try (var domain = SkyforgeGenerationDomainStage.openIsland(volumeId);
+                var execution = SkyforgeCarverExecutionStage.openForTestWithReservedHydrology(
+                        volumeId,
+                        targetChunk,
+                        position -> position.getY() >= 220 && position.getY() <= 240,
+                        position -> false,
+                        river::equals)) {
+            assertFalse(execution.authorizeForTest(river),
+                    "later cave carving must not erase accepted authored surface hydrology");
+            assertTrue(execution.authorizeForTest(ordinaryOwner));
+
+            var snapshot = execution.snapshot();
+            assertEquals(2, snapshot.writeAttempts());
+            assertEquals(1, snapshot.acceptedWriteAttempts());
+            assertEquals(1, snapshot.rejectedWriteAttempts());
+            assertEquals(1, snapshot.rejectedHydrologyWriteAttempts());
+            assertEquals(0, snapshot.rejectedFluidWriteAttempts());
+            domain.requireActive();
+        }
+    }
+
+    @Test
     void authoredCommitFenceDoesNotVirtualizeBeforeAfterReads() throws Exception {
         var volumeId = new SkyIslandWorldVolumeId(63L, "authored-commit-test", 0, 0, 6301L);
         var targetChunk = new ChunkPos(0, 0);

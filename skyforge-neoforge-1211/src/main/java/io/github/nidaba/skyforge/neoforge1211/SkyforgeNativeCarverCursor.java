@@ -104,6 +104,7 @@ final class SkyforgeNativeCarverCursor {
     private long acceptedPositionDigest = FNV_OFFSET_BASIS;
     private int rejectedWrites;
     private int rejectedFluidWrites;
+    private int rejectedHydrologyWrites;
     private int changedBlocks;
     private long transformDigest = FNV_OFFSET_BASIS;
     private long changedPositionDigest = FNV_OFFSET_BASIS;
@@ -289,6 +290,8 @@ final class SkyforgeNativeCarverCursor {
         rejectedWrites = Math.addExact(rejectedWrites, writeSnapshot.rejectedWriteAttempts());
         rejectedFluidWrites = Math.addExact(
                 rejectedFluidWrites, writeSnapshot.rejectedFluidWriteAttempts());
+        rejectedHydrologyWrites = Math.addExact(
+                rejectedHydrologyWrites, writeSnapshot.rejectedHydrologyWriteAttempts());
         changedBlocks = Math.addExact(changedBlocks, writeSnapshot.changedBlocks());
         transformDigest = mix(transformDigest, verticalSnapshot.transformDigest());
         changedPositionDigest = mix(changedPositionDigest, writeSnapshot.changedPositionDigest());
@@ -352,6 +355,7 @@ final class SkyforgeNativeCarverCursor {
                 acceptedPositionDigest,
                 rejectedWrites,
                 rejectedFluidWrites,
+                rejectedHydrologyWrites,
                 changedBlocks,
                 transformDigest,
                 changedPositionDigest,

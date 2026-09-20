@@ -28,7 +28,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
     private static final long ISLAND_KEY = 1471L;
     private static final long DR70_REVIEW_ISLAND_KEY = 421L;
     private static final long SINGLE_PHYSICAL_SEED = 680068L;
-    private static final long DR70_REVIEW_PHYSICAL_SEED = 680421L;
+    private static final long DR70_REVIEW_PHYSICAL_SEED_BASE = 680000L;
     private static final long LOWER_PHYSICAL_SEED = 680168L;
     private static final long UPPER_PHYSICAL_SEED = 680268L;
     private static final double SINGLE_SUSPENSION_Y = 220.0;
@@ -38,19 +38,10 @@ final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
     private static final io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor DESCRIPTOR =
             SkyIslandDescriptorGenerator.derive(
                     SkyIslandIdentity.of(WORLD_SEED, PROVINCE_KEY, CLUSTER_KEY, ISLAND_KEY));
-    private static final io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor DR70_REVIEW_DESCRIPTOR =
-            SkyIslandDescriptorGenerator.derive(
-                    SkyIslandIdentity.of(
-                            WORLD_SEED,
-                            PROVINCE_KEY,
-                            CLUSTER_KEY,
-                            DR70_REVIEW_ISLAND_KEY));
     private static final SkyIslandExteriorConnectedCaveVolumeField FIELD =
             SkyIslandExteriorConnectedCaveVolumeField.create(DESCRIPTOR);
-    private static final SkyIslandExteriorConnectedCaveVolumeField DR70_REVIEW_FIELD =
-            SkyIslandExteriorConnectedCaveVolumeField.create(DR70_REVIEW_DESCRIPTOR);
     private static final Single SINGLE = singleFixture();
-    private static final Single DR70_REVIEW = dr70ReviewFixture();
+    private static final Single DR70_REVIEW = dr70ReviewCandidate(DR70_REVIEW_ISLAND_KEY);
     private static final Stacked STACKED = stackedFixture();
 
     private SkyforgeNeoForge1211ProductionComposedCaveFixture() {}
@@ -96,11 +87,15 @@ final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
                 new SkyIslandWorldCatalog(WORLD_SEED, List.of(volume)));
     }
 
-    private static Single dr70ReviewFixture() {
-        double radius = DR70_REVIEW_DESCRIPTOR.nominalRadius();
+    static Single dr70ReviewCandidate(long islandKey) {
+        var descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(WORLD_SEED, PROVINCE_KEY, CLUSTER_KEY, islandKey));
+        var field = SkyIslandExteriorConnectedCaveVolumeField.create(descriptor);
+        double radius = descriptor.nominalRadius();
+        long physicalSeed = Math.addExact(DR70_REVIEW_PHYSICAL_SEED_BASE, islandKey);
         SkyIslandWorldVolume volume = volume(
-                DR70_REVIEW_DESCRIPTOR,
-                DR70_REVIEW_PHYSICAL_SEED,
+                descriptor,
+                physicalSeed,
                 "dr-70-hydrology-review",
                 SINGLE_SUSPENSION_Y,
                 radius,
@@ -110,9 +105,9 @@ final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
                 110.0,
                 80.0);
         return new Single(
-                DR70_REVIEW_ISLAND_KEY,
-                DR70_REVIEW_DESCRIPTOR,
-                DR70_REVIEW_FIELD,
+                islandKey,
+                descriptor,
+                field,
                 volume,
                 new SkyIslandWorldCatalog(WORLD_SEED, List.of(volume)));
     }

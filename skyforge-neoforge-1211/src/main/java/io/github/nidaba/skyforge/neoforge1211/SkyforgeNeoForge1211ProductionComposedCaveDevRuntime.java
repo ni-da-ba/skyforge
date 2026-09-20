@@ -225,6 +225,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         int nativeSuccessfulCalls = 0;
         int nativeRejectedWrites = 0;
         int nativeRejectedFluidWrites = 0;
+        int nativeRejectedHydrologyWrites = 0;
         int nativeMappedOutsideTarget = 0;
         int authoredPositive = 0;
         int authoredBasePositive = 0;
@@ -259,6 +260,8 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
             nativeRejectedWrites = Math.addExact(nativeRejectedWrites, nativeResult.rejectedWrites());
             nativeRejectedFluidWrites = Math.addExact(
                     nativeRejectedFluidWrites, nativeResult.rejectedFluidWrites());
+            nativeRejectedHydrologyWrites = Math.addExact(
+                    nativeRejectedHydrologyWrites, nativeResult.rejectedHydrologyWrites());
             nativeMappedOutsideTarget =
                     Math.addExact(nativeMappedOutsideTarget, nativeResult.mappedOutsideTarget());
             authoredPositive = Math.addExact(authoredPositive, authoredResult.positiveSamples());
@@ -285,13 +288,24 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
 
         FinalEvidence finalEvidence = verifyFinalUnion(level, volume, chunks);
         int nativeUnsafeRejectedWrites = Math.subtractExact(
-                nativeRejectedWrites, nativeRejectedFluidWrites);
-        int authoredDownstreamOccupied = Math.subtractExact(authoredPositive, finalEvidence.finalAuthoredAir());
+                Math.subtractExact(nativeRejectedWrites, nativeRejectedFluidWrites),
+                nativeRejectedHydrologyWrites);
+        int authoredDownstreamOccupied = Math.subtractExact(
+                authoredPositive,
+                Math.addExact(
+                        finalEvidence.finalAuthoredAir(),
+                        finalEvidence.finalAuthoredHydrologyWater()));
         boolean finalAuthoredTopologyValid = SkyforgeDr50IntegratedRegionEvidence.enabled()
                 ? finalEvidence.finalAuthoredAir() > 0
-                        && finalEvidence.finalAuthoredAir() <= authoredPositive
+                        && Math.addExact(
+                                        finalEvidence.finalAuthoredAir(),
+                                        finalEvidence.finalAuthoredHydrologyWater())
+                                <= authoredPositive
                         && authoredDownstreamOccupied >= 0
-                : finalEvidence.finalAuthoredAir() == authoredPositive;
+                : Math.addExact(
+                                finalEvidence.finalAuthoredAir(),
+                                finalEvidence.finalAuthoredHydrologyWater())
+                        == authoredPositive;
         if (resultChunks <= 0
                 || nativeChangedBlocks <= 0
                 || nativeAcceptedCarveBlocks <= 0
@@ -317,6 +331,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                             + ", nativeSuccessful=" + nativeSuccessfulCalls
                             + ", rejected=" + nativeRejectedWrites
                             + ", rejectedFluidShell=" + nativeRejectedFluidWrites
+                            + ", rejectedHydrology=" + nativeRejectedHydrologyWrites
                             + ", rejectedUnsafe=" + nativeUnsafeRejectedWrites
                             + ", mappedOutside=" + nativeMappedOutsideTarget
                             + ", authoredPositive=" + authoredPositive
@@ -358,6 +373,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         composedDigest = mix(composedDigest, authoredProvenanceDigest);
         composedDigest = mix(composedDigest, finalEvidence.nativeOnlyAir());
         composedDigest = mix(composedDigest, finalEvidence.finalAuthoredAir());
+        composedDigest = mix(composedDigest, finalEvidence.finalAuthoredHydrologyWater());
 
         String nativeTransformDigestText = Long.toUnsignedString(nativeTransformDigest, 16);
         String nativeCarveDigestText = Long.toUnsignedString(nativeCarveDigest, 16);
@@ -375,6 +391,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         + ", nativeOnlyAir=" + finalEvidence.nativeOnlyAir()
                         + ", authoredPositive=" + authoredPositive
                         + ", finalAuthoredAir=" + finalEvidence.finalAuthoredAir()
+                        + ", finalAuthoredHydrologyWater=" + finalEvidence.finalAuthoredHydrologyWater()
                         + ", noReplay=true, monotonicPending=true"
                         + ", composedDigest=" + composedDigestText + ".");
 
@@ -396,6 +413,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         java.util.Map.entry("nativeOnlyAir", finalEvidence.nativeOnlyAir()),
                         java.util.Map.entry("nativeRejectedWrites", nativeRejectedWrites),
                         java.util.Map.entry("nativeRejectedFluidWrites", nativeRejectedFluidWrites),
+                        java.util.Map.entry("nativeRejectedHydrologyWrites", nativeRejectedHydrologyWrites),
                         java.util.Map.entry("nativeUnsafeRejectedWrites", nativeUnsafeRejectedWrites),
                         java.util.Map.entry("nativeMappedOutsideTarget", nativeMappedOutsideTarget),
                         java.util.Map.entry("nativeTransformDigest", nativeTransformDigestText),
@@ -408,6 +426,9 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                         java.util.Map.entry("authoredChangedDigest", authoredChangedDigestText),
                         java.util.Map.entry("authoredProvenanceDigest", authoredProvenanceDigestText),
                         java.util.Map.entry("finalAuthoredAir", finalEvidence.finalAuthoredAir()),
+                        java.util.Map.entry(
+                                "finalAuthoredHydrologyWater",
+                                finalEvidence.finalAuthoredHydrologyWater()),
                         java.util.Map.entry("authoredDownstreamOccupied", authoredDownstreamOccupied),
                         java.util.Map.entry("nativeOnlyPos", Long.toString(finalEvidence.nativeOnlySample().asLong())),
                         java.util.Map.entry("mouthPos", Long.toString(mouth.asLong())),
@@ -480,6 +501,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
 
         int authoredPositive = 0;
         int finalAuthoredAir = 0;
+        int finalAuthoredHydrologyWater = 0;
         int nativeOnlyAir = 0;
         BlockPos nativeOnlySample = null;
         BlockPos baseCaveSample = null;
@@ -503,13 +525,20 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
                                 new SkyIslandRealizedSubsurfacePosition(local, y));
                         if (sample.inside()) {
                             authoredPositive++;
-                            if (level.getBlockState(position).isAir()) {
+                            BlockState finalState = level.getBlockState(position);
+                            if (finalState.isAir()) {
                                 finalAuthoredAir++;
-                            }
-                            if (baseCaveSample == null
-                                    && sample.sourceKind()
-                                            == SkyIslandExteriorConnectedCaveVolumeSample.SourceKind.BASE_CAVE) {
-                                baseCaveSample = position.immutable();
+                                if (baseCaveSample == null
+                                        && sample.sourceKind()
+                                                == SkyIslandExteriorConnectedCaveVolumeSample.SourceKind.BASE_CAVE) {
+                                    baseCaveSample = position.immutable();
+                                }
+                            } else if (SkyforgeNeoForge1211SurfaceStage
+                                            .authoredVisibleHydrologyVolumeId(position)
+                                            .filter(volume.id()::equals)
+                                            .isPresent()
+                                    && SkyforgeAuthoredVisibleHydrologyAdapter.isWaterBearing(finalState)) {
+                                finalAuthoredHydrologyWater++;
                             }
                             continue;
                         }
@@ -533,6 +562,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
         return new FinalEvidence(
                 authoredPositive,
                 finalAuthoredAir,
+                finalAuthoredHydrologyWater,
                 nativeOnlyAir,
                 nativeOnlySample,
                 baseCaveSample);
@@ -550,6 +580,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveDevRuntime {
     private record FinalEvidence(
             int authoredPositive,
             int finalAuthoredAir,
+            int finalAuthoredHydrologyWater,
             int nativeOnlyAir,
             BlockPos nativeOnlySample,
             BlockPos baseCaveSample) {}
