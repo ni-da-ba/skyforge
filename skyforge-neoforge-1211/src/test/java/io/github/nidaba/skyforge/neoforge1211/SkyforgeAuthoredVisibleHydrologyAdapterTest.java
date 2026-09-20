@@ -32,6 +32,59 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void canonicalSpecimenProjectsEveryAcceptedIntentAndCutsARecessedChannelBed() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var intent = io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner.plan(
+                fixture.descriptor());
+        var deployments = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
+                fixture.descriptor(), fixture.volume(), terrain);
+
+        long channelDeployments = deployments.stream()
+                .filter(deployment -> deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL)
+                .count();
+        long retainedDeployments = deployments.stream()
+                .filter(deployment -> deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER)
+                .count();
+        long verticalDeployments = deployments.stream()
+                .filter(deployment -> deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.VERTICAL_DISCHARGE)
+                .count();
+        long edgeDeployments = deployments.stream()
+                .filter(deployment -> deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.EDGE_DISCHARGE)
+                .count();
+
+        assertEquals(intent.channels().size(), channelDeployments);
+        assertEquals(intent.retainedWater().size(), retainedDeployments);
+        assertEquals(
+                intent.drops().stream()
+                        .filter(drop -> drop.kind()
+                                        == io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind.CASCADE
+                                || drop.kind()
+                                        == io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind.WATERFALL)
+                        .count(),
+                verticalDeployments);
+        assertEquals(
+                intent.drops().stream()
+                        .filter(drop -> drop.kind()
+                                == io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE)
+                        .count(),
+                edgeDeployments);
+
+        var channel = deployments.stream()
+                .filter(deployment -> deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL)
+                .findFirst()
+                .orElseThrow();
+        assertFalse(channel.carvedPositions().isEmpty(),
+                "canonical visible channel must physically incise terrain before water placement");
+        assertTrue(java.util.Collections.disjoint(channel.positions(), channel.carvedPositions()));
+        var path = intent.channels().getFirst().path();
+        assertTrue(
+                SkyforgeAuthoredVisibleHydrologyAdapter.channelIncisionDepth(fixture.descriptor(), path)
+                        > SkyforgeAuthoredVisibleHydrologyAdapter.channelDepth(path),
+                "authored water surface must sit below its bank rather than replacing the hilltop");
+    }
+
+    @Test
     void boundedAcceptedCorpusCoversEveryRequiredImplementationKind() {
         Set<SkyforgeAuthoredVisibleHydrologyAdapter.Feature> observed = new HashSet<>();
         for (long key : ACCEPTED_CORPUS_KEYS) {
@@ -54,9 +107,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 fixture.descriptor(), fixture.volume(), terrain);
         assertFalse(deployments.isEmpty());
 
-        for (var deployment : deployments) {
+        for (int deploymentIndex = 0; deploymentIndex < deployments.size(); deploymentIndex++) {
+            var deployment = deployments.get(deploymentIndex);
             var chunks = new java.util.HashMap<Long, ProtoChunk>();
-            for (var position : deployment.positions()) {
+            var allPositions = new java.util.ArrayList<BlockPos>();
+            allPositions.addAll(deployment.positions());
+            allPositions.addAll(deployment.carvedPositions());
+            for (var position : allPositions) {
                 chunks.computeIfAbsent(new net.minecraft.world.level.ChunkPos(position).toLong(), key -> {
                     try {
                         return realizedChunk(terrain, new net.minecraft.world.level.ChunkPos(key));
@@ -70,6 +127,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         .getBlockState(position)
                         .is(Blocks.WATER));
             }
+            for (var position : deployment.carvedPositions()) {
+                assertTrue(chunks.get(new net.minecraft.world.level.ChunkPos(position).toLong())
+                        .getBlockState(position)
+                        .isAir());
+            }
 
             assertEquals(0, chunks.values().stream()
                     .mapToInt(chunk -> SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, terrain))
@@ -77,11 +139,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
             var reloaded = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
                     fixture.descriptor(), fixture.volume(), terrain);
-            var reloadedDeployment = reloaded.stream()
-                    .filter(candidate -> candidate.feature() == deployment.feature())
-                    .findFirst()
-                    .orElseThrow();
-            assertEquals(deployment, reloadedDeployment);
+            assertEquals(deployments, reloaded);
+            var reloadedDeployment = reloaded.get(deploymentIndex);
             assertEquals(0, chunks.values().stream()
                     .mapToInt(chunk -> SkyforgeAuthoredVisibleHydrologyAdapter.apply(chunk, reloadedDeployment))
                     .sum());
@@ -94,7 +153,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         var deployment = new SkyforgeAuthoredVisibleHydrologyAdapter.Deployment(
                 fixture.volume().id(),
                 SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
-                List.of(new BlockPos(1, 64, 1)));
+                List.of(new BlockPos(1, 64, 1)),
+                List.of());
         var chunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(0, 0));
 
         assertEquals(1, SkyforgeAuthoredVisibleHydrologyAdapter.apply(chunk, deployment));
@@ -159,7 +219,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             SkyforgeNeoForge1211ChunkAdapter terrain) {
         for (var deployment : deployments) {
             assertFalse(deployment.positions().isEmpty());
-            for (var position : deployment.positions()) {
+            var semanticPositions = new java.util.ArrayList<BlockPos>();
+            semanticPositions.addAll(deployment.positions());
+            semanticPositions.addAll(deployment.carvedPositions());
+            for (var position : semanticPositions) {
                 assertTrue(terrain.isSolidOwnedBy(
                         deployment.volumeId(), position.getX(), position.getY(), position.getZ()));
                 assertFalse(terrain.isSolidOwnedByOtherVolume(
