@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import hmac
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,7 @@ import threading
 from typing import Any, Mapping
 
 from v2.cutover import LegacyOperationalProjection
+from v2.development_read_model import build_development_snapshot
 from v2.hosted_admission import (
     HostedAdmissionAdvanceResult,
     HostedAdmissionStore,
@@ -36,6 +38,7 @@ from v2.hosted_execution_runtime import (
     HostedExecutionGateDisposition,
     HostedExecutionCoordinator,
     load_hosted_execution_gate,
+    read_checkout_head,
 )
 from v2.hosted_execution_driver import (
     HostedExecutionDriver,
@@ -82,6 +85,7 @@ from v2.task_event_composition import (
     TaskAuthorityEventStore,
     capture_task_authority_event,
 )
+from v2.worker_provider import WorkerRunStore
 
 
 DEFAULT_REPO = "ni-da-ba/skyforge"
@@ -114,6 +118,7 @@ class HostedV2Substrate:
         require_webhook_secret: bool,
         startup_reconcile: bool,
         webhook_secret: str | None = None,
+        development_api_token: str | None = None,
         trusted_actors: tuple[str, ...] | None = None,
         production_execution_requested: bool = False,
         execution_gate: HostedExecutionGateDecision | None = None,
@@ -123,6 +128,11 @@ class HostedV2Substrate:
         self.require_webhook_secret = bool(require_webhook_secret)
         self.startup_reconcile = bool(startup_reconcile)
         self.webhook_secret = webhook_secret or os.environ.get("SKYFORGE_WEBHOOK_SECRET")
+        self.development_api_token = (
+            development_api_token
+            if development_api_token is not None
+            else os.environ.get("SKYFORGE_DEVELOPMENT_API_TOKEN", "")
+        ).strip()
         self.trusted_actors = trusted_actors or _trusted_actors()
         self.production_execution_requested = bool(production_execution_requested)
         self.execution_gate = execution_gate
@@ -147,6 +157,7 @@ class HostedV2Substrate:
         self.human_review_store = HumanReviewStore.for_root(self.root)
         self.task_plan_store = HostedTaskPlanStore.for_root(self.root)
         self.admission_store = HostedAdmissionStore.for_root(self.root)
+        self.worker_run_store = WorkerRunStore.for_root(self.root)
         self.execution_driver = None
         self._lock = threading.RLock()
         self.state = self.store.load()
@@ -169,6 +180,10 @@ class HostedV2Substrate:
                 raise RuntimeError(
                     "SKYFORGE_WEBHOOK_SECRET must be at least 32 characters in hosted mode."
                 )
+        if self.development_api_token and len(self.development_api_token) < 32:
+            raise RuntimeError(
+                "SKYFORGE_DEVELOPMENT_API_TOKEN must be at least 32 characters when configured."
+            )
 
     def _migrate_pending_audit_signals(self) -> int:
         """Apply current deterministic Audit parsing to durable pre-upgrade events."""
@@ -352,6 +367,7 @@ class HostedV2Substrate:
                     latest_objective.proposal_id if latest_objective else ""
                 ),
                 "human_review_ingress_enabled": True,
+                "development_read_api_enabled": bool(self.development_api_token),
                 "human_review_count": len(human_review_ledger.records),
                 "latest_human_review_id": (
                     latest_human_review.review_id if latest_human_review else ""
@@ -430,6 +446,82 @@ class HostedV2Substrate:
                     if self.execution_driver is not None
                     else {}
                 ),
+            }
+
+    def development_snapshot(self) -> dict[str, Any]:
+        """Project current durable workflow truth for authorized thin clients."""
+        with self._lock:
+            health = self.health_snapshot()
+            state = self.state
+            projection = state.legacy_projection or {}
+            objectives = self.objective_proposal_store.load()
+            reviews = self.human_review_store.load()
+            plan = self.task_plan_store.load().active
+            admission = self.admission_store.load().record
+            workers = self.worker_run_store.load()
+            completions = HostedCompletionStore.for_root(self.root).load()
+            external = self.external_claim_store.load()
+
+            runtime = {
+                "status": health["status"],
+                "controller": health["controller"],
+                "runtime_mode": health["runtime_mode"],
+                "state_digest": health["state_digest"],
+                "pending_event_count": health["pending_event_count"],
+                "production_execution_enabled": health["production_execution_enabled"],
+                "production_execution_gate_digest": health[
+                    "production_execution_gate_digest"
+                ],
+                "production_execution_gate_blockers": list(
+                    health["production_execution_gate_blockers"]
+                ),
+                "production_execution_driver": health["production_execution_driver"],
+                "production_execution_budget": health["production_execution_budget"],
+            }
+            snapshot = build_development_snapshot(
+                repo=self.repo,
+                checkout_head_sha=read_checkout_head(self.root),
+                legacy_projection=projection,
+                objective_records=(
+                    record.as_dict() for record in objectives.records
+                ),
+                active_plan=(plan.as_dict() if plan is not None else None),
+                admission=(
+                    admission.as_dict() if admission is not None else None
+                ),
+                worker_records=(
+                    record.as_dict() for record in workers.records
+                ),
+                completion_records=(
+                    record.as_dict() for record in completions.records
+                ),
+                external_claims=(
+                    claim.as_dict() for claim in external.claims
+                ),
+                human_reviews=(
+                    record.as_dict() for record in reviews.records
+                ),
+                runtime=runtime,
+            )
+            return snapshot.as_dict()
+
+    def handle_development_read(
+        self,
+        authorization: str | None,
+    ) -> tuple[int, dict[str, Any]]:
+        token = self.development_api_token
+        if not token:
+            return 503, {"error": "development API is not configured"}
+        supplied = str(authorization or "")
+        expected = f"Bearer {token}"
+        if not hmac.compare_digest(supplied, expected):
+            return 401, {"error": "development API authorization required"}
+        try:
+            return 200, self.development_snapshot()
+        except (OSError, RuntimeError, StateStoreError, ValueError) as exc:
+            return 503, {
+                "error": "development state is unavailable",
+                "failure_kind": type(exc).__name__,
             }
 
     def handle_webhook(
@@ -932,10 +1024,16 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:  # noqa: N802
-        if self.path != "/healthz":
-            self.send_error(404)
+        if self.path == "/healthz":
+            self._respond_json(200, self.runtime.health_snapshot())
             return
-        self._respond_json(200, self.runtime.health_snapshot())
+        if self.path == "/api/v1/development-state":
+            status, payload = self.runtime.handle_development_read(
+                self.headers.get("Authorization")
+            )
+            self._respond_json(status, payload)
+            return
+        self.send_error(404)
 
     def do_POST(self) -> None:  # noqa: N802
         if self.path != "/webhook":
