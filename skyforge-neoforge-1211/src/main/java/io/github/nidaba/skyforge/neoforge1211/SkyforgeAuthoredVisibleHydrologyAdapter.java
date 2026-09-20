@@ -89,7 +89,21 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         2));
             }
         }
-        return List.copyOf(deployments);
+
+        // Connected reaches can overlap at confluences. Water authority wins globally over dry
+        // channel-clearance carving so application order can never erase an accepted wet cell.
+        var allWater = deployments.stream()
+                .flatMap(deployment -> deployment.positions().stream())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        return deployments.stream()
+                .map(deployment -> new Deployment(
+                        deployment.volumeId(),
+                        deployment.feature(),
+                        deployment.positions(),
+                        deployment.carvedPositions().stream()
+                                .filter(position -> !allWater.contains(position))
+                                .toList()))
+                .toList();
     }
 
     /** Applies every authored deployment whose exact cells occur in an already-available chunk. */
