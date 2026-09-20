@@ -61,11 +61,30 @@ final class SkyforgeDr70ReviewRepairTest {
                 .count();
         assertTrue(distinctColumns > semantic.size(),
                 "physical channel must read wider than sparse semantic sample points");
+        assertFalse(deployment.carvedPositions().isEmpty(),
+                "physical channel must cut a dry recessed bed rather than replace the hilltop with water");
+        assertTrue(java.util.Collections.disjoint(
+                deployment.positions(), deployment.carvedPositions()));
+        assertTrue(
+                SkyforgeAuthoredVisibleHydrologyAdapter.channelIncisionDepth(
+                                fixture.descriptor(),
+                                SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor())
+                                        .channels().getFirst().path())
+                        > SkyforgeAuthoredVisibleHydrologyAdapter.channelDepth(
+                                SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor())
+                                        .channels().getFirst().path()),
+                "canonical water surface must be physically recessed below its authored banks");
         assertConnectedFootprint(deployment.positions());
         for (BlockPos position : deployment.positions()) {
             assertTrue(terrain.isAuthoredVisibleHydrologyPosition(position));
             assertTrue(terrain.isSolidOwnedBy(
                     fixture.volume().id(), position.getX(), position.getY(), position.getZ()));
+        }
+        for (BlockPos position : deployment.carvedPositions()) {
+            assertTrue(terrain.isSolidOwnedBy(
+                    fixture.volume().id(), position.getX(), position.getY(), position.getZ()));
+            assertFalse(terrain.isAuthoredVisibleHydrologyPosition(position),
+                    "dry bank/bed-clearance cells must not become fluid-domain authority");
         }
         assertFalse(terrain.isAuthoredVisibleHydrologyPosition(new BlockPos(0, 0, 0)));
     }
