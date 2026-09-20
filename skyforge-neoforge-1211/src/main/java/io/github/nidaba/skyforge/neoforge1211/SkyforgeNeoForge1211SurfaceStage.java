@@ -20,6 +20,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 /** Runtime binding between compiled Skyforge terrain and the Minecraft 1.21.1 adapter. */
@@ -647,6 +648,17 @@ public final class SkyforgeNeoForge1211SurfaceStage {
 
     static boolean isAuthoredVisibleHydrologyPosition(BlockPos position) {
         return authoredVisibleHydrologyVolumeId(position).isPresent();
+    }
+
+    static Optional<BlockState> authoredHydrologyPopulationState(
+            SkyIslandWorldVolumeId volumeId,
+            BlockPos position) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(position, "position");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? Optional.empty()
+                : binding.adapter().authoredHydrologyPopulationState(volumeId, position);
     }
 
     static boolean hasActiveBinding() {
