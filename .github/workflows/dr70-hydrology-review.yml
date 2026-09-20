@@ -38,6 +38,7 @@ jobs:
           ./gradlew \
             :skyforge-neoforge-1211:test \
             --tests 'io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70SpecimenSearchTest' \
+            -Dskyforge.test.dr70SpecimenSearch=true \
             --stacktrace --no-configuration-cache
 
       # Required CI owns exhaustive unit tests. DR-70 owns only the bounded production-world

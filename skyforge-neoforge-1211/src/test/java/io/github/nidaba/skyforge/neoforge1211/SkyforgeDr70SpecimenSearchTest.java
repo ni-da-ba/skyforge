@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -43,6 +44,9 @@ final class SkyforgeDr70SpecimenSearchTest {
 
     @Test
     void selectedReviewSpecimenIsFirstAuth0105RankedPhysicallyAdmissibleCandidate() {
+        Assumptions.assumeTrue(
+                Boolean.getBoolean("skyforge.test.dr70SpecimenSearch"),
+                "DR-70 physical specimen search is owned by the dedicated DR-70 qualification workflow");
         Candidate selected = rankedAuth0105Candidates().stream()
                 .filter(candidate -> candidate.descriptor().nominalRadius() < 120.0)
                 .filter(candidate -> candidate.reachCount() >= 20)
