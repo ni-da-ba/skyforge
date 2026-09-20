@@ -20,11 +20,15 @@ import java.util.List;
  * obligation footprint bounded enough to exercise the production lifecycle in CI.
  */
 final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
+    static final String DR70_REVIEW_PROPERTY = "skyforge.dev.dr70HydrologyReview";
+
     private static final long WORLD_SEED = 0x534B59464F524745L;
     private static final long PROVINCE_KEY = 8L;
     private static final long CLUSTER_KEY = 81L;
     private static final long ISLAND_KEY = 1471L;
+    private static final long DR70_REVIEW_ISLAND_KEY = 421L;
     private static final long SINGLE_PHYSICAL_SEED = 680068L;
+    private static final long DR70_REVIEW_PHYSICAL_SEED = 680421L;
     private static final long LOWER_PHYSICAL_SEED = 680168L;
     private static final long UPPER_PHYSICAL_SEED = 680268L;
     private static final double SINGLE_SUSPENSION_Y = 220.0;
@@ -34,15 +38,33 @@ final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
     private static final io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor DESCRIPTOR =
             SkyIslandDescriptorGenerator.derive(
                     SkyIslandIdentity.of(WORLD_SEED, PROVINCE_KEY, CLUSTER_KEY, ISLAND_KEY));
+    private static final io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor DR70_REVIEW_DESCRIPTOR =
+            SkyIslandDescriptorGenerator.derive(
+                    SkyIslandIdentity.of(
+                            WORLD_SEED,
+                            PROVINCE_KEY,
+                            CLUSTER_KEY,
+                            DR70_REVIEW_ISLAND_KEY));
     private static final SkyIslandExteriorConnectedCaveVolumeField FIELD =
             SkyIslandExteriorConnectedCaveVolumeField.create(DESCRIPTOR);
+    private static final SkyIslandExteriorConnectedCaveVolumeField DR70_REVIEW_FIELD =
+            SkyIslandExteriorConnectedCaveVolumeField.create(DR70_REVIEW_DESCRIPTOR);
     private static final Single SINGLE = singleFixture();
+    private static final Single DR70_REVIEW = dr70ReviewFixture();
     private static final Stacked STACKED = stackedFixture();
 
     private SkyforgeNeoForge1211ProductionComposedCaveFixture() {}
 
     static Single single() {
         return SINGLE;
+    }
+
+    static Single activeSingle() {
+        return Boolean.getBoolean(DR70_REVIEW_PROPERTY) ? DR70_REVIEW : SINGLE;
+    }
+
+    static Single dr70Review() {
+        return DR70_REVIEW;
     }
 
     static Stacked stacked() {
@@ -56,6 +78,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
         }
         double radius = DESCRIPTOR.nominalRadius();
         SkyIslandWorldVolume volume = volume(
+                DESCRIPTOR,
                 SINGLE_PHYSICAL_SEED,
                 "sf-imp-0068-production-composed-cave",
                 SINGLE_SUSPENSION_Y,
@@ -73,9 +96,31 @@ final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
                 new SkyIslandWorldCatalog(WORLD_SEED, List.of(volume)));
     }
 
+    private static Single dr70ReviewFixture() {
+        double radius = DR70_REVIEW_DESCRIPTOR.nominalRadius();
+        SkyIslandWorldVolume volume = volume(
+                DR70_REVIEW_DESCRIPTOR,
+                DR70_REVIEW_PHYSICAL_SEED,
+                "dr-70-hydrology-review",
+                SINGLE_SUSPENSION_Y,
+                radius,
+                58.0,
+                82.0,
+                Math.min(54.0, radius * 0.18),
+                110.0,
+                80.0);
+        return new Single(
+                DR70_REVIEW_ISLAND_KEY,
+                DR70_REVIEW_DESCRIPTOR,
+                DR70_REVIEW_FIELD,
+                volume,
+                new SkyIslandWorldCatalog(WORLD_SEED, List.of(volume)));
+    }
+
     private static Stacked stackedFixture() {
         double radius = DESCRIPTOR.nominalRadius();
         SkyIslandWorldVolume lower = volume(
+                DESCRIPTOR,
                 LOWER_PHYSICAL_SEED,
                 "sf-imp-0068-production-composed-cave-stacked/lower",
                 LOWER_SUSPENSION_Y,
@@ -86,6 +131,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
                 55.0,
                 45.0);
         SkyIslandWorldVolume upper = volume(
+                DESCRIPTOR,
                 UPPER_PHYSICAL_SEED,
                 "sf-imp-0068-production-composed-cave-stacked/upper",
                 UPPER_SUSPENSION_Y,
@@ -105,6 +151,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
     }
 
     private static SkyIslandWorldVolume volume(
+            io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor authoredDescriptor,
             long seed,
             String path,
             double suspensionY,
@@ -127,7 +174,7 @@ final class SkyforgeNeoForge1211ProductionComposedCaveFixture {
                 0.24,
                 0.62,
                 0.0,
-                DESCRIPTOR.morphologyFamily(),
+                authoredDescriptor.morphologyFamily(),
                 0.10,
                 28.0,
                 0.18);

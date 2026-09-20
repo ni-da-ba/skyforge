@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -14,6 +15,36 @@ import org.junit.jupiter.api.Test;
 /** Bounded machine evidence for the post-DR-60 canopy/hydrology repair tranche. */
 final class SkyforgeDr70ReviewRepairTest {
     private static final int PRODUCTION_ATTACHMENT_DEPTH = 24;
+
+    @Test
+    void selectedReviewSpecimenIsBoundedAndExercisesHydrologyAndCaves() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
+        assertEquals(421L, fixture.islandKey());
+        assertTrue(fixture.descriptor().nominalRadius() < 120.0,
+                "DR-70 review specimen must remain near the accepted bounded runtime workload");
+        assertTrue(fixture.field().exposureGeometry().connectionCount() > 0,
+                "DR-70 review specimen must preserve authored cave connectivity");
+
+        var visible = SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor());
+        assertTrue(visible.channels().size() >= 20,
+                "review specimen must exercise a substantial connected channel system");
+        assertTrue(visible.drops().stream().filter(drop ->
+                drop.kind() != io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE)
+                .count() >= 1,
+                "review specimen must exercise at least one interior drop");
+
+        var terrain = new SkyforgeNeoForge1211ChunkAdapter(
+                fixture.catalog(),
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette(),
+                java.util.Map.of(fixture.volume().id(), fixture.descriptor()));
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
+        assertTrue(deployments.stream().anyMatch(deployment ->
+                deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL
+                        && !deployment.positions().isEmpty()
+                        && !deployment.carvedPositions().isEmpty()),
+                "review specimen must project AUTH-0105 into both wet and dry Minecraft terrain");
+    }
 
     @Test
     void canonicalUpperSurfaceRejectsTreePlacementWithoutEnoughAttachmentHeadroom() {

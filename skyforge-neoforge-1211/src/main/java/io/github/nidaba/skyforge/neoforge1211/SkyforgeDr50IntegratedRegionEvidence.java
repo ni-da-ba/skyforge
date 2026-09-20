@@ -34,7 +34,7 @@ final class SkyforgeDr50IntegratedRegionEvidence {
     }
 
     private static SkyIslandWorldVolumeId canonicalVolumeId() {
-        return SkyforgeNeoForge1211ProductionComposedCaveFixture.single().volume().id();
+        return SkyforgeNeoForge1211ProductionComposedCaveFixture.activeSingle().volume().id();
     }
 
     static Map<String, Object> collect(

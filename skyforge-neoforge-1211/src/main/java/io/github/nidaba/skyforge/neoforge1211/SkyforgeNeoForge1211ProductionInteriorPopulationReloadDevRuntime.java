@@ -57,7 +57,7 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationReloadDevRuntime {
         expectedSample = readExpectedSample();
         persistentTerrainBinding = SkyforgeNeoForge1211SurfaceStage.install(
                 new SkyforgeNeoForge1211ChunkAdapter(
-                        SkyforgeNeoForge1211ProductionComposedCaveFixture.single().catalog(),
+                        SkyforgeNeoForge1211ProductionComposedCaveFixture.activeSingle().catalog(),
                         SkyIslandTerrainProfile.reference(),
                         new SkyforgeMinecraftBlockPalette()),
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
@@ -225,7 +225,7 @@ final class SkyforgeNeoForge1211ProductionInteriorPopulationReloadDevRuntime {
         String stateText = Objects.requireNonNull(
                 properties.getProperty("sampleFluidState"),
                 "SF-IMP-0069 B result omitted sampleFluidState");
-        var volume = SkyforgeNeoForge1211ProductionComposedCaveFixture.single().volume();
+        var volume = SkyforgeNeoForge1211ProductionComposedCaveFixture.activeSingle().volume();
         try {
             return new ExpectedSample(
                     BlockPos.of(Long.parseLong(packedText)),
