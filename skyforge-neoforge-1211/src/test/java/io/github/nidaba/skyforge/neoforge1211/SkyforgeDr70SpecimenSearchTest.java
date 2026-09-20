@@ -3,11 +3,13 @@ package io.github.nidaba.skyforge.neoforge1211;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import io.github.nidaba.skyforge.world.SkyIslandChannelDropKind;
 import io.github.nidaba.skyforge.world.SkyIslandCoherentChannelComponent;
 import io.github.nidaba.skyforge.world.SkyIslandCoherentChannelPlan;
 import io.github.nidaba.skyforge.world.SkyIslandCoherentChannelPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandCoherentHydrologicRealizationPlanner;
+import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
 import io.github.nidaba.skyforge.world.SkyIslandCompiledVolumeColumnField;
 import io.github.nidaba.skyforge.world.SkyIslandNaturalizedChannelPath;
 import io.github.nidaba.skyforge.world.SkyIslandNaturalizedChannelPlan;
@@ -33,6 +35,9 @@ import org.junit.jupiter.api.Test;
  * at least one dry physical exterior cave-mouth witness. It does not rerank authored hydrology.
  */
 final class SkyforgeDr70SpecimenSearchTest {
+    private static final long SEED = 0x534B59464F524745L;
+    private static final long GROUP = 8L;
+    private static final long REGION = 81L;
     private static final int SEARCH_COUNT = 4096;
     private static final int FULL_EVALUATION_COUNT = 48;
 
@@ -61,8 +66,8 @@ final class SkyforgeDr70SpecimenSearchTest {
     private static java.util.List<Candidate> rankedAuth0105Candidates() {
         var preliminary = new ArrayList<PreCandidate>(SEARCH_COUNT);
         for (long key = 0; key < SEARCH_COUNT; key++) {
-            var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70ReviewCandidate(key);
-            var descriptor = fixture.descriptor();
+            var descriptor = SkyIslandDescriptorGenerator.derive(
+                    SkyIslandIdentity.of(SEED, GROUP, REGION, key));
             SkyIslandCoherentChannelPlan channels = SkyIslandCoherentChannelPlanner.plan(descriptor);
             if (channels.retainedReachCount() == 0) {
                 continue;
