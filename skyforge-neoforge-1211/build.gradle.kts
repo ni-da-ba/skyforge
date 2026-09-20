@@ -1310,7 +1310,7 @@ neoForge {
         }
 
         // DR-70 hydrology review uses an explicit bounded authored specimen override. It does not
-        // replace the DR-00/DR-50 lock; the property-gated runtime selects key 421 only for this
+        // replace the DR-00/DR-50 lock; the property-gated runtime selects key 2885 only for this
         // review save. The prepare run materializes production terrain/caves + DR-40 ecology, then
         // the reload client proves the exact save can be reopened before the human client uses it.
         create("dr70HydrologyReviewPrepare") {
@@ -5457,7 +5457,7 @@ tasks.named("runDr70HydrologyReviewPrepare").configure {
     }
     doLast {
         val result = requireDr70HydrologyReviewPass("production")
-        check(result.getProperty("islandKey") == "421"
+        check(result.getProperty("islandKey") == "2885"
                 && result.getProperty("dr40ProductionEcology") == "true"
                 && result.getProperty("productionStage") == "true"
                 && result.getProperty("noReplay") == "true") {
@@ -5488,9 +5488,9 @@ tasks.named("runDr70HumanReviewClient").configure {
     doFirst {
         val production = requireDr70HydrologyReviewPass("production")
         val reload = requireDr70HydrologyReviewPass("reload")
-        check(production.getProperty("islandKey") == "421"
+        check(production.getProperty("islandKey") == "2885"
                 && reload.getProperty("reloadClientPass") == "true") {
-            "DR-70 human review requires the qualified key-421 review save"
+            "DR-70 human review requires the qualified key-2885 review save"
         }
         val directory = layout.projectDirectory.dir("run-dr70-hydrology-review").asFile
         directory.resolve("options.txt").writeText("onboardAccessibility:false\nnarrator:0\n")
@@ -5499,7 +5499,7 @@ tasks.named("runDr70HumanReviewClient").configure {
 
 tasks.register("dr70HydrologyReviewAcceptance") {
     group = "verification"
-    description = "Prepare and reopen the bounded key-421 DR-70 hydrology review world."
+    description = "Prepare and reopen the bounded key-2885 DR-70 hydrology review world."
     dependsOn(
         "runDr70HydrologyReviewPrepare",
         "runDr70HydrologyReviewReloadClient",
