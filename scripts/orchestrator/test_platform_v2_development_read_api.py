@@ -34,7 +34,23 @@ def make_git_root(root: Path) -> str:
         encoding="utf-8",
     )
     (root / "tracked.txt").write_text("accepted\n", encoding="utf-8")
-    subprocess.run(["git", "add", ".gitignore", "tracked.txt"], cwd=root, check=True)
+    artifact_manifest = root / "docs" / "agent-state" / "REVIEW_ARTIFACTS.json"
+    artifact_manifest.parent.mkdir(parents=True, exist_ok=True)
+    artifact_manifest.write_text(
+        json.dumps({"schema_version": 1, "artifacts": []}) + "\n",
+        encoding="utf-8",
+    )
+    subprocess.run(
+        [
+            "git",
+            "add",
+            ".gitignore",
+            "tracked.txt",
+            "docs/agent-state/REVIEW_ARTIFACTS.json",
+        ],
+        cwd=root,
+        check=True,
+    )
     subprocess.run(["git", "commit", "-m", "accepted"], cwd=root, check=True, capture_output=True)
     return subprocess.run(
         ["git", "rev-parse", "HEAD"],

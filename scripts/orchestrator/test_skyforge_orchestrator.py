@@ -803,6 +803,14 @@ class HostedTransportTests(unittest.TestCase):
             installer,
         )
         self.assertIn(
+            "s/^SKYFORGE_DEVELOPMENT_API_TOKEN=//p",
+            installer,
+        )
+        self.assertIn(
+            "SKYFORGE_DEVELOPMENT_API_TOKEN=${SKYFORGE_DEVELOPMENT_API_TOKEN:-}",
+            installer,
+        )
+        self.assertIn(
             "s/^SKYFORGE_DROPLET_HOURLY_USD=//p",
             installer,
         )

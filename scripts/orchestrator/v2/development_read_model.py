@@ -86,12 +86,26 @@ def _objective(raw: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _human_review(raw: Mapping[str, Any]) -> dict[str, Any]:
+def _artifact(raw: Mapping[str, Any]) -> dict[str, Any]:
+    artifact_id = str(raw.get("artifact_id") or "").strip()
+    if not artifact_id:
+        raise ValueError("artifact_id is required")
+    return _json_value(dict(raw), "artifact manifest")
+
+
+def _human_review(
+    raw: Mapping[str, Any],
+    artifacts: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
     source = _mapping(raw.get("source"), "human review source")
+    artifact_id = str(raw.get("artifact_id") or "")
     return {
         "review_id": str(raw.get("review_id") or ""),
         "gate_id": str(raw.get("gate_id") or ""),
-        "artifact_id": str(raw.get("artifact_id") or ""),
+        "artifact_id": artifact_id,
+        "artifact": (
+            dict(artifacts[artifact_id]) if artifact_id in artifacts else None
+        ),
         "source_sha": _sha40(raw.get("source_sha"), "human review source_sha"),
         "verdict": str(raw.get("verdict") or ""),
         "positive_findings": list(raw.get("positive_findings") or []),
@@ -212,6 +226,8 @@ class DevelopmentSnapshot:
     completions: tuple[Mapping[str, Any], ...]
     completion_count: int
     external_claims: tuple[Mapping[str, Any], ...]
+    artifacts: tuple[Mapping[str, Any], ...]
+    artifact_count: int
     human_reviews: tuple[Mapping[str, Any], ...]
     human_review_count: int
     runtime: Mapping[str, Any]
@@ -237,6 +253,8 @@ class DevelopmentSnapshot:
                 "completion_count": self.completion_count,
             },
             "external_claims": [dict(value) for value in self.external_claims],
+            "artifacts": [dict(value) for value in self.artifacts],
+            "artifact_count": self.artifact_count,
             "human_reviews": [dict(value) for value in self.human_reviews],
             "human_review_count": self.human_review_count,
             "runtime": _json_value(dict(self.runtime), "runtime"),
@@ -261,6 +279,7 @@ def build_development_snapshot(
     worker_records: Iterable[Mapping[str, Any]] = (),
     completion_records: Iterable[Mapping[str, Any]] = (),
     external_claims: Iterable[Mapping[str, Any]] = (),
+    artifact_records: Iterable[Mapping[str, Any]] = (),
     human_reviews: Iterable[Mapping[str, Any]] = (),
     runtime: Mapping[str, Any],
 ) -> DevelopmentSnapshot:
@@ -276,8 +295,17 @@ def build_development_snapshot(
     completions_all = tuple(
         _completion(_mapping(value, "completion")) for value in completion_records
     )
+    artifacts_all = tuple(
+        _artifact(_mapping(value, "artifact")) for value in artifact_records
+    )
+    artifacts_by_id = {
+        str(value["artifact_id"]): value for value in artifacts_all
+    }
+    if len(artifacts_by_id) != len(artifacts_all):
+        raise ValueError("duplicate artifact identity in development snapshot")
     reviews_all = tuple(
-        _human_review(_mapping(value, "human review")) for value in human_reviews
+        _human_review(_mapping(value, "human review"), artifacts_by_id)
+        for value in human_reviews
     )
     claims = tuple(_claim(_mapping(value, "external claim")) for value in external_claims)
 
@@ -306,6 +334,8 @@ def build_development_snapshot(
         completions=_recent(completions_all),
         completion_count=len(completions_all),
         external_claims=claims,
+        artifacts=artifacts_all,
+        artifact_count=len(artifacts_all),
         human_reviews=_recent(reviews_all),
         human_review_count=len(reviews_all),
         runtime=_json_value(runtime, "runtime"),
