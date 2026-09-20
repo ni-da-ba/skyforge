@@ -176,6 +176,33 @@ UNOWNED
 
 OPT-5 multi-objective scheduling and OPT-6 autonomous program progression should not be considered mature until this lifecycle has meaningful adversarial coverage.
 
+#### X-7 — Shared development backend / multi-client control surface — P0 before full Bootstrap
+
+The Operations Console, ChatGPT/MCP, and later `sf` CLI / full Studio must consume one validated Skyforge development backend rather than reconstructing independent project state.
+
+Required boundary:
+
+```text
+Skyforge development backend
+    -> authoritative workflow state / significant events
+    -> validated query + command API
+        -> Operations Console
+        -> ChatGPT / MCP
+        -> sf CLI
+        -> future Studio
+```
+
+GitHub remains source/code/PR/CI authority. The development backend owns durable workflow concepts such as objectives, task authority, worker ownership, human gates, traces, and roadmap progression. Conversation history is never authoritative by itself.
+
+The external command surface must expose typed domain actions rather than raw shell, arbitrary database mutation, unrestricted Git operations, or an authority bypass. All clients use the same validation, idempotence, ownership, conflict, and audit rules.
+
+A bounded **pre-Bootstrap Operations Console** is explicitly pulled forward ahead of final OPT-8. It should provide trustworthy live project/objective/worker/gate visibility and artifact-bound human review before significant OPT-5 concurrency. ChatGPT should query the same backend on demand and retrieve the same artifact/gate identities.
+
+Canonical gate and detailed acceptance criteria:
+`docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md`.
+
+This requirement is **deferred while DR-70 is active**. It must not displace or perturb the current DR-70 execution/re-review path.
+
 ## 4. End-state
 
 The target human experience is:
@@ -275,6 +302,25 @@ Do not delay DR-70 for unrelated platform polish. Human visual judgment remains 
 
 **Exit:** several substantive product tasks, including at least one machine implementation task and one human-gated path, complete through the optimized intake/context flow without bespoke orchestration. Project-significant human findings are durably represented/reconciled under X-1, and any repeated human gate demonstrates the X-4 material delta that justifies another review.
 
+### OPT-3A — Pre-Bootstrap operational control surface — DEFERRED UNTIL DR-70 ACCEPTANCE
+
+**Goal:** establish the minimum shared development API, Operations Console, and ChatGPT/MCP visibility needed to supervise concurrent Bootstrap-scale development without using GPT conversations as the control plane.
+
+This tranche begins only after DR-70 human re-review is accepted. It may overlap later hardening once its backing state contracts are stable.
+
+Minimum scope:
+
+- one read model for project/objective/worker/gate/platform status;
+- artifact access for human review;
+- typed validated domain commands for objective/review control;
+- near-real-time console updates;
+- ChatGPT/MCP access to the same state and artifacts;
+- no independent UI authority or chat-only project truth.
+
+**Exit:** the console and ChatGPT can report the same current objective/worker/gate state and exact review artifacts; a human review submitted through an authorized client becomes one durable backend event and is reflected by the other clients.
+
+The detailed pre-Bootstrap gate remains `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md`.
+
 ### OPT-4 — Routine self-upgrade and operability
 
 **Goal:** make Platform-v2 upgrades ordinary rather than bespoke operator events.
@@ -364,6 +410,8 @@ The CLI is an interface to the same durable authority/state; it must not create 
 
 **Goal:** make the optimal workflow visible and low-friction rather than terminal/GitHub-centric.
 
+A deliberately small operational subset is pulled forward as OPT-3A before full Bootstrap activation. OPT-8 remains the later product-quality developer workspace; do not make final Studio UX a pre-Bootstrap requirement.
+
 Studio should expose:
 
 - objective composer;
@@ -434,18 +482,30 @@ After OPT-10, platform changes are ordinary product engineering: fix measured re
 The roadmap order is directional, not a requirement to finish all platform work before product work. The preferred cadence is:
 
 ```text
-OPT-1 objective intake
- -> use on DR-70
- -> OPT-2 context packaging where DR-70 demonstrates need
- -> continue DR-70
- -> OPT-4 routine upgrades as platform iteration itself becomes friction
- -> OPT-5 concurrency once multiple useful objectives exist
- -> OPT-6 Continue Skyforge
- -> OPT-7/8 interface convergence
- -> OPT-9 profiling-driven product execution work throughout when warranted
+WHILE DR-70 IS ACTIVE
+    OPT-1 objective intake
+     -> OPT-2 context packaging where DR-70 demonstrates need
+     -> continue DR-70
+     -> X-1/X-4 only where current workload justifies them
+
+AFTER DR-70 HUMAN RE-REVIEW IS ACCEPTED
+    finish OPT-2 bounded context/scope packaging
+     -> finish P0 X-1/X-4 workflow truth / gate semantics
+     -> OPT-4 routine upgrades
+     -> OPT-3A MVP shared backend + Operations Console + ChatGPT/MCP
+     -> X-6 lifecycle hardening sufficient for concurrency
+     -> OPT-5 basic conflict-aware concurrency
+     -> minimum viable OPT-6 Continue Skyforge
+     -> pre-Bootstrap platform gate acceptance
+     -> Bootstrap Province may become PRIMARY_ACTIVE
+
+LATER / AS NEEDED
+    OPT-7 CLI
+     -> full OPT-8 Studio
+     -> OPT-9 profiling-driven product execution work throughout when warranted
 ```
 
-OPT-3 therefore overlaps later phases: real product development is the benchmark and forcing function.
+OPT-3 therefore overlaps later phases: real product development remains the benchmark and forcing function. The bounded pre-Bootstrap gate is an explicit exception to the normal "do not pause product work for platform polish" rule because the owner has identified workflow throughput itself as a likely Bootstrap critical-path risk. It must remain bounded by the acceptance criteria in `PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md`.
 
 ## 7. Anti-patterns
 
@@ -463,4 +523,6 @@ Do not:
 
 ## 8. Current next action
 
-Continue **OPT-3: workload-driven product/platform feedback** from the fresh DR-70 human re-review gate. Do not self-pass that human judgment. In parallel only where the real workload justifies it, implement the P0 cross-cutting requirements exposed by DR-70: X-1 typed project-event/reconciliation authority and X-4 material-delta readiness. Feed the resulting evidence into OPT-4 operability/scorecards and X-2 tracing, then proceed toward OPT-5/6 only after X-6 lifecycle verification is strong enough to support concurrency and autonomous continuation safely.
+Continue **OPT-3: workload-driven product/platform feedback** through the active DR-70 repair and human re-review. Do not self-pass that human judgment, and do not start the deferred pre-Bootstrap platform gate in a way that perturbs DR-70.
+
+Once DR-70 human re-review is **ACCEPTED**, activate `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md`: complete bounded context/scope packaging, durable project-event and delta-aware gate semantics, routine platform operability, the MVP shared development API/Operations Console/ChatGPT surface, lifecycle hardening, basic conflict-aware concurrency, and minimum viable `Continue Skyforge`. Full Bootstrap Province should become the primary convergence workload only after that gate passes.
