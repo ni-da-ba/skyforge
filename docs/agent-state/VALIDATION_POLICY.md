@@ -293,19 +293,28 @@ Use:
 The exhaustive 20-member in-engine atlas may remain a later/manual regression or presentation asset if
 useful; it should not block the next production-world system once the carrier risk is retired.
 
-## Documentation/state fast path
+## Lightweight validation fast path
 
 Routine CI should distinguish repository prose/state changes from executable changes.
 
-- Changes confined to `docs/**` and selected top-level documentation files use a lightweight integrity
-  gate rather than provisioning Java/Gradle and regenerating the complete evidence corpus.
-- Code, assets, build configuration, workflow definitions, and all other executable-affecting paths
-  continue through the full CI suite.
+- Changes confined to `docs/**`, selected top-level documentation, `scripts/orchestrator/**`,
+  `deploy/orchestrator/**`, `.github/workflows/**`, `scripts/ci/**`, and `config/ci/**` may use a
+  lightweight protected-CI path rather than provisioning Java/Gradle and regenerating the product
+  evidence corpus.
+- Lightweight validation is not "no validation": it must run repository integrity checks plus the
+  relevant control-plane / CI-helper unit and contract tests. Workflow changes must be checked against
+  repository-owned retained-workflow contracts where a heavy acceptance boundary depends on them.
+- Reusable Java/Gradle setup actions, product source/resources/assets, build configuration, and any
+  mixed or unclassified change continue through full product CI.
 - If change-impact classification is uncertain, fail safe to full CI.
-- Documentation-only validation must still reject merge-conflict markers and require the canonical
-  program/state entry points to exist.
+- Tier-2 characterization workflows should not repeat the exhaustive Tier-1 compile/unit suite already
+  owned by canonical CI unless a distinct failure mode requires it. Their own YAML edits must not
+  self-trigger the expensive runtime characterization merely to validate validation plumbing.
+- Product/dependency paths must continue to trigger the retained characterization they protect, and
+  manual dispatch remains available when deliberate re-characterization is warranted.
 
-This reduces state-ledger/Audit/design-document merge latency without weakening executable coverage.
+This reduces state-ledger, orchestration, CI-policy, and workflow-maintenance latency without weakening
+executable coverage or product-path characterization.
 
 ## Retained regression trigger policy
 
