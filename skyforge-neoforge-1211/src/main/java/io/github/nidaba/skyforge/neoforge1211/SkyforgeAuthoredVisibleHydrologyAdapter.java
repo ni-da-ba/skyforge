@@ -16,6 +16,8 @@ import java.util.Objects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
 /**
@@ -405,12 +407,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (!chunk.getPos().equals(new ChunkPos(position))) {
                 continue;
             }
-            if (!chunk.getBlockState(position).is(Blocks.WATER)) {
+            if (!isWaterBearing(chunk.getBlockState(position))) {
                 chunk.setBlockState(position, Blocks.WATER.defaultBlockState(), false);
                 written++;
             }
         }
         return written;
+    }
+
+    /**
+     * Runtime invariant for authored visible hydrology after Minecraft fluid simulation settles.
+     *
+     * <p>Literal WATER, FLOWING_WATER, and water-bearing states such as BUBBLE_COLUMN are all valid
+     * physical realizations of the same authored wet cell. Air, lava, and unrelated blocks are not.
+     */
+    static boolean isWaterBearing(BlockState state) {
+        Objects.requireNonNull(state, "state");
+        var fluid = state.getFluidState().getType();
+        return fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER;
     }
 
     private record Column(int x, int z) {}
