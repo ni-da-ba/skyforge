@@ -637,10 +637,16 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         };
     }
 
-    static boolean isAuthoredVisibleHydrologyPosition(BlockPos position) {
+    static Optional<SkyIslandWorldVolumeId> authoredVisibleHydrologyVolumeId(BlockPos position) {
         Objects.requireNonNull(position, "position");
         RuntimeBinding binding = ACTIVE.get();
-        return binding != null && binding.adapter().isAuthoredVisibleHydrologyPosition(position);
+        return binding == null
+                ? Optional.empty()
+                : binding.adapter().authoredVisibleHydrologyVolumeId(position);
+    }
+
+    static boolean isAuthoredVisibleHydrologyPosition(BlockPos position) {
+        return authoredVisibleHydrologyVolumeId(position).isPresent();
     }
 
     static boolean hasActiveBinding() {
