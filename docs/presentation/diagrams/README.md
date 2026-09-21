@@ -8,7 +8,9 @@ They are communication artifacts, not producer technical authority. Current sour
 
 1. `how-skyforge-works.mmd` — semantic intent through neutral deterministic construction into the first runtime backend, with evidence as a first-class branch.
 2. `authority-layers.mmd` — lane/system authority and the rule that downstream consumption does not redefine upstream truth.
-3. `volume-not-heightmap.mmd` — exact three-dimensional terrain ownership and vertically stacked isolation.\n4. `evidence-architecture.mmd` — broad cheap deterministic proof, representative expensive runtime evidence, and human qualitative gates.\n5. `current-vs-roadmap.mmd` — accepted current capability, active convergence, and roadmap/strategic direction kept visibly separate.
+3. `volume-not-heightmap.mmd` — exact three-dimensional terrain ownership and vertically stacked isolation.
+4. `evidence-architecture.mmd` — broad cheap deterministic proof, representative expensive runtime evidence, and human qualitative gates.
+5. `current-vs-roadmap.mmd` — accepted current capability, active convergence, and roadmap/strategic direction kept visibly separate.
 
 ## Publication rules
 
