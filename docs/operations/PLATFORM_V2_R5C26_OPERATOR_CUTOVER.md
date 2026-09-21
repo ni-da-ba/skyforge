@@ -1,224 +1,281 @@
 # Platform v2 R5C26 — Privileged operator cutover / rollback
 
-Status: **production-proven; live Platform-v2 writer handoff completed on 2026-09-18**
+**Status:** production-proven; initial live Platform-v2 writer handoff completed on 2026-09-18
+**Parent migration:** #767
+**Tranche:** #903
+**Predecessor:** R5C25 at **7a878338a8a8b00c4120557f51aec002e2234a4a**
 
-Parent migration: #767
-Tranche: #903
-Predecessor: R5C25 merged at `7a878338a8a8b00c4120557f51aec002e2234a4a`.
+This is the privileged writer-transition runbook. It is **not** the normal accepted-main source-upgrade runbook; routine upgrades use **PLATFORM_V2_ROUTINE_UPGRADE.md**.
 
-## Purpose
+## Operator quick map
 
-R5C26 packages the first production-capable operator handoff around the accepted R5C24/R5C25 hosted runtime. It deliberately keeps systemd authority outside the `skyforge` service account.
+| Situation | Use |
+| --- | --- |
+| Normal accepted-main Platform-v2 source update | platform_v2_routine_upgrade.py / PLATFORM_V2_ROUTINE_UPGRADE.md |
+| Initial/re-staged privileged LEGACY → V2 cutover | platform_v2_operator_cutover.py preflight, then cutover --execute |
+| Emergency V2 → LEGACY restoration | platform_v2_operator_cutover.py rollback --execute |
+| One exact protected legacy authority during upgrade | transfer-authority |
+| Two or more exact protected legacy authorities | transfer-authority-batch --batch-manifest ... |
+| Matching terminal non-executed V2 ownership after legacy transfer | retire-v2-authority |
 
-Forward authority remains:
+All mutating service transitions are root/operator actions. Read-only/default paths do not change writer authority.
 
-`LEGACY -> NONE -> V2`
+## Non-negotiable authority invariant
 
-Rollback remains:
+Forward transition:
 
-`V2 -> NONE -> LEGACY`
+~~~text
+LEGACY -> NONE -> V2
+~~~
 
-The default CLI path is read-only. Mutating service operations require both the explicit `--execute` flag and a root operator.
+Rollback:
 
-## Unit staging
+~~~text
+V2 -> NONE -> LEGACY
+~~~
 
-`scripts/orchestrator/stage_platform_v2_cutover.sh` stages two unit definitions without restarting or starting either writer:
+No accepted path permits dual writers. Any ambiguous or failed transition must end with one provable writer or NONE.
 
-- the legacy `skyforge-orchestrator.service`, now carrying the rollback startup-reconciliation guard;
-- the separate `skyforge-orchestrator-v2.service`, bound to an explicit activation-evidence path.
+## 1. Unit staging
 
-Activation evidence lives by default at `/var/lib/skyforge-orchestrator/platform-v2-activation.json`. Staging creates that state directory as root-owned, setgid to the service group, and non-writable by the service account; the finalized evidence is `0640`. This keeps `/etc/skyforge-orchestrator` private for secrets while allowing the unprivileged v2 runtime to read root-authorized activation state.
+**scripts/orchestrator/stage_platform_v2_cutover.sh** stages:
 
-The staging helper requires an exact accepted-main SHA and a clean tracked checkout. It refuses to run while v2 is active, installs the unit files, runs only `daemon-reload`, leaves legacy running, and leaves v2 disabled.
+- **skyforge-orchestrator.service** — legacy rollback writer with startup-reconciliation guard;
+- **skyforge-orchestrator-v2.service** — Platform-v2 writer bound to explicit activation evidence.
 
-Staging therefore does **not** change writer authority.
-## Activation-template boundary
+Activation evidence defaults to:
 
-The operator supplies a reviewed activation template containing the complete R5C20 `ProductionActivationInput`, its canonical digest, the accepted main SHA, and an explicit production-execution request.
+~~~text
+/var/lib/skyforge-orchestrator/platform-v2-activation.json
+~~~
 
-The template is intentionally **not** the final R5C24 activation evidence.
+Staging requires an exact accepted-main SHA and clean tracked checkout. It refuses to stage while v2 is active, installs unit definitions, runs only daemon-reload, leaves legacy running, and leaves v2 disabled. **Staging does not transfer writer authority.**
 
-Preflight verifies:
+The state directory is root-owned and setgid to the service group; finalized activation evidence is mode 0640. Secrets remain outside this evidence.
 
-- the production activation input recomputes cleanly;
-- the checkout HEAD equals the accepted main SHA;
-- the tracked worktree is clean;
-- legacy is loaded, active, and boot-enabled;
-- v2 is loaded, inactive, and boot-disabled;
-- the legacy unit contains `--require-startup-reconcile-success`;
-- the v2 unit invokes `platform_v2_hosted_runtime.py` with production execution enabled and the exact requested evidence path.
+## 2. Forward cutover
 
-Only after legacy has been stopped and observed inactive does the operator tool create the final evidence with:
+The reviewed activation template contains the complete R5C20 ProductionActivationInput, its canonical digest, accepted-main SHA, and explicit production-execution request. It is a template, not final activation evidence.
 
-- `legacy_writer_revoked_observed = true`;
-- `writer_authority = NONE`.
+Read-only preflight proves:
 
-The tool then invokes the accepted R5C24 gate loader against the actual checkout. A blocked or stale gate cannot start v2.
+- production activation input recomputes exactly;
+- checkout HEAD equals accepted main and tracked worktree is clean;
+- legacy is loaded/active/enabled;
+- v2 is loaded/inactive/disabled;
+- legacy unit includes --require-startup-reconcile-success;
+- v2 unit enables production execution and points at the exact evidence path.
 
-## Forward cutover
+Privileged execution then:
 
-The privileged sequence is:
+1. repeats preflight;
+2. writes a timestamped non-secret checkpoint;
+3. stops legacy and proves both writers inactive;
+4. disables legacy boot activation;
+5. records the explicit NONE boundary;
+6. atomically finalizes activation evidence with legacy revocation observed;
+7. recomputes the accepted production gate against the actual checkout;
+8. enables/starts v2;
+9. proves localhost health, production execution, running driver, and exact gate digest.
 
-1. re-run read-only preflight;
-2. capture a timestamped pre-cutover checkpoint;
-3. stop legacy;
-4. prove legacy inactive and v2 inactive;
-5. disable legacy boot activation;
-6. record the explicit `NONE` boundary;
-7. atomically finalize activation evidence;
-8. recompute the R5C24 activation gate;
-9. enable and start v2;
-10. verify localhost health reports Platform v2, production execution enabled, a running driver, and the exact gate digest.
+A stale/blocked gate cannot start v2. Failure recovery never intentionally permits dual writers.
 
-Any failure before legacy revocation leaves legacy authoritative. Any failure after legacy is dead removes/retire stale activation evidence, disables/stops v2 when possible, and returns to a provable `NONE` or legacy-only state. The tool never intentionally permits dual writers.
-## Checkpoint evidence
+## 3. Checkpoint and rollback
 
-Before the first writer mutation, the tool records an ignored local checkpoint under:
+Pre-mutation checkpoints live under the ignored local path:
 
-`.skyforge-platform-v2/operator-evidence/`
+~~~text
+.skyforge-platform-v2/operator-evidence/
+~~~
 
-The checkpoint contains non-secret metadata and hashes for the relevant service observations, activation template, legacy durable state, v2 budget state, environment file when readable, and loaded unit fragments.
+They contain non-secret metadata/hashes for service observations, activation template, legacy durable state, v2 budget state, readable environment-file identity, and loaded unit fragments. Environment/config contents are not copied.
 
-Environment/config contents are not copied into the report.
+Emergency rollback deliberately does **not** require a still-valid activation template:
 
-## Rollback
+1. stop and disable v2;
+2. prove both writers inactive;
+3. record NONE;
+4. retire finalized v2 activation evidence;
+5. enable/start legacy;
+6. require successful startup reconciliation before legacy is authoritative.
 
-Rollback does not depend on the activation template remaining valid. This is deliberate: emergency restoration of the legacy writer must not be prevented by a damaged or missing review artifact.
+Legacy --require-startup-reconcile-success exits before resume_pending() on reconciliation failure. If legacy cannot prove healthy reconciliation, it is stopped again and the safe result is NONE.
 
-The rollback sequence is:
+## 4. Protected authority during upgrades
 
-1. stop v2 if active;
-2. disable v2 boot activation;
-3. prove v2 and legacy are inactive;
-4. record `NONE`;
-5. retire the finalized v2 activation-evidence file so a stale v2 boot cannot reuse it;
-6. enable and start legacy;
-7. require successful startup reconciliation;
-8. only then regard legacy as restored.
+Rollback/redeploy can temporarily restore paused legacy state that rediscovers source comments already owned by Platform-v2. Protected authority must never be guessed, completed, or discarded merely to make an upgrade proceed.
 
-The legacy runtime now supports `--require-startup-reconcile-success`. When set, a failed startup reconciliation exits before `resume_pending()`; systemd may retry the process, but durable work cannot dispatch before reconciliation succeeds.
+### 4.1 One exact legacy authority — transfer-authority
 
-If rollback starts legacy but its reconciliation/health proof fails, the operator tool stops legacy again and returns to `NONE`.
+The singleton primitive preserves its original strict behavior. The operator supplies exact:
 
-## Protected task-authority transfer during upgrades
+- durable event_key;
+- issue/PR number;
+- source comment ID;
+- protected signal_kind (default task).
 
-A post-cutover rollback/redeploy can temporarily restore the paused legacy controller. Startup reconciliation may then rediscover a task comment that is already owned by Platform-v2. Ordinary terminal-gate cleanup must **not** discard that protected authority.
+Preflight requires paused healthy legacy, inactive v2, no legacy worker/decision, one exact matching protected authority, and no conflicting protected authority.
 
-`transfer-authority` is the explicit operator primitive for this boundary. It does not mark work complete and it does not create Platform-v2 authority. It only prevents the paused legacy controller from executing one exact task event while preserving source provenance for a later signed-webhook recapture.
+Execution performs:
 
-`transfer-authority` defaults to `--signal-kind task` for backward compatibility. During guarded upgrades it may also transfer another exact protected legacy signal (for example `human_gate`) only when the operator supplies the exact event key, issue/PR number, source comment ID, and protected signal kind. Transfer retires the legacy event as transferred, never completed, and restart reconciliation must prove that no protected authority reappears.
+~~~text
+LEGACY(paused) -> NONE -> retire exact authority for V2 transfer -> LEGACY(paused + reconciled)
+~~~
 
+At the NONE boundary the operator updates both legacy state.json and state.json.bak while preserving file ownership/mode. The event is removed from pending ownership and added to retired_event_keys; its transfer record preserves source identity plus signal-text digest and has completed=false. It is **not** added to completed_authority_event_keys.
 
-Preflight requires:
+After legacy restarts, reconciliation must prove the transferred key remains retired, remains absent from completed authority, and no protected authority reappears. The command never fabricates Platform-v2 ingress; later V2 ownership still requires a real signed GitHub delivery or a newer signed task revision.
 
-- legacy loaded, active, healthy, and paused;
-- Platform-v2 loaded and inactive;
-- no pending legacy worker or decision;
-- an exact canonical event key, task issue number, and source comment ID match;
-- the target is the only protected authority pending;
-- the target has not already been marked completed.
+### 4.2 Multiple exact legacy authorities — transfer-authority-batch
 
-Execution preserves the single-writer sequence:
+Use the atomic batch primitive when concurrent v2 work causes legacy rollback to rediscover more than one protected authority. Singleton semantics remain unchanged.
 
-`LEGACY(paused) -> NONE -> retire exact authority for V2 transfer -> LEGACY(paused + reconciled)`
+The manifest is explicit and complete:
 
-At the `NONE` boundary the operator updates both legacy `state.json` and `state.json.bak`, preserving their ownership/mode. The exact event key is added to `retired_event_keys`, removed from `pending_events`, and recorded under `platform_v2_authority_transfers` with `completed=false`, source issue/comment identity, and a signal-text digest. It is never added to `completed_authority_event_keys`.
+~~~json
+{
+  "schema_version": 1,
+  "authorities": [
+    {
+      "event_key": "sha256:<exact-event-id>",
+      "issue_number": 123,
+      "source_id": "456789",
+      "signal_kind": "task"
+    },
+    {
+      "event_key": "sha256:<exact-event-id-2>",
+      "issue_number": 124,
+      "source_id": "456790",
+      "signal_kind": "task"
+    }
+  ]
+}
+~~~
 
-After legacy restarts, the operator requires successful startup reconciliation, `paused=true`, no in-flight worker/decision, no protected authority reappearance, the transferred key still retired, and the key still absent from completed authority. If that proof fails, legacy is stopped again and authority returns to `NONE`.
+Preflight succeeds only when that enumerated set exactly equals the entire pending protected legacy-authority set. Missing, extra, duplicate, mismatched, completed, or incompatible identities fail closed.
 
-A repeated command for an already-recorded transfer is idempotent after the same post-transfer health proof. A distinct newer signed task comment can later supersede failed/reclassified V2 work through the normal Platform-v2 revision path.
+Execution uses one writer transition:
 
-The transfer record preserves the GitHub issue/comment source identity needed to locate/redeliver the original signed webhook. The operator must still use a real signed GitHub delivery (or a newer signed task revision) to create V2 task authority; the transfer command never fabricates ingress.
+~~~text
+LEGACY(paused) -> NONE -> retire the exact full batch atomically -> LEGACY(paused + reconciled)
+~~~
 
-### Retiring terminal non-executed Platform-v2 authority
+All records remain RETIRED_FOR_PLATFORM_V2_TRANSFER with completed=false. Ordinary non-protected pending events are untouched. Replay is idempotent only for the same already-transferred full batch after post-transfer health verifies.
 
-A task may also already exist in Platform-v2 but be terminally non-executable (for example, a fail-closed `BLOCKED` admission) while legacy has rediscovered the same protected source during rollback. In that case the operator must first use `transfer-authority` above. Only after the exact legacy transfer is durable may `retire-v2-authority` release the matching Platform-v2 singleton ownership.
+### 4.3 Terminal non-executed V2 ownership — retire-v2-authority
 
-`retire-v2-authority` is intentionally narrower than completion cleanup. It requires:
+After the exact legacy transfer is durable, this narrower primitive may release matching Platform-v2 ownership only when admission is terminal and **never executed** (BLOCKED, RECLASSIFY, or NOT_DISPATCH).
 
-- legacy active, healthy, paused, with Platform-v2 inactive;
-- exact matching legacy `RETIRED_FOR_PLATFORM_V2_TRANSFER` evidence with `completed=false`;
-- the exact V2 pending task event, task-authority provenance, task plan, and admission;
-- a terminal non-executed admission (`BLOCKED`, `RECLASSIFY`, or `NOT_DISPATCH`);
-- `consume_attempt=false` and no frozen task, attempt, or worker specification;
-- no worker run, concurrency history, worker-scheduler record, dormant handoff commit, ordinary execution pipeline, or hosted completion for that authority;
-- the authority absent from `completed_authority_event_keys`.
+It requires exact matching event/provenance/plan/admission, consume_attempt=false, no frozen task/attempt/worker, and no worker run, concurrency history, scheduler record, handoff commit, ordinary execution pipeline, or hosted completion.
 
-Execution writes a durable PREPARED retirement record first, moves only the exact V2 event to `retired_event_keys`, removes only its matching non-executed admission and plan, then records COMPLETE evidence with `completed=false` and `executed=false`. Task-authority and classifier provenance remain durable. The operation is replay-safe and never marks the task completed.
+It writes durable PREPARED evidence, retires only the exact V2 event, removes only its non-executed admission/plan, then records COMPLETE with completed=false and executed=false. Task/classifier provenance remains durable.
 
-The guarded stale-authority recovery order is therefore:
+Exceptional recovery order:
 
-`legacy transfer-authority -> retire-v2-authority -> routine upgrade/cutover`
+~~~text
+legacy transfer-authority
+  -> retire-v2-authority
+  -> routine upgrade/cutover
+~~~
 
-## DR-70
+## 5. DR-70 boundary
 
-DR-70 remains **deferred**, not passed.
+DR-70 remains **CHANGES REQUIRED / DEFERRED**.
 
-The R5C26 source package, unit staging design, dry-run preflight, and tests may mature while DR-70 is deferred. The live activation template still passes through the accepted R5C20 production gate, which requires the explicit DR-70 clearance fact.
+The accepted migration/upgrade path carries an explicit migration-only DR-70 waiver through reviewed activation evidence. That waiver exists only to keep the platform migration/upgrade operable; it does **not** convert DR-70 to PASS or authorize product milestone advancement.
 
-Therefore the current deferred value is expected to block an actual production cutover. That is intentional. No code in R5C26 infers or fabricates a DR-70 PASS.
-## Operator commands
+No R5C26 command infers DR-70 acceptance.
 
-Stage units from the accepted clean checkout:
+## 6. Command reference
 
-```bash
+Stage from a reviewed clean checkout:
+
+~~~bash
 export SKYFORGE_ACCEPTED_MAIN_SHA=<accepted-main-sha>
 ./scripts/orchestrator/stage_platform_v2_cutover.sh
-```
+~~~
 
-Read-only preflight:
+Initial/re-staged cutover preflight:
 
-```bash
+~~~bash
 python3 scripts/orchestrator/platform_v2_operator_cutover.py preflight \
   --root /home/skyforge/skyforge \
   --activation-template /path/to/reviewed-activation-template.json
-```
+~~~
 
-A future explicitly authorized live cutover uses the same command surface with:
+Execute cutover only after clean preflight:
 
-```bash
+~~~bash
 sudo python3 scripts/orchestrator/platform_v2_operator_cutover.py cutover \
   --root /home/skyforge/skyforge \
   --activation-template /path/to/reviewed-activation-template.json \
   --execute
-```
+~~~
 
-Rollback uses `rollback --execute`. It no longer requires a valid activation template; emergency restoration remains independent of review-artifact validity.
+Emergency rollback:
 
-Read-only protected-authority transfer preflight:
-
-```bash
-sudo python3 scripts/orchestrator/platform_v2_operator_cutover.py transfer-authority \
+~~~bash
+sudo python3 scripts/orchestrator/platform_v2_operator_cutover.py rollback \
   --root /home/skyforge/skyforge \
-  --event-key sha256:<exact-durable-event-id> \
-  --issue-number <task-issue-number> \
-  --source-id <github-comment-id>
-```
-
-Execute only after that preflight is clean:
-
-```bash
-sudo python3 scripts/orchestrator/platform_v2_operator_cutover.py transfer-authority \
-  --root /home/skyforge/skyforge \
-  --event-key sha256:<exact-durable-event-id> \
-  --issue-number <task-issue-number> \
-  --source-id <github-comment-id> \
   --execute
-```
+~~~
+
+Singleton protected-authority preflight:
+
+~~~bash
+sudo python3 scripts/orchestrator/platform_v2_operator_cutover.py transfer-authority \
+  --root /home/skyforge/skyforge \
+  --event-key sha256:<exact-durable-event-id> \
+  --issue-number <issue-number> \
+  --source-id <github-comment-id> \
+  --signal-kind <task-or-other-protected-kind>
+~~~
+
+Add --execute only after that preflight is clean.
+
+Atomic batch preflight:
+
+~~~bash
+sudo python3 scripts/orchestrator/platform_v2_operator_cutover.py transfer-authority-batch \
+  --root /home/skyforge/skyforge \
+  --batch-manifest /path/to/exact-authority-batch.json
+~~~
+
+Add --execute only after the exact-full-set preflight is clean.
+
+Terminal non-executed V2 retirement is likewise preflight-first:
+
+~~~bash
+sudo python3 scripts/orchestrator/platform_v2_operator_cutover.py retire-v2-authority \
+  --root /home/skyforge/skyforge \
+  --event-key sha256:<exact-durable-event-id> \
+  --issue-number <issue-number> \
+  --source-id <github-comment-id>
+~~~
+
+Add --execute only after preflight is clean.
+
+For ordinary accepted-main updates, do **not** reconstruct this choreography manually. Use:
+
+~~~text
+docs/operations/PLATFORM_V2_ROUTINE_UPGRADE.md
+scripts/orchestrator/platform_v2_routine_upgrade.py
+~~~
 
 Do not run mutating operator commands merely to test the package.
 
-## Acceptance meaning
+## 7. Acceptance meaning
 
-R5C26 acceptance proves the privileged handoff package, failure-injection state machine, service separation, and rollback reconciliation guard at source/test level.
+R5C26 source acceptance proved the privileged handoff package, fail-safe writer state machine, service separation, activation-evidence boundary, and rollback reconciliation guard.
 
-It does **not**:
+The later live cutover proved the package operationally: Platform-v2 became the production writer and legacy became the inactive/disabled rollback path.
 
-- clear DR-70;
-- restart/stop the live production controller;
-- enable the live v2 writer;
-- change Caddy or the GitHub webhook;
-- grant sudo to the controller account;
-- perform provider calls or live GitHub mutations for validation.
+That does **not** mean:
 
-A future live cutover remains an explicit human/operator action after the optimized workflow is considered mature and all then-applicable activation facts are reviewed.
+- DR-70 passed;
+- every later accepted-main commit is already deployed to the live checkout;
+- human acceptance can be inferred from CI/merge status;
+- controller code receives sudo authority;
+- protected authority may be silently completed or discarded.
+
+Current accepted-main movement after cutover belongs to the separate routine-upgrade contract.
