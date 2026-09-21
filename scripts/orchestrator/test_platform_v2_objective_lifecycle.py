@@ -49,6 +49,46 @@ class ObjectiveLifecycleTest(unittest.TestCase):
             self.assertEqual(replay_status.state, ObjectiveLifecycleState.PAUSED)
             self.assertTrue(effective_objective_progression(root, second.proposal_id).allowed)
 
+    def test_all_operations_are_request_idempotent_and_cancel_is_terminal(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            prepare_program_root(root)
+            proposal = parent_proposal(root, "lifecycle-operations-0001")
+            store = ObjectiveLifecycleStore.for_root(root)
+            cases = (
+                ("pause", ObjectiveLifecycleOperation.PAUSE, ObjectiveLifecycleState.PAUSED),
+                ("resume", ObjectiveLifecycleOperation.RESUME, ObjectiveLifecycleState.ACTIVE),
+                ("reconcile", ObjectiveLifecycleOperation.RECONCILE, ObjectiveLifecycleState.ACTIVE),
+                ("cancel", ObjectiveLifecycleOperation.CANCEL, ObjectiveLifecycleState.CANCELLED),
+            )
+            for name, operation, expected in cases:
+                kwargs = dict(
+                    root=root,
+                    request_id="lifecycle-" + name + "-request",
+                    proposal_id=proposal.proposal_id,
+                    operation=operation,
+                    reason=name + " exact objective",
+                    actor="ni-da-ba",
+                    client="test",
+                )
+                _command, status, created = store.apply(**kwargs)
+                self.assertTrue(created)
+                self.assertEqual(status.state, expected)
+                _replay, replay_status, replay_created = ObjectiveLifecycleStore.for_root(root).apply(**kwargs)
+                self.assertFalse(replay_created)
+                self.assertEqual(replay_status.state, expected)
+
+            with self.assertRaisesRegex(ValueError, "cancelled objective cannot be paused or resumed"):
+                store.apply(
+                    root=root,
+                    request_id="lifecycle-resume-after-cancel",
+                    proposal_id=proposal.proposal_id,
+                    operation=ObjectiveLifecycleOperation.RESUME,
+                    reason="invalid resurrection",
+                    actor="ni-da-ba",
+                    client="test",
+                )
+
     def test_cancel_fences_transitive_program_descendants(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
