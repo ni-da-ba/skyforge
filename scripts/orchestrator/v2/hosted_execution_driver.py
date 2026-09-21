@@ -35,6 +35,7 @@ from .hosted_execution_runtime import (
     HostedExecutionAdvanceDisposition,
     HostedExecutionAdvanceResult,
     HostedExecutionDependencies,
+    select_hosted_execution_plan,
 )
 from .hosted_task_plan import HostedTaskPlanStatus, HostedTaskPlanStore
 from .quota import ProviderQuotaDecision
@@ -195,9 +196,18 @@ class BudgetedWorkerProvider:
         return self.delegate.run(spec=spec, worktree=worktree, config=config)
 
 
+def _selected_plan_and_admission(root: Path):
+    root = Path(root).resolve()
+    plans = HostedTaskPlanStore.for_root(root).load()
+    plan = select_hosted_execution_plan(root=root, ledger=plans)
+    admissions = HostedAdmissionStore.for_root(root).load()
+    admission = admissions.for_plan(plan.plan_id) if plan is not None else None
+    return plan, admission
+
+
 def _active_worker_budget_kind(root: Path) -> str:
     root = Path(root).resolve()
-    admission = HostedAdmissionStore.for_root(root).load().record
+    plan, admission = _selected_plan_and_admission(root)
     if (
         admission is not None
         and admission.outcome is HostedAdmissionOutcome.ADMITTED
@@ -209,7 +219,6 @@ def _active_worker_budget_kind(root: Path) -> str:
             else "terra_worker"
         )
 
-    plan = HostedTaskPlanStore.for_root(root).load().active
     if plan is None or plan.seed is None:
         return "terra_worker"
     record = ClassifierRunStore.for_root(root).load().get(
@@ -231,7 +240,7 @@ def _active_worker_budget_kind(root: Path) -> str:
 
 def _quota_is_needed(root: Path) -> bool:
     root = Path(root).resolve()
-    plan = HostedTaskPlanStore.for_root(root).load().active
+    plan, admission = _selected_plan_and_admission(root)
     if plan is None:
         return False
     if plan.status in {HostedTaskPlanStatus.CLAIMED, HostedTaskPlanStatus.WAIT_REMOTE}:
@@ -245,7 +254,6 @@ def _quota_is_needed(root: Path) -> bool:
     if classifier is None or classifier.status is not ClassifierRunStatus.COMPLETE:
         return True
 
-    admission = HostedAdmissionStore.for_root(root).load().record
     if admission is None:
         return True
     if (
@@ -383,29 +391,48 @@ def should_continue_after(
     root: Path,
 ) -> bool:
     disposition = result.disposition
-    if disposition is HostedExecutionAdvanceDisposition.TASK_CLAIMED:
+    if disposition in {
+        HostedExecutionAdvanceDisposition.TASK_CLAIMED,
+        HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED,
+        HostedExecutionAdvanceDisposition.TASK_COMPLETION_RECORDED,
+        HostedExecutionAdvanceDisposition.TASK_COMPLETED,
+    }:
         return True
+
+    root = Path(root).resolve()
+    plan, admission = _selected_plan_and_admission(root)
+
     if disposition is HostedExecutionAdvanceDisposition.PREFLIGHT_ADVANCED:
-        plan = HostedTaskPlanStore.for_root(root).load().active
-        return plan is not None and plan.status is HostedTaskPlanStatus.READY_FOR_CLASSIFIER
-    if disposition is HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED:
-        return True
+        return plan is not None and plan.status in {
+            HostedTaskPlanStatus.READY_FOR_CLASSIFIER,
+            HostedTaskPlanStatus.CLAIMED,
+            HostedTaskPlanStatus.WAIT_REMOTE,
+        }
     if disposition is HostedExecutionAdvanceDisposition.CLASSIFIER_ADVANCED:
-        plan = HostedTaskPlanStore.for_root(root).load().active
-        if plan is None or plan.seed is None:
+        if plan is None:
+            return False
+        if plan.status in {
+            HostedTaskPlanStatus.CLAIMED,
+            HostedTaskPlanStatus.WAIT_REMOTE,
+        }:
+            return True
+        if plan.seed is None:
             return False
         run = ClassifierRunStore.for_root(root).load().get(
             plan.seed.classifier_request.request_id
         )
         return run is not None and run.status is ClassifierRunStatus.COMPLETE
     if disposition is HostedExecutionAdvanceDisposition.ADMISSION_ADVANCED:
-        admission = HostedAdmissionStore.for_root(root).load().record
-        return (
-            admission is not None
-            and admission.outcome is HostedAdmissionOutcome.ADMITTED
-        )
+        if plan is None:
+            return False
+        if admission is None:
+            return plan.status in {
+                HostedTaskPlanStatus.CLAIMED,
+                HostedTaskPlanStatus.WAIT_REMOTE,
+                HostedTaskPlanStatus.READY_FOR_CLASSIFIER,
+            }
+        return admission.outcome is HostedAdmissionOutcome.ADMITTED
     if disposition is HostedExecutionAdvanceDisposition.WORKER_ADVANCED:
-        admission = HostedAdmissionStore.for_root(root).load().record
         if admission is None or admission.attempt is None:
             return False
         run = WorkerRunStore.for_root(root).load().find_attempt(
@@ -413,12 +440,12 @@ def should_continue_after(
         )
         return run is not None and run.status is WorkerRunStatus.HANDOFF_READY
     if disposition is HostedExecutionAdvanceDisposition.LOCAL_COMMIT_ADVANCED:
-        record = DormantHandoffCommitStore.for_root(root).load().record
+        if admission is None or admission.attempt is None:
+            return False
+        record = DormantHandoffCommitStore.for_root(root).load().for_attempt(
+            admission.attempt.attempt_id
+        )
         return record is not None and record.outcome is DormantCommitOutcome.COMMITTED
-    if disposition is HostedExecutionAdvanceDisposition.TASK_COMPLETION_RECORDED:
-        return True
-    if disposition is HostedExecutionAdvanceDisposition.TASK_COMPLETED:
-        return True
     return False
 
 

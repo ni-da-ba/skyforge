@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 import json
 import re
 from typing import Any, Iterable, Mapping
 
 from .identity import canonical_digest
+from .state_store import JsonStateStoreAdapter
 
 _SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 _RECENT_LIMIT = 50
@@ -197,6 +199,59 @@ def _plan(raw: Mapping[str, Any] | None) -> dict[str, Any] | None:
     }
 
 
+def load_local_commit_read_records(root: Path) -> tuple[Mapping[str, Any], ...]:
+    """Read local-commit durable state without importing its mutation-capable service."""
+    root = Path(root).resolve()
+    state_dir = root / ".skyforge-platform-v2"
+    adapter = JsonStateStoreAdapter(
+        path=state_dir / "dormant-handoff-commit.json",
+        backup_path=state_dir / "dormant-handoff-commit.json.bak",
+    )
+    raw = adapter.load().as_dict()
+    if raw in ({}, None):
+        return ()
+    if not isinstance(raw, Mapping):
+        raise ValueError("invalid local commit read ledger")
+    version = raw.get("schema_version")
+    if version == 1:
+        record = raw.get("record")
+        values = [] if record is None else [record]
+    elif version == 2:
+        values = raw.get("records")
+        if not isinstance(values, list):
+            raise ValueError("local commit read records must be a list")
+    else:
+        raise ValueError("invalid local commit read ledger")
+    normalized: list[Mapping[str, Any]] = []
+    seen_attempts: set[str] = set()
+    for value in values:
+        item = _local_commit(_mapping(value, "local commit"))
+        attempt_id = str(item["attempt_id"])
+        if not attempt_id or attempt_id in seen_attempts:
+            raise ValueError("duplicate or missing local commit attempt identity")
+        seen_attempts.add(attempt_id)
+        normalized.append(item)
+    return tuple(normalized)
+
+
+def _local_commit(raw: Mapping[str, Any]) -> dict[str, Any]:
+    paths = raw.get("changed_paths") or []
+    if not isinstance(paths, list):
+        raise ValueError("local commit changed_paths must be a list")
+    return {
+        "record_id": str(raw.get("record_id") or ""),
+        "admission_record_id": str(raw.get("admission_record_id") or ""),
+        "worker_run_id": str(raw.get("worker_run_id") or ""),
+        "attempt_id": str(raw.get("attempt_id") or ""),
+        "branch": str(raw.get("branch") or ""),
+        "base_sha": str(raw.get("base_sha") or ""),
+        "outcome": str(raw.get("outcome") or ""),
+        "reason": str(raw.get("reason") or ""),
+        "head_sha": str(raw.get("head_sha") or ""),
+        "changed_paths": [str(value) for value in paths],
+    }
+
+
 def _completion(raw: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "completion_id": str(raw.get("completion_id") or ""),
@@ -257,6 +312,12 @@ class DevelopmentSnapshot:
     objective_count: int
     active_plan: Mapping[str, Any] | None
     admission: Mapping[str, Any] | None
+    plans: tuple[Mapping[str, Any], ...]
+    plan_count: int
+    admissions: tuple[Mapping[str, Any], ...]
+    admission_count: int
+    local_commits: tuple[Mapping[str, Any], ...]
+    local_commit_count: int
     concurrency_claims: tuple[Mapping[str, Any], ...]
     concurrency_claim_count: int
     workers: tuple[Mapping[str, Any], ...]
@@ -286,6 +347,12 @@ class DevelopmentSnapshot:
                 "admission": (
                     None if self.admission is None else dict(self.admission)
                 ),
+                "plans": [dict(value) for value in self.plans],
+                "plan_count": self.plan_count,
+                "admissions": [dict(value) for value in self.admissions],
+                "admission_count": self.admission_count,
+                "local_commits": [dict(value) for value in self.local_commits],
+                "local_commit_count": self.local_commit_count,
                 "concurrency_claims": [
                     dict(value) for value in self.concurrency_claims
                 ],
@@ -319,6 +386,9 @@ def build_development_snapshot(
     objective_records: Iterable[Mapping[str, Any]] = (),
     active_plan: Mapping[str, Any] | None = None,
     admission: Mapping[str, Any] | None = None,
+    plan_records: Iterable[Mapping[str, Any]] = (),
+    admission_records: Iterable[Mapping[str, Any]] = (),
+    local_commit_records: Iterable[Mapping[str, Any]] = (),
     concurrency_claims: Iterable[Mapping[str, Any]] = (),
     worker_records: Iterable[Mapping[str, Any]] = (),
     completion_records: Iterable[Mapping[str, Any]] = (),
@@ -336,6 +406,18 @@ def build_development_snapshot(
     roadmap = _mapping(projection.get("roadmap") or {}, "legacy roadmap projection")
 
     objectives_all = tuple(_objective(_mapping(value, "objective")) for value in objective_records)
+    plans_all = tuple(
+        _plan(_mapping(value, "plan"))
+        for value in plan_records
+    )
+    admissions_all = tuple(
+        _admission(_mapping(value, "admission"))
+        for value in admission_records
+    )
+    local_commits_all = tuple(
+        _local_commit(_mapping(value, "local commit"))
+        for value in local_commit_records
+    )
     claims_all = tuple(
         _concurrency_claim(_mapping(value, "concurrency claim"))
         for value in concurrency_claims
@@ -380,6 +462,12 @@ def build_development_snapshot(
         objective_count=len(objectives_all),
         active_plan=_plan(active_plan),
         admission=_admission(admission),
+        plans=tuple(value for value in plans_all if value is not None),
+        plan_count=len(plans_all),
+        admissions=tuple(value for value in admissions_all if value is not None),
+        admission_count=len(admissions_all),
+        local_commits=local_commits_all,
+        local_commit_count=len(local_commits_all),
         concurrency_claims=claims_all,
         concurrency_claim_count=len(claims_all),
         workers=_recent(workers_all),

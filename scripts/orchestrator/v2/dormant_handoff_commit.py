@@ -184,25 +184,102 @@ class DormantHandoffCommitRecord:
         return record
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class DormantHandoffCommitLedger:
-    record: DormantHandoffCommitRecord | None = None
+    records: tuple[DormantHandoffCommitRecord, ...] = ()
+
+    def __init__(
+        self,
+        records: tuple[DormantHandoffCommitRecord, ...] | DormantHandoffCommitRecord = (),
+        *,
+        record: DormantHandoffCommitRecord | None = None,
+    ) -> None:
+        if record is not None:
+            if records not in ((), None):
+                raise ValueError("dormant commit ledger cannot receive records and record")
+            records = (record,)
+        object.__setattr__(self, "records", records)
+        self.__post_init__()
+
+    def __post_init__(self) -> None:
+        values = self.records
+        if isinstance(values, DormantHandoffCommitRecord):
+            values = (values,)
+        elif not isinstance(values, tuple):
+            values = tuple(values)
+        by_record: dict[str, DormantHandoffCommitRecord] = {}
+        by_attempt: dict[str, DormantHandoffCommitRecord] = {}
+        for record in values:
+            if not isinstance(record, DormantHandoffCommitRecord):
+                raise ValueError("dormant handoff commit ledger contains invalid record")
+            prior = by_record.get(record.record_id)
+            if prior is not None and prior != record:
+                raise ValueError("conflicting dormant handoff commit identity")
+            attempt_owner = by_attempt.get(record.attempt_id)
+            if attempt_owner is not None and attempt_owner.record_id != record.record_id:
+                raise ValueError("multiple dormant handoff commits share one attempt")
+            by_record[record.record_id] = record
+            by_attempt[record.attempt_id] = record
+        object.__setattr__(
+            self,
+            "records",
+            tuple(sorted(by_record.values(), key=lambda value: value.record_id)),
+        )
+
+    @property
+    def record(self) -> DormantHandoffCommitRecord | None:
+        """Legacy deterministic selector while hosted execution remains singleton."""
+        return self.records[0] if self.records else None
+
+    def for_attempt(self, attempt_id: str) -> DormantHandoffCommitRecord | None:
+        key = _sha64(attempt_id, "attempt_id")
+        return next((value for value in self.records if value.attempt_id == key), None)
+
+    def put(self, record: DormantHandoffCommitRecord) -> "DormantHandoffCommitLedger":
+        existing = self.for_attempt(record.attempt_id)
+        if existing is not None and existing.record_id != record.record_id:
+            raise ValueError("dormant handoff attempt already owns another record")
+        return DormantHandoffCommitLedger(
+            tuple(
+                record if value.attempt_id == record.attempt_id else value
+                for value in self.records
+            )
+            + (() if existing is not None else (record,))
+        )
+
+    def remove_attempt(self, attempt_id: str) -> "DormantHandoffCommitLedger":
+        key = _sha64(attempt_id, "attempt_id")
+        return DormantHandoffCommitLedger(
+            tuple(value for value in self.records if value.attempt_id != key)
+        )
 
     @classmethod
     def from_mapping(cls, raw: Any) -> "DormantHandoffCommitLedger":
         if raw is None or raw == {}:
             return cls()
-        if not isinstance(raw, Mapping) or raw.get("schema_version") != 1:
+        if not isinstance(raw, Mapping):
             raise ValueError("invalid dormant handoff commit ledger")
-        value = raw.get("record")
+        version = raw.get("schema_version")
+        if version == 1:
+            value = raw.get("record")
+            return cls(
+                ()
+                if value is None
+                else (DormantHandoffCommitRecord.from_mapping(value),)
+            )
+        if version != 2:
+            raise ValueError("invalid dormant handoff commit ledger")
+        values = raw.get("records")
+        if not isinstance(values, list):
+            raise ValueError("dormant handoff commit records must be a list")
         return cls(
-            None if value is None else DormantHandoffCommitRecord.from_mapping(value)
+            tuple(DormantHandoffCommitRecord.from_mapping(value) for value in values)
         )
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "schema_version": 1,
-            "record": self.record.as_dict() if self.record is not None else None,
+            "schema_version": 2,
+            "records": [value.as_dict() for value in self.records],
         }
 
     @property
@@ -267,6 +344,7 @@ def advance_dormant_handoff_commit(
     root: Path,
     store: DormantCommitStorePort | None = None,
     workspace_runner=None,
+    attempt_id: str | None = None,
 ) -> DormantHandoffCommitResult:
     """Validate and commit one completed local worker delta; never perform remote effects."""
 
@@ -274,7 +352,12 @@ def advance_dormant_handoff_commit(
     durable_store = store or DormantHandoffCommitStore.for_root(root)
     existing = durable_store.load()
 
-    admission = HostedAdmissionStore.for_root(root).load().record
+    admissions = HostedAdmissionStore.for_root(root).load()
+    admission = (
+        admissions.for_attempt(attempt_id)
+        if attempt_id is not None
+        else admissions.record
+    )
     if admission is None:
         return DormantHandoffCommitResult(
             DormantCommitDisposition.NO_ADMISSION,
@@ -319,18 +402,17 @@ def advance_dormant_handoff_commit(
             existing,
         )
 
-    if existing.record is not None:
-        record = existing.record
+    existing_record = existing.for_attempt(spec.attempt_id)
+    if existing_record is not None:
         if (
-            record.admission_record_id != admission.record_id
-            or record.worker_run_id != run.run_id
-            or record.attempt_id != spec.attempt_id
-            or record.branch != spec.branch
-            or record.base_sha != spec.base_sha
+            existing_record.admission_record_id != admission.record_id
+            or existing_record.worker_run_id != run.run_id
+            or existing_record.branch != spec.branch
+            or existing_record.base_sha != spec.base_sha
         ):
             return DormantHandoffCommitResult(
                 DormantCommitDisposition.CONFLICT,
-                "different worker identity already owns dormant handoff commit state",
+                "attempt owns conflicting dormant handoff commit state",
                 existing,
             )
         return DormantHandoffCommitResult(
@@ -366,7 +448,7 @@ def advance_dormant_handoff_commit(
             outcome=DormantCommitOutcome.BLOCKED,
             reason=f"bounded workspace commit rejected: {exc}",
         )
-        ledger = DormantHandoffCommitLedger(record)
+        ledger = existing.put(record)
         durable_store.save(ledger)
         return DormantHandoffCommitResult(
             DormantCommitDisposition.RECORDED,
@@ -392,7 +474,7 @@ def advance_dormant_handoff_commit(
         head_sha=committed.head_sha,
         changed_paths=committed.changed_paths,
     )
-    ledger = DormantHandoffCommitLedger(record)
+    ledger = existing.put(record)
     durable_store.save(ledger)
     return DormantHandoffCommitResult(
         DormantCommitDisposition.RECORDED,

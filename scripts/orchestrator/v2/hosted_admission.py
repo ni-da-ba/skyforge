@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from .classifier_provider import ClassifierRunStatus, ClassifierRunStore
+from .concurrency_claims import ConcurrencyClaimDisposition, ConcurrencyClaimStore
 from .decision import DecisionFreshnessObservation, PendingDecisionRecord
 from .dispatch_admission import (
     DispatchAdmissionDisposition,
@@ -193,6 +194,7 @@ class HostedAdmissionDisposition(str, Enum):
     PLAN_NOT_READY = "PLAN_NOT_READY"
     CLASSIFIER_NOT_READY = "CLASSIFIER_NOT_READY"
     WAIT_REMOTE = "WAIT_REMOTE"
+    CONCURRENCY_WAIT = "CONCURRENCY_WAIT"
     CONFLICT = "CONFLICT"
 
 
@@ -384,25 +386,139 @@ class HostedAdmissionRecord:
         return record
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class HostedAdmissionLedger:
-    record: HostedAdmissionRecord | None = None
+    records: tuple[HostedAdmissionRecord, ...] = ()
+
+    def __init__(
+        self,
+        records: tuple[HostedAdmissionRecord, ...] | HostedAdmissionRecord = (),
+        *,
+        record: HostedAdmissionRecord | None = None,
+    ) -> None:
+        if record is not None:
+            if records not in ((), None):
+                raise ValueError("hosted admission ledger cannot receive records and record")
+            records = (record,)
+        object.__setattr__(self, "records", records)
+        self.__post_init__()
+
+    def __post_init__(self) -> None:
+        values = self.records
+        if isinstance(values, HostedAdmissionRecord):
+            values = (values,)
+        elif not isinstance(values, tuple):
+            values = tuple(values)
+        by_record: dict[str, HostedAdmissionRecord] = {}
+        by_plan: dict[str, HostedAdmissionRecord] = {}
+        by_issue: dict[int, HostedAdmissionRecord] = {}
+        for record in values:
+            if not isinstance(record, HostedAdmissionRecord):
+                raise ValueError("hosted admission ledger contains invalid record")
+            prior = by_record.get(record.record_id)
+            if prior is not None and prior != record:
+                raise ValueError("conflicting hosted admission record identity")
+            plan_owner = by_plan.get(record.plan_id)
+            if plan_owner is not None and plan_owner.record_id != record.record_id:
+                raise ValueError("multiple hosted admissions share one plan")
+            issue_owner = by_issue.get(record.issue_number)
+            if issue_owner is not None and issue_owner.record_id != record.record_id:
+                raise ValueError("multiple hosted admissions share one issue")
+            by_record[record.record_id] = record
+            by_plan[record.plan_id] = record
+            by_issue[record.issue_number] = record
+        object.__setattr__(
+            self,
+            "records",
+            tuple(sorted(by_record.values(), key=lambda value: value.record_id)),
+        )
+
+    @property
+    def record(self) -> HostedAdmissionRecord | None:
+        """Legacy deterministic selector while hosted execution remains singleton."""
+        admitted = [
+            value for value in self.records
+            if value.outcome is HostedAdmissionOutcome.ADMITTED
+        ]
+        values = admitted or list(self.records)
+        return min(values, key=lambda value: value.record_id) if values else None
+
+    def get(self, record_id: str) -> HostedAdmissionRecord | None:
+        key = _sha64(record_id, "record_id")
+        return next((value for value in self.records if value.record_id == key), None)
+
+    def for_plan(self, plan_id: str) -> HostedAdmissionRecord | None:
+        key = _sha64(plan_id, "plan_id")
+        return next((value for value in self.records if value.plan_id == key), None)
+
+    def for_attempt(self, attempt_id: str) -> HostedAdmissionRecord | None:
+        key = _sha64(attempt_id, "attempt_id")
+        matches = [
+            value
+            for value in self.records
+            if value.attempt is not None and value.attempt.attempt_id == key
+        ]
+        if len(matches) > 1:
+            raise ValueError("multiple hosted admissions share one attempt")
+        return matches[0] if matches else None
+
+    def for_issue(self, issue_number: int) -> HostedAdmissionRecord | None:
+        if isinstance(issue_number, bool) or not isinstance(issue_number, int) or issue_number <= 0:
+            raise ValueError("issue_number must be positive integer")
+        matches = [
+            value for value in self.records if value.issue_number == issue_number
+        ]
+        if len(matches) > 1:
+            raise ValueError("multiple hosted admissions share one issue")
+        return matches[0] if matches else None
+
+    def put(self, record: HostedAdmissionRecord) -> "HostedAdmissionLedger":
+        existing = self.get(record.record_id)
+        plan_owner = self.for_plan(record.plan_id)
+        if plan_owner is not None and plan_owner.record_id != record.record_id:
+            raise ValueError("hosted admission plan already owns another record")
+        issue_owner = self.for_issue(record.issue_number)
+        if issue_owner is not None and issue_owner.record_id != record.record_id:
+            raise ValueError("hosted admission issue already owns another record")
+        return HostedAdmissionLedger(
+            tuple(
+                record if value.record_id == record.record_id else value
+                for value in self.records
+            )
+            + (() if existing is not None else (record,))
+        )
+
+    def remove_plan(self, plan_id: str) -> "HostedAdmissionLedger":
+        key = _sha64(plan_id, "plan_id")
+        return HostedAdmissionLedger(
+            tuple(value for value in self.records if value.plan_id != key)
+        )
 
     @classmethod
     def from_mapping(cls, raw: Any) -> "HostedAdmissionLedger":
         if raw is None or raw == {}:
             return cls()
-        if not isinstance(raw, Mapping) or raw.get("schema_version") != 1:
+        if not isinstance(raw, Mapping):
             raise ValueError("invalid hosted admission ledger")
-        value = raw.get("record")
-        return cls(
-            None if value is None else HostedAdmissionRecord.from_mapping(value)
-        )
+        version = raw.get("schema_version")
+        if version == 1:
+            value = raw.get("record")
+            return cls(
+                ()
+                if value is None
+                else (HostedAdmissionRecord.from_mapping(value),)
+            )
+        if version != 2:
+            raise ValueError("invalid hosted admission ledger")
+        values = raw.get("records")
+        if not isinstance(values, list):
+            raise ValueError("hosted admission records must be a list")
+        return cls(tuple(HostedAdmissionRecord.from_mapping(value) for value in values))
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "schema_version": 1,
-            "record": self.record.as_dict() if self.record is not None else None,
+            "schema_version": 2,
+            "records": [value.as_dict() for value in self.records],
         }
 
     @property
@@ -531,13 +647,14 @@ def advance_hosted_task_admission(
     local_budget: LocalBudgetObservation,
     attempt_number: int,
     runner=None,
+    plan_id: str | None = None,
 ) -> HostedAdmissionAdvanceResult:
     """Freshly admit one classifier proposal, freezing but never launching a worker."""
 
     root = Path(root).resolve()
     store = HostedAdmissionStore.for_root(root)
     existing = store.load()
-    plan = plan_ledger.active
+    plan = plan_ledger.get(plan_id) if plan_id is not None else plan_ledger.active
 
     if plan is None:
         return HostedAdmissionAdvanceResult(
@@ -553,19 +670,40 @@ def advance_hosted_task_admission(
         )
     _positive(attempt_number, "attempt_number")
 
-    if existing.record is not None:
-        if existing.record.plan_id != plan.plan_id:
-            return HostedAdmissionAdvanceResult(
-                HostedAdmissionDisposition.CONFLICT,
-                "different hosted task plan already owns admission state",
-                existing,
-            )
-        if existing.record.attempt_number != attempt_number:
+    existing_record = existing.for_plan(plan.plan_id)
+    if existing_record is not None:
+        if existing_record.attempt_number != attempt_number:
             return HostedAdmissionAdvanceResult(
                 HostedAdmissionDisposition.CONFLICT,
                 "attempt number differs from durable hosted admission",
                 existing,
             )
+        if (
+            existing_record.outcome is HostedAdmissionOutcome.ADMITTED
+            and existing_record.worker_spec is not None
+        ):
+            claim = ConcurrencyClaimStore.for_root(root).acquire(
+                existing_record.worker_spec
+            )
+            if claim.decision.disposition is ConcurrencyClaimDisposition.CONFLICT:
+                conflicts = ",".join(
+                    value.attempt_id for value in claim.decision.conflicts
+                )
+                return HostedAdmissionAdvanceResult(
+                    HostedAdmissionDisposition.CONCURRENCY_WAIT,
+                    "admitted worker waits for conflicting concurrency claim(s): "
+                    + conflicts,
+                    existing,
+                )
+            if claim.decision.disposition in {
+                ConcurrencyClaimDisposition.BLOCKED_UNSUPPORTED_SCOPE,
+                ConcurrencyClaimDisposition.RETIRED_REPLAY,
+            }:
+                return HostedAdmissionAdvanceResult(
+                    HostedAdmissionDisposition.CONFLICT,
+                    claim.decision.reason,
+                    existing,
+                )
         return HostedAdmissionAdvanceResult(
             HostedAdmissionDisposition.ALREADY_RECORDED,
             "hosted admission result is already durable",
@@ -647,7 +785,7 @@ def advance_hosted_task_admission(
             attempt_number=attempt_number,
             reason=hydration.reason,
         )
-        ledger = HostedAdmissionLedger(blocked)
+        ledger = existing.put(blocked)
         store.save(ledger)
         return HostedAdmissionAdvanceResult(
             HostedAdmissionDisposition.RECORDED,
@@ -668,7 +806,7 @@ def advance_hosted_task_admission(
             attempt_number=attempt_number,
             reason="fresh repository task authority differs from classifier seed",
         )
-        ledger = HostedAdmissionLedger(blocked)
+        ledger = existing.put(blocked)
         store.save(ledger)
         return HostedAdmissionAdvanceResult(
             HostedAdmissionDisposition.RECORDED,
@@ -710,8 +848,34 @@ def advance_hosted_task_admission(
         attempt_number=attempt_number,
         admission=admission,
     )
-    ledger = HostedAdmissionLedger(record)
+    ledger = existing.put(record)
     store.save(ledger)
+
+    if (
+        record.outcome is HostedAdmissionOutcome.ADMITTED
+        and record.worker_spec is not None
+    ):
+        claim = ConcurrencyClaimStore.for_root(root).acquire(record.worker_spec)
+        if claim.decision.disposition is ConcurrencyClaimDisposition.CONFLICT:
+            conflicts = ",".join(
+                value.attempt_id for value in claim.decision.conflicts
+            )
+            return HostedAdmissionAdvanceResult(
+                HostedAdmissionDisposition.CONCURRENCY_WAIT,
+                "admitted worker waits for conflicting concurrency claim(s): "
+                + conflicts,
+                ledger,
+            )
+        if claim.decision.disposition in {
+            ConcurrencyClaimDisposition.BLOCKED_UNSUPPORTED_SCOPE,
+            ConcurrencyClaimDisposition.RETIRED_REPLAY,
+        }:
+            return HostedAdmissionAdvanceResult(
+                HostedAdmissionDisposition.CONFLICT,
+                claim.decision.reason,
+                ledger,
+            )
+
     return HostedAdmissionAdvanceResult(
         HostedAdmissionDisposition.RECORDED,
         admission.reason,

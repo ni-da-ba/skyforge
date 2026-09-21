@@ -21,6 +21,7 @@ from .hosted_admission import (
     HostedAdmissionOutcome,
     HostedAdmissionStore,
 )
+from .hosted_execution_runtime import select_hosted_execution_plan
 from .hosted_task_plan import HostedTaskPlanStatus, HostedTaskPlanStore
 from .identity import canonical_digest
 from .ordinary_effects import OrdinaryEffectStore
@@ -82,7 +83,8 @@ def evaluate_hosted_execution_evidence(
     root = Path(root).resolve()
     blockers: list[str] = []
 
-    plan = HostedTaskPlanStore.for_root(root).load().active
+    plans = HostedTaskPlanStore.for_root(root).load()
+    plan = select_hosted_execution_plan(root=root, ledger=plans)
     if plan is None:
         blockers.append("hosted task plan is absent")
         return HostedExecutionEvidenceDecision(
@@ -105,7 +107,8 @@ def evaluate_hosted_execution_evidence(
             if classifier.request != plan.seed.classifier_request:
                 blockers.append("classifier request differs from exact hosted task seed")
 
-    admission = HostedAdmissionStore.for_root(root).load().record
+    admissions = HostedAdmissionStore.for_root(root).load()
+    admission = admissions.for_plan(plan.plan_id) if plan is not None else None
     if admission is None:
         blockers.append("hosted admission record is absent")
     else:
@@ -144,7 +147,12 @@ def evaluate_hosted_execution_evidence(
             if admission.worker_spec is None or worker.spec.digest != admission.worker_spec.digest:
                 blockers.append("worker run spec differs from admitted frozen worker identity")
 
-    handoff = DormantHandoffCommitStore.for_root(root).load().record
+    commits = DormantHandoffCommitStore.for_root(root).load()
+    handoff = (
+        commits.for_attempt(admission.attempt.attempt_id)
+        if admission is not None and admission.attempt is not None
+        else None
+    )
     if handoff is None:
         blockers.append("bounded local handoff commit record is absent")
     else:

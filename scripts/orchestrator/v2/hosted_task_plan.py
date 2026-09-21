@@ -169,29 +169,134 @@ class HostedTaskDispatchPlan:
         return plan
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class HostedTaskPlanLedger:
-    active: HostedTaskDispatchPlan | None = None
+    records: tuple[HostedTaskDispatchPlan, ...] = ()
+
+    def __init__(
+        self,
+        records: tuple[HostedTaskDispatchPlan, ...] | HostedTaskDispatchPlan = (),
+        *,
+        active: HostedTaskDispatchPlan | None = None,
+    ) -> None:
+        if active is not None:
+            if records not in ((), None):
+                raise ValueError("hosted task plan ledger cannot receive records and active")
+            records = (active,)
+        object.__setattr__(self, "records", records)
+        self.__post_init__()
+
+    def __post_init__(self) -> None:
+        values = self.records
+        if isinstance(values, HostedTaskDispatchPlan):
+            values = (values,)
+        elif not isinstance(values, tuple):
+            values = tuple(values)
+        by_plan: dict[str, HostedTaskDispatchPlan] = {}
+        by_event: dict[str, HostedTaskDispatchPlan] = {}
+        by_issue: dict[int, HostedTaskDispatchPlan] = {}
+        for record in values:
+            if not isinstance(record, HostedTaskDispatchPlan):
+                raise ValueError("hosted task plan ledger contains invalid record")
+            prior_plan = by_plan.get(record.plan_id)
+            if prior_plan is not None and prior_plan != record:
+                raise ValueError("conflicting hosted task plan identity")
+            prior_event = by_event.get(record.event_id)
+            if prior_event is not None and prior_event.plan_id != record.plan_id:
+                raise ValueError("multiple hosted task plans share one event")
+            prior_issue = by_issue.get(record.issue_number)
+            if prior_issue is not None and prior_issue.plan_id != record.plan_id:
+                raise ValueError("multiple hosted task plans share one issue")
+            by_plan[record.plan_id] = record
+            by_event[record.event_id] = record
+            by_issue[record.issue_number] = record
+        object.__setattr__(
+            self,
+            "records",
+            tuple(sorted(by_plan.values(), key=lambda value: value.plan_id)),
+        )
+
+    @property
+    def active(self) -> HostedTaskDispatchPlan | None:
+        """Legacy deterministic selector while hosted execution remains singleton."""
+        if not self.records:
+            return None
+        priority = {
+            HostedTaskPlanStatus.READY_FOR_CLASSIFIER: 0,
+            HostedTaskPlanStatus.CLAIMED: 1,
+            HostedTaskPlanStatus.WAIT_REMOTE: 2,
+            HostedTaskPlanStatus.BLOCKED: 3,
+        }
+        return min(
+            self.records,
+            key=lambda value: (priority[value.status], value.plan_id),
+        )
+
+    def get(self, plan_id: str) -> HostedTaskDispatchPlan | None:
+        key = _digest(plan_id, "plan_id")
+        return next((value for value in self.records if value.plan_id == key), None)
+
+    def get_event(self, event_id: str) -> HostedTaskDispatchPlan | None:
+        key = _event_id(event_id)
+        return next((value for value in self.records if value.event_id == key), None)
+
+    def get_issue(self, issue_number: int) -> HostedTaskDispatchPlan | None:
+        if isinstance(issue_number, bool) or not isinstance(issue_number, int) or issue_number <= 0:
+            raise ValueError("issue_number must be positive integer")
+        return next(
+            (value for value in self.records if value.issue_number == issue_number),
+            None,
+        )
+
+    def put(self, record: HostedTaskDispatchPlan) -> "HostedTaskPlanLedger":
+        existing = self.get(record.plan_id)
+        if existing is not None and existing.event_id != record.event_id:
+            raise ValueError("hosted task plan identity changed event")
+        event_owner = self.get_event(record.event_id)
+        if event_owner is not None and event_owner.plan_id != record.plan_id:
+            raise ValueError("hosted task event already owns another plan")
+        issue_owner = self.get_issue(record.issue_number)
+        if issue_owner is not None and issue_owner.plan_id != record.plan_id:
+            raise ValueError("hosted task issue already owns another plan")
+        return HostedTaskPlanLedger(
+            tuple(
+                record if value.plan_id == record.plan_id else value
+                for value in self.records
+            )
+            + (() if existing is not None else (record,))
+        )
+
+    def remove(self, plan_id: str) -> "HostedTaskPlanLedger":
+        key = _digest(plan_id, "plan_id")
+        return HostedTaskPlanLedger(
+            tuple(value for value in self.records if value.plan_id != key)
+        )
 
     @classmethod
     def from_mapping(cls, raw: Any) -> "HostedTaskPlanLedger":
         if raw is None or raw == {}:
             return cls()
-        if not isinstance(raw, Mapping) or raw.get("schema_version") != 1:
+        if not isinstance(raw, Mapping):
             raise ValueError("invalid hosted task plan ledger")
-        active_raw = raw.get("active")
-        return cls(
-            active=(
-                None
+        version = raw.get("schema_version")
+        if version == 1:
+            active_raw = raw.get("active")
+            return cls(
+                ()
                 if active_raw is None
-                else HostedTaskDispatchPlan.from_mapping(active_raw)
+                else (HostedTaskDispatchPlan.from_mapping(active_raw),)
             )
-        )
+        if version != 2:
+            raise ValueError("invalid hosted task plan ledger")
+        records = raw.get("records")
+        if not isinstance(records, list):
+            raise ValueError("hosted task plan records must be a list")
+        return cls(tuple(HostedTaskDispatchPlan.from_mapping(value) for value in records))
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "schema_version": 1,
-            "active": self.active.as_dict() if self.active is not None else None,
+            "schema_version": 2,
+            "records": [value.as_dict() for value in self.records],
         }
 
     @property
@@ -245,67 +350,101 @@ def claim_next_protected_task(
     authority_events: TaskAuthorityEventLedger,
     external_claims: Iterable[ExternalProducerClaim] = (),
 ) -> HostedTaskPlanResult:
-    if ledger.active is not None:
-        return HostedTaskPlanResult(
-            HostedTaskPlanDisposition.ALREADY_ACTIVE,
-            "one hosted task plan already owns protected authority",
-            ledger,
-        )
-
-    selected = select_dispatch_batch(inbox.pending_events)
-    if (
-        len(selected) != 1
-        or selected[0].signal_kind != "task"
-        or not selected[0].protected_authority
-    ):
+    task_candidates = tuple(
+        event
+        for event in inbox.pending_events
+        if event.signal_kind == "task" and event.protected_authority
+    )
+    if not task_candidates:
+        selected = select_dispatch_batch(inbox.pending_events)
         return HostedTaskPlanResult(
             HostedTaskPlanDisposition.NO_PROTECTED_TASK,
-            "no single protected task is next under accepted inbox precedence",
+            (
+                "no unplanned protected task is next under accepted inbox precedence"
+                if selected
+                else "no protected task is pending"
+            ),
             ledger,
         )
 
-    event = selected[0]
-    issue = event.task_issue_number
-    if issue is None or issue <= 0:
+    planned_issues = {value.issue_number for value in ledger.records}
+    blockers: list[HostedTaskPlanResult] = []
+    saw_unplanned = False
+
+    for event in task_candidates:
+        issue = event.task_issue_number
+        if ledger.get_event(event.event_id) is not None:
+            continue
+        if issue in planned_issues:
+            # Same-issue signed revisions belong to explicit supersession logic,
+            # never to independent multi-objective scheduling.
+            continue
+        saw_unplanned = True
+
+        if issue is None or issue <= 0:
+            blockers.append(
+                HostedTaskPlanResult(
+                    HostedTaskPlanDisposition.BLOCKED,
+                    "selected protected task lacks valid issue identity",
+                    ledger,
+                )
+            )
+            continue
+
+        hold = classify_external_dispatch_hold(external_claims, (issue,))
+        if hold.hold:
+            blockers.append(
+                HostedTaskPlanResult(
+                    HostedTaskPlanDisposition.EXTERNAL_HOLD,
+                    "external/manual producer owns the selected task issue",
+                    ledger,
+                )
+            )
+            continue
+
+        record = authority_events.get(event.event_id)
+        if record is None:
+            blockers.append(
+                HostedTaskPlanResult(
+                    HostedTaskPlanDisposition.MISSING_CAPTURE,
+                    "selected task lacks signed-webhook authority capture",
+                    ledger,
+                )
+            )
+            continue
+        if record.reference.issue_number != issue:
+            blockers.append(
+                HostedTaskPlanResult(
+                    HostedTaskPlanDisposition.BLOCKED,
+                    "captured task authority issue differs from durable event",
+                    ledger,
+                )
+            )
+            continue
+
+        plan = HostedTaskDispatchPlan(
+            event_id=event.event_id,
+            issue_number=issue,
+            authority_record_digest=record.digest,
+            status=HostedTaskPlanStatus.CLAIMED,
+            reason="protected task authority durably claimed for read-only preflight",
+        )
         return HostedTaskPlanResult(
-            HostedTaskPlanDisposition.BLOCKED,
-            "selected protected task lacks valid issue identity",
-            ledger,
+            HostedTaskPlanDisposition.CLAIMED,
+            plan.reason,
+            ledger.put(plan),
         )
 
-    hold = classify_external_dispatch_hold(external_claims, (issue,))
-    if hold.hold:
-        return HostedTaskPlanResult(
-            HostedTaskPlanDisposition.EXTERNAL_HOLD,
-            "external/manual producer owns the selected task issue",
-            ledger,
-        )
-
-    record = authority_events.get(event.event_id)
-    if record is None:
-        return HostedTaskPlanResult(
-            HostedTaskPlanDisposition.MISSING_CAPTURE,
-            "selected task lacks signed-webhook authority capture",
-            ledger,
-        )
-    if record.reference.issue_number != issue:
-        return HostedTaskPlanResult(
-            HostedTaskPlanDisposition.BLOCKED,
-            "captured task authority issue differs from durable event",
-            ledger,
-        )
-
-    plan = HostedTaskDispatchPlan(
-        event_id=event.event_id,
-        issue_number=issue,
-        authority_record_digest=record.digest,
-        status=HostedTaskPlanStatus.CLAIMED,
-        reason="protected task authority durably claimed for read-only preflight",
-    )
+    if blockers:
+        return blockers[0]
     return HostedTaskPlanResult(
-        HostedTaskPlanDisposition.CLAIMED,
-        plan.reason,
-        HostedTaskPlanLedger(plan),
+        HostedTaskPlanDisposition.ALREADY_ACTIVE,
+        (
+            "all pending protected task events already have durable hosted plans"
+            if not saw_unplanned
+            else "no independent protected task can be claimed"
+        ),
+        ledger,
     )
 
 
@@ -316,8 +455,9 @@ def advance_claimed_task_preflight(
     trusted_actors: Iterable[str],
     repo: str,
     runner=None,
+    plan_id: str | None = None,
 ) -> HostedTaskPlanResult:
-    plan = ledger.active
+    plan = ledger.get(plan_id) if plan_id is not None else ledger.active
     if plan is None:
         return HostedTaskPlanResult(
             HostedTaskPlanDisposition.NO_PROTECTED_TASK,
@@ -346,7 +486,7 @@ def advance_claimed_task_preflight(
         return HostedTaskPlanResult(
             HostedTaskPlanDisposition.BLOCKED,
             blocked.reason,
-            HostedTaskPlanLedger(blocked),
+            ledger.put(blocked),
         )
 
     try:
@@ -369,7 +509,7 @@ def advance_claimed_task_preflight(
         return HostedTaskPlanResult(
             HostedTaskPlanDisposition.WAIT_REMOTE,
             waiting.reason,
-            HostedTaskPlanLedger(waiting),
+            ledger.put(waiting),
         )
 
     if preflight.disposition is HostedTaskPreflightDisposition.READY_FOR_CLASSIFIER:
@@ -387,7 +527,7 @@ def advance_claimed_task_preflight(
         return HostedTaskPlanResult(
             HostedTaskPlanDisposition.READY_FOR_CLASSIFIER,
             ready.reason,
-            HostedTaskPlanLedger(ready),
+            ledger.put(ready),
         )
 
     blocked = HostedTaskDispatchPlan(
@@ -401,5 +541,5 @@ def advance_claimed_task_preflight(
     return HostedTaskPlanResult(
         HostedTaskPlanDisposition.BLOCKED,
         blocked.reason,
-        HostedTaskPlanLedger(blocked),
+        ledger.put(blocked),
     )

@@ -27,7 +27,17 @@ from v2.effects import (
     reconcile_remote_effect,
 )
 from v2.events import DurableEvent
+from v2.hosted_admission import (
+    HostedAdmissionLedger,
+    HostedAdmissionOutcome,
+    HostedAdmissionRecord,
+)
 from v2.hosted_state import HostedIngressState, ingest_event
+from v2.hosted_task_plan import (
+    HostedTaskDispatchPlan,
+    HostedTaskPlanLedger,
+    HostedTaskPlanStatus,
+)
 from v2.human_review import (
     DevelopmentApiHumanReviewSource,
     HumanReviewLedger,
@@ -123,6 +133,49 @@ def event(name: str, *, signal_kind: str = "task") -> DurableEvent:
     )
 
 
+def workflow_plan(name: str) -> HostedTaskDispatchPlan:
+    selected = event(name)
+    return HostedTaskDispatchPlan(
+        event_id=selected.event_id,
+        issue_number=selected.task_issue_number,
+        authority_record_digest=hashlib.sha256(
+            f"workflow-authority:{name}".encode()
+        ).hexdigest(),
+        status=HostedTaskPlanStatus.CLAIMED,
+        reason=f"x6 workflow {name} claimed",
+    )
+
+
+def workflow_admission(
+    name: str,
+    plan: HostedTaskDispatchPlan,
+) -> HostedAdmissionRecord:
+    return HostedAdmissionRecord(
+        plan_id=plan.plan_id,
+        event_id=plan.event_id,
+        issue_number=plan.issue_number,
+        classifier_request_id=hashlib.sha256(
+            f"workflow-classifier-request:{name}".encode()
+        ).hexdigest(),
+        classifier_run_id=hashlib.sha256(
+            f"workflow-classifier-run:{name}".encode()
+        ).hexdigest(),
+        classifier_decision_digest=hashlib.sha256(
+            f"workflow-classifier-decision:{name}".encode()
+        ).hexdigest(),
+        hydration_digest=hashlib.sha256(
+            f"workflow-hydration:{name}".encode()
+        ).hexdigest(),
+        authority_digest=hashlib.sha256(
+            f"workflow-authority-digest:{name}".encode()
+        ).hexdigest(),
+        current_main=SHA_A,
+        attempt_number=1,
+        outcome=HostedAdmissionOutcome.BLOCKED,
+        reason=f"x6 non-executing workflow {name} admission",
+    )
+
+
 def concurrency_worker(objective_id: str) -> FrozenWorkerSpec:
     config = {
         "A": ("hydrology", "worldgen/hydrology/**"),
@@ -178,6 +231,12 @@ class LifecycleMachine:
         "release_a",
         "release_b",
         "release_conflict",
+        "plan_a",
+        "plan_b",
+        "admit_a",
+        "admit_b",
+        "retire_workflow_a",
+        "retire_workflow_b",
         "restart",
     )
 
@@ -224,6 +283,16 @@ class LifecycleMachine:
         self.worker_merged = False
         self.worker_retired = False
         self.worker_branch_drift = False
+
+        self.workflow_plan_fixtures = {
+            key: workflow_plan(key) for key in ("a", "b")
+        }
+        self.workflow_admission_fixtures = {
+            key: workflow_admission(key, self.workflow_plan_fixtures[key])
+            for key in ("a", "b")
+        }
+        self.workflow_plans = HostedTaskPlanLedger()
+        self.workflow_admissions = HostedAdmissionLedger()
 
         self.claim_ledger = ConcurrencyClaimLedger()
         self.claim_workers = {
@@ -380,6 +449,27 @@ class LifecycleMachine:
         self.last_human_verdict = selected
         self.last_review_id = review_id
 
+    def _plan_workflow(self, name: str) -> None:
+        plan = self.workflow_plan_fixtures[name]
+        if plan.event_id not in self.model_pending_event_ids:
+            return
+        self.workflow_plans = self.workflow_plans.put(plan)
+
+    def _admit_workflow(self, name: str) -> None:
+        plan = self.workflow_plan_fixtures[name]
+        if self.workflow_plans.get(plan.plan_id) is None:
+            return
+        self.workflow_admissions = self.workflow_admissions.put(
+            self.workflow_admission_fixtures[name]
+        )
+
+    def _retire_workflow(self, name: str) -> None:
+        plan = self.workflow_plan_fixtures[name]
+        self.workflow_admissions = self.workflow_admissions.remove_plan(
+            plan.plan_id
+        )
+        self.workflow_plans = self.workflow_plans.remove(plan.plan_id)
+
     def _claim(self, objective_id: str) -> None:
         result = acquire_concurrency_claim(
             self.claim_ledger,
@@ -436,6 +526,16 @@ class LifecycleMachine:
         assert claims.digest == self.claim_ledger.digest
         self.claim_ledger = claims
 
+        plans = HostedTaskPlanLedger.from_mapping(self.workflow_plans.as_dict())
+        assert plans.digest == self.workflow_plans.digest
+        self.workflow_plans = plans
+
+        admissions = HostedAdmissionLedger.from_mapping(
+            self.workflow_admissions.as_dict()
+        )
+        assert admissions.digest == self.workflow_admissions.digest
+        self.workflow_admissions = admissions
+
     def _assert_invariants(self) -> None:
         actual_pending = {value.event_id for value in self.ingress.inbox.pending_events}
         assert actual_pending == self.model_pending_event_ids
@@ -454,6 +554,18 @@ class LifecycleMachine:
         else:
             assert completed.get("review", 0) == 0
             assert self.roadmap.block_for("review") is not None
+
+        workflow_plan_ids = {
+            value.plan_id for value in self.workflow_plans.records
+        }
+        workflow_admission_plan_ids = {
+            value.plan_id for value in self.workflow_admissions.records
+        }
+        assert workflow_admission_plan_ids <= workflow_plan_ids
+        assert len(self.workflow_plans.records) <= 2
+        assert len(self.workflow_admissions.records) <= 2
+        for value in self.workflow_plans.records:
+            assert value.event_id in self.model_pending_event_ids
 
         active_tasks = {claim.task_id for claim in self.claim_ledger.active}
         assert active_tasks <= {"x6-hydrology", "x6-canopy", "x6-channel"}
@@ -539,6 +651,18 @@ class LifecycleMachine:
             self._release("B")
         elif action == "release_conflict":
             self._release("C")
+        elif action == "plan_a":
+            self._plan_workflow("a")
+        elif action == "plan_b":
+            self._plan_workflow("b")
+        elif action == "admit_a":
+            self._admit_workflow("a")
+        elif action == "admit_b":
+            self._admit_workflow("b")
+        elif action == "retire_workflow_a":
+            self._retire_workflow("a")
+        elif action == "retire_workflow_b":
+            self._retire_workflow("b")
         elif action == "restart":
             self._restart_round_trip()
         else:
@@ -573,6 +697,32 @@ class PlatformV2LifecycleStateMachineTest(unittest.TestCase):
         machine.step("claim_conflict")
         self.assertEqual(machine.claim_ledger, before)
         self.assertEqual(machine.conflict_blocks, 1)
+
+    def test_real_multi_workflow_ledgers_survive_restart_and_exact_retirement(self) -> None:
+        machine = LifecycleMachine()
+        machine.step("deliver_a")
+        machine.step("deliver_b")
+        machine.step("plan_a")
+        machine.step("plan_b")
+        machine.step("admit_a")
+        machine.step("admit_b")
+        self.assertEqual(len(machine.workflow_plans.records), 2)
+        self.assertEqual(len(machine.workflow_admissions.records), 2)
+        before_b = machine.workflow_plan_fixtures["b"]
+        machine.step("restart")
+        machine.step("retire_workflow_a")
+        self.assertIsNone(
+            machine.workflow_plans.get(
+                machine.workflow_plan_fixtures["a"].plan_id
+            )
+        )
+        self.assertEqual(
+            machine.workflow_plans.get(before_b.plan_id),
+            before_b,
+        )
+        self.assertIsNotNone(
+            machine.workflow_admissions.for_plan(before_b.plan_id)
+        )
 
     def test_crash_after_external_effect_never_reexecutes(self) -> None:
         machine = LifecycleMachine()

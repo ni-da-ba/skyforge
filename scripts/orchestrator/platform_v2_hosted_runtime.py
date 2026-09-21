@@ -24,7 +24,10 @@ from urllib.parse import unquote, urlsplit
 
 from v2.cutover import LegacyOperationalProjection
 from v2.concurrency_claims import ConcurrencyClaimStore
-from v2.development_read_model import build_development_snapshot
+from v2.development_read_model import (
+    build_development_snapshot,
+    load_local_commit_read_records,
+)
 from v2.hosted_admission import (
     HostedAdmissionAdvanceResult,
     HostedAdmissionStore,
@@ -395,13 +398,11 @@ class HostedV2Substrate:
     def _controller_issue_owner(self, issue_number: int) -> ControllerIssueOwner:
         """Return concrete controller ownership for external-claim admission."""
         with self._lock:
-            plan = self.task_plan_store.load().active
-            admission = self.admission_store.load().record
+            plan = self.task_plan_store.load().get_issue(issue_number)
+            admission = self.admission_store.load().for_issue(issue_number)
             projection = dict(self.state.legacy_projection or {})
 
-        if plan is not None and plan.issue_number == issue_number:
-            return ControllerIssueOwner.PENDING_WORKER
-        if admission is not None and admission.issue_number == issue_number:
+        if plan is not None or admission is not None:
             return ControllerIssueOwner.PENDING_WORKER
 
         roadmap = projection.get("roadmap") or {}
@@ -479,7 +480,9 @@ class HostedV2Substrate:
             authority_ledger = self.task_authority_store.load()
             task_plan = self.task_plan_store.load()
             active_plan = task_plan.active
-            admission = self.admission_store.load().record
+            admission_ledger = self.admission_store.load()
+            admission = admission_ledger.record
+            local_commit_records = load_local_commit_read_records(self.root)
             completions = HostedCompletionStore.for_root(self.root).load()
             pending_completion = completions.pending()
             objective_ledger = self.objective_proposal_store.load()
@@ -591,6 +594,9 @@ class HostedV2Substrate:
                 "active_task_plan_status": (
                     active_plan.status.value if active_plan is not None else ""
                 ),
+                "hosted_task_plan_count": len(task_plan.records),
+                "hosted_admission_count": len(admission_ledger.records),
+                "hosted_local_commit_count": len(local_commit_records),
                 "active_concurrency_claim_count": len(concurrency_claims.active),
                 "retired_concurrency_claim_count": len(concurrency_claims.retired),
                 "hosted_execution_concurrency_limit": 1,
@@ -634,8 +640,11 @@ class HostedV2Substrate:
             projection = self._effective_legacy_projection()
             objectives = self.objective_proposal_store.load()
             reviews = self.human_review_store.load()
-            plan = self.task_plan_store.load().active
-            admission = self.admission_store.load().record
+            plans = self.task_plan_store.load()
+            plan = plans.active
+            admissions = self.admission_store.load()
+            admission = admissions.record
+            local_commit_records = load_local_commit_read_records(self.root)
             worker_raw = self.worker_read_store.load().as_dict()
             if worker_raw not in ({}, None) and worker_raw.get("schema_version") != 1:
                 raise ValueError("invalid worker-run read ledger")
@@ -707,6 +716,9 @@ class HostedV2Substrate:
                 "hosted_execution_concurrency_limit": health[
                     "hosted_execution_concurrency_limit"
                 ],
+                "hosted_task_plan_count": health["hosted_task_plan_count"],
+                "hosted_admission_count": health["hosted_admission_count"],
+                "hosted_local_commit_count": health["hosted_local_commit_count"],
             }
             snapshot = build_development_snapshot(
                 repo=self.repo,
@@ -719,6 +731,11 @@ class HostedV2Substrate:
                 admission=(
                     admission.as_dict() if admission is not None else None
                 ),
+                plan_records=(record.as_dict() for record in plans.records),
+                admission_records=(
+                    record.as_dict() for record in admissions.records
+                ),
+                local_commit_records=local_commit_records,
                 concurrency_claims=(
                     claim.as_dict() for claim in concurrency_claims.active
                 ),
