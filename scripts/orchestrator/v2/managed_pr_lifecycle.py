@@ -11,6 +11,7 @@ from enum import Enum
 from pathlib import Path
 import subprocess
 from typing import Sequence
+from urllib.parse import quote
 
 from .domain import TransitionKind
 from .effects import (
@@ -30,6 +31,7 @@ from .managed_pr_observation import (
 from .ordinary_effect_executor import (
     OrdinaryEffectExecutionDisposition,
     OrdinaryEffectExecutionResult,
+    OrdinaryFrozenBaseMoved,
     OrdinaryRemoteUnavailable,
     advance_remote_effect,
 )
@@ -39,6 +41,7 @@ from .ordinary_service import ManagedOrdinaryHandoff
 
 class ManagedLifecycleDisposition(str, Enum):
     COMPLETE = "COMPLETE"
+    STALE_MANAGED_BASE = "STALE_MANAGED_BASE"
     BLOCKED = "BLOCKED"
     NOT_ELIGIBLE = "NOT_ELIGIBLE"
 
@@ -52,6 +55,7 @@ class ManagedLifecycleResult:
     ready_effect: OrdinaryEffectExecutionResult | None = None
     merge_effect: OrdinaryEffectExecutionResult | None = None
     truth_digest: str = ""
+    current_base_sha: str = ""
 
     @property
     def digest(self) -> str:
@@ -68,6 +72,7 @@ class ManagedLifecycleResult:
                     self.merge_effect.digest if self.merge_effect is not None else ""
                 ),
                 "truth_digest": self.truth_digest,
+                "current_base_sha": self.current_base_sha,
             }
         )
 
@@ -195,7 +200,6 @@ class ManagedLifecycleEffectAdapter:
 
         scope = self.handoff.scope
         number = self.handoff.pr_number
-
         if identity.kind is EffectKind.UPDATE_PR:
             if truth.remote_state == "MERGED":
                 return RemoteEffectObservation(
@@ -236,6 +240,15 @@ class ManagedLifecycleEffectAdapter:
 
         scope = self.handoff.scope
         number = self.handoff.pr_number
+        current_base_sha = _current_base_sha(
+            root=self.root,
+            handoff=self.handoff,
+            runner=self.runner,
+        )
+        if current_base_sha != scope.base_sha:
+            raise OrdinaryFrozenBaseMoved(
+                f"managed PR base moved from {scope.base_sha} to {current_base_sha}"
+            )
 
         if identity.kind is EffectKind.UPDATE_PR:
             if truth.remote_state != "OPEN" or not truth.is_draft:
@@ -278,6 +291,34 @@ def _fresh_truth(
         ).observe()
     except ManagedPRRemoteUnavailable as exc:
         raise OrdinaryRemoteUnavailable(str(exc)) from exc
+
+
+def _current_base_sha(
+    *,
+    root: Path,
+    handoff: ManagedOrdinaryHandoff,
+    runner,
+) -> str:
+    scope = handoff.scope
+    encoded = quote(scope.base_ref, safe="")
+    try:
+        result = runner(
+            [
+                "gh", "api", f"repos/{scope.repo}/commits/{encoded}",
+                "--jq", ".sha",
+            ],
+            cwd=root,
+            check=True,
+            text=True,
+            capture_output=True,
+            timeout=60,
+        )
+    except subprocess.SubprocessError as exc:
+        raise OrdinaryRemoteUnavailable(str(exc)) from exc
+    value = str(result.stdout or "").strip()
+    if len(value) != 40 or any(ch not in "0123456789abcdef" for ch in value):
+        raise OrdinaryRemoteUnavailable("current managed PR base SHA is malformed")
+    return value
 
 
 def advance_managed_pr_lifecycle(
@@ -367,6 +408,29 @@ def advance_managed_pr_lifecycle(
             truth_digest=truth.digest,
         )
 
+    if truth.remote_state == "OPEN":
+        try:
+            current_base_sha = _current_base_sha(
+                root=root,
+                handoff=handoff,
+                runner=runner,
+            )
+        except OrdinaryRemoteUnavailable as exc:
+            return ManagedLifecycleResult(
+                ManagedLifecycleDisposition.BLOCKED,
+                f"managed PR base truth unavailable: {exc}",
+                handoff.digest,
+                truth_digest=truth.digest,
+            )
+        if current_base_sha != handoff.scope.base_sha:
+            return ManagedLifecycleResult(
+                ManagedLifecycleDisposition.STALE_MANAGED_BASE,
+                "managed PR frozen base no longer matches current base ref",
+                handoff.digest,
+                truth_digest=truth.digest,
+                current_base_sha=current_base_sha,
+            )
+
     decision = decide_managed_pr_truth(handoff=handoff, truth=truth)
 
     ready_result = None
@@ -390,6 +454,15 @@ def advance_managed_pr_lifecycle(
             ),
             crash_after_execute=crash_after_ready_execute,
         )
+        if ready_result.disposition is OrdinaryEffectExecutionDisposition.STALE_BASE:
+            return ManagedLifecycleResult(
+                ManagedLifecycleDisposition.STALE_MANAGED_BASE,
+                ready_result.reason,
+                handoff.digest,
+                transition_kind=decision.transition.kind.value,
+                ready_effect=ready_result,
+                truth_digest=truth.digest,
+            )
         if not _effect_ok(ready_result):
             return ManagedLifecycleResult(
                 ManagedLifecycleDisposition.BLOCKED,
@@ -460,6 +533,16 @@ def advance_managed_pr_lifecycle(
         ),
         crash_after_execute=crash_after_merge_execute,
     )
+    if merge_result.disposition is OrdinaryEffectExecutionDisposition.STALE_BASE:
+        return ManagedLifecycleResult(
+            ManagedLifecycleDisposition.STALE_MANAGED_BASE,
+            merge_result.reason,
+            handoff.digest,
+            transition_kind=decision.transition.kind.value,
+            ready_effect=ready_result,
+            merge_effect=merge_result,
+            truth_digest=truth.digest,
+        )
     if not _effect_ok(merge_result):
         return ManagedLifecycleResult(
             ManagedLifecycleDisposition.BLOCKED,
