@@ -74,6 +74,7 @@ from v2.objective_command import (
     reconcile_pending_objective_commands,
 )
 from v2.objective_intake import load_manifest
+from v2.mcp_adapter import McpAdapter, SUPPORTED_PROTOCOL_VERSIONS
 from v2.human_review import (
     DevelopmentApiHumanReviewSource,
     HumanReviewStore,
@@ -124,6 +125,7 @@ DEFAULT_REPO = "ni-da-ba/skyforge"
 DEFAULT_PORT = 3000
 MAX_PAYLOAD_BYTES = 5_000_000
 MAX_DOMAIN_PAYLOAD_BYTES = 256_000
+MAX_MCP_PAYLOAD_BYTES = 1_000_000
 _REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 
@@ -232,6 +234,7 @@ class HostedV2Substrate:
         self._lock = threading.RLock()
         self.state = self.store.load()
         self.validate_environment()
+        self.mcp_adapter = McpAdapter(self)
         self.startup_audit_signal_reclassifications = self._migrate_pending_audit_signals()
         self.startup_external_claim_migrations = self._migrate_external_claims_once()
         self.startup_objective_command_reconciliations = (
@@ -268,6 +271,18 @@ class HostedV2Substrate:
         if self.development_write_token and len(self.development_write_token) < 32:
             raise RuntimeError(
                 "SKYFORGE_DEVELOPMENT_WRITE_TOKEN must be at least 32 characters when configured."
+            )
+        if (
+            self.development_api_token
+            and self.development_write_token
+            and hmac.compare_digest(
+                self.development_api_token,
+                self.development_write_token,
+            )
+        ):
+            raise RuntimeError(
+                "SKYFORGE_DEVELOPMENT_API_TOKEN and "
+                "SKYFORGE_DEVELOPMENT_WRITE_TOKEN must be distinct."
             )
         if (
             self.development_write_actor
@@ -519,6 +534,9 @@ class HostedV2Substrate:
                 "human_review_ingress_enabled": True,
                 "development_read_api_enabled": bool(self.development_api_token),
                 "development_write_api_enabled": bool(self.development_write_token),
+                "mcp_read_enabled": bool(self.development_api_token),
+                "mcp_write_enabled": bool(self.development_write_token),
+                "mcp_protocol_versions": list(SUPPORTED_PROTOCOL_VERSIONS),
                 "pending_human_review_command_count": len(
                     self.human_review_command_store.load().pending
                 ),
@@ -665,6 +683,9 @@ class HostedV2Substrate:
                 "development_write_api_enabled": health[
                     "development_write_api_enabled"
                 ],
+                "mcp_read_enabled": health["mcp_read_enabled"],
+                "mcp_write_enabled": health["mcp_write_enabled"],
+                "mcp_protocol_versions": list(health["mcp_protocol_versions"]),
                 "production_execution_gate_digest": health[
                     "production_execution_gate_digest"
                 ],
@@ -1625,6 +1646,19 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
 
+    def _respond_empty(
+        self,
+        status: int,
+        *,
+        headers: Mapping[str, str] | None = None,
+    ) -> None:
+        self.send_response(status)
+        self.send_header("Content-Length", "0")
+        self.send_header("Cache-Control", "no-store")
+        for key, value in (headers or {}).items():
+            self.send_header(key, value)
+        self.end_headers()
+
     def _console_asset(self, path: str) -> tuple[str, bytes] | None:
         assets = {
             "/console": ("text/html; charset=utf-8", "index.html"),
@@ -1664,6 +1698,9 @@ class Handler(BaseHTTPRequestHandler):
         authorization = self.headers.get("Authorization")
         if path == "/healthz":
             self._respond_json(200, self.runtime.health_snapshot())
+            return
+        if path == "/mcp":
+            self._respond_empty(405, headers={"Allow": "POST"})
             return
         console_asset = self._console_asset(path)
         if console_asset is not None:
@@ -1712,6 +1749,83 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = urlsplit(self.path).path
+        if path == "/mcp":
+            if self.headers.get("Origin"):
+                self._respond_json(
+                    403,
+                    {"error": "browser Origin requests are not accepted by the MCP endpoint"},
+                )
+                return
+            authorization = self.headers.get("Authorization")
+            auth_status, access = self.runtime.mcp_adapter.authorize(authorization)
+            if access is None:
+                headers = (
+                    {"WWW-Authenticate": 'Bearer realm="skyforge-mcp"'}
+                    if auth_status == 401
+                    else None
+                )
+                self._respond_json(
+                    auth_status,
+                    {
+                        "error": (
+                            "MCP bearer authorization required"
+                            if auth_status == 401
+                            else "MCP authorization is unavailable"
+                        )
+                    },
+                    headers=headers,
+                )
+                return
+            try:
+                size = int(self.headers.get("Content-Length") or "0")
+            except ValueError:
+                self._respond_json(400, {"error": "invalid MCP payload size"})
+                return
+            if size <= 0 or size > MAX_MCP_PAYLOAD_BYTES:
+                self._respond_json(400, {"error": "invalid MCP payload size"})
+                return
+            content_type = (
+                str(self.headers.get("Content-Type") or "")
+                .split(";", 1)[0]
+                .strip()
+                .lower()
+            )
+            if content_type != "application/json":
+                self._respond_json(
+                    415,
+                    {"error": "MCP endpoint requires application/json"},
+                )
+                return
+            try:
+                message = json.loads(self.rfile.read(size).decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                self._respond_json(
+                    400,
+                    {
+                        "jsonrpc": "2.0",
+                        "id": None,
+                        "error": {
+                            "code": -32700,
+                            "message": "Parse error",
+                        },
+                    },
+                )
+                return
+            result = self.runtime.mcp_adapter.handle(
+                message,
+                authorization=authorization,
+                headers={key: value for key, value in self.headers.items()},
+            )
+            if result.payload is None:
+                self._respond_empty(result.status, headers=result.headers)
+            else:
+                self._respond_json(
+                    result.status,
+                    result.payload,
+                    headers=result.headers,
+                )
+            return
+
         if path == "/api/v1/objectives":
             try:
                 size = int(self.headers.get("Content-Length") or "0")
