@@ -96,8 +96,10 @@ class ClassifierRequest:
             "identified as such in semantic input; for issue-defined new work it must be null. Never "
             "copy task_issue_numbers or a task authority issue number into pr_number. "
             "When task_authority is present, never widen its allowed_paths or protected boundary. "
-            "For executable bounded task work, preserve the task_authority lane/objective/stop_boundary "
-            "in the DISPATCH proposal; the outer controller remains authoritative.\n\n"
+            "For executable bounded task work, copy task_authority lane, objective, and stop_boundary "
+            "EXACTLY byte-for-byte into the DISPATCH proposal; do not summarize, normalize, shorten, "
+            "rephrase, or otherwise rewrite those authoritative strings. The outer controller remains "
+            "authoritative.\n\n"
         )
         return (
             "A filtered Skyforge repository event batch requires a bounded proposal.\n\n"

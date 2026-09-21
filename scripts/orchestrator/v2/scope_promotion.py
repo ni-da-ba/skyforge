@@ -311,6 +311,49 @@ def _control_blockers(root: Path) -> tuple[str, ...]:
     return tuple(blockers)
 
 
+def _scoped_authority_paths(
+    *,
+    root: Path,
+    source: ScopedObjectiveSource,
+    child_proposal_id: str,
+    package_id: str,
+    retrieval_id: str,
+) -> tuple[str, ...]:
+    # Lazy import avoids a module cycle: objective_scoping uses scope_promotion to
+    # advance the same durable transaction.
+    from .objective_scoping import ObjectiveScopeStatus, ObjectiveScopeStore
+
+    record = ObjectiveScopeStore.for_root(root).load().get(source.parent_proposal_id)
+    if record is None:
+        raise ValueError('scoped objective authority record is unavailable')
+    if record.status in {
+        ObjectiveScopeStatus.PREPARED,
+        ObjectiveScopeStatus.HUMAN_GATE,
+        ObjectiveScopeStatus.BLOCKED,
+        ObjectiveScopeStatus.RECOVERY_REQUIRED,
+    }:
+        raise ValueError('scoped objective authority record is not promotable')
+    if record.accepted_main_sha != source.accepted_main_sha:
+        raise ValueError('scoped objective accepted-main identity differs from scope ledger')
+    if record.scope_digest != source.scope_digest:
+        raise ValueError('scoped objective digest differs from scope ledger')
+    if record.issue_number != source.issue_number:
+        raise ValueError('scoped objective issue differs from scope ledger')
+    if record.lane != source.lane:
+        raise ValueError('scoped objective lane differs from scope ledger')
+    if record.stop_boundary != source.stop_boundary:
+        raise ValueError('scoped objective stop boundary differs from scope ledger')
+    if record.child_proposal_id != child_proposal_id:
+        raise ValueError('scoped objective child identity differs from scope ledger')
+    if record.package_id != package_id:
+        raise ValueError('scoped objective package identity differs from scope ledger')
+    if record.retrieval_id != retrieval_id:
+        raise ValueError('scoped objective retrieval identity differs from scope ledger')
+    if not record.proposed_paths:
+        raise ValueError('scoped objective authority path set is empty')
+    return tuple(record.proposed_paths)
+
+
 def validate_promotion(*, root: Path, repo: str, package: ContextPackage, retrieval: ContextRetrievalRecord,
                        gh_runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run) -> PromotionResult:
     root = Path(root).resolve()
@@ -342,6 +385,7 @@ def validate_promotion(*, root: Path, repo: str, package: ContextPackage, retrie
         blockers.append('repository HEAD moved from frozen context package')
 
     proposal = None
+    scoped_allowed_paths: tuple[str, ...] | None = None
     try:
         proposal = _find_proposal(root, package.proposal_id)
     except ValueError as exc:
@@ -403,6 +447,17 @@ def validate_promotion(*, root: Path, repo: str, package: ContextPackage, retrie
                 blockers.append('scoped objective candidate differs from frozen source identity')
             elif proposal.source.accepted_main_sha != package.accepted_main_sha:
                 blockers.append('scoped objective accepted-main identity differs from frozen package')
+            else:
+                try:
+                    scoped_allowed_paths = _scoped_authority_paths(
+                        root=root,
+                        source=proposal.source,
+                        child_proposal_id=proposal.proposal_id,
+                        package_id=package.package_id,
+                        retrieval_id=retrieval.retrieval_id,
+                    )
+                except ValueError as exc:
+                    blockers.append(str(exc))
         else:
             current = compile_objective(proposal.source.objective_text, root=root)
             if current.disposition is not ObjectiveCompileDisposition.CANDIDATE_TASK:
@@ -434,7 +489,19 @@ def validate_promotion(*, root: Path, repo: str, package: ContextPackage, retrie
 
     slice_by_path = {item.path: item for item in retrieval.slices}
     allowed: list[str] = []
-    for raw in retrieval.scope_proposal.paths:
+    candidate_paths = (
+        scoped_allowed_paths
+        if scoped_allowed_paths is not None
+        else retrieval.scope_proposal.paths
+    )
+    if scoped_allowed_paths is not None:
+        proposed = set(retrieval.scope_proposal.paths)
+        for scoped_path in scoped_allowed_paths:
+            if scoped_path not in proposed:
+                blockers.append(
+                    f'scoped authoritative path is absent from retrieval proposal: {scoped_path}'
+                )
+    for raw in candidate_paths:
         try:
             path = _exact_path(raw)
         except ValueError as exc:

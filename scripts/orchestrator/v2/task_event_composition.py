@@ -406,6 +406,7 @@ def build_task_pipeline_seed(
     request = ClassifierRequest(
         current_main=current_main,
         semantic_input=semantic_input,
+        instructions_version=2,
     )
     return TaskPipelineSeed(
         event_id=record.event_id,

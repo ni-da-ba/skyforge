@@ -256,6 +256,7 @@ class TaskPipelineCompositionTest(unittest.TestCase):
             current_main=MAIN,
         )
         semantic = seed.classifier_request.semantic_input
+        self.assertEqual(seed.classifier_request.instructions_version, 2)
         self.assertEqual(semantic["event_keys"], [event.event_id])
         self.assertEqual(semantic["authority_event_keys"], [event.event_id])
         self.assertEqual(semantic["task_issue_numbers"], [900])
