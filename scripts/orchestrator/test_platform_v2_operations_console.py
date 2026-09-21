@@ -173,7 +173,7 @@ class OperationsConsoleTest(unittest.TestCase):
         self.assertIn("no verdict is selected automatically", lowered)
         self.assertIn("objective lifecycle control", lowered)
         self.assertIn("cancel — terminal fence", lowered)
-        self.assertIn("does not kill an already-running provider", lowered)
+        self.assertIn("do not kill an already-running provider", lowered)
         self.assertNotIn("arbitrary terminal", lowered)
 
     def test_post_console_route_is_not_a_mutation_surface(self):
