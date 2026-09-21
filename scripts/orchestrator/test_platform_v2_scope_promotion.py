@@ -14,7 +14,11 @@ from v2.inbox import InboxState
 from v2.objective_ingress import ObjectiveProposalStore, ObjectiveSourceReference
 from v2.objective_intake import load_manifest
 from v2.scope_promotion import PromotionDisposition, validate_promotion
-from v2.task_authority import TaskAuthorityDisposition, parse_typed_task_directive
+from v2.task_authority import (
+ TASK_AUTHORITY_MARKER, TaskAuthorityDisposition, TaskAuthorityWakeReference,
+ parse_typed_task_directive,
+)
+from v2.task_event_composition import TaskAuthorityEventRecord, TaskAuthorityEventStore
 
 REPO_ROOT=Path(__file__).resolve().parents[2]
 BASE_FILES=(
@@ -97,6 +101,34 @@ def candidate_bundle(root, payload=None):
  retrieval=build_retrieval_record(root=root,repo='ni-da-ba/skyforge',package=package,gh_runner=runner_for(payload))
  return prop,package,retrieval,payload
 
+def typed_pending_task(root, *, issue_number, comment_id, allowed_paths):
+ body=(
+  'AUDIT NEW TASK — CONCURRENCY FIXTURE\n'
+  f'{TASK_AUTHORITY_MARKER}\n'
+  + json.dumps({
+   'lane':'Audit',
+   'objective':f'Fixture authority {issue_number}',
+   'stop_boundary':'Stop after fixture.',
+   'allowed_paths':list(allowed_paths),
+   'protected_paths':[],
+   'auto_merge_eligible':False,
+  },sort_keys=True,separators=(',',':'))
+ )
+ observed=f'2026-09-21T19:{comment_id%60:02d}:00Z'
+ event=DurableEvent(
+  True,'fixture typed task','issue_comment','audit_signal',
+  pr_number=issue_number,observed_at=observed,source_id=str(comment_id),
+  signal_kind='task',signal_text=body,
+ )
+ ref=TaskAuthorityWakeReference(
+  repo='ni-da-ba/skyforge',issue_number=issue_number,comment_id=comment_id,
+  actor='ni-da-ba',body=body,created_at=observed,updated_at=observed,
+ )
+ TaskAuthorityEventStore.for_root(root).capture(
+  TaskAuthorityEventRecord(event.event_id,ref,f'delivery-{comment_id}')
+ )
+ return event
+
 class ScopePromotionTest(unittest.TestCase):
  def test_positive_candidate_freezes_existing_typed_authority_syntax(self):
   with tempfile.TemporaryDirectory() as td:
@@ -154,13 +186,117 @@ class ScopePromotionTest(unittest.TestCase):
    blocked=validate_promotion(root=root,repo='ni-da-ba/skyforge',package=package,retrieval=retrieval,gh_runner=runner_for(payload))
    self.assertIn('candidate issue already has an active external ownership claim',blocked.blockers)
 
- def test_pending_protected_task_blocks_promotion(self):
+ def test_disjoint_pending_typed_task_does_not_block_promotion(self):
   with tempfile.TemporaryDirectory() as td:
    root=Path(td); prepare(root); _,package,retrieval,payload=candidate_bundle(root)
-   event=DurableEvent(True,'other task','issue_comment','audit_signal',pr_number=999,source_id='x',signal_kind='task',signal_text='AUDIT NEW TASK')
-   HostedStateStore.for_root(root).save(HostedIngressState(inbox=InboxState(pending_events=(event,))))
-   result=validate_promotion(root=root,repo='ni-da-ba/skyforge',package=package,retrieval=retrieval,gh_runner=runner_for(payload))
-   self.assertIn('another protected task authority is pending',result.blockers)
+   candidate=set(retrieval.scope_proposal.paths)
+   choices=[
+    'docs/agent-state/CURRENT_PROJECT_STATE.md',
+    'docs/agent-state/AUTHORSHIP_STATE.md',
+    'docs/authorship/hydrology-channel.md',
+   ]
+   disjoint=next(path for path in choices if path not in candidate)
+   event=typed_pending_task(root,issue_number=999,comment_id=7101,allowed_paths=(disjoint,))
+   HostedStateStore.for_root(root).save(
+    HostedIngressState(inbox=InboxState(pending_events=(event,)))
+   )
+   result=validate_promotion(
+    root=root,repo='ni-da-ba/skyforge',package=package,retrieval=retrieval,
+    gh_runner=runner_for(payload),
+   )
+   self.assertEqual(result.disposition,PromotionDisposition.READY_FOR_TASK_AUTHORITY_POST)
+   self.assertEqual(result.blockers,())
+
+ def test_overlapping_pending_typed_task_waits(self):
+  with tempfile.TemporaryDirectory() as td:
+   root=Path(td); prepare(root); _,package,retrieval,payload=candidate_bundle(root)
+   overlap=retrieval.scope_proposal.paths[0]
+   event=typed_pending_task(root,issue_number=999,comment_id=7102,allowed_paths=(overlap,))
+   HostedStateStore.for_root(root).save(
+    HostedIngressState(inbox=InboxState(pending_events=(event,)))
+   )
+   result=validate_promotion(
+    root=root,repo='ni-da-ba/skyforge',package=package,retrieval=retrieval,
+    gh_runner=runner_for(payload),
+   )
+   self.assertEqual(result.disposition,PromotionDisposition.BLOCKED)
+   self.assertIn(
+    'another active task authority overlaps candidate mutation scope',
+    result.blockers,
+   )
+
+ def test_two_disjoint_pending_task_authorities_fill_capacity(self):
+  with tempfile.TemporaryDirectory() as td:
+   root=Path(td); prepare(root); _,package,retrieval,payload=candidate_bundle(root)
+   candidate=set(retrieval.scope_proposal.paths)
+   choices=[
+    'docs/agent-state/CURRENT_PROJECT_STATE.md',
+    'docs/agent-state/AUTHORSHIP_STATE.md',
+    'docs/authorship/hydrology-channel.md',
+   ]
+   disjoint=[path for path in choices if path not in candidate][:2]
+   self.assertEqual(len(disjoint),2)
+   first=typed_pending_task(root,issue_number=998,comment_id=7103,allowed_paths=(disjoint[0],))
+   second=typed_pending_task(root,issue_number=999,comment_id=7104,allowed_paths=(disjoint[1],))
+   HostedStateStore.for_root(root).save(
+    HostedIngressState(inbox=InboxState(pending_events=(first,second)))
+   )
+   result=validate_promotion(
+    root=root,repo='ni-da-ba/skyforge',package=package,retrieval=retrieval,
+    gh_runner=runner_for(payload),
+   )
+   self.assertEqual(result.disposition,PromotionDisposition.BLOCKED)
+   self.assertIn(
+    'hosted task-authority concurrency capacity is fully reserved',
+    result.blockers,
+   )
+
+ def test_task_authority_without_durable_provenance_blocks_promotion(self):
+  with tempfile.TemporaryDirectory() as td:
+   root=Path(td); prepare(root); _,package,retrieval,payload=candidate_bundle(root)
+   body=(
+    'AUDIT NEW TASK — MISSING PROVENANCE\n'
+    f'{TASK_AUTHORITY_MARKER}\n'
+    + json.dumps({
+     'lane':'Audit','objective':'Missing provenance fixture',
+     'stop_boundary':'Stop after fixture.',
+     'allowed_paths':['docs/agent-state/CURRENT_PROJECT_STATE.md'],
+    },sort_keys=True,separators=(',',':'))
+   )
+   event=DurableEvent(
+    True,'missing provenance','issue_comment','audit_signal',
+    pr_number=999,source_id='7106',signal_kind='task',signal_text=body,
+   )
+   HostedStateStore.for_root(root).save(
+    HostedIngressState(inbox=InboxState(pending_events=(event,)))
+   )
+   result=validate_promotion(
+    root=root,repo='ni-da-ba/skyforge',package=package,retrieval=retrieval,
+    gh_runner=runner_for(payload),
+   )
+   self.assertEqual(result.disposition,PromotionDisposition.BLOCKED)
+   self.assertIn(
+    'pending task authority lacks durable typed provenance',
+    result.blockers,
+   )
+
+ def test_non_task_protected_authority_still_blocks_promotion(self):
+  with tempfile.TemporaryDirectory() as td:
+   root=Path(td); prepare(root); _,package,retrieval,payload=candidate_bundle(root)
+   event=DurableEvent(
+    True,'human gate','issue_comment','audit_signal',
+    pr_number=999,source_id='7105',signal_kind='human_gate',
+    signal_text='manual review required',
+   )
+   HostedStateStore.for_root(root).save(
+    HostedIngressState(inbox=InboxState(pending_events=(event,)))
+   )
+   result=validate_promotion(
+    root=root,repo='ni-da-ba/skyforge',package=package,retrieval=retrieval,
+    gh_runner=runner_for(payload),
+   )
+   self.assertEqual(result.disposition,PromotionDisposition.BLOCKED)
+   self.assertIn('non-task protected authority is pending',result.blockers)
 
  def test_human_gate_rejects_before_remote_read(self):
   with tempfile.TemporaryDirectory() as td:
